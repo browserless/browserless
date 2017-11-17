@@ -31,6 +31,8 @@ Your application still runs the script itself (much like a database interaction)
 
 ## Node Quickstart
 
+You'll need Node version 8+ to install and run browserless.
+
 1. `git clone https://github.com/joelgriffith/browserless.git`
 2. `cd browserless`
 3. `npm install`
@@ -50,7 +52,7 @@ browserless ships with an interactive debugger that makes writing scripts faster
 
 ## Hosting Providers
 
-You can host this image on just about any major platform that offers hosting for docker. Alternatively, I'd appreciate you giving [browserless a shot](https://browserless.io) as it's built from the top-down for headless browser workflows. It also has a nice list of features:
+You can host this image on just about any major platform that offers hosting for docker. Alternatively, I'd appreciate you giving [browserless a shot](https://browserless.io) as it's built from the ground-up for headless browser workflows. It also has a nice list of features:
 
 - Easily upgrade and toggle between versions at the press of a button. No managing repos and other code artifacts.
 - Never need to update or pull anything from docker. There's literally zero software to install to get started.
