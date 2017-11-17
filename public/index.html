@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Browserless Debugger</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/theme/neo.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
+  <style>
+  * {
+    font-family: Consolas, monaco, monospace;
+    margin: 0;
+    padding: 0;
+    outline: none;
+    box-sizing: border-box;
+  }
+  header {
+    height: 60px;
+    padding: 13px;
+    color: white;
+    border-bottom: 1px solid #ccc;
+    background: linear-gradient(#1f45ce 15%,#1836a2);
+    box-shadow: 0 5px 10px 0 rgba(0,0,0,.1);
+    display: flex;
+    align-items: center;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: normal;
+  }
+  header span {
+    font-size: 14px;
+    margin: 0 10px;
+    margin-left: auto;
+  }
+  html, body, main {
+    width: 100%;
+    height: 100%;
+  }
+  iframe {
+    border: none;
+  }
+  @keyframes pulse {
+    0% {
+      -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0.4);
+    }
+    70% {
+        -webkit-box-shadow: 0 0 0 10px rgba(204,169,44, 0);
+    }
+    100% {
+        -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0);
+    }
+  }
+  .execute-button {
+    animation: pulse 2s infinite;
+    background: linear-gradient(#45ce1f, #45ce1f);
+    border-radius: 17px;
+    box-shadow: 0 1px 10px #45ce1f;
+    cursor: pointer;
+    fill: #fff;
+    height: 34px;
+    margin: 0 0 0 10px;
+    padding: 0;
+    width: 34px;
+  }
+  .resizer {
+    width: 5px;
+    background: #ccc;
+    cursor: col-resize;
+  }
+  .flex-hz {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 120px);
+  }
+  #code-mount {
+    font-size: 16px;
+    line-height: 32px;
+    position: relative;
+    height: 100%;
+  }
+  #frame-mount {
+    flex: 5;
+    position: relative;
+    border-left: 1px solid #ccc;
+    background: #f3f3f3;
+  }
+  footer {
+    background: #333;
+    height: 60px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  footer p,
+  footer a {
+    color: white;
+  }
+  .CodeMirror {
+    font-family: inherit;
+    height: 100%;
+    padding-top: 10px;
+    font-size: 12px;
+  }
+  .CodeMirror-scroll {
+    height: auto;
+    overflow-y: hidden;
+    overflow-x: auto;
+  }
+  </style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Browserless Debugger</h1>
+    <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
+    <span id="about">ⓘ</span>
+  </header>
+  <div class="flex-hz">
+    <section id="code-mount">
+      <textarea>await page.goto('https://example.com');</textarea>
+    </section>
+    <div class="resizer"></div>
+    <section id="frame-mount">
+      <iframe width="100%" height="100%"></iframe>
+    </section>
+  </div>
+  <footer></footer>
+</main>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/mode/javascript/javascript.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/edit/matchbrackets.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/edit/closebrackets.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/comment/comment.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/javascript-hint.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/keymap/sublime.min.js"></script>
+<script>
+  const { port, hostname, protocol } = window.location;
+  const token = new URLSearchParams(window.location.search).get('token');
+  const qsParams = token ? `?token=${token}`: '';
+  const secure = /(https)|(wss)/g.test(protocol);
+  const key = 'browserless_code';
+
+  const $intro = document.querySelector('.intro');
+  const $resizer = document.querySelector('.resizer');
+  const $executeBtn = document.querySelector('.execute-button');
+  const $codeText = document.querySelector('#code-mount textarea');
+  const $debugFrame = document.querySelector('#frame-mount iframe');
+  const $codePanel = document.querySelector('#code-mount');
+  const $resultPanel = document.querySelector('#frame-mount');
+  const $about = document.querySelector('#about');
+
+  const save = (code) => window.localStorage.setItem(key, code);
+  const previousCode = window.localStorage.getItem(key);
+
+  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const hints = [
+    `Tip: This tool uses Google's puppeteer library found <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md">here</a>.`,
+    `Tip: There's no need to require or setup a page object, it's done for you`,
+    `Tip: You can use "debugger;" in your script and it will inject a debugger in the browser`,
+    `Tip: "console.log" will print in the debugging console window`,
+    `Tip: Each time you press play an entirely new session is created`,
+  ];
+
+  setHint = () => {
+    const text = rand(hints);
+    document.querySelector('footer').innerHTML = `<p>${text}</p>`;
+  };
+  setHint();
+  setInterval(setHint, 10000);
+
+  if (previousCode) {
+    $codeText.innerHTML = previousCode;
+  }
+
+  const getLeft = (initialElem) => {
+    let pt = 0;
+    let elem = initialElem;
+    while (elem.offsetParent) {
+      pt += elem.offsetLeft;
+      elem = elem.offsetParent;
+    }
+    return pt;
+  }
+
+  const editor = CodeMirror.fromTextArea($codeText, {
+    lineNumbers: true,
+    mode: { name: 'javascript', globalVars: true },
+    theme: 'neo',
+    lineWrapping: true,
+    allowDropFileTypes: ['text/javascript'],
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    extraKeys: {
+      'Ctrl-Space': 'autocomplete',
+      'Tab': 'autocomplete'
+    },
+    keyMap: 'sublime',
+  });
+
+  const loadIframe = (pageURI, debuggerVersion) => {
+    if (document.querySelector('.intro')) {
+      $intro.parentElement.removeChild($intro);
+    }
+
+    const wsLocation = `${hostname}${port ? `:${port}` : ''}${pageURI}${qsParams}`;
+    $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}&remoteFrontend=true`;
+  };
+
+  fetch(`${secure ? 'https' : 'http'}://${hostname}${port ? `:${port}` : ''}/json/version`, {
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
+  .then(res => res.json())
+  .then((res) => {
+    let aboutTitle = '';
+    for (let key in res) {
+      aboutTitle = `${aboutTitle}${key} = ${res[key]}\n`;
+    }
+    $about.title = aboutTitle;
+  });
+
+  $resizer.addEventListener('mousedown', (evt) => {
+    evt.preventDefault();
+
+    $resultPanel.style['pointer-events'] = 'none';
+
+    let onMouseMove = moveEvent => {
+      if (moveEvent.buttons === 0) {
+        return onMouseUp();
+      }
+
+      $codePanel.style.width = `${moveEvent.clientX}px`;
+    };
+
+    let onMouseUp = () => {
+      $resultPanel.style['pointer-events'] = 'initial';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      onMouseMove = null;
+      onMouseUp = null;
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  $executeBtn.addEventListener('click', async () => {
+    const code = editor.getValue();
+    const formData = new FormData();
+    formData.append('file', new Blob([code], {type: 'text/javascript'}));
+
+    save(code);
+
+    fetch(`${protocol}//${hostname}${port ? `:${port}` : ''}/execute${qsParams}`, { method: 'POST', body: formData })
+      .then((res) => res.json())
+      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
+  });
+</script>
+</script>
+</body>
+</html>

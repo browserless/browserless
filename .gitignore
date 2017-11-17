@@ -1,0 +1,16 @@
+# Built Assets
+node_modules/
+build/
+
+# MAC
+.DS_Store
+
+# Temp files
+*.log
+
+# Caches
+.sass-cache
+_site
+
+# Coverage
+coverage

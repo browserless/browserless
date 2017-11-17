@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2017",
+    "lib": [
+      "dom",
+      "es7"
+    ],
+    "removeComments": true,
+    "noImplicitAny": false,
+    "inlineSourceMap": true,
+    "noEmitOnError": false,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "declaration": true,
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "exclude": [
+    "node_modules",
+    "**/__tests__/*"
+  ]
+}

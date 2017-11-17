@@ -1,0 +1,32 @@
+{
+  "name": "browserless-chrome",
+  "version": "1.0.0",
+  "description": "Chrome-as-a-service on your own hardware or in the cloud.",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "clean": "rimraf build",
+    "dev": "nodemon --watch 'src/*.ts' --exec 'ts-node' src | bunyan",
+    "start": "node ./build | bunyan",
+    "postinstall": "./scripts/get-meta.js",
+    "prepush": "./scripts/prepush.sh"
+  },
+  "author": "jgriffith",
+  "license": "GPLv3",
+  "dependencies": {
+    "@types/node": "^8.0.39",
+    "bunyan": "^1.8.11",
+    "express": "^4.16.2",
+    "http-proxy": "^1.16.2",
+    "lodash": "^4.17.4",
+    "multer": "^1.3.0",
+    "puppeteer": "^0.13.0",
+    "rimraf": "^2.6.1",
+    "typescript": "^2.4.2"
+  },
+  "devDependencies": {
+    "husky": "^0.14.3",
+    "node-fetch": "^1.7.3",
+    "nodemon": "^1.11.0"
+  }
+}
