@@ -113,7 +113,7 @@ export class Chrome {
 
   private async launchChrome({ flags, opts, resolve }): Promise<chrome> {
     const start = Date.now();
-    const args = flags.concat('--no-sandbox');
+    const args = flags.concat(['--no-sandbox', '--always-authorize-plugins']);
     this.activeClients = this.activeClients + 1;
 
     return launch({ ...opts, args })
