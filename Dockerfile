@@ -22,11 +22,11 @@ COPY tsconfig.json .
 # Bundle app source
 COPY . .
 
-# Add repo for adobe-flashplugin
-RUN sudo add-apt-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner"
-
-# Dependencies needed for packages downstream
+# Install flash
 RUN apt-get update && apt-get install -y \
+  software-properties-common \
+  python-software-properties && \
+  add-apt-repository "deb http://archive.canonical.com/ubuntu xenial partner" && apt-get update && apt-get install -y \
   adobe-flashplugin \
   wget \
   unzip \
