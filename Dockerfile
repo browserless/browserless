@@ -18,15 +18,17 @@ WORKDIR $application_directory
 # Install app dependencies
 COPY package.json .
 COPY tsconfig.json .
+ADD localfonts.conf /etc/fonts/local.conf
 
 # Bundle app source
 COPY . .
 
-# Install flash
-RUN apt-get update && apt-get install -y \
-  software-properties-common \
-  python-software-properties && \
-  add-apt-repository "deb http://archive.canonical.com/ubuntu xenial partner" && apt-get update && apt-get install -y \
+# Install all deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  software-properties-common &&\
+  add-apt-repository "deb http://archive.canonical.com/ubuntu xenial partner" &&\
+  add-apt-repository "deb http://archive.canonical.com/ubuntu xenial multiverse" &&\
+  apt-get update && apt-get install -y --no-install-recommends \
   adobe-flashplugin \
   wget \
   unzip \
@@ -80,7 +82,12 @@ RUN apt-get install --yes curl &&\
 # Install emoji's
 RUN cd $font_directory &&\
   wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
-   fc-cache -f -v
+  fc-cache -f -v
+
+# Install mscorefonts Fonts
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
+  apt-get install -y --no-install-recommends fontconfig ttf-mscorefonts-installer &&\
+  fc-cache -f -v
 
 # Build 
 RUN npm install -g typescript @types/node &&\
