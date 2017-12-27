@@ -179,7 +179,9 @@ export class Chrome {
       page,
       port,
       target: createNewPage ? `ws://127.0.0.1:${port}` : chrome.wsEndpoint(),
-      timer: setTimeout(() => this.cleanupSession(session), this.connectionTimeout),
+      timer: this.connectionTimeout !== -1 ?
+        setTimeout(() => this.cleanupSession(session), this.connectionTimeout) :
+        null,
     };
 
     this.cachedClients[id] = session;
