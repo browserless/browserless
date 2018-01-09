@@ -51,16 +51,20 @@ interface chrome {
 }
 
 interface queue {
-  flags: string[],
-  opts: any,
-  resolve: () => any,
+  sessionId: string;
+  flags: string[];
+  opts: any;
+  resolve: () => any;
 }
 
 interface session {
   chrome: chrome;
   page: any;
-  id: string;
-  time: NodeJS.Timer;
+  targetId: string;
+  sessionId: string;
+  target: string;
+  timer: NodeJS.Timer | null;
+  port?: string;
 }
 
 export class Chrome {
@@ -124,7 +128,10 @@ export class Chrome {
       .catch((error) => log.error(error));
   }
 
-  private async requestChrome(flags: string[] = [], opts = {}): Promise<chrome> {
+  private async requestChrome(
+    { flags, opts, sessionId }:
+    { flags: string[], opts: any, sessionId: string }
+  ): Promise<chrome> {
     return new Promise<chrome>((resolve, reject) => {
       const args = flags.concat('--no-sandbox');
 
@@ -134,7 +141,7 @@ export class Chrome {
 
       if (this.activeClients >= this.maxConcurrentSessions) {
         log.info(`Reach concurrency limit, queueing`);
-        this.queue.push({ flags, opts, resolve });
+        this.queue.push({ flags, opts, resolve, sessionId });
         return;
       }
 
@@ -143,15 +150,15 @@ export class Chrome {
     });
   }
 
-  private async cleanupSession(session) {
+  private async cleanupSession(session: session) {
     log.info(`Session closing`);
 
-    if (this.cachedClients[session.id]) {
+    if (this.cachedClients[session.targetId]) {
       this.activeClients = this.activeClients - 1;
-      delete this.cachedClients[session.id];
+      delete this.cachedClients[session.targetId];
       _.attempt(() => {
         session.chrome.close();
-        clearTimeout(session.timer);
+        session.timer && clearTimeout(session.timer);
       });
     }
 
@@ -163,18 +170,26 @@ export class Chrome {
     }
   }
 
-  private async startChromeSession(flags: string[], opts: any, createNewPage: boolean): Promise<session> {
+  private async removeFromQueue(sessionId: string) {
+    this.queue = _.reject(this.queue, (queueItem) => queueItem.sessionId === sessionId);
+  }
+
+  private async startChromeSession(
+    { flags, opts, createNewPage, sessionId }:
+    { flags: string[], opts: any, createNewPage: boolean, sessionId: string }
+  ): Promise<session> {
     let page: any;
-    const chrome = await this.requestChrome(flags, opts);
+    const chrome = await this.requestChrome({ flags, opts, sessionId });
     const port = url.parse(chrome.wsEndpoint()).port;
     if (createNewPage) {
       page = await chrome.newPage();
     }
-    const id:string = page ? `/devtools/page/${page._client._targetId}` : uuid();
+    const targetId:string = page ? `/devtools/page/${page._client._targetId}` : uuid();
 
     // Cache page data so websockets upgrades can find them later
-    const session = {
-      id,
+    const session: session = {
+      sessionId,
+      targetId,
       chrome,
       page,
       port,
@@ -184,7 +199,7 @@ export class Chrome {
         null,
     };
 
-    this.cachedClients[id] = session;
+    this.cachedClients[targetId] = session;
 
     return session;
   }
@@ -194,10 +209,18 @@ export class Chrome {
     const upload = multer();
 
     app.post('/execute', upload.single('file'), async (req, res) => {
-      const { page, id } = await this.startChromeSession([], { sloMo: 500 }, true);
+      const sessionId = uuid();
+      const removeFromQueue = () => this.removeFromQueue(sessionId);
+
+      req.on('end', removeFromQueue);
+
+      const { page, targetId } = await this.startChromeSession({ flags: [], opts: { sloMo: 500 }, createNewPage: true, sessionId });
+
+      req.removeListener('end', removeFromQueue);
+
       let code = req.file.buffer.toString();
 
-      res.json({ targetId: id, debuggerVersion: version['Debugger-Version'] });
+      res.json({ targetId, debuggerVersion: version['Debugger-Version'] });
 
       code = code.replace('debugger', 'page.evaluate(() => { debugger; })');
       code = `(async() => { ${code} })().catch((error) => { console.error('Puppeteer Runtime Error:', error.stack); });`;
@@ -223,18 +246,26 @@ export class Chrome {
     });
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
-      const { id } = await this.startChromeSession([], {}, true);
+      const sessionId = uuid();
+      const removeFromQueue = () => this.removeFromQueue(sessionId);
+
+      req.on('end', removeFromQueue);
+
+      const { targetId } = await this.startChromeSession({ flags: [], opts: {}, createNewPage: true, sessionId });
+
+      req.removeListener('end', removeFromQueue);
+
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss': 'ws';
 
       res.json([{
-        targetId: id,
+        targetId,
         description: '',
-        devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${id}`,
+        devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
         title: 'about:blank',
         type: 'page',
         url: 'about:blank',
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}${id}`
+        webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`
      }]);
     }));
 
@@ -243,8 +274,10 @@ export class Chrome {
     http
       .createServer(app)
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
+        const sessionId = uuid();
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
+        const removeFromQueue = () => this.removeFromQueue(sessionId);
         const flags = _.chain(parsedUrl.query)
           .pickBy((_value, param) => _.startsWith(param, '--'))
           .map((value, key) => `${key}${value ? `=${value}` : ''}`)
@@ -255,18 +288,17 @@ export class Chrome {
 
         log.info(`Upgrade request for ${req.url}`);
 
+        // Add a close event before Chrome starts just in case we're in queue
+        socket.on('close', removeFromQueue);
+
         const priorSession = this.cachedClients[route];
 
-        const session = !!priorSession ?
+        const session:session = !!priorSession ?
           priorSession :
-          await this.startChromeSession(flags, {}, false);
+          await this.startChromeSession({ flags, opts: {}, createNewPage: false, sessionId });
 
-        const close = () => {
-          this.cleanupSession(session);
-        };
-
-        socket.on('close', close);
-        socket.on('error', close);
+        socket.removeListener('close', removeFromQueue);
+        socket.on('close', () => this.cleanupSession(session));
 
         return this.proxy.ws(req, socket, head, { target: session.target });
       })) 
