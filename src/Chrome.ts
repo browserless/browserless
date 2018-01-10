@@ -175,8 +175,8 @@ export class Chrome {
   }
 
   private async startChromeSession(
-    { flags, opts, createNewPage, sessionId }:
-    { flags: string[], opts: any, createNewPage: boolean, sessionId: string }
+    { flags, opts, createNewPage, sessionId, timeout }:
+    { flags: string[], opts: any, createNewPage: boolean, sessionId: string, timeout: number }
   ): Promise<session> {
     let page: any;
     const chrome = await this.requestChrome({ flags, opts, sessionId });
@@ -194,8 +194,8 @@ export class Chrome {
       page,
       port,
       target: createNewPage ? `ws://127.0.0.1:${port}` : chrome.wsEndpoint(),
-      timer: this.connectionTimeout !== -1 ?
-        setTimeout(() => this.cleanupSession(session), this.connectionTimeout) :
+      timer: timeout !== -1 ?
+        setTimeout(() => this.cleanupSession(session), timeout) :
         null,
     };
 
@@ -214,7 +214,13 @@ export class Chrome {
 
       req.on('end', removeFromQueue);
 
-      const { page, targetId } = await this.startChromeSession({ flags: [], opts: { sloMo: 500 }, createNewPage: true, sessionId });
+      const { page, targetId } = await this.startChromeSession({
+        flags: [],
+        opts: { sloMo: 500 },
+        createNewPage: true,
+        sessionId,
+        timeout: this.debugConnectionTimeout,
+      });
 
       req.removeListener('end', removeFromQueue);
 
@@ -251,7 +257,13 @@ export class Chrome {
 
       req.on('end', removeFromQueue);
 
-      const { targetId } = await this.startChromeSession({ flags: [], opts: {}, createNewPage: true, sessionId });
+      const { targetId } = await this.startChromeSession({
+        flags: [],
+        opts: {},
+        createNewPage: true,
+        sessionId,
+        timeout: this.connectionTimeout,
+      });
 
       req.removeListener('end', removeFromQueue);
 
@@ -295,7 +307,13 @@ export class Chrome {
 
         const session:session = !!priorSession ?
           priorSession :
-          await this.startChromeSession({ flags, opts: {}, createNewPage: false, sessionId });
+          await this.startChromeSession({
+            flags,
+            opts: {},
+            createNewPage: false,
+            sessionId,
+            timeout: this.connectionTimeout,
+          });
 
         socket.removeListener('close', removeFromQueue);
         socket.on('close', () => this.cleanupSession(session));
