@@ -73,10 +73,10 @@ RUN apt-get install --yes curl &&\
   apt-get install --yes nodejs &&\
   apt-get install --yes build-essential
 
-# Install emoji's
+# Install fonts
 RUN cd $font_directory &&\
-  wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
-   fc-cache -f -v
+  wget http://steve228uk.webfactional.com/Apple%20Color%20Emoji.ttc &&\
+  fc-cache -f -v
 
 # Build 
 RUN npm install -g typescript @types/node &&\
