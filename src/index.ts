@@ -15,4 +15,5 @@ new Chrome({
   maxConcurrentSessions,
   maxQueueLength,
   logActivity,
-});
+})
+.startServer();

@@ -8,16 +8,16 @@ import * as vm from 'vm';
 import { launch } from 'puppeteer';
 
 import { uuid } from './util';
-import { log } from './logger';
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
+const debug = require('debug')('browserless/chrome');
 
 const asyncMiddleware = (handler) => {
   return (req, socket, head) => {
     Promise.resolve(handler(req, socket, head))
       .catch((error) => {
-        log.warn(error);
+        console.warn(error);
         socket.write('HTTP/1.1 429 Too Many Requests\r\n');
         socket.end();
       });
@@ -78,6 +78,7 @@ export class Chrome {
   private cachedClients: {};
   private proxy: any;
   private queue: queue[];
+  private server: any;
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -103,7 +104,7 @@ export class Chrome {
       res.end(`Issue communicating with Chrome: "${err.message}"`);
     });
 
-    log.info({
+    debug({
       maxConcurrentSessions: opts.maxConcurrentSessions,
       maxQueueLenth: opts.maxQueueLength,
       connectionTimeout: opts.connectionTimeout,
@@ -112,14 +113,12 @@ export class Chrome {
     }, `Final Options`);
 
     opts.logActivity && setInterval(() => {
-      log.info({
+      debug({
         cachedClients: Object.keys(this.cachedClients).length,
         activeClients: this.activeClients,
         queue: this.queue.length,
       });
     }, 5000);
-
-    this.startServer();
   }
 
   private async launchChrome({ flags, opts, resolve }): Promise<chrome> {
@@ -129,10 +128,10 @@ export class Chrome {
 
     return launch({ ...opts, args })
       .then((chrome) => {
-        log.info({ url: chrome.wsEndpoint() }, `Chrome launched in ${Date.now() - start}`);
+        debug({ url: chrome.wsEndpoint() }, `Chrome launched in ${Date.now() - start}`);
         return resolve(chrome);
       })
-      .catch((error) => log.error(error));
+      .catch((error) => console.error(error));
   }
 
   private async requestChrome(
@@ -143,28 +142,28 @@ export class Chrome {
       const args = flags.concat('--no-sandbox');
 
       if (this.activeClients === 0 && this.queue.length) {
-        log.error(`No active clients and there's a queue, draining`);
+        debug(`No active clients and there's a queue, draining`);
         this.queue = [];
       }
 
       if (this.activeClients >= this.maxConcurrentSessions) {
         if (this.queue.length >= this.maxQueueLength) {
-          log.info(`Maximum queue reached, rejecting.`);
+          debug(`Maximum queue reached, rejecting.`);
           return reject('Maximum queue reached');
         }
 
-        log.info(`Reached concurrency limit, queueing`);
+        debug(`Reached concurrency limit, queueing`);
         this.queue.push({ flags, opts, resolve, sessionId });
         return;
       }
 
-      log.info(`Launching Chrome: ${args.join(' ')}`);
+      debug(`Launching Chrome: ${args.join(' ')}`);
       this.launchChrome({ flags, opts, resolve });
     });
   }
 
   private async cleanupSession(session: session) {
-    log.info(`Session closing`);
+    debug(`Session closing`);
 
     if (this.cachedClients[session.targetId]) {
       this.activeClients = this.activeClients - 1;
@@ -178,7 +177,7 @@ export class Chrome {
     const nextJob = this.queue.length && this.queue.shift();
 
     if (nextJob) {
-      log.info('Launching work from queue');
+      debug('Launching work from queue');
       this.launchChrome(nextJob);
     }
   }
@@ -217,7 +216,7 @@ export class Chrome {
     return session;
   }
 
-  private startServer() {
+  public async startServer(): Promise<any> {
     const app = express();
     const upload = multer();
 
@@ -296,7 +295,7 @@ export class Chrome {
 
     app.use('/', express.static('public'));
 
-    http
+    return this.server = http
       .createServer(app)
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
         const sessionId = uuid();
@@ -311,7 +310,7 @@ export class Chrome {
         // Strip qs params as it causes chrome to choke
         req.url = route;
 
-        log.info(`Upgrade request for ${req.url}`);
+        debug(`Upgrade request for ${req.url}`);
 
         // Add a close event before Chrome starts just in case we're in queue
         socket.on('close', removeFromQueue);
@@ -332,7 +331,12 @@ export class Chrome {
         socket.on('close', () => this.cleanupSession(session));
 
         return this.proxy.ws(req, socket, head, { target: session.target });
-      })) 
+      }))
       .listen(this.port);
+  }
+
+  public async close() {
+    this.server.close();
+    this.proxy.close();
   }
 }
