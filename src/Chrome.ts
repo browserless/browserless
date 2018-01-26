@@ -92,7 +92,13 @@ export class Chrome {
     this.queue = [];
 
     this.proxy.on('error', function (err, _req, res) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      if (res.writeHead) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+      }
+
+      if (res.close) {
+        res.close();
+      }
 
       res.end(`Issue communicating with Chrome: "${err.message}"`);
     });
@@ -107,7 +113,8 @@ export class Chrome {
 
     opts.logActivity && setInterval(() => {
       log.info({
-        activeClients: Object.keys(this.cachedClients).length,
+        cachedClients: Object.keys(this.cachedClients).length,
+        activeClients: this.activeClients,
         queue: this.queue.length,
       });
     }, 5000);
@@ -135,12 +142,18 @@ export class Chrome {
     return new Promise<chrome>((resolve, reject) => {
       const args = flags.concat('--no-sandbox');
 
-      if (this.queue.length >= this.maxQueueLength) {
-        return reject('Maximum queue reached');
+      if (this.activeClients === 0 && this.queue.length) {
+        log.error(`No active clients and there's a queue, draining`);
+        this.queue = [];
       }
 
       if (this.activeClients >= this.maxConcurrentSessions) {
-        log.info(`Reach concurrency limit, queueing`);
+        if (this.queue.length >= this.maxQueueLength) {
+          log.info(`Maximum queue reached, rejecting.`);
+          return reject('Maximum queue reached');
+        }
+
+        log.info(`Reached concurrency limit, queueing`);
         this.queue.push({ flags, opts, resolve, sessionId });
         return;
       }
