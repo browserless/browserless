@@ -61,7 +61,7 @@ export class Chrome {
   constructor(opts: opts) {
     this.port = opts.port;
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
-    this.maxQueueLength = opts.maxQueueLength;
+    this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
 
     this.debuggerScripts = new Map();
