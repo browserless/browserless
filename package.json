@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "nodemon --watch 'src/*.ts' --exec 'ts-node' src | bunyan",
+    "dev": "nodemon",
     "start": "node ./build | bunyan",
     "postinstall": "./scripts/get-meta.js",
     "prepush": "./scripts/prepush.sh",
@@ -16,7 +16,6 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@types/node": "^8.0.39",
-    "bunyan": "^1.8.11",
     "debug": "^3.1.0",
     "express": "^4.16.2",
     "http-proxy": "^1.16.2",
