@@ -97,7 +97,7 @@ export class Chrome {
   private async launchChrome({ flags, opts }): Promise<chrome> {
     return launch({
       ...opts,
-      args: flags.concat('--no-sandbox'),
+      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
     })
       .catch((error) => console.error(error));
   }
