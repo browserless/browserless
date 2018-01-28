@@ -6,28 +6,50 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "nodemon --watch 'src/*.ts' --exec 'ts-node' src | bunyan",
+    "dev": "nodemon",
     "start": "node ./build | bunyan",
     "postinstall": "./scripts/get-meta.js",
-    "prepush": "./scripts/prepush.sh"
+    "prepush": "./scripts/prepush.sh",
+    "test": "jest"
   },
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
     "@types/node": "^8.0.39",
-    "bunyan": "^1.8.11",
+    "debug": "^3.1.0",
     "express": "^4.16.2",
     "http-proxy": "^1.16.2",
     "lodash": "^4.17.4",
     "multer": "^1.3.0",
     "puppeteer": "^1.0.0",
+    "queue": "^4.4.2",
     "rimraf": "^2.6.1",
     "typescript": "^2.4.2"
   },
   "devDependencies": {
+    "@types/jest": "^22.1.0",
     "husky": "^0.14.3",
+    "jest": "^22.1.4",
     "node-fetch": "^1.7.3",
     "nodemon": "^1.11.0",
+    "ts-jest": "^22.0.1",
     "ts-node": "^4.1.0"
+  },
+  "jest": {
+    "mapCoverage": true,
+    "coverageDirectory": "../coverage/",
+    "collectCoverageFrom": [
+      "**/*.ts",
+      "!*.*"
+    ],
+    "rootDir": "src",
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ],
+    "transform": {
+      ".(ts)": "<rootDir>/../node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.tsx?$"
   }
 }
