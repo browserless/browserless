@@ -7,7 +7,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "dev": "nodemon",
-    "start": "node ./build | bunyan",
+    "start": "node ./build",
     "postinstall": "./scripts/get-meta.js",
     "prepush": "./scripts/prepush.sh",
     "test": "jest"
