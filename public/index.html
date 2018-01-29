@@ -122,7 +122,10 @@
   </header>
   <div class="flex-hz">
     <section id="code-mount">
-      <textarea>await page.goto('https://example.com');</textarea>
+      <textarea>
+// No need to require puppeteer or create a page
+await page.goto('https://example.com');
+      </textarea>
     </section>
     <div class="resizer"></div>
     <section id="frame-mount">
