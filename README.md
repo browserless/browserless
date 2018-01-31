@@ -5,6 +5,8 @@
 
 [Docker repo here](https://hub.docker.com/r/browserless/chrome/).
 
+[Talk with us on Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LWMzMThjZTdkNzM5NDgwYTgwYzg0YzRhMGFhZGViYjQ4MzgyYWMxNDc0OTgyYzE0ZWFkOGQ2MjI4Yzk3MmQzNTk)
+
 Severless Chrome on your own infrastructure. Each session gets its own clean Chrome context for total isolation. After the session is complete Chrome is shutdown. You can also think of it like a database connection where your app connects to browserless, runs some work, and gets results back. No more worrying about Chrome availability or how to parallelize work as that's done for you seamlessly.
 
 ## Features
