@@ -54,7 +54,8 @@ export class Chrome {
   public connectionTimeout: number;
 
   private proxy: any;
-  private queue: any[];
+  private chromeSwarm: Promise<chrome>[];
+  private queue: any;
   private server: any;
   private debuggerScripts: any;
 
@@ -63,6 +64,7 @@ export class Chrome {
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
+    this.chromeSwarm = [];
 
     this.debuggerScripts = new Map();
 
@@ -80,11 +82,26 @@ export class Chrome {
       res.end(`Issue communicating with Chrome`);
     });
 
+    const addToSwarm = () => {
+      if (this.chromeSwarm.length < this.maxConcurrentSessions) {
+        debug(`Adding Chrome instance to swarm, ${this.chromeSwarm.length} online`);
+        this.chromeSwarm.push(this.launchChrome());
+      }
+    };
+
     this.queue = queue({
       concurrency: opts.maxConcurrentSessions,
       timeout: opts.connectionTimeout,
       autostart: true
     });
+
+    this.queue.on('error', addToSwarm);
+    this.queue.on('success', addToSwarm);
+    this.queue.on('timeout', addToSwarm);
+
+    for (let i = 0; i < this.maxConcurrentSessions; i++) {
+      this.chromeSwarm.push(this.launchChrome());
+    }
 
     debug({
       maxConcurrentSessions: opts.maxConcurrentSessions,
@@ -94,11 +111,16 @@ export class Chrome {
     }, `Final Options`);
   }
 
-  private async launchChrome({ flags, opts }): Promise<chrome> {
+  private async launchChrome(flags:string[] = []): Promise<chrome> {
+    const start = Date.now();
+    debug('Chrome Starting');
     return launch({
-      ...opts,
       args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
     })
+      .then((chrome) => {
+        debug(`Chrome launched ${Date.now() - start}ms`);
+        return chrome;
+      })
       .catch((error) => console.error(error));
   }
 
@@ -168,9 +190,12 @@ export class Chrome {
             .map((value, key) => `${key}${value ? `=${value}` : ''}`)
             .value();
 
-          debug(`${req.url}: Launching Chrome for WebSocket upgrade.`);
+          const canUseChromeSwarm = !flags.length && !!this.chromeSwarm.length;
+          const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
 
-          this.launchChrome({ flags, opts: {} })
+          debug(`${req.url}: WebSocket upgrade.`);
+
+          (launchPromise || this.launchChrome())
             .then(async (chrome) => {
               const browserWsEndpoint = chrome.wsEndpoint();
 
