@@ -39,6 +39,7 @@ export interface opts {
   port: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
+  prebootChrome: boolean;
 }
 
 interface chrome {
@@ -54,6 +55,7 @@ export class Chrome {
   public connectionTimeout: number;
 
   private proxy: any;
+  private prebootChrome: boolean;
   private chromeSwarm: Promise<chrome>[];
   private queue: any;
   private server: any;
@@ -65,8 +67,16 @@ export class Chrome {
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
     this.chromeSwarm = [];
+    this.prebootChrome = opts.prebootChrome;
 
     this.debuggerScripts = new Map();
+
+    const addToSwarm = () => {
+      if (this.prebootChrome && (this.chromeSwarm.length < this.maxConcurrentSessions)) {
+        debug(`Adding Chrome instance to swarm, ${this.chromeSwarm.length} online`);
+        this.chromeSwarm.push(this.launchChrome());
+      }
+    };
 
     this.proxy = new httpProxy.createProxyServer();
     this.proxy.on('error', function (err, _req, res) {
@@ -82,32 +92,32 @@ export class Chrome {
       res.end(`Issue communicating with Chrome`);
     });
 
-    const addToSwarm = () => {
-      if (this.chromeSwarm.length < this.maxConcurrentSessions) {
-        debug(`Adding Chrome instance to swarm, ${this.chromeSwarm.length} online`);
-        this.chromeSwarm.push(this.launchChrome());
-      }
-    };
-
     this.queue = queue({
       concurrency: opts.maxConcurrentSessions,
       timeout: opts.connectionTimeout,
       autostart: true
     });
-
-    this.queue.on('error', addToSwarm);
     this.queue.on('success', addToSwarm);
-    this.queue.on('timeout', addToSwarm);
+    this.queue.on('error', addToSwarm);
+    this.queue.on('timeout', (next, job) => {
+      debug(`Timeout hit for session, closing.`);
+      job.close();
+      addToSwarm();
+      next();
+    });
 
-    for (let i = 0; i < this.maxConcurrentSessions; i++) {
-      this.chromeSwarm.push(this.launchChrome());
+    if (this.prebootChrome) {
+      for (let i = 0; i < this.maxConcurrentSessions; i++) {
+        this.chromeSwarm.push(this.launchChrome());
+      }
     }
 
     debug({
-      maxConcurrentSessions: opts.maxConcurrentSessions,
-      maxQueueLength: opts.maxQueueLength,
-      connectionTimeout: opts.connectionTimeout,
-      port: opts.port,
+      maxConcurrentSessions: this.maxConcurrentSessions,
+      maxQueueLength: this.maxQueueLength,
+      connectionTimeout: this.connectionTimeout,
+      port: this.port,
+      prebootChrome: this.prebootChrome
     }, `Final Options`);
   }
 
@@ -175,13 +185,13 @@ export class Chrome {
         debug(`${req.url}: Inbound WebSocket request, ${this.queue.length} in queue.`);
 
         if (this.queue.length >= this.maxQueueLength) {
-          debug(`${req.url}: Queue is full, rejecting`);
+          debug(`${req.url}: Queue is full, rejecting. ${this.queue.length} in queue`);
           socket.write('HTTP/1.1 429 Too Many Requests\r\n');
           socket.end();
           return;
         }
 
-        this.queue.push((done) => {
+        const job:any = (done: () => {}) => {
           const parsedUrl = url.parse(req.url, true);
           const route = parsedUrl.pathname || '/';
 
@@ -202,7 +212,7 @@ export class Chrome {
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
-                debug(`${req.url}: Session closed. ${this.queue.length} in queue`);
+                debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} in queue`);
                 chrome.close();
                 done();
               });
@@ -241,7 +251,14 @@ export class Chrome {
               return `ws://127.0.0.1:${port}`;
             })
             .then((target) => this.proxy.ws(req, socket, head, { target }));
-        });
+        };
+
+        job.close = () => {
+          socket.write('HTTP/1.1 408 Request has timed out\r\n');
+          socket.end();
+        };
+
+        this.queue.push(job);
       }))
       .listen(this.port);
   }

@@ -4,6 +4,7 @@ import {
   port,
   maxConcurrentSessions,
   maxQueueLength,
+  prebootChrome,
 } from './config';
 
 new Chrome({
@@ -11,5 +12,6 @@ new Chrome({
   port,
   maxConcurrentSessions,
   maxQueueLength,
+  prebootChrome,
 })
 .startServer();
