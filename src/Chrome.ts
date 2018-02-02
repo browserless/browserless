@@ -54,7 +54,7 @@ export class Chrome {
   public connectionTimeout: number;
 
   private proxy: any;
-  private queue: any[];
+  private queue: any;
   private server: any;
   private debuggerScripts: any;
 
@@ -84,6 +84,12 @@ export class Chrome {
       concurrency: opts.maxConcurrentSessions,
       timeout: opts.connectionTimeout,
       autostart: true
+    });
+
+    this.queue.on('timeout', (next, job) => {
+      debug(`Timeout hit for session, closing.`);
+      job.close();
+      next();
     });
 
     debug({
@@ -159,7 +165,7 @@ export class Chrome {
           return;
         }
 
-        this.queue.push((done) => {
+        const job:any = (done: () => {}) => {
           const parsedUrl = url.parse(req.url, true);
           const route = parsedUrl.pathname || '/';
 
@@ -216,7 +222,14 @@ export class Chrome {
               return `ws://127.0.0.1:${port}`;
             })
             .then((target) => this.proxy.ws(req, socket, head, { target }));
-        });
+        };
+
+        job.close = () => {
+          socket.write('HTTP/1.1 408 Request has timed out\r\n');
+          socket.end();
+        };
+
+        this.queue.push(job);
       }))
       .listen(this.port);
   }
