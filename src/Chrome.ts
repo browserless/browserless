@@ -37,14 +37,14 @@ const asyncMiddleware = (handler) => {
   }
 };
 
-const oneMinute = 60 * 1000;
+const thiryMinutes = 30 * 60 * 1000;
 
 export interface opts {
   connectionTimeout: number;
   port: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
-  rejectAlertURL: string;
+  rejectAlertURL: string | null;
 }
 
 interface chrome {
@@ -63,7 +63,7 @@ export class Chrome {
   private queue: any;
   private server: any;
   private debuggerScripts: any;
-  private onRejected: Function;
+  private onRejected: Function ;
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -100,7 +100,10 @@ export class Chrome {
     });
 
     this.onRejected = opts.rejectAlertURL ?
-      _.debounce(() => request(opts.rejectAlertURL), oneMinute, { leading: true, trailing: false }) :
+      _.debounce(() => {
+        debug(`Calling webhook for rejected session(s): ${opts.rejectAlertURL}`);
+        request(opts.rejectAlertURL, _.noop);
+      }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
 
     debug({
