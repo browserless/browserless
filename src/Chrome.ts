@@ -1,4 +1,5 @@
 import * as _ from 'lodash';
+import * as os from 'os';
 import * as url from 'url';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
@@ -8,6 +9,8 @@ import * as vm from 'vm';
 import { launch } from 'puppeteer';
 
 const debug = require('debug')('browserless/chrome');
+const cpuStats = require('cpu-stats');
+const request = require('request');
 const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -34,11 +37,14 @@ const asyncMiddleware = (handler) => {
   }
 };
 
+const oneMinute = 60 * 1000;
+
 export interface opts {
   connectionTimeout: number;
   port: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
+  rejectAlertURL: string;
 }
 
 interface chrome {
@@ -57,6 +63,7 @@ export class Chrome {
   private queue: any;
   private server: any;
   private debuggerScripts: any;
+  private onRejected: Function;
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -92,6 +99,10 @@ export class Chrome {
       next();
     });
 
+    this.onRejected = opts.rejectAlertURL ?
+      _.debounce(() => request(opts.rejectAlertURL), oneMinute, { leading: true, trailing: false }) :
+      _.noop;
+
     debug({
       maxConcurrentSessions: opts.maxConcurrentSessions,
       maxQueueLength: opts.maxQueueLength,
@@ -115,6 +126,18 @@ export class Chrome {
     app.use('/', express.static('public'));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
+    app.get('/metrics', (_req, res) => {
+      cpuStats(100, (_err, results) => {
+        res.json({
+          memoryAvailable: (os.freemem() / os.totalmem()) * 100,
+          cpuAvailable: 100 - (results.reduce((accum, stat) => accum + stat.cpu, 0) / results.length),
+          running: this.queue.length,
+          queued: this.queue.length > this.maxConcurrentSessions ?
+            this.queue.length - this.maxConcurrentSessions :
+            0,
+        });
+      });
+    });
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();
@@ -162,6 +185,7 @@ export class Chrome {
           debug(`${req.url}: Queue is full, rejecting`);
           socket.write('HTTP/1.1 429 Too Many Requests\r\n');
           socket.end();
+          this.onRejected();
           return;
         }
 
