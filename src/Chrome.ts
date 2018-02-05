@@ -45,6 +45,7 @@ export interface opts {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   rejectAlertURL: string | null;
+  queuedAlertURL: string | null;
 }
 
 interface chrome {
@@ -63,7 +64,8 @@ export class Chrome {
   private queue: any;
   private server: any;
   private debuggerScripts: any;
-  private onRejected: Function ;
+  private onRejected: Function;
+  private onQueued: Function;
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -88,8 +90,8 @@ export class Chrome {
     });
 
     this.queue = queue({
-      concurrency: opts.maxConcurrentSessions,
-      timeout: opts.connectionTimeout,
+      concurrency: this.maxConcurrentSessions,
+      timeout: this.connectionTimeout,
       autostart: true
     });
 
@@ -98,6 +100,13 @@ export class Chrome {
       job.close();
       next();
     });
+
+    this.onQueued = opts.queuedAlertURL ?
+      _.debounce(() => {
+        debug(`Calling webhook for queued session(s): ${opts.queuedAlertURL}`);
+        request(opts.queuedAlertURL, _.noop);
+      }, thiryMinutes, { leading: true, trailing: false }) :
+      _.noop;
 
     this.onRejected = opts.rejectAlertURL ?
       _.debounce(() => {
@@ -182,14 +191,21 @@ export class Chrome {
     return this.server = http
       .createServer(app)
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
-        debug(`${req.url}: Inbound WebSocket request, ${this.queue.length} in queue.`);
+        const queueLength = this.queue.length;
 
-        if (this.queue.length >= this.maxQueueLength) {
+        debug(`${req.url}: Inbound WebSocket request, ${queueLength} in queue.`);
+
+        if (queueLength >= this.maxQueueLength) {
           debug(`${req.url}: Queue is full, rejecting`);
           socket.write('HTTP/1.1 429 Too Many Requests\r\n');
           socket.end();
           this.onRejected();
           return;
+        }
+
+        if (queueLength >= this.maxConcurrentSessions) {
+          debug(`${req.url}: Concurrency limit hit, queueing`);
+          this.onQueued();
         }
 
         const job:any = (done: () => {}) => {
@@ -210,7 +226,7 @@ export class Chrome {
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
-                debug(`${req.url}: Session closed. ${this.queue.length} in queue`);
+                debug(`${req.url}: Session closed. ${queueLength} in queue`);
                 chrome.close();
                 done();
               });
