@@ -46,6 +46,7 @@ export interface opts {
   maxQueueLength: number;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
+  timeoutAlertURL: string | null;
 }
 
 interface chrome {
@@ -66,6 +67,7 @@ export class Chrome {
   private debuggerScripts: any;
   private onRejected: Function;
   private onQueued: Function;
+  private onTimedOut: Function;
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -97,6 +99,7 @@ export class Chrome {
 
     this.queue.on('timeout', (next, job) => {
       debug(`Timeout hit for session, closing.`);
+      this.onTimedOut();
       job.close();
       next();
     });
@@ -111,6 +114,13 @@ export class Chrome {
     this.onRejected = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling webhook for rejected session(s): ${opts.rejectAlertURL}`);
+        request(opts.rejectAlertURL, _.noop);
+      }, thiryMinutes, { leading: true, trailing: false }) :
+      _.noop;
+
+    this.onTimedOut = opts.timeoutAlertURL ?
+      _.debounce(() => {
+        debug(`Calling webhook for timed-out session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
@@ -226,7 +236,7 @@ export class Chrome {
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
-                debug(`${req.url}: Session closed. ${queueLength} in queue`);
+                debug(`${req.url}: Session closed. ${this.queue.length} in queue`);
                 chrome.close();
                 done();
               });

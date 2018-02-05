@@ -10,6 +10,7 @@ function parseParam(param:any, defaultParam:any) {
 const port =                   parseParam(process.env.PORT, 8080);
 const rejectAlertURL =         process.env.REJECT_ALERT_URL || null;
 const queuedAlertURL =         process.env.QUEUE_ALERT_URL || null;
+const timeoutAlertURL =         process.env.TIMEOUT_ALERT_URL || null;
 const maxQueueLength =         parseParam(process.env.MAX_QUEUE_LENGTH, 10);
 const connectionTimeout =      parseParam(process.env.CONNECTION_TIMEOUT, 30000);
 const maxConcurrentSessions =  parseParam(process.env.MAX_CONCURRENT_SESSIONS, 10);
@@ -21,5 +22,6 @@ new Chrome({
   maxQueueLength,
   rejectAlertURL,
   queuedAlertURL,
+  timeoutAlertURL,
 })
 .startServer();
