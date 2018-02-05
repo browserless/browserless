@@ -98,7 +98,7 @@ export class Chrome {
     });
 
     this.queue.on('timeout', (next, job) => {
-      debug(`Timeout hit for session, closing.`);
+      debug(`Timeout hit for session, closing. ${this.queue.length} in queue.`);
       this.onTimedOut();
       job.close();
       next();
@@ -126,10 +126,13 @@ export class Chrome {
       _.noop;
 
     debug({
-      maxConcurrentSessions: opts.maxConcurrentSessions,
-      maxQueueLength: opts.maxQueueLength,
-      connectionTimeout: opts.connectionTimeout,
       port: opts.port,
+      connectionTimeout: opts.connectionTimeout,
+      maxQueueLength: opts.maxQueueLength,
+      maxConcurrentSessions: opts.maxConcurrentSessions,
+      rejectAlertURL: opts.rejectAlertURL,
+      timeoutAlertURL: opts.timeoutAlertURL,
+      queuedAlertURL: opts.queuedAlertURL,
     }, `Final Options`);
   }
 
@@ -203,7 +206,7 @@ export class Chrome {
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
         const queueLength = this.queue.length;
 
-        debug(`${req.url}: Inbound WebSocket request, ${queueLength} in queue.`);
+        debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
 
         if (queueLength >= this.maxQueueLength) {
           debug(`${req.url}: Queue is full, rejecting`);
