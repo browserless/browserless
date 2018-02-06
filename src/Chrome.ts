@@ -7,6 +7,7 @@ import * as express from 'express';
 import * as multer from 'multer';
 import * as vm from 'vm';
 import { launch } from 'puppeteer';
+import { setInterval } from 'timers';
 
 const debug = require('debug')('browserless/chrome');
 const cpuStats = require('cpu-stats');
@@ -56,21 +57,32 @@ interface chrome {
   close: () => {};
 }
 
+interface metric {
+  date: Number;
+  queued: Number;
+  running: Number;
+  rejected: Number;
+  timedout: Number;
+}
+
 export class Chrome {
   public port: number;
   public maxConcurrentSessions: number;
   public maxQueueLength: number;
   public connectionTimeout: number;
+  public onRejected: Function;
+  public onQueued: Function;
+  public onTimedOut: Function;
+  public prebootChrome: boolean;
 
   private proxy: any;
-  private prebootChrome: boolean;
   private chromeSwarm: Promise<chrome>[];
   private queue: any;
   private server: any;
   private debuggerScripts: any;
-  private onRejected: Function;
-  private onQueued: Function;
-  private onTimedOut: Function;
+  private rejected: number;
+  private timedout: number;
+  private metrics: metric[];
 
   constructor(opts: opts) {
     this.port = opts.port;
@@ -109,6 +121,8 @@ export class Chrome {
       autostart: true
     });
 
+    this.metrics = [];
+
     this.queue.on('success', addToSwarm);
     this.queue.on('error', addToSwarm);
     this.queue.on('timeout', (next, job) => {
@@ -145,6 +159,16 @@ export class Chrome {
         request(opts.rejectAlertURL, _.noop);
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
+
+    setInterval(() => {
+      this.metrics.push({
+        date: Date.now(),
+        queued: this.queue.length - opts.maxConcurrentSessions || 0,
+        rejected: 0,
+        timedout: 0,
+        running: this.queue.length,
+      });
+    }, 300000);
 
     debug({
       port: opts.port,
