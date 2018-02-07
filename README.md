@@ -9,7 +9,7 @@
 
 Severless Chrome on your own infrastructure. Each session gets its own clean Chrome context for total isolation. After the session is complete Chrome is shutdown. You can also think of it like a database connection where your app connects to browserless, runs some work, and gets results back. No more worrying about Chrome availability or how to parallelize work as that's done for you seamlessly.
 
-## Features
+## 🙌 Features
 
 - Parallelization and queueing which are configurable
 - Fonts and emoji's work
@@ -19,19 +19,19 @@ Severless Chrome on your own infrastructure. Each session gets its own clean Chr
 - Works with just about any headless library
 - Configurable session timers to keep things running smoothly
 
-## How it works
+## 😕 How it works
 
 Every Chrome library functions the same at the lowest level: over a websocket connection. When a websocket connects to browserless, Chrome is started (<100ms) and that socket is then proxied into Chrome. Once the session is done, Chrome is closed and browserless waits for further connections. Some libraries use Chrome's HTTP endpoints, like `/json` to inspect debuggable targets, which browserless also supports. These HTTP calls also generate a fresh copy of Chrome, and expose debugging endpoints which most libraries will connect to.
 
 Your application still runs the script itself (much like a database interaction), which gives you total control over what library you want to chose and when to do upgrades. This is preferable over other solutions as Chrome is still breaking their debugging protocol quite frequently.
 
-## Docker Quickstart
+## 🐳 Docker Quickstart
 
 1. `docker pull browserless/chrome`
 2. `docker run --shm-size=1gb -p 3000:3000 browserless/chrome`
 3. Visit `http://localhost:3000/` to use the interactive debugger.
 
-## Node Quickstart
+## 💻 Node Quickstart
 
 You'll need Node version 8+ to install and run browserless.
 
@@ -41,9 +41,11 @@ You'll need Node version 8+ to install and run browserless.
 4. `npm run dev`
 5. Visit `http://localhost:3000/` to use the interactive debugger.
 
-## Debugger
+## 🐛 Debugger
 
 ![Browserless Debugger](./assets/demo.gif)
+
+⚠️ **HOSTING**: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site _needs_ to be deployed under HTTPS. This is due to devtools scripts being loaded from an http-based domain. For further help/information look at some projects like [localtunnel](https://github.com/localtunnel/localtunnel), [certbot](https://certbot.eff.org/), or even netlify to achieve these efforts.
 
 browserless ships with an interactive debugger that makes writing scripts faster and interactive. You can use things like `debugger;` and `console.log` to capture what's happening on the page while your script is running. All of the Chrome devtools are there at your disposal. A small list of features includes:
 
