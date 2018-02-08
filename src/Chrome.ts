@@ -1,15 +1,13 @@
 import * as _ from 'lodash';
-import * as os from 'os';
 import * as url from 'url';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
-import * as vm from 'vm';
+import { VM } from 'vm2';
 import { launch } from 'puppeteer';
 
 const debug = require('debug')('browserless/chrome');
-const cpuStats = require('cpu-stats');
 const request = require('request');
 const queue = require('queue');
 const version = require('../version.json');
@@ -178,18 +176,6 @@ export class Chrome {
     app.use('/', express.static('public'));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => {
-      cpuStats(100, (_err, results) => {
-        res.json({
-          memoryAvailable: (os.freemem() / os.totalmem()) * 100,
-          cpuAvailable: 100 - (results.reduce((accum, stat) => accum + stat.cpu, 0) / results.length),
-          running: this.queue.length,
-          queued: this.queue.length > this.maxConcurrentSessions ?
-            this.queue.length - this.maxConcurrentSessions :
-            0,
-        });
-      });
-    });
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();
@@ -290,7 +276,8 @@ export class Chrome {
               if (this.debuggerScripts.has(route)) {
                 const code = this.debuggerScripts.get(route);
                 debug(`${req.url}: Loading prior-uploaded script to execute for route.`);
-                const scope = {
+
+                const sandbox = {
                   page,
                   console: {
                     log: (...args) => page.evaluate((...args) => console.log(...args), ...args),
@@ -299,8 +286,13 @@ export class Chrome {
                   },
                 };
 
+                const vm = new VM({
+                  sandbox,
+                  timeout: this.connectionTimeout
+                });
+
                 this.debuggerScripts.delete(route);
-                vm.runInNewContext(code, scope);
+                vm.run(code);
               }
 
               req.url = pageLocation;
