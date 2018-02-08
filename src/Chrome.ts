@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as url from 'url';
@@ -7,6 +9,7 @@ import * as express from 'express';
 import * as multer from 'multer';
 import * as vm from 'vm';
 import { launch } from 'puppeteer';
+import { setInterval } from 'timers';
 
 const debug = require('debug')('browserless/chrome');
 const cpuStats = require('cpu-stats');
@@ -14,6 +17,8 @@ const request = require('request');
 const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
+
+const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
 
 const chromeTarget = () => {
   var text = '';
@@ -38,8 +43,10 @@ const asyncMiddleware = (handler) => {
 };
 
 const thiryMinutes = 30 * 60 * 1000;
+const fiveMinutes = 60 * 1000;
+const maxStats = 12 * 24 * 7; // One week @ 5-min intervals
 
-export interface opts {
+export interface IOptions {
   connectionTimeout: number;
   port: number;
   maxConcurrentSessions: number;
@@ -50,11 +57,21 @@ export interface opts {
   timeoutAlertURL: string | null;
 }
 
-interface chrome {
+interface IChrome {
   wsEndpoint: () => string;
   newPage: () => any;
-  close: () => {};
+  close: () => void;
 }
+
+interface IStats {
+  date: number | null;
+  requests: number;
+  queued: number;
+  rejected: number;
+  timedout: number;
+  cpuPercent: number;
+  memoryPercent: number;
+};
 
 export class Chrome {
   public port: number;
@@ -64,30 +81,28 @@ export class Chrome {
 
   private proxy: any;
   private prebootChrome: boolean;
-  private chromeSwarm: Promise<chrome>[];
+  private chromeSwarm: Promise<IChrome>[];
   private queue: any;
   private server: any;
   private debuggerScripts: any;
-  private onRejected: Function;
-  private onQueued: Function;
-  private onTimedOut: Function;
 
-  constructor(opts: opts) {
+  readonly rejectHook: Function;
+  readonly queueHook: Function;
+  readonly timeoutHook: Function;
+
+  private stats: IStats[];
+  private currentStat: IStats;
+
+  constructor(opts: IOptions) {
     this.port = opts.port;
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
-    this.chromeSwarm = [];
     this.prebootChrome = opts.prebootChrome;
 
+    this.chromeSwarm = [];
+    this.stats = []
     this.debuggerScripts = new Map();
-
-    const addToSwarm = () => {
-      if (this.prebootChrome && (this.chromeSwarm.length < this.maxConcurrentSessions)) {
-        debug(`Adding Chrome instance to swarm, ${this.chromeSwarm.length} online`);
-        this.chromeSwarm.push(this.launchChrome());
-      }
-    };
 
     this.proxy = new httpProxy.createProxyServer();
     this.proxy.on('error', function (err, _req, res) {
@@ -109,37 +124,25 @@ export class Chrome {
       autostart: true
     });
 
-    this.queue.on('success', addToSwarm);
-    this.queue.on('error', addToSwarm);
-    this.queue.on('timeout', (next, job) => {
-      debug(`Timeout hit for session, closing. ${this.queue.length} in queue.`);
-      this.onTimedOut();
-      job.close();
-      addToSwarm();
-      next();
-    });
+    this.queue.on('success', this.addToSwarm);
+    this.queue.on('error', this.addToSwarm);
+    this.queue.on('timeout', this.onTimedOut);
 
-    if (this.prebootChrome) {
-      for (let i = 0; i < this.maxConcurrentSessions; i++) {
-        this.chromeSwarm.push(this.launchChrome());
-      }
-    }
-
-    this.onQueued = opts.queuedAlertURL ?
+    this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
         debug(`Calling webhook for queued session(s): ${opts.queuedAlertURL}`);
         request(opts.queuedAlertURL, _.noop);
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
 
-    this.onRejected = opts.rejectAlertURL ?
+    this.rejectHook = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling webhook for rejected session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
 
-    this.onTimedOut = opts.timeoutAlertURL ?
+    this.timeoutHook = opts.timeoutAlertURL ?
       _.debounce(() => {
         debug(`Calling webhook for timed-out session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
@@ -156,9 +159,90 @@ export class Chrome {
       queuedAlertURL: opts.queuedAlertURL,
       prebootChrome: opts.prebootChrome,
     }, `Final Options`);
+
+    setInterval(this.recordMetrics.bind(this), fiveMinutes);
+
+    if (this.prebootChrome) {
+      for (let i = 0; i < this.maxConcurrentSessions; i++) {
+        this.chromeSwarm.push(this.launchChrome());
+      }
+    }
+
+    this.resetCurrentStat();
   }
 
-  private async launchChrome(flags:string[] = []): Promise<chrome> {
+  private onRequest(req) {
+    debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
+    this.currentStat.requests = this.currentStat.requests + 1;
+  }
+
+  private onTimedOut(next, job) {
+    debug(`Timeout hit for session, closing. ${this.queue.length} in queue.`);
+    job.close('HTTP/1.1 408 Request has timed out\r\n');
+    this.currentStat.timedout = this.currentStat.timedout + 1;
+    this.timeoutHook();
+    this.addToSwarm();
+    next();
+  }
+
+  private onQueued(req) {
+    debug(`${req.url}: Concurrency limit hit, queueing`);
+    this.currentStat.queued = this.currentStat.queued + 1;
+    this.queueHook();
+  }
+
+  private onRejected(req, socket) {
+    debug(`${req.url}: Queue is full, rejecting`);
+    this.closeSocket(socket, 'HTTP/1.1 429 Too Many Requests\r\n');
+    this.currentStat.rejected = this.currentStat.rejected + 1;
+    this.rejectHook();
+  }
+
+  private resetCurrentStat() {
+    debug(`Clearing current stat sample`);
+    this.currentStat = {
+      rejected: 0,
+      queued: 0,
+      requests: 0,
+      timedout: 0,
+      cpuPercent: 0,
+      memoryPercent: 0,
+      date: null,
+    };
+  }
+
+  private recordMetrics() {
+    debug(`Recording current stat sample`);
+
+    cpuStats(100, (_err, results) => {
+      this.stats.push(_.assign({}, this.currentStat, {
+        date: Date.now(),
+        memoryPercent: (1 - (os.freemem() / os.totalmem())) * 100,
+        cpuPercent: results.reduce((accum, stat) => accum + stat.cpu, 0) / results.length,
+      }));
+
+      this.resetCurrentStat();
+
+      if (this.stats.length > maxStats) {
+        this.stats.shift();
+      }
+    });
+  }
+
+  private addToSwarm() {
+    if (this.prebootChrome && (this.chromeSwarm.length < this.maxConcurrentSessions)) {
+      this.chromeSwarm.push(this.launchChrome());
+      debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
+    }
+  }
+
+  private closeSocket(socket: any, message: string) {
+    debug(`Closing socket.`);
+    socket.end(message);
+    socket.destroy();
+  }
+
+  private async launchChrome(flags:string[] = []): Promise<IChrome> {
     const start = Date.now();
     debug('Chrome Starting');
     return launch({
@@ -178,18 +262,7 @@ export class Chrome {
     app.use('/', express.static('public'));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => {
-      cpuStats(100, (_err, results) => {
-        res.json({
-          memoryAvailable: (os.freemem() / os.totalmem()) * 100,
-          cpuAvailable: 100 - (results.reduce((accum, stat) => accum + stat.cpu, 0) / results.length),
-          running: this.queue.length,
-          queued: this.queue.length > this.maxConcurrentSessions ?
-            this.queue.length - this.maxConcurrentSessions :
-            0,
-        });
-      });
-    });
+    app.get('/metrics', (_req, res) => res.send(metricsHTML.replace('$stats', JSON.stringify(this.stats))));
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();
@@ -233,19 +306,14 @@ export class Chrome {
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
         const queueLength = this.queue.length;
 
-        debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
+        this.onRequest(req);
 
         if (queueLength >= this.maxQueueLength) {
-          debug(`${req.url}: Queue is full, rejecting`);
-          socket.write('HTTP/1.1 429 Too Many Requests\r\n');
-          socket.end();
-          this.onRejected();
-          return;
+          return this.onRejected(req, socket);
         }
 
         if (queueLength >= this.maxConcurrentSessions) {
-          debug(`${req.url}: Concurrency limit hit, queueing`);
-          this.onQueued();
+          this.onQueued(req);
         }
 
         const job:any = (done: () => {}) => {
@@ -282,6 +350,7 @@ export class Chrome {
               }
 
               const page = await chrome.newPage();
+              console.log(page.constructor.constructor);
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
@@ -310,11 +379,7 @@ export class Chrome {
             .then((target) => this.proxy.ws(req, socket, head, { target }));
         };
 
-        job.close = () => {
-          socket.write('HTTP/1.1 408 Request has timed out\r\n');
-          socket.end();
-          socket.destroy('Request has timed out');
-        };
+        job.close = (message: string) => this.closeSocket(socket, message);
 
         this.queue.push(job);
       }))
