@@ -1,6 +1,0 @@
-{
-  "ignoreRoot": [".git", ".no-git"],
-  "watch": ["src"],
-  "exec": "npm run build && node --inspect ./build/index.js",
-  "ext": "ts json"
-}

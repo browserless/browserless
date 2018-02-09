@@ -18,7 +18,7 @@ const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 
-const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
+// const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
 
 const chromeTarget = () => {
   var text = '';
@@ -124,9 +124,9 @@ export class Chrome {
       autostart: true
     });
 
-    this.queue.on('success', this.addToSwarm);
-    this.queue.on('error', this.addToSwarm);
-    this.queue.on('timeout', this.onTimedOut);
+    this.queue.on('success', this.addToSwarm.bind(this));
+    this.queue.on('error', this.addToSwarm.bind(this));
+    this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
@@ -262,7 +262,7 @@ export class Chrome {
     app.use('/', express.static('public'));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => res.send(metricsHTML.replace('$stats', JSON.stringify(this.stats))));
+    app.get('/metrics', (_req, res) => res.send(fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' }).replace('$stats', JSON.stringify(this.stats))));
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();

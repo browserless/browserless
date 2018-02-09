@@ -1,23 +1,142 @@
 <!doctype html>
+<html>
 
-<html lang="en">
 <head>
-  <meta charset="utf-8">
-
-  <title>browserles metrics</title>
-  <meta name="description" content="browserless metrics">
-  <meta name="author" content="browserless">
-
-  <!--[if lt IE 9]>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
-  <![endif]-->
+    <title>browserless dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.js"></script>
+    <style>
+    canvas {
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+    </style>
 </head>
 
 <body>
-  <script>
-    const metrics = $stats;
+    <div>
+        <canvas id="canvas"></canvas>
+    </div>
+    <script>
+    const data = $stats;
 
-    console.log(metrics);
-  </script>
+    console.log(data.length);
+
+    function timeStamp(unixTime) {
+      var now = new Date(unixTime);
+      var date = [ now.getMonth() + 1, now.getDate() ];
+      var time = [ now.getHours(), now.getMinutes(), now.getSeconds() ];
+      var suffix = ( time[0] < 12 ) ? "AM" : "PM";
+      time[0] = ( time[0] < 12 ) ? time[0] : time[0] - 12;
+      time[0] = time[0] || 12;
+      for ( var i = 1; i < 3; i++ ) {
+        if ( time[i] < 10 ) {
+          time[i] = "0" + time[i];
+        }
+      }
+      return date.join("/") + " " + time.join(":") + " " + suffix;
+    }
+
+    var config = {
+        type: 'line',
+        data: {
+            labels: data.map((datum) => timeStamp(datum.date)),
+            datasets: [{
+                label: "Memory %",
+                backgroundColor: "#bada55",
+                borderColor: "#bada55",
+                yAxisID: 'resources',
+                data: data.map((datum) => Math.floor(datum.memoryPercent)),
+                fill: false,
+            }, {
+                label: "CPU %",
+                fill: false,
+                backgroundColor: '#bada55',
+                borderColor: '#bada55',
+                yAxisID: 'resources',
+                data: data.map((datum) => Math.floor(datum.cpuPercent)),
+            }, {
+                label: "Requests",
+                fill: false,
+                backgroundColor: '#00dfc4',
+                borderColor: '#00dfc4',
+                yAxisID: 'requests',
+                data: data.map((datum) => datum.requests),
+            }, {
+                label: "Queued",
+                fill: false,
+                backgroundColor: '#00dfc4',
+                borderColor: '#00dfc4',
+                yAxisID: 'requests',
+                data: data.map((datum) => datum.queued),
+            }, {
+                label: "Timed Out",
+                fill: false,
+                backgroundColor: '#00dfc4',
+                borderColor: '#00dfc4',
+                yAxisID: 'requests',
+                data: data.map((datum) => datum.timedout),
+            }, {
+                label: "Rejected",
+                fill: false,
+                backgroundColor: '#00dfc4',
+                borderColor: '#00dfc4',
+                yAxisID: 'requests',
+                data: data.map((datum) => datum.rejected),
+            }]
+        },
+        options: {
+            responsive: true,
+            title:{
+                display:true,
+                text:'browserless instances metrics'
+            },
+            tooltips: {
+                mode: 'index',
+                position: 'nearest',
+                intersect: false,
+            },
+            hover: {
+                mode: 'nearest',
+                intersect: true
+            },
+            scales: {
+                xAxes: [{
+                    display: true,
+                    gridLines: {
+                      color: "rgba(0, 0, 0, 0)",
+                    },
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Date'
+                    }
+                }],
+                yAxes: [{
+                    id: 'requests',
+                    display: true,
+                    position: 'left',
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Requests'
+                    }
+                }, {
+                    id: 'resources',
+                    display: true,
+                    position: 'right',
+                    scaleLabel: {
+                        display: true,
+                        labelString: 'Percent'
+                    }
+                }]
+            }
+        }
+    };
+
+    window.onload = function() {
+        var ctx = document.getElementById("canvas").getContext("2d");
+        window.myLine = new Chart(ctx, config);
+    };
+    </script>
 </body>
+
 </html>

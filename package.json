@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "nodemon",
+    "dev": "npm run build && DEBUG=browserless/chrome node build/index.js",
     "start": "node ./build",
     "postinstall": "./scripts/get-meta.js",
     "prepush": "./scripts/prepush.sh",
@@ -34,7 +34,6 @@
     "husky": "^0.14.3",
     "jest": "^22.1.4",
     "node-fetch": "^1.7.3",
-    "nodemon": "^1.11.0",
     "ts-jest": "^22.0.1",
     "ts-node": "^4.1.0"
   },
