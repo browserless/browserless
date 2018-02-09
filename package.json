@@ -26,7 +26,8 @@
     "queue": "^4.4.2",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
-    "typescript": "^2.4.2"
+    "typescript": "^2.4.2",
+    "vm2": "^3.5.2"
   },
   "devDependencies": {
     "@types/jest": "^22.1.0",

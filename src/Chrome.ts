@@ -1,18 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as _ from 'lodash';
-import * as os from 'os';
 import * as url from 'url';
 import * as http from 'http';
+import * as os from 'os';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
-import * as vm from 'vm';
+import { VM } from 'vm2';
 import { launch } from 'puppeteer';
 import { setInterval } from 'timers';
 
-const debug = require('debug')('browserless/chrome');
 const cpuStats = require('cpu-stats');
+const debug = require('debug')('browserless/chrome');
 const request = require('request');
 const queue = require('queue');
 const version = require('../version.json');
@@ -359,7 +359,8 @@ export class Chrome {
               if (this.debuggerScripts.has(route)) {
                 const code = this.debuggerScripts.get(route);
                 debug(`${req.url}: Loading prior-uploaded script to execute for route.`);
-                const scope = {
+
+                const sandbox = {
                   page,
                   console: {
                     log: (...args) => page.evaluate((...args) => console.log(...args), ...args),
@@ -368,8 +369,13 @@ export class Chrome {
                   },
                 };
 
+                const vm = new VM({
+                  sandbox,
+                  timeout: this.connectionTimeout
+                });
+
                 this.debuggerScripts.delete(route);
-                vm.runInNewContext(code, scope);
+                vm.run(code);
               }
 
               req.url = pageLocation;
