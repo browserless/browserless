@@ -3,139 +3,154 @@
 
 <head>
     <title>browserless dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
     <style>
-    canvas {
-        -moz-user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select: none;
-    }
+      body {
+        font-family: Lato,"Helvetica Neue",Helvetica,Arial,sans-serif;
+        font-size: 14px;
+      }
+      * {
+        position: relative;
+        margin: 0;
+        padding: 0;
+      }
+      h1 {
+        height: 50px;
+      }
+      html, body {
+        height: 100%;
+        width: 100%;
+      }
+      main {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 1000px;
+        height: 100%;
+      }
+      .container {
+        width: 100%;
+        height: 33%;
+        position: relative;
+      }
+      .graphs {
+        position:absolute;
+        left: 10px;
+        right: 10px;
+        top: 0;
+        bottom: 0;
+      }
+      h2, .dygraph-title {
+        text-align: left;
+        font-size: 16px;
+        font-weight: normal;
+        display: inline-block;
+      }
+      .dygraph-legend {
+        padding: 10px;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.85);
+        left: initial;
+      }
+      td {
+        padding: 5px 10px;
+      }
+      .table-key {
+        font-size: 16px;
+      }
+      .table-value {
+        font-size: 12px;
+      }
     </style>
 </head>
 
 <body>
-    <div>
-        <canvas id="canvas"></canvas>
-    </div>
+    <main>
+      <div class="container requests">
+          <div class="graphs" id="requests"></div>
+      </div>
+      <div class="container resources">
+          <div class="graphs" id="resources"></div>
+      </div>
+      <div class="container chrome-details">
+        <table>
+            <tbody class="chrome-table"></tbody>
+        </table>
+      </div>
+    </main>
     <script>
-    const data = $stats;
+      const data = $stats;
+      const chromeMeta = $version;
+      const $detailsContainer = document.querySelector('.chrome-table');
 
-    console.log(data.length);
+      Object.keys(chromeMeta).forEach((chromeKey) => {
+        const html = `
+          <tr>
+            <td class="table-key">${chromeKey}</td>
+            <td class="table-value">${chromeMeta[chromeKey]}</td>
+          </tr>
+        `;
+        const title = document.createElement('h2');
 
-    function timeStamp(unixTime) {
-      var now = new Date(unixTime);
-      var date = [ now.getMonth() + 1, now.getDate() ];
-      var time = [ now.getHours(), now.getMinutes(), now.getSeconds() ];
-      var suffix = ( time[0] < 12 ) ? "AM" : "PM";
-      time[0] = ( time[0] < 12 ) ? time[0] : time[0] - 12;
-      time[0] = time[0] || 12;
-      for ( var i = 1; i < 3; i++ ) {
-        if ( time[i] < 10 ) {
-          time[i] = "0" + time[i];
+        $detailsContainer.innerHTML = $detailsContainer.innerHTML + html;
+      });
+
+      function timeStamp(unixTime) {
+        var now = new Date(unixTime);
+        var date = [ now.getMonth() + 1, now.getDate() ];
+        var time = [ now.getHours(), now.getMinutes(), now.getSeconds() ];
+        var suffix = ( time[0] < 12 ) ? "AM" : "PM";
+        time[0] = ( time[0] < 12 ) ? time[0] : time[0] - 12;
+        time[0] = time[0] || 12;
+        for ( var i = 1; i < 3; i++ ) {
+          if ( time[i] < 10 ) {
+            time[i] = "0" + time[i];
+          }
         }
+        return date.join("/") + " " + time.join(":") + " " + suffix;
       }
-      return date.join("/") + " " + time.join(":") + " " + suffix;
-    }
 
-    var config = {
-        type: 'line',
-        data: {
-            labels: data.map((datum) => timeStamp(datum.date)),
-            datasets: [{
-                label: "Memory %",
-                backgroundColor: "#bada55",
-                borderColor: "#bada55",
-                yAxisID: 'resources',
-                data: data.map((datum) => Math.floor(datum.memoryPercent)),
-                fill: false,
-            }, {
-                label: "CPU %",
-                fill: false,
-                backgroundColor: '#bada55',
-                borderColor: '#bada55',
-                yAxisID: 'resources',
-                data: data.map((datum) => Math.floor(datum.cpuPercent)),
-            }, {
-                label: "Requests",
-                fill: false,
-                backgroundColor: '#00dfc4',
-                borderColor: '#00dfc4',
-                yAxisID: 'requests',
-                data: data.map((datum) => datum.requests),
-            }, {
-                label: "Queued",
-                fill: false,
-                backgroundColor: '#00dfc4',
-                borderColor: '#00dfc4',
-                yAxisID: 'requests',
-                data: data.map((datum) => datum.queued),
-            }, {
-                label: "Timed Out",
-                fill: false,
-                backgroundColor: '#00dfc4',
-                borderColor: '#00dfc4',
-                yAxisID: 'requests',
-                data: data.map((datum) => datum.timedout),
-            }, {
-                label: "Rejected",
-                fill: false,
-                backgroundColor: '#00dfc4',
-                borderColor: '#00dfc4',
-                yAxisID: 'requests',
-                data: data.map((datum) => datum.rejected),
-            }]
-        },
-        options: {
-            responsive: true,
-            title:{
-                display:true,
-                text:'browserless instances metrics'
-            },
-            tooltips: {
-                mode: 'index',
-                position: 'nearest',
-                intersect: false,
-            },
-            hover: {
-                mode: 'nearest',
-                intersect: true
-            },
-            scales: {
-                xAxes: [{
-                    display: true,
-                    gridLines: {
-                      color: "rgba(0, 0, 0, 0)",
-                    },
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Date'
-                    }
-                }],
-                yAxes: [{
-                    id: 'requests',
-                    display: true,
-                    position: 'left',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Requests'
-                    }
-                }, {
-                    id: 'resources',
-                    display: true,
-                    position: 'right',
-                    scaleLabel: {
-                        display: true,
-                        labelString: 'Percent'
-                    }
-                }]
-            }
+      const requestData = `Date,Requests,Queued,Timed-out,Rejected\n` + 
+        data
+          .map((d) => `${timeStamp(d.date)},${d.requests},${d.queued},${d.timedout},${d.rejected}`)
+          .join('\n');
+
+      const resourceData = `Date,CPU %, Memory %\n` + 
+        data
+          .map((d) => `${timeStamp(d.date)},${d.cpuPercent},${d.memoryPercent}`)
+          .join('\n');
+
+      new Dygraph(
+        // containing div
+        document.getElementById("requests"),
+        // CSV or path to a CSV file.
+        requestData, {
+          colors: ['#333', '#031b4e', '#0087f7', '#00dbfc'],
+          fillGraph: true,
+          drawGrid: false,
+          title: 'Requests',
+          highlightSeriesOpts: {
+            strokeWidth: 2,
+            strokeBorderWidth: 1,
+            highlightCircleSize: 5
+          }
         }
-    };
-
-    window.onload = function() {
-        var ctx = document.getElementById("canvas").getContext("2d");
-        window.myLine = new Chart(ctx, config);
-    };
+      );
+      new Dygraph(
+        // containing div
+        document.getElementById("resources"),
+        // CSV or path to a CSV file.
+        resourceData, {
+          colors: ['#333', '#031b4e', '#0087f7', '#00dbfc'],
+          fillGraph: true,
+          drawGrid: false,
+          title: 'Resource Usage',
+          highlightSeriesOpts: {
+            strokeWidth: 2,
+            strokeBorderWidth: 1,
+            highlightCircleSize: 5
+          }
+        }
+      );
     </script>
 </body>
 

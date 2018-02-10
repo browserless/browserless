@@ -18,7 +18,7 @@ const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 
-// const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
+const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
 
 const chromeTarget = () => {
   var text = '';
@@ -43,7 +43,7 @@ const asyncMiddleware = (handler) => {
 };
 
 const thiryMinutes = 30 * 60 * 1000;
-const fiveMinutes = 60 * 1000;
+const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // One week @ 5-min intervals
 
 export interface IOptions {
@@ -199,7 +199,6 @@ export class Chrome {
   }
 
   private resetCurrentStat() {
-    debug(`Clearing current stat sample`);
     this.currentStat = {
       rejected: 0,
       queued: 0,
@@ -212,8 +211,6 @@ export class Chrome {
   }
 
   private recordMetrics() {
-    debug(`Recording current stat sample`);
-
     cpuStats(100, (_err, results) => {
       this.stats.push(_.assign({}, this.currentStat, {
         date: Date.now(),
@@ -262,7 +259,12 @@ export class Chrome {
     app.use('/', express.static('public'));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => res.send(fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' }).replace('$stats', JSON.stringify(this.stats))));
+    app.get('/metrics', (_req, res) => res.send(
+      metricsHTML
+        .replace('$stats', JSON.stringify(this.stats))
+        .replace('$version', JSON.stringify(_.omit(version, 'User-Agent')))
+      )
+    );
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();
