@@ -52,6 +52,7 @@ export interface IOptions {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
+  token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
@@ -78,6 +79,7 @@ export class Chrome {
   public maxConcurrentSessions: number;
   public maxQueueLength: number;
   public connectionTimeout: number;
+  public token: string | null;
 
   private proxy: any;
   private prebootChrome: boolean;
@@ -99,6 +101,7 @@ export class Chrome {
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
     this.prebootChrome = opts.prebootChrome;
+    this.token = opts.token;
 
     this.chromeSwarm = [];
     this.stats = []
@@ -150,14 +153,15 @@ export class Chrome {
       _.noop;
 
     debug({
-      port: opts.port,
-      connectionTimeout: opts.connectionTimeout,
-      maxQueueLength: opts.maxQueueLength,
-      maxConcurrentSessions: opts.maxConcurrentSessions,
+      port: this.port,
+      token: this.token,
+      connectionTimeout: this.connectionTimeout,
+      maxQueueLength: this.maxQueueLength,
+      maxConcurrentSessions: this.maxConcurrentSessions,
       rejectAlertURL: opts.rejectAlertURL,
       timeoutAlertURL: opts.timeoutAlertURL,
       queuedAlertURL: opts.queuedAlertURL,
-      prebootChrome: opts.prebootChrome,
+      prebootChrome: this.prebootChrome,
     }, `Final Options`);
 
     setInterval(this.recordMetrics.bind(this), fiveMinutes);
@@ -191,9 +195,9 @@ export class Chrome {
     this.queueHook();
   }
 
-  private onRejected(req, socket) {
-    debug(`${req.url}: Queue is full, rejecting`);
-    this.closeSocket(socket, 'HTTP/1.1 429 Too Many Requests\r\n');
+  private onRejected(req, socket, message) {
+    debug(`${req.url}: ${message}`);
+    this.closeSocket(socket, `${message}\r\n`);
     this.currentStat.rejected = this.currentStat.rejected + 1;
     this.rejectHook();
   }
@@ -257,6 +261,12 @@ export class Chrome {
     const upload = multer();
 
     app.use('/', express.static('public'));
+    app.use((req, res, next) => {
+      if (this.token && req.query.token !== this.token) {
+        return res.sendStatus(403);
+      }
+      next();
+    })
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
     app.get('/metrics', (_req, res) => res.send(
@@ -306,12 +316,17 @@ export class Chrome {
     return this.server = http
       .createServer(app)
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
+        const parsedUrl = url.parse(req.url, true);
         const queueLength = this.queue.length;
 
         this.onRequest(req);
 
+        if (this.token && parsedUrl.query.token !== this.token) {
+          return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
+        }
+
         if (queueLength >= this.maxQueueLength) {
-          return this.onRejected(req, socket);
+          return this.onRejected(req, socket, `HTTP/1.1 429 Too Many Requests`);
         }
 
         if (queueLength >= this.maxConcurrentSessions) {
@@ -319,7 +334,6 @@ export class Chrome {
         }
 
         const job:any = (done: () => {}) => {
-          const parsedUrl = url.parse(req.url, true);
           const route = parsedUrl.pathname || '/';
 
           const flags = _.chain(parsedUrl.query)
