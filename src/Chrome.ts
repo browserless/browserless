@@ -366,7 +366,6 @@ export class Chrome {
               }
 
               const page = await chrome.newPage();
-              console.log(page.constructor.constructor);
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
