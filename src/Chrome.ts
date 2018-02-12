@@ -15,6 +15,7 @@ const cpuStats = require('cpu-stats');
 const debug = require('debug')('browserless/chrome');
 const request = require('request');
 const queue = require('queue');
+const bodyParser = require('body-parser');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 
@@ -260,13 +261,14 @@ export class Chrome {
     const app = express();
     const upload = multer();
 
+    app.use(bodyParser.text());
     app.use('/', express.static('public'));
     app.use((req, res, next) => {
       if (this.token && req.query.token !== this.token) {
         return res.sendStatus(403);
       }
       next();
-    })
+    });
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
     app.get('/metrics', (_req, res) => res.send(
@@ -277,6 +279,9 @@ export class Chrome {
     );
 
     app.post('/execute', upload.single('file'), async (req, res) => {
+      if (!req.file) {
+        res.status(400).send();
+      }
       const targetId = chromeTarget();
       const code = `
       (async() => {
@@ -311,6 +316,24 @@ export class Chrome {
         url: 'about:blank',
         webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`
      }]);
+    }));
+
+    app.post('/evaluate', asyncMiddleware(async (req, res) => {
+      if (!req.body) res.status(400).send();
+
+      const chrome = await this.launchChrome();
+      const page = await chrome.newPage();
+      const code = `(${req.body})(page, callback);`;
+      const callback = (error, data) => {
+        if (error) {
+          res.status(500).send(error);
+        }
+        res.json({ data });
+      };
+      const sandbox = { page, callback };
+      const vm = new VM({ sandbox, timeout: this.connectionTimeout });
+
+      vm.run(code);
     }));
 
     return this.server = http
@@ -366,7 +389,6 @@ export class Chrome {
               }
 
               const page = await chrome.newPage();
-              console.log(page.constructor.constructor);
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
