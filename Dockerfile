@@ -24,7 +24,6 @@ COPY . .
 
 # Dependencies needed for packages downstream
 RUN apt-get update && apt-get install -y \
-  dumb-init \
   wget \
   unzip \
   fontconfig \
@@ -68,6 +67,10 @@ RUN apt-get update && apt-get install -y \
   xdg-utils \
   wget
 
+# It's a good idea to use dumb-init to help prevent zombie chrome processes.
+ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 /usr/local/bin/dumb-init
+RUN chmod +x /usr/local/bin/dumb-init
+
 # Install Node.js
 RUN apt-get install --yes curl &&\
   curl --silent --location https://deb.nodesource.com/setup_8.x | bash - &&\
@@ -89,5 +92,5 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+ENTRYPOINT ["dumb-init", "--"]
 CMD [ "npm", "start" ]
