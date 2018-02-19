@@ -24,6 +24,7 @@ COPY . .
 
 # Dependencies needed for packages downstream
 RUN apt-get update && apt-get install -y \
+  dumb-init \
   wget \
   unzip \
   fontconfig \
