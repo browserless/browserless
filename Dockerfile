@@ -89,4 +89,5 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
-ENTRYPOINT [ "npm", "start" ]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD [ "npm", "start" ]
