@@ -4,7 +4,7 @@
   <title>Browserless Debugger</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400" rel="stylesheet">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/theme/neo.min.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
@@ -19,21 +19,24 @@
   header {
     height: 60px;
     padding: 13px;
-    color: white;
+    color: #333;
     border-bottom: 1px solid #ccc;
-    background: linear-gradient(#1f45ce 15%,#1836a2);
+    background: linear-gradient(#f7f7f7, #e2e2e2);
     box-shadow: 0 5px 10px 0 rgba(0,0,0,.1);
     display: flex;
     align-items: center;
   }
   header h1 {
-    font-size: 20px;
-    font-weight: normal;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: 'Montserrat', sans-serif;
   }
-  header span {
+  header section span {
     font-size: 14px;
     margin: 0 10px;
-    margin-left: auto;
+  }
+  header section a {
+    height: 25px;
   }
   html, body, main {
     width: 100%;
@@ -42,21 +45,29 @@
   iframe {
     border: none;
   }
+  .links {
+    margin-left: auto;
+    display: flex;
+    flex-direction: row;
+    vertical-align: middle;
+    justify-content: center;
+  }
   @keyframes pulse {
     0% {
-      -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0.4);
+      -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0.4);
     }
     70% {
-        -webkit-box-shadow: 0 0 0 10px rgba(204,169,44, 0);
+        -webkit-box-shadow: 0 0 0 10px rgba(51, 103, 214, 0);
     }
     100% {
-        -webkit-box-shadow: 0 0 0 0 rgba(204,169,44, 0);
+        -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0);
     }
   }
   .execute-button {
-    animation: pulse 2s infinite;
-    background: linear-gradient(#45ce1f, #45ce1f);
+    animation: pulse 3s infinite;
+    background: linear-gradient(#3367d6 15%,#20489d);
     border-radius: 17px;
+    border: none;
     box-shadow: 0 1px 10px #45ce1f;
     cursor: pointer;
     fill: #fff;
@@ -81,11 +92,24 @@
     position: relative;
     height: 100%;
   }
+  #frame-mount::before {
+    content: "";
+    position: absolute;
+    top: 0; 
+    left: 0;
+    bottom: 0;
+    right: 0;
+    opacity: .4; 
+    z-index: -1;
+    background: #f3f3f3;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#3367d6" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
+  }
   #frame-mount {
     flex: 5;
     position: relative;
     border-left: 1px solid #ccc;
-    background: #f3f3f3;
   }
   footer {
     background: #333;
@@ -102,12 +126,12 @@
   .CodeMirror {
     font-family: inherit;
     height: 100%;
-    padding-top: 10px;
-    font-size: 12px;
+    padding-top: 5px;
+    font-size: 13px;
   }
   .CodeMirror-scroll {
     height: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     overflow-x: auto;
   }
   </style>
@@ -116,20 +140,28 @@
 
 <main>
   <header>
-    <h1>Browserless Debugger</h1>
+    <h1>browserless debugger</h1>
     <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
-    <span id="about">ⓘ</span>
+    <section class="links">
+      <a href="https://github.com/joelgriffith/browserless">
+        <svg fill="#333" width="22" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title id="simpleicons-github-icon">GitHub icon</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+      </a>
+      <span id="about">
+        <svg fill="#333" viewBox="0 0 1024 1024" aria-labelledby="dxsi-ant-info-circle-title" id="si-ant-info-circle" width="22"><path d="M512 0Q373 0 255 68.5T68.5 255 0 512t68.5 257T255 955.5t257 68.5 257-68.5T955.5 769t68.5-257-68.5-257T769 68.5 512 0zm0 192q13 0 22.5 9.5T544 224t-9.5 22.5T512 256t-22.5-9.5T480 224t9.5-22.5T512 192zm96 640H416q-13 0-22.5-9.5T384 800t9.5-22.5T416 768h62V446h-62q-14 0-23-9.5t-9-23 9-22.5 23-9h94q14 0 23 9t9 23v354h66q13 0 22.5 9.5T640 800t-9.5 22.5T608 832z"></path></svg>
+      </span>
+    </section>
   </header>
   <div class="flex-hz">
     <section id="code-mount">
-      <textarea>
+      <textarea style="visibility: hidden;">
 // No need to require puppeteer or create a page
 await page.goto('https://example.com');
       </textarea>
     </section>
     <div class="resizer"></div>
     <section id="frame-mount">
-      <iframe width="100%" height="100%"></iframe>
+      <iframe width="100%" height="100%">
+      </iframe>
     </section>
   </div>
   <footer></footer>
@@ -195,9 +227,9 @@ await page.goto('https://example.com');
 
   const editor = CodeMirror.fromTextArea($codeText, {
     lineNumbers: true,
+    showCursorWhenSelecting: true,
     mode: { name: 'javascript', globalVars: true },
     theme: 'neo',
-    lineWrapping: true,
     allowDropFileTypes: ['text/javascript'],
     autoCloseBrackets: true,
     matchBrackets: true,
