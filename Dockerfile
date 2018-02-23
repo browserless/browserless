@@ -24,7 +24,6 @@ COPY . .
 
 # Dependencies needed for packages downstream
 RUN apt-get update && apt-get install -y \
-  wget \
   unzip \
   fontconfig \
   locales \
