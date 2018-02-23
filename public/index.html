@@ -2,9 +2,15 @@
 <html lang="en">
 <head>
   <title>Browserless Debugger</title>
+
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:400" rel="stylesheet">
+  <meta property="og:url"                content="https://chrome.browserless.io/" />
+  <meta property="og:title"              content="browserless live debugger" />
+  <meta property="og:description"        content="Write, share, and download puppeteer scripts right from your web browser." />
+  <meta property="og:image"              content="https://imgur.com/WqHFZpG" />
+
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:500" rel="stylesheet">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/theme/neo.min.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
@@ -31,9 +37,11 @@
     font-weight: bold;
     font-family: 'Montserrat', sans-serif;
   }
-  header section span {
+  header section span,
+  header section a {
     font-size: 14px;
-    margin: 0 10px;
+    margin: 0 5px;
+    cursor: pointer;
   }
   header section a {
     height: 25px;
@@ -143,11 +151,14 @@
     <h1>browserless debugger</h1>
     <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
     <section class="links">
+      <span id="download" title="Download a zip file with all the required packages">
+        <svg width='22' height='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
+      </span>
       <a href="https://github.com/joelgriffith/browserless">
-        <svg fill="#333" width="22" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title id="simpleicons-github-icon">GitHub icon</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+        <svg fill="#333" width="22" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title id="simpleicons-github-icon">Browserless on GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
       </a>
       <span id="about">
-        <svg fill="#333" viewBox="0 0 1024 1024" aria-labelledby="dxsi-ant-info-circle-title" id="si-ant-info-circle" width="22"><path d="M512 0Q373 0 255 68.5T68.5 255 0 512t68.5 257T255 955.5t257 68.5 257-68.5T955.5 769t68.5-257-68.5-257T769 68.5 512 0zm0 192q13 0 22.5 9.5T544 224t-9.5 22.5T512 256t-22.5-9.5T480 224t9.5-22.5T512 192zm96 640H416q-13 0-22.5-9.5T384 800t9.5-22.5T416 768h62V446h-62q-14 0-23-9.5t-9-23 9-22.5 23-9h94q14 0 23 9t9 23v354h66q13 0 22.5 9.5T640 800t-9.5 22.5T608 832z"></path></svg>
+        <svg width='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"><g><path fill="#000000" d="M10,0C4.5,0,0,4.5,0,10c0,5.5,4.5,10,10,10c5.5,0,10-4.5,10-10C20,4.5,15.5,0,10,0z M10,18   c-4.4,0-8-3.6-8-8c0-4.4,3.6-8,8-8c4.4,0,8,3.6,8,8C18,14.4,14.4,18,10,18z"></path><rect x="9" y="4" fill="#000000" width="2" height="2"></rect><rect x="9" y="8" fill="#000000" width="2" height="8"></rect></g></svg>
       </span>
     </section>
   </header>
@@ -175,6 +186,8 @@ await page.goto('https://example.com');
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/javascript-hint.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/keymap/sublime.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
 <script>
   const { port, hostname, protocol } = window.location;
   const token = new URLSearchParams(window.location.search).get('token');
@@ -190,18 +203,78 @@ await page.goto('https://example.com');
   const $codePanel = document.querySelector('#code-mount');
   const $resultPanel = document.querySelector('#frame-mount');
   const $about = document.querySelector('#about');
+  const $download = document.querySelector('#download');
 
   const save = (code) => window.localStorage.setItem(key, code);
   const previousCode = window.localStorage.getItem(key);
-
   const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const README = `
+# Browserless Starter-pack
+This simple starter-pack gets you up and running with all the code you used in the debugger. Just install and run!
+
+## Installation
+
+1. NodeJS >= 8 is installed
+2. 'npm install'
+3. 'npm start'
+
+`;
+  const getScript = (body) => `
+const puppeteer = require('puppeteer');
+
+(async() => {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  ${body}
+  browser.close();
+})();
+`;
+  const getPackageJson = (version) => `{
+  "name": "browserless-export",
+  "description": "Exported package from browserless, ready to go!",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "puppeteer": "${version}"
+  }
+}`;
+  var puppeteerVersion = '';
+  var parameters = {};
+
+  // Parse the search string to get url parameters.
+  const search = window.location.search;
+
+  search.substr(1).split('&').forEach(function (entry) {
+    var eq = entry.indexOf('=');
+    if (eq >= 0) {
+      parameters[decodeURIComponent(entry.slice(0, eq))] =
+        decodeURIComponent(entry.slice(eq + 1));
+    }
+  });
+
+  const updateURL = () => {
+    var newSearch = '?' + Object.keys(parameters).filter(function (key) {
+      return Boolean(parameters[key]);
+    }).map(function (key) {
+      return encodeURIComponent(key) + '=' +
+        encodeURIComponent(parameters[key]);
+    }).join('&');
+    history.replaceState(null, null, newSearch);
+  }
+
+  const onEditScript = (script) => {
+    parameters.script = script;
+    updateURL();
+  }
 
   const hints = [
-    `Tip: This tool uses Google's puppeteer library found <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md">here</a>.`,
-    `Tip: There's no need to require or setup a page object, it's done for you`,
     `Tip: You can use "debugger;" in your script and it will inject a debugger in the browser`,
     `Tip: "console.log" will print in the debugging console window`,
-    `Tip: Each time you press play an entirely new session is created`,
+    `Tip: This tool uses Google's puppeteer library found <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md">here</a>.`,
+    `Tip: You can download your script and all the appropriate packages by clicking the download button`,
+    `Tip: You can easily copy and share the link in the URL bar. Your script even loads as well`,
   ];
 
   setHint = () => {
@@ -213,6 +286,10 @@ await page.goto('https://example.com');
 
   if (previousCode) {
     $codeText.innerHTML = previousCode;
+  }
+
+  if (parameters.script) {
+    $codeText.innerHTML = parameters.script;
   }
 
   const getLeft = (initialElem) => {
@@ -249,20 +326,6 @@ await page.goto('https://example.com');
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}&remoteFrontend=true`;
   };
 
-  fetch(`${secure ? 'https' : 'http'}://${hostname}${port ? `:${port}` : ''}/json/version`, {
-    headers: {
-      'Accept': 'application/json',
-    }
-  })
-  .then(res => res.json())
-  .then((res) => {
-    let aboutTitle = '';
-    for (let key in res) {
-      aboutTitle = `${aboutTitle}${key} = ${res[key]}\n`;
-    }
-    $about.title = aboutTitle;
-  });
-
   $resizer.addEventListener('mousedown', (evt) => {
     evt.preventDefault();
 
@@ -288,6 +351,17 @@ await page.goto('https://example.com');
     document.addEventListener('mouseup', onMouseUp);
   });
 
+  $download.addEventListener('click', async() => {
+    const packageJson = getPackageJson(puppeteerVersion);
+    const indexJs = getScript(editor.getValue());
+    var zip = new JSZip();
+    zip.file("index.js", indexJs);
+    zip.file('package.json', packageJson);
+    zip.file('README.md', README);
+    const content = await zip.generateAsync({type:"blob"})
+    saveAs(content, `browserless-${Date.now()}.zip`);
+  });
+
   $executeBtn.addEventListener('click', async () => {
     const code = editor.getValue();
     const formData = new FormData();
@@ -298,6 +372,25 @@ await page.goto('https://example.com');
     fetch(`${protocol}//${hostname}${port ? `:${port}` : ''}/execute${qsParams}`, { method: 'POST', body: formData })
       .then((res) => res.json())
       .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
+  });
+
+  editor.on('change', () => {
+    onEditScript(editor.getValue());
+  });
+
+  fetch(`${secure ? 'https' : 'http'}://${hostname}${port ? `:${port}` : ''}/json/version`, {
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
+  .then(res => res.json())
+  .then((res) => {
+    let aboutTitle = '';
+    for (let key in res) {
+      aboutTitle = `${aboutTitle}${key} = ${res[key]}\n`;
+    }
+    $about.title = aboutTitle;
+    puppeteerVersion = res['Puppeteer-Version'];
   });
 </script>
 </script>
