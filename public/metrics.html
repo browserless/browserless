@@ -68,9 +68,6 @@
       <div class="container requests">
           <div class="graphs" id="requests"></div>
       </div>
-      <div class="container resources">
-          <div class="graphs" id="resources"></div>
-      </div>
       <div class="container chrome-details">
         <table>
             <tbody class="chrome-table"></tbody>
@@ -233,11 +230,6 @@
           .map((d) => `${timeStamp(d.date)},${d.requests},${d.queued},${d.timedout},${d.rejected}`)
           .join('\n');
 
-      const resourceData = `Date,CPU %, Memory %\n` + 
-        data
-          .map((d) => `${timeStamp(d.date)},${d.cpuPercent},${d.memoryPercent}`)
-          .join('\n');
-
       new Dygraph(
         // containing div
         document.getElementById("requests"),
@@ -247,24 +239,6 @@
           fillGraph: true,
           drawGrid: false,
           title: 'Requests',
-          plotter: smoothPlotter,
-          strokeWidth: 2,
-          highlightSeriesOpts: {
-            strokeWidth: 3,
-            strokeBorderWidth: 1,
-            highlightCircleSize: 5
-          }
-        }
-      );
-      new Dygraph(
-        // containing div
-        document.getElementById("resources"),
-        // CSV or path to a CSV file.
-        resourceData, {
-          colors: ['#333', '#031b4e', '#0087f7', '#00dbfc'],
-          fillGraph: true,
-          drawGrid: false,
-          title: 'Resource Usage',
           plotter: smoothPlotter,
           strokeWidth: 2,
           highlightSeriesOpts: {
