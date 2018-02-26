@@ -64,7 +64,6 @@ RUN apt-get update && apt-get install -y \
   libnss3 \
   lsb-release \
   xdg-utils \
-  ttf-mscorefonts-installer \
   wget
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
@@ -80,7 +79,7 @@ RUN apt-get install --yes curl &&\
 # Install emoji's
 RUN cd $font_directory &&\
   wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
-   fc-cache -f -v
+  fc-cache -f -v
 
 # Build 
 RUN npm install -g typescript @types/node &&\
