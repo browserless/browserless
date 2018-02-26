@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as _ from 'lodash';
 import * as url from 'url';
 import * as http from 'http';
-import * as os from 'os';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
@@ -11,7 +10,6 @@ import { VM } from 'vm2';
 import { launch } from 'puppeteer';
 import { setInterval } from 'timers';
 
-const cpuStats = require('cpu-stats');
 const debug = require('debug')('browserless/chrome');
 const request = require('request');
 const queue = require('queue');
@@ -43,8 +41,8 @@ const asyncMiddleware = (handler) => {
 };
 
 const thiryMinutes = 30 * 60 * 1000;
-const fiveMinutes = 5 * 60 * 1000;
-const maxStats = 12 * 24 * 7; // One week @ 5-min intervals
+const oneMinute = 60 * 1000;
+const maxStats = 12 * 24 * 5; // 5 days @ 1-min intervals
 
 export interface IOptions {
   connectionTimeout: number;
@@ -70,8 +68,6 @@ interface IStats {
   queued: number;
   rejected: number;
   timedout: number;
-  cpuPercent: number;
-  memoryPercent: number;
 };
 
 export class Chrome {
@@ -164,7 +160,7 @@ export class Chrome {
       prebootChrome: this.prebootChrome,
     }, `Final Options`);
 
-    setInterval(this.recordMetrics.bind(this), fiveMinutes);
+    setInterval(this.recordMetrics.bind(this), oneMinute);
 
     if (this.prebootChrome) {
       for (let i = 0; i < this.maxConcurrentSessions; i++) {
@@ -208,26 +204,21 @@ export class Chrome {
       queued: 0,
       requests: 0,
       timedout: 0,
-      cpuPercent: 0,
-      memoryPercent: 0,
       date: null,
     };
   }
 
   private recordMetrics() {
-    cpuStats(100, (_err, results) => {
-      this.stats.push(_.assign({}, this.currentStat, {
-        date: Date.now(),
-        memoryPercent: (1 - (os.freemem() / os.totalmem())) * 100,
-        cpuPercent: results.reduce((accum, stat) => accum + stat.cpu, 0) / results.length,
-      }));
-
-      this.resetCurrentStat();
-
-      if (this.stats.length > maxStats) {
-        this.stats.shift();
-      }
+    this.stats.push({
+      ...this.currentStat,
+      date: Date.now(),
     });
+
+    this.resetCurrentStat();
+
+    if (this.stats.length > maxStats) {
+      this.stats.shift();
+    }
   }
 
   private addToSwarm() {
@@ -269,6 +260,16 @@ export class Chrome {
     })
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
+    app.get('/pressure', (_, res) => {
+      const lastMinute: IStats = _.tail(this.stats);
+      const pressure = {
+        requests: this.currentStat.requests + lastMinute.requests,
+        rejected: this.currentStat.rejected + lastMinute.rejected,
+        queued: this.currentStat.queued + lastMinute.queued,
+      };
+
+      res.json({ pressure });
+    });
     app.get('/metrics', (_req, res) => res.send(
       metricsHTML
         .replace('$stats', JSON.stringify(this.stats))

@@ -5,5 +5,5 @@
   "V8-Version": "6.6.235",
   "WebKit-Version": "537.36 (@7e152cf54a9222bfbc6cb4ad83898c7cc3df5ba3)",
   "Debugger-Version": "7e152cf54a9222bfbc6cb4ad83898c7cc3df5ba3",
-  "Puppeteer-Version": "1.1.0"
+  "Puppeteer-Version": "1.1.1"
 }
