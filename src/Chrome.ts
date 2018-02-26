@@ -260,16 +260,10 @@ export class Chrome {
     })
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/pressure', (_, res) => {
-      const lastMinute: IStats = _.tail(this.stats);
-      const pressure = {
-        requests: this.currentStat.requests + lastMinute.requests,
-        rejected: this.currentStat.rejected + lastMinute.rejected,
-        queued: this.currentStat.queued + lastMinute.queued,
-      };
-
-      res.json({ pressure });
-    });
+    app.get('/pressure', (_req, res) => res.json({ pressure: {
+      ...this.currentStat,
+      date: Date.now(),
+    }}));
     app.get('/metrics', (_req, res) => res.send(
       metricsHTML
         .replace('$stats', JSON.stringify(this.stats))
