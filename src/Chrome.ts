@@ -260,10 +260,20 @@ export class Chrome {
     })
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/pressure', (_req, res) => res.json({ pressure: {
-      ...this.currentStat,
-      date: Date.now(),
-    }}));
+    app.get('/pressure', (_req, res) => {
+      const queueLength = this.queue.length;
+      const concurrencyMet = queueLength >= this.maxConcurrentSessions;
+
+      return res.json({
+        pressure: {
+          date: Date.now(),
+          running: concurrencyMet ? this.maxConcurrentSessions : queueLength,
+          queued: concurrencyMet ? queueLength - this.maxConcurrentSessions : 0,
+          isAvailable: queueLength < this.maxQueueLength,
+          recentlyRejected: this.currentStat.rejected,
+        }
+      });
+    });
     app.get('/metrics', (_req, res) => res.send(
       metricsHTML
         .replace('$stats', JSON.stringify(this.stats))
