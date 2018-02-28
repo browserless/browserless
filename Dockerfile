@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM node:8-slim
 
 # Application parameters and variables
 ENV NODE_ENV=production
