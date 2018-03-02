@@ -150,16 +150,25 @@
     border-top: 1px solid #ccc;
     padding: 5px;
   }
+  .CodeMirror-hint-information h4 {
+    background-color: #fefefe;
+    padding: 2px
+  }
+  .CodeMirror-hint-information a {
+    color: #3367d6;
+  }
   .CodeMirror-hint-information .info a {
-    color: #20489d;
     display: block;
     font-weight: bold;
     text-align: right;
   }
   .CodeMirror-hint-information .description {
     line-height: 1.5;
-    display: block;
+    display: inline;
     font-family: 'Helvetica', sans-serif;
+  }
+  .CodeMirror-hint-information ul {
+    margin-left: 15px;
   }
   </style>
 </head>
@@ -393,18 +402,31 @@ const puppeteer = require('puppeteer');
         );
       }
 
-      const method = document.createElement('span');
-        method.innerHTML = '<a href="' + ctx.href + '" target="_blank">' + ctx.text + '</a>';
-        method.className += 'info';
-
       const description = document.createElement('span');
         description.innerText = ctx.description;
         description.className += 'description';
 
+      const args = document.createElement('ul');
+        args.innerHTML = ctx.args;
+        args.className += 'args';
+
+      const apiText = ctx.args ?
+        '<h4>API</h4>' + args.outerHTML :
+        '';
+
+      const readMoreHref = ctx.href ?
+        '<a href="' + ctx.href + '" target="_blank">...Read more</a>' :
+        '';
+      
+      const descriptionText = ctx.description ?
+        `<h4>Description</h4>` + description.outerHTML :
+        '';
+
       information.innerHTML =
         '<div class="content">' +
-          description.outerHTML +
-          method.outerHTML +
+          apiText +
+          descriptionText +
+          readMoreHref +
         '</div>';
     });
   }

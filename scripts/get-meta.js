@@ -27,10 +27,15 @@ const hintsFile = path.join(__dirname, '..', 'hints.json');
 const getDocs = (docsPage) => [].map.call(
   $('h4').has('a[href^="#page"]')
   .map((i, ele) => {
+    const $ele = $(ele);
+    const method = ele.innerText.includes('(') ?
+      ele.innerText.match(/page\..*(?=\()/g)[0] :
+      ele.innerText;
     return {
-      text: ele.innerText,
-      description: $(ele).nextAll('p').text().substring(0, 350).replace(/(?:\r\n|\r|\n)/g, ' '),
-      href: docsPage + $(ele).find('a').attr('href'),
+      text: method.replace('page.', ''),
+      description: $ele.nextAll('p').text().substring(0, 350).replace(/(?:\r\n|\r|\n)/g, ' '),
+      href: docsPage + $ele.find('a').attr('href'),
+      args: $ele.next('ul').html()
     };
   }),
   _ => _);
