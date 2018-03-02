@@ -15,6 +15,7 @@ const request = require('request');
 const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
+const hints = require('../hints.json');
 
 const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
 
@@ -257,7 +258,8 @@ export class Chrome {
         return res.sendStatus(403);
       }
       next();
-    })
+    });
+    app.get('/introspection', (_req, res) => res.json(hints));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
     app.get('/pressure', (_req, res) => {

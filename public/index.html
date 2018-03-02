@@ -142,6 +142,25 @@
     overflow-y: auto;
     overflow-x: auto;
   }
+  .CodeMirror-hints {
+    max-width: 400px;
+    max-height: 300px;
+  }
+  .CodeMirror-hint-information {
+    border-top: 1px solid #ccc;
+    padding: 5px;
+  }
+  .CodeMirror-hint-information .info a {
+    color: #20489d;
+    display: block;
+    font-weight: bold;
+    text-align: right;
+  }
+  .CodeMirror-hint-information .description {
+    line-height: 1.5;
+    display: block;
+    font-family: 'Helvetica', sans-serif;
+  }
   </style>
 </head>
 <body>
@@ -190,9 +209,22 @@ await page.goto('https://example.com');
 <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
 <script>
   const { port, hostname, protocol } = window.location;
+  const baseURL = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
   const token = new URLSearchParams(window.location.search).get('token');
   const qsParams = token ? `?token=${token}`: '';
   const secure = /(https)|(wss)/g.test(protocol);
+  const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
+  let pageMethods = [];
+  const globalVars = [
+    { text: 'debugger;', description: 'The debugger statement invokes any available debugging functionality, such as setting a breakpoint. If no debugging functionality is available, this statement has no effect.' }, 
+    { text: 'await', description: 'The await operator is used to wait for a Promise. It can only be used inside an async function.' }, 
+    { text: 'page' }, 
+    { text: 'console', description: 'Outputs a message to the Web Console.' }, 
+    { text: 'function', description: 'A function is a code snippet that can be called by other code or by itself, or a variable that refers to the function. When a function is called, arguments are passed to the function as input, and the function can optionally return an output. A function in JavaScript is also an object.' }, 
+    { text: 'const', description: 'Constants are block-scoped, much like variables defined using the let statement. The value of a constant cannot change through re-assignment, and it can\'t be redeclared.' },
+    { text: 'var', description: 'The variable statement declares a variable, optionally initializing it to a value.' },
+    { text: 'let', description: 'The let statement declares a block scope local variable, optionally initializing it to a value.' },
+  ];
   const key = 'browserless_code';
 
   const $intro = document.querySelector('.intro');
@@ -302,10 +334,92 @@ const puppeteer = require('puppeteer');
     return pt;
   }
 
+  function getHints(token) {
+    if (token.type === 'property') {
+      return pageMethods.filter((vars) => vars.text.includes(token.string)).slice(0, 5);
+    }
+    return globalVars.filter((vars) => vars.text.includes(token.string));
+  }
+
+  CodeMirror.registerHelper('hint', 'javascript', (editor, options) => {
+    const cur = editor.getCursor();
+    const token = editor.getTokenAt(cur);
+    const tokenStart = token.type !== null && /"|\w/.test(token.string[0])
+      ? token.start
+      : token.end;
+
+    if (token.type === null) {
+      return;
+    }
+
+    const list = getHints(token);
+
+    const results = {
+      list,
+      from: {line: cur.line, column: tokenStart},
+      to: {line: cur.line, column: token.end},
+    };
+
+    if (results && results.list && results.list.length > 0) {
+      results.from = CodeMirror.Pos(results.from.line, results.from.column);
+      results.to = CodeMirror.Pos(results.to.line, results.to.column);
+      CodeMirror.signal(editor, 'hasCompletion', editor, results, token);
+    }
+
+    return results;
+  });
+
+  function onHasCompletion(cm, data, onHintInformationRender) {
+    let information;
+
+    CodeMirror.on(data, 'select', (ctx, el) => {
+      if (!information) {
+        const hintsUl = el.parentNode;
+
+        information = document.createElement('div');
+        information.className = 'CodeMirror-hint-information';
+        hintsUl.appendChild(information);
+
+        let onRemoveFn;
+        hintsUl.addEventListener(
+          'DOMNodeRemoved',
+          (onRemoveFn = event => {
+            if (event.target === hintsUl) {
+              hintsUl.removeEventListener('DOMNodeRemoved', onRemoveFn);
+              information = null;
+              onRemoveFn = null;
+            }
+          }),
+        );
+      }
+
+      const method = document.createElement('span');
+        method.innerHTML = '<a href="' + ctx.href + '" target="_blank">' + ctx.text + '</a>';
+        method.className += 'info';
+
+      const description = document.createElement('span');
+        description.innerText = ctx.description;
+        description.className += 'description';
+
+      information.innerHTML =
+        '<div class="content">' +
+          description.outerHTML +
+          method.outerHTML +
+        '</div>';
+    });
+  }
+
   const editor = CodeMirror.fromTextArea($codeText, {
     lineNumbers: true,
     showCursorWhenSelecting: true,
-    mode: { name: 'javascript', globalVars: true },
+    mode: {
+      name: 'javascript',
+      globalVars: true
+    },
+    hintOptions: {
+      closeOnUnfocus: false,
+      completeSingle: false,
+    },
     theme: 'neo',
     allowDropFileTypes: ['text/javascript'],
     autoCloseBrackets: true,
@@ -316,6 +430,9 @@ const puppeteer = require('puppeteer');
     },
     keyMap: 'sublime',
   });
+
+  editor.on('keyup', (cm, event) => AUTO_COMPLETE_AFTER_KEY.test(event.key) && editor.execCommand('autocomplete'));
+  editor.on('hasCompletion', onHasCompletion);
 
   const loadIframe = (pageURI, debuggerVersion) => {
     if (document.querySelector('.intro')) {
@@ -369,7 +486,7 @@ const puppeteer = require('puppeteer');
 
     save(code);
 
-    fetch(`${protocol}//${hostname}${port ? `:${port}` : ''}/execute${qsParams}`, { method: 'POST', body: formData })
+    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
       .then((res) => res.json())
       .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
   });
@@ -378,7 +495,15 @@ const puppeteer = require('puppeteer');
     onEditScript(editor.getValue());
   });
 
-  fetch(`${secure ? 'https' : 'http'}://${hostname}${port ? `:${port}` : ''}/json/version`, {
+  fetch(`${baseURL}/introspection`, {
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
+  .then(res => res.json())
+  .then((hints) => pageMethods = pageMethods.concat(hints))
+
+  fetch(`${baseURL}/json/version`, {
     headers: {
       'Accept': 'application/json',
     }
