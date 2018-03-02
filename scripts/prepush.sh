@@ -8,18 +8,13 @@ npm install
 
 ./scripts/get-meta.js
 
-if [[ `git status --porcelain | grep version.json` ]]; then
-  echo "version.json file changes, committing..."
-  git add version.json
-  git commit -m "Updating version.json browser output"
-else
-  echo "No version.json file changes, proceeding"
-fi
-
-if [[ `git status --porcelain | grep protocol.json` ]]; then
-  echo "protocol.json file changes, committing..."
-  git add protocol.json
-  git commit -m "Updating protocol.json browser output"
-else
-  echo "No protocol.json file changes, proceeding"
-fi
+for i in 'version' 'protocol' 'hints'
+do
+  if [[ `git status --porcelain | grep $i.json` ]]; then
+    echo "$i.json file changes, committing..."
+    git add $i.json
+    git commit -m "Updating $i.json browser output"
+  else
+    echo "No $i.json file changes, proceeding"
+  fi
+done

@@ -19,7 +19,7 @@ const {
   }
 } = require('../package-lock.json');
 
-const docsPage = 'https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md';
+const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVersion}/docs/api.md`;
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
