@@ -19,7 +19,7 @@ Severless Chrome on your own infrastructure. Each session gets its own clean Chr
 - Works with just about any headless library
 - Configurable session timers to keep things running smoothly
 
-## 😕 How it works
+## 🤔 How it works
 
 Every Chrome library functions the same at the lowest level: over a websocket connection. When a websocket connects to browserless, Chrome is started (<100ms) and that socket is then proxied into Chrome. Once the session is done, Chrome is closed and browserless waits for further connections. Some libraries use Chrome's HTTP endpoints, like `/json` to inspect debuggable targets, which browserless also supports. These HTTP calls also generate a fresh copy of Chrome, and expose debugging endpoints which most libraries will connect to.
 
