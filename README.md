@@ -27,7 +27,7 @@ Your application still runs the script itself (much like a database interaction)
 
 ## 🐳 Docker Quickstart
 
-⚠️ HOSTING: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site needs to be deployed under HTTPS. This is due to devtools scripts being loaded from an http-based domain. For further help/information look at some projects like localtunnel, certbot, or even netlify to achieve these efforts.
+⚠️ HOSTING: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site needs to be deployed under HTTPS. This is due to devtools scripts being loaded from a secure domain. For further help/information look at some projects like localtunnel, certbot, or even netlify to achieve these efforts.
 
 1. `docker pull browserless/chrome`
 2. `docker run --shm-size=1gb -p 3000:3000 browserless/chrome`
