@@ -70,12 +70,6 @@ RUN apt-get update && apt-get install -y \
 ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 /usr/local/bin/dumb-init
 RUN chmod +x /usr/local/bin/dumb-init
 
-# Install Node.js
-RUN apt-get install --yes curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_8.x | bash - &&\
-  apt-get install --yes nodejs &&\
-  apt-get install --yes build-essential
-
 # Install emoji's
 RUN cd $font_directory &&\
   wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
