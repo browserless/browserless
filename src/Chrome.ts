@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as _ from 'lodash';
 import * as url from 'url';
 import * as http from 'http';
@@ -16,8 +14,6 @@ const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
-
-const metricsHTML = fs.readFileSync(path.join(__dirname, '..', '/public/metrics.html'), { encoding: 'utf8' });
 
 const chromeTarget = () => {
   var text = '';
@@ -262,6 +258,13 @@ export class Chrome {
     app.get('/introspection', (_req, res) => res.json(hints));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
+    app.get('/metrics', (_req, res) => res.json(this.stats));
+    app.get('/config', (_req, res) => res.json({
+      timeout: this.connectionTimeout,
+      concurrent: this.maxConcurrentSessions,
+      queue: this.maxQueueLength - this.maxConcurrentSessions,
+      preboot: this.prebootChrome,
+    }));
     app.get('/pressure', (_req, res) => {
       const queueLength = this.queue.length;
       const concurrencyMet = queueLength >= this.maxConcurrentSessions;
@@ -276,12 +279,6 @@ export class Chrome {
         }
       });
     });
-    app.get('/metrics', (_req, res) => res.send(
-      metricsHTML
-        .replace('$stats', JSON.stringify(this.stats))
-        .replace('$version', JSON.stringify(_.omit(version, 'User-Agent')))
-      )
-    );
 
     app.post('/execute', upload.single('file'), async (req, res) => {
       const targetId = chromeTarget();
