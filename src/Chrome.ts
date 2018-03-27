@@ -4,6 +4,7 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
+import * as os from 'os';
 import { VM } from 'vm2';
 import { launch } from 'puppeteer';
 import { setInterval } from 'timers';
@@ -51,6 +52,7 @@ export interface IOptions {
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
+  healthFailureURL: string | null;
 }
 
 interface IChrome {
@@ -84,6 +86,7 @@ export class Chrome {
   readonly rejectHook: Function;
   readonly queueHook: Function;
   readonly timeoutHook: Function;
+  readonly healthFailureHook: Function;
 
   private stats: IStats[];
   private currentStat: IStats;
@@ -142,6 +145,13 @@ export class Chrome {
       _.debounce(() => {
         debug(`Calling webhook for timed-out session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
+      }, thiryMinutes, { leading: true, trailing: false }) :
+      _.noop;
+
+    this.healthFailureHook = opts.healthFailureURL ?
+      _.debounce(() => {
+        debug(`Calling webhook for health-failure: ${opts.healthFailureURL}`);
+        request(opts.healthFailureURL, _.noop);
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
 
@@ -215,6 +225,16 @@ export class Chrome {
 
     if (this.stats.length > maxStats) {
       this.stats.shift();
+    }
+
+    const [,fiveMinuteAvg] = os.loadavg();
+
+    // Less than 10% CPU or less than 5% memory is a health failure
+    const highCPUUsage = (os.cpus().length - fiveMinuteAvg) < 0.1;
+    const highMemUsage = (os.freemem() / os.totalmem()) < 0.05;
+
+    if (highCPUUsage || highMemUsage) {
+      this.healthFailureHook();
     }
   }
 

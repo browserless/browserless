@@ -16,6 +16,7 @@ const token =                  process.env.TOKEN || null;
 const queuedAlertURL =         process.env.QUEUE_ALERT_URL || null;
 const rejectAlertURL =         process.env.REJECT_ALERT_URL || null;
 const timeoutAlertURL =        process.env.TIMEOUT_ALERT_URL || null;
+const healthFailureURL =       process.env.FAILED_HEALTH_URL || null;
 
 new Chrome({
   token,
@@ -27,5 +28,6 @@ new Chrome({
   queuedAlertURL,
   rejectAlertURL,
   timeoutAlertURL,
+  healthFailureURL,
 })
 .startServer();
