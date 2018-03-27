@@ -38,8 +38,8 @@ const asyncMiddleware = (handler) => {
 };
 
 const thiryMinutes = 30 * 60 * 1000;
-const oneMinute = 60 * 1000;
-const maxStats = 12 * 24 * 5; // 5 days @ 1-min intervals
+const fiveMinute = 1 * 60 * 1000;
+const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 export interface IOptions {
   connectionTimeout: number;
@@ -157,7 +157,7 @@ export class Chrome {
       prebootChrome: this.prebootChrome,
     }, `Final Options`);
 
-    setInterval(this.recordMetrics.bind(this), oneMinute);
+    setInterval(this.recordMetrics.bind(this), fiveMinute);
 
     if (this.prebootChrome) {
       for (let i = 0; i < this.maxConcurrentSessions; i++) {
@@ -206,10 +206,10 @@ export class Chrome {
   }
 
   private recordMetrics() {
-    this.stats.push({
+    this.stats.push(Object.assign({}, {
       ...this.currentStat,
       date: Date.now(),
-    });
+    }));
 
     this.resetCurrentStat();
 
@@ -357,7 +357,7 @@ export class Chrome {
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
-                debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} in queue`);
+                debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
                 chrome.close();
                 done();
               });
