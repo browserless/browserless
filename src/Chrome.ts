@@ -66,6 +66,8 @@ interface IStats {
   requests: number;
   queued: number;
   rejected: number;
+  memory: number;
+  cpu: number;
   timedout: number;
 };
 
@@ -211,13 +213,21 @@ export class Chrome {
       queued: 0,
       requests: 0,
       timedout: 0,
+      memory: 0,
+      cpu: 0,
       date: null,
     };
   }
 
   private recordMetrics() {
+    const [,,fifteenMinuteAvg] = os.loadavg();
+    const cpuUsage = fifteenMinuteAvg / os.cpus().length;
+    const memoryUsage = 1 - (os.freemem() / os.totalmem());
+
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
+      cpu: cpuUsage,
+      memory: memoryUsage,
       date: Date.now(),
     }));
 
@@ -227,13 +237,12 @@ export class Chrome {
       this.stats.shift();
     }
 
-    const [,fiveMinuteAvg] = os.loadavg();
+    const memorySample: IStats[] = _.takeRight(this.stats, 3);
+    const memoryAverage:number = _.reduce(memorySample, (accum: number, stat: IStats) => {
+      return accum + stat.memory;
+    }, 0) / memorySample.length;
 
-    // Less than 10% CPU or less than 5% memory is a health failure
-    const highCPUUsage = (os.cpus().length - fiveMinuteAvg) < 0.1;
-    const highMemUsage = (os.freemem() / os.totalmem()) < 0.05;
-
-    if (highCPUUsage || highMemUsage) {
+    if (cpuUsage > 0.9 || memoryAverage > 0.9) {
       this.healthFailureHook();
     }
   }
