@@ -242,7 +242,7 @@ export class Chrome {
       return accum + stat.memory;
     }, 0) / memorySample.length;
 
-    if (cpuUsage > 0.9 || memoryAverage > 0.9) {
+    if (cpuUsage > 0.99 || memoryAverage > 0.99) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage * 100}% Memory: ${memoryAverage * 100}%`);
       this.healthFailureHook();
     }
