@@ -39,7 +39,7 @@ const asyncMiddleware = (handler) => {
 };
 
 const thiryMinutes = 30 * 60 * 1000;
-const fiveMinute = 1 * 60 * 1000;
+const fiveMinute = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 export interface IOptions {
