@@ -1,7 +1,7 @@
 ![browserless splash logo](assets/splash.png)
 
 
-[Check out a live demo here](https://chrome.browserless.io/).
+[Visit a live demo in Chrome here](https://chrome.browserless.io/).
 
 [Docker repo here](https://hub.docker.com/r/browserless/chrome/).
 
