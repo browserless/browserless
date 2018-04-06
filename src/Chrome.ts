@@ -48,6 +48,7 @@ export interface IOptions {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
+  demoMode: boolean;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
@@ -80,6 +81,7 @@ export class Chrome {
 
   private proxy: any;
   private prebootChrome: boolean;
+  private demoMode: boolean;
   private chromeSwarm: Promise<IChrome>[];
   private queue: any;
   private server: any;
@@ -99,6 +101,7 @@ export class Chrome {
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
     this.prebootChrome = opts.prebootChrome;
+    this.demoMode = opts.demoMode;
     this.token = opts.token;
 
     this.chromeSwarm = [];
@@ -167,6 +170,7 @@ export class Chrome {
       timeoutAlertURL: opts.timeoutAlertURL,
       queuedAlertURL: opts.queuedAlertURL,
       prebootChrome: this.prebootChrome,
+      demoMode: this.demoMode,
     }, `Final Options`);
 
     setInterval(this.recordMetrics.bind(this), fiveMinute);
@@ -351,9 +355,14 @@ export class Chrome {
       .createServer(app)
       .on('upgrade', asyncMiddleware(async(req, socket, head) => {
         const parsedUrl = url.parse(req.url, true);
+        const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
 
         this.onRequest(req);
+
+        if (this.demoMode && !this.debuggerScripts.has(route)) {
+          return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
+        }
 
         if (this.token && parsedUrl.query.token !== this.token) {
           return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
@@ -368,8 +377,6 @@ export class Chrome {
         }
 
         const job:any = (done: () => {}) => {
-          const route = parsedUrl.pathname || '/';
-
           const flags = _.chain(parsedUrl.query)
             .pickBy((_value, param) => _.startsWith(param, '--'))
             .map((value, key) => `${key}${value ? `=${value}` : ''}`)
