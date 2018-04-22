@@ -16,6 +16,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@types/node": "^8.0.39",
+    "@types/puppeteer": "^1.2.1",
     "debug": "^3.1.0",
     "express": "^4.16.2",
     "http-proxy": "^1.16.2",

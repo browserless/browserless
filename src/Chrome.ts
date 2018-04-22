@@ -6,7 +6,7 @@ import * as express from 'express';
 import * as multer from 'multer';
 import * as os from 'os';
 import { VM } from 'vm2';
-import { launch } from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
 
 const debug = require('debug')('browserless/chrome');
@@ -49,17 +49,12 @@ export interface IOptions {
   maxQueueLength: number;
   prebootChrome: boolean;
   demoMode: boolean;
+  singleUse: boolean;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
-}
-
-interface IChrome {
-  wsEndpoint: () => string;
-  newPage: () => any;
-  close: () => void;
 }
 
 interface IStats {
@@ -82,10 +77,11 @@ export class Chrome {
   private proxy: any;
   private prebootChrome: boolean;
   private demoMode: boolean;
-  private chromeSwarm: Promise<IChrome>[];
+  private chromeSwarm: Promise<puppeteer.Browser>[];
   private queue: any;
   private server: any;
   private debuggerScripts: any;
+  private singleUse: boolean;
 
   readonly rejectHook: Function;
   readonly queueHook: Function;
@@ -97,6 +93,7 @@ export class Chrome {
 
   constructor(opts: IOptions) {
     this.port = opts.port;
+    this.singleUse = opts.singleUse;
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
@@ -171,6 +168,7 @@ export class Chrome {
       queuedAlertURL: opts.queuedAlertURL,
       prebootChrome: this.prebootChrome,
       demoMode: this.demoMode,
+      singleUse: this.singleUse,
     }, `Final Options`);
 
     setInterval(this.recordMetrics.bind(this), fiveMinute);
@@ -265,17 +263,20 @@ export class Chrome {
     socket.destroy();
   }
 
-  private async launchChrome(flags:string[] = []): Promise<IChrome> {
+  private async launchChrome(flags:string[] = []): Promise<puppeteer.Browser> {
     const start = Date.now();
     debug('Chrome Starting');
-    return launch({
+    return puppeteer.launch({
       args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
     })
       .then((chrome) => {
         debug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
       })
-      .catch((error) => console.error(error));
+      .catch((error) => {
+        console.error(error);
+        throw error;
+      });
   }
 
   public async startServer(): Promise<any> {
@@ -406,7 +407,11 @@ export class Chrome {
                 return browserWsEndpoint;
               }
 
-              const page = await chrome.newPage();
+              if (this.singleUse) {
+                chrome.on('disconnected', () => process.exit(0));
+              }
+
+              const page:any = await chrome.newPage();
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
