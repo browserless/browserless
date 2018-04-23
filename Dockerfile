@@ -64,7 +64,9 @@ RUN apt-get update && apt-get install -y \
   libnss3 \
   lsb-release \
   xdg-utils \
-  wget
+  wget \
+  fonts-ipafont-gothic \
+  fonts-ipafont-mincho
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
 ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 /usr/local/bin/dumb-init
@@ -84,7 +86,7 @@ RUN cd $font_directory &&\
   wget https://github.com/adampash/Lifehacker.me/blob/master/fonts/HelveticaNeue.ttf?raw=true && \
   fc-cache -f -v
 
-# Build 
+# Build
 RUN npm install -g typescript @types/node &&\
   npm install &&\
   npm run build
