@@ -40,6 +40,50 @@ const asyncMiddleware = (handler) => {
   }
 };
 
+const getCPUIdleAndTotal = ():ICPULoad => {
+  let totalIdle = 0;
+  let totalTick = 0;
+
+  const cpus = os.cpus();
+
+  for (var i = 0, len = cpus.length; i < len; i++) {
+    var cpu = cpus[i];
+
+    for (const type in cpu.times) {
+      totalTick += cpu.times[type];
+    }
+
+    //Total up the idle time of the core
+    totalIdle += cpu.times.idle;
+  }
+
+  //Return the average Idle and Tick times
+  return {
+    idle: totalIdle / cpus.length,
+    total: totalTick / cpus.length
+  };
+}
+
+const getMachineStats = (): Promise<{ cpuUsage: number; memoryUsage: number }> => {
+  return new Promise((resolve) => {
+    const start = getCPUIdleAndTotal();
+
+    setTimeout(() => {
+      const end = getCPUIdleAndTotal();
+      const idleDifference = end.idle - start.idle;
+      const totalDifference = end.total - start.total;
+
+      const cpuUsage = 100 - ~~(100 * idleDifference / totalDifference);
+      const memoryUsage = 100 - ~~(100 * os.freemem() / os.totalmem());
+
+      return resolve({
+        cpuUsage,
+        memoryUsage,
+      });
+    }, 100);
+  });
+}
+
 const thiryMinutes = 30 * 60 * 1000;
 const fiveMinute = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
@@ -58,6 +102,11 @@ export interface IOptions {
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
+}
+
+interface ICPULoad {
+  idle: number;
+  total: number;
 }
 
 interface IStats {
@@ -177,8 +226,6 @@ export class Chrome {
       singleUse: this.singleUse,
     }, `Final Options`);
 
-    setInterval(this.recordMetrics.bind(this), fiveMinute);
-
     if (this.prebootChrome) {
       for (let i = 0; i < this.maxConcurrentSessions; i++) {
         this.chromeSwarm.push(this.launchChrome());
@@ -186,6 +233,8 @@ export class Chrome {
     }
 
     this.resetCurrentStat();
+    this.adjustConcurrency();
+    this.recordMetrics();
   }
 
   private onTimedOut(next, job) {
@@ -223,10 +272,25 @@ export class Chrome {
     };
   }
 
-  private recordMetrics() {
-    const [,,fifteenMinuteAvg] = os.loadavg();
-    const cpuUsage = fifteenMinuteAvg / os.cpus().length;
-    const memoryUsage = 1 - (os.freemem() / os.totalmem());
+  private async adjustConcurrency() {
+    const { cpuUsage, memoryUsage } = await getMachineStats();
+    const shouldDowngradeConcurrency = cpuUsage > 95 || memoryUsage > 95;
+    const canUpgradeConcurrency = this.queue.concurrency < this.maxConcurrentSessions;
+
+    if (shouldDowngradeConcurrency && this.queue.concurrency > 1) {
+      this.queue.concurrency = this.queue.concurrency - 1;
+      debug(`CPU: ${cpuUsage}%, Memory: ${memoryUsage}% => Worker is under pressure, dropping concurrency -> ${this.queue.concurrency}.`);
+
+    } else if (!shouldDowngradeConcurrency && canUpgradeConcurrency) {
+      this.queue.concurrency = this.queue.concurrency + 1;
+      debug(`CPU: ${cpuUsage}%, Memory: ${memoryUsage}% => Worker is available, updating concurrency -> ${this.queue.concurrency}`);
+    }
+
+    setTimeout(() => this.adjustConcurrency(), 1000);
+  }
+
+  private async recordMetrics() {
+    const { cpuUsage, memoryUsage } = await getMachineStats();
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
@@ -241,15 +305,12 @@ export class Chrome {
       this.stats.shift();
     }
 
-    const memorySample: IStats[] = _.takeRight(this.stats, 3);
-    const memoryAverage:number = _.reduce(memorySample, (accum: number, stat: IStats) => {
-      return accum + stat.memory;
-    }, 0) / memorySample.length;
-
-    if (cpuUsage > 0.99 || memoryAverage > 0.99) {
-      debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage * 100}% Memory: ${memoryAverage * 100}%`);
+    if (cpuUsage >= 99 || memoryUsage >= 99) {
+      debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
       this.healthFailureHook();
     }
+
+    setInterval(() => this.recordMetrics(), fiveMinute);
   }
 
   private addToChromeSwarm() {
