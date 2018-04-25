@@ -8,9 +8,11 @@ import * as os from 'os';
 import { VM } from 'vm2';
 import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
+import * as bodyParser from 'body-parser';
 
 const debug = require('debug')('browserless/chrome');
 const request = require('request');
+const requireFromString = require('require-from-string');
 const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -50,6 +52,7 @@ export interface IOptions {
   prebootChrome: boolean;
   demoMode: boolean;
   singleUse: boolean;
+  enableDebugger: boolean;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
@@ -59,7 +62,8 @@ export interface IOptions {
 
 interface IStats {
   date: number | null;
-  requests: number;
+  success: number;
+  error: number;
   queued: number;
   rejected: number;
   memory: number;
@@ -77,6 +81,7 @@ export class Chrome {
   private proxy: any;
   private prebootChrome: boolean;
   private demoMode: boolean;
+  private enableDebugger: boolean;
   private chromeSwarm: Promise<puppeteer.Browser>[];
   private queue: any;
   private server: any;
@@ -100,6 +105,7 @@ export class Chrome {
     this.prebootChrome = opts.prebootChrome;
     this.demoMode = opts.demoMode;
     this.token = opts.token;
+    this.enableDebugger = opts.enableDebugger;
 
     this.chromeSwarm = [];
     this.stats = []
@@ -125,8 +131,8 @@ export class Chrome {
       autostart: true
     });
 
-    this.queue.on('success', this.addToSwarm.bind(this));
-    this.queue.on('error', this.addToSwarm.bind(this));
+    this.queue.on('success', this.onSessionComplete.bind(this));
+    this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.queueHook = opts.queuedAlertURL ?
@@ -182,17 +188,12 @@ export class Chrome {
     this.resetCurrentStat();
   }
 
-  private onRequest(req) {
-    debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
-    this.currentStat.requests = this.currentStat.requests + 1;
-  }
-
   private onTimedOut(next, job) {
     debug(`Timeout hit for session, closing. ${this.queue.length} in queue.`);
     job.close('HTTP/1.1 408 Request has timed out\r\n');
     this.currentStat.timedout = this.currentStat.timedout + 1;
     this.timeoutHook();
-    this.addToSwarm();
+    this.onSessionComplete();
     next();
   }
 
@@ -213,7 +214,8 @@ export class Chrome {
     this.currentStat = {
       rejected: 0,
       queued: 0,
-      requests: 0,
+      success: 0,
+      error: 0,
       timedout: 0,
       memory: 0,
       cpu: 0,
@@ -250,11 +252,21 @@ export class Chrome {
     }
   }
 
-  private addToSwarm() {
+  private addToChromeSwarm() {
     if (this.prebootChrome && (this.chromeSwarm.length < this.maxConcurrentSessions)) {
       this.chromeSwarm.push(this.launchChrome());
       debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
     }
+  }
+
+  private onSessionComplete() {
+    this.currentStat.success = this.currentStat.success + 1;
+    this.addToChromeSwarm();
+  }
+
+  private onSessionFail() {
+    this.currentStat.error = this.currentStat.error + 1;
+    this.addToChromeSwarm();
   }
 
   private closeSocket(socket: any, message: string) {
@@ -281,25 +293,53 @@ export class Chrome {
 
   public async startServer(): Promise<any> {
     const app = express();
-    const upload = multer();
 
-    app.use('/', express.static('public'));
-    app.use((req, res, next) => {
-      if (this.token && req.query.token !== this.token) {
-        return res.sendStatus(403);
-      }
-      next();
-    });
+    app.use(bodyParser.json({ limit: '1mb' }));
+
+    if (this.enableDebugger) {
+      const upload = multer();
+      app.use('/', express.static('public'));
+      app.post('/execute', upload.single('file'), async (req, res) => {
+        const targetId = chromeTarget();
+        const code = `
+        (async() => {
+          ${req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })')}
+        })().catch((error) => {
+          console.error('Puppeteer Runtime Error:', error.stack);
+        });`;
+  
+        debug(`/execute: Script uploaded\n${code}`);
+  
+        this.debuggerScripts.set(targetId, code);
+  
+        res.json({
+          targetId,
+          debuggerVersion: version['Debugger-Version']
+        });
+      });
+    }
+
+    if (this.token) {
+      app.use((req, res, next) => {
+        if (this.token && req.query.token !== this.token) {
+          return res.sendStatus(403);
+        }
+        next();
+      });
+    }
+
     app.get('/introspection', (_req, res) => res.json(hints));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
     app.get('/metrics', (_req, res) => res.json(this.stats));
+
     app.get('/config', (_req, res) => res.json({
       timeout: this.connectionTimeout,
       concurrent: this.maxConcurrentSessions,
       queue: this.maxQueueLength - this.maxConcurrentSessions,
       preboot: this.prebootChrome,
     }));
+
     app.get('/pressure', (_req, res) => {
       const queueLength = this.queue.length;
       const concurrencyMet = queueLength >= this.maxConcurrentSessions;
@@ -315,24 +355,19 @@ export class Chrome {
       });
     });
 
-    app.post('/execute', upload.single('file'), async (req, res) => {
-      const targetId = chromeTarget();
-      const code = `
-      (async() => {
-        ${req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })')}
-      })().catch((error) => {
-        console.error('Puppeteer Runtime Error:', error.stack);
-      });`;
+    app.post('/function', async (req, res) => {
+      const { code: handlerFn, context: stringifiedContext } = req.body;
 
-      debug(`/execute: Script uploaded\n${code}`);
+      const code = requireFromString(handlerFn);
+      const context = JSON.parse(stringifiedContext);
 
-      this.debuggerScripts.set(targetId, code);
-
-      res.json({
-        targetId,
-        debuggerVersion: version['Debugger-Version']
-      });
-    });
+      return code({
+        puppeteer,
+        context,
+      })
+      .then((result) => res.json(result))
+      .catch((error) => res.status(500).send(error.message));
+    })
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
       const targetId = chromeTarget();
@@ -359,7 +394,7 @@ export class Chrome {
         const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
 
-        this.onRequest(req);
+        debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
         if (this.demoMode && !this.debuggerScripts.has(route)) {
           return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
