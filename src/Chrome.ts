@@ -64,7 +64,7 @@ const getCPUIdleAndTotal = ():ICPULoad => {
   };
 }
 
-const getMachineStats = (): Promise<{ cpuUsage: number; memoryUsage: number }> => {
+const getMachineStats = (): Promise<IResourceLoad> => {
   return new Promise((resolve) => {
     const start = getCPUIdleAndTotal();
 
@@ -86,6 +86,7 @@ const getMachineStats = (): Promise<{ cpuUsage: number; memoryUsage: number }> =
 
 const thiryMinutes = 30 * 60 * 1000;
 const fiveMinute = 5 * 60 * 1000;
+const halfSecond = 500;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 export interface IOptions {
@@ -97,6 +98,9 @@ export interface IOptions {
   demoMode: boolean;
   singleUse: boolean;
   enableDebugger: boolean;
+  maxMemory: number;
+  maxCPU: number;
+  autoQueue: boolean;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
@@ -107,6 +111,11 @@ export interface IOptions {
 interface ICPULoad {
   idle: number;
   total: number;
+}
+
+interface IResourceLoad {
+  cpuUsage: number;
+  memoryUsage: number;
 }
 
 interface IStats {
@@ -126,6 +135,9 @@ export class Chrome {
   public maxQueueLength: number;
   public connectionTimeout: number;
   public token: string | null;
+  public maxMemory: number;
+  public maxCPU: number;
+  public autoQueue: boolean;
 
   private proxy: any;
   private prebootChrome: boolean;
@@ -144,6 +156,7 @@ export class Chrome {
 
   private stats: IStats[];
   private currentStat: IStats;
+  private currentMachineStats: IResourceLoad;
 
   constructor(opts: IOptions) {
     this.port = opts.port;
@@ -155,6 +168,9 @@ export class Chrome {
     this.demoMode = opts.demoMode;
     this.token = opts.token;
     this.enableDebugger = opts.enableDebugger;
+    this.maxCPU = opts.maxCPU;
+    this.maxMemory = opts.maxMemory;
+    this.autoQueue = opts.autoQueue;
 
     this.chromeSwarm = [];
     this.stats = []
@@ -224,6 +240,9 @@ export class Chrome {
       prebootChrome: this.prebootChrome,
       demoMode: this.demoMode,
       singleUse: this.singleUse,
+      maxMemory: this.maxMemory,
+      maxCPU: this.maxCPU,
+      autoQueue: this.autoQueue,
     }, `Final Options`);
 
     if (this.prebootChrome) {
@@ -233,8 +252,9 @@ export class Chrome {
     }
 
     this.resetCurrentStat();
-    this.adjustConcurrency();
-    this.recordMetrics();
+
+    setInterval(this.recordMachineStats, halfSecond);
+    setInterval(this.recordMetrics, fiveMinute);
   }
 
   private onTimedOut(next, job) {
@@ -272,21 +292,8 @@ export class Chrome {
     };
   }
 
-  private async adjustConcurrency() {
-    const { cpuUsage, memoryUsage } = await getMachineStats();
-    const shouldDowngradeConcurrency = cpuUsage > 95 || memoryUsage > 95;
-    const canUpgradeConcurrency = this.queue.concurrency < this.maxConcurrentSessions;
-
-    if (shouldDowngradeConcurrency && this.queue.concurrency > 1) {
-      this.queue.concurrency = this.queue.concurrency - 1;
-      debug(`CPU: ${cpuUsage}%, Memory: ${memoryUsage}% => Worker is under pressure, dropping concurrency -> ${this.queue.concurrency}.`);
-
-    } else if (!shouldDowngradeConcurrency && canUpgradeConcurrency) {
-      this.queue.concurrency = this.queue.concurrency + 1;
-      debug(`CPU: ${cpuUsage}%, Memory: ${memoryUsage}% => Worker is available, updating concurrency -> ${this.queue.concurrency}`);
-    }
-
-    setTimeout(() => this.adjustConcurrency(), 1000);
+  private async recordMachineStats() {
+    this.currentMachineStats = await getMachineStats();
   }
 
   private async recordMetrics() {
@@ -305,16 +312,14 @@ export class Chrome {
       this.stats.shift();
     }
 
-    if (cpuUsage >= 99 || memoryUsage >= 99) {
+    if (cpuUsage >= this.maxCPU || memoryUsage >= this.maxMemory) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
       this.healthFailureHook();
     }
-
-    setInterval(() => this.recordMetrics(), fiveMinute);
   }
 
   private addToChromeSwarm() {
-    if (this.prebootChrome && (this.chromeSwarm.length < this.maxConcurrentSessions)) {
+    if (this.prebootChrome && (this.chromeSwarm.length < this.queue.concurrency)) {
       this.chromeSwarm.push(this.launchChrome());
       debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
     }
@@ -403,13 +408,13 @@ export class Chrome {
 
     app.get('/pressure', (_req, res) => {
       const queueLength = this.queue.length;
-      const concurrencyMet = queueLength >= this.maxConcurrentSessions;
+      const concurrencyMet = queueLength >= this.queue.concurrency;
 
       return res.json({
         pressure: {
           date: Date.now(),
-          running: concurrencyMet ? this.maxConcurrentSessions : queueLength,
-          queued: concurrencyMet ? queueLength - this.maxConcurrentSessions : 0,
+          running: concurrencyMet ? this.queue.concurrency : queueLength,
+          queued: concurrencyMet ? queueLength - this.queue.concurrency : 0,
           isAvailable: queueLength < this.maxQueueLength,
           recentlyRejected: this.currentStat.rejected,
         }
@@ -454,6 +459,10 @@ export class Chrome {
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
+        const isMachineStrained = (
+          this.currentMachineStats.cpuUsage >= this.maxCPU ||
+          this.currentMachineStats.memoryUsage >= this.maxMemory
+        );
 
         debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
@@ -469,7 +478,11 @@ export class Chrome {
           return this.onRejected(req, socket, `HTTP/1.1 429 Too Many Requests`);
         }
 
-        if (queueLength >= this.maxConcurrentSessions) {
+        if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
+          this.queue.concurrency = isMachineStrained ? this.queue.length : this.maxConcurrentSessions;
+        }
+
+        if (queueLength >= this.queue.concurrency) {
           this.onQueued(req);
         }
 
