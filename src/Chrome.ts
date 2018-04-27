@@ -431,7 +431,7 @@ export class Chrome {
 
               socket.on('close', () => {
                 debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
-                chrome.close();
+                chrome.process().kill('SIGKILL');
                 done();
               });
 
