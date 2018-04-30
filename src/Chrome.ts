@@ -275,7 +275,7 @@ export class Chrome {
     socket.destroy();
   }
 
-  private async launchChrome(flags:string[] = []): Promise<puppeteer.Browser> {
+  private async launchChrome(flags:string[] = [], retries:number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
     debug('Chrome Starting');
     return puppeteer.launch({
@@ -286,7 +286,14 @@ export class Chrome {
         return chrome;
       })
       .catch((error) => {
-        console.error(error);
+
+        if (retries > 0) {
+          const nextRetries = retries - 1;
+          console.error(error, `Issue launching Chrome, retrying ${retries} times.`);
+          return this.launchChrome(flags, nextRetries);
+        }
+
+        console.error(error, `Issue launching Chrome, retries exhausted.`);
         throw error;
       });
   }
@@ -478,7 +485,11 @@ export class Chrome {
 
               return `ws://127.0.0.1:${port}`;
             })
-            .then((target) => this.proxy.ws(req, socket, head, { target }));
+            .then((target) => this.proxy.ws(req, socket, head, { target }))
+            .catch((error) => {
+              console.error(error, `Issue launching Chrome or proxying traffic, failing request`);
+              return this.onRejected(req, socket, `HTTP/1.1 500`);
+            });
         };
 
         job.close = (message: string) => this.closeSocket(socket, message);
