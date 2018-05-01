@@ -12,7 +12,6 @@
 
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:500">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/theme/neo.min.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
   <style>
   * {
@@ -22,12 +21,15 @@
     outline: none;
     box-sizing: border-box;
   }
+  @keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
   header {
     height: 60px;
     padding: 13px;
     color: #333;
-    border-bottom: 1px solid #ccc;
-    background: linear-gradient(#f7f7f7, #e2e2e2);
+    border-bottom: 1px solid #e2e2e2;
     box-shadow: 0 5px 10px 0 rgba(0,0,0,.1);
     display: flex;
     align-items: center;
@@ -112,7 +114,6 @@
     right: 0;
     opacity: .4; 
     z-index: -1;
-    background: #f3f3f3;
     background-repeat: no-repeat;
     background-position: 50% 50%;
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#3367d6" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
@@ -130,6 +131,9 @@
     align-items: center;
     padding: 10px;
   }
+  footer p {
+    animation: fadein 1s ease;
+  }
   footer p,
   footer a {
     color: white;
@@ -139,7 +143,7 @@
     height: 100%;
     overflow: scroll;
     padding-top: 5px;
-    font-size: 13px;
+    font-size: 15px;
   }
   .CodeMirror-scroll {
     overflow-y: auto;
@@ -173,13 +177,53 @@
   .CodeMirror-hint-information ul {
     margin-left: 15px;
   }
+  /* Color scheme */
+  .cm-s-nova.CodeMirror {
+    background-color:#3C4C55;
+    color:#C5D4DD;
+    line-height:1.4375;
+  }
+  .cm-s-nova .cm-comment { color: #899BA6; }
+  .cm-s-nova .cm-keyword, .cm-s-nova .cm-property { color:#DADA93; }
+  .cm-s-nova .cm-atom,.cm-s-nova .cm-number { color:#83AFE5; }
+  .cm-s-nova .cm-node,.cm-s-nova .cm-tag { color:#D18EC2; }
+  .cm-s-nova .cm-string { color:#7FC1CA; }
+  .cm-s-nova .cm-variable,.cm-s-nova .cm-qualifier { color:#9A93E1; }
+  .cm-s-nova .cm-operator { color: #F2C38F }
+
+  .cm-s-nova pre {
+    padding:0;
+  }
+
+  .cm-s-nova .CodeMirror-gutters {
+    border:none;
+    border-right:10px solid transparent;
+    background-color:transparent;
+  }
+
+  .cm-s-nova .CodeMirror-linenumber {
+    padding:0;
+    color:#e0e2e5;
+  }
+
+  .cm-s-nova .CodeMirror-guttermarker { color: #1d75b3; }
+  .cm-s-nova .CodeMirror-guttermarker-subtle { color: #e0e2e5; }
+
+  .cm-s-nova .CodeMirror-cursor {
+    width: auto;
+    border: 0;
+    background: rgba(155,157,162,0.37);
+    z-index: 1;
+  }
   </style>
 </head>
 <body>
 
 <main>
   <header>
-    <h1>browserless debugger</h1>
+    <h1>
+      browserless debugger
+    </h1>
     <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
     <section class="links">
       <span id="download" title="Download a zip file with all the required packages">
@@ -314,6 +358,7 @@ const puppeteer = require('puppeteer');
   }
 
   const hints = [
+    `Pro-Tip: Press CTRL+Enter to run your script`,
     `Tip: You can use "debugger;" in your script and it will inject a debugger in the browser`,
     `Tip: "console.log" will print in the debugging console window`,
     `Tip: This tool uses Google's puppeteer library found <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md">here</a>.`,
@@ -434,6 +479,18 @@ const puppeteer = require('puppeteer');
     });
   }
 
+  async function execute() {
+    const code = editor.getValue();
+    const formData = new FormData();
+    formData.append('file', new Blob([code], {type: 'text/javascript'}));
+
+    save(code);
+
+    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
+      .then((res) => res.json())
+      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
+  }
+
   const editor = CodeMirror.fromTextArea($codeText, {
     lineNumbers: true,
     showCursorWhenSelecting: true,
@@ -445,13 +502,14 @@ const puppeteer = require('puppeteer');
       closeOnUnfocus: false,
       completeSingle: false,
     },
-    theme: 'neo',
+    theme: 'nova',
     allowDropFileTypes: ['text/javascript'],
     autoCloseBrackets: true,
     matchBrackets: true,
     extraKeys: {
       'Ctrl-Space': 'autocomplete',
-      'Tab': 'autocomplete'
+      'Tab': 'autocomplete',
+      'Ctrl-Enter': execute,
     },
     keyMap: 'sublime',
   });
@@ -504,17 +562,7 @@ const puppeteer = require('puppeteer');
     saveAs(content, `browserless-${Date.now()}.zip`);
   });
 
-  $executeBtn.addEventListener('click', async () => {
-    const code = editor.getValue();
-    const formData = new FormData();
-    formData.append('file', new Blob([code], {type: 'text/javascript'}));
-
-    save(code);
-
-    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
-      .then((res) => res.json())
-      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
-  });
+  $executeBtn.addEventListener('click', execute);
 
   editor.on('change', () => {
     onEditScript(editor.getValue());
