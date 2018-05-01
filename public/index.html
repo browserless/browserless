@@ -101,6 +101,7 @@
     height: 100%;
     min-width: 25%;
     max-width: 75%;
+    overflow: hidden;
   }
   #frame-mount::before {
     content: "";
@@ -136,11 +137,11 @@
   .CodeMirror {
     font-family: inherit;
     height: 100%;
+    overflow: scroll;
     padding-top: 5px;
     font-size: 13px;
   }
   .CodeMirror-scroll {
-    height: auto;
     overflow-y: auto;
     overflow-x: auto;
   }
