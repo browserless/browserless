@@ -431,14 +431,14 @@ export class Chrome {
           debug(`${req.url}: WebSocket upgrade.`);
 
           (launchPromise || this.launchChrome())
-            .then(async (chrome) => {
-              const browserWsEndpoint = chrome.wsEndpoint();
+            .then(async (browser) => {
+              const browserWsEndpoint = browser.wsEndpoint();
 
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
                 debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
-                chrome.process().kill('SIGKILL');
+                browser.process().kill('SIGKILL');
                 done();
               });
 
@@ -450,10 +450,10 @@ export class Chrome {
               }
 
               if (this.singleUse) {
-                chrome.on('disconnected', () => process.exit(0));
+                browser.on('disconnected', () => process.exit(0));
               }
 
-              const page:any = await chrome.newPage();
+              const page:any = await browser.newPage();
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
@@ -465,11 +465,17 @@ export class Chrome {
 
                 const sandbox = {
                   page,
-                  console: {
-                    log: (...args) => page.evaluate((...args) => console.log(...args), ...args),
-                    error: (...args) => page.evaluate((...args) => console.error(...args), ...args),
-                    debug: (...args) => page.evaluate((...args) => console.debug(...args), ...args),
-                  },
+                  console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
+                    browserConsole[consoleMethod] = (...args) => {
+                      args.unshift(consoleMethod);
+                      return page.evaluate((...args) => {
+                        const [consoleMethod, ...consoleArgs] = args;
+                        return console[consoleMethod](...consoleArgs);
+                      }, ...args);
+                    };
+
+                    return browserConsole;
+                  }, {}),
                 };
 
                 const vm = new VM({

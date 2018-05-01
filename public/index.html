@@ -21,10 +21,6 @@
     outline: none;
     box-sizing: border-box;
   }
-  @keyframes fadein {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
   header {
     height: 60px;
     padding: 13px;
@@ -35,6 +31,7 @@
     align-items: center;
   }
   header h1 {
+    margin-left: 10px;
     font-size: 24px;
     font-weight: bold;
     font-family: 'Montserrat', sans-serif;
@@ -62,29 +59,9 @@
     vertical-align: middle;
     justify-content: center;
   }
-  @keyframes pulse {
-    0% {
-      -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0.4);
-    }
-    70% {
-        -webkit-box-shadow: 0 0 0 10px rgba(51, 103, 214, 0);
-    }
-    100% {
-        -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0);
-    }
-  }
-  .execute-button {
-    animation: pulse 3s infinite;
-    background: linear-gradient(#3367d6 15%,#20489d);
-    border-radius: 17px;
-    border: none;
-    box-shadow: 0 1px 10px #45ce1f;
-    cursor: pointer;
-    fill: #fff;
-    height: 34px;
-    margin: 0 0 0 10px;
-    padding: 0;
-    width: 34px;
+  @keyframes fade {
+    0%,100% { opacity: 0 }
+    10%, 90% { opacity: 1 }
   }
   .resizer {
     width: 5px;
@@ -101,9 +78,38 @@
     line-height: 32px;
     position: relative;
     height: 100%;
+    width: calc(50% - 2.5px);
     min-width: 25%;
     max-width: 75%;
     overflow: hidden;
+  }
+  .run-container {
+    cursor: pointer;
+    top: 50px;
+    right: 0;
+    position: absolute;
+    background: #333;
+    color: white;
+    border: none;
+    font: inherit;
+    font-size: 20px;
+    padding: 2px 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    z-index: 100;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+  }
+  .execute-button {
+    background: linear-gradient(#007bff 15%,#6610f2);
+    border-radius: 17px;
+    border: none;
+    fill: #fff;
+    height: 34px;
+    margin: 10px;
+    width: 34px;
+    cursor: pointer;
   }
   #frame-mount::before {
     content: "";
@@ -116,9 +122,10 @@
     z-index: -1;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#3367d6" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#00b4ff" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
   }
   #frame-mount {
+    width: calc(50% - 2.5px);
     flex: 5;
     position: relative;
     border-left: 1px solid #ccc;
@@ -132,7 +139,7 @@
     padding: 10px;
   }
   footer p {
-    animation: fadein 1s ease;
+    animation: fade 10s ease;
   }
   footer p,
   footer a {
@@ -221,10 +228,16 @@
 
 <main>
   <header>
+    <svg xmlns="http://www.w3.org/2000/svg" stroke="#00b4ff" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="21.17" y1="8" x2="12" y2="8" />
+      <line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+      <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+    </svg>
     <h1>
-      browserless debugger
+      browserless
     </h1>
-    <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
     <section class="links">
       <span id="download" title="Download a zip file with all the required packages">
         <svg width='22' height='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
@@ -239,6 +252,16 @@
   </header>
   <div class="flex-hz">
     <section id="code-mount">
+      <div class="run-container">
+          <button class="execute-button" title="Execute Script">
+            <svg height='20' width='20' fill="#fefefe" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve">
+              <path d="M20.796,34l-6.036-5.987c-1.122-1.124-2.938-1.092-4.062,0.028c-1.123,1.12-1.126,2.956-0.007,4.079l6.879,6.468  C18.108,39.128,18.841,39,19.604,39h5.596c-3.985,5-6.601,11-7.569,17H7.872C6.285,56,5,57.413,5,59c0,1.586,1.285,3,2.872,3h9.335  c0.05,5,1.315,10,3.522,14h-2.083c-0.763,0-1.495,0.436-2.034,0.977l-6.878,6.965c-1.12,1.123-1.118,2.975,0.005,4.095  c0.562,0.559,1.294,0.855,2.028,0.855c0.736,0,1.473-0.278,2.033-0.841L19.839,82h4.638C30.127,89,39,93.544,48,94.055V34H20.796z"></path>
+              <path d="M92.128,56h-9.961c-1.24-6-4.434-12-8.176-17h6.405c0.763,0,1.495,0.137,2.034-0.404l6.879-6.679  c1.119-1.124,1.116-2.832-0.007-3.952c-1.125-1.121-2.941-1.131-4.062-0.007L79.204,34H52v60.033C61,93.447,69.713,88,75.363,82  h4.798l6.038,6.059c0.561,0.563,1.297,0.847,2.033,0.847c0.734,0,1.467-0.279,2.028-0.837c1.123-1.12,1.125-2.938,0.005-4.061  l-6.878-7.031C82.849,76.436,82.116,76,81.354,76h-2.2c2.234-4,3.517-9,3.567-14h9.407C93.715,62,95,60.586,95,59  C95,57.413,93.715,56,92.128,56z"></path>
+              <path d="M31.421,30h37.158c0-7-3.473-12.264-8.687-15.555l3.75-3.673c1.122-1.121,1.122-2.902,0-4.024  c-1.122-1.121-2.939-1.102-4.062,0.02l-5.424,5.434c-1.338-0.306-2.726-0.478-4.157-0.478s-2.819,0.179-4.157,0.485l-5.425-5.423  c-1.122-1.121-2.939-1.121-4.062,0s-1.122,2.941,0,4.063l3.75,3.597C34.894,17.737,31.421,23,31.421,30z"></path>
+            </svg>
+          </button>
+          DEBUG
+      </div>
       <textarea style="visibility: hidden;">
 // No need to require puppeteer or create a page
 await page.goto('https://example.com');
@@ -285,7 +308,7 @@ await page.goto('https://example.com');
 
   const $intro = document.querySelector('.intro');
   const $resizer = document.querySelector('.resizer');
-  const $executeBtn = document.querySelector('.execute-button');
+  const $executeBtn = document.querySelector('.run-container');
   const $codeText = document.querySelector('#code-mount textarea');
   const $debugFrame = document.querySelector('#frame-mount iframe');
   const $codePanel = document.querySelector('#code-mount');
