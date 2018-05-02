@@ -5,14 +5,13 @@ import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
 import * as os from 'os';
-import { VM } from 'vm2';
+import { VM, NodeVM } from 'vm2';
 import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
 import * as bodyParser from 'body-parser';
 
 const debug = require('debug')('browserless/chrome');
 const request = require('request');
-const requireFromString = require('require-from-string');
 const queue = require('queue');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -422,18 +421,30 @@ export class Chrome {
     });
 
     app.post('/function', async (req, res) => {
-      const { code: handlerFn, context: stringifiedContext } = req.body;
-
-      const code = requireFromString(handlerFn);
+      const { code, context: stringifiedContext } = req.body;
       const context = JSON.parse(stringifiedContext);
 
-      return code({
-        puppeteer,
-        context,
-      })
-      .then((result) => res.json(result))
-      .catch((error) => res.status(500).send(error.message));
-    })
+      const vm = new NodeVM({
+        sandbox: {},
+        require: true,
+      });
+
+      const handler = vm.run(code);
+
+      const job:any = () => {
+        return handler({ puppeteer, context })
+          .then((result) => res.json(result))
+          .catch((error) => res.status(500).send(error.message));
+      };
+
+      job.close = () => {
+        if (!res.headersSent) {
+          res.status(408).send('browserless function has timed-out');
+        }
+      };
+
+      this.queue.push(job);
+    });
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
       const targetId = chromeTarget();
@@ -498,16 +509,20 @@ export class Chrome {
           debug(`${req.url}: WebSocket upgrade.`);
 
           (launchPromise || this.launchChrome())
-            .then(async (chrome) => {
-              const browserWsEndpoint = chrome.wsEndpoint();
+            .then(async (browser) => {
+              const browserWsEndpoint = browser.wsEndpoint();
 
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
                 debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
-                chrome.process().kill('SIGKILL');
+                browser.process().kill('SIGKILL');
                 done();
               });
+
+              if (this.singleUse) {
+                browser.on('disconnected', () => process.exit(0));
+              }
 
               if (!route.includes('/devtools/page')) {
                 debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
@@ -517,16 +532,16 @@ export class Chrome {
               }
 
               if (this.singleUse) {
-                chrome.on('disconnected', () => process.exit(0));
+                browser.on('disconnected', () => process.exit(0));
               }
 
-              const page:any = await chrome.newPage();
-              const port = url.parse(browserWsEndpoint).port;
-              const pageLocation = `/devtools/page/${page._target._targetId}`;
-
-              debug(`${req.url}: Proxying request to /devtools/page route: ${pageLocation}.`);
-
               if (this.debuggerScripts.has(route)) {
+                const page:any = await browser.newPage();
+                const port = url.parse(browserWsEndpoint).port;
+                const pageLocation = `/devtools/page/${page._target._targetId}`;
+
+                debug(`${req.url}: Proxying request to /devtools/page route: ${pageLocation}.`);
+
                 const code = this.debuggerScripts.get(route);
                 debug(`${req.url}: Loading prior-uploaded script to execute for route.`);
 
@@ -546,11 +561,11 @@ export class Chrome {
 
                 this.debuggerScripts.delete(route);
                 vm.run(code);
+                req.url = pageLocation;
+                return `ws://127.0.0.1:${port}`;
               }
 
-              req.url = pageLocation;
-
-              return `ws://127.0.0.1:${port}`;
+              throw new Error(`Unknown action: ${req.url}`);
             })
             .then((target) => this.proxy.ws(req, socket, head, { target }));
         };
