@@ -174,6 +174,10 @@ export class Chrome {
     this.chromeSwarm = [];
     this.stats = []
     this.debuggerScripts = new Map();
+    this.currentMachineStats = {
+      cpuUsage: 0,
+      memoryUsage: 0,
+    };
 
     this.proxy = new httpProxy.createProxyServer();
     this.proxy.on('error', function (err, _req, res) {
@@ -340,7 +344,7 @@ export class Chrome {
     socket.destroy();
   }
 
-  private async launchChrome(flags:string[] = []): Promise<puppeteer.Browser> {
+  private async launchChrome(flags:string[] = [], retries:number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
     debug('Chrome Starting');
     return puppeteer.launch({
@@ -351,7 +355,14 @@ export class Chrome {
         return chrome;
       })
       .catch((error) => {
-        console.error(error);
+
+        if (retries > 0) {
+          const nextRetries = retries - 1;
+          console.error(error, `Issue launching Chrome, retrying ${retries} times.`);
+          return this.launchChrome(flags, nextRetries);
+        }
+
+        console.error(error, `Issue launching Chrome, retries exhausted.`);
         throw error;
       });
   }
@@ -470,6 +481,7 @@ export class Chrome {
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
+
         const isMachineStrained = (
           this.currentMachineStats.cpuUsage >= this.maxCPU ||
           this.currentMachineStats.memoryUsage >= this.maxMemory
@@ -547,11 +559,17 @@ export class Chrome {
 
                 const sandbox = {
                   page,
-                  console: {
-                    log: (...args) => page.evaluate((...args) => console.log(...args), ...args),
-                    error: (...args) => page.evaluate((...args) => console.error(...args), ...args),
-                    debug: (...args) => page.evaluate((...args) => console.debug(...args), ...args),
-                  },
+                  console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
+                    browserConsole[consoleMethod] = (...args) => {
+                      args.unshift(consoleMethod);
+                      return page.evaluate((...args) => {
+                        const [consoleMethod, ...consoleArgs] = args;
+                        return console[consoleMethod](...consoleArgs);
+                      }, ...args);
+                    };
+
+                    return browserConsole;
+                  }, {}),
                 };
 
                 const vm = new VM({
@@ -567,7 +585,11 @@ export class Chrome {
 
               throw new Error(`Unknown action: ${req.url}`);
             })
-            .then((target) => this.proxy.ws(req, socket, head, { target }));
+            .then((target) => this.proxy.ws(req, socket, head, { target }))
+            .catch((error) => {
+              console.error(error, `Issue launching Chrome or proxying traffic, failing request`);
+              return this.onRejected(req, socket, `HTTP/1.1 500`);
+            });
         };
 
         job.close = (message: string) => this.closeSocket(socket, message);

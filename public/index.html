@@ -12,7 +12,6 @@
 
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:500">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/theme/neo.min.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
   <style>
   * {
@@ -26,13 +25,13 @@
     height: 60px;
     padding: 13px;
     color: #333;
-    border-bottom: 1px solid #ccc;
-    background: linear-gradient(#f7f7f7, #e2e2e2);
+    border-bottom: 1px solid #e2e2e2;
     box-shadow: 0 5px 10px 0 rgba(0,0,0,.1);
     display: flex;
     align-items: center;
   }
   header h1 {
+    margin-left: 10px;
     font-size: 24px;
     font-weight: bold;
     font-family: 'Montserrat', sans-serif;
@@ -60,29 +59,9 @@
     vertical-align: middle;
     justify-content: center;
   }
-  @keyframes pulse {
-    0% {
-      -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0.4);
-    }
-    70% {
-        -webkit-box-shadow: 0 0 0 10px rgba(51, 103, 214, 0);
-    }
-    100% {
-        -webkit-box-shadow: 0 0 0 0 rgba(51, 103, 214, 0);
-    }
-  }
-  .execute-button {
-    animation: pulse 3s infinite;
-    background: linear-gradient(#3367d6 15%,#20489d);
-    border-radius: 17px;
-    border: none;
-    box-shadow: 0 1px 10px #45ce1f;
-    cursor: pointer;
-    fill: #fff;
-    height: 34px;
-    margin: 0 0 0 10px;
-    padding: 0;
-    width: 34px;
+  @keyframes fade {
+    0%,100% { opacity: 0 }
+    10%, 90% { opacity: 1 }
   }
   .resizer {
     width: 5px;
@@ -99,8 +78,38 @@
     line-height: 32px;
     position: relative;
     height: 100%;
+    width: calc(50% - 2.5px);
     min-width: 25%;
     max-width: 75%;
+    overflow: hidden;
+  }
+  .run-container {
+    cursor: pointer;
+    top: 50px;
+    right: 0;
+    position: absolute;
+    background: #333;
+    color: white;
+    border: none;
+    font: inherit;
+    font-size: 20px;
+    padding: 2px 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    z-index: 100;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+  }
+  .execute-button {
+    background: linear-gradient(#007bff 15%,#6610f2);
+    border-radius: 17px;
+    border: none;
+    fill: #fff;
+    height: 34px;
+    margin: 10px;
+    width: 34px;
+    cursor: pointer;
   }
   #frame-mount::before {
     content: "";
@@ -111,12 +120,12 @@
     right: 0;
     opacity: .4; 
     z-index: -1;
-    background: #f3f3f3;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#3367d6" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" stroke="#00b4ff" width="175" height="175" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" /><line x1="21.17" y1="8" x2="12" y2="8" /><line x1="3.95" y1="6.06" x2="8.54" y2="14" /><line x1="10.88" y1="21.94" x2="15.46" y2="14" /></svg>');
   }
   #frame-mount {
+    width: calc(50% - 2.5px);
     flex: 5;
     position: relative;
     border-left: 1px solid #ccc;
@@ -129,6 +138,9 @@
     align-items: center;
     padding: 10px;
   }
+  footer p {
+    animation: fade 10s ease;
+  }
   footer p,
   footer a {
     color: white;
@@ -136,11 +148,11 @@
   .CodeMirror {
     font-family: inherit;
     height: 100%;
+    overflow: scroll;
     padding-top: 5px;
-    font-size: 13px;
+    font-size: 15px;
   }
   .CodeMirror-scroll {
-    height: auto;
     overflow-y: auto;
     overflow-x: auto;
   }
@@ -172,14 +184,60 @@
   .CodeMirror-hint-information ul {
     margin-left: 15px;
   }
+  /* Color scheme */
+  .cm-s-nova.CodeMirror {
+    background-color:#3C4C55;
+    color:#C5D4DD;
+    line-height:1.4375;
+  }
+  .cm-s-nova .cm-comment { color: #899BA6; }
+  .cm-s-nova .cm-keyword, .cm-s-nova .cm-property { color:#DADA93; }
+  .cm-s-nova .cm-atom,.cm-s-nova .cm-number { color:#83AFE5; }
+  .cm-s-nova .cm-node,.cm-s-nova .cm-tag { color:#D18EC2; }
+  .cm-s-nova .cm-string { color:#7FC1CA; }
+  .cm-s-nova .cm-variable,.cm-s-nova .cm-qualifier { color:#9A93E1; }
+  .cm-s-nova .cm-operator { color: #F2C38F }
+
+  .cm-s-nova pre {
+    padding:0;
+  }
+
+  .cm-s-nova .CodeMirror-gutters {
+    border:none;
+    border-right:10px solid transparent;
+    background-color:transparent;
+  }
+
+  .cm-s-nova .CodeMirror-linenumber {
+    padding:0;
+    color:#e0e2e5;
+  }
+
+  .cm-s-nova .CodeMirror-guttermarker { color: #1d75b3; }
+  .cm-s-nova .CodeMirror-guttermarker-subtle { color: #e0e2e5; }
+
+  .cm-s-nova .CodeMirror-cursor {
+    width: auto;
+    border: 0;
+    background: rgba(155,157,162,0.37);
+    z-index: 1;
+  }
   </style>
 </head>
 <body>
 
 <main>
   <header>
-    <h1>browserless debugger</h1>
-    <button class="execute-button" title="Execute Script"><svg width="34" height="34"><path d="M 11 9 L 24 16 L 11 23 z"></path></svg></button>
+    <svg xmlns="http://www.w3.org/2000/svg" stroke="#00b4ff" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="4" />
+      <line x1="21.17" y1="8" x2="12" y2="8" />
+      <line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+      <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+    </svg>
+    <h1>
+      browserless
+    </h1>
     <section class="links">
       <span id="download" title="Download a zip file with all the required packages">
         <svg width='22' height='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
@@ -202,7 +260,7 @@
               <path d="M31.421,30h37.158c0-7-3.473-12.264-8.687-15.555l3.75-3.673c1.122-1.121,1.122-2.902,0-4.024  c-1.122-1.121-2.939-1.102-4.062,0.02l-5.424,5.434c-1.338-0.306-2.726-0.478-4.157-0.478s-2.819,0.179-4.157,0.485l-5.425-5.423  c-1.122-1.121-2.939-1.121-4.062,0s-1.122,2.941,0,4.063l3.75,3.597C34.894,17.737,31.421,23,31.421,30z"></path>
             </svg>
           </button>
-          RUN
+          DEBUG
       </div>
       <textarea style="visibility: hidden;">
 // No need to require puppeteer or create a page
@@ -250,7 +308,7 @@ await page.goto('https://example.com');
 
   const $intro = document.querySelector('.intro');
   const $resizer = document.querySelector('.resizer');
-  const $executeBtn = document.querySelector('.execute-button');
+  const $executeBtn = document.querySelector('.run-container');
   const $codeText = document.querySelector('#code-mount textarea');
   const $debugFrame = document.querySelector('#frame-mount iframe');
   const $codePanel = document.querySelector('#code-mount');
@@ -323,6 +381,7 @@ const puppeteer = require('puppeteer');
   }
 
   const hints = [
+    `Pro-Tip: Press CTRL+Enter to run your script`,
     `Tip: You can use "debugger;" in your script and it will inject a debugger in the browser`,
     `Tip: "console.log" will print in the debugging console window`,
     `Tip: This tool uses Google's puppeteer library found <a href="https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md">here</a>.`,
@@ -443,6 +502,18 @@ const puppeteer = require('puppeteer');
     });
   }
 
+  async function execute() {
+    const code = editor.getValue();
+    const formData = new FormData();
+    formData.append('file', new Blob([code], {type: 'text/javascript'}));
+
+    save(code);
+
+    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
+      .then((res) => res.json())
+      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
+  }
+
   const editor = CodeMirror.fromTextArea($codeText, {
     lineNumbers: true,
     showCursorWhenSelecting: true,
@@ -454,13 +525,14 @@ const puppeteer = require('puppeteer');
       closeOnUnfocus: false,
       completeSingle: false,
     },
-    theme: 'neo',
+    theme: 'nova',
     allowDropFileTypes: ['text/javascript'],
     autoCloseBrackets: true,
     matchBrackets: true,
     extraKeys: {
       'Ctrl-Space': 'autocomplete',
-      'Tab': 'autocomplete'
+      'Tab': 'autocomplete',
+      'Ctrl-Enter': execute,
     },
     keyMap: 'sublime',
   });
@@ -513,17 +585,7 @@ const puppeteer = require('puppeteer');
     saveAs(content, `browserless-${Date.now()}.zip`);
   });
 
-  $executeBtn.addEventListener('click', async () => {
-    const code = editor.getValue();
-    const formData = new FormData();
-    formData.append('file', new Blob([code], {type: 'text/javascript'}));
-
-    save(code);
-
-    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
-      .then((res) => res.json())
-      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
-  });
+  $executeBtn.addEventListener('click', execute);
 
   editor.on('change', () => {
     onEditScript(editor.getValue());
