@@ -338,7 +338,7 @@ export class Chrome {
     app.get('/introspection', (_req, res) => res.json(hints));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => res.json(this.stats));
+    app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
 
     app.get('/config', (_req, res) => res.json({
       timeout: this.connectionTimeout,
