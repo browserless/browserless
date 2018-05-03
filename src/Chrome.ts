@@ -62,7 +62,7 @@ export interface IOptions {
 
 interface IStats {
   date: number | null;
-  success: number;
+  successful: number;
   error: number;
   queued: number;
   rejected: number;
@@ -214,7 +214,7 @@ export class Chrome {
     this.currentStat = {
       rejected: 0,
       queued: 0,
-      success: 0,
+      successful: 0,
       error: 0,
       timedout: 0,
       memory: 0,
@@ -260,7 +260,7 @@ export class Chrome {
   }
 
   private onSessionComplete() {
-    this.currentStat.success = this.currentStat.success + 1;
+    this.currentStat.successful = this.currentStat.successful + 1;
     this.addToChromeSwarm();
   }
 
