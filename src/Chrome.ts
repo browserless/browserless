@@ -119,7 +119,7 @@ interface IResourceLoad {
 
 interface IStats {
   date: number | null;
-  success: number;
+  successful: number;
   error: number;
   queued: number;
   rejected: number;
@@ -286,7 +286,7 @@ export class Chrome {
     this.currentStat = {
       rejected: 0,
       queued: 0,
-      success: 0,
+      successful: 0,
       error: 0,
       timedout: 0,
       memory: 0,
@@ -329,7 +329,7 @@ export class Chrome {
   }
 
   private onSessionComplete() {
-    this.currentStat.success = this.currentStat.success + 1;
+    this.currentStat.successful = this.currentStat.successful + 1;
     this.addToChromeSwarm();
   }
 
@@ -407,7 +407,7 @@ export class Chrome {
     app.get('/introspection', (_req, res) => res.json(hints));
     app.get('/json/version', (_req, res) => res.json(version));
     app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => res.json(this.stats));
+    app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
 
     app.get('/config', (_req, res) => res.json({
       timeout: this.connectionTimeout,
