@@ -80,8 +80,6 @@ RUN apt-get install --yes curl &&\
 RUN cd $font_directory &&\
   wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
   wget https://github.com/googlei18n/noto-cjk/blob/master/NotoSansCJKsc-Medium.otf?raw=true && \
-  wget https://github.com/CartoDB/cartodb/blob/master/app/assets/fonts/helvetica.ttf?raw=true && \
-  wget https://github.com/adampash/Lifehacker.me/blob/master/fonts/HelveticaNeue.ttf?raw=true && \
   fc-cache -f -v
 
 # Build 
