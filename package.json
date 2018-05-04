@@ -6,8 +6,8 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "DEBUG=browserless/chrome NODE_ENV=dev nodemon",
-    "start": "node ./build/server",
+    "dev": "DEBUG=* NODE_ENV=dev nodemon",
+    "start": "node ./build",
     "postshrinkwrap": "./scripts/get-meta.js",
     "prepush": "./scripts/prepush.sh",
     "test": "jest"

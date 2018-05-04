@@ -14,9 +14,9 @@ const debug = require('debug')('browserless/chrome');
 const request = require('request');
 const queue = require('queue');
 
-const version = require('../../version.json');
-const protocol = require('../../protocol.json');
-const hints = require('../../hints.json');
+const version = require('../version.json');
+const protocol = require('../protocol.json');
+const hints = require('../hints.json');
 
 const chromeTarget = () => {
   var text = '';
@@ -243,6 +243,7 @@ export class Chrome {
       maxMemory: this.maxMemory,
       maxCPU: this.maxCPU,
       autoQueue: this.autoQueue,
+      enableDebugger: this.enableDebugger,
     }, `Final Options`);
 
     if (this.prebootChrome) {
@@ -371,7 +372,8 @@ export class Chrome {
 
     if (this.enableDebugger) {
       const upload = multer();
-      app.use('/', express.static('../client'));
+
+      app.use('/', express.static('./debugger'));
       app.post('/execute', upload.single('file'), async (req, res) => {
         const targetId = chromeTarget();
         const code = `

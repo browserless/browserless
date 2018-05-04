@@ -20,6 +20,6 @@
     "rootDir": "./src"
   },
   "include": [
-    "./src/server/**/*"
+    "./src/**/*"
   ]
 }

@@ -5,6 +5,6 @@
   "watch": [
     "src"
   ],
-  "exec": "npm run build && node ./build/server",
+  "exec": "npm run build && node ./build",
   "ext": "js jsx css html ts"
 }
