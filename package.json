@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "main": "build/index.js",
+  "files": [
+    "build/main.css",
+    "build/main.js"
+  ],
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
