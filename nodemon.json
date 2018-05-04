@@ -1,0 +1,10 @@
+{
+  "ignoreRoot": [
+    ".git"
+  ],
+  "watch": [
+    "src"
+  ],
+  "exec": "npm run build && node ./build/server",
+  "ext": "js jsx css html ts"
+}

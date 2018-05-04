@@ -19,8 +19,7 @@
     "outDir": "./build",
     "rootDir": "./src"
   },
-  "exclude": [
-    "node_modules",
-    "**/__tests__/*"
+  "include": [
+    "./src/server/**/*"
   ]
 }

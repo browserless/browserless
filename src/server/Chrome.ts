@@ -13,9 +13,10 @@ import * as bodyParser from 'body-parser';
 const debug = require('debug')('browserless/chrome');
 const request = require('request');
 const queue = require('queue');
-const version = require('../version.json');
-const protocol = require('../protocol.json');
-const hints = require('../hints.json');
+
+const version = require('../../version.json');
+const protocol = require('../../protocol.json');
+const hints = require('../../hints.json');
 
 const chromeTarget = () => {
   var text = '';
@@ -95,7 +96,6 @@ export interface IOptions {
   maxQueueLength: number;
   prebootChrome: boolean;
   demoMode: boolean;
-  singleUse: boolean;
   enableDebugger: boolean;
   maxMemory: number;
   maxCPU: number;
@@ -146,7 +146,6 @@ export class Chrome {
   private queue: any;
   private server: any;
   private debuggerScripts: any;
-  private singleUse: boolean;
 
   readonly rejectHook: Function;
   readonly queueHook: Function;
@@ -159,7 +158,6 @@ export class Chrome {
 
   constructor(opts: IOptions) {
     this.port = opts.port;
-    this.singleUse = opts.singleUse;
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
     this.connectionTimeout = opts.connectionTimeout;
@@ -242,7 +240,6 @@ export class Chrome {
       queuedAlertURL: opts.queuedAlertURL,
       prebootChrome: this.prebootChrome,
       demoMode: this.demoMode,
-      singleUse: this.singleUse,
       maxMemory: this.maxMemory,
       maxCPU: this.maxCPU,
       autoQueue: this.autoQueue,
@@ -374,7 +371,7 @@ export class Chrome {
 
     if (this.enableDebugger) {
       const upload = multer();
-      app.use('/', express.static('public'));
+      app.use('/', express.static('../client'));
       app.post('/execute', upload.single('file'), async (req, res) => {
         const targetId = chromeTarget();
         const code = `
@@ -532,19 +529,11 @@ export class Chrome {
                 done();
               });
 
-              if (this.singleUse) {
-                browser.on('disconnected', () => process.exit(0));
-              }
-
               if (!route.includes('/devtools/page')) {
                 debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
                 req.url = route;
 
                 return browserWsEndpoint;
-              }
-
-              if (this.singleUse) {
-                browser.on('disconnected', () => process.exit(0));
               }
 
               if (this.debuggerScripts.has(route)) {
