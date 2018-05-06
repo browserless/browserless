@@ -5,7 +5,7 @@ import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
 import * as os from 'os';
-import { VM, NodeVM } from 'vm2';
+import { NodeVM } from 'vm2';
 import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
 import * as bodyParser from 'body-parser';
@@ -376,17 +376,12 @@ export class Chrome {
       app.use('/', express.static('./debugger'));
       app.post('/execute', upload.single('file'), async (req, res) => {
         const targetId = chromeTarget();
-        const code = `
-        (async() => {
-          ${req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })')}
-        })().catch((error) => {
-          console.error('Puppeteer Runtime Error:', error.stack);
-        });`;
-  
+        const code = req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })');
+
         debug(`/execute: Script uploaded\n${code}`);
-  
+
         this.debuggerScripts.set(targetId, code);
-  
+
         res.json({
           targetId,
           debuggerVersion: version['Debugger-Version']
@@ -433,21 +428,22 @@ export class Chrome {
     app.post('/function', async (req, res) => {
       const { code, context: stringifiedContext } = req.body;
       const context = JSON.parse(stringifiedContext);
-
-      const vm = new NodeVM({
-        sandbox: {},
-        require: true,
-      });
-
+      const vm = new NodeVM();
       const handler = vm.run(code);
 
-      const job:any = () => {
-        return handler({ puppeteer, context })
+      const job:any = async () => {
+        const browser = await this.launchChrome();
+        const page = await browser.newPage();
+
+        job.browser = browser;
+
+        return handler({ page, context })
           .then((result) => res.json(result))
           .catch((error) => res.status(500).send(error.message));
       };
 
       job.close = () => {
+        job.browser.process.kill('SIGKILL');
         if (!res.headersSent) {
           res.status(408).send('browserless function has timed-out');
         }
@@ -539,17 +535,15 @@ export class Chrome {
               }
 
               if (this.debuggerScripts.has(route)) {
+                debug(`${req.url}: Executing prior-uploaded script.`);
+
                 const page:any = await browser.newPage();
                 const port = url.parse(browserWsEndpoint).port;
                 const pageLocation = `/devtools/page/${page._target._targetId}`;
-
-                debug(`${req.url}: Proxying request to /devtools/page route: ${pageLocation}.`);
-
                 const code = this.debuggerScripts.get(route);
-                debug(`${req.url}: Loading prior-uploaded script to execute for route.`);
+                this.debuggerScripts.delete(route);
 
                 const sandbox = {
-                  page,
                   console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
                     browserConsole[consoleMethod] = (...args) => {
                       args.unshift(consoleMethod);
@@ -563,13 +557,10 @@ export class Chrome {
                   }, {}),
                 };
 
-                const vm = new VM({
-                  sandbox,
-                  timeout: this.connectionTimeout
-                });
+                const vm = new NodeVM({ sandbox });
+                const handler = vm.run(code);
 
-                this.debuggerScripts.delete(route);
-                vm.run(code);
+                handler({ page, context: {} });
                 req.url = pageLocation;
                 return `ws://127.0.0.1:${port}`;
               }

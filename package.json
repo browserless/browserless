@@ -10,7 +10,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "DEBUG=* NODE_ENV=dev nodemon",
+    "dev": "npm run build && node ./build",
     "start": "node ./build",
     "postshrinkwrap": "./scripts/get-meta.js",
     "prepush": "./scripts/prepush.sh",
