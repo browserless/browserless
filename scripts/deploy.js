@@ -27,9 +27,9 @@ const logExec = (cmd) => {
 
 const deployPuppeteerVersion = async (version) => {
   console.log(`>>> Deploying ${version} of puppeteer`);
-  await logExec(`git checkout puppeteer-${version}`);
-  await logExec(`git merge ${DEPLOY_BRANCH} --commit`);
-  await logExec(`npm install --save puppeteer@${version}`);
+  await logExec(`git checkout puppeteer-${version} --quiet`);
+  await logExec(`git merge ${DEPLOY_BRANCH} --commit --quiet`);
+  await logExec(`npm install --save puppeteer@${version} --silent`);
   await getMeta();
 
   return Promise.all(metaFiles.map(async (file) => {
@@ -38,7 +38,7 @@ const deployPuppeteerVersion = async (version) => {
     if (hasChanges.length) {
       console.log(`>>> Changes found in Puppeteer@${version}, comitting file ${file}`);
       await logExec(`git add ${file}`);
-      await logExec(`git commit -m "DEPLOY.JS: Updating ${file} browser meta output"`);
+      await logExec(`git commit -m --quiet "DEPLOY.JS: Updating ${file} browser meta output"`);
     }
 
     console.log(`>>> No meta changes found, proceeding to next version.`);
