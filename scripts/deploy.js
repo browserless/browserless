@@ -42,6 +42,8 @@ const deployPuppeteerVersion = async (version) => {
       console.log(`>>> No meta changes found, proceeding to next version.`);
     }
   }
+
+  await (`git push origin puppeteer-${version} --quiet`);
 }
 
 async function deploy () {
