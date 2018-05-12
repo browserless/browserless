@@ -25,6 +25,7 @@ const logExec = (cmd) => {
 
 const deployPuppeteerVersion = async (version) => {
   console.log(`>>> Deploying ${version} of puppeteer`);
+  await logExec(`git checkout puppeteer-${version}`);
   await logExec(`git merge ${DEPLOY_BRANCH} --commit`);
   await logExec(`npm install --save puppeteer@${version}`);
   await getMeta();
