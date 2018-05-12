@@ -18,7 +18,7 @@ const metaFiles = [
 const logExec = (cmd) => {
   console.log(`Executing "${cmd}"`);
   return exec(cmd).then(({ stdout, stderr }) => {
-    if (stderr) {
+    if (stderr.trim().length) {
       throw new Error(stderr);
     }
     return stdout;
