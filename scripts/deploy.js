@@ -57,7 +57,7 @@ async function deploy () {
 
   console.log(`>>> On branch ${DEPLOY_BRANCH} and no untracked files in git, proceeding...`);
 
-  [puppeteerVersions].reduce((lastJob, puppeteerVersion) => 
+  puppeteerVersions.reduce((lastJob, puppeteerVersion) => 
     lastJob.then(() => deployPuppeteerVersion(puppeteerVersion)), Promise.resolve());
 }
 
