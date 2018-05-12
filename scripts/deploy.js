@@ -21,7 +21,7 @@ const logExec = (cmd) => {
     if (stderr.trim().length) {
       throw new Error(stderr);
     }
-    return stdout;
+    return stdout.trim();
   });
 };
 
