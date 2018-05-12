@@ -45,7 +45,7 @@ const deployPuppeteerVersion = async (version) => {
     }
   }
 
-  await (`git push origin puppeteer-${version} --quiet`);
+  await logExec(`git push origin puppeteer-${version} --quiet`);
 }
 
 async function deploy () {
