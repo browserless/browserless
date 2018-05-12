@@ -29,6 +29,7 @@ const deployPuppeteerVersion = async (version) => {
   console.log(`>>> Deploying ${version} of puppeteer`);
   await logExec(`git checkout puppeteer-${version} --quiet`);
   await logExec(`git merge ${DEPLOY_BRANCH} --commit --quiet`);
+  await logExec(`rm -rf node_modules package-lock.json`);
   await logExec(`npm install --silent --save --save-exact puppeteer@${version}`);
   await getMeta();
 
