@@ -38,7 +38,7 @@ const deployPuppeteerVersion = async (version) => {
     if (hasChanges.length) {
       console.log(`>>> Changes found in Puppeteer@${version}, comitting file ${file}`);
       await logExec(`git add ${file}`);
-      await logExec(`git commit -m --quiet "DEPLOY.JS: Updating ${file} browser meta output"`);
+      await logExec(`git commit -m --quiet "DEPLOY.JS: Updating ${file} browser meta output" ${file}`);
     }
 
     console.log(`>>> No meta changes found, proceeding to next version.`);
