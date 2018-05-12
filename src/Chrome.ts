@@ -431,14 +431,14 @@ export class Chrome {
           debug(`${req.url}: WebSocket upgrade.`);
 
           (launchPromise || this.launchChrome())
-            .then(async (chrome) => {
-              const browserWsEndpoint = chrome.wsEndpoint();
+            .then(async (browser) => {
+              const browserWsEndpoint = browser.wsEndpoint();
 
               debug(`${req.url}: Chrome Launched.`);
 
               socket.on('close', () => {
                 debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
-                chrome.process().kill('SIGKILL');
+                browser.close();
                 done();
               });
 
@@ -450,10 +450,10 @@ export class Chrome {
               }
 
               if (this.singleUse) {
-                chrome.on('disconnected', () => process.exit(0));
+                browser.on('disconnected', () => process.exit(0));
               }
 
-              const page:any = await chrome.newPage();
+              const page:any = await browser.newPage();
               const port = url.parse(browserWsEndpoint).port;
               const pageLocation = `/devtools/page/${page._target._targetId}`;
 
