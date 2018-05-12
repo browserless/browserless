@@ -32,7 +32,7 @@ const deployPuppeteerVersion = async (version) => {
   await logExec(`npm install --save puppeteer@${version} --silent`);
   await getMeta();
 
-  return Promise.all(metaFiles.map(async (file) => {
+  for (let file of metaFiles) {
     const hasChanges = await logExec(`git status --porcelain | grep ${file}`);
 
     if (hasChanges.length) {
@@ -42,7 +42,7 @@ const deployPuppeteerVersion = async (version) => {
     }
 
     console.log(`>>> No meta changes found, proceeding to next version.`);
-  }));
+  }
 }
 
 async function deploy () {
