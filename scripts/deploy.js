@@ -29,7 +29,7 @@ const deployPuppeteerVersion = async (version) => {
   console.log(`>>> Deploying ${version} of puppeteer`);
   await logExec(`git checkout puppeteer-${version} --quiet`);
   await logExec(`git merge ${DEPLOY_BRANCH} --commit --quiet`);
-  await logExec(`npm install --save puppeteer@${version}`);
+  await logExec(`npm install --save --save-exact puppeteer@${version}`);
   await getMeta();
 
   for (let file of metaFiles) {
