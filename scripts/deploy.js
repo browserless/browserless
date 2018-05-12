@@ -32,7 +32,7 @@ const deployPuppeteerVersion = async (version) => {
   await logExec(`rm -rf node_modules package-lock.json`);
   await logExec(`npm install --silent`);
   await logExec(`npm install --silent --save --save-exact puppeteer@${version}`);
-  await getMeta();
+  await logExec(`npm run meta --silent`);
 
   for (let file of metaFiles) {
     try {
