@@ -8,6 +8,8 @@ const { puppeteerVersions } = require('../package.json');
 
 const DEPLOY_BRANCH = 'master';
 const metaFiles = [
+  'package.json',
+  'package-lock.json',
   'version.json',
   'protocol.json',
   'hints.json'
