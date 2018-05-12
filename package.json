@@ -8,9 +8,8 @@
     "clean": "rimraf build",
     "deploy": "./scripts/deploy.js",
     "dev": "npm run build && DEBUG=browserless/chrome node build/index.js",
+    "meta": "./scripts/get-meta.js",
     "start": "node ./build",
-    "postshrinkwrap": "./scripts/get-meta.js",
-    "prepush": "./scripts/prepush.sh",
     "test": "jest"
   },
   "puppeteerVersions": [
@@ -41,7 +40,6 @@
   },
   "devDependencies": {
     "@types/jest": "^22.1.0",
-    "husky": "^0.14.3",
     "jest": "^22.1.4",
     "node-fetch": "^1.7.3",
     "showdown": "^1.8.6",
