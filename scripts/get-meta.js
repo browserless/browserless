@@ -40,7 +40,7 @@ const getDocs = (docsPage) => [].map.call(
   }),
   _ => _);
 
-puppeteer
+module.exports = () => puppeteer
   .launch()
   .then((browser) => {
     const wsEndpoint = browser.wsEndpoint();
