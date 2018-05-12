@@ -33,15 +33,14 @@ const deployPuppeteerVersion = async (version) => {
   await getMeta();
 
   for (let file of metaFiles) {
-    const hasChanges = await logExec(`git status --porcelain | grep ${file}`);
-
-    if (hasChanges.length) {
+    try {
+      await logExec(`git status --porcelain | grep ${file}`);
       console.log(`>>> Changes found in Puppeteer@${version}, comitting file ${file}`);
       await logExec(`git add ${file}`);
       await logExec(`git commit --quiet -m "DEPLOY.JS: Updating ${file} browser meta output" ${file}`);
+    } catch (err) {
+      console.log(`>>> No meta changes found, proceeding to next version.`);
     }
-
-    console.log(`>>> No meta changes found, proceeding to next version.`);
   }
 }
 
