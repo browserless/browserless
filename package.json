@@ -10,12 +10,19 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "dev": "npm run build && node ./build",
+    "deploy": "./scripts/deploy.js",
+    "dev": "npm run build && MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless/chrome node build/index.js",
+    "meta": "./scripts/get-meta.js",
     "start": "node ./build",
-    "postshrinkwrap": "./scripts/get-meta.js",
-    "prepush": "./scripts/prepush.sh",
     "test": "jest"
   },
+  "puppeteerVersions": [
+    "1.0.0",
+    "1.1.1",
+    "1.2.0",
+    "1.3.0",
+    "1.4.0"
+  ],
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
@@ -27,7 +34,7 @@
     "http-proxy": "^1.16.2",
     "lodash": "^4.17.4",
     "multer": "^1.3.0",
-    "puppeteer": "^1.3.0",
+    "puppeteer": "^1.4.0",
     "queue": "^4.4.2",
     "request": "^2.83.0",
     "require-from-string": "^2.0.2",
@@ -37,7 +44,6 @@
   },
   "devDependencies": {
     "@types/jest": "^22.1.0",
-    "husky": "^0.14.3",
     "jest": "^22.1.4",
     "node-fetch": "^1.7.3",
     "nodemon": "^1.17.3",

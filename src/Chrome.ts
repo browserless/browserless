@@ -18,6 +18,11 @@ const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
 
+const thiryMinutes = 30 * 60 * 1000;
+const fiveMinute = 5 * 60 * 1000;
+const halfSecond = 500;
+const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
+
 const chromeTarget = () => {
   var text = '';
   var possible = 'ABCDEF0123456789';
@@ -34,7 +39,7 @@ const asyncMiddleware = (handler) => {
     Promise.resolve(handler(req, socket, head))
       .catch((error) => {
         debug(`ERROR: ${error}`);
-        socket.write('HTTP/1.1 429 Too Many Requests\r\n');
+        socket.write(`HTTP/1.1 500 ${error.message}\r\n`);
         socket.end();
       });
   }
@@ -73,8 +78,8 @@ const getMachineStats = (): Promise<IResourceLoad> => {
       const idleDifference = end.idle - start.idle;
       const totalDifference = end.total - start.total;
 
-      const cpuUsage = 100 - ~~(100 * idleDifference / totalDifference);
-      const memoryUsage = 100 - ~~(100 * os.freemem() / os.totalmem());
+      const cpuUsage = 1 - (idleDifference / totalDifference);
+      const memoryUsage = 1 - (os.freemem() / os.totalmem());
 
       return resolve({
         cpuUsage,
@@ -83,11 +88,6 @@ const getMachineStats = (): Promise<IResourceLoad> => {
     }, 100);
   });
 }
-
-const thiryMinutes = 30 * 60 * 1000;
-const fiveMinute = 5 * 60 * 1000;
-const halfSecond = 500;
-const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 export interface IOptions {
   connectionTimeout: number;
@@ -170,7 +170,7 @@ export class Chrome {
     this.autoQueue = opts.autoQueue;
 
     this.chromeSwarm = [];
-    this.stats = []
+    this.stats = [];
     this.debuggerScripts = new Map();
     this.currentMachineStats = {
       cpuUsage: 0,
@@ -254,8 +254,8 @@ export class Chrome {
 
     this.resetCurrentStat();
 
-    setInterval(this.recordMachineStats, halfSecond);
-    setInterval(this.recordMetrics, fiveMinute);
+    setInterval(this.recordMachineStats.bind(this), halfSecond);
+    setInterval(this.recordMetrics.bind(this), fiveMinute);
   }
 
   private onTimedOut(next, job) {
@@ -299,7 +299,7 @@ export class Chrome {
 
   private async recordMetrics() {
     const { cpuUsage, memoryUsage } = await getMachineStats();
-
+    debug(`Logging metrics for the current period: ${this.stats.length}`);
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
       cpu: cpuUsage,
@@ -338,8 +338,20 @@ export class Chrome {
 
   private closeSocket(socket: any, message: string) {
     debug(`Closing socket.`);
-    socket.end(message);
-    socket.destroy();
+    if (socket.end) {
+      socket.end(message);
+    }
+
+    if (socket.destroy) {
+      socket.destroy();
+    }
+  }
+
+  private isMachineConstrained() {
+    return (
+      this.currentMachineStats.cpuUsage >= this.maxCPU ||
+      this.currentMachineStats.memoryUsage >= this.maxMemory
+    );
   }
 
   private async launchChrome(flags:string[] = [], retries:number = 1): Promise<puppeteer.Browser> {
@@ -425,11 +437,27 @@ export class Chrome {
       });
     });
 
-    app.post('/function', async (req, res) => {
-      const { code, context: stringifiedContext } = req.body;
-      const context = JSON.parse(stringifiedContext);
+    app.post('/function', asyncMiddleware(async (req, res) => {
+      const queueLength = this.queue.length;
+      const isMachineStrained = this.isMachineConstrained();
+
+      if (queueLength >= this.maxQueueLength) {
+        return this.onRejected(req, res, `HTTP/1.1 429 Too Many Requests`);
+      }
+
+      if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
+        this.queue.concurrency = isMachineStrained ? this.queue.length : this.maxConcurrentSessions;
+      }
+
+      if (queueLength >= this.queue.concurrency) {
+        this.onQueued(req);
+      }
+
+      const { code, context } = req.body;
       const vm = new NodeVM();
-      const handler = vm.run(code);
+      const handler: (any) => Promise<any> = vm.run(code);
+
+      debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
 
       const job:any = async () => {
         const browser = await this.launchChrome();
@@ -438,19 +466,38 @@ export class Chrome {
         job.browser = browser;
 
         return handler({ page, context })
-          .then((result) => res.json(result))
-          .catch((error) => res.status(500).send(error.message));
+          .then((result) => {
+            res.json(result);
+            debug(`${req.url}: Function complete, stopping Chrome`);
+            _.attempt(() => browser.close());
+          })
+          .catch((error) => {
+            console.log()
+            res.status(500).send(error.message);
+            debug(`${req.url}: Function errored, stopping Chrome`);
+            _.attempt(() => browser.close());
+          });
       };
 
       job.close = () => {
-        job.browser.process.kill('SIGKILL');
+        if (job.browser) {
+          job.browser.close();
+        }
+
         if (!res.headersSent) {
           res.status(408).send('browserless function has timed-out');
         }
       };
 
+      req.on('close', () => {
+        if (job.browser) {
+          debug(`${req.url}: Request has terminated, stopping Chrome.`);
+          job.browser.close();
+        }
+      });
+
       this.queue.push(job);
-    });
+    }));
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
       const targetId = chromeTarget();
@@ -476,11 +523,7 @@ export class Chrome {
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
-
-        const isMachineStrained = (
-          this.currentMachineStats.cpuUsage >= this.maxCPU ||
-          this.currentMachineStats.memoryUsage >= this.maxMemory
-        );
+        const isMachineStrained = this.isMachineConstrained();
 
         debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
@@ -523,7 +566,7 @@ export class Chrome {
 
               socket.on('close', () => {
                 debug(`${req.url}: Session closed, stopping Chrome. ${this.queue.length} now in queue`);
-                browser.process().kill('SIGKILL');
+                browser.close();
                 done();
               });
 

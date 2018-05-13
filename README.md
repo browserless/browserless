@@ -1,4 +1,4 @@
-![browserless splash logo](assets/splash.png)
+![browserless splash logo](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/splash.png)
 
 
 [Visit a live demo in Chrome here](https://chrome.browserless.io/).
