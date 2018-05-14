@@ -388,7 +388,18 @@ export class Chrome {
       app.use('/', express.static('./debugger'));
       app.post('/execute', upload.single('file'), async (req, res) => {
         const targetId = chromeTarget();
-        const code = req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })');
+        const userScript = req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })');
+
+        // Backwards compatability (remove after a few versions)
+        const code = userScript.includes('module.exports') ?
+          userScript :
+          `module.exports = async ({ page, context: {} }) => {
+            try {
+              ${userScript}
+            } catch (error) {
+              console.error('Unhandled Error:', error.message, error.stack);
+            }
+          }`;
 
         debug(`/execute: Script uploaded\n${code}`);
 
