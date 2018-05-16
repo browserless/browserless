@@ -388,7 +388,7 @@ export class Chrome {
       app.use('/', express.static('./debugger'));
       app.post('/execute', upload.single('file'), async (req, res) => {
         const targetId = chromeTarget();
-        const userScript = req.file.buffer.toString().replace('debugger', 'page.evaluate(() => { debugger; })');
+        const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
 
         // Backwards compatability (remove after a few versions)
         const code = userScript.includes('module.exports') ?

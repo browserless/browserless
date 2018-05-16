@@ -79,7 +79,7 @@
     position: relative;
     height: 100%;
     width: calc(50% - 2.5px);
-    min-width: 25%;
+    min-width: 150px;
     max-width: 75%;
     overflow: hidden;
   }
@@ -97,7 +97,7 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    z-index: 100;
+    z-index: 10;
     border-top-left-radius: 5px;
     border-bottom-left-radius: 5px;
   }
@@ -258,8 +258,9 @@
           DEBUG
       </div>
       <textarea style="visibility: hidden;">
-// No need to require puppeteer or create a page
-await page.goto('https://example.com');
+module.exports = async ({ page }) => {
+  await page.goto('https://example.com');
+};
       </textarea>
     </section>
     <div class="resizer"></div>
