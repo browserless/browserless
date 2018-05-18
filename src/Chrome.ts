@@ -128,6 +128,10 @@ interface IStats {
   timedout: number;
 };
 
+interface IFileRequest extends express.Request {
+  file: any
+}
+
 export class Chrome {
   public port: number;
   public maxConcurrentSessions: number;
@@ -386,7 +390,7 @@ export class Chrome {
       const upload = multer();
 
       app.use('/', express.static('./debugger'));
-      app.post('/execute', upload.single('file'), async (req, res) => {
+      app.post('/execute', upload.single('file'), async (req: IFileRequest, res) => {
         const targetId = chromeTarget();
         const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
 
@@ -418,6 +422,7 @@ export class Chrome {
           return res.sendStatus(403);
         }
         next();
+        return;
       });
     }
 
@@ -509,6 +514,51 @@ export class Chrome {
 
       this.queue.push(job);
     }));
+
+    app.post('/pdf', (req, res) => {
+      const parsedUrl = url.parse(req.url, true);
+      const flags = _.chain(parsedUrl.query)
+        .pickBy((_value, param) => _.startsWith(param, '--'))
+        .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+        .value();
+
+      const canUseChromeSwarm = !flags.length && !!this.chromeSwarm.length;
+      const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
+
+      debug(`Inbound PDF Generation`);
+      const job:any = async() => {
+        const browser = await launchPromise || await this.launchChrome();
+        job.browser = browser;
+        const page = await browser.newPage();
+        await page.setContent(req.body.html);
+        const pdfStream = await page.pdf();
+        debug(`PDF Generated`);
+        await page.close();
+        await browser.close();
+        debug(`Browser close`);
+        res.type('pdf');
+        res.end(pdfStream, 'binary');
+      }
+
+      job.close = () => {
+        if (job.browser) {
+          job.browser.close();
+        }
+
+        if (!res.headersSent) {
+          res.status(408).send('PDF generation has timed-out');
+        }
+      };
+
+      req.on('close', () => {
+        if (job.browser) {
+          debug(`${req.url}: Request has terminated, stopping Chrome.`);
+          job.browser.close();
+        }
+      });
+
+      this.queue.push(job);
+    });
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
       const targetId = chromeTarget();
