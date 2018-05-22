@@ -525,7 +525,7 @@ export class Chrome {
         type: 'page',
         url: 'about:blank',
         webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`
-     }]);
+      }]);
     }));
 
     return this.server = http
