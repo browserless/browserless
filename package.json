@@ -11,7 +11,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "deploy": "./scripts/deploy.js",
-    "dev": "npm run build && MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless/chrome node build/index.js",
+    "dev": "npm run build && cross-env MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless/chrome PORT=3030 node --inspect build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "test": "jest"
@@ -44,7 +44,9 @@
     "vm2": "^3.5.2"
   },
   "devDependencies": {
+    "@types/express": "^4.11.1",
     "@types/jest": "^22.1.0",
+    "cross-env": "^5.1.5",
     "jest": "^22.1.4",
     "node-fetch": "^1.7.3",
     "nodemon": "^1.17.3",

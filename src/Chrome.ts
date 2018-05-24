@@ -14,6 +14,7 @@ import * as bodyParser from 'body-parser';
 import {
   screenshot as screenshotSchema,
   content as contentSchema,
+  pdf as pdfSchema,
   fn as fnSchema,
 } from './schemas';
 
@@ -35,6 +36,7 @@ const fnLoader = (fnName: string) =>
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
+const pdf = fnLoader('pdf');
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -73,6 +75,10 @@ interface IStats {
   cpu: number;
   timedout: number;
 };
+
+interface IFileRequest extends express.Request {
+  file: any
+}
 
 export class Chrome {
   public port: number;
@@ -351,8 +357,13 @@ export class Chrome {
       job.browser = browser;
 
       return handler({ page, context })
-        .then((result) => {
-          res.json(result);
+        .then(({data, type}) => {
+          if(Buffer.isBuffer(data)){
+            res.type(type);
+            res.end(data, 'binary');
+          } else {
+            res.json(data);
+          }
           debug(`${req.url}: Function complete, stopping Chrome`);
           _.attempt(() => browser.close());
         })
@@ -392,7 +403,7 @@ export class Chrome {
       const upload = multer();
 
       app.use('/', express.static('./debugger'));
-      app.post('/execute', upload.single('file'), async (req, res) => {
+      app.post('/execute', upload.single('file'), async (req : IFileRequest, res) => {
         const targetId = generateChromeTarget();
         const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
 
@@ -424,6 +435,7 @@ export class Chrome {
           return res.sendStatus(403);
         }
         next();
+        return;
       });
     }
 
@@ -481,6 +493,17 @@ export class Chrome {
         context: req.body,
         req,
         res,
+      })
+    ))
+
+    // Helper route for capturing screenshots, accepts a POST body containing a URL and
+    // puppeteer's screenshot options (see the schema in schemas.ts);
+    app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) => 
+      this.runFunction({
+        code: pdf,
+        context: req.body,
+        req,
+        res
       })
     ))
 

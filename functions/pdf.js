@@ -1,5 +1,5 @@
 /*
- * content function
+ * pdf function
  *
  * Example invocation:
  *
@@ -7,6 +7,11 @@
  *  page: await browser.newPage(),
  *  context: {
  *    url: 'https://example.com',
+ *    html: '<div>example</div>
+ *    options: {
+ *      ...
+ *      see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions for available options
+ *    }
  *  },
  * });
  *
@@ -15,11 +20,15 @@
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
 module.exports = async function content ({ page, context }) {
-  const { url } = context;
+  const { url, html, options } = context;
+  
+  if(url != null) {
+    await page.goto(url);
+  } else {
+    await page.setContent(html);
+  }
 
-  await page.goto(url);
+  const pdfBuffer = await page.pdf(options);
 
-  const content = await page.content();
-
-  return { data: content, type: 'string' }
+  return { data: pdfBuffer, type: 'pdf' }
 };

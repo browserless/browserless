@@ -28,5 +28,5 @@ module.exports = async function screenshot ({ page, context }) {
 
   const data = await page.screenshot(options);
 
-  return data.toString('base64');
+  return { data: data, type: context.type ? context.type : 'png' };
 };
