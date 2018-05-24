@@ -21,9 +21,7 @@
  */
 module.exports = async function content ({ page, context }) {
   const { url, html, options } = context;
-  console.log(url);
-  console.log(html);
-  console.log(options);
+  
   if(url != null) {
     await page.goto(url);
   } else {
