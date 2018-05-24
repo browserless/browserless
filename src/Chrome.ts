@@ -1,18 +1,42 @@
 import * as _ from 'lodash';
 import * as url from 'url';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
 import * as multer from 'multer';
-import * as os from 'os';
 import { NodeVM } from 'vm2';
 import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
 import * as bodyParser from 'body-parser';
 
-const debug = require('debug')('browserless/chrome');
+import {
+  screenshot as screenshotSchema,
+  content as contentSchema,
+  pdf as pdfSchema,
+  fn as fnSchema,
+} from './schemas';
+
+import {
+  IResourceLoad,
+  debug,
+  asyncMiddleware,
+  generateChromeTarget,
+  getMachineStats,
+  bodyValidation,
+} from './util';
+
 const request = require('request');
 const queue = require('queue');
+
+const fnLoader = (fnName: string) =>
+  fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
+
+// Browserless fn's
+const screenshot = fnLoader('screenshot');
+const content = fnLoader('content');
+const pdf = fnLoader('pdf');
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -22,72 +46,6 @@ const thiryMinutes = 30 * 60 * 1000;
 const fiveMinute = 5 * 60 * 1000;
 const halfSecond = 500;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
-
-const chromeTarget = () => {
-  var text = '';
-  var possible = 'ABCDEF0123456789';
-
-  for (var i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-
-  return `/devtools/page/${text}`;
-};
-
-const asyncMiddleware = (handler) => {
-  return (req, socket, head) => {
-    Promise.resolve(handler(req, socket, head))
-      .catch((error) => {
-        debug(`ERROR: ${error}`);
-        socket.write(`HTTP/1.1 500 ${error.message}\r\n`);
-        socket.end();
-      });
-  }
-};
-
-const getCPUIdleAndTotal = ():ICPULoad => {
-  let totalIdle = 0;
-  let totalTick = 0;
-
-  const cpus = os.cpus();
-
-  for (var i = 0, len = cpus.length; i < len; i++) {
-    var cpu = cpus[i];
-
-    for (const type in cpu.times) {
-      totalTick += cpu.times[type];
-    }
-
-    //Total up the idle time of the core
-    totalIdle += cpu.times.idle;
-  }
-
-  //Return the average Idle and Tick times
-  return {
-    idle: totalIdle / cpus.length,
-    total: totalTick / cpus.length
-  };
-}
-
-const getMachineStats = (): Promise<IResourceLoad> => {
-  return new Promise((resolve) => {
-    const start = getCPUIdleAndTotal();
-
-    setTimeout(() => {
-      const end = getCPUIdleAndTotal();
-      const idleDifference = end.idle - start.idle;
-      const totalDifference = end.total - start.total;
-
-      const cpuUsage = 1 - (idleDifference / totalDifference);
-      const memoryUsage = 1 - (os.freemem() / os.totalmem());
-
-      return resolve({
-        cpuUsage,
-        memoryUsage,
-      });
-    }, 100);
-  });
-}
 
 export interface IOptions {
   connectionTimeout: number;
@@ -105,16 +63,6 @@ export interface IOptions {
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
-}
-
-interface ICPULoad {
-  idle: number;
-  total: number;
-}
-
-interface IResourceLoad {
-  cpuUsage: number;
-  memoryUsage: number;
 }
 
 interface IStats {
@@ -381,6 +329,71 @@ export class Chrome {
       });
   }
 
+  private async runFunction({ code, context, req, res }) {
+    const queueLength = this.queue.length;
+    const isMachineStrained = this.isMachineConstrained();
+
+    if (queueLength >= this.maxQueueLength) {
+      return this.onRejected(req, res, `HTTP/1.1 429 Too Many Requests`);
+    }
+
+    if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
+      this.queue.concurrency = isMachineStrained ? this.queue.length : this.maxConcurrentSessions;
+    }
+
+    if (queueLength >= this.queue.concurrency) {
+      this.onQueued(req);
+    }
+
+    const vm = new NodeVM();
+    const handler: (any) => Promise<any> = vm.run(code);
+
+    debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
+
+    const job:any = async () => {
+      const browser = await this.launchChrome();
+      const page = await browser.newPage();
+
+      job.browser = browser;
+
+      return handler({ page, context })
+        .then(({data, type}) => {
+          if(Buffer.isBuffer(data)){
+            res.type(type);
+            res.end(data, 'binary');
+          } else {
+            res.json(data);
+          }
+          debug(`${req.url}: Function complete, stopping Chrome`);
+          _.attempt(() => browser.close());
+        })
+        .catch((error) => {
+          res.status(500).send(error.message);
+          debug(`${req.url}: Function errored, stopping Chrome`);
+          _.attempt(() => browser.close());
+        });
+    };
+
+    job.close = () => {
+      if (job.browser) {
+        job.browser.close();
+      }
+
+      if (!res.headersSent) {
+        res.status(408).send('browserless function has timed-out');
+      }
+    };
+
+    req.on('close', () => {
+      if (job.browser) {
+        debug(`${req.url}: Request has terminated, stopping Chrome.`);
+        job.browser.close();
+      }
+    });
+
+    this.queue.push(job);
+  }
+
   public async startServer(): Promise<any> {
     const app = express();
 
@@ -390,8 +403,8 @@ export class Chrome {
       const upload = multer();
 
       app.use('/', express.static('./debugger'));
-      app.post('/execute', upload.single('file'), async (req: IFileRequest, res) => {
-        const targetId = chromeTarget();
+      app.post('/execute', upload.single('file'), async (req : IFileRequest, res) => {
+        const targetId = generateChromeTarget();
         const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
 
         // Backwards compatability (remove after a few versions)
@@ -453,115 +466,49 @@ export class Chrome {
       });
     });
 
-    app.post('/function', asyncMiddleware(async (req, res) => {
-      const queueLength = this.queue.length;
-      const isMachineStrained = this.isMachineConstrained();
-
-      if (queueLength >= this.maxQueueLength) {
-        return this.onRejected(req, res, `HTTP/1.1 429 Too Many Requests`);
-      }
-
-      if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
-        this.queue.concurrency = isMachineStrained ? this.queue.length : this.maxConcurrentSessions;
-      }
-
-      if (queueLength >= this.queue.concurrency) {
-        this.onQueued(req);
-      }
-
+    // function rout for executing pupeteer scripts, accepts a JSON body with
+    // code and context
+    app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
       const { code, context } = req.body;
-      const vm = new NodeVM();
-      const handler: (any) => Promise<any> = vm.run(code);
 
-      debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
-
-      const job:any = async () => {
-        const browser = await this.launchChrome();
-        const page = await browser.newPage();
-
-        job.browser = browser;
-
-        return handler({ page, context })
-          .then((result) => {
-            res.json(result);
-            debug(`${req.url}: Function complete, stopping Chrome`);
-            _.attempt(() => browser.close());
-          })
-          .catch((error) => {
-            console.log()
-            res.status(500).send(error.message);
-            debug(`${req.url}: Function errored, stopping Chrome`);
-            _.attempt(() => browser.close());
-          });
-      };
-
-      job.close = () => {
-        if (job.browser) {
-          job.browser.close();
-        }
-
-        if (!res.headersSent) {
-          res.status(408).send('browserless function has timed-out');
-        }
-      };
-
-      req.on('close', () => {
-        if (job.browser) {
-          debug(`${req.url}: Request has terminated, stopping Chrome.`);
-          job.browser.close();
-        }
-      });
-
-      this.queue.push(job);
+      return this.runFunction({ code, context, req, res });
     }));
 
-    app.post('/pdf', (req, res) => {
-      const parsedUrl = url.parse(req.url, true);
-      const flags = _.chain(parsedUrl.query)
-        .pickBy((_value, param) => _.startsWith(param, '--'))
-        .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-        .value();
+    // Helper route for capturing screenshots, accepts a POST body containing a URL and
+    // puppeteer's screenshot options (see the schema in schemas.ts);
+    app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async(req, res) => 
+      this.runFunction({
+        code: screenshot,
+        context: req.body,
+        req,
+        res,
+      })
+    ));
 
-      const canUseChromeSwarm = !flags.length && !!this.chromeSwarm.length;
-      const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
+    // Helper route for capturing content body, accepts a POST body containing a URL 
+    // (see the schema in schemas.ts);
+    app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async(req, res) => 
+      this.runFunction({
+        code: content,
+        context: req.body,
+        req,
+        res,
+      })
+    ))
 
-      debug(`Inbound PDF Generation`);
-      const job:any = async() => {
-        const browser = await launchPromise || await this.launchChrome();
-        job.browser = browser;
-        const page = await browser.newPage();
-        await page.setContent(req.body.html);
-        const pdfStream = await page.pdf();
-        debug(`PDF Generated`);
-        await page.close();
-        await browser.close();
-        debug(`Browser close`);
-        res.type('pdf');
-        res.end(pdfStream, 'binary');
-      }
-
-      job.close = () => {
-        if (job.browser) {
-          job.browser.close();
-        }
-
-        if (!res.headersSent) {
-          res.status(408).send('PDF generation has timed-out');
-        }
-      };
-
-      req.on('close', () => {
-        if (job.browser) {
-          debug(`${req.url}: Request has terminated, stopping Chrome.`);
-          job.browser.close();
-        }
-      });
-
-      this.queue.push(job);
-    });
+    // Helper route for capturing screenshots, accepts a POST body containing a URL and
+    // puppeteer's screenshot options (see the schema in schemas.ts);
+    app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) => 
+      this.runFunction({
+        code: pdf,
+        context: req.body,
+        req,
+        res
+      })
+    ))
 
     app.get('/json*', asyncMiddleware(async (req, res) => {
-      const targetId = chromeTarget();
+      const targetId = generateChromeTarget();
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss': 'ws';
 
@@ -575,7 +522,7 @@ export class Chrome {
         type: 'page',
         url: 'about:blank',
         webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`
-     }]);
+      }]);
     }));
 
     return this.server = http
