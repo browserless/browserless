@@ -357,15 +357,21 @@ export class Chrome {
       job.browser = browser;
 
       return handler({ page, context })
-        .then(({data, type}) => {
-          if(Buffer.isBuffer(data)){
-            res.type(type);
-            res.end(data, 'binary');
-          } else {
-            res.json(data);
-          }
+        .then(({ data, type }) => {
           debug(`${req.url}: Function complete, stopping Chrome`);
           _.attempt(() => browser.close());
+
+          res.type(type || 'text/plain');
+
+          if (Buffer.isBuffer(data)) {
+            return res.end(data, 'binary');
+          }
+
+          if (type.includes('json')) {
+            return res.json(data);
+          }
+
+          return res.send(data);
         })
         .catch((error) => {
           res.status(500).send(error.message);

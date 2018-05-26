@@ -7,7 +7,7 @@
  *  page: await browser.newPage(),
  *  context: {
  *    url: 'https://example.com',
- *    type: 'jpg',
+ *    type: 'jpeg',
  *    quality: 50,
  *    fullPage: false,
  *    omitBackground: true,
@@ -28,5 +28,8 @@ module.exports = async function screenshot ({ page, context }) {
 
   const data = await page.screenshot(options);
 
-  return { data: data, type: context.type ? context.type : 'png' };
+  return {
+    data,
+    type: options.type ? options.type : 'png'
+  };
 };

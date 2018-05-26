@@ -2,7 +2,7 @@ import * as Joi from 'joi';
 
 export const screenshot = Joi.object().keys({
   options: Joi.object().keys({
-    type: Joi.string().valid('jpg', 'png'),
+    type: Joi.string().valid('jpeg', 'png'),
     quality: Joi.number().min(0).max(100),
     fullPage: Joi.boolean(),
     omitBackground: Joi.boolean(),

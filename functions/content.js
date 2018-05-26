@@ -19,7 +19,10 @@ module.exports = async function content ({ page, context }) {
 
   await page.goto(url);
 
-  const content = await page.content();
+  const data = await page.content();
 
-  return { data: content, type: 'string' }
+  return {
+    data,
+    type: 'html'
+  };
 };
