@@ -97,7 +97,7 @@ export class Chrome {
   private chromeSwarm: Promise<puppeteer.Browser>[];
   private queue: any;
   private server: any;
-  private debuggerScripts: any;
+  private db: Map<any, any>;
 
   readonly rejectHook: Function;
   readonly queueHook: Function;
@@ -123,7 +123,7 @@ export class Chrome {
 
     this.chromeSwarm = [];
     this.stats = [];
-    this.debuggerScripts = new Map();
+    this.db = new Map();
     this.currentMachineStats = {
       cpuUsage: 0,
       memoryUsage: 0,
@@ -329,6 +329,20 @@ export class Chrome {
       });
   }
 
+  private async buildFunctionResult({ res, data, type }) {
+    res.type(type);
+
+    if (Buffer.isBuffer(data)) {
+      return res.end(data, 'binary');
+    }
+
+    if (type.includes('json')) {
+      return res.json(data);
+    }
+
+    return res.send(data);
+  }
+
   private async runFunction({ code, context, req, res }) {
     const queueLength = this.queue.length;
     const isMachineStrained = this.isMachineConstrained();
@@ -357,21 +371,10 @@ export class Chrome {
       job.browser = browser;
 
       return handler({ page, context })
-        .then(({ data, type }) => {
+        .then(({ data, type }) => this.buildFunctionResult({ res, data, type }))
+        .then(() => {
           debug(`${req.url}: Function complete, stopping Chrome`);
           _.attempt(() => browser.close());
-
-          res.type(type || 'text/plain');
-
-          if (Buffer.isBuffer(data)) {
-            return res.end(data, 'binary');
-          }
-
-          if (type.includes('json')) {
-            return res.json(data);
-          }
-
-          return res.send(data);
         })
         .catch((error) => {
           res.status(500).send(error.message);
@@ -409,8 +412,11 @@ export class Chrome {
       const upload = multer();
 
       app.use('/', express.static('./debugger'));
+
       app.post('/execute', upload.single('file'), async (req : IFileRequest, res) => {
+        let pending:any = null;
         const targetId = generateChromeTarget();
+        const resultId = `debugger-result:${targetId}`;
         const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
 
         // Backwards compatability (remove after a few versions)
@@ -425,14 +431,42 @@ export class Chrome {
           }`;
 
         debug(`/execute: Script uploaded\n${code}`);
+        const result:any = new Promise((resolve) => pending = resolve);
+        result.resolver = pending;
 
-        this.debuggerScripts.set(targetId, code);
+        this.db.set(targetId, code);
+        this.db.set(resultId, result);
 
-        res.json({
+        setTimeout(() => {
+          this.db.delete(targetId);
+          this.db.delete(resultId);
+        }, this.connectionTimeout);
+
+        return res.json({
           targetId,
           debuggerVersion: version['Debugger-Version']
         });
       });
+
+      app.get('/execute/*', asyncMiddleware(async (req, res) => {
+        const id = req.path.replace('/execute', '');
+
+        if (!id) {
+          return res.status(400).send(`/execute expects a path of the results to load`);
+        }
+
+        const resultKey = `debugger-result:${id}`;
+        const result = await this.db.get(resultKey);
+
+        if (!result) {
+          return res.status(404).send(`Couldn't locate debug results for ${id}`);
+        }
+
+        const data = _.isObject(result) ? result.data : result;
+        const type = _.isObject(result) ? result.type : 'json';
+        console.log({ data, type });
+        return this.buildFunctionResult({ res, data, type });
+      }));
     }
 
     if (this.token) {
@@ -541,7 +575,7 @@ export class Chrome {
 
         debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
-        if (this.demoMode && !this.debuggerScripts.has(route)) {
+        if (this.demoMode && !this.db.has(route)) {
           return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
         }
 
@@ -591,14 +625,14 @@ export class Chrome {
                 return browserWsEndpoint;
               }
 
-              if (this.debuggerScripts.has(route)) {
+              if (this.db.has(route)) {
                 debug(`${req.url}: Executing prior-uploaded script.`);
 
                 const page:any = await browser.newPage();
                 const port = url.parse(browserWsEndpoint).port;
                 const pageLocation = `/devtools/page/${page._target._targetId}`;
-                const code = this.debuggerScripts.get(route);
-                this.debuggerScripts.delete(route);
+                const code = this.db.get(route);
+                this.db.delete(route);
 
                 const sandbox = {
                   console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
@@ -615,10 +649,14 @@ export class Chrome {
                 };
 
                 const vm = new NodeVM({ sandbox });
-                const handler = vm.run(code);
-
-                handler({ page, context: {} });
+                const handler: (args: any) => Promise<any> = vm.run(code);
+                const fnResult = handler({ page, context: {} });
+                const resultKey = `debugger-result:${route}`;
                 req.url = pageLocation;
+
+                const resultPromise = this.db.get(resultKey);
+                resultPromise.resolver(fnResult);
+
                 return `ws://127.0.0.1:${port}`;
               }
 
