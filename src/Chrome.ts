@@ -584,13 +584,6 @@ export class Chrome {
                 done();
               });
 
-              if (!route.includes('/devtools/page')) {
-                debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
-                req.url = route;
-
-                return browserWsEndpoint;
-              }
-
               if (this.debuggerScripts.has(route)) {
                 debug(`${req.url}: Executing prior-uploaded script.`);
 
@@ -622,7 +615,19 @@ export class Chrome {
                 return `ws://127.0.0.1:${port}`;
               }
 
-              throw new Error(`Unknown action: ${req.url}`);
+              if (!route.includes('/devtools/page')) {
+                debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
+                req.url = route;
+
+                return browserWsEndpoint;
+              } else {
+                const page:any = await browser.newPage();
+                const port = url.parse(browserWsEndpoint).port;
+                const pageLocation = `/devtools/page/${page._target._targetId}`;
+                req.url = pageLocation;
+
+                return `ws://127.0.0.1:${port}`;
+              }
             })
             .then((target) => this.proxy.ws(req, socket, head, { target }))
             .catch((error) => {
