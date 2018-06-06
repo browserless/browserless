@@ -40,9 +40,10 @@ const getDocs = (docsPage) => [].map.call(
   }),
   _ => _);
 
-module.exports = () => puppeteer
+const getMeta = () => puppeteer
   .launch()
   .then((browser) => {
+    console.log('Chrome launched, compiling hints, protocol and version info...');
     const wsEndpoint = browser.wsEndpoint();
     const { port } = url.parse(wsEndpoint);
 
@@ -89,6 +90,12 @@ module.exports = () => puppeteer
     .then(() => browser.close())
   })
   .catch((error) => {
-    console.error(error);
+    console.error(`Issue compiling JSON meta`, error);
     process.exit(1);
   });
+
+if (module.parent) {
+  module.exports = getMeta;
+} else {
+  getMeta();
+}
