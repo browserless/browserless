@@ -225,9 +225,16 @@ export class Chrome {
     this.queueHook();
   }
 
-  private onRejected(req, socket, message) {
+  private rejectSocket(req, socket, message) {
     debug(`${req.url}: ${message}`);
     this.closeSocket(socket, `${message}\r\n`);
+    this.currentStat.rejected = this.currentStat.rejected + 1;
+    this.rejectHook();
+  }
+
+  private rejectReq(req, res, message) {
+    debug(`${req.url}: ${message}`);
+    res.status(429).send(message);
     this.currentStat.rejected = this.currentStat.rejected + 1;
     this.rejectHook();
   }
@@ -334,7 +341,7 @@ export class Chrome {
     const isMachineStrained = this.isMachineConstrained();
 
     if (queueLength >= this.maxQueueLength) {
-      return this.onRejected(req, res, `HTTP/1.1 429 Too Many Requests`);
+      return this.rejectReq(req, res, `Too Many Requests`);
     }
 
     if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
@@ -542,15 +549,15 @@ export class Chrome {
         debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
         if (this.demoMode && !this.debuggerScripts.has(route)) {
-          return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
+          return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
         }
 
         if (this.token && parsedUrl.query.token !== this.token) {
-          return this.onRejected(req, socket, `HTTP/1.1 403 Forbidden`);
+          return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
         }
 
         if (queueLength >= this.maxQueueLength) {
-          return this.onRejected(req, socket, `HTTP/1.1 429 Too Many Requests`);
+          return this.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
         }
 
         if (this.autoQueue && (this.queue.length < this.queue.concurrency)) {
@@ -632,7 +639,7 @@ export class Chrome {
             .then((target) => this.proxy.ws(req, socket, head, { target }))
             .catch((error) => {
               console.error(error, `Issue launching Chrome or proxying traffic, failing request`);
-              return this.onRejected(req, socket, `HTTP/1.1 500`);
+              return this.rejectSocket(req, socket, `HTTP/1.1 500`);
             });
         };
 
