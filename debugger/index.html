@@ -587,7 +587,7 @@ const puppeteer = require('puppeteer');
     onEditScript(editor.getValue());
   });
 
-  fetch(`${baseURL}/introspection`, {
+  fetch(`${baseURL}/introspection${qsParams}`, {
     headers: {
       'Accept': 'application/json',
     }
@@ -595,7 +595,7 @@ const puppeteer = require('puppeteer');
   .then(res => res.json())
   .then((hints) => pageMethods = pageMethods.concat(hints))
 
-  fetch(`${baseURL}/json/version`, {
+  fetch(`${baseURL}/json/version${qsParams}`, {
     headers: {
       'Accept': 'application/json',
     }
