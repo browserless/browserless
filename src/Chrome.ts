@@ -49,6 +49,7 @@ export class Chrome {
   public maxMemory: number;
   public maxCPU: number;
   public autoQueue: boolean;
+  public keepAlive: boolean;
 
   private proxy: any;
   private prebootChrome: boolean;
@@ -80,6 +81,7 @@ export class Chrome {
     this.maxCPU = opts.maxCPU;
     this.maxMemory = opts.maxMemory;
     this.autoQueue = opts.autoQueue;
+    this.keepAlive = opts.keepAlive;
 
     this.chromeSwarm = [];
     this.stats = [];
@@ -162,6 +164,8 @@ export class Chrome {
       for (let i = 0; i < this.maxConcurrentSessions; i++) {
         this.chromeSwarm.push(this.launchChrome());
       }
+
+      debug(`Prebooted chrome swarm: ${this.maxConcurrentSessions} chrome instances are ready`);
     }
 
     this.resetCurrentStat();
@@ -246,12 +250,12 @@ export class Chrome {
   }
 
   private onSessionComplete() {
-    this.currentStat.successful = this.currentStat.successful + 1;
+    this.currentStat.successful++;
     this.addToChromeSwarm();
   }
 
   private onSessionFail() {
-    this.currentStat.error = this.currentStat.error + 1;
+    this.currentStat.error++;
     this.addToChromeSwarm();
   }
 
@@ -310,16 +314,24 @@ export class Chrome {
 
     debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
 
-    const job:any = async () => {
-      const browser = await this.launchChrome();
+    const job: any = async () => {
+      const launchPromise = this.chromeSwarm.length > 0 ? 
+      this.chromeSwarm.shift() :
+      this.launchChrome();
+
+      const browser = await launchPromise as puppeteer.Browser;
       const page = await browser.newPage();
 
       job.browser = browser;
 
       return handler({ page, context })
         .then(({ data, type }) => {
-          debug(`${req.url}: Function complete, stopping Chrome`);
-          _.attempt(() => browser.close());
+          debug(`${req.url}: Function complete, cleaning up.`);
+
+          this.keepAlive ? 
+            _.attempt(() => { page.close(); this.chromeSwarm.push(Promise.resolve(browser)) }) : 
+            _.attempt(() => browser.close());
+          
 
           res.type(type || 'text/plain');
 
@@ -342,7 +354,18 @@ export class Chrome {
 
     job.close = () => {
       if (job.browser) {
-        job.browser.close();
+        if (this.keepAlive) {
+          job.browser.pages()
+          .then((pages: puppeteer.Page[]) => {
+            pages.forEach(page => page.close());
+          })
+          .finally(() => {
+            this.chromeSwarm.push(Promise.resolve(job.browser));
+          });
+        } else {
+          job.browser.close();
+        }
+        
       }
 
       if (!res.headersSent) {
@@ -351,9 +374,19 @@ export class Chrome {
     };
 
     req.on('close', () => {
+      debug(`${req.url}: Request has terminated, cleaning up.`);
       if (job.browser) {
-        debug(`${req.url}: Request has terminated, stopping Chrome.`);
-        job.browser.close();
+        if (this.keepAlive) {
+          job.browser.pages()
+          .then((pages: puppeteer.Page[]) => {
+            pages.forEach(page => page.close());
+          })
+          .finally(() => {
+            this.chromeSwarm.push(Promise.resolve(job.browser));
+          });
+        } else {
+          job.browser.close();
+        }
       }
     });
 
@@ -432,7 +465,7 @@ export class Chrome {
       });
     });
 
-    // function rout for executing pupeteer scripts, accepts a JSON body with
+    // function route for executing puppeteer scripts, accepts a JSON body with
     // code and context
     app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
       const { code, context } = req.body;

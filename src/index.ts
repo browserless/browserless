@@ -17,6 +17,7 @@ const enableDebugger =         parseParam(process.env.ENABLE_DEBUGGER, true);
 const maxMemory =              parseParam(process.env.MAX_MEMOMORY_PERCENT, 99);
 const maxCPU =                 parseParam(process.env.MAX_CPU_PERCENT, 99);
 const autoQueue =              parseParam(process.env.AUTO_SCALE, false);
+const keepAlive =              parseParam(process.env.KEEP_ALIVE, true);
 const token =                  process.env.TOKEN || null;
 const queuedAlertURL =         process.env.QUEUE_ALERT_URL || null;
 const rejectAlertURL =         process.env.REJECT_ALERT_URL || null;
@@ -39,5 +40,6 @@ new Chrome({
   maxMemory,
   maxCPU,
   autoQueue,
+  keepAlive
 })
 .startServer();

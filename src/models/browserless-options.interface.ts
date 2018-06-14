@@ -9,6 +9,7 @@ export interface IBrowserlessOptions {
   maxMemory: number;
   maxCPU: number;
   autoQueue: boolean;
+  keepAlive: boolean;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
