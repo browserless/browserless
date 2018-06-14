@@ -11,7 +11,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "deploy": "./scripts/deploy.js",
-    "dev": "npm run build && cross-env MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless/chrome PORT=3030 node --inspect build/index.js",
+    "dev": "npm run build && cross-env MAX_CONCURRENT_SESSIONS=10 DEBUG=browserless/chrome PORT=3030 node --inspect build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "test": "jest"

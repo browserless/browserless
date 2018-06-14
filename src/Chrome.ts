@@ -10,28 +10,21 @@ import { NodeVM } from 'vm2';
 import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
 import * as bodyParser from 'body-parser';
-
 import {
   screenshot as screenshotSchema,
   content as contentSchema,
   pdf as pdfSchema,
   fn as fnSchema,
 } from './schemas';
-
-import {
-  IResourceLoad,
-  debug,
-  asyncMiddleware,
-  generateChromeTarget,
-  getMachineStats,
-  bodyValidation,
-} from './util';
+import { debug, asyncMiddleware, generateChromeTarget, bodyValidation } from './utils';
+import { IResourceLoad, getMachineStats, isMachineConstrained } from './hardware-monitoring';
+import { IFileRequest } from './models/file-request.interface';
+import { IBrowserlessOptions } from './models/browserless-options.interface';
 
 const request = require('request');
 const queue = require('queue');
 
-const fnLoader = (fnName: string) =>
-  fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
+const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -43,42 +36,9 @@ const protocol = require('../protocol.json');
 const hints = require('../hints.json');
 
 const thiryMinutes = 30 * 60 * 1000;
-const fiveMinute = 5 * 60 * 1000;
+const fiveMinutes = 5 * 60 * 1000;
 const halfSecond = 500;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
-
-export interface IOptions {
-  connectionTimeout: number;
-  port: number;
-  maxConcurrentSessions: number;
-  maxQueueLength: number;
-  prebootChrome: boolean;
-  demoMode: boolean;
-  enableDebugger: boolean;
-  maxMemory: number;
-  maxCPU: number;
-  autoQueue: boolean;
-  token: string | null;
-  rejectAlertURL: string | null;
-  queuedAlertURL: string | null;
-  timeoutAlertURL: string | null;
-  healthFailureURL: string | null;
-}
-
-interface IStats {
-  date: number | null;
-  successful: number;
-  error: number;
-  queued: number;
-  rejected: number;
-  memory: number;
-  cpu: number;
-  timedout: number;
-};
-
-interface IFileRequest extends express.Request {
-  file: any
-}
 
 export class Chrome {
   public port: number;
@@ -104,11 +64,11 @@ export class Chrome {
   readonly timeoutHook: Function;
   readonly healthFailureHook: Function;
 
-  private stats: IStats[];
-  private currentStat: IStats;
+  private stats: IBrowserlessStats[];
+  private currentStat: IBrowserlessStats;
   private currentMachineStats: IResourceLoad;
 
-  constructor(opts: IOptions) {
+  constructor(opts: IBrowserlessOptions) {
     this.port = opts.port;
     this.maxConcurrentSessions = opts.maxConcurrentSessions;
     this.maxQueueLength = opts.maxQueueLength + opts.maxConcurrentSessions;
@@ -207,7 +167,7 @@ export class Chrome {
     this.resetCurrentStat();
 
     setInterval(this.recordMachineStats.bind(this), halfSecond);
-    setInterval(this.recordMetrics.bind(this), fiveMinute);
+    setInterval(this.recordMetrics.bind(this), fiveMinutes);
   }
 
   private onTimedOut(next, job) {
@@ -306,13 +266,6 @@ export class Chrome {
     }
   }
 
-  private isMachineConstrained() {
-    return (
-      this.currentMachineStats.cpuUsage >= this.maxCPU ||
-      this.currentMachineStats.memoryUsage >= this.maxMemory
-    );
-  }
-
   private async launchChrome(flags:string[] = [], retries:number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
     debug('Chrome Starting');
@@ -338,7 +291,7 @@ export class Chrome {
 
   private async runFunction({ code, context, req, res }) {
     const queueLength = this.queue.length;
-    const isMachineStrained = this.isMachineConstrained();
+    const isMachineStrained = isMachineConstrained(this.currentMachineStats);
 
     if (queueLength >= this.maxQueueLength) {
       return this.rejectReq(req, res, `Too Many Requests`);
@@ -544,7 +497,7 @@ export class Chrome {
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
         const queueLength = this.queue.length;
-        const isMachineStrained = this.isMachineConstrained();
+        const isMachineStrained = isMachineConstrained(this.currentMachineStats);
 
         debug(`${req.url}: Inbound WebSocket request. ${this.queue.length} in queue.`);
 
