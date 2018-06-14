@@ -25,7 +25,15 @@ module.exports = async function pdf({ page, context }) {
   if (url != null) {
     await page.goto(url);
   } else {
-    await page.setContent(html);
+    // Whilst there is no way of waiting for all requests to finish with setContent,
+    // you can simulate a webrequest this way
+    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
+    await page.setRequestInterception(true);
+    page.once('request', request => {
+      request.respond({body: html});
+      page.on('request', request => request.continue());
+    });
+    await page.goto('http://localhost');
   }
 
   const data = await page.pdf(options);
