@@ -1,6 +1,18 @@
-export interface IBrowserlessOptions {
-  connectionTimeout: number;
+export interface IBrowserlessOptions
+  extends IBrowserlessServerConfiguration,
+    IChromeServiceConfiguration {}
+
+export interface IBrowserlessServerConfiguration {
   port: number;
+  token: string | null;
+  rejectAlertURL: string | null;
+  queuedAlertURL: string | null;
+  timeoutAlertURL: string | null;
+  healthFailureURL: string | null;
+}
+
+export interface IChromeServiceConfiguration {
+  connectionTimeout: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
@@ -10,9 +22,6 @@ export interface IBrowserlessOptions {
   maxCPU: number;
   autoQueue: boolean;
   keepAlive: boolean;
-  token: string | null;
-  rejectAlertURL: string | null;
-  queuedAlertURL: string | null;
-  timeoutAlertURL: string | null;
-  healthFailureURL: string | null;
+  chromeRefreshTime: number;
+  maxChromeRefreshRetries: number;
 }

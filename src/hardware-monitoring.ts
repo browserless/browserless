@@ -10,53 +10,81 @@ export interface IResourceLoad {
   memoryUsage: number;
 }
 
-export function getCPUIdleAndTotal(): ICPULoad {
-  let totalIdle = 0;
-  let totalTick = 0;
+const halfSecond = 500;
 
-  const cpus = os.cpus();
+export class ResourceMonitor {
+  private maxCPU: number;
+  private maxMemory: number;
+  private currentResources: IResourceLoad;
 
-  for (var i = 0, len = cpus.length; i < len; i++) {
-    var cpu = cpus[i];
+  constructor(maxCPU, maxMemory) {
+    this.maxCPU = maxCPU;
+    this.maxMemory = maxMemory;
 
-    for (const type in cpu.times) {
-      totalTick += cpu.times[type];
-    }
+    this.currentResources = {
+      cpuUsage: 0,
+      memoryUsage: 0,
+    };
 
-    // Total up the idle time of the core
-    totalIdle += cpu.times.idle;
+    setInterval(this.recordMachineStats.bind(this), halfSecond);
   }
 
-  // Return the average Idle and Tick times
-  return {
-    idle: totalIdle / cpus.length,
-    total: totalTick / cpus.length
-  };
-}
+  private async recordMachineStats() {
+    this.currentResources = await this.getMachineStats();
+  }
 
-export function getMachineStats(): Promise<IResourceLoad> {
-  return new Promise((resolve) => {
-    const start = getCPUIdleAndTotal();
+  get isMachinedConstrained() {
+    return (
+      this.currentResources.cpuUsage >= this.maxCPU ||
+      this.currentResources.memoryUsage >= this.maxMemory
+    )
+  }
 
-    setTimeout(() => {
-      const end = getCPUIdleAndTotal();
-      const idleDifference = end.idle - start.idle;
-      const totalDifference = end.total - start.total;
+  get currentStats() {
+    return this.currentResources;
+  }
 
-      const cpuUsage = 1 - (idleDifference / totalDifference);
-      const memoryUsage = 1 - (os.freemem() / os.totalmem());
+  getCPUIdleAndTotal(): ICPULoad {
+    let totalIdle = 0;
+    let totalTick = 0;
+  
+    const cpus = os.cpus();
+  
+    for (var i = 0, len = cpus.length; i < len; i++) {
+      var cpu = cpus[i];
+  
+      for (const type in cpu.times) {
+        totalTick += cpu.times[type];
+      }
+  
+      // Total up the idle time of the core
+      totalIdle += cpu.times.idle;
+    }
+  
+    // Return the average Idle and Tick times
+    return {
+      idle: totalIdle / cpus.length,
+      total: totalTick / cpus.length
+    };
+  }
 
-      return resolve({
-        cpuUsage,
-        memoryUsage,
-      });
-    }, 100);
-  });
-}
-
-export function isMachineConstrained(machineResources: IResourceLoad, ) {
-  return (
-    machineResources.cpuUsage >= this.maxCPU ||
-    machineResources.memoryUsage >= this.maxMemory
-  );
+  getMachineStats(): Promise<IResourceLoad> {
+    return new Promise((resolve) => {
+      const start = this.getCPUIdleAndTotal();
+  
+      setTimeout(() => {
+        const end = this.getCPUIdleAndTotal();
+        const idleDifference = end.idle - start.idle;
+        const totalDifference = end.total - start.total;
+  
+        const cpuUsage = 1 - (idleDifference / totalDifference);
+        const memoryUsage = 1 - (os.freemem() / os.totalmem());
+  
+        return resolve({
+          cpuUsage,
+          memoryUsage,
+        });
+      }, 100);
+    });
+  }
 }
