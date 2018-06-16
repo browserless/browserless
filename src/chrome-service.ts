@@ -57,9 +57,9 @@ export class ChromeService {
 
         process.exit(0);
       });
-    }
 
-    setTimeout(this.refreshChromeSwarm, this.config.chromeRefreshTime);
+      setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
+    }
   }
 
   public getChrome(flags?: any): Promise<puppeteer.Browser> {
@@ -201,13 +201,13 @@ export class ChromeService {
 
     if (this.queue.length > this.chromeSwarm.length) {
       // tries to refresh later if more jobs than there are available chromes
-      setTimeout(this.refreshChromeSwarm(retries + 1), oneMinute);
+      setTimeout(() => this.refreshChromeSwarm(retries + 1), oneMinute);
     }
 
     this.chromeSwarm.forEach((chromeInstance) => this.refreshChromeInstance(chromeInstance));
 
     // will refresh again in 30min
-    setTimeout(this.refreshChromeSwarm, this.config.chromeRefreshTime);
+    setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
   }
 
   private async refreshChromeInstance(instance: Promise<puppeteer.Browser>) {

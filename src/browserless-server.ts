@@ -135,197 +135,199 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    const app = express();
+    return new Promise((resolve) => {
+      const app = express();
 
-    app.use(bodyParser.json({ limit: '1mb' }));
+      app.use(bodyParser.json({ limit: '1mb' }));
 
-    if (this.config.enableDebugger) {
-      app.use('/', express.static('./debugger'));
-    }
+      if (this.config.enableDebugger) {
+        app.use('/', express.static('./debugger'));
+      }
 
-    if (this.config.token) {
-      app.use((req, res, next) => {
-        if (this.config.token && req.query.token !== this.config.token) {
-          return res.sendStatus(403);
-        }
-        next();
-        return;
-      });
-    }
+      if (this.config.token) {
+        app.use((req, res, next) => {
+          if (this.config.token && req.query.token !== this.config.token) {
+            return res.sendStatus(403);
+          }
+          next();
+          return;
+        });
+      }
 
-    app.get('/introspection', (_req, res) => res.json(hints));
-    app.get('/json/version', (_req, res) => res.json(version));
-    app.get('/json/protocol', (_req, res) => res.json(protocol));
-    app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
+      app.get('/introspection', (_req, res) => res.json(hints));
+      app.get('/json/version', (_req, res) => res.json(version));
+      app.get('/json/protocol', (_req, res) => res.json(protocol));
+      app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
 
-    app.get('/config', (_req, res) => res.json({
-      concurrent: this.config.maxConcurrentSessions,
-      preboot: this.config.prebootChrome,
-      queue: this.config.maxQueueLength - this.config.maxConcurrentSessions,
-      timeout: this.config.connectionTimeout,
-    }));
+      app.get('/config', (_req, res) => res.json({
+        concurrent: this.config.maxConcurrentSessions,
+        preboot: this.config.prebootChrome,
+        queue: this.config.maxQueueLength - this.config.maxConcurrentSessions,
+        timeout: this.config.connectionTimeout,
+      }));
 
-    app.get('/pressure', (_req, res) => {
-      const queueLength = this.chromeService.queueSize;
-      const queueConcurrency = this.chromeService.queueConcurrency;
-      const concurrencyMet = queueLength >= queueConcurrency;
-
-      return res.json({
-        pressure: {
-          date: Date.now(),
-          isAvailable: queueLength < this.config.maxQueueLength,
-          queued: concurrencyMet ? queueLength - queueConcurrency : 0,
-          recentlyRejected: this.currentStat.rejected,
-          running: concurrencyMet ? queueConcurrency : queueLength,
-        },
-      });
-    });
-
-    // function route for executing puppeteer scripts, accepts a JSON body with
-    // code and context
-    app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
-      const { code, context } = req.body;
-
-      return this.chromeService.runFunction({ code, context, req, res });
-    }));
-
-    // Helper route for capturing screenshots, accepts a POST body containing a URL and
-    // puppeteer's screenshot options (see the schema in schemas.ts);
-    app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
-      this.chromeService.runFunction({
-        code: screenshot,
-        context: req.body,
-        req,
-        res,
-      }),
-    ));
-
-    // Helper route for capturing content body, accepts a POST body containing a URL
-    // (see the schema in schemas.ts);
-    app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
-      this.chromeService.runFunction({
-        code: content,
-        context: req.body,
-        req,
-        res,
-      }),
-    ));
-
-    // Helper route for capturing screenshots, accepts a POST body containing a URL and
-    // puppeteer's screenshot options (see the schema in schemas.ts);
-    app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
-      this.chromeService.runFunction({
-        code: pdf,
-        context: req.body,
-        req,
-        res,
-      }),
-    ));
-
-    app.get('/json*', asyncMiddleware(async (req, res) => {
-      const targetId = generateChromeTarget();
-      const baseUrl = req.get('host');
-      const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
-
-      debug(`${req.url}: JSON protocol request.`);
-
-      res.json([{
-        description: '',
-        devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
-        targetId,
-        title: 'about:blank',
-        type: 'page',
-        url: 'about:blank',
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
-      }]);
-    }));
-
-    return this.server = http
-      .createServer(app)
-      .on('upgrade', asyncMiddleware(async (req, socket, head) => {
-        const parsedUrl = url.parse(req.url, true);
-        const route = parsedUrl.pathname || '/';
+      app.get('/pressure', (_req, res) => {
         const queueLength = this.chromeService.queueSize;
-        const debugCode = parsedUrl.query.code as string;
-        const code = this.parseUserCode(debugCode);
+        const queueConcurrency = this.chromeService.queueConcurrency;
+        const concurrencyMet = queueLength >= queueConcurrency;
 
-        debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
+        return res.json({
+          pressure: {
+            date: Date.now(),
+            isAvailable: queueLength < this.config.maxQueueLength,
+            queued: concurrencyMet ? queueLength - queueConcurrency : 0,
+            recentlyRejected: this.currentStat.rejected,
+            running: concurrencyMet ? queueConcurrency : queueLength,
+          },
+        });
+      });
 
-        if (this.config.demoMode && !code) {
-          return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-        }
+      // function route for executing puppeteer scripts, accepts a JSON body with
+      // code and context
+      app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
+        const { code, context } = req.body;
 
-        if (this.config.token && parsedUrl.query.token !== this.config.token) {
-          return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-        }
+        return this.chromeService.runFunction({ code, context, req, res });
+      }));
 
-        if (queueLength >= this.config.maxQueueLength) {
-          return this.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
-        }
+      // Helper route for capturing screenshots, accepts a POST body containing a URL and
+      // puppeteer's screenshot options (see the schema in schemas.ts);
+      app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
+        this.chromeService.runFunction({
+          code: screenshot,
+          context: req.body,
+          req,
+          res,
+        }),
+      ));
 
-        this.chromeService.autoUpdateQueue();
+      // Helper route for capturing content body, accepts a POST body containing a URL
+      // (see the schema in schemas.ts);
+      app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
+        this.chromeService.runFunction({
+          code: content,
+          context: req.body,
+          req,
+          res,
+        }),
+      ));
 
-        if (queueLength >= this.chromeService.queueConcurrency) {
-          this.chromeService.onQueued(req);
-        }
+      // Helper route for capturing screenshots, accepts a POST body containing a URL and
+      // puppeteer's screenshot options (see the schema in schemas.ts);
+      app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
+        this.chromeService.runFunction({
+          code: pdf,
+          context: req.body,
+          req,
+          res,
+        }),
+      ));
 
-        const job: any = (done: () => {}) => {
-          const flags = _.chain(parsedUrl.query)
-            .pickBy((_value, param) => _.startsWith(param, '--'))
-            .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-            .value();
+      app.get('/json*', asyncMiddleware(async (req, res) => {
+        const targetId = generateChromeTarget();
+        const baseUrl = req.get('host');
+        const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
 
-          const launchPromise = this.chromeService.getChrome(flags);
-          debug(`${req.url}: WebSocket upgrade.`);
+        debug(`${req.url}: JSON protocol request.`);
 
-          launchPromise
-            .then(async (browser) => {
-              const browserWsEndpoint = browser.wsEndpoint();
+        res.json([{
+          description: '',
+          devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
+          targetId,
+          title: 'about:blank',
+          type: 'page',
+          url: 'about:blank',
+          webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
+        }]);
+      }));
 
-              debug(`${req.url}: Chrome Launched.`);
+      return this.server = http
+        .createServer(app)
+        .on('upgrade', asyncMiddleware(async (req, socket, head) => {
+          const parsedUrl = url.parse(req.url, true);
+          const route = parsedUrl.pathname || '/';
+          const queueLength = this.chromeService.queueSize;
+          const debugCode = parsedUrl.query.code as string;
+          const code = this.parseUserCode(debugCode);
 
-              socket.on('close', () => {
-                debug(`${req.url}: Session closed, stopping Chrome. ${this.chromeService.queueSize} now in queue`);
-                browser.close();
-                done();
+          debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
+
+          if (this.config.demoMode && !code) {
+            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+          }
+
+          if (this.config.token && parsedUrl.query.token !== this.config.token) {
+            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+          }
+
+          if (queueLength >= this.config.maxQueueLength) {
+            return this.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
+          }
+
+          this.chromeService.autoUpdateQueue();
+
+          if (queueLength >= this.chromeService.queueConcurrency) {
+            this.chromeService.onQueued(req);
+          }
+
+          const job: any = (done: () => {}) => {
+            const flags = _.chain(parsedUrl.query)
+              .pickBy((_value, param) => _.startsWith(param, '--'))
+              .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+              .value();
+
+            const launchPromise = this.chromeService.getChrome(flags);
+            debug(`${req.url}: WebSocket upgrade.`);
+
+            launchPromise
+              .then(async (browser) => {
+                const browserWsEndpoint = browser.wsEndpoint();
+
+                debug(`${req.url}: Chrome Launched.`);
+
+                socket.on('close', () => {
+                  debug(`${req.url}: Session closed, stopping Chrome. ${this.chromeService.queueSize} now in queue`);
+                  browser.close();
+                  done();
+                });
+
+                if (!route.includes('/devtools/page')) {
+                  debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
+                  req.url = route;
+
+                  return browserWsEndpoint;
+                }
+
+                const page: any = await browser.newPage();
+                const port = url.parse(browserWsEndpoint).port;
+                const pageLocation = `/devtools/page/${page._target._targetId}`;
+                req.url = pageLocation;
+
+                if (code) {
+                  debug(`${req.url}: Executing user-submitted code.`);
+
+                  const sandbox = this.buildBrowserSandbox(page);
+                  const vm: any = new NodeVM({ sandbox });
+                  const handler = vm.run(code);
+
+                  handler({ page, context: {} });
+                }
+
+                return `ws://127.0.0.1:${port}`;
+              })
+              .then((target) => this.proxy.ws(req, socket, head, { target }))
+              .catch((error) => {
+                debug(error, `Issue launching Chrome or proxying traffic, failing request`);
+                return this.rejectSocket(req, socket, `HTTP/1.1 500`);
               });
+          };
 
-              if (!route.includes('/devtools/page')) {
-                debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
-                req.url = route;
+          job.close = (message: string) => this.closeSocket(socket, message);
 
-                return browserWsEndpoint;
-              }
-
-              const page: any = await browser.newPage();
-              const port = url.parse(browserWsEndpoint).port;
-              const pageLocation = `/devtools/page/${page._target._targetId}`;
-              req.url = pageLocation;
-
-              if (code) {
-                debug(`${req.url}: Executing user-submitted code.`);
-
-                const sandbox = this.buildBrowserSandbox(page);
-                const vm: any = new NodeVM({ sandbox });
-                const handler = vm.run(code);
-
-                handler({ page, context: {} });
-              }
-
-              return `ws://127.0.0.1:${port}`;
-            })
-            .then((target) => this.proxy.ws(req, socket, head, { target }))
-            .catch((error) => {
-              debug(error, `Issue launching Chrome or proxying traffic, failing request`);
-              return this.rejectSocket(req, socket, `HTTP/1.1 500`);
-            });
-        };
-
-        job.close = (message: string) => this.closeSocket(socket, message);
-
-        this.chromeService.addJob(job);
-      }))
-      .listen(this.config.port);
+          this.chromeService.addJob(job);
+        }))
+        .listen(this.config.port, resolve);
+    });
   }
 
   public async close() {
