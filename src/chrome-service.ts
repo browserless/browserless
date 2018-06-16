@@ -1,21 +1,20 @@
+import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
-import { IChromeServiceConfiguration } from './models/browserless-options.interface';
-import { debug } from './utils';
-import { ResourceMonitor } from './hardware-monitoring';
 import { NodeVM } from 'vm2';
 import { BrowserlessServer } from './browserless-server';
-import * as _ from 'lodash';
+import { ResourceMonitor } from './hardware-monitoring';
+import { IChromeServiceConfiguration } from './models/browserless-options.interface';
+import { debug } from './utils';
 
 const queue = require('queue');
-const oneMinute = 60 * 1000
-
+const oneMinute = 60 * 1000;
 
 export class ChromeService {
+  private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
-  private chromeSwarm: Promise<puppeteer.Browser>[];
+  private chromeSwarm: Array<Promise<puppeteer.Browser>>;
   private queue: any;
   private readonly resourceMonitor: ResourceMonitor;
-  readonly server: BrowserlessServer;
 
   get queueSize() {
     return this.queue.length;
@@ -30,9 +29,9 @@ export class ChromeService {
     this.server = server;
     this.resourceMonitor = resourceMonitor;
     this.queue = queue({
+      autostart: true,
       concurrency: this.config.maxConcurrentSessions,
       timeout: this.config.connectionTimeout,
-      autostart: true
     });
 
     this.queue.on('success', this.onSessionComplete.bind(this));
@@ -81,39 +80,6 @@ export class ChromeService {
     }
   }
 
-  private refreshChromeSwarm(retries: number = 0) {
-    if (retries > this.config.maxChromeRefreshRetries) {
-      // forces refresh after max retries
-      this.chromeSwarm.forEach(chromeInstance => this.refreshChromeInstance(chromeInstance));
-    }
-
-    if (this.queue.length > this.chromeSwarm.length) {
-      // tries to refresh later if more jobs than there are available chromes
-      setTimeout(this.refreshChromeSwarm(retries + 1), oneMinute);
-    }
-
-    this.chromeSwarm.forEach(chromeInstance => this.refreshChromeInstance(chromeInstance));
-
-    // will refresh again in 30min
-    setTimeout(this.refreshChromeSwarm, this.config.chromeRefreshTime);
-  }
-
-  private async refreshChromeInstance(instance: Promise<puppeteer.Browser>) {
-    const chrome = await instance;
-    chrome.close();
-
-    if (this.config.keepAlive && (this.chromeSwarm.length >= this.config.maxConcurrentSessions)) {
-      this.chromeSwarm.push(this.launchChrome());
-    }
-  }
-
-  private addToChromeSwarm() {
-    if (this.config.prebootChrome && (this.chromeSwarm.length < this.queue.concurrency)) {
-      this.chromeSwarm.push(this.launchChrome());
-      debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
-    }
-  }
-
   public onSessionComplete() {
     debug(`Marking session completion`);
     this.server.currentStat.successful++;
@@ -141,32 +107,9 @@ export class ChromeService {
     this.server.queueHook();
   }
 
-  private async launchChrome(flags:string[] = [], retries:number = 1): Promise<puppeteer.Browser> {
-    const start = Date.now();
-    debug('Chrome Starting');
-    return puppeteer.launch({
-      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
-    })
-      .then((chrome) => {
-        debug(`Chrome launched ${Date.now() - start}ms`);
-        return chrome;
-      })
-      .catch((error) => {
-
-        if (retries > 0) {
-          const nextRetries = retries - 1;
-          console.error(error, `Issue launching Chrome, retrying ${retries} times.`);
-          return this.launchChrome(flags, nextRetries);
-        }
-
-        console.error(error, `Issue launching Chrome, retries exhausted.`);
-        throw error;
-      });
-  }
-
   public async reuseChromeInstance(instance: puppeteer.Browser) {
     const openPages = await instance.pages();
-    openPages.forEach(page => page.close());
+    openPages.forEach((page) => page.close());
     this.chromeSwarm.push(Promise.resolve(instance));
   }
 
@@ -187,7 +130,7 @@ export class ChromeService {
     }
 
     const vm = new NodeVM();
-    const handler: (any) => Promise<any> = vm.run(code);
+    const handler: (args) => Promise<any> = vm.run(code);
 
     debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
 
@@ -199,7 +142,10 @@ export class ChromeService {
       const browser = await launchPromise as puppeteer.Browser;
       const page = await browser.newPage();
       const cleanup = () => this.config.keepAlive ?
-        _.attempt(() => { page.close(); this.chromeSwarm.push(Promise.resolve(browser)) }) :
+        _.attempt(() => {
+          page.close();
+          this.chromeSwarm.push(Promise.resolve(browser));
+        }) :
         _.attempt(() => browser.close());
 
       job.browser = browser;
@@ -245,5 +191,61 @@ export class ChromeService {
     });
 
     this.queue.push(job);
+  }
+
+  private refreshChromeSwarm(retries: number = 0) {
+    if (retries > this.config.maxChromeRefreshRetries) {
+      // forces refresh after max retries
+      this.chromeSwarm.forEach((chromeInstance) => this.refreshChromeInstance(chromeInstance));
+    }
+
+    if (this.queue.length > this.chromeSwarm.length) {
+      // tries to refresh later if more jobs than there are available chromes
+      setTimeout(this.refreshChromeSwarm(retries + 1), oneMinute);
+    }
+
+    this.chromeSwarm.forEach((chromeInstance) => this.refreshChromeInstance(chromeInstance));
+
+    // will refresh again in 30min
+    setTimeout(this.refreshChromeSwarm, this.config.chromeRefreshTime);
+  }
+
+  private async refreshChromeInstance(instance: Promise<puppeteer.Browser>) {
+    const chrome = await instance;
+    chrome.close();
+
+    if (this.config.keepAlive && (this.chromeSwarm.length >= this.config.maxConcurrentSessions)) {
+      this.chromeSwarm.push(this.launchChrome());
+    }
+  }
+
+  private addToChromeSwarm() {
+    if (this.config.prebootChrome && (this.chromeSwarm.length < this.queue.concurrency)) {
+      this.chromeSwarm.push(this.launchChrome());
+      debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
+    }
+  }
+
+  private async launchChrome(flags: string[] = [], retries: number = 1): Promise<puppeteer.Browser> {
+    const start = Date.now();
+    debug('Chrome Starting');
+    return puppeteer.launch({
+      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    })
+      .then((chrome) => {
+        debug(`Chrome launched ${Date.now() - start}ms`);
+        return chrome;
+      })
+      .catch((error) => {
+
+        if (retries > 0) {
+          const nextRetries = retries - 1;
+          debug(error, `Issue launching Chrome, retrying ${retries} times.`);
+          return this.launchChrome(flags, nextRetries);
+        }
+
+        debug(error, `Issue launching Chrome, retries exhausted.`);
+        throw error;
+      });
   }
 }

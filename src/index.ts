@@ -1,11 +1,11 @@
 import { BrowserlessServer } from './browserless-server';
 
-const parseParam = (param:any, defaultParam:any) => {
+const parseParam = (param: any, defaultParam: any) => {
   if (param) {
     return JSON.parse(param);
   }
   return defaultParam;
-}
+};
 
 const thirtyMinutes = 30 * 60 * 1000;
 
@@ -29,23 +29,23 @@ const timeoutAlertURL =         process.env.TIMEOUT_ALERT_URL || null;
 const healthFailureURL =        process.env.FAILED_HEALTH_URL || null;
 
 new BrowserlessServer({
-  enableDebugger,
-  token,
+  autoQueue,
+  chromeRefreshTime,
   connectionTimeout,
+  demoMode,
+  enableDebugger,
+  healthFailureURL,
+  keepAlive,
+  maxCPU,
+  maxChromeRefreshRetries,
   maxConcurrentSessions,
+  maxMemory,
   maxQueueLength,
   port,
   prebootChrome,
-  demoMode,
   queuedAlertURL,
   rejectAlertURL,
   timeoutAlertURL,
-  healthFailureURL,
-  maxMemory,
-  maxCPU,
-  autoQueue,
-  keepAlive,
-  chromeRefreshTime,
-  maxChromeRefreshRetries
+  token,
 })
 .startServer();

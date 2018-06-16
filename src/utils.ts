@@ -9,7 +9,7 @@ export const asyncMiddleware = (handler) => {
         socket.write(`HTTP/1.1 500 ${error.message}\r\n`);
         socket.end();
       });
-  }
+  };
 };
 
 export const bodyValidation = (schema) => {
@@ -20,16 +20,16 @@ export const bodyValidation = (schema) => {
       debug(`Malformed incoming request: ${result.error}`);
       return res.status(400).send(result.error.details);
     }
-  
+
     return next();
-  }
+  };
 };
 
 export const generateChromeTarget = () => {
-  var text = '';
-  var possible = 'ABCDEF0123456789';
+  let text = '';
+  const possible = 'ABCDEF0123456789';
 
-  for (var i = 0; i < 32; i++) {
+  for (let i = 0; i < 32; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
 

@@ -29,32 +29,19 @@ export class ResourceMonitor {
     setInterval(this.recordMachineStats.bind(this), halfSecond);
   }
 
-  private async recordMachineStats() {
-    this.currentResources = await this.getMachineStats();
-  }
-
-  get isMachinedConstrained() {
-    return (
-      this.currentResources.cpuUsage >= this.maxCPU ||
-      this.currentResources.memoryUsage >= this.maxMemory
-    )
-  }
-
-  get currentStats() {
-    return this.currentResources;
-  }
-
-  getCPUIdleAndTotal(): ICPULoad {
+  public getCPUIdleAndTotal(): ICPULoad {
     let totalIdle = 0;
     let totalTick = 0;
 
     const cpus = os.cpus();
 
-    for (var i = 0, len = cpus.length; i < len; i++) {
-      var cpu = cpus[i];
+    for (let i = 0, len = cpus.length; i < len; i++) {
+      const cpu = cpus[i];
 
       for (const type in cpu.times) {
-        totalTick += cpu.times[type];
+        if (cpu.times[type]) {
+          totalTick += cpu.times[type];
+        }
       }
 
       // Total up the idle time of the core
@@ -64,11 +51,11 @@ export class ResourceMonitor {
     // Return the average Idle and Tick times
     return {
       idle: totalIdle / cpus.length,
-      total: totalTick / cpus.length
+      total: totalTick / cpus.length,
     };
   }
 
-  getMachineStats(): Promise<IResourceLoad> {
+  public getMachineStats(): Promise<IResourceLoad> {
     return new Promise((resolve) => {
       const start = this.getCPUIdleAndTotal();
 
@@ -86,5 +73,20 @@ export class ResourceMonitor {
         });
       }, 100);
     });
+  }
+
+  private async recordMachineStats() {
+    this.currentResources = await this.getMachineStats();
+  }
+
+  get isMachinedConstrained() {
+    return (
+      this.currentResources.cpuUsage >= this.maxCPU ||
+      this.currentResources.memoryUsage >= this.maxMemory
+    );
+  }
+
+  get currentStats() {
+    return this.currentResources;
   }
 }

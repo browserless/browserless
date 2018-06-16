@@ -7,4 +7,4 @@ interface IBrowserlessStats {
   memory: number;
   cpu: number;
   timedout: number;
-};
+}

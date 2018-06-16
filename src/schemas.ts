@@ -2,16 +2,16 @@ import * as Joi from 'joi';
 
 export const screenshot = Joi.object().keys({
   options: Joi.object().keys({
-    type: Joi.string().valid('jpeg', 'png'),
-    quality: Joi.number().min(0).max(100),
-    fullPage: Joi.boolean(),
-    omitBackground: Joi.boolean(),
     clip: Joi.object().keys({
+      height: Joi.number().min(0),
+      width: Joi.number().min(0),
       x: Joi.number().min(0),
       y: Joi.number().min(0),
-      width: Joi.number().min(0),
-      height: Joi.number().min(0),
     }),
+    fullPage: Joi.boolean(),
+    omitBackground: Joi.boolean(),
+    quality: Joi.number().min(0).max(100),
+    type: Joi.string().valid('jpeg', 'png'),
   }),
   url: Joi.string().required(),
 });
@@ -21,26 +21,26 @@ export const content = Joi.object().keys({
 });
 
 export const pdf = Joi.object().keys({
-  url: Joi.string(),
   html: Joi.string(),
   options: Joi.object().keys({
-    scale: Joi.number().min(0),
     displayHeaderFooter: Joi.boolean(),
-    headerTemplate: Joi.string(),
     footerTemplate: Joi.string(),
-    printBackground: Joi.boolean(),
-    landscape: Joi.boolean(),
-    pageRanges: Joi.string()
-      .valid('Letter', 'Legal', 'Tabloid', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
-    width: Joi.any().optional(),
+    headerTemplate: Joi.string(),
     height: Joi.any().optional(),
+    landscape: Joi.boolean(),
     margin: Joi.object().keys({
-      top: Joi.string(),
-      right: Joi.string(),
       bottom: Joi.string(),
       left: Joi.string(),
-    })
-  })
+      right: Joi.string(),
+      top: Joi.string(),
+    }),
+    pageRanges: Joi.string()
+      .valid('Letter', 'Legal', 'Tabloid', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
+    printBackground: Joi.boolean(),
+    scale: Joi.number().min(0),
+    width: Joi.any().optional(),
+  }),
+  url: Joi.string(),
 }).xor('url', 'html');
 
 export const fn = Joi.object().keys({
