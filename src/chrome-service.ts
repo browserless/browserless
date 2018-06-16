@@ -40,12 +40,24 @@ export class ChromeService {
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.chromeSwarm = [];
+
     if (this.config.prebootChrome) {
+      debug(`Prebooting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
+
       for (let i = 0; i < this.config.maxConcurrentSessions; i++) {
         this.chromeSwarm.push(this.launchChrome());
       }
 
-      debug(`Prebooted chrome swarm: ${this.config.maxConcurrentSessions} chrome instances are ready`);
+      process.on('SIGINT', () => {
+        debug(`SIGTERM, shutting down Chromium`);
+
+        this.chromeSwarm.forEach(async (chrome) => {
+          const instance = await chrome;
+          return instance.close();
+        });
+
+        process.exit(0);
+      });
     }
 
     setTimeout(this.refreshChromeSwarm, this.config.chromeRefreshTime);

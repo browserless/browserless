@@ -51,7 +51,13 @@ export class BrowserlessServer {
   readonly healthFailureHook: Function;
 
   constructor(opts: IBrowserlessOptions) {
-    this.config = opts;
+    // The backing queue doesn't let you set a max limitation
+    // on length, so we add concurrent sessions + queue length
+    // to determine the `queue` array's max length
+    this.config = {
+      ...opts,
+      maxQueueLength: opts.maxQueueLength + opts.maxConcurrentSessions,
+    };
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this, this.resourceMonitor);
     this.stats = [];
@@ -70,7 +76,6 @@ export class BrowserlessServer {
       res.end(`Issue communicating with Chrome`);
     });
 
-    
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
         debug(`Calling webhook for queued session(s): ${opts.queuedAlertURL}`);
