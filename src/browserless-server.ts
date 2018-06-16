@@ -5,10 +5,10 @@ import * as path from 'path';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as express from 'express';
-import * as multer from 'multer';
 import { NodeVM } from 'vm2';
 import { setInterval } from 'timers';
 import * as bodyParser from 'body-parser';
+import * as puppeteer from 'puppeteer';
 import {
   screenshot as screenshotSchema,
   content as contentSchema,
@@ -16,7 +16,6 @@ import {
   fn as fnSchema,
 } from './schemas';
 import { debug, asyncMiddleware, generateChromeTarget, bodyValidation } from './utils';
-import { IFileRequest } from './models/file-request.interface';
 import { IBrowserlessOptions } from './models/browserless-options.interface';
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
@@ -45,7 +44,6 @@ export class BrowserlessServer {
   private server: any;
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
-  private debuggerScripts: any;
 
   readonly rejectHook: Function;
   readonly queueHook: Function;
@@ -57,7 +55,6 @@ export class BrowserlessServer {
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this, this.resourceMonitor);
     this.stats = [];
-    this.debuggerScripts = new Map();
 
     this.proxy = new httpProxy.createProxyServer();
     this.proxy.on('error', function (err, _req, res) {
@@ -184,39 +181,45 @@ export class BrowserlessServer {
     }
   }
 
+  private parseUserCode(code:string): string | null {
+    if (!code) {
+      return null;
+    }
+    const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
+    return codeWithDebugger.includes('module.exports') ?
+      codeWithDebugger :
+      `module.exports = async ({ page, context: {} }) => {
+        try {
+          ${codeWithDebugger}
+        } catch (error) {
+          console.error('Unhandled Error:', error.message, error.stack);
+        }
+      }`;
+  }
+
+  private buildBrowserSandbox(page: puppeteer.Page) {
+    return {
+      console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
+        browserConsole[consoleMethod] = (...args) => {
+          args.unshift(consoleMethod);
+          return page.evaluate((...args) => {
+            const [consoleMethod, ...consoleArgs] = args;
+            return console[consoleMethod](...consoleArgs);
+          }, ...args);
+        };
+
+        return browserConsole;
+      }, {}),
+    };
+  }
+
   public async startServer(): Promise<any> {
     const app = express();
 
     app.use(bodyParser.json({ limit: '1mb' }));
 
     if (this.config.enableDebugger) {
-      const upload = multer();
-
       app.use('/', express.static('./debugger'));
-      app.post('/execute', upload.single('file'), async (req : IFileRequest, res) => {
-        const targetId = generateChromeTarget();
-        const userScript = req.file.buffer.toString().replace('debugger', 'await page.evaluate(() => { debugger; })');
-
-        // Backwards compatability (remove after a few versions)
-        const code = userScript.includes('module.exports') ?
-          userScript :
-          `module.exports = async ({ page, context: {} }) => {
-            try {
-              ${userScript}
-            } catch (error) {
-              console.error('Unhandled Error:', error.message, error.stack);
-            }
-          }`;
-
-        debug(`/execute: Script uploaded\n${code}`);
-
-        this.debuggerScripts.set(targetId, code);
-
-        res.json({
-          targetId,
-          debuggerVersion: version['Debugger-Version']
-        });
-      });
     }
 
     if (this.config.token) {
@@ -267,7 +270,7 @@ export class BrowserlessServer {
 
     // Helper route for capturing screenshots, accepts a POST body containing a URL and
     // puppeteer's screenshot options (see the schema in schemas.ts);
-    app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async(req, res) => 
+    app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async(req, res) =>
       this.chromeService.runFunction({
         code: screenshot,
         context: req.body,
@@ -278,7 +281,7 @@ export class BrowserlessServer {
 
     // Helper route for capturing content body, accepts a POST body containing a URL 
     // (see the schema in schemas.ts);
-    app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async(req, res) => 
+    app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async(req, res) =>
       this.chromeService.runFunction({
         code: content,
         context: req.body,
@@ -289,7 +292,7 @@ export class BrowserlessServer {
 
     // Helper route for capturing screenshots, accepts a POST body containing a URL and
     // puppeteer's screenshot options (see the schema in schemas.ts);
-    app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) => 
+    app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
       this.chromeService.runFunction({
         code: pdf,
         context: req.body,
@@ -322,10 +325,12 @@ export class BrowserlessServer {
         const parsedUrl = url.parse(req.url, true);
         const route = parsedUrl.pathname || '/';
         const queueLength = this.chromeService.queueSize;
+        const debugCode = parsedUrl.query.code as string;
+        const code = this.parseUserCode(debugCode);
 
         debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
 
-        if (this.config.demoMode && !this.debuggerScripts.has(route)) {
+        if (this.config.demoMode && !code) {
           return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
         }
 
@@ -364,50 +369,29 @@ export class BrowserlessServer {
                 done();
               });
 
-              if (this.debuggerScripts.has(route)) {
-                debug(`${req.url}: Executing prior-uploaded script.`);
-
-                const page:any = await browser.newPage();
-                const port = url.parse(browserWsEndpoint).port;
-                const pageLocation = `/devtools/page/${page._target._targetId}`;
-                const code = this.debuggerScripts.get(route);
-                this.debuggerScripts.delete(route);
-
-                const sandbox = {
-                  console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
-                    browserConsole[consoleMethod] = (...args) => {
-                      args.unshift(consoleMethod);
-                      return page.evaluate((...args) => {
-                        const [consoleMethod, ...consoleArgs] = args;
-                        return console[consoleMethod](...consoleArgs);
-                      }, ...args);
-                    };
-
-                    return browserConsole;
-                  }, {}),
-                };
-
-                const vm = new NodeVM({ sandbox });
-                const handler = vm.run(code);
-
-                handler({ page, context: {} });
-                req.url = pageLocation;
-                return `ws://127.0.0.1:${port}`;
-              }
-
               if (!route.includes('/devtools/page')) {
                 debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
                 req.url = route;
 
                 return browserWsEndpoint;
-              } else {
-                const page:any = await browser.newPage();
-                const port = url.parse(browserWsEndpoint).port;
-                const pageLocation = `/devtools/page/${page._target._targetId}`;
-                req.url = pageLocation;
-
-                return `ws://127.0.0.1:${port}`;
               }
+
+              const page:any = await browser.newPage();
+              const port = url.parse(browserWsEndpoint).port;
+              const pageLocation = `/devtools/page/${page._target._targetId}`;
+              req.url = pageLocation;
+
+              if (code) {
+                debug(`${req.url}: Executing user-submitted code.`);
+
+                const sandbox = this.buildBrowserSandbox(page);
+                const vm: any = new NodeVM({ sandbox });
+                const handler = vm.run(code);
+
+                handler({ page, context: {} });
+              }
+
+              return `ws://127.0.0.1:${port}`;
             })
             .then((target) => this.proxy.ws(req, socket, head, { target }))
             .catch((error) => {

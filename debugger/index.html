@@ -289,7 +289,6 @@ module.exports = async ({ page }) => {
   const qsParams = token ? `?token=${token}`: '';
   const secure = /(https)|(wss)/g.test(protocol);
   const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
-  let pageMethods = [];
   const globalVars = [
     { text: 'debugger;', description: 'The debugger statement invokes any available debugging functionality, such as setting a breakpoint. If no debugging functionality is available, this statement has no effect.' }, 
     { text: 'await', description: 'The await operator is used to wait for a Promise. It can only be used inside an async function.' }, 
@@ -347,14 +346,16 @@ const puppeteer = require('puppeteer');
     "puppeteer": "${version}"
   }
 }`;
-  var puppeteerVersion = '';
-  var parameters = {};
+  let puppeteerVersion = '';
+  let parameters = {};
+  let debuggerVersion = '';
+  let pageMethods = [];
 
   // Parse the search string to get url parameters.
   const search = window.location.search;
 
   search.substr(1).split('&').forEach(function (entry) {
-    var eq = entry.indexOf('=');
+    let eq = entry.indexOf('=');
     if (eq >= 0) {
       parameters[decodeURIComponent(entry.slice(0, eq))] =
         decodeURIComponent(entry.slice(eq + 1));
@@ -362,7 +363,7 @@ const puppeteer = require('puppeteer');
   });
 
   const updateURL = () => {
-    var newSearch = '?' + Object.keys(parameters).filter(function (key) {
+    let newSearch = '?' + Object.keys(parameters).filter(function (key) {
       return Boolean(parameters[key]);
     }).map(function (key) {
       return encodeURIComponent(key) + '=' +
@@ -500,14 +501,9 @@ const puppeteer = require('puppeteer');
 
   async function execute() {
     const code = editor.getValue();
-    const formData = new FormData();
-    formData.append('file', new Blob([code], {type: 'text/javascript'}));
-
     save(code);
 
-    fetch(`${baseURL}/execute${qsParams}`, { method: 'POST', body: formData })
-      .then((res) => res.json())
-      .then(({ targetId, debuggerVersion }) => loadIframe(targetId, debuggerVersion));
+    loadIframe(code);
   }
 
   const editor = CodeMirror.fromTextArea($codeText, {
@@ -536,12 +532,16 @@ const puppeteer = require('puppeteer');
   editor.on('keyup', (cm, event) => AUTO_COMPLETE_AFTER_KEY.test(event.key) && editor.execCommand('autocomplete'));
   editor.on('hasCompletion', onHasCompletion);
 
-  const loadIframe = (pageURI, debuggerVersion) => {
+  const loadIframe = (code) => {
     if (document.querySelector('.intro')) {
       $intro.parentElement.removeChild($intro);
     }
 
-    const wsLocation = `${hostname}${port ? `:${port}` : ''}${pageURI}${qsParams}`;
+    const stringifiedCode = encodeURIComponent(code);
+    const url = '/devtools/page/A42FC349534EEBA5E61C7DC4EFF11FD3';
+    const params = `${qsParams.length ? '&' : '?'}code=${stringifiedCode}`;
+    const wsLocation = `${hostname}${port ? `:${port}` : ''}${url}${params}`;
+
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}&remoteFrontend=true`;
   };
 
@@ -573,7 +573,7 @@ const puppeteer = require('puppeteer');
   $download.addEventListener('click', async() => {
     const packageJson = getPackageJson(puppeteerVersion);
     const indexJs = getScript(editor.getValue());
-    var zip = new JSZip();
+    let zip = new JSZip();
     zip.file("index.js", indexJs);
     zip.file('package.json', packageJson);
     zip.file('README.md', README);
@@ -603,6 +603,7 @@ const puppeteer = require('puppeteer');
   .then(res => res.json())
   .then((res) => {
     let aboutTitle = '';
+    debuggerVersion = res['Debugger-Version'];
     for (let key in res) {
       aboutTitle = `${aboutTitle}${key} = ${res[key]}\n`;
     }

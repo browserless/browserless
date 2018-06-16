@@ -47,20 +47,20 @@ export class ResourceMonitor {
   getCPUIdleAndTotal(): ICPULoad {
     let totalIdle = 0;
     let totalTick = 0;
-  
+
     const cpus = os.cpus();
-  
+
     for (var i = 0, len = cpus.length; i < len; i++) {
       var cpu = cpus[i];
-  
+
       for (const type in cpu.times) {
         totalTick += cpu.times[type];
       }
-  
+
       // Total up the idle time of the core
       totalIdle += cpu.times.idle;
     }
-  
+
     // Return the average Idle and Tick times
     return {
       idle: totalIdle / cpus.length,
@@ -71,15 +71,15 @@ export class ResourceMonitor {
   getMachineStats(): Promise<IResourceLoad> {
     return new Promise((resolve) => {
       const start = this.getCPUIdleAndTotal();
-  
+
       setTimeout(() => {
         const end = this.getCPUIdleAndTotal();
         const idleDifference = end.idle - start.idle;
         const totalDifference = end.total - start.total;
-  
+
         const cpuUsage = 1 - (idleDifference / totalDifference);
         const memoryUsage = 1 - (os.freemem() / os.totalmem());
-  
+
         return resolve({
           cpuUsage,
           memoryUsage,

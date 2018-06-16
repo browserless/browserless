@@ -103,11 +103,13 @@ export class ChromeService {
   }
 
   public onSessionComplete() {
+    debug(`Marking session completion`);
     this.server.currentStat.successful++;
     this.addToChromeSwarm();
   }
 
   public onSessionFail() {
+    debug(`Marking session failure`);
     this.server.currentStat.error++;
     this.addToChromeSwarm();
   }
@@ -178,24 +180,21 @@ export class ChromeService {
     debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
 
     const job: any = async () => {
-      const launchPromise = this.chromeSwarm.length > 0 ? 
-      this.chromeSwarm.shift() :
-      this.launchChrome();
+      const launchPromise = this.chromeSwarm.length > 0 ?
+        this.chromeSwarm.shift() :
+        this.launchChrome();
 
       const browser = await launchPromise as puppeteer.Browser;
       const page = await browser.newPage();
+      const cleanup = () => this.config.keepAlive ?
+        _.attempt(() => { page.close(); this.chromeSwarm.push(Promise.resolve(browser)) }) :
+        _.attempt(() => browser.close());
 
       job.browser = browser;
 
       return handler({ page, context })
         .then(({ data, type }) => {
           debug(`${req.url}: Function complete, cleaning up.`);
-
-          this.config.keepAlive ? 
-            _.attempt(() => { page.close(); this.chromeSwarm.push(Promise.resolve(browser)) }) : 
-            _.attempt(() => browser.close());
-          
-
           res.type(type || 'text/plain');
 
           if (Buffer.isBuffer(data)) {
@@ -206,12 +205,13 @@ export class ChromeService {
             return res.json(data);
           }
 
+          cleanup();
           return res.send(data);
         })
         .catch((error) => {
           res.status(500).send(error.message);
           debug(`${req.url}: Function errored, stopping Chrome`);
-          _.attempt(() => browser.close());
+          cleanup();
         });
     };
 
