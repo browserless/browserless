@@ -83,13 +83,22 @@ export class ChromeService {
   public onSessionComplete() {
     debug(`Marking session completion`);
     this.server.currentStat.successful++;
-    this.addToChromeSwarm();
+
+    // if not keeping chrome instances alive,
+    // closes and restarts chrome instance completely;
+    // this will be fresh chrome instance
+    if (!this.config.keepAlive) {
+      this.addToChromeSwarm();
+    }
   }
 
   public onSessionFail() {
     debug(`Marking session failure`);
     this.server.currentStat.error++;
-    this.addToChromeSwarm();
+
+    if (!this.config.keepAlive) {
+      this.addToChromeSwarm();
+    }
   }
 
   public onTimedOut(next, job) {
@@ -110,7 +119,11 @@ export class ChromeService {
   public async reuseChromeInstance(instance: puppeteer.Browser) {
     const openPages = await instance.pages();
     openPages.forEach((page) => page.close());
-    this.chromeSwarm.push(Promise.resolve(instance));
+
+    if (this.chromeSwarm.length < this.config.maxConcurrentSessions) {
+      this.chromeSwarm.push(Promise.resolve(instance));
+    }
+    debug(`Added to chrome swarm: ${this.chromeSwarm.length} online`);
   }
 
   public async runFunction({ code, context, req, res }) {
@@ -143,8 +156,8 @@ export class ChromeService {
       const page = await browser.newPage();
       const cleanup = () => this.config.keepAlive ?
         _.attempt(() => {
-          page.close();
-          this.chromeSwarm.push(Promise.resolve(browser));
+          this.reuseChromeInstance(browser);
+          debug(`Added to chrome swarm: ${this.chromeSwarm.length} online`);
         }) :
         _.attempt(() => browser.close());
 
@@ -217,6 +230,7 @@ export class ChromeService {
 
     if (this.config.keepAlive && (this.chromeSwarm.length <= this.config.maxConcurrentSessions)) {
       this.chromeSwarm.push(this.launchChrome());
+      debug(`Refreshing chrome swarm; currently ${this.chromeSwarm.length} online`);
     }
   }
 
