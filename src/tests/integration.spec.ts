@@ -1,88 +1,95 @@
-// import * as puppeteer from 'puppeteer';
-// import { BrowserlessServer } from '../browserless-server';
+import * as puppeteer from 'puppeteer';
+import { BrowserlessServer } from '../browserless-server';
 
-// const defaultParams = {
-//   autoQueue: false,
-//   chromeRefreshTime: 0,
-//   connectionTimeout: 2000,
-//   demoMode: false,
-//   enableDebugger: true,
-//   healthFailureURL: null,
-//   keepAlive: false,
-//   maxCPU: 100,
-//   maxChromeRefreshRetries: 1,
-//   maxConcurrentSessions: 2,
-//   maxMemory: 100,
-//   maxQueueLength: 2,
-//   port: 3000,
-//   prebootChrome: false,
-//   queuedAlertURL: null,
-//   rejectAlertURL: null,
-//   timeoutAlertURL: null,
-//   token: null,
-// };
+const defaultParams = {
+  autoQueue: false,
+  chromeRefreshTime: 0,
+  connectionTimeout: 2000,
+  demoMode: false,
+  enableDebugger: true,
+  healthFailureURL: null,
+  keepAlive: false,
+  maxCPU: 100,
+  maxChromeRefreshRetries: 1,
+  maxConcurrentSessions: 2,
+  maxMemory: 100,
+  maxQueueLength: 2,
+  port: 3000,
+  prebootChrome: false,
+  queuedAlertURL: null,
+  rejectAlertURL: null,
+  timeoutAlertURL: null,
+  token: null,
+};
 
-// const pleaseWriteTest = () => {
-//   throw new Error(`Write this test`);
-// };
+const shutdown = (instances) => {
+  return Promise.all(instances.map((instance) => instance.close()));
+};
 
-// const shutdown = (instances) => {
-//   return Promise.all(instances.map((instance) => instance.close()));
-// };
+const sleep = (time = 0) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, time);
+  });
+};
 
-// describe('Browserless Chrome', () => {
-//   describe('WebSockets', () => {
-//     it('runs requests concurrently', async () => {
-//       const browserless = new BrowserlessServer(defaultParams);
-//       await browserless.startServer();
+describe('Browserless Chrome', () => {
+  describe('WebSockets', () => {
+    it('runs requests concurrently', async () => {
+      const browserless = new BrowserlessServer(defaultParams);
+      await browserless.startServer();
 
-//       const [ connectionOne, connectionTwo ] = await Promise.all([
-//         puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` }),
-//         puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` }),
-//       ]);
+      const job = async () => {
+        const browser = await puppeteer.connect({
+          browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+        });
 
-//       expect(browserless.chromeService.queue).toHaveLength(2);
+        return browser.close();
+      };
 
-//       return shutdown([
-//         browserless,
-//         connectionOne,
-//         connectionTwo,
-//       ]);
-//     });
+      await Promise.all([
+        job(),
+        job(),
+      ]);
 
-//     it('queues requests', pleaseWriteTest);
+      await sleep(50);
 
-//     it('fails requests', async () => {
-//       const browserless = new BrowserlessServer({
-//         ...defaultParams,
-//         maxConcurrentSessions: 0,
-//         maxQueueLength: 0,
-//       });
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.queued).toEqual(0);
 
-//       await browserless.startServer();
+      return shutdown([ browserless ]);
+    });
 
-//       expect(async () => {
-//         await puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` });
-//       }).toThrowError();
+    it('fails requests', async () => {
+      const browserless = new BrowserlessServer({
+        ...defaultParams,
+        maxConcurrentSessions: 0,
+        maxQueueLength: 0,
+      });
 
-//       return shutdown([ browserless ]);
-//     });
+      await browserless.startServer();
 
-//     it('runs uploaded code', pleaseWriteTest);
+      expect(async () => {
+        await puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` });
+      }).toThrowError();
 
-//     it('closes chrome when complete', pleaseWriteTest);
-//   });
+      return shutdown([ browserless ]);
+    });
 
-//   describe('HTTP', () => {
-//     it('allows requests to /json/version', pleaseWriteTest);
-//     it('allows requests to /introspection', pleaseWriteTest);
-//     it('allows requests to /json/protocol', pleaseWriteTest);
-//     it('allows requests to /metrics', pleaseWriteTest);
-//     it('allows requests to /config', pleaseWriteTest);
-//     it('allows requests to /pressure', pleaseWriteTest);
-//     it('allows requests to /function', pleaseWriteTest);
-//     it('allows requests to /screenshot', pleaseWriteTest);
-//     it('allows requests to /content', pleaseWriteTest);
-//     it('allows requests to /pdf', pleaseWriteTest);
-//   });
-// });
+    it.skip('runs uploaded code');
+
+    it.skip('closes chrome when complete');
+  });
+
+  describe('HTTP', () => {
+    it.skip('allows requests to /json/version');
+    it.skip('allows requests to /introspection');
+    it.skip('allows requests to /json/protocol');
+    it.skip('allows requests to /metrics');
+    it.skip('allows requests to /config');
+    it.skip('allows requests to /pressure');
+    it.skip('allows requests to /function');
+    it.skip('allows requests to /screenshot');
+    it.skip('allows requests to /content');
+    it.skip('allows requests to /pdf');
+  });
+});

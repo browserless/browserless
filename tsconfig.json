@@ -19,6 +19,9 @@
     "outDir": "./build",
     "rootDir": "./src"
   },
+  "exclude": [
+    "./src/tests/*"
+  ],
   "include": [
     "./src/**/*"
   ]
