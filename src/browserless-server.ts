@@ -112,22 +112,7 @@ export class BrowserlessServer {
       }, thiryMinutes, { leading: true, trailing: false }) :
       _.noop;
 
-    debug({
-      autoQueue: this.config.autoQueue,
-      connectionTimeout: this.config.connectionTimeout,
-      demoMode: this.config.demoMode,
-      enableDebugger: this.config.enableDebugger,
-      maxCPU: this.config.maxCPU,
-      maxConcurrentSessions: this.config.maxConcurrentSessions,
-      maxMemory: this.config.maxMemory,
-      maxQueueLength: this.config.maxQueueLength,
-      port: this.config.port,
-      prebootChrome: this.config.prebootChrome,
-      queuedAlertURL: opts.queuedAlertURL,
-      rejectAlertURL: opts.rejectAlertURL,
-      timeoutAlertURL: opts.timeoutAlertURL,
-      token: this.config.token,
-    }, `Final Options`);
+    debug(this.config, `Final Options`);
 
     this.resetCurrentStat();
 
