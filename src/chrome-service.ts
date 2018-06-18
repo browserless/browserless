@@ -154,6 +154,8 @@ export class ChromeService {
         .then(({ data, type }) => {
           debug(`${req.url}: Function complete, cleaning up.`);
           res.type(type || 'text/plain');
+          
+          cleanup();
 
           if (Buffer.isBuffer(data)) {
             return res.end(data, 'binary');
@@ -163,7 +165,6 @@ export class ChromeService {
             return res.json(data);
           }
 
-          cleanup();
           return res.send(data);
         })
         .catch((error) => {
@@ -214,7 +215,7 @@ export class ChromeService {
     const chrome = await instance;
     chrome.close();
 
-    if (this.config.keepAlive && (this.chromeSwarm.length >= this.config.maxConcurrentSessions)) {
+    if (this.config.keepAlive && (this.chromeSwarm.length <= this.config.maxConcurrentSessions)) {
       this.chromeSwarm.push(this.launchChrome());
     }
   }
