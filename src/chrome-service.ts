@@ -167,7 +167,7 @@ export class ChromeService {
         .then(({ data, type }) => {
           debug(`${req.url}: Function complete, cleaning up.`);
           res.type(type || 'text/plain');
-          
+
           cleanup();
 
           if (Buffer.isBuffer(data)) {
@@ -218,9 +218,13 @@ export class ChromeService {
       setTimeout(() => this.refreshChromeSwarm(retries + 1), oneMinute);
     }
 
-    this.chromeSwarm.forEach((chromeInstance) => this.refreshChromeInstance(chromeInstance));
+    const chromeSwarmLength = this.chromeSwarm.length;
+    for (let i = 0; i < chromeSwarmLength; i++) {
+      const chromeInstance = this.chromeSwarm.shift() as Promise<puppeteer.Browser>;
+      this.refreshChromeInstance(chromeInstance);
+    }
 
-    // will refresh again in 30min
+    // will refresh again in set config time
     setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
   }
 
@@ -228,7 +232,7 @@ export class ChromeService {
     const chrome = await instance;
     chrome.close();
 
-    if (this.config.keepAlive && (this.chromeSwarm.length <= this.config.maxConcurrentSessions)) {
+    if (this.config.keepAlive && (this.chromeSwarm.length < this.config.maxConcurrentSessions)) {
       this.chromeSwarm.push(this.launchChrome());
       debug(`Refreshing chrome swarm; currently ${this.chromeSwarm.length} online`);
     }
