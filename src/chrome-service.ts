@@ -34,7 +34,7 @@ export class ChromeService {
       timeout: this.config.connectionTimeout,
     });
 
-    this.queue.on('success', this.onSessionComplete.bind(this));
+    this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
@@ -80,7 +80,7 @@ export class ChromeService {
     }
   }
 
-  public onSessionComplete() {
+  public onSessionSuccess() {
     debug(`Marking session completion`);
     this.server.currentStat.successful++;
 
@@ -106,7 +106,6 @@ export class ChromeService {
     job.close('HTTP/1.1 408 Request has timed out\r\n');
     this.server.currentStat.timedout = this.server.currentStat.timedout + 1;
     this.server.timeoutHook();
-    this.onSessionComplete();
     next();
   }
 
@@ -154,7 +153,8 @@ export class ChromeService {
 
       const browser = await launchPromise as puppeteer.Browser;
       const page = await browser.newPage();
-      const cleanup = () => this.config.keepAlive ?
+
+      job.cleanup = () => this.config.keepAlive ?
         _.attempt(() => {
           this.reuseChromeInstance(browser);
           debug(`Added to chrome swarm: ${this.chromeSwarm.length} online`);
@@ -168,7 +168,7 @@ export class ChromeService {
           debug(`${req.url}: Function complete, cleaning up.`);
           res.type(type || 'text/plain');
 
-          cleanup();
+          job.cleanup();
 
           if (Buffer.isBuffer(data)) {
             return res.end(data, 'binary');
@@ -183,13 +183,13 @@ export class ChromeService {
         .catch((error) => {
           res.status(500).send(error.message);
           debug(`${req.url}: Function errored, stopping Chrome`);
-          cleanup();
+          job.cleanup();
         });
     };
 
     job.close = () => {
-      if (job.browser) {
-        this.config.keepAlive ? this.reuseChromeInstance(job.browser) : job.browser.close();
+      if (job.cleanup) {
+        job.cleanup();
       }
 
       if (!res.headersSent) {

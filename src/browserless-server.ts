@@ -15,6 +15,7 @@ import {
   bodyValidation,
   debug,
   generateChromeTarget,
+  writeFile,
 } from './utils';
 
 import {
@@ -115,6 +116,16 @@ export class BrowserlessServer {
     debug(this.config, `Final Options`);
 
     this.resetCurrentStat();
+
+    // If we're saving metrics, load any potential prior-state
+    if (opts.metricsJSONPath) {
+      try {
+        const priorMetrics = require(opts.metricsJSONPath);
+        this.stats = priorMetrics;
+      } catch (err) {
+        debug(`Couldn't load metrics at path ${opts.metricsJSONPath}, setting to empty.`);
+      }
+    }
 
     setInterval(this.recordMetrics.bind(this), fiveMinutes);
   }
@@ -366,6 +377,12 @@ export class BrowserlessServer {
     if (cpuUsage >= this.config.maxCPU || memoryUsage >= this.config.maxMemory) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
       this.healthFailureHook();
+    }
+
+    if (this.config.metricsJSONPath) {
+      writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
+        .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
+        .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
     }
   }
 

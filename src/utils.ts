@@ -1,4 +1,9 @@
+import * as fs from 'fs';
 import * as Joi from 'joi';
+import * as util from 'util';
+
+export const writeFile = util.promisify(fs.writeFile);
+
 export const debug = require('debug')('browserless/chrome');
 
 export const asyncMiddleware = (handler) => {

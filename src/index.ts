@@ -27,6 +27,7 @@ const queuedAlertURL =          process.env.QUEUE_ALERT_URL || null;
 const rejectAlertURL =          process.env.REJECT_ALERT_URL || null;
 const timeoutAlertURL =         process.env.TIMEOUT_ALERT_URL || null;
 const healthFailureURL =        process.env.FAILED_HEALTH_URL || null;
+const metricsJSONPath =         process.env.METRICS_JSON_PATH || null;
 
 new BrowserlessServer({
   autoQueue,
@@ -41,6 +42,7 @@ new BrowserlessServer({
   maxConcurrentSessions,
   maxMemory,
   maxQueueLength,
+  metricsJSONPath,
   port,
   prebootChrome,
   queuedAlertURL,

@@ -14,6 +14,7 @@ const defaultParams = {
   maxConcurrentSessions: 2,
   maxMemory: 100,
   maxQueueLength: 2,
+  metricsJSONPath: null,
   port: 3000,
   prebootChrome: false,
   queuedAlertURL: null,
@@ -32,7 +33,16 @@ const sleep = (time = 0) => {
   });
 };
 
+const throws = () => {
+  throw new Error(`Shouldn't have thrown`);
+};
+
 describe('Browserless Chrome', () => {
+
+  afterAll(async () => {
+    sleep(10).then(() => process.exit());
+  });
+
   describe('WebSockets', () => {
     it('runs requests concurrently', async () => {
       const browserless = new BrowserlessServer(defaultParams);
@@ -68,9 +78,11 @@ describe('Browserless Chrome', () => {
 
       await browserless.startServer();
 
-      expect(async () => {
-        await puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` });
-      }).toThrowError();
+      puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+        .then(throws)
+        .catch((error) => {
+          expect(error.message).toEqual(`connect ECONNREFUSED 127.0.0.1:${defaultParams.port}`);
+        });
 
       return shutdown([ browserless ]);
     });

@@ -9,6 +9,7 @@ export interface IBrowserlessServerConfiguration {
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
+  metricsJSONPath: string | null;
 }
 
 export interface IChromeServiceConfiguration {
