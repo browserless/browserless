@@ -21,8 +21,8 @@ export interface IChromeServiceConfiguration {
   enableDebugger: boolean;
   maxMemory: number;
   maxCPU: number;
-  autoQueue: boolean;
   keepAlive: boolean;
   chromeRefreshTime: number;
   maxChromeRefreshRetries: number;
+  token: string | null;
 }

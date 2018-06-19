@@ -28,6 +28,7 @@ import {
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/browserless-options.interface';
+import { IJob } from './models/browserless-queue.interface';
 
 const request = require('request');
 const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
@@ -51,9 +52,9 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly proxy: any;
 
   private config: IBrowserlessOptions;
-  private proxy: any;
   private stats: IBrowserlessStats[];
   private server: any;
   private readonly resourceMonitor: ResourceMonitor;
@@ -68,7 +69,7 @@ export class BrowserlessServer {
       maxQueueLength: opts.maxQueueLength + opts.maxConcurrentSessions,
     };
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
-    this.chromeService = new ChromeService(opts, this, this.resourceMonitor);
+    this.chromeService = new ChromeService(opts, this);
     this.stats = [];
 
     this.proxy = new httpProxy.createProxyServer();
@@ -239,89 +240,7 @@ export class BrowserlessServer {
 
       return this.server = http
         .createServer(app)
-        .on('upgrade', asyncMiddleware(async (req, socket, head) => {
-          const parsedUrl = url.parse(req.url, true);
-          const route = parsedUrl.pathname || '/';
-          const queueLength = this.chromeService.queueSize;
-          const debugCode = parsedUrl.query.code as string;
-          const code = this.parseUserCode(debugCode);
-
-          debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
-
-          if (this.config.demoMode && !code) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-          }
-
-          if (this.config.token && parsedUrl.query.token !== this.config.token) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-          }
-
-          if (queueLength >= this.config.maxQueueLength) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
-          }
-
-          this.chromeService.autoUpdateQueue();
-
-          if (queueLength >= this.chromeService.queueConcurrency) {
-            this.chromeService.onQueued(req);
-          }
-
-          const job: any = (done: () => {}) => {
-            const flags = _.chain(parsedUrl.query)
-              .pickBy((_value, param) => _.startsWith(param, '--'))
-              .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-              .value();
-
-            const launchPromise = this.chromeService.getChrome(flags);
-            debug(`${req.url}: WebSocket upgrade.`);
-
-            launchPromise
-              .then(async (browser) => {
-                const browserWsEndpoint = browser.wsEndpoint();
-
-                debug(`${req.url}: Chrome Launched.`);
-
-                socket.on('close', () => {
-                  debug(`${req.url}: Session closed, stopping Chrome. ${this.chromeService.queueSize} now in queue`);
-                  browser.close();
-                  done();
-                });
-
-                if (!route.includes('/devtools/page')) {
-                  debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
-                  req.url = route;
-
-                  return browserWsEndpoint;
-                }
-
-                const page: any = await browser.newPage();
-                const port = url.parse(browserWsEndpoint).port;
-                const pageLocation = `/devtools/page/${page._target._targetId}`;
-                req.url = pageLocation;
-
-                if (code) {
-                  debug(`${req.url}: Executing user-submitted code.`);
-
-                  const sandbox = this.buildBrowserSandbox(page);
-                  const vm: any = new NodeVM({ sandbox });
-                  const handler = vm.run(code);
-
-                  handler({ page, context: {} });
-                }
-
-                return `ws://127.0.0.1:${port}`;
-              })
-              .then((target) => this.proxy.ws(req, socket, head, { target }))
-              .catch((error) => {
-                debug(error, `Issue launching Chrome or proxying traffic, failing request`);
-                return this.rejectSocket(req, socket, `HTTP/1.1 500`);
-              });
-          };
-
-          job.close = (message: string) => this.closeSocket(socket, message);
-
-          this.chromeService.addJob(job);
-        }))
+        .on('upgrade', asyncMiddleware(this.chromeService.runWebsocket))
         .listen(this.config.port, resolve);
     });
   }
@@ -338,7 +257,7 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  private rejectSocket(req, socket, message) {
+  public rejectSocket(req, socket, message) {
     debug(`${req.url}: ${message}`);
     this.closeSocket(socket, `${message}\r\n`);
     this.currentStat.rejected = this.currentStat.rejected + 1;
@@ -395,37 +314,5 @@ export class BrowserlessServer {
     if (socket.destroy) {
       socket.destroy();
     }
-  }
-
-  private parseUserCode(code: string): string | null {
-    if (!code) {
-      return null;
-    }
-    const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
-    return codeWithDebugger.includes('module.exports') ?
-      codeWithDebugger :
-      `module.exports = async ({ page, context: {} }) => {
-        try {
-          ${codeWithDebugger}
-        } catch (error) {
-          console.error('Unhandled Error:', error.message, error.stack);
-        }
-      }`;
-  }
-
-  private buildBrowserSandbox(page: puppeteer.Page) {
-    return {
-      console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
-        browserConsole[consoleMethod] = (...args) => {
-          args.unshift(consoleMethod);
-          return page.evaluate((...args) => {
-            const [consoleMethod, ...consoleArgs] = args;
-            return console[consoleMethod](...consoleArgs);
-          }, ...args);
-        };
-
-        return browserConsole;
-      }, {}),
-    };
   }
 }
