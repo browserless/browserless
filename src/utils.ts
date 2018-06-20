@@ -1,10 +1,13 @@
 import * as fs from 'fs';
 import * as Joi from 'joi';
+import * as shortid from 'shortid';
 import * as util from 'util';
 
-export const writeFile = util.promisify(fs.writeFile);
+const debug = require('debug');
 
-export const debug = require('debug')('browserless/chrome');
+export const writeFile = util.promisify(fs.writeFile);
+export const getDebug = (level) => debug(`browserless:${level}`);
+export const id = shortid.generate;
 
 export const asyncMiddleware = (handler) => {
   return (req, socket, head) => {
@@ -31,12 +34,5 @@ export const bodyValidation = (schema) => {
 };
 
 export const generateChromeTarget = () => {
-  let text = '';
-  const possible = 'ABCDEF0123456789';
-
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-
-  return `/devtools/page/${text}`;
+  return `/devtools/page/${id()}`;
 };

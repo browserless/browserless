@@ -11,7 +11,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "deploy": "./scripts/deploy.js",
-    "dev": "npm run build && cross-env MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless/chrome PORT=3030 node --inspect build/index.js",
+    "dev": "npm run build && cross-env MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless* PORT=3030 node --inspect build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
@@ -41,6 +41,7 @@
     "request": "^2.83.0",
     "require-from-string": "^2.0.2",
     "rimraf": "^2.6.1",
+    "shortid": "^2.2.8",
     "typescript": "^2.8.3",
     "vm2": "^3.5.2"
   },

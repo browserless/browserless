@@ -1,4 +1,6 @@
 import { IJob, IQueue } from './models/browserless-queue.interface';
+import { id } from './utils';
+
 const q = require('queue');
 
 export function queue(opts): IQueue<IJob> {
@@ -10,6 +12,14 @@ export function queue(opts): IQueue<IJob> {
     if (foundIndex !== -1) {
       qInstance.splice(foundIndex, 1);
     }
+  };
+
+  qInstance.add = (job: IJob) => {
+    if (!job.id) {
+      job.id = id();
+    }
+
+    qInstance.push(job);
   };
 
   return qInstance;

@@ -5,16 +5,13 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as path from 'path';
-import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
-import * as url from 'url';
-import { NodeVM } from 'vm2';
 
 import {
   asyncMiddleware,
   bodyValidation,
-  debug,
   generateChromeTarget,
+  getDebug,
   writeFile,
 } from './utils';
 
@@ -28,7 +25,8 @@ import {
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/browserless-options.interface';
-import { IJob } from './models/browserless-queue.interface';
+
+const debug = getDebug('server');
 
 const request = require('request');
 const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
@@ -135,7 +133,7 @@ export class BrowserlessServer {
     return new Promise((resolve) => {
       const app = express();
 
-      app.use(bodyParser.json({ limit: '1mb' }));
+      app.use(bodyParser.json({ limit: '5mb' }));
 
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
@@ -165,7 +163,7 @@ export class BrowserlessServer {
 
       app.get('/pressure', (_req, res) => {
         const queueLength = this.chromeService.queueSize;
-        const queueConcurrency = this.chromeService.queueConcurrency;
+        const queueConcurrency = this.chromeService.concurrencySize;
         const concurrencyMet = queueLength >= queueConcurrency;
 
         return res.json({
@@ -240,7 +238,7 @@ export class BrowserlessServer {
 
       return this.server = http
         .createServer(app)
-        .on('upgrade', asyncMiddleware(this.chromeService.runWebsocket))
+        .on('upgrade', asyncMiddleware(this.chromeService.runWebsocket.bind(this.chromeService)))
         .listen(this.config.port, resolve);
     });
   }
