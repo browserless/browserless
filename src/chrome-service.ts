@@ -92,57 +92,62 @@ export class ChromeService {
 
   public async runFunction({ code, context, req, res }) {
     const jobId = id();
-    jobdebug(`${jobId}: ${req.url} Inbound function request`);
-    const queueLength = this.queue.length;
 
-    if (queueLength >= this.config.maxQueueLength) {
+    jobdebug(`${jobId}: ${req.url} Inbound function request`);
+
+    if (this.queueSize >= this.config.maxQueueLength) {
       return this.server.rejectReq(req, res, `Too Many Requests`);
     }
 
-    if (queueLength >= this.queue.concurrency) {
+    if (!this.canRunImmediately) {
       this.onQueued(req);
     }
 
     const vm = new NodeVM();
     const handler: (args) => Promise<any> = vm.run(code);
+    const earlyClose = () => {
+      jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
+      this.removeJob(job);
+    };
 
-    const job: IJob = async () => {
-      const launchPromise = this.getChrome();
-      const browser: puppeteer.Browser = await launchPromise;
-      const page = await browser.newPage();
+    const job: IJob = (done: () => {}) => {
+      this.getChrome().then(async (browser) => {
+        const page = await browser.newPage();
 
-      jobdebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+        jobdebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+        job.browser = browser;
 
-      job.browser = browser;
-
-      return handler({ page, context })
-        .then(({ data, type }) => {
-          jobdebug(`${job.id}: Function complete, cleaning up.`);
-          res.type(type || 'text/plain');
-
-          if (Buffer.isBuffer(data)) {
-            return res.end(data, 'binary');
-          }
-
-          if (type.includes('json')) {
-            return res.json(data);
-          }
-
-          return res.send(data);
-        })
-        .catch((error) => {
-          res.status(500).send(error.message);
-          jobdebug(`${job.id}: Function errored, stopping Chrome`);
+        req.removeListener('close', earlyClose);
+        req.once('close', () => {
+          jobdebug(`${job.id}: Function terminated during execution, closing`);
+          done();
         });
+
+        handler({ page, context })
+          .then(({ data, type }) => {
+            jobdebug(`${job.id}: Function complete, cleaning up.`);
+            res.type(type || 'text/plain');
+
+            if (Buffer.isBuffer(data)) {
+              res.end(data, 'binary');
+            } else if (type.includes('json')) {
+              res.json(data);
+            } else {
+              res.send(data);
+            }
+
+            done();
+          })
+          .catch((error) => {
+            res.status(500).send(error.message);
+            jobdebug(`${job.id}: Function errored, stopping Chrome`);
+            done();
+          });
+      });
     };
 
     job.id = jobId;
-
-    req.on('close', () => {
-      jobdebug(`${job.id}: Request has terminated early`);
-      this.removeJob(job);
-    });
-
+    req.once('close', earlyClose);
     this.addJob(job);
   }
 
@@ -150,7 +155,6 @@ export class ChromeService {
     const jobId = id();
     const parsedUrl = url.parse(req.url, true);
     const route = parsedUrl.pathname || '/';
-    const queueLength = this.queueSize;
     const debugCode = parsedUrl.query.code as string;
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
@@ -170,9 +174,10 @@ export class ChromeService {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
     }
 
-    if (queueLength >= this.concurrencySize) {
+    if (!this.canRunImmediately) {
       jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
       this.onQueued(jobId);
+      // Don't return
     }
 
     const earlyClose = () => {
