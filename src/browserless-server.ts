@@ -66,6 +66,7 @@ export class BrowserlessServer {
       ...opts,
       maxQueueLength: opts.maxQueueLength + opts.maxConcurrentSessions,
     };
+
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this, this.resourceMonitor);
     this.stats = [];
@@ -124,6 +125,15 @@ export class BrowserlessServer {
       const app = express();
 
       app.use(bodyParser.json({ limit: '1mb' }));
+
+      if (this.config.enableCors) {
+        app.use((_, res, next) => {
+          res.header('Access-Control-Allow-Origin', '*');
+          res.header('Access-Control-Allow-Headers',
+            'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
+          next();
+        });
+      }
 
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));

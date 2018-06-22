@@ -24,4 +24,5 @@ export interface IChromeServiceConfiguration {
   keepAlive: boolean;
   chromeRefreshTime: number;
   maxChromeRefreshRetries: number;
+  enableCors: boolean;
 }
