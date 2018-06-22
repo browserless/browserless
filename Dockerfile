@@ -60,6 +60,7 @@ RUN apt-get update && apt-get install -y \
   libxtst6 \
   ca-certificates \
   fonts-liberation \
+  fonts-thai-tlwg \
   libappindicator1 \
   libnss3 \
   lsb-release \
