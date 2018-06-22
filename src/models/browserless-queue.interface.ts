@@ -3,8 +3,9 @@ import { Browser } from 'puppeteer';
 
 export interface IJob {
   (done?: () => {}): any | Promise<any>;
-  id?: any;
-  browser?: Browser;
+  id: string;
+  browser: Browser | null;
+  close: () => any;
 }
 
 export interface IQueue<IJob> extends EventEmitter, Array<IJob> {

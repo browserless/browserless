@@ -182,13 +182,13 @@ export class BrowserlessServer {
       app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
         const { code, context } = req.body;
 
-        return this.chromeService.runFunction({ code, context, req, res });
+        return this.chromeService.runHTTP({ code, context, req, res });
       }));
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
       app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: screenshot,
           context: req.body,
           req,
@@ -199,7 +199,7 @@ export class BrowserlessServer {
       // Helper route for capturing content body, accepts a POST body containing a URL
       // (see the schema in schemas.ts);
       app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: content,
           context: req.body,
           req,
@@ -210,7 +210,7 @@ export class BrowserlessServer {
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
       app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: pdf,
           context: req.body,
           req,
@@ -238,27 +238,28 @@ export class BrowserlessServer {
 
       return this.server = http
         .createServer(app)
-        .on('upgrade', asyncMiddleware(this.chromeService.runWebsocket.bind(this.chromeService)))
+        .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
         .listen(this.config.port, resolve);
     });
   }
 
   public async close() {
     this.server.close();
+    this.chromeService.close();
     this.proxy.close();
   }
 
-  public rejectReq(req, res, message) {
+  public rejectReq(req, res, code, message) {
     debug(`${req.url}: ${message}`);
-    res.status(429).send(message);
-    this.currentStat.rejected = this.currentStat.rejected + 1;
+    res.status(code).send(message);
+    this.currentStat.rejected++;
     this.rejectHook();
   }
 
   public rejectSocket(req, socket, message) {
     debug(`${req.url}: ${message}`);
-    this.closeSocket(socket, `${message}\r\n`);
-    this.currentStat.rejected = this.currentStat.rejected + 1;
+    socket.end(message);
+    this.currentStat.rejected++;
     this.rejectHook();
   }
 
@@ -300,17 +301,6 @@ export class BrowserlessServer {
       writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
         .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
         .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
-    }
-  }
-
-  private closeSocket(socket: any, message: string) {
-    debug(`Closing socket.`);
-    if (socket.end) {
-      socket.end(message);
-    }
-
-    if (socket.destroy) {
-      socket.destroy();
     }
   }
 }

@@ -2,7 +2,6 @@ import * as puppeteer from 'puppeteer';
 import { BrowserlessServer } from '../browserless-server';
 
 const defaultParams = {
-  autoQueue: false,
   chromeRefreshTime: 0,
   connectionTimeout: 2000,
   demoMode: false,
@@ -11,7 +10,7 @@ const defaultParams = {
   keepAlive: false,
   maxCPU: 100,
   maxChromeRefreshRetries: 1,
-  maxConcurrentSessions: 2,
+  maxConcurrentSessions: 1,
   maxMemory: 100,
   maxQueueLength: 2,
   metricsJSONPath: null,
@@ -21,10 +20,6 @@ const defaultParams = {
   rejectAlertURL: null,
   timeoutAlertURL: null,
   token: null,
-};
-
-const shutdown = (instances) => {
-  return Promise.all(instances.map((instance) => instance.close()));
 };
 
 const sleep = (time = 0) => {
@@ -38,14 +33,21 @@ const throws = () => {
 };
 
 describe('Browserless Chrome', () => {
+  let browserless = null;
+  const start = (args) => {
+    return browserless = new BrowserlessServer(args);
+  };
 
-  afterAll(async () => {
-    sleep(10).then(() => process.exit());
+  afterEach(async () => {
+    browserless.close();
   });
 
   describe('WebSockets', () => {
-    it('runs requests concurrently', async () => {
-      const browserless = new BrowserlessServer(defaultParams);
+    it('runs concurrently', async () => {
+      const browserless = start({
+        ...defaultParams,
+        maxConcurrentSessions: 2,
+      });
       await browserless.startServer();
 
       const job = async () => {
@@ -64,13 +66,39 @@ describe('Browserless Chrome', () => {
       await sleep(50);
 
       expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
+    });
 
-      return shutdown([ browserless ]);
+    it('queues requests', async () => {
+      const browserless = start({
+        ...defaultParams,
+        maxConcurrentSessions: 1,
+      });
+      await browserless.startServer();
+
+      const job = async () => {
+        const browser = await puppeteer.connect({
+          browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+        });
+
+        return browser.close();
+      };
+
+      await Promise.all([
+        job(),
+        job(),
+      ]);
+
+      await sleep(50);
+
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(1);
     });
 
     it('fails requests', async () => {
-      const browserless = new BrowserlessServer({
+      const browserless = start({
         ...defaultParams,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
@@ -78,18 +106,66 @@ describe('Browserless Chrome', () => {
 
       await browserless.startServer();
 
-      puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+      return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
         .then(throws)
         .catch((error) => {
-          expect(error.message).toEqual(`connect ECONNREFUSED 127.0.0.1:${defaultParams.port}`);
+          expect(browserless.currentStat.successful).toEqual(0);
+          expect(browserless.currentStat.rejected).toEqual(1);
+          expect(browserless.currentStat.queued).toEqual(0);
+          expect(error.message).toEqual(`socket hang up`);
         });
-
-      return shutdown([ browserless ]);
     });
 
-    it.skip('runs uploaded code');
+    it('fails requests in demo mode', async () => {
+      const browserless = start({
+        ...defaultParams,
+        demoMode: true,
+      });
 
-    it.skip('closes chrome when complete');
+      await browserless.startServer();
+
+      return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+        .then(throws)
+        .catch((error) => {
+          expect(browserless.currentStat.successful).toEqual(0);
+          expect(browserless.currentStat.rejected).toEqual(1);
+          expect(browserless.currentStat.queued).toEqual(0);
+          expect(error.message).toEqual(`socket hang up`);
+        });
+    });
+
+    it('fails requests without tokens', async () => {
+      const browserless = start({
+        ...defaultParams,
+        token: 'abc',
+      });
+
+      await browserless.startServer();
+
+      return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+        .then(throws)
+        .catch((error) => {
+          expect(browserless.currentStat.successful).toEqual(0);
+          expect(browserless.currentStat.rejected).toEqual(1);
+          expect(browserless.currentStat.queued).toEqual(0);
+          expect(error.message).toEqual(`socket hang up`);
+        });
+    });
+
+    it('pre-boots chrome to match concurrency', async () => {
+      const conncurent = 2;
+      const browserless: any = start({
+        ...defaultParams,
+        maxConcurrentSessions: conncurent,
+        prebootChrome: true,
+      });
+
+      await browserless.startServer();
+
+      expect(browserless.chromeService.chromeSwarm).toHaveLength(conncurent);
+    });
+
+    it.skip('closes chrome when the socket is closed');
   });
 
   describe('HTTP', () => {
