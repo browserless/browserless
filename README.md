@@ -119,7 +119,7 @@ All of these issues prompted me to build a first-class image and workflow for in
 
 ## Corporate license
 
-If you want to use browserless to build commercial sites and applications then the corporate license is what you're after. Visit https://browserless.io for more details. This allows you to keep your software proprietary whilst still using browserless.
+If you want to use browserless to build commercial sites and applications then the corporate license is what you're after. This allows you to keep your software proprietary whilst still using browserless. [Contact us for more details](mailto:sales@browserless.io)
 
 ## Open source license
 
