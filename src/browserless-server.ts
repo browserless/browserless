@@ -5,16 +5,14 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as path from 'path';
-import * as puppeteer from 'puppeteer';
 import { setInterval } from 'timers';
-import * as url from 'url';
-import { NodeVM } from 'vm2';
 
 import {
   asyncMiddleware,
   bodyValidation,
-  debug,
   generateChromeTarget,
+  getDebug,
+  writeFile,
 } from './utils';
 
 import {
@@ -27,6 +25,8 @@ import {
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/browserless-options.interface';
+
+const debug = getDebug('server');
 
 const request = require('request');
 const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
@@ -50,9 +50,9 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public proxy: any;
 
   private config: IBrowserlessOptions;
-  private proxy: any;
   private stats: IBrowserlessStats[];
   private server: any;
   private readonly resourceMonitor: ResourceMonitor;
@@ -67,7 +67,7 @@ export class BrowserlessServer {
       maxQueueLength: opts.maxQueueLength + opts.maxConcurrentSessions,
     };
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
-    this.chromeService = new ChromeService(opts, this, this.resourceMonitor);
+    this.chromeService = new ChromeService(opts, this);
     this.stats = [];
 
     this.proxy = new httpProxy.createProxyServer();
@@ -116,14 +116,26 @@ export class BrowserlessServer {
 
     this.resetCurrentStat();
 
+    // If we're saving metrics, load any potential prior-state
+    if (opts.metricsJSONPath) {
+      try {
+        const priorMetrics = require(opts.metricsJSONPath);
+        this.stats = priorMetrics;
+      } catch (err) {
+        debug(`Couldn't load metrics at path ${opts.metricsJSONPath}, setting to empty.`);
+      }
+    }
+
     setInterval(this.recordMetrics.bind(this), fiveMinutes);
   }
 
   public async startServer(): Promise<any> {
-    return new Promise((resolve) => {
+    await this.chromeService.start();
+
+    return new Promise(async (resolve) => {
       const app = express();
 
-      app.use(bodyParser.json({ limit: '1mb' }));
+      app.use(bodyParser.json({ limit: '5mb' }));
 
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
@@ -143,17 +155,11 @@ export class BrowserlessServer {
       app.get('/json/version', (_req, res) => res.json(version));
       app.get('/json/protocol', (_req, res) => res.json(protocol));
       app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
-
-      app.get('/config', (_req, res) => res.json({
-        concurrent: this.config.maxConcurrentSessions,
-        preboot: this.config.prebootChrome,
-        queue: this.config.maxQueueLength - this.config.maxConcurrentSessions,
-        timeout: this.config.connectionTimeout,
-      }));
+      app.get('/config', (_req, res) => res.json(this.config));
 
       app.get('/pressure', (_req, res) => {
         const queueLength = this.chromeService.queueSize;
-        const queueConcurrency = this.chromeService.queueConcurrency;
+        const queueConcurrency = this.chromeService.concurrencySize;
         const concurrencyMet = queueLength >= queueConcurrency;
 
         return res.json({
@@ -172,13 +178,13 @@ export class BrowserlessServer {
       app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
         const { code, context } = req.body;
 
-        return this.chromeService.runFunction({ code, context, req, res });
+        return this.chromeService.runHTTP({ code, context, req, res });
       }));
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
       app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: screenshot,
           context: req.body,
           req,
@@ -189,7 +195,7 @@ export class BrowserlessServer {
       // Helper route for capturing content body, accepts a POST body containing a URL
       // (see the schema in schemas.ts);
       app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: content,
           context: req.body,
           req,
@@ -200,7 +206,7 @@ export class BrowserlessServer {
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
       app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runFunction({
+        this.chromeService.runHTTP({
           code: pdf,
           context: req.body,
           req,
@@ -228,109 +234,37 @@ export class BrowserlessServer {
 
       return this.server = http
         .createServer(app)
-        .on('upgrade', asyncMiddleware(async (req, socket, head) => {
-          const parsedUrl = url.parse(req.url, true);
-          const route = parsedUrl.pathname || '/';
-          const queueLength = this.chromeService.queueSize;
-          const debugCode = parsedUrl.query.code as string;
-          const code = this.parseUserCode(debugCode);
-
-          debug(`${req.url}: Inbound WebSocket request. ${queueLength} in queue.`);
-
-          if (this.config.demoMode && !code) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-          }
-
-          if (this.config.token && parsedUrl.query.token !== this.config.token) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
-          }
-
-          if (queueLength >= this.config.maxQueueLength) {
-            return this.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
-          }
-
-          this.chromeService.autoUpdateQueue();
-
-          if (queueLength >= this.chromeService.queueConcurrency) {
-            this.chromeService.onQueued(req);
-          }
-
-          const job: any = (done: () => {}) => {
-            const flags = _.chain(parsedUrl.query)
-              .pickBy((_value, param) => _.startsWith(param, '--'))
-              .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-              .value();
-
-            const launchPromise = this.chromeService.getChrome(flags);
-            debug(`${req.url}: WebSocket upgrade.`);
-
-            launchPromise
-              .then(async (browser) => {
-                const browserWsEndpoint = browser.wsEndpoint();
-
-                debug(`${req.url}: Chrome Launched.`);
-
-                socket.on('close', () => {
-                  debug(`${req.url}: Session closed, stopping Chrome. ${this.chromeService.queueSize} now in queue`);
-                  browser.close();
-                  done();
-                });
-
-                if (!route.includes('/devtools/page')) {
-                  debug(`${req.url}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
-                  req.url = route;
-
-                  return browserWsEndpoint;
-                }
-
-                const page: any = await browser.newPage();
-                const port = url.parse(browserWsEndpoint).port;
-                const pageLocation = `/devtools/page/${page._target._targetId}`;
-                req.url = pageLocation;
-
-                if (code) {
-                  debug(`${req.url}: Executing user-submitted code.`);
-
-                  const sandbox = this.buildBrowserSandbox(page);
-                  const vm: any = new NodeVM({ sandbox });
-                  const handler = vm.run(code);
-
-                  handler({ page, context: {} });
-                }
-
-                return `ws://127.0.0.1:${port}`;
-              })
-              .then((target) => this.proxy.ws(req, socket, head, { target }))
-              .catch((error) => {
-                debug(error, `Issue launching Chrome or proxying traffic, failing request`);
-                return this.rejectSocket(req, socket, `HTTP/1.1 500`);
-              });
-          };
-
-          job.close = (message: string) => this.closeSocket(socket, message);
-
-          this.chromeService.addJob(job);
-        }))
+        .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
         .listen(this.config.port, resolve);
     });
   }
 
   public async close() {
-    this.server.close();
-    this.proxy.close();
+    return Promise.all([
+      new Promise((resolve) => {
+        this.server.close(resolve);
+        this.server = null;
+      }),
+      new Promise((resolve) => {
+        this.proxy.close();
+        this.proxy = null;
+        resolve();
+      }),
+      this.chromeService.close(),
+    ]);
   }
 
-  public rejectReq(req, res, message) {
+  public rejectReq(req, res, code, message) {
     debug(`${req.url}: ${message}`);
-    res.status(429).send(message);
-    this.currentStat.rejected = this.currentStat.rejected + 1;
+    res.status(code).send(message);
+    this.currentStat.rejected++;
     this.rejectHook();
   }
 
-  private rejectSocket(req, socket, message) {
+  public rejectSocket(req, socket, message) {
     debug(`${req.url}: ${message}`);
-    this.closeSocket(socket, `${message}\r\n`);
-    this.currentStat.rejected = this.currentStat.rejected + 1;
+    socket.end(message);
+    this.currentStat.rejected++;
     this.rejectHook();
   }
 
@@ -367,48 +301,11 @@ export class BrowserlessServer {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
       this.healthFailureHook();
     }
-  }
 
-  private closeSocket(socket: any, message: string) {
-    debug(`Closing socket.`);
-    if (socket.end) {
-      socket.end(message);
+    if (this.config.metricsJSONPath) {
+      writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
+        .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
+        .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
     }
-
-    if (socket.destroy) {
-      socket.destroy();
-    }
-  }
-
-  private parseUserCode(code: string): string | null {
-    if (!code) {
-      return null;
-    }
-    const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
-    return codeWithDebugger.includes('module.exports') ?
-      codeWithDebugger :
-      `module.exports = async ({ page, context: {} }) => {
-        try {
-          ${codeWithDebugger}
-        } catch (error) {
-          console.error('Unhandled Error:', error.message, error.stack);
-        }
-      }`;
-  }
-
-  private buildBrowserSandbox(page: puppeteer.Page) {
-    return {
-      console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
-        browserConsole[consoleMethod] = (...args) => {
-          args.unshift(consoleMethod);
-          return page.evaluate((...args) => {
-            const [consoleMethod, ...consoleArgs] = args;
-            return console[consoleMethod](...consoleArgs);
-          }, ...args);
-        };
-
-        return browserConsole;
-      }, {}),
-    };
   }
 }

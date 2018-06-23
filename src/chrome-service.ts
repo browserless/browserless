@@ -1,269 +1,447 @@
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
+import * as url from 'url';
 import { NodeVM } from 'vm2';
-import { BrowserlessServer } from './browserless-server';
-import { ResourceMonitor } from './hardware-monitoring';
-import { IChromeServiceConfiguration } from './models/browserless-options.interface';
-import { debug } from './utils';
 
-const queue = require('queue');
+import { BrowserlessServer } from './browserless-server';
+import { queue } from './queue';
+import { getDebug, id } from './utils';
+
+import { IChromeServiceConfiguration } from './models/browserless-options.interface';
+import { IJob, IQueue } from './models/browserless-queue.interface';
+
 const oneMinute = 60 * 1000;
+
+const sysdebug = getDebug('system');
+const jobdebug = getDebug('job');
 
 export class ChromeService {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<puppeteer.Browser>>;
-  private queue: any;
-  private readonly resourceMonitor: ResourceMonitor;
+  private queue: IQueue<IJob>;
 
-  get queueSize() {
-    return this.queue.length;
-  }
-
-  get queueConcurrency() {
-    return this.queue.concurrency;
-  }
-
-  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, resourceMonitor: ResourceMonitor) {
+  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer) {
     this.config = config;
     this.server = server;
-    this.resourceMonitor = resourceMonitor;
     this.queue = queue({
       autostart: true,
       concurrency: this.config.maxConcurrentSessions,
       timeout: this.config.connectionTimeout,
     });
 
-    this.queue.on('success', this.onSessionComplete.bind(this));
+    this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.chromeSwarm = [];
+  }
 
+  get queueSize() {
+    return this.queue.length;
+  }
+
+  get concurrencySize() {
+    return this.queue.concurrency;
+  }
+
+  get canRunImmediately() {
+    return this.queueSize < this.concurrencySize;
+  }
+
+  get canQueue() {
+    return this.queueSize < this.config.maxQueueLength;
+  }
+
+  get chromeSwarmSize() {
+    return this.chromeSwarm.length;
+  }
+
+  get keepChromeInstance() {
+    return (
+      this.config.keepAlive &&
+      this.config.prebootChrome &&
+      this.chromeSwarmSize < this.concurrencySize
+    );
+  }
+
+  get needsChromeInstances() {
+    return (
+      this.config.prebootChrome &&
+      this.chromeSwarmSize < this.concurrencySize
+    );
+  }
+
+  public async start() {
     if (this.config.prebootChrome) {
-      debug(`Prebooting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
+      sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
-      for (let i = 0; i < this.config.maxConcurrentSessions; i++) {
-        this.chromeSwarm.push(this.launchChrome());
-      }
-
-      process.on('SIGINT', () => {
-        debug(`SIGTERM, shutting down Chromium`);
-
-        this.chromeSwarm.forEach(async (chrome) => {
-          const instance = await chrome;
-          return instance.close();
-        });
-
-        process.exit(0);
+      const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
+        const chrome = this.launchChrome();
+        this.chromeSwarm.push(chrome);
+        return chrome;
       });
 
       setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
-    }
-  }
 
-  public getChrome(flags?: any): Promise<puppeteer.Browser> {
-    const canUseChromeSwarm = !flags.length && !!this.chromeSwarm.length;
-    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
-
-    return launchPromise as Promise<puppeteer.Browser>;
-  }
-
-  public addJob(job: any) {
-    this.queue.push(job);
-  }
-
-  public autoUpdateQueue() {
-    if (this.config.autoQueue && (this.queue.length < this.queue.concurrency)) {
-      const isMachineStrained = this.resourceMonitor.isMachinedConstrained;
-      this.queue.concurrency = isMachineStrained ? this.queue.length : this.config.maxConcurrentSessions;
-    }
-  }
-
-  public onSessionComplete() {
-    debug(`Marking session completion`);
-    this.server.currentStat.successful++;
-
-    // if not keeping chrome instances alive,
-    // closes and restarts chrome instance completely;
-    // this will be fresh chrome instance
-    if (!this.config.keepAlive) {
-      this.addToChromeSwarm();
-    }
-  }
-
-  public onSessionFail() {
-    debug(`Marking session failure`);
-    this.server.currentStat.error++;
-
-    if (!this.config.keepAlive) {
-      this.addToChromeSwarm();
-    }
-  }
-
-  public onTimedOut(next, job) {
-    debug(`Timeout hit for session, closing. ${this.queue.length} in queue.`);
-    job.close('HTTP/1.1 408 Request has timed out\r\n');
-    this.server.currentStat.timedout = this.server.currentStat.timedout + 1;
-    this.server.timeoutHook();
-    this.onSessionComplete();
-    next();
-  }
-
-  public onQueued(req) {
-    debug(`${req.url}: Concurrency limit hit, queueing`);
-    this.server.currentStat.queued = this.server.currentStat.queued + 1;
-    this.server.queueHook();
-  }
-
-  public async reuseChromeInstance(instance: puppeteer.Browser) {
-    const openPages = await instance.pages();
-    openPages.forEach((page) => page.close());
-
-    if (this.chromeSwarm.length < this.config.maxConcurrentSessions) {
-      this.chromeSwarm.push(Promise.resolve(instance));
-    }
-    debug(`Added to chrome swarm: ${this.chromeSwarm.length} online`);
-  }
-
-  public async runFunction({ code, context, req, res }) {
-    const queueLength = this.queue.length;
-    const isMachineStrained = this.resourceMonitor.isMachinedConstrained;
-
-    if (queueLength >= this.config.maxQueueLength) {
-      return this.server.rejectReq(req, res, `Too Many Requests`);
+      return Promise.all(launching);
     }
 
-    if (this.config.autoQueue && (this.queue.length < this.queue.concurrency)) {
-      this.queue.concurrency = isMachineStrained ? this.queue.length : this.config.maxConcurrentSessions;
+    return Promise.resolve();
+  }
+
+  public async runHTTP({ code, context, req, res }) {
+    const jobId = id();
+
+    jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
+
+    if (this.config.demoMode) {
+      jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
+      return this.server.rejectReq(req, res, 403, 'Unauthorized');
     }
 
-    if (queueLength >= this.queue.concurrency) {
-      this.onQueued(req);
+    if (!this.canQueue) {
+      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      return this.server.rejectReq(req, res, 429, `Too Many Requests`);
+    }
+
+    if (!this.canRunImmediately) {
+      jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
+      this.onQueued(jobId);
+      // Don't return
     }
 
     const vm = new NodeVM();
     const handler: (args) => Promise<any> = vm.run(code);
 
-    debug(`${req.url}: Inbound function execution: ${JSON.stringify({ code, context })}`);
+    const job: IJob = Object.assign(
+      (done: () => {}) => {
+        this.getChrome().then(async (browser) => {
+          const page = await browser.newPage();
 
-    const job: any = async () => {
-      const launchPromise = this.chromeSwarm.length > 0 ?
-        this.chromeSwarm.shift() :
-        this.launchChrome();
+          jobdebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+          job.browser = browser;
 
-      const browser = await launchPromise as puppeteer.Browser;
-      const page = await browser.newPage();
-      const cleanup = () => this.config.keepAlive ?
-        _.attempt(() => {
-          this.reuseChromeInstance(browser);
-          debug(`Added to chrome swarm: ${this.chromeSwarm.length} online`);
-        }) :
-        _.attempt(() => browser.close());
+          req.removeListener('close', earlyClose);
+          req.once('close', () => {
+            jobdebug(`${job.id}: Request terminated during execution, closing`);
+            done();
+          });
 
-      job.browser = browser;
+          handler({ page, context })
+            .then(({ data, type }) => {
+              jobdebug(`${job.id}: Function complete, cleaning up.`);
+              res.type(type || 'text/plain');
 
-      return handler({ page, context })
-        .then(({ data, type }) => {
-          debug(`${req.url}: Function complete, cleaning up.`);
-          res.type(type || 'text/plain');
+              if (Buffer.isBuffer(data)) {
+                res.end(data, 'binary');
+              } else if (type.includes('json')) {
+                res.json(data);
+              } else {
+                res.send(data);
+              }
 
-          cleanup();
-
-          if (Buffer.isBuffer(data)) {
-            return res.end(data, 'binary');
-          }
-
-          if (type.includes('json')) {
-            return res.json(data);
-          }
-
-          return res.send(data);
-        })
-        .catch((error) => {
-          res.status(500).send(error.message);
-          debug(`${req.url}: Function errored, stopping Chrome`);
-          cleanup();
+              done();
+            })
+            .catch((error) => {
+              res.status(500).send(error.message);
+              jobdebug(`${job.id}: Function errored, stopping Chrome`);
+              done();
+            });
         });
+      },
+      {
+        browser: null,
+        close: () => this.cleanUpJob(job),
+        id: jobId,
+      },
+    );
+
+    const earlyClose = () => {
+      jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
+      this.removeJob(job);
     };
 
-    job.close = () => {
-      if (job.browser) {
-        this.config.keepAlive ? this.reuseChromeInstance(job.browser) : job.browser.close();
-      }
+    req.once('close', earlyClose);
+    this.addJob(job);
+  }
 
-      if (!res.headersSent) {
-        res.status(408).send('browserless function has timed-out');
-      }
+  public async runWebSocket(req, socket: NodeJS.Socket, head) {
+    const jobId = id();
+    const parsedUrl = url.parse(req.url, true);
+    const route = parsedUrl.pathname || '/';
+    const debugCode = parsedUrl.query.code as string;
+
+    jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
+
+    if (this.config.demoMode && !debugCode) {
+      jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+    }
+
+    if (this.config.token && parsedUrl.query.token !== this.config.token) {
+      jobdebug(`${jobId}: No token sent, closing with 403.`);
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+    }
+
+    if (!this.canQueue) {
+      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
+    }
+
+    if (!this.canRunImmediately) {
+      jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
+      this.onQueued(jobId);
+      // Don't return
+    }
+
+    const job: IJob = Object.assign(
+      (done: () => {}) => {
+        jobdebug(`${job.id}: Getting browser.`);
+        const flags = _.chain(parsedUrl.query)
+          .pickBy((_value, param) => _.startsWith(param, '--'))
+          .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+          .value();
+
+        const launchPromise = this.getChrome(flags);
+
+        launchPromise
+          .then(async (browser) => {
+            jobdebug(`${job.id}: Starting session.`);
+            const browserWsEndpoint = browser.wsEndpoint();
+            const code = this.parseUserCode(debugCode, job);
+            job.browser = browser;
+
+            socket.removeListener('close', earlyClose);
+            socket.once('close', done);
+
+            if (!route.includes('/devtools/page')) {
+              jobdebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
+              req.url = route;
+
+              return browserWsEndpoint;
+            }
+
+            const page: any = await browser.newPage();
+            const port = url.parse(browserWsEndpoint).port;
+            const pageLocation = `/devtools/page/${page._target._targetId}`;
+            req.url = pageLocation;
+
+            if (code) {
+              jobdebug(`${job.id}: Executing user-submitted code.`);
+
+              const sandbox = this.buildBrowserSandbox(page, job);
+              const vm: any = new NodeVM({ sandbox });
+              const handler = vm.run(code);
+
+              handler({ page, context: {} });
+            }
+
+            return `ws://127.0.0.1:${port}`;
+          })
+          .then((target) => this.server.proxy.ws(req, socket, head, { target }))
+          .catch((error) => {
+            jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
+            done();
+            socket.end();
+          });
+      },
+      {
+        browser: null,
+        close: () => this.cleanUpJob(job),
+        id: jobId,
+      },
+    );
+
+    const earlyClose = () => {
+      jobdebug(`${job.id}: Websocket closed early, removing from queue and closing.`);
+      this.removeJob(job);
     };
 
-    req.on('close', () => {
-      debug(`${req.url}: Request has terminated, cleaning up.`);
-      if (job.browser) {
-        this.config.keepAlive ? this.reuseChromeInstance(job.browser) : job.browser.close();
-      }
-    });
+    socket.once('close', earlyClose);
+    this.addJob(job);
+  }
 
-    this.queue.push(job);
+  public async close() {
+    sysdebug(`Close received, forcing queue and swarm to shutdown`);
+    await Promise.all([
+      ...this.queue.map(async (job) => job.close()),
+      ...this.chromeSwarm.map(async (instance) => {
+        const browser = await instance;
+        await browser.close();
+      }),
+    ]);
+    sysdebug(`Close complete.`);
+  }
+
+  private removeJob(job: IJob) {
+    jobdebug(`${job.id}: Removing job from queue and cleaning up.`);
+    job.close();
+    this.queue.remove(job);
+  }
+
+  private onSessionSuccess(_res, job: IJob) {
+    jobdebug(`${job.id}: Recording successful stat and cleaning up.`);
+    this.server.currentStat.successful++;
+    job.close();
+  }
+
+  private onSessionFail(error, job: IJob) {
+    jobdebug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
+    this.server.currentStat.error++;
+    job.close();
+  }
+
+  private onTimedOut(next, job: IJob) {
+    jobdebug(`${job.id}: Recording timedout stat.`);
+    this.server.currentStat.timedout++;
+    this.server.timeoutHook();
+    job.close();
+    next();
+  }
+
+  private onQueued(id: string) {
+    jobdebug(`${id}: Recording queued stat.`);
+    this.server.currentStat.queued++;
+    this.server.queueHook();
+  }
+
+  private addJob(job: IJob) {
+    jobdebug(`${job.id}: Adding new job to queue.`);
+    this.queue.add(job);
+  }
+
+  private async cleanUpJob(job: IJob) {
+    const { browser } = job;
+    jobdebug(`${job.id}: Cleaning up job`);
+
+    if (!browser) {
+      jobdebug(`${job.id}: No browser to cleanup, exiting`);
+      return;
+    }
+
+    if (this.keepChromeInstance) {
+      jobdebug(`${job.id}: Browser still needed`);
+      return this.reuseChromeInstance(browser);
+    }
+
+    jobdebug(`${job.id}: Browser not needed, closing`);
+    await browser.close();
+
+    jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
+    return this.checkChromeSwarm();
+  }
+
+  private getChrome(flags: any = []): Promise<puppeteer.Browser> {
+    const canUseChromeSwarm = !flags.length && !!this.chromeSwarmSize;
+    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
+
+    return launchPromise as Promise<puppeteer.Browser>;
+  }
+
+  private async reuseChromeInstance(browser: puppeteer.Browser) {
+    sysdebug('Clearing browser for reuse');
+
+    const openPages = await browser.pages();
+    openPages.forEach((page) => page.close());
+    this.chromeSwarm.push(Promise.resolve(browser));
+
+    return sysdebug(`Chrome swarm: ${this.chromeSwarmSize} online`);
+  }
+
+  private checkChromeSwarm() {
+    if (this.needsChromeInstances) {
+      sysdebug(`Adding to Chrome swarm`);
+      return this.chromeSwarm.push(this.launchChrome());
+    }
+    return sysdebug(`Chrome swarm is ok`);
   }
 
   private refreshChromeSwarm(retries: number = 0) {
     if (retries > this.config.maxChromeRefreshRetries) {
-      // forces refresh after max retries
-      this.chromeSwarm.forEach((chromeInstance) => this.refreshChromeInstance(chromeInstance));
+      sysdebug(`Refresh retries exhausted, forcing replacement of Chrome instances`);
+      this.chromeSwarm.forEach((chromeInstance) => this.replaceChromeInstance(chromeInstance));
     }
 
-    if (this.queue.length > this.chromeSwarm.length) {
+    if (this.queueSize > this.chromeSwarmSize) {
       // tries to refresh later if more jobs than there are available chromes
+      sysdebug(`Refreshing in ${oneMinute}ms due to queue size of ${this.queueSize}.`);
       setTimeout(() => this.refreshChromeSwarm(retries + 1), oneMinute);
     }
 
-    const chromeSwarmLength = this.chromeSwarm.length;
+    const chromeSwarmLength = this.chromeSwarmSize;
     for (let i = 0; i < chromeSwarmLength; i++) {
       const chromeInstance = this.chromeSwarm.shift() as Promise<puppeteer.Browser>;
-      this.refreshChromeInstance(chromeInstance);
+      this.replaceChromeInstance(chromeInstance);
     }
 
     // will refresh again in set config time
     setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
   }
 
-  private async refreshChromeInstance(instance: Promise<puppeteer.Browser>) {
+  private async replaceChromeInstance(instance: Promise<puppeteer.Browser>) {
+    sysdebug(`Replacing Chrome instance for re-use`);
+
     const chrome = await instance;
     chrome.close();
 
-    if (this.config.keepAlive && (this.chromeSwarm.length < this.config.maxConcurrentSessions)) {
-      this.chromeSwarm.push(this.launchChrome());
-      debug(`Refreshing chrome swarm; currently ${this.chromeSwarm.length} online`);
-    }
+    this.checkChromeSwarm();
   }
 
-  private addToChromeSwarm() {
-    if (this.config.prebootChrome && (this.chromeSwarm.length < this.queue.concurrency)) {
-      this.chromeSwarm.push(this.launchChrome());
-      debug(`Added Chrome instance to swarm, ${this.chromeSwarm.length} online`);
+  private buildBrowserSandbox(page: puppeteer.Page, job: IJob): { console: any } {
+    jobdebug(`${job.id}: Generating page sandbox`);
+    return {
+      console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
+        browserConsole[consoleMethod] = (...args) => {
+          args.unshift(consoleMethod);
+          return page.evaluate((...args) => {
+            const [consoleMethod, ...consoleArgs] = args;
+            return console[consoleMethod](...consoleArgs);
+          }, ...args);
+        };
+
+        return browserConsole;
+      }, {}),
+    };
+  }
+
+  private parseUserCode(code: string, job: IJob): string | null {
+    if (!code) {
+      return null;
     }
+    jobdebug(`${job.id}: Parsing user-uploaded code: "${code}"`);
+    const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
+    return codeWithDebugger.includes('module.exports') ?
+      codeWithDebugger :
+      `module.exports = async ({ page, context: {} }) => {
+        try {
+          ${codeWithDebugger}
+        } catch (error) {
+          console.error('Unhandled Error:', error.message, error.stack);
+        }
+      }`;
   }
 
   private async launchChrome(flags: string[] = [], retries: number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
-    debug('Chrome Starting');
+
+    sysdebug(`Starting Chrome with flags: ${flags}`);
+
     return puppeteer.launch({
       args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
     })
       .then((chrome) => {
-        debug(`Chrome launched ${Date.now() - start}ms`);
+        sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
       })
       .catch((error) => {
-
         if (retries > 0) {
           const nextRetries = retries - 1;
-          debug(error, `Issue launching Chrome, retrying ${retries} times.`);
+          sysdebug(error, `Issue launching Chrome, retrying ${retries} times.`);
           return this.launchChrome(flags, nextRetries);
         }
 
-        debug(error, `Issue launching Chrome, retries exhausted.`);
+        sysdebug(error, `Issue launching Chrome, retries exhausted.`);
         throw error;
       });
   }
