@@ -25,6 +25,8 @@ export const pdf = Joi.object().keys({
   options: Joi.object().keys({
     displayHeaderFooter: Joi.boolean(),
     footerTemplate: Joi.string(),
+    format: Joi.string()
+      .valid('Letter', 'Legal', 'Tabloid', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
     headerTemplate: Joi.string(),
     height: Joi.any().optional(),
     landscape: Joi.boolean(),
@@ -34,8 +36,6 @@ export const pdf = Joi.object().keys({
       right: Joi.string(),
       top: Joi.string(),
     }),
-    format: Joi.string()
-      .valid('Letter', 'Legal', 'Tabloid', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
     pageRanges: Joi.string(),
     printBackground: Joi.boolean(),
     scale: Joi.number().min(0),

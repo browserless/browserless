@@ -16,7 +16,7 @@
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "jest --forceExit",
-    "prepush": "npm test"
+    "prepush": "npm run lint && npm test"
   },
   "puppeteerVersions": [
     "1.0.0",
