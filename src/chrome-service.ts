@@ -35,27 +35,6 @@ export class ChromeService {
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.chromeSwarm = [];
-
-    if (this.config.prebootChrome) {
-      sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
-
-      for (let i = 0; i < this.config.maxConcurrentSessions; i++) {
-        this.chromeSwarm.push(this.launchChrome());
-      }
-
-      process.on('SIGINT', () => {
-        sysdebug(`SIGTERM, shutting down Chromium`);
-
-        this.chromeSwarm.forEach(async (chrome) => {
-          const instance = await chrome;
-          return instance.close();
-        });
-
-        process.exit(0);
-      });
-
-      setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
-    }
   }
 
   get queueSize() {
@@ -91,6 +70,24 @@ export class ChromeService {
       this.config.prebootChrome &&
       this.chromeSwarmSize < this.concurrencySize
     );
+  }
+
+  public async start() {
+    if (this.config.prebootChrome) {
+      sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
+
+      const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
+        const chrome = this.launchChrome();
+        this.chromeSwarm.push(chrome);
+        return chrome;
+      });
+
+      setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
+
+      return Promise.all(launching);
+    }
+
+    return Promise.resolve();
   }
 
   public async runHTTP({ code, context, req, res }) {
@@ -265,17 +262,16 @@ export class ChromeService {
     this.addJob(job);
   }
 
-  public close() {
-    if (this.chromeSwarm.length) {
-      this.chromeSwarm.forEach(async (instance) => {
+  public async close() {
+    sysdebug(`Close received, forcing queue and swarm to shutdown`);
+    await Promise.all([
+      ...this.queue.map(async (job) => job.close()),
+      ...this.chromeSwarm.map(async (instance) => {
         const browser = await instance;
-        browser.close();
-      });
-    }
-
-    if (this.queue.length) {
-      this.queue.forEach((job) => job.close());
-    }
+        await browser.close();
+      }),
+    ]);
+    sysdebug(`Close complete.`);
   }
 
   private removeJob(job: IJob) {
@@ -315,7 +311,7 @@ export class ChromeService {
     this.queue.add(job);
   }
 
-  private cleanUpJob(job: IJob) {
+  private async cleanUpJob(job: IJob) {
     const { browser } = job;
     jobdebug(`${job.id}: Cleaning up job`);
 
@@ -330,7 +326,7 @@ export class ChromeService {
     }
 
     jobdebug(`${job.id}: Browser not needed, closing`);
-    browser.close();
+    await browser.close();
 
     jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
     return this.checkChromeSwarm();

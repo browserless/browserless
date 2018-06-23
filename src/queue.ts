@@ -22,5 +22,7 @@ export function queue(opts): IQueue<IJob> {
     qInstance.push(job);
   };
 
+  qInstance.map = (...args) => Array.prototype.map.apply(qInstance.jobs, args);
+
   return qInstance;
 }

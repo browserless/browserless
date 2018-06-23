@@ -50,7 +50,7 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
-  public readonly proxy: any;
+  public proxy: any;
 
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
@@ -130,7 +130,9 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    return new Promise((resolve) => {
+    await this.chromeService.start();
+
+    return new Promise(async (resolve) => {
       const app = express();
 
       app.use(bodyParser.json({ limit: '5mb' }));
@@ -154,12 +156,7 @@ export class BrowserlessServer {
       app.get('/json/protocol', (_req, res) => res.json(protocol));
       app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
 
-      app.get('/config', (_req, res) => res.json({
-        concurrent: this.config.maxConcurrentSessions,
-        preboot: this.config.prebootChrome,
-        queue: this.config.maxQueueLength - this.config.maxConcurrentSessions,
-        timeout: this.config.connectionTimeout,
-      }));
+      app.get('/config', (_req, res) => res.json(this.config));
 
       app.get('/pressure', (_req, res) => {
         const queueLength = this.chromeService.queueSize;
@@ -244,9 +241,18 @@ export class BrowserlessServer {
   }
 
   public async close() {
-    this.server.close();
-    this.chromeService.close();
-    this.proxy.close();
+    return Promise.all([
+      new Promise((resolve) => {
+        this.server.close(resolve);
+        this.server = null;
+      }),
+      new Promise((resolve) => {
+        this.proxy.close();
+        this.proxy = null;
+        resolve();
+      }),
+      this.chromeService.close(),
+    ]);
   }
 
   public rejectReq(req, res, code, message) {
