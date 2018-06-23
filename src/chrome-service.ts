@@ -116,7 +116,13 @@ export class ChromeService {
 
     const job: IJob = Object.assign(
       (done: () => {}) => {
-        this.getChrome().then(async (browser) => {
+        jobdebug(`${job.id}: Getting browser.`);
+        const flags = _.chain(req.query)
+          .pickBy((_value, param) => _.startsWith(param, '--'))
+          .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+          .value();
+
+        this.getChrome(flags).then(async (browser) => {
           const page = await browser.newPage();
 
           jobdebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
@@ -128,7 +134,7 @@ export class ChromeService {
             done();
           });
 
-          handler({ page, context })
+          Promise.resolve(handler({ page, context }))
             .then(({ data, type }) => {
               jobdebug(`${job.id}: Function complete, cleaning up.`);
               res.type(type || 'text/plain');
