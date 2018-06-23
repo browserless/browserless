@@ -62,10 +62,7 @@ export class BrowserlessServer {
     // The backing queue doesn't let you set a max limitation
     // on length, so we add concurrent sessions + queue length
     // to determine the `queue` array's max length
-    this.config = {
-      ...opts,
-      maxQueueLength: opts.maxQueueLength + opts.maxConcurrentSessions,
-    };
+    this.config = opts;
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this);
     this.stats = [];

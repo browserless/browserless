@@ -12,7 +12,7 @@ Object {
   "maxChromeRefreshRetries": 1,
   "maxConcurrentSessions": 1,
   "maxMemory": 100,
-  "maxQueueLength": 3,
+  "maxQueueLength": 2,
   "metricsJSONPath": null,
   "port": 3000,
   "prebootChrome": false,
