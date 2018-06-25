@@ -1,4 +1,5 @@
 import * as bodyParser from 'body-parser';
+import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
 import * as http from 'http';
@@ -133,6 +134,10 @@ export class BrowserlessServer {
       const app = express();
 
       app.use(bodyParser.json({ limit: '5mb' }));
+
+      if (this.config.enableCors) {
+        app.use(cors());
+      }
 
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
