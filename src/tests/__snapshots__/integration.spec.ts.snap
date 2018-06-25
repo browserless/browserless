@@ -1,0 +1,68 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Browserless Chrome HTTP allows requests to /config 1`] = `
+Object {
+  "chromeRefreshTime": 0,
+  "connectionTimeout": 2000,
+  "demoMode": false,
+  "enableDebugger": true,
+  "healthFailureURL": null,
+  "keepAlive": false,
+  "maxCPU": 100,
+  "maxChromeRefreshRetries": 1,
+  "maxConcurrentSessions": 1,
+  "maxMemory": 100,
+  "maxQueueLength": 2,
+  "metricsJSONPath": null,
+  "port": 3000,
+  "prebootChrome": false,
+  "queuedAlertURL": null,
+  "rejectAlertURL": null,
+  "timeoutAlertURL": null,
+  "token": null,
+}
+`;
+
+exports[`Browserless Chrome HTTP allows requests to /json/protocol 1`] = `
+Array [
+  "domains",
+  "version",
+]
+`;
+
+exports[`Browserless Chrome HTTP allows requests to /json/version 1`] = `
+Array [
+  "Browser",
+  "Protocol-Version",
+  "User-Agent",
+  "V8-Version",
+  "WebKit-Version",
+  "Debugger-Version",
+  "Puppeteer-Version",
+]
+`;
+
+exports[`Browserless Chrome HTTP allows requests to /metrics 1`] = `
+Array [
+  Object {
+    "cpu": 0,
+    "date": null,
+    "error": 0,
+    "memory": 0,
+    "queued": 0,
+    "rejected": 0,
+    "successful": 0,
+    "timedout": 0,
+  },
+]
+`;
+
+exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `
+Array [
+  "date",
+  "isAvailable",
+  "queued",
+  "recentlyRejected",
+  "running",
+]
+`;

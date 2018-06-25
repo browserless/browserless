@@ -9,6 +9,7 @@ export interface IBrowserlessServerConfiguration {
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
+  metricsJSONPath: string | null;
 }
 
 export interface IChromeServiceConfiguration {
@@ -20,9 +21,9 @@ export interface IChromeServiceConfiguration {
   enableDebugger: boolean;
   maxMemory: number;
   maxCPU: number;
-  autoQueue: boolean;
   keepAlive: boolean;
   chromeRefreshTime: number;
   maxChromeRefreshRetries: number;
   enableCors: boolean;
+  token: string | null;
 }
