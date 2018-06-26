@@ -5,7 +5,7 @@ import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless-server';
 import { queue } from './queue';
-import { BrowserlessSandbox } from './sandbox';
+import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';

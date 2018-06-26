@@ -1,6 +1,6 @@
 import * as EventEmitter from 'events';
 import { Browser } from 'puppeteer';
-import { BrowserlessSandbox } from '../sandbox';
+import { BrowserlessSandbox } from '../Sandbox';
 
 export interface IJob {
   (done?: () => {}): any | Promise<any>;
