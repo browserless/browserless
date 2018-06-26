@@ -1,4 +1,4 @@
-import { IJob, IQueue } from './models/browserless-queue.interface';
+import { IJob, IQueue } from './models/queue.interface';
 import { id } from './utils';
 
 const q = require('queue');

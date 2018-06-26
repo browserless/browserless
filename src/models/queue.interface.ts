@@ -1,10 +1,11 @@
 import * as EventEmitter from 'events';
 import { Browser } from 'puppeteer';
+import { BrowserlessSandbox } from '../sandbox';
 
 export interface IJob {
   (done?: () => {}): any | Promise<any>;
   id: string;
-  browser: Browser | null;
+  browser: Browser | BrowserlessSandbox | null;
   close: () => any;
 }
 

@@ -5,10 +5,11 @@ import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless-server';
 import { queue } from './queue';
+import { BrowserlessSandbox } from './sandbox';
 import { getDebug, id } from './utils';
 
-import { IChromeServiceConfiguration } from './models/browserless-options.interface';
-import { IJob, IQueue } from './models/browserless-queue.interface';
+import { IChromeServiceConfiguration } from './models/options.interface';
+import { IJob, IQueue } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
@@ -201,21 +202,38 @@ export class ChromeService {
       // Don't return
     }
 
-    const job: IJob = Object.assign(
-      (done: () => {}) => {
-        jobdebug(`${job.id}: Getting browser.`);
-        const flags = _.chain(parsedUrl.query)
-          .pickBy((_value, param) => _.startsWith(param, '--'))
-          .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-          .value();
+    const flags = _.chain(parsedUrl.query)
+      .pickBy((_value, param) => _.startsWith(param, '--'))
+      .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+      .value();
 
+    // If debug code is submitted, sandbox it in
+    // its own process to prevent infinite/runaway scripts
+    const handler = debugCode ?
+      (done) => {
+        jobdebug(`${job.id}: Starting debugger sandbox.`);
+        const code = this.parseUserCode(debugCode, job);
+        const timeout = this.config.connectionTimeout;
+        const handler = new BrowserlessSandbox({ code, flags, timeout });
+        job.browser = handler;
+
+        socket.removeListener('close', earlyClose);
+        socket.once('close', done);
+
+        handler.on('launched', ({ port, url }) => {
+          req.url = url;
+          jobdebug(`${job.id}: Got URL ${url}, proxying traffic to ${port}.`);
+          this.server.proxy.ws(req, socket, head, { target: `ws://127.0.0.1:${port}` });
+        });
+      } :
+      (done) => {
+        jobdebug(`${job.id}: Getting browser.`);
         const launchPromise = this.getChrome(flags);
 
         launchPromise
           .then(async (browser) => {
             jobdebug(`${job.id}: Starting session.`);
             const browserWsEndpoint = browser.wsEndpoint();
-            const code = this.parseUserCode(debugCode, job);
             job.browser = browser;
 
             socket.removeListener('close', earlyClose);
@@ -233,16 +251,6 @@ export class ChromeService {
             const pageLocation = `/devtools/page/${page._target._targetId}`;
             req.url = pageLocation;
 
-            if (code) {
-              jobdebug(`${job.id}: Executing user-submitted code.`);
-
-              const sandbox = this.buildBrowserSandbox(page, job);
-              const vm: any = new NodeVM({ sandbox });
-              const handler = vm.run(code);
-
-              handler({ page, context: {} });
-            }
-
             return `ws://127.0.0.1:${port}`;
           })
           .then((target) => this.server.proxy.ws(req, socket, head, { target }))
@@ -251,13 +259,15 @@ export class ChromeService {
             done();
             socket.end();
           });
-      },
-      {
-        browser: null,
-        close: () => this.cleanUpJob(job),
-        id: jobId,
-      },
-    );
+      };
+
+    const jobProps = {
+      browser: null,
+      close: () => this.cleanUpJob(job),
+      id: jobId,
+    };
+
+    const job: IJob = Object.assign(handler, jobProps);
 
     const earlyClose = () => {
       jobdebug(`${job.id}: Websocket closed early, removing from queue and closing.`);
@@ -324,6 +334,10 @@ export class ChromeService {
     if (!browser) {
       jobdebug(`${job.id}: No browser to cleanup, exiting`);
       return;
+    }
+
+    if (browser instanceof BrowserlessSandbox) {
+      return browser.close();
     }
 
     if (this.keepChromeInstance) {
@@ -394,27 +408,7 @@ export class ChromeService {
     this.checkChromeSwarm();
   }
 
-  private buildBrowserSandbox(page: puppeteer.Page, job: IJob): { console: any } {
-    jobdebug(`${job.id}: Generating page sandbox`);
-    return {
-      console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
-        browserConsole[consoleMethod] = (...args) => {
-          args.unshift(consoleMethod);
-          return page.evaluate((...args) => {
-            const [consoleMethod, ...consoleArgs] = args;
-            return console[consoleMethod](...consoleArgs);
-          }, ...args);
-        };
-
-        return browserConsole;
-      }, {}),
-    };
-  }
-
-  private parseUserCode(code: string, job: IJob): string | null {
-    if (!code) {
-      return null;
-    }
+  private parseUserCode(code: string, job: IJob): string {
     jobdebug(`${job.id}: Parsing user-uploaded code: "${code}"`);
     const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
     return codeWithDebugger.includes('module.exports') ?
