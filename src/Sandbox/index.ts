@@ -15,7 +15,7 @@ export class BrowserlessSandbox extends EventEmitter {
   constructor({ code, timeout, flags }: IConfig) {
     super();
 
-    this.child = fork(path.join('build/sandbox/child'));
+    this.child = fork(path.join(__dirname, 'child'));
     this.timer = setTimeout(() => {
       debug(`Timeout reached, killing child process`);
       this.close();
