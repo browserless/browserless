@@ -25,7 +25,7 @@ import {
 
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
-import { IBrowserlessOptions } from './models/browserless-options.interface';
+import { IBrowserlessOptions } from './models/options.interface';
 
 const debug = getDebug('server');
 
