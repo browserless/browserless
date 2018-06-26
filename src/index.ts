@@ -21,6 +21,7 @@ const maxCPU =                  parseParam(process.env.MAX_CPU_PERCENT, 99);
 const keepAlive =               parseParam(process.env.KEEP_ALIVE, false);
 const chromeRefreshTime =       parseParam(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
 const maxChromeRefreshRetries = parseParam(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
+const enableCors =              parseParam(process.env.ENABLE_CORS, false);
 const token =                   process.env.TOKEN || null;
 const queuedAlertURL =          process.env.QUEUE_ALERT_URL || null;
 const rejectAlertURL =          process.env.REJECT_ALERT_URL || null;
@@ -34,6 +35,7 @@ new BrowserlessServer({
   chromeRefreshTime,
   connectionTimeout,
   demoMode,
+  enableCors,
   enableDebugger,
   healthFailureURL,
   keepAlive,

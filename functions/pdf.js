@@ -19,6 +19,7 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
+
 module.exports = async function pdf({ page, context }) {
   const { url, html, options } = context;
 
@@ -33,7 +34,7 @@ module.exports = async function pdf({ page, context }) {
       request.respond({body: html});
       page.on('request', request => request.continue());
     });
-    await page.goto('http://localhost');
+    await page.goto('http://localhost', { waitUntil: 'networkidle2' });
   }
 
   const data = await page.pdf(options);
