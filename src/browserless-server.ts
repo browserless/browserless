@@ -178,9 +178,9 @@ export class BrowserlessServer {
       // function route for executing puppeteer scripts, accepts a JSON body with
       // code and context
       app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
-        const { code, context } = req.body;
+        const { code, context, detached } = req.body;
 
-        return this.chromeService.runHTTP({ code, context, req, res });
+        return this.chromeService.runHTTP({ code, context, req, res, detached });
       }));
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and

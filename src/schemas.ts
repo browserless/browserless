@@ -47,4 +47,5 @@ export const pdf = Joi.object().keys({
 export const fn = Joi.object().keys({
   code: Joi.string().required(),
   context: Joi.object(),
+  detached: Joi.boolean(),
 });
