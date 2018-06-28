@@ -19,7 +19,6 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-
 module.exports = async function pdf({ page, context }) {
   const { url, html, options } = context;
 
@@ -29,12 +28,20 @@ module.exports = async function pdf({ page, context }) {
     // Whilst there is no way of waiting for all requests to finish with setContent,
     // you can simulate a webrequest this way
     // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
+
     await page.setRequestInterception(true);
     page.once('request', request => {
       request.respond({body: html});
       page.on('request', request => request.continue());
     });
-    await page.goto('http://localhost', { waitUntil: 'networkidle2' });
+
+    page.goto('http://localhost');
+
+    await Promise.race([
+      page.waitForNavigation({waitUntil: 'load'}),
+      page.waitForNavigation({waitUntil: 'networkidle0'})
+    ]);
+
   }
 
   const data = await page.pdf(options);
