@@ -294,6 +294,34 @@ describe('Browserless Chrome', () => {
           });
       });
 
+      it('allows running detached functions', async () => {
+        const browserless = start(defaultParams);
+        await browserless.startServer();
+
+        const body = {
+          code: `module.exports = ({ page }) => {
+            return Promise.resolve({
+              data: 'ok',
+              type: 'application/text',
+            });
+          }`,
+          context: {},
+          detached: true,
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => res.json())
+          .then((res) => {
+            expect(res).toHaveProperty('id');
+          });
+      });
+
       it('allows custom response-types', async () => {
         const browserless = start(defaultParams);
         await browserless.startServer();
