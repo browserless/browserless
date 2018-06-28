@@ -15,6 +15,7 @@ const oneMinute = 60 * 1000;
 
 const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
+const jobdetaildebug = getDebug('jobdetail');
 
 export class ChromeService {
   private readonly server: BrowserlessServer;
@@ -126,7 +127,7 @@ export class ChromeService {
         this.getChrome(flags).then(async (browser) => {
           const page = await browser.newPage();
 
-          jobdebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+          jobdetaildebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
           job.browser = browser;
 
           req.removeListener('close', earlyClose);
