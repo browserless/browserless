@@ -6,6 +6,8 @@ Object {
   "connectionTimeout": 2000,
   "demoMode": false,
   "enableDebugger": true,
+  "functionBuiltIns": Array [],
+  "functionExternal": Array [],
   "healthFailureURL": null,
   "keepAlive": false,
   "maxCPU": 100,

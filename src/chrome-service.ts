@@ -123,8 +123,8 @@ export class ChromeService {
 
     const vm = new NodeVM({
       require: {
-        builtin: ['url', 'util', 'path'],
-        external: true,
+        builtin: this.config.functionBuiltIns,
+        external: this.config.functionExternals,
         root: './',
       },
     });

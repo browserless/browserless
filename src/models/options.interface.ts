@@ -19,6 +19,8 @@ export interface IChromeServiceConfiguration {
   prebootChrome: boolean;
   demoMode: boolean;
   enableDebugger: boolean;
+  functionExternals: string[];
+  functionBuiltIns: string[];
   maxMemory: number;
   maxCPU: number;
   keepAlive: boolean;

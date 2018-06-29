@@ -11,6 +11,8 @@ const defaultParams = {
   connectionTimeout: 2000,
   demoMode: false,
   enableDebugger: true,
+  functionBuiltIns: [],
+  functionExternal: [],
   healthFailureURL: null,
   keepAlive: false,
   maxCPU: 100,
@@ -34,7 +36,7 @@ const sleep = (time = 0) => {
 };
 
 const throws = () => {
-  throw new Error(`Shouldn't have thrown`);
+  throw new Error(`Should have thrown`);
 };
 
 const getChromeProcesses = () => {
@@ -319,6 +321,131 @@ describe('Browserless Chrome', () => {
           .then((res) => res.json())
           .then((res) => {
             expect(res).toHaveProperty('id');
+          });
+      });
+
+      it('allows functions that require node built-ins', async () => {
+        const browserless = start({
+          ...defaultParams,
+          functionBuiltIns: ['util'],
+        });
+        await browserless.startServer();
+
+        const body = {
+          code: `
+          const util = require('util');
+          module.exports = ({ page }) => {
+            return Promise.resolve({
+              data: 'ok',
+              type: 'application/text',
+            });
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => res.text())
+          .then((res) => {
+            expect(res).toBe('ok');
+          });
+      });
+
+      it('allows functions that require external modules', async () => {
+        const browserless = start({
+          ...defaultParams,
+          functionExternals: ['node-fetch'],
+        });
+        await browserless.startServer();
+
+        const body = {
+          code: `
+          const fetch = require('node-fetch');
+          module.exports = ({ page }) => {
+            return Promise.resolve({
+              data: 'ok',
+              type: 'application/text',
+            });
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => res.text())
+          .then((res) => {
+            expect(res).toBe('ok');
+          });
+      });
+
+      it('denies functions that require node built-ins', async () => {
+        const browserless = start(defaultParams);
+        await browserless.startServer();
+
+        const body = {
+          code: `
+          const util = require('request');
+          module.exports = ({ page }) => {
+            return Promise.resolve({
+              data: 'ok',
+              type: 'application/text',
+            });
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => res.text())
+          .then((res) => {
+            expect(res).toContain(`Access denied to require 'request'`);
+          });
+      });
+
+      it('denies functions that require external modules', async () => {
+        const browserless = start({
+          ...defaultParams,
+          functionExternals: [],
+        });
+        await browserless.startServer();
+
+        const body = {
+          code: `
+          const fetch = require('node-fetch');
+          module.exports = ({ page }) => {
+            return Promise.resolve({
+              data: 'ok',
+              type: 'application/text',
+            });
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => res.text())
+          .then((res) => {
+            expect(res).toContain(`The module 'node-fetch' is not whitelisted in VM`);
           });
       });
 
