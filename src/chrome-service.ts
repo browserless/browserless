@@ -452,6 +452,7 @@ export class ChromeService {
 
     return puppeteer.launch({
       args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+      executablePath: '/usr/bin/google-chrome',
     })
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);

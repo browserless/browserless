@@ -41,7 +41,10 @@ const getDocs = (docsPage) => [].map.call(
   _ => _);
 
 const getMeta = () => puppeteer
-  .launch()
+  .launch({
+    args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    executablePath: '/usr/bin/google-chrome',
+  })
   .then((browser) => {
     console.log('Chrome launched, compiling hints, protocol and version info...');
     const wsEndpoint = browser.wsEndpoint();

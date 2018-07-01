@@ -40,6 +40,7 @@ const start = async ({ code, flags }) => {
   debug(`Starting sandbox running code "${code}"`);
   const browser = await puppeteer.launch({
     args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    executablePath: '/usr/bin/google-chrome',
   });
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
