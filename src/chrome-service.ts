@@ -198,9 +198,12 @@ export class ChromeService {
 
   public async runWebSocket(req, socket: NodeJS.Socket, head) {
     const jobId = id();
-    const parsedUrl = url.parse(req.url, true);
+    const parsedUrl: any = url.parse(req.url, true);
     const route = parsedUrl.pathname || '/';
-    const debugCode = parsedUrl.query.code as string;
+    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger/');
+    const debugCode = hasDebugCode ?
+      parsedUrl.pathname.replace('/debugger/', '') :
+      '';
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
@@ -209,7 +212,7 @@ export class ChromeService {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
     }
 
-    if (this.config.token && parsedUrl.query.token !== this.config.token) {
+    if (this.config.token && !req.url.includes(this.config.token)) {
       jobdebug(`${jobId}: No token sent, closing with 403.`);
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
     }
@@ -235,7 +238,7 @@ export class ChromeService {
     const handler = debugCode ?
       (done) => {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
-        const code = this.parseUserCode(debugCode, job);
+        const code = this.parseUserCode(decodeURIComponent(debugCode), job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({ code, flags, timeout });
         job.browser = handler;
