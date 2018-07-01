@@ -536,7 +536,7 @@ const puppeteer = require('puppeteer');
 
     const stringifiedCode = encodeURIComponent(code);
     const url = '/devtools/page/A42FC349534EEBA5E61C7DC4EFF11FD3';
-    const params = `${qsParams.length ? '&' : '?'}code=${stringifiedCode}`;
+    const params = qsParams + `${qsParams.length ? '&' : '?'}code=${stringifiedCode}`;
     const wsLocation = `${hostname}${port ? `:${port}` : ''}${url}${params}`;
 
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}&remoteFrontend=true`;
