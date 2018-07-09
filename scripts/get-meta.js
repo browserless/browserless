@@ -42,8 +42,8 @@ const getDocs = (docsPage) => [].map.call(
 
 const getMeta = () => puppeteer
   .launch({
-    args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
-    executablePath: '/usr/bin/google-chrome',
+    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    executablePath: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
   })
   .then((browser) => {
     console.log('Chrome launched, compiling hints, protocol and version info...');

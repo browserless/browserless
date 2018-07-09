@@ -3,8 +3,7 @@ const child = require('child_process');
 const util = require('util');
 const exec = util.promisify(child.exec);
 
-const getMeta = require('./get-meta');
-const { puppeteerVersions } = require('../package.json');
+const { releaseBranches } = require('../package.json');
 
 const DEPLOY_BRANCH = 'master';
 const metaFiles = [
@@ -27,7 +26,7 @@ const logExec = (cmd) => {
 
 const deployPuppeteerVersion = async (version) => {
   console.log(`>>> Deploying ${version} of puppeteer`);
-  await logExec(`git checkout puppeteer-${version} --quiet`);
+  await logExec(`git checkout ${version} --quiet`);
   await logExec(`git merge ${DEPLOY_BRANCH} --strategy-option theirs --commit --quiet`);
   await logExec(`rm -rf node_modules package-lock.json`);
   await logExec(`npm install --silent`);
@@ -45,7 +44,7 @@ const deployPuppeteerVersion = async (version) => {
     }
   }
 
-  await logExec(`git push origin puppeteer-${version} --quiet --no-verify`);
+  await logExec(`git push origin ${version} --quiet --no-verify`);
 }
 
 async function deploy () {
@@ -63,7 +62,7 @@ async function deploy () {
 
   console.log(`>>> On branch ${DEPLOY_BRANCH} and no untracked files in git, proceeding...`);
 
-  puppeteerVersions.reduce((lastJob, puppeteerVersion) => 
+  releaseBranches.reduce((lastJob, puppeteerVersion) => 
     lastJob.then(() => deployPuppeteerVersion(puppeteerVersion)), Promise.resolve());
 }
 
