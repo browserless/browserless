@@ -20,9 +20,19 @@ const {
 } = require('../package-lock.json');
 
 const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVersion}/docs/api.md`;
+const chromeStablePath = '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome';
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
+
+let launchArgs = {
+  args: ['--no-sandbox', '--disable-dev-shm-usage'],
+};
+
+if (process.argv.includes('--chrome-stable')) {
+  console.log(`Using Chrome Stable for meta capturing at: "${chromeStablePath}"`);
+  launchArgs.executablePath = chromeStablePath;
+}
 
 const getDocs = (docsPage) => [].map.call(
   $('h4').has('a[href^="#page"]')
@@ -41,10 +51,7 @@ const getDocs = (docsPage) => [].map.call(
   _ => _);
 
 const getMeta = () => puppeteer
-  .launch({
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
-    executablePath: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
-  })
+  .launch(launchArgs)
   .then((browser) => {
     console.log('Chrome launched, compiling hints, protocol and version info...');
     const wsEndpoint = browser.wsEndpoint();

@@ -31,7 +31,7 @@ const deployPuppeteerVersion = async (version) => {
   await logExec(`rm -rf node_modules package-lock.json`);
   await logExec(`npm install --silent`);
   await logExec(`npm install --silent --save --save-exact puppeteer@${version}`);
-  await logExec(`npm run meta --silent`);
+  await logExec(`npm run meta --silent ${version.includes('chrome-stable') ? '-- --chrome-stable' : ''}`);
 
   for (let file of metaFiles) {
     try {

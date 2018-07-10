@@ -5,7 +5,6 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV application_directory /usr/src/app
 ENV font_directory /usr/share/fonts/noto
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Configuration for Chrome
 ENV CONNECTION_TIMEOUT=60000
@@ -85,10 +84,14 @@ RUN cd $font_directory &&\
   wget https://github.com/googlei18n/noto-cjk/blob/master/NotoSansCJKsc-Medium.otf?raw=true && \
   fc-cache -f -v
 
-# Install Chrome Stable as a backup
-RUN cd /tmp &&\
-  wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
-  dpkg -i google-chrome-stable_current_amd64.deb
+# Install Chrome Stable when on stable branch and set ENV CHROME_STABLE=true
+RUN if [ "$SOURCE_BRANCH" == "chrome-stable"]; \
+    cd /tmp &&\
+    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
+    dpkg -i google-chrome-stable_current_amd64.deb &&\
+    export CHROME_STABLE=true &&\
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\
+  fi 
 
 # Build 
 RUN npm install -g typescript @types/node &&\
