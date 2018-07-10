@@ -3,12 +3,13 @@ FROM ubuntu:16.04
 # Application parameters and variables
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV application_directory /usr/src/app
-ENV font_directory /usr/share/fonts/noto
+ENV application_directory=/usr/src/app
+ENV font_directory=/usr/share/fonts/noto
 
 # Configuration for Chrome
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
+ENV USE_CHROME_STABLE=$USE_CHROME_STABLE
 
 RUN mkdir -p $application_directory
 RUN mkdir -p $font_directory
