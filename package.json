@@ -2,6 +2,7 @@
   "name": "browserless-chrome",
   "version": "1.0.0-alpha",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
+  "repository": "joelgriffith/browserless",
   "main": "build/index.js",
   "files": [
     "build/main.css",

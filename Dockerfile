@@ -85,13 +85,13 @@ RUN cd $font_directory &&\
   fc-cache -f -v
 
 # Install Chrome Stable when on stable branch and set ENV CHROME_STABLE=true
-RUN if [ "$SOURCE_BRANCH" == "chrome-stable"]; \
-    then cd /tmp &&\
+RUN if [ "$SOURCE_BRANCH" = "chrome-stable" ]; then \
+    cd /tmp &&\
     wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb &&\
     export USE_CHROME_STABLE=true &&\
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\
-  fi 
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true; \
+  fi
 
 # Build 
 RUN npm install -g typescript @types/node &&\
