@@ -20,7 +20,7 @@ function readJson {
 }
 
 docker build \
-  --build-arg SOURCE_BRANCH=$(git branch)
+  --build-arg SOURCE_BRANCH=$(git branch)\
   --label "browser=$(readJson version.json Browser)"\
   --label "protocolVersion=$(readJson version.json Protocol-Version)"\
   --label "v8Version=$(readJson version.json V8-Version)"\
