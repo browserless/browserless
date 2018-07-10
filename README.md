@@ -32,7 +32,7 @@ Your application still runs the script itself (much like a database interaction)
 ⚠️ HOSTING: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site needs to be deployed under HTTPS. This is due to devtools scripts being loaded from a secure domain. For further help/information look at some projects like localtunnel, certbot, or even netlify to achieve these efforts.
 
 1. `docker pull browserless/chrome`
-2. `docker run --shm-size=1gb -p 3000:3000 browserless/chrome`
+2. `docker run -p 3000:3000 browserless/chrome`
 3. Visit `http://localhost:3000/` to use the interactive debugger.
 
 ## 💻 Node Quickstart
@@ -62,6 +62,21 @@ browserless ships with an interactive debugger that makes writing scripts faster
 - Errors in the script are caught and show up in the `console` tab
 - You can inspect the DOM, watch network requests, and even see how the page is rendering
 - Coming soon you'll be able to export the script which will produce a `index.js` and a `package.json` to get things going
+
+## Recommended NGINX Config
+
+If you're using nginx in front of the docker image (or Node) then you'll need to proxy through Upgrade headers. Below is an example of a location block that does such:
+
+```
+location / {
+    proxy_pass YOUR_DOCKER_IMAGE_LOCATION;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+  }
+```
 
 ## Hosting Providers
 
@@ -119,7 +134,7 @@ All of these issues prompted me to build a first-class image and workflow for in
 
 ## Corporate license
 
-If you want to use browserless to build commercial sites and applications then the corporate license is what you're after. This allows you to keep your software proprietary whilst still using browserless. [Contact us for more details](mailto:sales@browserless.io)
+If you want to use browserless to build commercial sites and applications then the corporate license is what you're after. This allows you to keep your software proprietary whilst still using browserless. [Contact us for more details](mailto:license@browserless.io)
 
 ## Open source license
 
