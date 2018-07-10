@@ -86,7 +86,7 @@ RUN cd $font_directory &&\
 
 # Install Chrome Stable when on stable branch and set ENV CHROME_STABLE=true
 RUN if [ "$SOURCE_BRANCH" == "chrome-stable"]; \
-    cd /tmp &&\
+    then cd /tmp &&\
     wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb &&\
     export USE_CHROME_STABLE=true &&\
