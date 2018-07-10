@@ -84,16 +84,11 @@ RUN cd $font_directory &&\
   wget https://github.com/googlei18n/noto-cjk/blob/master/NotoSansCJKsc-Medium.otf?raw=true && \
   fc-cache -f -v
 
-# Install Chrome Stable when on stable branch and set ENV CHROME_STABLE=true
-RUN if [ "$SOURCE_BRANCH" = "chrome-stable" ]; then \
+# Install Chrome Stable when specified
+RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     cd /tmp &&\
     wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
-    dpkg -i google-chrome-stable_current_amd64.deb &&\
-    export USE_CHROME_STABLE=true &&\
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true; \
-  else\
-    export USE_CHROME_STABLE=false &&\
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false; \
+    dpkg -i google-chrome-stable_current_amd64.deb; \
   fi
 
 ENV USE_CHROME_STABLE=$USE_CHROME_STABLE
