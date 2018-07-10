@@ -91,7 +91,13 @@ RUN if [ "$SOURCE_BRANCH" = "chrome-stable" ]; then \
     dpkg -i google-chrome-stable_current_amd64.deb &&\
     export USE_CHROME_STABLE=true &&\
     export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true; \
+  else\
+    export USE_CHROME_STABLE=false &&\
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false; \
   fi
+
+ENV USE_CHROME_STABLE=$USE_CHROME_STABLE
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=$PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
 
 # Build 
 RUN npm install -g typescript @types/node &&\
