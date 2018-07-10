@@ -450,13 +450,17 @@ export class ChromeService {
 
   private async launchChrome(flags: string[] = [], retries: number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
+    const launchArgs: puppeteer.LaunchOptions = {
+      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    };
+
+    if (this.config.useChromeStable) {
+      launchArgs.executablePath = '/usr/bin/google-chrome';
+    }
 
     sysdebug(`Starting Chrome with flags: ${flags}`);
 
-    return puppeteer.launch({
-      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
-      executablePath: '/usr/bin/google-chrome',
-    })
+    return puppeteer.launch(launchArgs)
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
