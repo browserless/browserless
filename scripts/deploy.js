@@ -3,9 +3,10 @@ const child = require('child_process');
 const util = require('util');
 const exec = util.promisify(child.exec);
 
-const { releaseBranches } = require('../package.json');
-
-const versionRegex = /\bv?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?\b/g;
+const {
+  releaseBranches,
+  puppeteerVersions,
+} = require('../package.json');
 
 const DEFAULT_PUPPETEER_VERSION = '1.4.0';
 const DEPLOY_BRANCH = 'master';
@@ -28,8 +29,7 @@ const logExec = (cmd) => {
 };
 
 const deployPuppeteerVersion = async (branch) => {
-  const hasVersion = branch.match(versionRegex);
-  const version = hasVersion ? hasVersion[0] : DEFAULT_PUPPETEER_VERSION;
+  const version = puppeteerVersions[branch];
 
   console.log(`>>> Deploying release ${branch} of browserless, puppeteer@${version}`);
 
