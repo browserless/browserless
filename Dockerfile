@@ -98,7 +98,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
 # Build 
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
-  fi\
+  fi &&\
   npm install -g typescript @types/node &&\
   npm install &&\
   npm run build

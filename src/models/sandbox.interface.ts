@@ -1,6 +1,7 @@
 export interface IConfig {
   code: string;
   timeout: number;
+  useChromeStable: boolean;
   flags?: string[];
 }
 
