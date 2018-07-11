@@ -3,12 +3,16 @@ FROM ubuntu:16.04
 # Application parameters and variables
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV application_directory /usr/src/app
-ENV font_directory /usr/share/fonts/noto
+ENV application_directory=/usr/src/app
+ENV font_directory=/usr/share/fonts/noto
+
+# Build Args
+ARG USE_CHROME_STABLE
 
 # Configuration for Chrome
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
+ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
 
 RUN mkdir -p $application_directory
 RUN mkdir -p $font_directory
@@ -24,6 +28,7 @@ COPY . .
 
 # Dependencies needed for packages downstream
 RUN apt-get update && apt-get install -y \
+  chromium-codecs-ffmpeg \
   unzip \
   fontconfig \
   locales \
@@ -83,8 +88,18 @@ RUN cd $font_directory &&\
   wget https://github.com/googlei18n/noto-cjk/blob/master/NotoSansCJKsc-Medium.otf?raw=true && \
   fc-cache -f -v
 
+# Install Chrome Stable when specified
+RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
+    cd /tmp &&\
+    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
+    dpkg -i google-chrome-stable_current_amd64.deb;\
+  fi
+
 # Build 
-RUN npm install -g typescript @types/node &&\
+RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
+  fi\
+  npm install -g typescript @types/node &&\
   npm install &&\
   npm run build
 
