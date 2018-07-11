@@ -5,6 +5,9 @@ const exec = util.promisify(child.exec);
 
 const { releaseBranches } = require('../package.json');
 
+const versionRegex = /\bv?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?\b/g;
+
+const DEFAULT_PUPPETEER_VERSION = '1.4.0';
 const DEPLOY_BRANCH = 'master';
 const metaFiles = [
   'package.json',
@@ -24,9 +27,13 @@ const logExec = (cmd) => {
   });
 };
 
-const deployPuppeteerVersion = async (version) => {
-  console.log(`>>> Deploying ${version} of puppeteer`);
-  await logExec(`git checkout ${version} --quiet`);
+const deployPuppeteerVersion = async (branch) => {
+  const hasVersion = branch.match(versionRegex);
+  const version = hasVersion ? hasVersion[0] : DEFAULT_PUPPETEER_VERSION;
+
+  console.log(`>>> Deploying release ${branch} of browserless, puppeteer@${version}`);
+
+  await logExec(`git checkout ${branch} --quiet`);
   await logExec(`git merge ${DEPLOY_BRANCH} --strategy-option theirs --commit --quiet`);
   await logExec(`rm -rf node_modules package-lock.json`);
   await logExec(`npm install --silent`);
