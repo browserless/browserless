@@ -20,16 +20,13 @@ function readJson {
 }
 
 USE_CHROME_STABLE=false;
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false;
 
 if [ "$SOURCE_BRANCH" = "chrome-stable" ]; then
   USE_CHROME_STABLE=true;
-  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;
 fi
 
 docker build \
   --build-arg "USE_CHROME_STABLE=$USE_CHROME_STABLE"\
-  --build-arg "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=$PUPPETEER_SKIP_CHROMIUM_DOWNLOAD"\
   --label "browser=$(readJson version.json Browser)"\
   --label "protocolVersion=$(readJson version.json Protocol-Version)"\
   --label "v8Version=$(readJson version.json V8-Version)"\

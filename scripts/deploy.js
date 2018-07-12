@@ -51,7 +51,7 @@ const deployPuppeteerVersion = async (branch) => {
     }
   }
 
-  await logExec(`git push origin ${version} --quiet --no-verify`);
+  await logExec(`git push origin ${branch} --quiet --no-verify`);
 }
 
 async function deploy () {

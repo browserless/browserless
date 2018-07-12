@@ -240,7 +240,12 @@ export class ChromeService {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
         const code = this.parseUserCode(decodeURIComponent(debugCode), job);
         const timeout = this.config.connectionTimeout;
-        const handler = new BrowserlessSandbox({ code, flags, timeout });
+        const handler = new BrowserlessSandbox({
+          code,
+          flags,
+          timeout,
+          useChromeStable: this.config.useChromeStable,
+        });
         job.browser = handler;
 
         socket.removeListener('close', earlyClose);
@@ -458,7 +463,7 @@ export class ChromeService {
       launchArgs.executablePath = '/usr/bin/google-chrome';
     }
 
-    sysdebug(`Starting Chrome with flags: ${flags}`);
+    sysdebug(`Starting Chrome with args: ${JSON.stringify(launchArgs)}`);
 
     return puppeteer.launch(launchArgs)
       .then((chrome) => {
