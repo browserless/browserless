@@ -237,7 +237,7 @@ export class BrowserlessServer {
       return this.server = http
         .createServer(app)
         .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
-        .listen(this.config.port, resolve);
+        .listen(this.config.port, this.config.host, resolve);
     });
   }
 

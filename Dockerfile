@@ -2,6 +2,7 @@ FROM ubuntu:16.04
 
 # Application parameters and variables
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV application_directory=/usr/src/app
 ENV font_directory=/usr/share/fonts/noto
@@ -97,7 +98,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     dpkg -i google-chrome-stable_current_amd64.deb; \
   fi
 
-# Build 
+# Build
 RUN npm install -g typescript @types/node &&\
   npm install &&\
   npm run build
