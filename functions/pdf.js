@@ -37,7 +37,7 @@ module.exports = async function pdf({ page, context }) {
 
     page.goto('http://localhost');
 
-    await Promise.race([
+    await Promise.all([
       page.waitForNavigation({waitUntil: 'load'}),
       page.waitForNavigation({waitUntil: 'networkidle0'})
     ]);
