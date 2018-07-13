@@ -3,6 +3,7 @@ export interface IBrowserlessOptions
     IChromeServiceConfiguration {}
 
 export interface IBrowserlessServerConfiguration {
+  host: string | undefined;
   port: number;
   token: string | null;
   rejectAlertURL: string | null;
