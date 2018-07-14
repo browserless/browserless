@@ -70,6 +70,8 @@ RUN apt-get update && apt-get install -y \
   libnss3 \
   lsb-release \
   xdg-utils \
+  imagemagick \
+  graphicsmagick\
   wget
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
