@@ -142,48 +142,49 @@ export class ChromeService {
           .map((value, key) => `${key}${value ? `=${value}` : ''}`)
           .value();
 
-        this.getChrome(flags).then(async (browser) => {
-          const page = await browser.newPage();
+        this.getChrome(flags)
+          .then(async (browser) => {
+            const page = await browser.newPage();
 
-          jobdetaildebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
-          job.browser = browser;
+            jobdetaildebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+            job.browser = browser;
 
-          req.removeListener('close', earlyClose);
-          req.once('close', () => {
-            jobdebug(`${job.id}: Request terminated during execution, closing`);
-            done();
-          });
-
-          Promise.resolve(handler({ page, context }))
-            .then(({ data, type = 'text/plain' } = {}) => {
-              jobdebug(`${job.id}: Function complete, cleaning up.`);
-
-              // If we've already responded (detached)
-              // Then call done and return
-              if (res.headersSent) {
-                return done();
-              }
-
-              res.type(type);
-
-              if (Buffer.isBuffer(data)) {
-                res.end(data, 'binary');
-              } else if (type.includes('json')) {
-                res.json(data);
-              } else {
-                res.send(data);
-              }
-
-              return done();
-            })
-            .catch((error) => {
-              if (!res.headersSent) {
-                res.status(500).send(error.message);
-              }
-              jobdebug(`${job.id}: Function errored, stopping Chrome`);
+            req.removeListener('close', earlyClose);
+            req.once('close', () => {
+              jobdebug(`${job.id}: Request terminated during execution, closing`);
               done();
             });
-        });
+
+            return Promise.resolve(handler({ page, context }))
+              .then(({ data, type = 'text/plain' } = {}) => {
+                jobdebug(`${job.id}: Function complete, cleaning up.`);
+
+                // If we've already responded (detached)
+                // Then call done and return
+                if (res.headersSent) {
+                  return done();
+                }
+
+                res.type(type);
+
+                if (Buffer.isBuffer(data)) {
+                  res.end(data, 'binary');
+                } else if (type.includes('json')) {
+                  res.json(data);
+                } else {
+                  res.send(data);
+                }
+
+                return done();
+              });
+          })
+          .catch((error) => {
+            if (!res.headersSent) {
+              res.status(500).send(error.message);
+            }
+            jobdebug(`${job.id}: Function errored, stopping Chrome`);
+            done();
+          });
       },
       {
         browser: null,

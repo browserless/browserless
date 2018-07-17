@@ -506,6 +506,41 @@ describe('Browserless Chrome', () => {
             expect(message).toEqual(error);
           });
       });
+
+      it('catches errors in browserless', async () => {
+        const error = 'Bad Request!';
+        const browserless = start({
+          ...defaultParams,
+          useChromeStable: true,
+        });
+
+        await browserless.startServer();
+
+        const body = {
+          code: `module.exports = async ({ page }) => {
+            return {
+              data: 'cool!',
+            };
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toEqual(500);
+            expect(res.ok).toEqual(false);
+            return res.text();
+          })
+          .then((message) => {
+            expect(message).toContain('Failed to launch chrome! spawn /usr/bin/google-chrome ENOENT');
+          });
+      });
     });
 
     it.skip('allows requests to /screenshot', () => {});
