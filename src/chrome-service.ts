@@ -146,7 +146,7 @@ export class ChromeService {
           .then(async (browser) => {
             const page = await browser.newPage();
 
-            jobdetaildebug(`${job.id}: Executing function: ${JSON.stringify({ code, context })}`);
+            jobdetaildebug(`${job.id}: Executing function.`);
             job.browser = browser;
 
             req.removeListener('close', earlyClose);
