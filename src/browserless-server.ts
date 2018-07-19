@@ -285,7 +285,7 @@ export class BrowserlessServer {
 
   private async recordMetrics() {
     const { cpuUsage, memoryUsage } = await this.resourceMonitor.getMachineStats();
-    debug(`Logging metrics for the current period: ${this.stats.length}`);
+
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
       cpu: cpuUsage,

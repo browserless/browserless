@@ -26,11 +26,19 @@ export class ChromeService {
   constructor(config: IChromeServiceConfiguration, server: BrowserlessServer) {
     this.config = config;
     this.server = server;
-    this.queue = queue({
+
+    const queueParams: any = {
       autostart: true,
       concurrency: this.config.maxConcurrentSessions,
-      timeout: this.config.connectionTimeout,
-    });
+    };
+
+    if (this.config.connectionTimeout !== -1) {
+      queueParams.timeout = this.config.connectionTimeout;
+    }
+
+    sysdebug(`Queue started with params ${JSON.stringify(queueParams)}`);
+
+    this.queue = queue(queueParams);
 
     this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
