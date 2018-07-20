@@ -478,6 +478,32 @@ describe('Browserless Chrome', () => {
           });
       });
 
+      it('times-out requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          connectionTimeout: 1,
+        });
+        await browserless.startServer();
+
+        const body = {
+          code: `module.exports = ({ page }) => {
+            return new Promise(() => {});
+          }`,
+          context: {},
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/function`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toEqual(408);
+          });
+      });
+
       it('catches errors', async () => {
         const error = 'Bad Request!';
         const browserless = start(defaultParams);

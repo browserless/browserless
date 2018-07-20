@@ -7,6 +7,7 @@ export interface IJob {
   id: string;
   browser: Browser | BrowserlessSandbox | null;
   close: () => any;
+  timeout: () => any;
 }
 
 export interface IQueue<IJob> extends EventEmitter, Array<IJob> {

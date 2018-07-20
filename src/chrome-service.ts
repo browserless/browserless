@@ -198,6 +198,13 @@ export class ChromeService {
         browser: null,
         close: () => this.cleanUpJob(job),
         id: jobId,
+        timeout: () => {
+          if (!res.headersSent) {
+            jobdebug(`${job.id}: Function has timed-out, sending 408.`);
+            res.status(408).send('browserless function has timed-out');
+          }
+          jobdebug(`${job.id}: Function has timed-out but headers already sent...`);
+        },
       },
     );
 
@@ -305,6 +312,10 @@ export class ChromeService {
       browser: null,
       close: () => this.cleanUpJob(job),
       id: jobId,
+      timeout: () => {
+        jobdebug(`${job.id}: Job has timed-out, closing the WebSocket.`);
+        socket.end();
+      },
     };
 
     const job: IJob = Object.assign(handler, jobProps);
@@ -352,6 +363,7 @@ export class ChromeService {
     jobdebug(`${job.id}: Recording timedout stat.`);
     this.server.currentStat.timedout++;
     this.server.timeoutHook();
+    job.timeout();
     job.close();
     next();
   }
