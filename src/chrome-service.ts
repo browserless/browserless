@@ -86,6 +86,10 @@ export class ChromeService {
     if (this.config.prebootChrome) {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
+      if (this.config.maxConcurrentSessions > 10) {
+        process.setMaxListeners(this.config.maxConcurrentSessions);
+      }
+
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
         const chrome = this.launchChrome();
         this.chromeSwarm.push(chrome);
