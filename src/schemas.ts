@@ -21,6 +21,7 @@ export const content = Joi.object().keys({
 });
 
 export const pdf = Joi.object().keys({
+  emulateMedia: Joi.string().valid('screen', 'print'),
   html: Joi.string(),
   options: Joi.object().keys({
     displayHeaderFooter: Joi.boolean(),

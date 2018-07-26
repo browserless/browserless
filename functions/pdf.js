@@ -20,7 +20,16 @@
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
 module.exports = async function pdf({ page, context }) {
-  const { url, html, options } = context;
+  const {
+    emulateMedia,
+    html,
+    options,
+    url,
+  } = context;
+
+  if (emulateMedia) {
+    await page.emulateMedia(emulateMedia);
+  }
 
   if (url != null) {
     await page.goto(url);
@@ -31,7 +40,7 @@ module.exports = async function pdf({ page, context }) {
 
     await page.setRequestInterception(true);
     page.once('request', request => {
-      request.respond({body: html});
+      request.respond({ body: html });
       page.on('request', request => request.continue());
     });
 
