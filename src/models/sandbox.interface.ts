@@ -7,5 +7,6 @@ export interface IConfig {
 
 export interface IMessage {
   event: string;
-  context: any;
+  context?: any;
+  error?: string;
 }
