@@ -158,6 +158,14 @@ export class ChromeService {
           .then(async (browser) => {
             const page = await browser.newPage();
 
+            page.on('error', (error) => {
+              jobdebug(`${job.id}: Error on page: ${error.message}`);
+              if (!res.headersSent) {
+                res.status(500).send(error.message);
+              }
+              done();
+            });
+
             jobdetaildebug(`${job.id}: Executing function.`);
             job.browser = browser;
 
