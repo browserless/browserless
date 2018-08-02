@@ -156,6 +156,7 @@ export class ChromeService {
 
         this.getChrome(flags)
           .then(async (browser) => {
+            jobdetaildebug(`${job.id}: Executing function.`);
             const page = await browser.newPage();
 
             page.on('error', (error) => {
@@ -166,7 +167,6 @@ export class ChromeService {
               done();
             });
 
-            jobdetaildebug(`${job.id}: Executing function.`);
             job.browser = browser;
 
             req.removeListener('close', earlyClose);
