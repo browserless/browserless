@@ -284,6 +284,12 @@ export class ChromeService {
           jobdebug(`${job.id}: Got URL ${url}, proxying traffic to ${port}.`);
           this.server.proxy.ws(req, socket, head, { target: `ws://127.0.0.1:${port}` });
         });
+
+        handler.on('error', () => {
+          jobdebug(`${job.id}: Debugger crashed, exiting connection`);
+          done();
+          socket.end();
+        });
       } :
       (done) => {
         jobdebug(`${job.id}: Getting browser.`);

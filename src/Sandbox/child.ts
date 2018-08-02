@@ -54,6 +54,13 @@ const start = async (
   const browser = await puppeteer.launch(launchArgs);
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
+  page.on('error', (error) => {
+    debug(`Page error: ${error.message}`);
+    send({
+      error,
+      event: 'error',
+    });
+  });
   const pageLocation = `/devtools/page/${page._target._targetId}`;
   const port = url.parse(browserWsEndpoint).port;
   const data = {

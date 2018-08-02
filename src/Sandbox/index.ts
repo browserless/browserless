@@ -26,6 +26,12 @@ export class BrowserlessSandbox extends EventEmitter {
         debug(`Sandbox ready, forwarding location`);
         this.emit('launched', message.context);
       }
+
+      if (message.event === 'error') {
+        debug(`Sandbox crashed, closing`);
+        this.emit('error', message.context);
+        this.close();
+      }
     });
 
     this.child.send({
