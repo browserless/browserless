@@ -29,6 +29,7 @@ COPY . .
 
 # Dependencies needed for packages downstream
 RUN apt-get update && apt-get install -y \
+  pdftk \
   chromium-codecs-ffmpeg \
   unzip \
   fontconfig \

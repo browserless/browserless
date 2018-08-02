@@ -21,10 +21,11 @@
 module.exports = async function screenshot ({ page, context }) {
   const {
     url,
+    gotoOptions,
     options = {},
   } = context;
 
-  await page.goto(url);
+  await page.goto(url, gotoOptions);
 
   const data = await page.screenshot(options);
 

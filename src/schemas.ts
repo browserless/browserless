@@ -1,6 +1,13 @@
 import * as Joi from 'joi';
 
+const gotoOptions = Joi.object().keys({
+  timeout: Joi.number(),
+  waitUntil: Joi.string()
+    .valid('load', 'domcontentloaded', 'networkidle0', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
+});
+
 export const screenshot = Joi.object().keys({
+  gotoOptions,
   options: Joi.object().keys({
     clip: Joi.object().keys({
       height: Joi.number().min(0),
@@ -17,11 +24,13 @@ export const screenshot = Joi.object().keys({
 });
 
 export const content = Joi.object().keys({
+  gotoOptions,
   url: Joi.string().required(),
 });
 
 export const pdf = Joi.object().keys({
   emulateMedia: Joi.string().valid('screen', 'print'),
+  gotoOptions,
   html: Joi.string(),
   options: Joi.object().keys({
     displayHeaderFooter: Joi.boolean(),
@@ -42,6 +51,11 @@ export const pdf = Joi.object().keys({
     scale: Joi.number().min(0),
     width: Joi.any().optional(),
   }),
+  safeMode: Joi.boolean().default(
+    false,
+    'Whether to safely generate the PDF (renders pages one-at-a-time and merges it in-memory). ' +
+    'Can prevent page crashes but is slower, consumes more memory, and returns a larger PDF.',
+  ),
   url: Joi.string(),
 }).xor('url', 'html');
 

@@ -19,12 +19,49 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
+const buildPages = async (page, opts) => {
+  const pdftk = require('node-pdftk');
+  const pageBuffers = [];
+  let complete = false;
+  let pageCount = 1;
+
+  // If ranges are specified, don't render them all
+  if (opts.pageRanges) {
+    return page.pdf(opts);
+  }
+
+  while (!complete) {
+    try {
+      const buffer = await page.pdf({
+        ...opts,
+        pageRanges: pageCount.toString(),
+      });
+      pageBuffers.push(buffer);
+      pageCount = pageCount + 1;
+    } catch(error) {
+      if (error.message && error.message.includes('Page range exceeds page count')) {
+        complete = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return pdftk
+    .input(pageBuffers)
+    .cat()
+    .compress()
+    .output();
+};
+
 module.exports = async function pdf({ page, context }) {
   const {
     emulateMedia,
     html,
     options,
     url,
+    safeMode,
+    gotoOptions,
   } = context;
 
   if (emulateMedia) {
@@ -32,7 +69,7 @@ module.exports = async function pdf({ page, context }) {
   }
 
   if (url != null) {
-    await page.goto(url);
+    await page.goto(url, gotoOptions);
   } else {
     // Whilst there is no way of waiting for all requests to finish with setContent,
     // you can simulate a webrequest this way
@@ -50,10 +87,11 @@ module.exports = async function pdf({ page, context }) {
       page.waitForNavigation({waitUntil: 'load'}),
       page.waitForNavigation({waitUntil: 'networkidle0'})
     ]);
-
   }
 
-  const data = await page.pdf(options);
+  const data = safeMode ?
+    await buildPages(page, options) :
+    await page.pdf(options);
 
   return {
     data,

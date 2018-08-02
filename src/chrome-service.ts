@@ -110,7 +110,7 @@ export class ChromeService {
   ) {
     const jobId = id();
 
-    jobdebug(`${jobId}: ${req.url}: Inbound HTTP request.`);
+    jobdebug(`${jobId}: ${req.url}: Inbound HTTP request`);
 
     if (this.config.demoMode) {
       jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
