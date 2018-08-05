@@ -8,19 +8,6 @@ node_js:
 matrix:
   fast_finish: true
 
-# TODO: Clean these up once we land on a stable
-# way to "remove" puppeteer from the build process
-branches:
-  only:
-    - master
-    - chrome-stable
-    - puppeteer-1.0.0
-    - puppeteer-1.1.1
-    - puppeteer-1.2.0
-    - puppeteer-1.3.0
-    - puppeteer-1.4.0
-    - puppeteer-1.5.0
-
 install:
   - npm uninstall typescript --no-save
   - npm uninstall tslint --no-save
