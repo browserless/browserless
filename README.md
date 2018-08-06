@@ -1,5 +1,6 @@
 ![browserless splash logo](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/splash.png)
 
+[![Build Status](https://travis-ci.org/joelgriffith/browserless.svg?branch=master)](https://travis-ci.org/joelgriffith/browserless)
 
 [Visit a live demo in Chrome here](https://chrome.browserless.io/).
 

@@ -1,0 +1,24 @@
+language: nodejs
+
+node_js:
+  - 'stable'
+  - '8'
+  - '6'
+
+matrix:
+  fast_finish: true
+
+install:
+  - npm uninstall typescript --no-save
+  - npm uninstall tslint --no-save
+  - npm install
+
+script:
+  - npm run lint
+
+cache:
+  directories:
+    - node_modules
+
+git:
+  depth: 1
