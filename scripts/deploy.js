@@ -71,7 +71,7 @@ async function cleanRemoteBranches() {
 async function cleanReleaseBranches() {
   return Promise.all([
     cleanLocalBranches(),
-    cleanReleaseBranches(),
+    cleanRemoteBranches(),
   ]);
 }
 
