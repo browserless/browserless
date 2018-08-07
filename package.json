@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "deploy": "./scripts/deploy.js",
+    "deploy": "npm run build && ./scripts/deploy.js",
     "dev": "npm run build && cross-env ENABLE_CORS=true MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless* PORT=3030 node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",

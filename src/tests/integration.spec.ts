@@ -1,7 +1,9 @@
 import { exec as execNode } from 'child_process';
 import * as puppeteer from 'puppeteer';
 import * as util from 'util';
+
 import { BrowserlessServer } from '../browserless-server';
+import { sleep } from '../utils';
 
 const fetch = require('node-fetch');
 
@@ -27,12 +29,6 @@ const defaultParams = {
   rejectAlertURL: null,
   timeoutAlertURL: null,
   token: null,
-};
-
-const sleep = (time = 0) => {
-  return new Promise((resolve) => {
-    setTimeout(resolve, time);
-  });
 };
 
 const throws = () => {
