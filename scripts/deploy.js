@@ -34,7 +34,12 @@ const deployPuppeteerVersion = async (branch) => {
 
   debug(`${branch}: Deploying release of browserless, puppeteer@${version}`);
 
-  await logExec(`git checkout ${DEPLOY_BRANCH}`);
+  const branch = await logExec('git rev-parse --abbrev-ref HEAD');
+
+  if (branch !== DEPLOY_BRANCH) {
+    await logExec(`git checkout ${DEPLOY_BRANCH}`);
+  }
+
   await logExec(`git checkout -b ${branch} --quiet`);
   await logExec(`npm install --silent --save --save-exact puppeteer@${version}`);
   await logExec(`npm run meta --silent ${version.includes('chrome-stable') ? '-- --chrome-stable' : ''}`);
