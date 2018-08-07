@@ -59,13 +59,21 @@ const deployPuppeteerVersion = async (branch) => {
 }
 
 async function cleanLocalBranches() {
-  return exec(`git branch -D ${releaseBranches.join(' ')}`)
-    .catch(() => {})
+  return Promise.all(
+    releaseBranches.map((branch) =>
+      exec(`git branch -D ${branch}`)
+        .catch(() => {})
+    )
+  );
 }
 
 async function cleanRemoteBranches() {
-  return exec(`git push origin --delete ${releaseBranches.join(' ')}`)
-    .catch(() => {});
+  return Promise.all(
+    releaseBranches.map((branch) =>
+      exec(`git push origin --delete ${branch}`)
+        .catch(() => {})
+    )
+  );
 }
 
 async function cleanReleaseBranches() {
