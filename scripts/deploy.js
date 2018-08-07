@@ -3,7 +3,6 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
-const { sleep } = require('../build/utils');
 
 const {
   releaseBranches,
@@ -112,13 +111,9 @@ async function deploy () {
   await releaseBranches.reduce((lastJob, puppeteerVersion) =>
     lastJob.then(() => deployPuppeteerVersion(puppeteerVersion)), Promise.resolve());
 
-  // Wait one minute for builds to start
-  await sleep(60000);
-
   debug(`Checking out master and removing release branches.`);
 
   await checkoutReleaseBranch();
-  await cleanReleaseBranches();
 }
 
 deploy();
