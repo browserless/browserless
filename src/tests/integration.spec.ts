@@ -47,9 +47,11 @@ describe('Browserless Chrome', () => {
   let browserless: BrowserlessServer = null;
   const start = (args) => browserless = new BrowserlessServer(args);
 
-  afterEach(() => {
+  afterEach(async () => {
     browserless.close();
     browserless = null;
+
+    return exec('killall Chromium').catch(() => {});
   });
 
   describe('WebSockets', () => {
