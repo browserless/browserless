@@ -70,7 +70,7 @@ async function cleanLocalBranches() {
 async function cleanRemoteBranches() {
   return Promise.all(
     releaseBranches.map((branch) =>
-      exec(`git push origin --delete ${branch}`)
+      exec(`git push origin --delete ${branch} --quiet --no-verify`)
         .catch(() => {})
     )
   );
@@ -99,7 +99,7 @@ async function deploy () {
   }
 
   debug(`On branch ${DEPLOY_BRANCH} and no un-tracked files in git, proceeding to build deployment.`);
-  debug(`Cleaning out local deployment branches`);
+  debug(`Cleaning out local and remote deployment branches`);
 
   await cleanReleaseBranches();
 
