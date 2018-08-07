@@ -54,7 +54,8 @@ const deployPuppeteerVersion = async (branch) => {
 }
 
 async function cleanLocalBranches() {
-  return exec(`git branch -D ${releaseBranches.join(' ')}`);
+  return exec(`git branch -D ${releaseBranches.join(' ')}`)
+    .catch(() => {})
 }
 
 async function cleanRemoteBranches() {
