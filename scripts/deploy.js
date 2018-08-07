@@ -20,7 +20,7 @@ const metaFiles = [
 ];
 
 const logExec = (cmd) => {
-  debug(`Running: "${cmd}"`);
+  debug(`  "${cmd}"`);
   return exec(cmd).then(({ stdout, stderr }) => {
     if (stderr.trim().length) {
       throw new Error(stderr);
@@ -28,6 +28,10 @@ const logExec = (cmd) => {
     return stdout.trim();
   });
 };
+
+async function checkoutReleaseBranch () {
+  return logExec(`git checkout ${DEPLOY_BRANCH} --quiet`);
+}
 
 const deployPuppeteerVersion = async (branch) => {
   const version = puppeteerVersions[branch];
@@ -37,7 +41,7 @@ const deployPuppeteerVersion = async (branch) => {
   const currentBranch = await logExec('git rev-parse --abbrev-ref HEAD');
 
   if (currentBranch !== DEPLOY_BRANCH) {
-    await logExec(`git checkout ${DEPLOY_BRANCH} --quiet`);
+    await checkoutReleaseBranch;
   }
 
   await logExec(`git checkout -b ${branch} --quiet`);
@@ -111,9 +115,10 @@ async function deploy () {
   // Wait one minute for builds to start
   await sleep(60000);
 
-  await cleanReleaseBranches();
+  debug(`Checking out master and removing release branches.`);
 
-  debug(`Local and remote branches have been removed`);
+  await checkoutReleaseBranch();
+  await cleanReleaseBranches();
 }
 
 deploy();
