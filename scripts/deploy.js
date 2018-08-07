@@ -64,7 +64,15 @@ async function cleanLocalBranches() {
 }
 
 async function cleanRemoteBranches() {
-  return exec(`git push origin --delete ${releaseBranches.join(' ')}`);
+  return exec(`git push origin --delete ${releaseBranches.join(' ')}`)
+    .catch(() => {});
+}
+
+async function cleanReleaseBranches() {
+  return Promise.all([
+    cleanLocalBranches(),
+    cleanReleaseBranches(),
+  ]);
 }
 
 async function deploy () {
@@ -85,7 +93,7 @@ async function deploy () {
   debug(`On branch ${DEPLOY_BRANCH} and no un-tracked files in git, proceeding to build deployment.`);
   debug(`Cleaning out local deployment branches`);
 
-  await cleanLocalBranches();
+  await cleanReleaseBranches();
 
   debug(`Starting release`);
 
@@ -95,8 +103,7 @@ async function deploy () {
   // Wait one minute for builds to start
   await sleep(60000);
 
-  await cleanLocalBranches();
-  await cleanRemoteBranches();
+  await cleanReleaseBranches();
 
   debug(`Local and remote branches have been removed`);
 }
