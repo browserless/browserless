@@ -37,7 +37,7 @@ const deployPuppeteerVersion = async (branch) => {
   const currentBranch = await logExec('git rev-parse --abbrev-ref HEAD');
 
   if (currentBranch !== DEPLOY_BRANCH) {
-    await logExec(`git checkout ${DEPLOY_BRANCH}`);
+    await logExec(`git checkout ${DEPLOY_BRANCH} --quiet`);
   }
 
   await logExec(`git checkout -b ${branch} --quiet`);
