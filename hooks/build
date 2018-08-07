@@ -34,3 +34,9 @@ docker build \
   --label "debuggerVersion=$(readJson version.json Debugger-Version)"\
   --label "puppeteerVersion=$(readJson version.json Puppeteer-Version)"\
   -t $IMAGE_NAME .
+
+# Destroy the remote release branch since they're
+# only useful for building the docker images
+if [ "$SOURCE_BRANCH" != "master" ]; then
+  git push origin --delete $SOURCE_BRANCH;
+fi
