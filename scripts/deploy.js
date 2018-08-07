@@ -34,9 +34,9 @@ const deployPuppeteerVersion = async (branch) => {
 
   debug(`${branch}: Deploying release of browserless, puppeteer@${version}`);
 
-  const branch = await logExec('git rev-parse --abbrev-ref HEAD');
+  const currentBranch = await logExec('git rev-parse --abbrev-ref HEAD');
 
-  if (branch !== DEPLOY_BRANCH) {
+  if (currentBranch !== DEPLOY_BRANCH) {
     await logExec(`git checkout ${DEPLOY_BRANCH}`);
   }
 
