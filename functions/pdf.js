@@ -19,7 +19,7 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-const buildPages = async (page, opts) => {
+const buildPages = async (page, opts = {}) => {
   const pdftk = require('node-pdftk');
   const pageBuffers = [];
   let complete = false;
