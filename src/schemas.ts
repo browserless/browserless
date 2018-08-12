@@ -8,6 +8,7 @@ const gotoOptions = Joi.object().keys({
 
 export const screenshot = Joi.object().keys({
   gotoOptions,
+  html: Joi.string(),
   options: Joi.object().keys({
     clip: Joi.object().keys({
       height: Joi.number().min(0),
@@ -20,8 +21,8 @@ export const screenshot = Joi.object().keys({
     quality: Joi.number().min(0).max(100),
     type: Joi.string().valid('jpeg', 'png'),
   }),
-  url: Joi.string().required(),
-});
+  url: Joi.string(),
+}).xor('url', 'html');
 
 export const content = Joi.object().keys({
   gotoOptions,

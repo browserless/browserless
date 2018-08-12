@@ -59,7 +59,7 @@ module.exports = async function pdf({ page, context }) {
     emulateMedia,
     html,
     options,
-    url,
+    url = null,
     safeMode,
     gotoOptions,
   } = context;
@@ -68,7 +68,7 @@ module.exports = async function pdf({ page, context }) {
     await page.emulateMedia(emulateMedia);
   }
 
-  if (url != null) {
+  if (url !== null) {
     await page.goto(url, gotoOptions);
   } else {
     // Whilst there is no way of waiting for all requests to finish with setContent,
