@@ -28,6 +28,7 @@
     "puppeteer-1.4.0": "1.4.0",
     "puppeteer-1.5.0": "1.5.0",
     "puppeteer-1.6.2": "1.6.2",
+    "puppeteer-1.7.0": "1.7.0",
     "chrome-stable": "1.4.0"
   },
   "releaseBranches": [
@@ -38,6 +39,7 @@
     "puppeteer-1.4.0",
     "puppeteer-1.5.0",
     "puppeteer-1.6.2",
+    "puppeteer-1.7.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
