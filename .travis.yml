@@ -1,24 +1,11 @@
-language: nodejs
+sudo: required
 
-node_js:
-  - 'stable'
-  - '8'
-  - '6'
+services:
+  - docker
 
-matrix:
-  fast_finish: true
-
-install:
-  - npm uninstall typescript --no-save
-  - npm uninstall tslint --no-save
-  - npm install
+before_install:
+  - docker build -t browserless/chrome .
+  - docker run -d -p 4000:4000 -e PORT=4000 --name browserless browserless/chrome
 
 script:
-  - npm run lint
-
-cache:
-  directories:
-    - node_modules
-
-git:
-  depth: 1
+  - docker exec browserless npm run ci

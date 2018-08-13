@@ -36,7 +36,12 @@ const throws = () => {
 };
 
 const getChromeProcesses = () => {
-  return exec(`ps -ef | grep chromium`);
+  return exec(`ps -ef | grep local-chromium`);
+};
+
+const killChrome = () => {
+  return exec(`pkill -f .local-chromium`)
+    .catch(() => {});
 };
 
 describe('Browserless Chrome', () => {
@@ -47,7 +52,7 @@ describe('Browserless Chrome', () => {
     browserless.close();
     browserless = null;
 
-    return exec('killall chromium --ignore-case').catch(() => {});
+    return killChrome();
   });
 
   describe('WebSockets', () => {
