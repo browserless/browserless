@@ -5,7 +5,7 @@ services:
 
 before_install:
   - docker build -t browserless/chrome .
-  - docker run -p 4000:4000 -e PORT=4000 --name browserless browserless/chrome
+  - docker run -p -d 4000:4000 -e PORT=4000 --name browserless browserless/chrome
 
 script:
-  - docker exec browserless npm test
+  - docker exec browserless npm run ci
