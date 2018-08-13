@@ -3,7 +3,7 @@ import * as Joi from 'joi';
 const gotoOptions = Joi.object().keys({
   timeout: Joi.number(),
   waitUntil: Joi.string()
-    .valid('load', 'domcontentloaded', 'networkidle0', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6'),
+    .valid('load', 'domcontentloaded', 'networkidle0', 'networkidle2'),
 });
 
 export const screenshot = Joi.object().keys({
