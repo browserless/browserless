@@ -48,7 +48,6 @@ module.exports = async function screenshot ({ page, context }) {
   }
 
   const data = await page.screenshot(options);
-  console.log('hit');
 
   return {
     data,

@@ -59,6 +59,13 @@ Array [
 ]
 `;
 
+exports[`Browserless Chrome HTTP allows requests to /metrics 2`] = `
+Array [
+  "domains",
+  "version",
+]
+`;
+
 exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `
 Array [
   "date",

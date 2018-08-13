@@ -169,20 +169,6 @@ describe('Browserless Chrome', () => {
         });
     });
 
-    // TODO: This isn't closing Chrome properly need to find out why
-    it.skip('pre-boots chrome to match concurrency', async () => {
-      const conncurent = 1;
-      const browserless: any = start({
-        ...defaultParams,
-        maxConcurrentSessions: conncurent,
-        prebootChrome: true,
-      });
-
-      await browserless.startServer();
-
-      expect(browserless.chromeService.chromeSwarm).toHaveLength(conncurent);
-    });
-
     it('closes chrome when the session is closed', async () => {
       const browserless = start({
         ...defaultParams,
@@ -572,8 +558,355 @@ describe('Browserless Chrome', () => {
       });
     });
 
-    it.skip('allows requests to /screenshot', () => {});
-    it.skip('allows requests to /content', () => {});
-    it.skip('allows requests to /pdf', () => {});
+    describe('/screenshot', () => {
+      it('allows requests', async () => {
+        const browserless = start(defaultParams);
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.headers.get('content-type')).toEqual('image/png');
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('times out requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          connectionTimeout: 1,
+        });
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(408);
+          });
+      });
+
+      it('rejects requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          maxConcurrentSessions: 0,
+          maxQueueLength: 0,
+        });
+
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(429);
+          });
+      });
+
+      it('allows custom goto options', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          gotoOptions: {
+            waitUntil: `networkidle2`,
+          },
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('allows for injecting HTML', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          html: '<h1>Hello!</h1>',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+    });
+
+    describe('/pdf', () => {
+      it('allows requests', async () => {
+        const browserless = start(defaultParams);
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.headers.get('content-type')).toEqual('application/pdf');
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('times out requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          connectionTimeout: 1,
+        });
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(408);
+          });
+      });
+
+      it('rejects requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          maxConcurrentSessions: 0,
+          maxQueueLength: 0,
+        });
+
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(429);
+          });
+      });
+
+      it('allows custom goto options', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          gotoOptions: {
+            waitUntil: `networkidle2`,
+          },
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('allows for injecting HTML', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          html: '<h1>Hello!</h1>',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('allows for PDF options', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          html: '<h1>Hello!</h1>',
+          options: {
+            landscape: true,
+          },
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+    });
+
+    describe('/content', () => {
+      it('allows requests', async () => {
+        const browserless = start(defaultParams);
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/content`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+            expect(res.status).toBe(200);
+          });
+      });
+
+      it('times out requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          connectionTimeout: 1,
+        });
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/content`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(408);
+          });
+      });
+
+      it('rejects requests', async () => {
+        const browserless = start({
+          ...defaultParams,
+          maxConcurrentSessions: 0,
+          maxQueueLength: 0,
+        });
+
+        await browserless.startServer();
+
+        const body = {
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/content`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(429);
+          });
+      });
+
+      it('allows custom goto options', async () => {
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+
+        const body = {
+          gotoOptions: {
+            waitUntil: `networkidle2`,
+          },
+          url: 'https://example.com',
+        };
+
+        return fetch(`http://localhost:${defaultParams.port}/content`, {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
+        })
+          .then((res) => {
+            expect(res.status).toBe(200);
+          });
+      });
+    });
   });
 });
