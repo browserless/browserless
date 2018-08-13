@@ -11,6 +11,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
+    "ci": "npm run lint && npm test",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "dev": "npm run build && cross-env ENABLE_CORS=true MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless* PORT=3030 node build/index.js",
     "meta": "./scripts/get-meta.js",
@@ -42,13 +43,17 @@
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
+    "@types/express": "^4.11.1",
+    "@types/jest": "^23.3.1",
     "@types/node": "^10.5.6",
     "@types/puppeteer": "^1.2.1",
+    "babel-jest": "^23.4.2",
     "body-parser": "^1.18.2",
     "cors": "^2.8.4",
     "debug": "^3.1.0",
     "express": "^4.16.2",
     "http-proxy": "^1.16.2",
+    "jest": "^23.1.0",
     "joi": "^13.3.0",
     "lodash": "^4.17.4",
     "node-pdftk": "^1.3.1",
@@ -60,21 +65,17 @@
     "rimraf": "^2.6.1",
     "shortid": "^2.2.8",
     "tree-kill": "^1.2.0",
+    "ts-jest": "^23.1.2",
+    "tslint": "^5.10.0",
     "typescript": "^3.0.1",
     "vm2": "^3.5.2"
   },
   "devDependencies": {
-    "@types/express": "^4.11.1",
-    "@types/jest": "^23.3.1",
-    "babel-jest": "^23.4.2",
     "cross-env": "^5.1.5",
     "husky": "^0.14.3",
-    "jest": "^23.1.0",
     "nodemon": "^1.17.3",
     "showdown": "^1.8.6",
-    "ts-jest": "^23.1.2",
-    "ts-node": "^7.0.0",
-    "tslint": "^5.10.0"
+    "ts-node": "^7.0.0"
   },
   "jest": {
     "testEnvironment": "node",
