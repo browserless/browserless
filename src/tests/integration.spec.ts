@@ -47,7 +47,7 @@ describe('Browserless Chrome', () => {
     browserless.close();
     browserless = null;
 
-    return exec('killall Chromium || killall chromium').catch(() => {});
+    return exec('killall chromium --ignore-case').catch(() => {});
   });
 
   describe('WebSockets', () => {
