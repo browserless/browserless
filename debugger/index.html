@@ -13,6 +13,24 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:500">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
+
+  <script>
+    if (window.location.host === 'chrome.browserless.io' && !window.location.search.includes('?token=')) {
+      const script = document.createElement('script');
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=UA-105866025-1';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+
+    gtag('js', new Date());
+    gtag('config', 'UA-105866025-1');
+  </script>
+
   <style>
   * {
     font-family: Consolas, monaco, monospace;
@@ -279,6 +297,7 @@ module.exports = async ({ page }) => {
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/keymap/sublime.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+
 <script>
   const { port, hostname, protocol } = window.location;
   const baseURL = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
@@ -606,7 +625,6 @@ const puppeteer = require('puppeteer');
     $about.title = aboutTitle;
     puppeteerVersion = res['Puppeteer-Version'];
   });
-</script>
 </script>
 </body>
 </html>
