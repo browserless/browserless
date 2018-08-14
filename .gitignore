@@ -14,3 +14,8 @@ _site
 
 # Coverage
 coverage
+
+# Generated
+protocol.json
+version.json
+hints.json

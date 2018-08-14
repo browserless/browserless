@@ -18,6 +18,7 @@
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "jest --forceExit",
+    "postinstall": "./scripts/get-meta.js",
     "prepush": "npm run lint && npm test"
   },
   "puppeteerVersions": {
