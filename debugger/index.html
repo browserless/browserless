@@ -14,22 +14,7 @@
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
 
-  <script>
-    if (window.location.host === 'chrome.browserless.io' && !window.location.search.includes('?token=')) {
-      const script = document.createElement('script');
-      script.src = 'https://www.googletagmanager.com/gtag/js?id=UA-105866025-1';
-      script.async = true;
-      document.head.appendChild(script);
-    }
-    window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-      dataLayer.push(arguments);
-    }
-
-    gtag('js', new Date());
-    gtag('config', 'UA-105866025-1');
-  </script>
+  <script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script');b.src='https://www.googletagmanager.com/gtag/js?id=UA-105866025-1',b.async=!0,document.head.appendChild(b),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-1')}</script>
 
   <style>
   * {
