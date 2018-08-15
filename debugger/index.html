@@ -14,8 +14,6 @@
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.css">
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/addon/hint/show-hint.css">
 
-  <script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script');b.src='https://www.googletagmanager.com/gtag/js?id=UA-105866025-1',b.async=!0,document.head.appendChild(b),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-1')}</script>
-
   <style>
   * {
     font-family: Consolas, monaco, monospace;
@@ -24,20 +22,24 @@
     outline: none;
     box-sizing: border-box;
   }
+  body {
+    -webkit-font-smoothing: antialiased;
+  }
   header {
     height: 60px;
     padding: 13px;
-    color: #333;
-    border-bottom: 1px solid #e2e2e2;
+    background-color: #007bff;
+    color: #fff;
     box-shadow: 0 5px 10px 0 rgba(0,0,0,.1);
     display: flex;
     align-items: center;
   }
   header h1 {
-    margin-left: 10px;
+    margin-left: 20px;
     font-size: 24px;
     font-weight: bold;
-    font-family: 'Montserrat', sans-serif;
+    font-family: Montserrat,Helvetica,Arial,sans-serif;
+    letter-spacing: 0.01em;
   }
   header section span,
   header section a {
@@ -74,7 +76,7 @@
   .flex-hz {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 190px);
   }
   #code-mount {
     font-size: 16px;
@@ -105,7 +107,7 @@
     border-bottom-left-radius: 5px;
   }
   .execute-button {
-    background: linear-gradient(#007bff 15%,#6610f2);
+    background: #3ecf8e;
     border-radius: 17px;
     border: none;
     fill: #fff;
@@ -133,13 +135,17 @@
     position: relative;
     border-left: 1px solid #ccc;
   }
+  #hints {
+    font-size: 18px;
+    padding-left: 10px;
+  }
   footer {
     background: #333;
-    height: 60px;
+    height: 130px;
     overflow: hidden;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 10px;
   }
   footer p {
     animation: fade 10s ease;
@@ -225,23 +231,68 @@
     background: rgba(155,157,162,0.37);
     z-index: 1;
   }
+
+  #carbonads {
+    max-width: 400px;
+    display: flex;
+    overflow: hidden;
+    padding: 1em;
+    line-height: 1.4;
+  }
+
+  #carbonads span {
+    position: relative;
+    display: block;
+    overflow: hidden;
+  }
+
+  .carbon-img {
+    float: left;
+    margin-right: 1em;
+  }
+
+  .carbon-img img {
+    display: block;
+    line-height: 1;
+  }
+
+  .carbon-text {
+    max-width: calc(100% - 130px - 1em);
+    text-align: left;
+    font-size: 14px;
+    text-decoration: none;
+    font-family: sans-serif;
+  }
+
+  .carbon-poweredby {
+    position: absolute;
+    left: calc(130px + 14px);
+    bottom: 0;
+    display: block;
+    font-size: .8em;
+    text-transform: uppercase;
+    line-height: 1;
+    letter-spacing: 1px;
+    font-family: sans-serif;
+    font-size: 10px;
+  }
   </style>
 </head>
 <body>
 
 <main>
   <header>
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="isolation:isolate" viewBox="1123.044 453.491 93.911 147.019" height="40"><path d=" M 1180.143 521.337 L 1193.478 527.466 L 1207.698 534.002 C 1212.807 536.35 1216.956 542.822 1216.956 548.445 L 1216.956 559.839 L 1216.956 571.233 C 1216.956 576.856 1212.807 583.328 1207.698 585.676 L 1193.478 592.212 L 1179.257 598.748 C 1174.148 601.097 1165.852 601.097 1160.742 598.748 L 1146.522 592.212 L 1132.302 585.676 C 1127.193 583.328 1123.044 576.856 1123.044 571.233 L 1123.044 559.839 L 1123.044 548.445 C 1123.044 547.762 1123.106 547.067 1123.222 546.367 L 1123.222 468.669 C 1123.222 463.978 1126.844 458.993 1131.305 457.544 L 1142.555 453.889 C 1147.016 452.439 1150.637 455.071 1150.637 459.761 L 1150.637 525.574 L 1150.659 525.564 C 1150.644 525.577 1150.636 525.584 1150.637 525.585 L 1166.521 543.39 L 1141.468 543.944 C 1141.093 543.931 1140.817 543.934 1140.632 543.956 C 1139.762 544.057 1139.006 544.357 1138.368 544.854 C 1137.607 545.508 1137.519 546.14 1138.1 546.751 L 1178.18 589.359 C 1178.858 589.988 1179.859 590.225 1181.188 590.071 C 1181.371 590.05 1181.689 589.985 1182.141 589.876 C 1182.903 589.647 1183.457 589.314 1183.802 588.878 C 1184.146 588.443 1184.201 588.013 1183.966 587.587 L 1168.776 557.871 L 1194.905 556.344 C 1195.092 556.35 1195.368 556.332 1195.735 556.289 C 1196.56 556.194 1197.252 555.959 1197.812 555.583 C 1198.588 555.068 1198.823 554.49 1198.516 553.847 L 1180.143 521.337 Z " fill-rule="evenodd" fill="rgb(23,23,23)"/></svg>
-    <h1>browserless</h1>
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="isolation:isolate" viewBox="1123.044 453.491 93.911 147.019" height="40"><path d=" M 1180.143 521.337 L 1193.478 527.466 L 1207.698 534.002 C 1212.807 536.35 1216.956 542.822 1216.956 548.445 L 1216.956 559.839 L 1216.956 571.233 C 1216.956 576.856 1212.807 583.328 1207.698 585.676 L 1193.478 592.212 L 1179.257 598.748 C 1174.148 601.097 1165.852 601.097 1160.742 598.748 L 1146.522 592.212 L 1132.302 585.676 C 1127.193 583.328 1123.044 576.856 1123.044 571.233 L 1123.044 559.839 L 1123.044 548.445 C 1123.044 547.762 1123.106 547.067 1123.222 546.367 L 1123.222 468.669 C 1123.222 463.978 1126.844 458.993 1131.305 457.544 L 1142.555 453.889 C 1147.016 452.439 1150.637 455.071 1150.637 459.761 L 1150.637 525.574 L 1150.659 525.564 C 1150.644 525.577 1150.636 525.584 1150.637 525.585 L 1166.521 543.39 L 1141.468 543.944 C 1141.093 543.931 1140.817 543.934 1140.632 543.956 C 1139.762 544.057 1139.006 544.357 1138.368 544.854 C 1137.607 545.508 1137.519 546.14 1138.1 546.751 L 1178.18 589.359 C 1178.858 589.988 1179.859 590.225 1181.188 590.071 C 1181.371 590.05 1181.689 589.985 1182.141 589.876 C 1182.903 589.647 1183.457 589.314 1183.802 588.878 C 1184.146 588.443 1184.201 588.013 1183.966 587.587 L 1168.776 557.871 L 1194.905 556.344 C 1195.092 556.35 1195.368 556.332 1195.735 556.289 C 1196.56 556.194 1197.252 555.959 1197.812 555.583 C 1198.588 555.068 1198.823 554.49 1198.516 553.847 L 1180.143 521.337 Z " fill-rule="evenodd" fill="#fff"/></svg>
+      <h1>browserless</h1>
     <section class="links">
       <span id="download" title="Download a zip file with all the required packages">
-        <svg width='22' height='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
+        <svg width='22' height='22' fill="#fff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
       </span>
       <a href="https://github.com/joelgriffith/browserless">
-        <svg fill="#333" width="22" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title id="simpleicons-github-icon">Browserless on GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+        <svg fill="#333" width="22" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title id="simpleicons-github-icon">Browserless on GitHub</title><path fill="#fff" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
       </a>
       <span id="about">
-        <svg width='22' fill="#000000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"><g><path fill="#000000" d="M10,0C4.5,0,0,4.5,0,10c0,5.5,4.5,10,10,10c5.5,0,10-4.5,10-10C20,4.5,15.5,0,10,0z M10,18   c-4.4,0-8-3.6-8-8c0-4.4,3.6-8,8-8c4.4,0,8,3.6,8,8C18,14.4,14.4,18,10,18z"></path><rect x="9" y="4" fill="#000000" width="2" height="2"></rect><rect x="9" y="8" fill="#000000" width="2" height="8"></rect></g></svg>
+        <svg width='22' fill="#fff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 20 20" enable-background="new 0 0 20 20" xml:space="preserve"><g><path fill="#fff" d="M10,0C4.5,0,0,4.5,0,10c0,5.5,4.5,10,10,10c5.5,0,10-4.5,10-10C20,4.5,15.5,0,10,0z M10,18   c-4.4,0-8-3.6-8-8c0-4.4,3.6-8,8-8c4.4,0,8,3.6,8,8C18,14.4,14.4,18,10,18z"></path><rect x="9" y="4" fill="#fff" width="2" height="2"></rect><rect x="9" y="8" fill="#fff" width="2" height="8"></rect></g></svg>
       </span>
     </section>
   </header>
@@ -269,7 +320,9 @@ module.exports = async ({ page }) => {
       </iframe>
     </section>
   </div>
-  <footer></footer>
+  <footer>
+      <div id="hints"></div>
+  </footer>
 </main>
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/codemirror.min.js"></script>
@@ -389,7 +442,7 @@ const puppeteer = require('puppeteer');
 
   setHint = () => {
     const text = rand(hints);
-    document.querySelector('footer').innerHTML = `<p>${text}</p>`;
+    document.querySelector('#hints').innerHTML = `<p>${text}</p>`;
   };
   setHint();
   setInterval(setHint, 10000);
@@ -611,5 +664,8 @@ const puppeteer = require('puppeteer');
     puppeteerVersion = res['Puppeteer-Version'];
   });
 </script>
+
+<!-- Inject public metrics and carbon on non-paid debugger instances -->
+<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-1',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-1')}</script>
 </body>
 </html>
