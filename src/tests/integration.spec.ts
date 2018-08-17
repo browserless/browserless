@@ -183,7 +183,7 @@ describe('Browserless Chrome', () => {
       await browser.close();
       const processes = await getChromeProcesses();
 
-      await sleep(10);
+      await sleep(50);
 
       expect(processes.stdout).not.toContain('.local-chromium');
     });
