@@ -24,7 +24,18 @@ module.exports = async function screenshot ({ page, context }) {
     gotoOptions,
     html,
     options = {},
+    rejectRequestPattern,
   } = context;
+
+  if (rejectRequestPattern.length) {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+        return req.abort();
+      }
+      return req.continue();
+    });
+  }
 
   if (url !== null) {
     await page.goto(url, gotoOptions);

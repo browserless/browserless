@@ -1,8 +1,16 @@
 import { BrowserlessServer } from './browserless-server';
+import { getDebug } from './utils';
+
+const debug = getDebug('system');
 
 const parseParam = (param: any, defaultParam: any) => {
   if (param) {
-    return JSON.parse(param);
+    try {
+      return JSON.parse(param);
+    } catch (err) {
+      debug(`Couldn't parse parameter: "${param}". Saw error "${err}"`);
+      return defaultParam;
+    }
   }
   return defaultParam;
 };
