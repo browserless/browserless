@@ -29,6 +29,10 @@ export const bodyValidation = (schema) => {
       return res.status(400).send(result.error.details);
     }
 
+    // Allow .defaults to work otherwise
+    // Joi schemas default's won't apply
+    req.body = result.value;
+
     return next();
   };
 };
