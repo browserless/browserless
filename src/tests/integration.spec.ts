@@ -40,7 +40,7 @@ const getChromeProcesses = () => {
 };
 
 const killChrome = () => {
-  return exec(`pkill -f .local-chromium`)
+  return exec(`pkill -f local-chromium`)
     .catch(() => {});
 };
 
