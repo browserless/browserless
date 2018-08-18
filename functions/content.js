@@ -18,7 +18,18 @@ module.exports = async function content ({ page, context }) {
   const {
     url,
     gotoOptions,
+    rejectRequestPattern,
   } = context;
+
+  if (rejectRequestPattern.length) {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+        return req.abort();
+      }
+      return req.continue();
+    });
+  }
 
   await page.goto(url, gotoOptions);
 

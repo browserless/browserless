@@ -62,7 +62,18 @@ module.exports = async function pdf({ page, context }) {
     url = null,
     safeMode,
     gotoOptions,
+    rejectRequestPattern,
   } = context;
+
+  if (rejectRequestPattern.length) {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+        return req.abort();
+      }
+      return req.continue();
+    });
+  }
 
   if (emulateMedia) {
     await page.emulateMedia(emulateMedia);

@@ -6,6 +6,8 @@ const gotoOptions = Joi.object().keys({
     .valid('load', 'domcontentloaded', 'networkidle0', 'networkidle2'),
 });
 
+const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
+
 export const screenshot = Joi.object().keys({
   gotoOptions,
   html: Joi.string(),
@@ -21,11 +23,13 @@ export const screenshot = Joi.object().keys({
     quality: Joi.number().min(0).max(100),
     type: Joi.string().valid('jpeg', 'png'),
   }),
+  rejectRequestPattern,
   url: Joi.string(),
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
   gotoOptions,
+  rejectRequestPattern,
   url: Joi.string().required(),
 });
 
@@ -52,6 +56,7 @@ export const pdf = Joi.object().keys({
     scale: Joi.number().min(0),
     width: Joi.any().optional(),
   }),
+  rejectRequestPattern,
   safeMode: Joi.boolean().default(
     false,
     'Whether to safely generate the PDF (renders pages one-at-a-time and merges it in-memory). ' +
