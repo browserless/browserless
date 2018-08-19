@@ -1,3 +1,4 @@
+import * as chromedriver from 'chromedriver';
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
@@ -11,13 +12,17 @@ import { getDebug, id } from './utils';
 import { IChromeServiceConfiguration } from './models/options.interface';
 import { IJob, IQueue } from './models/queue.interface';
 
+const getPort = require('get-port');
+
 const oneMinute = 60 * 1000;
+const seleniumPorts = Array.from({ length: 50 }, (_, i) => i + 3000 );
 
 const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
 
 export class ChromeService {
+  public webDriver: any;
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<puppeteer.Browser>>;
@@ -45,6 +50,7 @@ export class ChromeService {
     this.queue.on('timeout', this.onTimedOut.bind(this));
 
     this.chromeSwarm = [];
+    this.webDriver = new Map();
   }
 
   get queueSize() {
@@ -344,6 +350,70 @@ export class ChromeService {
     };
 
     socket.once('close', earlyClose);
+    this.addJob(job);
+  }
+
+  public async startWebDriver(req, res) {
+    const jobId = id();
+
+    jobdebug(`${jobId}: ${req.url}: Inbound web-driver request`);
+
+    if (this.config.demoMode) {
+      jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
+      return this.server.rejectReq(req, res, 403, 'Unauthorized');
+    }
+
+    if (!this.canQueue) {
+      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      return this.server.rejectReq(req, res, 429, `Too Many Requests`);
+    }
+
+    if (!this.canRunImmediately) {
+      jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
+      this.onQueued(jobId);
+      // Don't return
+    }
+
+    const handler = (/* done */) => {
+      getPort({ port: seleniumPorts }).then((port) => {
+        jobdebug(`Starting webdriver session`);
+
+        const chromeProcess = chromedriver.start([
+          '--url-base=wd/hub',
+          `--port=${port}`,
+          // '--verbose',
+        ]);
+
+        // Create an alias so browser.close works
+        chromeProcess.close = chromeProcess.kill;
+        job.browser = chromeProcess;
+
+        this.webDriver.set('SHOULD_BE_STATIC', {
+          chromeProcess,
+          port,
+        });
+
+        chromeProcess.stdout.on('data', () => {
+          jobdebug(`Process is online`);
+          this.server.proxy.web(req, res, { target: `http://localhost:${port}` }, (error) => {
+            jobdebug(`Issue in webdriver: ${error.message}`);
+          });
+        });
+      });
+    };
+
+    const jobProps = {
+      browser: null,
+      close: () => this.cleanUpJob(job),
+      id: jobId,
+      timeout: () => {
+        jobdebug(`${job.id}: Job has timed-out, closing browser.`);
+        res.end();
+      },
+    };
+
+    const job: IJob = Object.assign(handler, jobProps);
+
     this.addJob(job);
   }
 

@@ -7,6 +7,7 @@ import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as path from 'path';
 import { setInterval } from 'timers';
+import * as url from 'url';
 
 import {
   asyncMiddleware,
@@ -235,10 +236,36 @@ export class BrowserlessServer {
       }));
 
       return this.server = http
-        .createServer(app)
+        .createServer(async (req, res) => {
+          // Handle selenium requests
+          if (req.url && req.url.includes('/wd/hub/')) {
+            return this.handleWebdriverSession(req, res);
+          }
+
+          return app(req, res);
+        })
         .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
         .listen(this.config.port, this.config.host, resolve);
     });
+  }
+
+  public async handleWebdriverSession(req, res) {
+    const path = url.parse(req.url);
+    const method = req.method;
+
+    if (method.toLowerCase() === 'post') {
+      if (path.pathname === '/wd/hub/session') {
+        debug(`${req.url}: Web-driver create request.`);
+        return this.chromeService.startWebDriver(req, res);
+      }
+      debug(`${req.url}: Web-driver existing-session request.`);
+      const prior = this.chromeService.webDriver.get('SHOULD_BE_STATIC');
+      console.log(prior.port);
+      return this.proxy.web(req, res, { target: `http://localhost:${prior.port}` });
+    }
+
+    res.write(`Unknown command: ${method}: ${path}`);
+    return res.end();
   }
 
   public async close() {
