@@ -246,7 +246,7 @@ describe('Browserless Chrome', () => {
       return fetch(`http://localhost:${defaultParams.port}/config`)
         .then((res) => res.json())
         .then((config) => {
-          expect(config).toMatchSnapshot();
+          expect(Object.keys(config)).toMatchSnapshot();
         });
     });
 
