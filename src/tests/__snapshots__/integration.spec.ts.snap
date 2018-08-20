@@ -2,13 +2,16 @@
 
 exports[`Browserless Chrome HTTP allows requests to /config 1`] = `
 Object {
+  "chromeBinaryPath": "/Users/jgriffith/Projects/browserless/chrome/node_modules/puppeteer/.local-chromium/mac-579032/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
   "chromeRefreshTime": 0,
   "connectionTimeout": 2000,
   "demoMode": false,
+  "enableCors": false,
   "enableDebugger": true,
   "functionBuiltIns": Array [],
-  "functionExternal": Array [],
+  "functionExternals": Array [],
   "healthFailureURL": null,
+  "host": "",
   "keepAlive": false,
   "maxCPU": 100,
   "maxChromeRefreshRetries": 1,

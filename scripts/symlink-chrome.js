@@ -4,9 +4,18 @@ const { exec } = require('child_process');
 const { createBrowserFetcher } = require('puppeteer');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
+const IS_DOCKER = fs.existsSync('/.dockerenv');
+
+// This is used in docker to symlink the puppeteer's
+// chrome to a place where most other libraries expect it
+// (IE: WebDriver) without having to specify it
+if (!IS_DOCKER) {
+  console.error('"npm run symlink" is only meant to be executed inside of docker.');
+  process.exit(1);
+}
 
 if (fs.existsSync(CHROME_BINARY_LOCATION)) {
-  console.log('Chrome binary found, exiting');
+  console.log('Chrome binary already present, exiting');
   process.exit(0);
 } else {
   // Use puppeteer's copy otherwise
