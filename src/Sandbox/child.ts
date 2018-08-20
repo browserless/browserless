@@ -37,17 +37,14 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
 };
 
 const start = async (
-  { code, flags = [], useChromeStable }:
-  { code: string; flags: string[], useChromeStable: boolean },
+  { code, flags = [], chromeBinaryPath }:
+  { code: string; flags: string[], chromeBinaryPath: string },
 ) => {
   debug(`Starting sandbox running code "${code}"`);
   const launchArgs: puppeteer.LaunchOptions = {
     args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    executablePath: chromeBinaryPath,
   };
-
-  if (useChromeStable) {
-    launchArgs.executablePath = '/usr/bin/google-chrome';
-  }
 
   debug(`Starting Chrome with args: ${JSON.stringify(launchArgs)}`);
 

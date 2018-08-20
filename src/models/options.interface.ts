@@ -29,5 +29,5 @@ export interface IChromeServiceConfiguration {
   maxChromeRefreshRetries: number;
   enableCors: boolean;
   token: string | null;
-  useChromeStable: boolean;
+  chromeBinaryPath: string;
 }
