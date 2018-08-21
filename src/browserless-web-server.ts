@@ -24,10 +24,10 @@ import {
   screenshot as screenshotSchema,
 } from './schemas';
 
-import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
 import { IJob } from './models/queue.interface';
+import { ChromeService } from './puppeteer-provider';
 import { Queue } from './queue';
 
 const PORT = 9515;
@@ -130,6 +130,7 @@ export class BrowserlessServer {
     this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
+    this.queue.on('queued', this.onQueued.bind(this));
 
     debug(this.config, `Final Options`);
 
@@ -327,6 +328,12 @@ export class BrowserlessServer {
     job.timeout();
     job.close();
     next();
+  }
+
+  private onQueued(id: string) {
+    debug(`${id}: Recording queued stat.`);
+    this.currentStat.queued++;
+    this.queueHook();
   }
 
   private resetCurrentStat() {

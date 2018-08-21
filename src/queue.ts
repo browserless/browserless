@@ -28,6 +28,10 @@ export class Queue {
       job.id = id();
     }
 
+    if (!this.canRunImmediately) {
+      this.queue.emit('queued');
+    }
+
     this.queue.push(job);
   }
 
@@ -55,7 +59,7 @@ export class Queue {
     return this.length < this.concurrencySize;
   }
 
-  get canQueue() {
+  get hasCapacity() {
     return this.length < this.maxQueueLength;
   }
 }

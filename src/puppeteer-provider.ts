@@ -3,13 +3,13 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 import { NodeVM } from 'vm2';
 
-import { BrowserlessServer } from './browserless-server';
+import { BrowserlessServer } from './browserless-web-server';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
-import { IJob, IQueue } from './models/queue.interface';
+import { IJob } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
@@ -96,15 +96,9 @@ export class ChromeService {
       return this.server.rejectReq(req, res, 403, 'Unauthorized');
     }
 
-    if (!this.queue.canQueue) {
+    if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectReq(req, res, 429, `Too Many Requests`);
-    }
-
-    if (!this.queue.canRunImmediately) {
-      jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
-      this.onQueued(jobId);
-      // Don't return
     }
 
     if (detached) {
@@ -224,15 +218,9 @@ export class ChromeService {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
     }
 
-    if (!this.queue.canQueue) {
+    if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
-    }
-
-    if (!this.queue.canRunImmediately) {
-      jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
-      this.onQueued(jobId);
-      // Don't return
     }
 
     const flags = _.chain(parsedUrl.query)
@@ -342,12 +330,6 @@ export class ChromeService {
     jobdebug(`${job.id}: Removing job from queue and cleaning up.`);
     job.close();
     this.queue.remove(job);
-  }
-
-  private onQueued(id: string) {
-    jobdebug(`${id}: Recording queued stat.`);
-    this.server.currentStat.queued++;
-    this.server.queueHook();
   }
 
   private addJob(job: IJob) {

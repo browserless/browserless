@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 import * as util from 'util';
 import { getChromePath } from '../chrome-helper';
 
-import { BrowserlessServer } from '../browserless-server';
+import { BrowserlessServer } from '../browserless-web-server';
 import { IBrowserlessOptions } from '../models/options.interface';
 import { sleep } from '../utils';
 

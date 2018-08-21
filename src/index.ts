@@ -1,4 +1,4 @@
-import { BrowserlessServer } from './browserless-server';
+import { BrowserlessServer } from './browserless-web-server';
 import { getChromePath } from './chrome-helper';
 import { getDebug } from './utils';
 
@@ -25,7 +25,7 @@ const port =                    parseParam(process.env.PORT, 8080);
 const prebootChrome =           parseParam(process.env.PREBOOT_CHROME, false);
 const demoMode =                parseParam(process.env.DEMO_MODE, false);
 const enableDebugger =          parseParam(process.env.ENABLE_DEBUGGER, true);
-const maxMemory =               parseParam(process.env.MAX_MEMOMORY_PERCENT, 99);
+const maxMemory =               parseParam(process.env.MAX_MEMORY_PERCENT, 99);
 const maxCPU =                  parseParam(process.env.MAX_CPU_PERCENT, 99);
 const keepAlive =               parseParam(process.env.KEEP_ALIVE, false);
 const chromeRefreshTime =       parseParam(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
