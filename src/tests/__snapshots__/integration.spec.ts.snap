@@ -1,28 +1,31 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Browserless Chrome HTTP allows requests to /config 1`] = `
-Object {
-  "chromeRefreshTime": 0,
-  "connectionTimeout": 2000,
-  "demoMode": false,
-  "enableDebugger": true,
-  "functionBuiltIns": Array [],
-  "functionExternal": Array [],
-  "healthFailureURL": null,
-  "keepAlive": false,
-  "maxCPU": 100,
-  "maxChromeRefreshRetries": 1,
-  "maxConcurrentSessions": 1,
-  "maxMemory": 100,
-  "maxQueueLength": 2,
-  "metricsJSONPath": null,
-  "port": 3000,
-  "prebootChrome": false,
-  "queuedAlertURL": null,
-  "rejectAlertURL": null,
-  "timeoutAlertURL": null,
-  "token": null,
-}
+Array [
+  "chromeBinaryPath",
+  "chromeRefreshTime",
+  "connectionTimeout",
+  "demoMode",
+  "enableCors",
+  "enableDebugger",
+  "functionBuiltIns",
+  "functionExternals",
+  "healthFailureURL",
+  "host",
+  "keepAlive",
+  "maxCPU",
+  "maxChromeRefreshRetries",
+  "maxConcurrentSessions",
+  "maxMemory",
+  "maxQueueLength",
+  "metricsJSONPath",
+  "port",
+  "prebootChrome",
+  "queuedAlertURL",
+  "rejectAlertURL",
+  "timeoutAlertURL",
+  "token",
+]
 `;
 
 exports[`Browserless Chrome HTTP allows requests to /json/protocol 1`] = `

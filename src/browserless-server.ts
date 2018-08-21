@@ -1,4 +1,5 @@
 import * as bodyParser from 'body-parser';
+import * as chromedriver from 'chromedriver';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -26,6 +27,13 @@ import {
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
+
+const PORT = 9515;
+chromedriver.start([
+  '--url-base=wd/hub',
+  `--port=${PORT}`,
+  '--verbose',
+]);
 
 const debug = getDebug('server');
 
@@ -235,7 +243,18 @@ export class BrowserlessServer {
       }));
 
       return this.server = http
-        .createServer(app)
+        .createServer(async (req, res) => {
+          // Handle selenium requests
+          if (req.url && req.url.includes('/wd/hub/session')) {
+            debug(`Inbound webdriver request`);
+
+            return this.proxy.web(req, res, { target: `http://127.0.0.1:${9515}` }, (e) => {
+              debug(`Issue in webdriver: ${e.message}`);
+            });
+          }
+
+          return app(req, res);
+        })
         .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
         .listen(this.config.port, this.config.host, resolve);
     });

@@ -269,10 +269,10 @@ export class ChromeService {
         const code = this.parseUserCode(decodeURIComponent(debugCode), job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
+          chromeBinaryPath: this.config.chromeBinaryPath,
           code,
           flags,
           timeout,
-          useChromeStable: this.config.useChromeStable,
         });
         job.browser = handler;
 
@@ -496,11 +496,8 @@ export class ChromeService {
     const start = Date.now();
     const launchArgs: puppeteer.LaunchOptions = {
       args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+      executablePath: this.config.chromeBinaryPath,
     };
-
-    if (this.config.useChromeStable) {
-      launchArgs.executablePath = '/usr/bin/google-chrome';
-    }
 
     sysdebug(`Starting Chrome with args: ${JSON.stringify(launchArgs)}`);
 

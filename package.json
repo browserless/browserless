@@ -18,7 +18,8 @@
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "jest --forceExit",
-    "prepush": "npm run lint && npm test"
+    "prepush": "npm run lint && npm test",
+    "symlink-chrome": "node ./scripts/symlink-chrome"
   },
   "puppeteerVersions": {
     "puppeteer-1.0.0": "1.0.0",
@@ -51,9 +52,12 @@
     "@types/puppeteer": "^1.2.1",
     "babel-jest": "^23.4.2",
     "body-parser": "^1.18.2",
+    "chromedriver": "^2.41.0",
     "cors": "^2.8.4",
     "debug": "^3.1.0",
     "express": "^4.16.2",
+    "express-http-proxy": "^1.2.0",
+    "get-port": "^4.0.0",
     "http-proxy": "^1.16.2",
     "jest": "^23.1.0",
     "joi": "^13.3.0",
@@ -76,6 +80,7 @@
     "cross-env": "^5.1.5",
     "husky": "^0.14.3",
     "nodemon": "^1.17.3",
+    "selenium-webdriver": "^4.0.0-alpha.1",
     "showdown": "^1.8.6",
     "ts-node": "^7.0.0"
   },

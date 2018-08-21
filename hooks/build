@@ -16,7 +16,7 @@ function readJson {
     exit 1;
   else
     echo $VALUE ;
-  fi; 
+  fi;
 }
 
 USE_CHROME_STABLE=false;

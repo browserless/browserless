@@ -1,21 +1,26 @@
 import { exec as execNode } from 'child_process';
 import * as puppeteer from 'puppeteer';
 import * as util from 'util';
+import { getChromePath } from '../chrome-helper';
 
 import { BrowserlessServer } from '../browserless-server';
+import { IBrowserlessOptions } from '../models/options.interface';
 import { sleep } from '../utils';
 
 const fetch = require('node-fetch');
 
 const exec = util.promisify(execNode);
-const defaultParams = {
+const defaultParams: IBrowserlessOptions = {
+  chromeBinaryPath: getChromePath(),
   chromeRefreshTime: 0,
   connectionTimeout: 2000,
   demoMode: false,
+  enableCors: false,
   enableDebugger: true,
   functionBuiltIns: [],
-  functionExternal: [],
+  functionExternals: [],
   healthFailureURL: null,
+  host: '',
   keepAlive: false,
   maxCPU: 100,
   maxChromeRefreshRetries: 1,
@@ -241,7 +246,7 @@ describe('Browserless Chrome', () => {
       return fetch(`http://localhost:${defaultParams.port}/config`)
         .then((res) => res.json())
         .then((config) => {
-          expect(config).toMatchSnapshot();
+          expect(Object.keys(config)).toMatchSnapshot();
         });
     });
 
@@ -402,7 +407,7 @@ describe('Browserless Chrome', () => {
         })
           .then((res) => res.text())
           .then((res) => {
-            expect(res).toContain(`Access denied to require 'request'`);
+            expect(res).toContain(`The module 'request' is not whitelisted in VM.`);
           });
       });
 
@@ -523,10 +528,10 @@ describe('Browserless Chrome', () => {
       });
 
       it('catches errors in browserless', async () => {
-        const error = 'Bad Request!';
+        const chromeBinaryPath = '/im/not/here';
         const browserless = start({
           ...defaultParams,
-          useChromeStable: true,
+          chromeBinaryPath,
         });
 
         await browserless.startServer();
@@ -553,7 +558,7 @@ describe('Browserless Chrome', () => {
             return res.text();
           })
           .then((message) => {
-            expect(message).toContain('Failed to launch chrome! spawn /usr/bin/google-chrome ENOENT');
+            expect(message).toContain(`Failed to launch chrome! spawn ${chromeBinaryPath} ENOENT`);
           });
       });
     });
