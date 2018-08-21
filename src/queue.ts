@@ -1,28 +1,61 @@
 import { IJob, IQueue } from './models/queue.interface';
 import { id } from './utils';
 
+interface IQueueConfig {
+  autostart: boolean;
+  concurrency: number;
+  timeout: number;
+  maxQueueLength: number;
+}
+
 const q = require('queue');
 
-export function queue(opts): IQueue<IJob> {
-  const qInstance = q(opts);
+export class Queue {
+  private queue: IQueue<IJob>;
+  private maxQueueLength: number;
 
-  qInstance.remove = (job: IJob) => {
-    const foundIndex = qInstance.indexOf(job);
+  constructor(opts: IQueueConfig) {
+    this.maxQueueLength = opts.maxQueueLength;
+    this.queue = q(opts);
+  }
 
-    if (foundIndex !== -1) {
-      qInstance.splice(foundIndex, 1);
-    }
-  };
+  public on(event: string, cb: () => {}) {
+    this.queue.on(event, cb);
+  }
 
-  qInstance.add = (job: IJob) => {
+  public add(job: IJob) {
     if (!job.id) {
       job.id = id();
     }
 
-    qInstance.push(job);
-  };
+    this.queue.push(job);
+  }
 
-  qInstance.map = (...args) => Array.prototype.map.apply(qInstance.jobs, args);
+  public remove(job: IJob) {
+    const foundIndex = this.queue.indexOf(job);
 
-  return qInstance;
+    if (foundIndex !== -1) {
+      this.queue.splice(foundIndex, 1);
+    }
+  }
+
+  public map(...args) {
+    return Array.prototype.map.apply(this.queue, args);
+  }
+
+  get length() {
+    return this.queue.length;
+  }
+
+  get concurrencySize() {
+    return this.queue.concurrency;
+  }
+
+  get canRunImmediately() {
+    return this.length < this.concurrencySize;
+  }
+
+  get canQueue() {
+    return this.length < this.maxQueueLength;
+  }
 }

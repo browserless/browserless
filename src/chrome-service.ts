@@ -4,7 +4,7 @@ import * as url from 'url';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless-server';
-import { queue } from './queue';
+import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
 
@@ -21,11 +21,12 @@ export class ChromeService {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<puppeteer.Browser>>;
-  private queue: IQueue<IJob>;
+  private queue: Queue;
 
-  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer) {
+  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue) {
     this.config = config;
     this.server = server;
+    this.queue = queue;
 
     const queueParams: any = {
       autostart: true,
@@ -38,29 +39,7 @@ export class ChromeService {
 
     sysdebug(`Queue started with params ${JSON.stringify(queueParams)}`);
 
-    this.queue = queue(queueParams);
-
-    this.queue.on('success', this.onSessionSuccess.bind(this));
-    this.queue.on('error', this.onSessionFail.bind(this));
-    this.queue.on('timeout', this.onTimedOut.bind(this));
-
     this.chromeSwarm = [];
-  }
-
-  get queueSize() {
-    return this.queue.length;
-  }
-
-  get concurrencySize() {
-    return this.queue.concurrency;
-  }
-
-  get canRunImmediately() {
-    return this.queueSize < this.concurrencySize;
-  }
-
-  get canQueue() {
-    return this.queueSize < this.config.maxQueueLength;
   }
 
   get chromeSwarmSize() {
@@ -71,14 +50,14 @@ export class ChromeService {
     return (
       this.config.keepAlive &&
       this.config.prebootChrome &&
-      this.chromeSwarmSize < this.concurrencySize
+      this.chromeSwarmSize < this.queue.concurrencySize
     );
   }
 
   get needsChromeInstances() {
     return (
       this.config.prebootChrome &&
-      this.chromeSwarmSize < this.concurrencySize
+      this.chromeSwarmSize < this.queue.concurrencySize
     );
   }
 
@@ -117,12 +96,12 @@ export class ChromeService {
       return this.server.rejectReq(req, res, 403, 'Unauthorized');
     }
 
-    if (!this.canQueue) {
+    if (!this.queue.canQueue) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectReq(req, res, 429, `Too Many Requests`);
     }
 
-    if (!this.canRunImmediately) {
+    if (!this.queue.canRunImmediately) {
       jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
       this.onQueued(jobId);
       // Don't return
@@ -245,12 +224,12 @@ export class ChromeService {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
     }
 
-    if (!this.canQueue) {
+    if (!this.queue.canQueue) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
     }
 
-    if (!this.canRunImmediately) {
+    if (!this.queue.canRunImmediately) {
       jobdebug(`${jobId}: Too many concurrent requests, queueing.`);
       this.onQueued(jobId);
       // Don't return
@@ -365,27 +344,6 @@ export class ChromeService {
     this.queue.remove(job);
   }
 
-  private onSessionSuccess(_res, job: IJob) {
-    jobdebug(`${job.id}: Recording successful stat and cleaning up.`);
-    this.server.currentStat.successful++;
-    job.close();
-  }
-
-  private onSessionFail(error, job: IJob) {
-    jobdebug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
-    this.server.currentStat.error++;
-    job.close();
-  }
-
-  private onTimedOut(next, job: IJob) {
-    jobdebug(`${job.id}: Recording timedout stat.`);
-    this.server.currentStat.timedout++;
-    this.server.timeoutHook();
-    job.timeout();
-    job.close();
-    next();
-  }
-
   private onQueued(id: string) {
     jobdebug(`${id}: Recording queued stat.`);
     this.server.currentStat.queued++;
@@ -453,9 +411,9 @@ export class ChromeService {
       this.chromeSwarm.forEach((chromeInstance) => this.replaceChromeInstance(chromeInstance));
     }
 
-    if (this.queueSize > this.chromeSwarmSize) {
+    if (this.queue.length > this.chromeSwarmSize) {
       // tries to refresh later if more jobs than there are available chromes
-      sysdebug(`Refreshing in ${oneMinute}ms due to queue size of ${this.queueSize}.`);
+      sysdebug(`Refreshing in ${oneMinute}ms due to queue size of ${this.queue.length}.`);
       setTimeout(() => this.refreshChromeSwarm(retries + 1), oneMinute);
     }
 

@@ -27,6 +27,8 @@ import {
 import { ChromeService } from './chrome-service';
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
+import { IJob } from './models/queue.interface';
+import { Queue } from './queue';
 
 const PORT = 9515;
 chromedriver.start([
@@ -49,7 +51,7 @@ const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
 
-const thiryMinutes = 30 * 60 * 1000;
+const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
@@ -63,7 +65,8 @@ export class BrowserlessServer {
 
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
-  private server: any;
+  private queue: Queue;
+  private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
 
@@ -72,8 +75,14 @@ export class BrowserlessServer {
     // on length, so we add concurrent sessions + queue length
     // to determine the `queue` array's max length
     this.config = opts;
+    this.queue = new Queue({
+      autostart: true,
+      concurrency: this.config.maxConcurrentSessions,
+      maxQueueLength: this.config.maxQueueLength,
+      timeout: this.config.connectionTimeout,
+    });
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
-    this.chromeService = new ChromeService(opts, this);
+    this.chromeService = new ChromeService(opts, this, this.queue);
     this.stats = [];
 
     this.proxy = new httpProxy.createProxyServer();
@@ -92,31 +101,35 @@ export class BrowserlessServer {
 
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
-        debug(`Calling webhook for queued session(s): ${opts.queuedAlertURL}`);
+        debug(`Calling web-hook for queued session(s): ${opts.queuedAlertURL}`);
         request(opts.queuedAlertURL, _.noop);
-      }, thiryMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, { leading: true, trailing: false }) :
       _.noop;
 
     this.rejectHook = opts.rejectAlertURL ?
       _.debounce(() => {
-        debug(`Calling webhook for rejected session(s): ${opts.rejectAlertURL}`);
+        debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
-      }, thiryMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, { leading: true, trailing: false }) :
       _.noop;
 
     this.timeoutHook = opts.timeoutAlertURL ?
       _.debounce(() => {
-        debug(`Calling webhook for timed-out session(s): ${opts.rejectAlertURL}`);
+        debug(`Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
-      }, thiryMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, { leading: true, trailing: false }) :
       _.noop;
 
     this.healthFailureHook = opts.healthFailureURL ?
       _.debounce(() => {
-        debug(`Calling webhook for health-failure: ${opts.healthFailureURL}`);
+        debug(`Calling web-hook for health-failure: ${opts.healthFailureURL}`);
         request(opts.healthFailureURL, _.noop);
-      }, thiryMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, { leading: true, trailing: false }) :
       _.noop;
+
+    this.queue.on('success', this.onSessionSuccess.bind(this));
+    this.queue.on('error', this.onSessionFail.bind(this));
+    this.queue.on('timeout', this.onTimedOut.bind(this));
 
     debug(this.config, `Final Options`);
 
@@ -168,8 +181,8 @@ export class BrowserlessServer {
       app.get('/config', (_req, res) => res.json(this.config));
 
       app.get('/pressure', (_req, res) => {
-        const queueLength = this.chromeService.queueSize;
-        const queueConcurrency = this.chromeService.concurrencySize;
+        const queueLength = this.queue.length;
+        const queueConcurrency = this.queue.concurrencySize;
         const concurrencyMet = queueLength >= queueConcurrency;
 
         return res.json({
@@ -242,15 +255,11 @@ export class BrowserlessServer {
         }]);
       }));
 
-      return this.server = http
+      return this.httpServer = http
         .createServer(async (req, res) => {
           // Handle selenium requests
           if (req.url && req.url.includes('/wd/hub/session')) {
-            debug(`Inbound webdriver request`);
-
-            return this.proxy.web(req, res, { target: `http://127.0.0.1:${9515}` }, (e) => {
-              debug(`Issue in webdriver: ${e.message}`);
-            });
+            return this.handleSelenium(req, res);
           }
 
           return app(req, res);
@@ -263,8 +272,8 @@ export class BrowserlessServer {
   public async close() {
     return Promise.all([
       new Promise((resolve) => {
-        this.server.close(resolve);
-        this.server = null;
+        this.httpServer.close(resolve);
+        delete this.httpServer;
       }),
       new Promise((resolve) => {
         this.proxy.close();
@@ -287,6 +296,37 @@ export class BrowserlessServer {
     socket.end(message);
     this.currentStat.rejected++;
     this.rejectHook();
+  }
+
+  private handleSelenium(req, res) {
+    debug(`Inbound webdriver request`);
+
+    // const isStarting = req.method.toLowerCase() === 'post' && req.url === '/wd/hub';
+
+    return this.proxy.web(req, res, { target: `http://127.0.0.1:${9515}` }, (e) => {
+      debug(`Issue in webdriver: ${e.message}`);
+    });
+  }
+
+  private onSessionSuccess(_res, job: IJob) {
+    debug(`${job.id}: Recording successful stat and cleaning up.`);
+    this.currentStat.successful++;
+    job.close();
+  }
+
+  private onSessionFail(error, job: IJob) {
+    debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
+    this.currentStat.error++;
+    job.close();
+  }
+
+  private onTimedOut(next, job: IJob) {
+    debug(`${job.id}: Recording timedout stat.`);
+    this.currentStat.timedout++;
+    this.timeoutHook();
+    job.timeout();
+    job.close();
+    next();
   }
 
   private resetCurrentStat() {
