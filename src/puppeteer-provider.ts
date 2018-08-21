@@ -328,7 +328,7 @@ export class ChromeService {
 
   private removeJob(job: IJob) {
     jobdebug(`${job.id}: Removing job from queue and cleaning up.`);
-    job.close();
+    job.close && job.close();
     this.queue.remove(job);
   }
 

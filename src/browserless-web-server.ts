@@ -1,5 +1,4 @@
 import * as bodyParser from 'body-parser';
-import * as chromedriver from 'chromedriver';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -29,13 +28,7 @@ import { IBrowserlessOptions } from './models/options.interface';
 import { IJob } from './models/queue.interface';
 import { ChromeService } from './puppeteer-provider';
 import { Queue } from './queue';
-
-const PORT = 9515;
-chromedriver.start([
-  '--url-base=wd/hub',
-  `--port=${PORT}`,
-  '--verbose',
-]);
+import { WebDriver } from './webdriver-provider';
 
 const debug = getDebug('server');
 
@@ -69,6 +62,7 @@ export class BrowserlessServer {
   private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
+  private webdriver: WebDriver;
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -83,6 +77,7 @@ export class BrowserlessServer {
     });
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this, this.queue);
+    this.webdriver = new WebDriver(this.queue);
     this.stats = [];
 
     this.proxy = new httpProxy.createProxyServer();
@@ -300,33 +295,38 @@ export class BrowserlessServer {
   }
 
   private handleSelenium(req, res) {
-    debug(`Inbound webdriver request`);
+    const isStarting = req.method.toLowerCase() === 'post' && req.url === '/wd/hub/session';
+    const isClosing = req.method.toLowerCase() === 'delete';
 
-    // const isStarting = req.method.toLowerCase() === 'post' && req.url === '/wd/hub';
+    if (isStarting) {
+      return this.webdriver.start(req, res);
+    }
 
-    return this.proxy.web(req, res, { target: `http://127.0.0.1:${9515}` }, (e) => {
-      debug(`Issue in webdriver: ${e.message}`);
-    });
+    if (isClosing) {
+      return this.webdriver.closeSession(req, res);
+    }
+
+    return this.webdriver.proxySession(req, res);
   }
 
   private onSessionSuccess(_res, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
-    job.close();
+    job.close && job.close();
   }
 
   private onSessionFail(error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
-    job.close();
+    job.close && job.close();
   }
 
   private onTimedOut(next, job: IJob) {
     debug(`${job.id}: Recording timedout stat.`);
     this.currentStat.timedout++;
     this.timeoutHook();
-    job.timeout();
-    job.close();
+    job.timeout && job.timeout();
+    job.close && job.close();
     next();
   }
 
