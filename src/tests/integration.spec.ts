@@ -8,6 +8,7 @@ import { IBrowserlessOptions } from '../models/options.interface';
 import { sleep } from '../utils';
 
 const fetch = require('node-fetch');
+const webdriver = require('selenium-webdriver');
 
 const exec = util.promisify(execNode);
 const defaultParams: IBrowserlessOptions = {
@@ -47,6 +48,13 @@ const getChromeProcesses = () => {
 const killChrome = () => {
   return exec(`pkill -f local-chromium`)
     .catch(() => {});
+};
+
+const webdriverOpts = {
+  args: [
+    '--headless',
+    '--no-sandbox',
+  ],
 };
 
 describe('Browserless Chrome', () => {
@@ -911,6 +919,52 @@ describe('Browserless Chrome', () => {
           .then((res) => {
             expect(res.status).toBe(200);
           });
+      });
+    });
+
+    describe.only('webdriver', () => {
+      it('starts sessions', async () => {
+        const chromeCapabilities = webdriver.Capabilities.chrome();
+        const browserless = start(defaultParams);
+
+        await browserless.startServer();
+        chromeCapabilities.set('chromeOptions', webdriverOpts);
+
+        const driver = new webdriver.Builder()
+          .forBrowser('chrome')
+          .withCapabilities(chromeCapabilities)
+          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+          .build();
+
+        return driver.get('https://example.com')
+          .then(() => driver.quit())
+          .catch((error) => {
+            driver.quit();
+            throw error;
+          });
+      });
+
+      it('queues sessions', async () => {
+        const chromeCapabilities = webdriver.Capabilities.chrome();
+        const browserless = start({
+          ...defaultParams,
+          maxConcurrentSessions: 0,
+        });
+
+        await browserless.startServer();
+        chromeCapabilities.set('chromeOptions', webdriverOpts);
+
+        const driver = new webdriver.Builder()
+          .forBrowser('chrome')
+          .withCapabilities(chromeCapabilities)
+          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+          .build();
+
+        await driver.get('https://example.com');
+
+        expect(browserless.currentStat.queued).toEqual(1);
+
+        driver.quit();
       });
     });
   });
