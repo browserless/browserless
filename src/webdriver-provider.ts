@@ -45,8 +45,8 @@ export class WebDriver {
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
-          `--port=${port}`,
           '--whitelisted-ips',
+          `--port=${port}`,
           '--verbose',
         ]);
 
@@ -88,6 +88,7 @@ export class WebDriver {
             debug(`Issue in webdriver: ${error.message}`);
             res.end();
             done();
+            throw error;
           });
         });
       });
