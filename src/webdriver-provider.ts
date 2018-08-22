@@ -45,9 +45,8 @@ export class WebDriver {
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
-          `--host=127.0.0.1`,
           `--port=${port}`,
-          '--disable-ipv6',
+          '--whitelisted-ips',
           '--verbose',
         ]);
 
@@ -86,8 +85,9 @@ export class WebDriver {
           await sleep(5);
 
           proxy.web(req, res, (error) => {
-            res.end();
             debug(`Issue in webdriver: ${error.message}`);
+            res.end();
+            done();
           });
         });
       });
