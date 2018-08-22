@@ -921,39 +921,20 @@ describe('Browserless Chrome', () => {
           });
       });
     });
+  });
 
-    describe.only('webdriver', () => {
-      it('starts sessions', async () => {
-        const chromeCapabilities = webdriver.Capabilities.chrome();
-        const browserless = start(defaultParams);
-
-        await browserless.startServer();
-        chromeCapabilities.set('chromeOptions', webdriverOpts);
-
-        const driver = new webdriver.Builder()
-          .forBrowser('chrome')
-          .withCapabilities(chromeCapabilities)
-          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
-          .build();
-
-        return driver.get('https://example.com')
-          .then(() => driver.quit())
-          .catch((error) => {
-            driver.quit();
-            throw error;
-          });
+  describe('WebDriver', () => {
+    it('runs concurrently', async () => {
+      const chromeCapabilities = webdriver.Capabilities.chrome();
+      const browserless = start({
+        ...defaultParams,
+        maxConcurrentSessions: 2,
       });
 
-      it('queues sessions', async () => {
-        const chromeCapabilities = webdriver.Capabilities.chrome();
-        const browserless = start({
-          ...defaultParams,
-          maxConcurrentSessions: 0,
-        });
+      await browserless.startServer();
+      chromeCapabilities.set('chromeOptions', webdriverOpts);
 
-        await browserless.startServer();
-        chromeCapabilities.set('chromeOptions', webdriverOpts);
-
+      async function run() {
         const driver = new webdriver.Builder()
           .forBrowser('chrome')
           .withCapabilities(chromeCapabilities)
@@ -961,11 +942,39 @@ describe('Browserless Chrome', () => {
           .build();
 
         await driver.get('https://example.com');
-
-        expect(browserless.currentStat.queued).toEqual(1);
-
         driver.quit();
-      });
+      }
+
+      await Promise.all([ run(), run() ]);
+      await sleep(10);
+
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.queued).toEqual(0);
+    });
+
+    it('queues sessions', async () => {
+      const chromeCapabilities = webdriver.Capabilities.chrome();
+      const browserless = start(defaultParams);
+
+      await browserless.startServer();
+      chromeCapabilities.set('chromeOptions', webdriverOpts);
+
+      async function run() {
+        const driver = new webdriver.Builder()
+          .forBrowser('chrome')
+          .withCapabilities(chromeCapabilities)
+          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+          .build();
+
+        await driver.get('https://example.com');
+        driver.quit();
+      }
+
+      await Promise.all([ run(), run() ]);
+      await sleep(10);
+
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.queued).toEqual(1);
     });
   });
 });

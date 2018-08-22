@@ -1,7 +1,7 @@
 import * as chromeDriver from 'chromedriver';
 import * as httpProxy from 'http-proxy';
 import { Queue } from './queue';
-import { getDebug } from './utils';
+import { getDebug, sleep } from './utils';
 
 const debug = getDebug('webdriver');
 const kill = require('tree-kill');
@@ -31,21 +31,21 @@ export class WebDriver {
     debug(`Inbound webdriver request`);
 
     const handler = (done: () => {}) => {
-      getPort().then((port) => {
+      getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
           `--port=${port}`,
           // '--verbose',
         ]);
 
-        job.close = () => {
-          debug(`Killing chromedriver ${chromeProcess.pid}`);
-          kill(chromeProcess.pid, 'SIGKILL');
-        };
-
-        chromeProcess.stdout.on('data', () => {
+        chromeProcess.stdout.once('data', async () => {
           debug(`chrome-driver started`);
-          const proxy = new httpProxy.createProxyServer({ target: `http://localhost:${port}` });
+          const proxy = new httpProxy.createProxyServer({
+            target: {
+              host: 'localhost',
+              port,
+            },
+          });
 
           proxy.once('proxyRes', (proxyRes) => {
             let body = new Buffer('');
@@ -64,8 +64,18 @@ export class WebDriver {
                 proxy,
                 sessionId: id,
               };
+
+              job.close = () => {
+                debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
+                kill(chromeProcess.pid, 'SIGTERM');
+                proxy.close();
+                delete this.webDriverSessions[id];
+              };
             });
           });
+
+          // Wait for ports to be bound
+          await sleep(5);
 
           proxy.web(req, res, (error) => {
             debug(`Issue in webdriver: ${error.message}`);
@@ -106,12 +116,23 @@ export class WebDriver {
 
     session.proxy.once('proxyRes', () => {
       session.done();
-      delete this.webDriverSessions[session.sessionId];
     });
 
     session.proxy.web(req, res, (error) => {
       debug(`Issue in webdriver: ${error.message}`);
     });
+  }
+
+  public close() {
+    for (const sessionId in this.webDriverSessions) {
+      if (sessionId) {
+        const session = this.webDriverSessions[sessionId];
+        debug(`Killing chromedriver and proxy ${session.chromeProcess.pid}`);
+        kill(session.chromeProcess.pid, 'SIGTERM');
+        session.proxy.close();
+        delete this.webDriverSessions[sessionId];
+      }
+    }
   }
 
   private getSession(req): IWebDriverSession | null {

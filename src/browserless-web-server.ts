@@ -277,6 +277,7 @@ export class BrowserlessServer {
         resolve();
       }),
       this.chromeService.close(),
+      this.webdriver.close(),
     ]);
   }
 
