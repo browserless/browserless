@@ -45,19 +45,15 @@ export class WebDriver {
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
+          `--host=127.0.0.1`,
           `--port=${port}`,
           '--disable-ipv6',
-          // '--verbose',
+          '--verbose',
         ]);
 
         chromeProcess.stdout.once('data', async () => {
           debug(`chrome-driver started`);
-          const proxy = new httpProxy.createProxyServer({
-            target: {
-              host: '127.0.0.1',
-              port,
-            },
-          });
+          const proxy = new httpProxy.createProxyServer({ target: `http://127.0.0.1${port}` });
 
           proxy.once('proxyRes', (proxyRes) => {
             let body = new Buffer('');
