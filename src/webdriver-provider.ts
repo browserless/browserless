@@ -82,7 +82,7 @@ export class WebDriver {
           });
 
           // Wait for ports to be bound
-          await sleep(5);
+          await sleep(25);
 
           proxy.web(req, res, (error) => {
             debug(`Issue in webdriver: ${error.message}`);
