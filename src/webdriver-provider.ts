@@ -46,6 +46,7 @@ export class WebDriver {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
           `--port=${port}`,
+          '--disable-ipv6',
           // '--verbose',
         ]);
 
