@@ -53,7 +53,7 @@ export class WebDriver {
           debug(`chrome-driver started`);
           const proxy = new httpProxy.createProxyServer({
             target: {
-              host: 'localhost',
+              host: '127.0.0.1',
               port,
             },
           });
