@@ -30,7 +30,18 @@ export class WebDriver {
   public start(req, res) {
     debug(`Inbound webdriver request`);
 
+    if (!this.queue.hasCapacity) {
+      debug(`Too many concurrent and queued requests, rejecting.`);
+      return res.end();
+    }
+
+    const earlyClose = () => {
+      debug(`Request terminated prior to execution, removing from queue`);
+      this.queue.remove(job);
+    };
+
     const handler = (done: () => {}) => {
+      req.removeListener('close', earlyClose);
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
@@ -90,6 +101,7 @@ export class WebDriver {
       id: '',
     });
 
+    req.once('close', earlyClose);
     this.queue.add(job);
   }
 

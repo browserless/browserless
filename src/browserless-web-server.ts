@@ -48,6 +48,8 @@ const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
+const webDriverPath = '/wd/hub/session';
+
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
   public readonly rejectHook: () => void;
@@ -253,9 +255,9 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
-          // Handle selenium requests
-          if (req.url && req.url.includes('/wd/hub/session')) {
-            return this.handleSelenium(req, res);
+          // Handle webdriver requests
+          if (req.url && req.url.includes(webDriverPath)) {
+            return this.handleWebDriver(req, res);
           }
 
           return app(req, res);
@@ -295,8 +297,8 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  private handleSelenium(req, res) {
-    const isStarting = req.method.toLowerCase() === 'post' && req.url === '/wd/hub/session';
+  private handleWebDriver(req, res) {
+    const isStarting = req.method.toLowerCase() === 'post' && req.url === webDriverPath;
     const isClosing = req.method.toLowerCase() === 'delete';
 
     if (isStarting) {
