@@ -53,7 +53,7 @@ export class WebDriver {
 
         chromeProcess.stdout.once('data', async () => {
           debug(`chrome-driver started`);
-          const proxy = new httpProxy.createProxyServer({ target: `http://127.0.0.1${port}` });
+          const proxy = new httpProxy.createProxyServer({ target: `http://127.0.0.1:${port}` });
 
           proxy.once('proxyRes', (proxyRes) => {
             let body = new Buffer('');
@@ -86,6 +86,7 @@ export class WebDriver {
           await sleep(5);
 
           proxy.web(req, res, (error) => {
+            res.end();
             debug(`Issue in webdriver: ${error.message}`);
           });
         });
