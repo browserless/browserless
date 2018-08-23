@@ -6,6 +6,7 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV application_directory=/usr/src/app
 ENV font_directory=/usr/share/fonts/noto
+ENV CHROMEDRIVER_VERSION=2.39
 
 # Build Args
 ARG USE_CHROME_STABLE
