@@ -45,7 +45,7 @@ export class WebDriver {
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
-          '--whitelisted-ips',
+          '--whitelisted-ips=127.0.0.1',
           `--port=${port}`,
           '--verbose',
         ]);
@@ -85,6 +85,7 @@ export class WebDriver {
           await sleep(25);
 
           proxy.web(req, res, (error) => {
+            req.headers.host = '127.0.0.1:3000';
             debug(`Issue in webdriver: ${error.message}`);
             res.end();
             done();
