@@ -45,7 +45,7 @@ export class WebDriver {
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
           '--url-base=wd/hub',
-          '--whitelisted-ips=127.0.0.1',
+          '--whitelisted-ips',
           `--port=${port}`,
           '--verbose',
         ]);
