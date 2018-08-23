@@ -48,7 +48,7 @@ const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
-const webDriverPath = '/wd/hub/session';
+const webDriverPath = '/webdriver/session';
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;

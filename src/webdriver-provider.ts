@@ -45,8 +45,7 @@ export class WebDriver {
       req.removeListener('close', earlyClose);
       getPort().then(async (port) => {
         const chromeProcess = chromeDriver.start([
-          '--url-base=wd/hub',
-          '--whitelisted-ips',
+          '--url-base=webdriver',
           `--port=${port}`,
           '--verbose',
         ]);
@@ -149,7 +148,7 @@ export class WebDriver {
 
   private getSession(req): IWebDriverSession | null {
     const urlParts = req.url.split('/');
-    const sessionId = urlParts[4];
+    const sessionId = urlParts[3];
 
     if (!sessionId) {
       debug(`Couldn't load session for URL ${req.url}`);
