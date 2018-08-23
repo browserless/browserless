@@ -938,7 +938,7 @@ describe('Browserless Chrome', () => {
         const driver = new webdriver.Builder()
           .forBrowser('chrome')
           .withCapabilities(chromeCapabilities)
-          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+          .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
           .build();
 
         await driver.get('https://example.com');
@@ -964,7 +964,7 @@ describe('Browserless Chrome', () => {
         const driver = new webdriver.Builder()
           .forBrowser('chrome')
           .withCapabilities(chromeCapabilities)
-          .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+          .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
           .build();
 
         await driver.get('https://example.com');
@@ -992,7 +992,7 @@ describe('Browserless Chrome', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${defaultParams.port}/wd/hub`)
+        .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
         .build();
 
       try {
