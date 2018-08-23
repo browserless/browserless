@@ -29,6 +29,7 @@ export class WebDriver {
 
   public start(req, res) {
     debug(`Inbound webdriver request`);
+    req.headers.host = '127.0.0.1:3000';
 
     if (!this.queue.hasCapacity) {
       debug(`Too many concurrent and queued requests, rejecting.`);
@@ -85,7 +86,6 @@ export class WebDriver {
           await sleep(25);
 
           proxy.web(req, res, (error) => {
-            req.headers.host = '127.0.0.1:3000';
             debug(`Issue in webdriver: ${error.message}`);
             res.end();
             done();
