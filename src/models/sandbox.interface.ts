@@ -1,7 +1,6 @@
 export interface IConfig {
   code: string;
   timeout: number;
-  chromeBinaryPath: string;
   flags?: string[];
 }
 

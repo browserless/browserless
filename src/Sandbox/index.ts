@@ -12,7 +12,7 @@ export class BrowserlessSandbox extends EventEmitter {
   private child: ChildProcess;
   private timer: NodeJS.Timer;
 
-  constructor({ code, timeout, flags, chromeBinaryPath }: IConfig) {
+  constructor({ code, timeout, flags }: IConfig) {
     super();
 
     this.child = fork(path.join(__dirname, 'child'));
@@ -36,7 +36,6 @@ export class BrowserlessSandbox extends EventEmitter {
 
     this.child.send({
       context: {
-        chromeBinaryPath,
         code,
         flags,
       },

@@ -4,6 +4,7 @@ import * as url from 'url';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless-web-server';
+import { launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
@@ -236,7 +237,6 @@ export class ChromeService {
         const code = this.parseUserCode(decodeURIComponent(debugCode), job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
-          chromeBinaryPath: this.config.chromeBinaryPath,
           code,
           flags,
           timeout,
@@ -434,14 +434,8 @@ export class ChromeService {
 
   private async launchChrome(flags: string[] = [], retries: number = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
-    const launchArgs: puppeteer.LaunchOptions = {
-      args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
-      executablePath: this.config.chromeBinaryPath,
-    };
 
-    sysdebug(`Starting Chrome with args: ${JSON.stringify(launchArgs)}`);
-
-    return puppeteer.launch(launchArgs)
+    return launchChrome(flags)
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;

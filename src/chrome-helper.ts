@@ -1,9 +1,12 @@
 import * as fs from 'fs';
 import * as puppeteer from 'puppeteer';
+import { getDebug } from './utils';
 
+const debug = getDebug('chrome-helper');
 const { createBrowserFetcher } = require('puppeteer');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
+const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 
 let executablePath: string;
 
@@ -19,9 +22,11 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
 
 export const launchChrome = (flags: string[] = []) => {
   const launchArgs: puppeteer.LaunchOptions = {
-    args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
+    args: [...flags, ...DEFAULT_ARGS],
     executablePath,
   };
+
+  debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
 
   return puppeteer.launch(launchArgs);
 };
