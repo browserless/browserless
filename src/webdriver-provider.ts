@@ -1,5 +1,6 @@
 import * as chromeDriver from 'chromedriver';
 import * as httpProxy from 'http-proxy';
+import { IJob } from './models/queue.interface';
 import { Queue } from './queue';
 import { getDebug, sleep } from './utils';
 
@@ -27,6 +28,9 @@ export class WebDriver {
     this.webDriverSessions = {};
   }
 
+  // Since Webdriver commands happen over HTTP, and aren't
+  // maintained, we treat with the initial session request
+  // with some special circumstances and use it inside our queue
   public start(req, res) {
     debug(`Inbound webdriver request`);
     req.headers.host = '127.0.0.1:3000';
@@ -41,63 +45,63 @@ export class WebDriver {
       this.queue.remove(job);
     };
 
-    const handler = (done: () => {}) => {
-      req.removeListener('close', earlyClose);
-      getPort().then(async (port) => {
-        const chromeProcess = chromeDriver.start([
-          '--url-base=webdriver',
-          `--port=${port}`,
-          '--verbose',
-        ]);
+    const job: IJob = Object.assign(
+      (done: () => {}) => {
+        req.removeListener('close', earlyClose);
+        getPort().then(async (port) => {
+          const chromeProcess = chromeDriver.start([
+            '--url-base=webdriver',
+            `--port=${port}`,
+            '--verbose',
+          ]);
 
-        chromeProcess.stdout.once('data', async () => {
-          debug(`chrome-driver started`);
-          const proxy = new httpProxy.createProxyServer({ target: `http://localhost:${port}` });
+          chromeProcess.stdout.once('data', async () => {
+            debug(`chrome-driver started`);
+            const proxy = new httpProxy.createProxyServer({ target: `http://localhost:${port}` });
 
-          proxy.once('proxyRes', (proxyRes) => {
-            let body = new Buffer('');
-            proxyRes.on('data', (data) => body = Buffer.concat([body, data]));
-            proxyRes.on('end', () => {
-              const responseBody = body.toString();
-              const session = JSON.parse(responseBody);
-              const id = session.sessionId;
-              debug('Session started, got body: ', responseBody);
+            proxy.once('proxyRes', (proxyRes) => {
+              let body = new Buffer('');
+              proxyRes.on('data', (data) => body = Buffer.concat([body, data]));
+              proxyRes.on('end', () => {
+                const responseBody = body.toString();
+                const session = JSON.parse(responseBody);
+                const id = session.sessionId;
+                debug('Session started, got body: ', responseBody);
 
-              job.id = id;
+                job.id = id;
 
-              this.webDriverSessions[id] = {
-                chromeProcess,
-                done,
-                proxy,
-                sessionId: id,
-              };
+                this.webDriverSessions[id] = {
+                  chromeProcess,
+                  done,
+                  proxy,
+                  sessionId: id,
+                };
 
-              job.close = () => {
-                debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
-                kill(chromeProcess.pid, 'SIGTERM');
-                proxy.close();
-                delete this.webDriverSessions[id];
-              };
+                job.close = () => {
+                  debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
+                  kill(chromeProcess.pid, 'SIGTERM');
+                  proxy.close();
+                  delete this.webDriverSessions[id];
+                };
+              });
+            });
+
+            // Wait for ports to be bound
+            await sleep(10);
+
+            proxy.web(req, res, (error) => {
+              debug(`Issue in webdriver: ${error.message}`);
+              res.end();
+              done();
             });
           });
-
-          // Wait for ports to be bound
-          await sleep(10);
-
-          proxy.web(req, res, (error) => {
-            debug(`Issue in webdriver: ${error.message}`);
-            res.end();
-            done();
-          });
         });
-      });
-    };
-
-    const job = Object.assign(handler, {
-      browser: null,
-      close: () => {},
-      id: '',
-    });
+      }, {
+        browser: null,
+        close: () => {},
+        id: '',
+      },
+    );
 
     req.once('close', earlyClose);
     this.queue.add(job);
@@ -124,9 +128,7 @@ export class WebDriver {
       return res.end();
     }
 
-    session.proxy.once('proxyRes', () => {
-      session.done();
-    });
+    session.proxy.once('proxyRes', () => session.done());
 
     session.proxy.web(req, res, (error) => {
       debug(`Issue in webdriver: ${error.message}`);
