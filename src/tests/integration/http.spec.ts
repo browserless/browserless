@@ -349,41 +349,6 @@ describe('Browserless Chrome HTTP', () => {
           expect(message).toEqual(error);
         });
     });
-
-    it('catches errors in browserless', async () => {
-      const chromeBinaryPath = '/im/not/here';
-      const browserless = start({
-        ...defaultParams,
-        chromeBinaryPath,
-      });
-
-      await browserless.startServer();
-
-      const body = {
-        code: `module.exports = async ({ page }) => {
-          return {
-            data: 'cool!',
-          };
-        }`,
-        context: {},
-      };
-
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
-        },
-        method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toEqual(500);
-          expect(res.ok).toEqual(false);
-          return res.text();
-        })
-        .then((message) => {
-          expect(message).toContain(`Failed to launch chrome! spawn ${chromeBinaryPath} ENOENT`);
-        });
-    });
   });
 
   describe('/screenshot', () => {

@@ -52,7 +52,7 @@ export class WebDriver {
           const chromeProcess = chromeDriver.start([
             '--url-base=webdriver',
             `--port=${port}`,
-            '--verbose',
+            // '--verbose',
           ]);
 
           chromeProcess.stdout.once('data', async () => {

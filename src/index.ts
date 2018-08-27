@@ -42,10 +42,8 @@ const functionBuiltIns =        parseParam(process.env.FUNCTION_BUILT_INS, []);
 const functionExternals =       parseParam(process.env.FUNCTION_EXTERNALS, []);
 
 const maxQueueLength = queueLength + maxConcurrentSessions;
-const chromeBinaryPath = getChromePath();
 
 new BrowserlessServer({
-  chromeBinaryPath,
   chromeRefreshTime,
   connectionTimeout,
   demoMode,
