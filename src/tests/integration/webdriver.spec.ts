@@ -3,7 +3,9 @@ import { sleep } from '../../utils';
 
 import {
   defaultParams,
+  getChromeProcesses,
   killChrome,
+  throws,
   webdriverOpts,
 } from './utils';
 
@@ -74,7 +76,7 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(1);
   });
 
-  it.skip('fails requests', async () => {
+  it('fails requests', async () => {
     const browserless = start({
       ...defaultParams,
       maxConcurrentSessions: 0,
@@ -85,16 +87,66 @@ describe('Browserless Chrome Webdriver', () => {
     const chromeCapabilities = webdriver.Capabilities.chrome();
     chromeCapabilities.set('chromeOptions', webdriverOpts);
 
+    return new webdriver.Builder()
+      .forBrowser('chrome')
+      .withCapabilities(chromeCapabilities)
+      .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+      .build()
+      .then(throws)
+      .catch((error) => {
+        expect(error.message).toEqual('Unable to parse new session response: ');
+      });
+  });
+
+  it('fails requests without tokens', async () => {
+    const browserless = start({
+      ...defaultParams,
+      token: 'abc',
+    });
+
+    await browserless.startServer();
+    const chromeCapabilities = webdriver.Capabilities.chrome();
+    chromeCapabilities.set('chromeOptions', webdriverOpts);
+
+    return new webdriver.Builder()
+      .forBrowser('chrome')
+      .withCapabilities(chromeCapabilities)
+      .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+      .build()
+      .then(throws)
+      .catch((error) => {
+        expect(error.message).toEqual('Unauthorized');
+      });
+  });
+
+  it('closes chrome when the session is closed', async () => {
+    const chromeCapabilities = webdriver.Capabilities.chrome();
+    const browserless = start({
+      ...defaultParams,
+      maxConcurrentSessions: 2,
+    });
+
+    await browserless.startServer();
+    chromeCapabilities.set('chromeOptions', webdriverOpts);
+
     const driver = new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
       .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
       .build();
 
-    try {
-      await driver.get('https://example.com');
-    } catch (error) {
-      return expect(error.message).toContain(`Unable to parse new session response:`);
-    }
+    await driver.get('https://example.com');
+    await driver.quit();
+
+    await sleep(50);
+
+    expect(browserless.currentStat.successful).toEqual(1);
+    expect(browserless.currentStat.rejected).toEqual(0);
+    expect(browserless.currentStat.queued).toEqual(0);
+    const processes = await getChromeProcesses();
+
+    await sleep(50);
+
+    expect(processes.stdout).not.toContain('.local-chromium');
   });
 });

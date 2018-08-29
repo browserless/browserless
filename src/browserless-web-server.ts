@@ -7,6 +7,7 @@ import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as path from 'path';
 import { setInterval } from 'timers';
+import * as url from 'url';
 
 import {
   asyncMiddleware,
@@ -256,6 +257,14 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           // Handle webdriver requests
+          if (this.config.token) {
+            const parsedUrl = url.parse(req.url as string, true);
+
+            if (_.get(parsedUrl, 'query.token', null) !== this.config.token) {
+              res.writeHead(403, { 'Content-Type': 'text/plain' });
+              return res.end('Unauthorized');
+            }
+          }
           if (req.url && req.url.includes(webDriverPath)) {
             return this.handleWebDriver(req, res);
           }
