@@ -1,5 +1,4 @@
 import { BrowserlessServer } from './browserless-web-server';
-import { getChromePath } from './chrome-helper';
 import { getDebug } from './utils';
 
 const debug = getDebug('system');

@@ -1,13 +1,11 @@
-import * as chromeDriver from 'chromedriver';
 import * as httpProxy from 'http-proxy';
 import { launchChromeDriver } from './chrome-helper';
 import { IJob } from './models/queue.interface';
 import { Queue } from './queue';
-import { getDebug, sleep } from './utils';
+import { getDebug } from './utils';
 
 const debug = getDebug('webdriver');
 const kill = require('tree-kill');
-const getPort = require('get-port');
 
 interface IWebDriverSession {
   chromeProcess: any;
