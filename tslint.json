@@ -10,7 +10,8 @@
       "no-empty": [true, "allow-empty-functions"],
       "no-var-requires": false,
       "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore"],
-      "no-shadowed-variable": false
+      "no-shadowed-variable": false,
+      "no-unused-expression": false
     },
     "rulesDirectory": []
 }

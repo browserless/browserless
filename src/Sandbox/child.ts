@@ -3,6 +3,7 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 import { NodeVM } from 'vm2';
 
+import { launchChrome } from '../chrome-helper';
 import { IMessage } from '../models/sandbox.interface';
 import { getDebug } from '../utils';
 
@@ -37,18 +38,12 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
 };
 
 const start = async (
-  { code, flags = [], chromeBinaryPath }:
-  { code: string; flags: string[], chromeBinaryPath: string },
+  { code, flags = [] }:
+  { code: string; flags: string[] },
 ) => {
   debug(`Starting sandbox running code "${code}"`);
-  const launchArgs: puppeteer.LaunchOptions = {
-    args: flags.concat(['--no-sandbox', '--disable-dev-shm-usage']),
-    executablePath: chromeBinaryPath,
-  };
 
-  debug(`Starting Chrome with args: ${JSON.stringify(launchArgs)}`);
-
-  const browser = await puppeteer.launch(launchArgs);
+  const browser = await launchChrome(flags);
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
   page.on('error', (error) => {
