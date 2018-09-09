@@ -2,6 +2,7 @@ import { BrowserlessServer } from '../../browserless-web-server';
 import {
   defaultParams,
   killChrome,
+  throws,
 } from './utils';
 
 const fetch = require('node-fetch');
@@ -690,6 +691,28 @@ describe('Browserless Chrome HTTP', () => {
       };
 
       return fetch(`http://localhost:${defaultParams.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+  });
+
+  describe('/stats', () => {
+    it('allows requests', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
