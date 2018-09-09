@@ -6,14 +6,13 @@ import { IBrowserlessOptions } from '../../models/options.interface';
 export const exec = util.promisify(execNode);
 
 export const defaultParams: IBrowserlessOptions = {
-  chromeBinaryPath: getChromePath(),
   chromeRefreshTime: 0,
-  connectionTimeout: 2000,
+  connectionTimeout: 5000,
   demoMode: false,
   enableCors: false,
   enableDebugger: true,
-  functionBuiltIns: [],
-  functionExternals: [],
+  functionBuiltIns: ['url'],
+  functionExternals: ['lighthouse'],
   healthFailureURL: null,
   host: '',
   keepAlive: false,

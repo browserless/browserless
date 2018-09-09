@@ -22,6 +22,7 @@ import {
   fn as fnSchema,
   pdf as pdfSchema,
   screenshot as screenshotSchema,
+  stats as statsSchema,
 } from './schemas';
 
 import { ResourceMonitor } from './hardware-monitoring';
@@ -40,6 +41,7 @@ const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 
 const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
 const pdf = fnLoader('pdf');
+const stats = fnLoader('stats');
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -230,6 +232,16 @@ export class BrowserlessServer {
       app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
         this.chromeService.runHTTP({
           code: pdf,
+          context: req.body,
+          req,
+          res,
+        }),
+      ));
+
+      // Helper route for capturing stats, accepts a POST body containing a URL
+      app.post('/stats', bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
+        this.chromeService.runHTTP({
+          code: stats,
           context: req.body,
           req,
           res,

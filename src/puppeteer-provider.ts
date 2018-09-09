@@ -149,7 +149,7 @@ export class ChromeService {
               done();
             });
 
-            return Promise.resolve(handler({ page, context }))
+            return Promise.resolve(handler({ page, context, browser }))
               .then(({ data, type = 'text/plain' } = {}) => {
                 jobdebug(`${job.id}: Function complete, cleaning up.`);
 

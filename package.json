@@ -13,7 +13,7 @@
     "clean": "rimraf build",
     "ci": "npm run lint && npm test",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
-    "dev": "npm run build && cross-env ENABLE_CORS=true MAX_CONCURRENT_SESSIONS=1 DEBUG=browserless* PORT=3030 node build/index.js",
+    "dev": "npm run build && source ./env.dev.sh && node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
@@ -30,6 +30,7 @@
     "puppeteer-1.5.0": "1.5.0",
     "puppeteer-1.6.2": "1.6.2",
     "puppeteer-1.7.0": "1.7.0",
+    "puppeteer-1.8.0": "1.8.0",
     "chrome-stable": "1.4.0"
   },
   "releaseBranches": [
@@ -41,6 +42,7 @@
     "puppeteer-1.5.0",
     "puppeteer-1.6.2",
     "puppeteer-1.7.0",
+    "puppeteer-1.8.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
@@ -61,10 +63,11 @@
     "http-proxy": "^1.16.2",
     "jest": "^23.1.0",
     "joi": "^13.3.0",
+    "lighthouse": "^3.0.3",
     "lodash": "^4.17.4",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "^1.7.0",
+    "puppeteer": "^1.8.0",
     "queue": "^4.4.2",
     "request": "^2.83.0",
     "require-from-string": "^2.0.2",

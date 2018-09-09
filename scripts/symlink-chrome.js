@@ -1,7 +1,7 @@
 const fs = require('fs');
 const { exec } = require('child_process');
 
-const { createBrowserFetcher } = require('puppeteer');
+const puppeteer = require('puppeteer');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const IS_DOCKER = fs.existsSync('/.dockerenv');
@@ -19,7 +19,7 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   process.exit(0);
 } else {
   // Use puppeteer's copy otherwise
-  const browserFetcher = createBrowserFetcher();
+  const browserFetcher = puppeteer.createBrowserFetcher();
   const revisionInfo = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
   executablePath = revisionInfo.executablePath;
 

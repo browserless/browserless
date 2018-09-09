@@ -1,11 +1,10 @@
 import { ChildProcess } from 'child_process';
 import * as chromeDriver from 'chromedriver';
 import * as fs from 'fs';
-import * as puppeteer from 'puppeteer';
 import { getDebug, sleep } from './utils';
 
+const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
-const { createBrowserFetcher } = require('puppeteer');
 const getPort = require('get-port');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
@@ -28,13 +27,13 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   executablePath = CHROME_BINARY_LOCATION;
 } else {
   // Use puppeteer's copy otherwise
-  const browserFetcher = createBrowserFetcher();
+  const browserFetcher = puppeteer.createBrowserFetcher();
   const revisionInfo = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
   executablePath = revisionInfo.executablePath;
 }
 
 export const launchChrome = (flags: string[] = []) => {
-  const launchArgs: puppeteer.LaunchOptions = {
+  const launchArgs = {
     args: [...flags, ...DEFAULT_ARGS],
     executablePath,
   };

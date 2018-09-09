@@ -70,3 +70,7 @@ export const fn = Joi.object().keys({
   context: Joi.object(),
   detached: Joi.boolean(),
 });
+
+export const stats = Joi.object().keys({
+  url: Joi.string().required(),
+});
