@@ -58,7 +58,8 @@ const deployPuppeteerVersion = async (branch) => {
     }
   }
 
-  await logExec(`git push origin ${branch} --quiet --no-verify`);
+  // Have to do `&> /dev/null` to avoid remote messages
+  await logExec(`git push origin ${branch} --quiet --no-verify &> /dev/null`);
 }
 
 async function cleanLocalBranches() {
