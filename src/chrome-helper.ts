@@ -1,7 +1,7 @@
 import { ChildProcess } from 'child_process';
 import * as chromeDriver from 'chromedriver';
 import * as fs from 'fs';
-import { getDebug, sleep } from './utils';
+import { canLog, getDebug, sleep } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -17,10 +17,7 @@ interface IChromeDriver {
   chromeProcess: ChildProcess;
 }
 
-const defaultDriverFlags = [
-  '--url-base=webdriver',
-  '--verbose',
-];
+const defaultDriverFlags = ['--url-base=webdriver'];
 
 if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   // If it's installed already, consume it
@@ -46,6 +43,11 @@ export const launchChrome = (flags: string[] = []) => {
 export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
+
+    if (canLog) {
+      flags.push('--verbose');
+    }
+
     const chromeProcess = chromeDriver.start([...flags, `--port=${port}`]);
 
     chromeProcess.stdout.once('data', async () => {

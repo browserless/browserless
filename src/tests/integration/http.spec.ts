@@ -723,5 +723,53 @@ describe('Browserless Chrome HTTP', () => {
           expect(res.status).toBe(200);
         });
     });
+
+    it('times out requests', async () => {
+      const browserless = start({
+        ...defaultParams,
+        connectionTimeout: 1,
+      });
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/stats`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(408);
+        });
+    });
+
+    it('rejects requests', async () => {
+      const browserless = start({
+        ...defaultParams,
+        maxConcurrentSessions: 0,
+        maxQueueLength: 0,
+      });
+
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/stats`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(429);
+        });
+    });
   });
 });

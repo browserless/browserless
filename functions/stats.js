@@ -1,5 +1,6 @@
 const lighthouse = require('lighthouse');
 const { URL } = require('url');
+const { canLog } = require('./build/utils');
 
 module.exports = async ({ browser, context }) => {
   const { url } = context;
@@ -7,7 +8,7 @@ module.exports = async ({ browser, context }) => {
   const { lhr } = await lighthouse(url, {
     port: (new URL(browser.wsEndpoint())).port,
     output: 'json',
-    logLevel: 'info',
+    logLevel: canLog ? 'info' : 'silent',
   });
 
   return {

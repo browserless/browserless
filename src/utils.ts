@@ -4,10 +4,12 @@ import * as shortid from 'shortid';
 import * as util from 'util';
 
 const debug = require('debug');
+const debuggerEnvVar = process.env.DEBUG;
 
 export const writeFile = util.promisify(fs.writeFile);
 export const getDebug = (level) => debug(`browserless:${level}`);
 export const id = shortid.generate;
+export const canLog = debuggerEnvVar && debuggerEnvVar.includes('browserless');
 
 export const asyncMiddleware = (handler) => {
   return (req, socket, head) => {
