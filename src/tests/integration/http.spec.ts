@@ -704,6 +704,7 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
+    jest.setTimeout(10000);
     it('allows requests', async () => {
       const browserless = start(defaultParams);
       await browserless.startServer();
