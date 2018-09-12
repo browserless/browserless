@@ -7,7 +7,7 @@ export const exec = util.promisify(execNode);
 
 export const defaultParams: IBrowserlessOptions = {
   chromeRefreshTime: 0,
-  connectionTimeout: 5000,
+  connectionTimeout: 10000,
   demoMode: false,
   enableCors: false,
   enableDebugger: true,
