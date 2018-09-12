@@ -92,12 +92,7 @@ module.exports = async function pdf({ page, context }) {
       page.on('request', request => request.continue());
     });
 
-    page.goto('http://localhost');
-
-    await Promise.race([
-      page.waitForNavigation({waitUntil: 'load'}),
-      page.waitForNavigation({waitUntil: 'networkidle0'})
-    ]);
+    await page.goto('http://localhost', gotoOptions);
   }
 
   const data = safeMode ?
