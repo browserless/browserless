@@ -64,7 +64,7 @@
     "jest": "^23.1.0",
     "joi": "^13.3.0",
     "lighthouse": "^3.0.3",
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "puppeteer": "^1.8.0",
