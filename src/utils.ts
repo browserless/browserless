@@ -16,7 +16,7 @@ export const asyncMiddleware = (handler) => {
     Promise.resolve(handler(req, socket, head))
       .catch((error) => {
         debug(`ERROR: ${error}`);
-        socket.write(`HTTP/1.1 500 ${error.message}\r\n`);
+        socket.write(`HTTP/1.1 400 ${error.message}\r\n`);
         socket.end();
       });
   };
