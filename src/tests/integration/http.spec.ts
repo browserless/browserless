@@ -2,19 +2,16 @@ import { BrowserlessServer } from '../../browserless-web-server';
 import {
   defaultParams,
   killChrome,
-  throws,
 } from './utils';
 
 const fetch = require('node-fetch');
-const webdriver = require('selenium-webdriver');
 
 describe('Browserless Chrome HTTP', () => {
-  let browserless: BrowserlessServer = null;
+  let browserless: BrowserlessServer;
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     browserless.close();
-    browserless = null;
 
     return killChrome();
   });
