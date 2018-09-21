@@ -136,7 +136,7 @@ export class ChromeService {
             page.on('error', (error) => {
               jobdebug(`${job.id}: Error on page: ${error.message}`);
               if (!res.headersSent) {
-                res.status(500).send(error.message);
+                res.status(400).send(error.message);
               }
               done();
             });
@@ -174,7 +174,7 @@ export class ChromeService {
           })
           .catch((error) => {
             if (!res.headersSent) {
-              res.status(500).send(error.message);
+              res.status(400).send(error.message);
             }
             jobdebug(`${job.id}: Function errored, stopping Chrome`);
             done();

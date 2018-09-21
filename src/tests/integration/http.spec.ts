@@ -342,7 +342,7 @@ describe('Browserless Chrome HTTP', () => {
         method: 'POST',
       })
         .then((res) => {
-          expect(res.status).toEqual(500);
+          expect(res.status).toEqual(400);
           expect(res.ok).toEqual(false);
           return res.text();
         })
