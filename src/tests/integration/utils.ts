@@ -1,6 +1,5 @@
 import { exec as execNode } from 'child_process';
 import * as util from 'util';
-import { getChromePath } from '../../chrome-helper';
 import { IBrowserlessOptions } from '../../models/options.interface';
 
 export const exec = util.promisify(execNode);

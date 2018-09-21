@@ -11,12 +11,11 @@ import {
 } from './utils';
 
 describe('Browserless Chrome WebSockets', () => {
-  let browserless: BrowserlessServer = null;
+  let browserless: BrowserlessServer;
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     browserless.close();
-    browserless = null;
 
     return killChrome();
   });

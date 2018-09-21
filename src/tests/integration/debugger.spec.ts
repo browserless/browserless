@@ -7,12 +7,11 @@ import {
 const fetch = require('node-fetch');
 
 describe('Browserless Debugger', () => {
-  let browserless: BrowserlessServer = null;
+  let browserless: BrowserlessServer;
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     browserless.close();
-    browserless = null;
 
     return killChrome();
   });
