@@ -19,6 +19,7 @@ module.exports = async function content ({ page, context }) {
     url,
     gotoOptions,
     rejectRequestPattern,
+    cookies,
   } = context;
 
   if (rejectRequestPattern.length) {
@@ -29,6 +30,10 @@ module.exports = async function content ({ page, context }) {
       }
       return req.continue();
     });
+  }
+
+  if (cookies.length) {
+    await page.setCookie(...cookies);
   }
 
   await page.goto(url, gotoOptions);

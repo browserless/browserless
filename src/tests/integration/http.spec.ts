@@ -371,6 +371,28 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows cookies', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = {
+        cookies: [{ name: 'foo', value: 'bar', domain: 'example.com' }],
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then(async (res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
@@ -471,6 +493,28 @@ describe('Browserless Chrome HTTP', () => {
       await browserless.startServer();
 
       const body = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('application/pdf');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows cookies', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = {
+        cookies: [{ name: 'foo', value: 'bar', domain: 'example.com' }],
         url: 'https://example.com',
       };
 
@@ -611,6 +655,28 @@ describe('Browserless Chrome HTTP', () => {
       await browserless.startServer();
 
       const body = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows cookies', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = {
+        cookies: [{ name: 'foo', value: 'bar', domain: 'example.com' }],
         url: 'https://example.com',
       };
 

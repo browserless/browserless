@@ -8,7 +8,20 @@ const gotoOptions = Joi.object().keys({
 
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 
+const cookies = Joi.array().items(Joi.object({
+  domain: Joi.string(),
+  expires: Joi.number().min(0),
+  httpOnly: Joi.boolean(),
+  name: Joi.string().required(),
+  path: Joi.string(),
+  sameSite: Joi.string().valid('Strict', 'Lax'),
+  secure: Joi.boolean(),
+  url: Joi.string(),
+  value: Joi.string().required(),
+})).default([]);
+
 export const screenshot = Joi.object().keys({
+  cookies,
   gotoOptions,
   html: Joi.string(),
   options: Joi.object().keys({
@@ -28,12 +41,14 @@ export const screenshot = Joi.object().keys({
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
+  cookies,
   gotoOptions,
   rejectRequestPattern,
   url: Joi.string().required(),
 });
 
 export const pdf = Joi.object().keys({
+  cookies,
   emulateMedia: Joi.string().valid('screen', 'print'),
   gotoOptions,
   html: Joi.string(),
