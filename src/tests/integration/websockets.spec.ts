@@ -147,7 +147,7 @@ describe('Browserless Chrome WebSockets', () => {
     await browser.close();
     const processes = await getChromeProcesses();
 
-    await sleep(50);
+    await sleep(100);
 
     expect(processes.stdout).not.toContain('.local-chromium');
   });
