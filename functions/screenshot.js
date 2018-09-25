@@ -21,6 +21,7 @@
 module.exports = async function screenshot ({ page, context }) {
   const {
     url = null,
+    cookies,
     gotoOptions,
     html,
     options = {},
@@ -35,6 +36,10 @@ module.exports = async function screenshot ({ page, context }) {
       }
       return req.continue();
     });
+  }
+
+  if (cookies.length) {
+    await page.setCookie(...cookies);
   }
 
   if (url !== null) {

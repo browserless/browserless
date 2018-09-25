@@ -56,6 +56,7 @@ const buildPages = async (page, opts = {}) => {
 
 module.exports = async function pdf({ page, context }) {
   const {
+    cookies,
     emulateMedia,
     html,
     options,
@@ -77,6 +78,10 @@ module.exports = async function pdf({ page, context }) {
 
   if (emulateMedia) {
     await page.emulateMedia(emulateMedia);
+  }
+
+  if (cookies.length) {
+    await page.setCookie(...cookies);
   }
 
   if (url !== null) {
