@@ -78,7 +78,7 @@
     "vm2": "^3.5.2"
   },
   "devDependencies": {
-    "husky": "^0.14.3",
+    "husky": "^1.0.0",
     "nodemon": "^1.17.3"
   },
   "jest": {
