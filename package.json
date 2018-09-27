@@ -50,7 +50,7 @@
   "dependencies": {
     "@types/express": "^4.11.1",
     "@types/jest": "^23.3.1",
-    "@types/node": "^10.5.6",
+    "@types/node": "^10.11.1",
     "@types/puppeteer": "^1.2.1",
     "body-parser": "^1.18.2",
     "chromedriver": "^2.41.0",
@@ -61,7 +61,7 @@
     "http-proxy": "^1.16.2",
     "jest": "^23.1.0",
     "joi": "^13.3.0",
-    "lighthouse": "^3.0.3",
+    "lighthouse": "^3.2.0",
     "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
