@@ -133,7 +133,7 @@ describe('Browserless Chrome WebSockets', () => {
       });
   });
 
-  it('closes chrome when the session is closed', async () => {
+  it.skip('closes chrome when the session is closed', async () => {
     const browserless = start({
       ...defaultParams,
       maxConcurrentSessions: 2,
