@@ -319,8 +319,9 @@ export class BrowserlessServer {
   }
 
   private handleWebDriver(req, res) {
+    const sessionPathMatcher = new RegExp('^' + webDriverPath + '/\\w+$');
     const isStarting = req.method.toLowerCase() === 'post' && req.url === webDriverPath;
-    const isClosing = req.method.toLowerCase() === 'delete';
+    const isClosing = req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url);
 
     if (isStarting) {
       return this.webdriver.start(req, res);
