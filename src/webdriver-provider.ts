@@ -1,6 +1,6 @@
 import * as httpProxy from 'http-proxy';
 import { launchChromeDriver } from './chrome-helper';
-import { IJob } from './models/queue.interface';
+import { IJob, IDone } from './models/queue.interface';
 import { Queue } from './queue';
 import { getDebug } from './utils';
 
@@ -9,7 +9,7 @@ const kill = require('tree-kill');
 
 interface IWebDriverSession {
   chromeProcess: any;
-  done: () => any;
+  done: IDone;
   sessionId: string;
   proxy: any;
 }
@@ -45,7 +45,7 @@ export class WebDriver {
     };
 
     const job: IJob = Object.assign(
-      (done: () => {}) => {
+      (done: IDone) => {
         req.removeListener('close', earlyClose);
         launchChromeDriver().then(({ port, chromeProcess }) => {
           const proxy = new httpProxy.createProxyServer({ target: `http://localhost:${port}` });
@@ -80,7 +80,7 @@ export class WebDriver {
           proxy.web(req, res, (error) => {
             debug(`Issue in webdriver: ${error.message}`);
             res.end();
-            done();
+            done(error);
           });
         });
       }, {

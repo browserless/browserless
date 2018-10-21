@@ -10,7 +10,7 @@ import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
-import { IJob } from './models/queue.interface';
+import { IJob, IDone } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
@@ -121,7 +121,7 @@ export class ChromeService {
     };
 
     const job: IJob = Object.assign(
-      (done: () => {}) => {
+      (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
         const flags = _.chain(req.query)
           .pickBy((_value, param) => _.startsWith(param, '--'))
@@ -177,7 +177,7 @@ export class ChromeService {
               res.status(400).send(error.message);
             }
             jobdebug(`${job.id}: Function errored, stopping Chrome`);
-            done();
+            done(error);
           });
       },
       {
@@ -232,7 +232,7 @@ export class ChromeService {
     // If debug code is submitted, sandbox it in
     // its own process to prevent infinite/runaway scripts
     const handler = debugCode ?
-      (done) => {
+      (done: IDone) => {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
         const code = this.parseUserCode(decodeURIComponent(debugCode), job);
         const timeout = this.config.connectionTimeout;
@@ -252,13 +252,13 @@ export class ChromeService {
           this.server.proxy.ws(req, socket, head, { target: `ws://127.0.0.1:${port}` });
         });
 
-        handler.on('error', () => {
+        handler.on('error', (err) => {
           jobdebug(`${job.id}: Debugger crashed, exiting connection`);
-          done();
+          done(err);
           socket.end();
         });
       } :
-      (done) => {
+      (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
         const launchPromise = this.getChrome(flags);
 
@@ -288,7 +288,7 @@ export class ChromeService {
           .then((target) => this.server.proxy.ws(req, socket, head, { target }))
           .catch((error) => {
             jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
-            done();
+            done(error);
             socket.end();
           });
       };
