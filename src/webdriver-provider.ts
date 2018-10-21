@@ -1,6 +1,6 @@
 import * as httpProxy from 'http-proxy';
 import { launchChromeDriver } from './chrome-helper';
-import { IJob, IDone } from './models/queue.interface';
+import { IDone, IJob } from './models/queue.interface';
 import { Queue } from './queue';
 import { getDebug } from './utils';
 

@@ -16,4 +16,4 @@ export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
   add: (job: IJob) => any;
 }
 
-export type IDone = (error?: Error) => any
+export type IDone = (error?: Error) => any;

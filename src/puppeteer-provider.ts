@@ -10,7 +10,7 @@ import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
-import { IJob, IDone } from './models/queue.interface';
+import { IDone, IJob } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
