@@ -48,3 +48,12 @@ export const sleep = (time = 0) => {
     setTimeout(resolve, time);
   });
 };
+
+export const getWebdriverToken = (req): string => {
+  const header = req.headers.authorization || '';
+  const token = header.split(/\s+/).pop() || '';
+  const auth = new Buffer(token, 'base64').toString();
+  const [, password] = auth.split(/:/);
+
+  return password;
+};

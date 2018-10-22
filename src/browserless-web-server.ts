@@ -14,6 +14,7 @@ import {
   bodyValidation,
   generateChromeTarget,
   getDebug,
+  getWebdriverToken,
   writeFile,
 } from './utils';
 
@@ -269,6 +270,14 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           // Handle webdriver requests
+          if (req.url && req.url.includes(webDriverPath)) {
+            if (this.config.token && getWebdriverToken(req) !== this.config.token) {
+              res.writeHead(403, { 'Content-Type': 'text/plain' });
+              return res.end('Unauthorized');
+            }
+            return this.handleWebDriver(req, res);
+          }
+
           if (this.config.token) {
             const parsedUrl = url.parse(req.url as string, true);
 
@@ -276,9 +285,6 @@ export class BrowserlessServer {
               res.writeHead(403, { 'Content-Type': 'text/plain' });
               return res.end('Unauthorized');
             }
-          }
-          if (req.url && req.url.includes(webDriverPath)) {
-            return this.handleWebDriver(req, res);
           }
 
           return app(req, res);
