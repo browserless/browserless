@@ -64,7 +64,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://token:abcd@localhost:${defaultParams.port}/webdriver`)
+        .usingServer(`http://abcd@localhost:${defaultParams.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');

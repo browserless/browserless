@@ -52,8 +52,5 @@ export const sleep = (time = 0) => {
 export const getWebdriverToken = (req): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';
-  const auth = new Buffer(token, 'base64').toString();
-  const [, password] = auth.split(/:/);
-
-  return password;
+  return new Buffer(token, 'base64').toString();
 };
