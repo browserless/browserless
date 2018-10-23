@@ -29,6 +29,7 @@ COPY . .
 RUN apt-get update && \
   apt-get install -y software-properties-common &&\
   apt-add-repository ppa:malteworld/ppa && apt-get update && apt-get install -y \
+  libappindicator3-1 \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
   pdftk \
