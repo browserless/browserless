@@ -27,14 +27,18 @@ COPY . .
 
 # Dependencies + NodeJS
 RUN apt-get update && \
+  echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get install -y software-properties-common &&\
   apt-add-repository ppa:malteworld/ppa && apt-get update && apt-get install -y \
-  libappindicator3-1 \
+  msttcorefonts \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
+  fonts-liberation \
+  fonts-thai-tlwg \
+  fontconfig \
+  libappindicator3-1 \
   pdftk \
   unzip \
-  fontconfig \
   locales \
   gconf-service \
   libasound2 \
@@ -68,8 +72,6 @@ RUN apt-get update && \
   libxss1 \
   libxtst6 \
   ca-certificates \
-  fonts-liberation \
-  fonts-thai-tlwg \
   libappindicator1 \
   libnss3 \
   lsb-release \
@@ -79,7 +81,9 @@ RUN apt-get update && \
   # Install Node
   curl --silent --location https://deb.nodesource.com/setup_8.x | bash - &&\
   apt-get install --yes nodejs &&\
-  apt-get install --yes build-essential
+  apt-get install --yes build-essential &&\
+  # Fonts
+  fc-cache -f -v
 
 # It's a good idea to use dumb-init to help prevent zombie chrome processes.
 ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64 /usr/local/bin/dumb-init
