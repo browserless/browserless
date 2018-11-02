@@ -29,17 +29,6 @@ export class ChromeService {
     this.server = server;
     this.queue = queue;
 
-    const queueParams: any = {
-      autostart: true,
-      concurrency: this.config.maxConcurrentSessions,
-    };
-
-    if (this.config.connectionTimeout !== -1) {
-      queueParams.timeout = this.config.connectionTimeout;
-    }
-
-    sysdebug(`Queue started with params ${JSON.stringify(queueParams)}`);
-
     this.chromeSwarm = [];
   }
 

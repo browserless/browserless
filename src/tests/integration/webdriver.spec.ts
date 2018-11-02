@@ -50,6 +50,36 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
+  it('works with no timeouts', async () => {
+    const chromeCapabilities = webdriver.Capabilities.chrome();
+    const browserless = start({
+      ...defaultParams,
+      connectionTimeout: -1,
+    });
+
+    await browserless.startServer();
+    chromeCapabilities.set('chromeOptions', webdriverOpts);
+
+    async function run() {
+      const driver = new webdriver.Builder()
+        .forBrowser('chrome')
+        .withCapabilities(chromeCapabilities)
+        .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+        .build();
+
+      await driver.get('https://example.com');
+      await driver.quit();
+    }
+
+    await run();
+    await sleep(50);
+
+    expect(browserless.currentStat.timedout).toEqual(0);
+    expect(browserless.currentStat.successful).toEqual(1);
+    expect(browserless.currentStat.rejected).toEqual(0);
+    expect(browserless.currentStat.queued).toEqual(0);
+  });
+
   it('authorizes with tokens', async () => {
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({

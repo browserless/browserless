@@ -51,6 +51,34 @@ describe('Browserless Chrome WebSockets', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
+  it('runs with no timeouts', async () => {
+    const browserless = await start({
+      ...defaultParams,
+      connectionTimeout: -1,
+    });
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await puppeteer.connect({
+          browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+        });
+
+        browser.on('disconnected', resolve);
+
+        browser.close();
+      });
+    };
+
+    await job();
+    await sleep(20);
+
+    expect(browserless.currentStat.timedout).toEqual(0);
+    expect(browserless.currentStat.successful).toEqual(1);
+    expect(browserless.currentStat.rejected).toEqual(0);
+    expect(browserless.currentStat.queued).toEqual(0);
+  });
+
   it('queues requests', async () => {
     const browserless = start({
       ...defaultParams,

@@ -4,8 +4,8 @@ import { id } from './utils';
 interface IQueueConfig {
   autostart: boolean;
   concurrency: number;
-  timeout: number;
   maxQueueLength: number;
+  timeout?: number;
 }
 
 const q = require('queue');

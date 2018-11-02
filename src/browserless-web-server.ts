@@ -79,7 +79,9 @@ export class BrowserlessServer {
       autostart: true,
       concurrency: this.config.maxConcurrentSessions,
       maxQueueLength: this.config.maxQueueLength,
-      timeout: this.config.connectionTimeout,
+      ...this.config.connectionTimeout !== -1 && {
+        timeout: this.config.connectionTimeout,
+      },
     });
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.chromeService = new ChromeService(opts, this, this.queue);
