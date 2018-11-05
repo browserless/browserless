@@ -10,16 +10,16 @@ const debug = getDebug('sandbox');
 
 export class BrowserlessSandbox extends EventEmitter {
   private child: ChildProcess;
-  private timer: NodeJS.Timer;
+  private timer: NodeJS.Timer | null;
 
   constructor({ code, timeout, flags }: IConfig) {
     super();
 
     this.child = fork(path.join(__dirname, 'child'));
-    this.timer = setTimeout(() => {
+    this.timer = timeout !== -1 ? setTimeout(() => {
       debug(`Timeout reached, killing child process`);
       this.close();
-    }, timeout);
+    }, timeout) : null;
 
     this.child.on('message', (message: IMessage) => {
       if (message.event === 'launched') {
@@ -44,7 +44,7 @@ export class BrowserlessSandbox extends EventEmitter {
   }
 
   public close() {
-    clearTimeout(this.timer);
+    this.timer && clearTimeout(this.timer);
     debug(`Closing child`);
     this.kill();
   }
