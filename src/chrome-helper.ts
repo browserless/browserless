@@ -8,7 +8,7 @@ const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
-const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
+const DEFAULT_ARGS = ['--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 
 let executablePath: string;
 

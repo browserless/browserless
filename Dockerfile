@@ -106,6 +106,15 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run build &&\
   npm run symlink-chrome
 
+# Add user so we don't need --no-sandbox.
+RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
+    && mkdir -p /home/blessuser/Downloads \
+    && chown -R blessuser:blessuser /home/blessuser \
+    && chown -R blessuser:blessuser $application_directory
+
+# Run everything after as non-privileged user.
+USER blessuser
+
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
