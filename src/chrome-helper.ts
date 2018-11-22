@@ -29,10 +29,11 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   executablePath = revisionInfo.executablePath;
 }
 
-export const launchChrome = (flags: string[] = []) => {
+export const launchChrome = (flags: string[] = [], headless: boolean = true) => {
   const launchArgs = {
     args: [...flags, ...DEFAULT_ARGS],
     executablePath,
+    headless,
   };
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);

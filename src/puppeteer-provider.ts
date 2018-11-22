@@ -18,6 +18,19 @@ const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
 
+export interface IRunHTTP {
+  code: any;
+  context: any;
+  req: any;
+  res: any;
+  detached?: boolean;
+  before?: ({ page, browser }) => Promise<any>;
+  after?: ({ page, browser }, ...args: any) => Promise<any>;
+  flags?: string[];
+  options?: any;
+  headless?: boolean;
+}
+
 export class ChromeService {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
@@ -74,8 +87,8 @@ export class ChromeService {
   }
 
   public async runHTTP(
-    { code, context, req, res, detached = false }:
-    { code: any; context: any; req: any; res: any; detached?: boolean; },
+    { code, context, req, res, detached = false, before = _.noop, after = _.noop, flags = [], headless = true }:
+    IRunHTTP,
   ) {
     const jobId = id();
 
@@ -112,15 +125,18 @@ export class ChromeService {
     const job: IJob = Object.assign(
       (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
-        const flags = _.chain(req.query)
+
+        const launchFlags = _.chain(req.query)
           .pickBy((_value, param) => _.startsWith(param, '--'))
           .map((value, key) => `${key}${value ? `=${value}` : ''}`)
           .value();
 
-        this.getChrome(flags)
+        this.getChrome([...flags, ...launchFlags], headless)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
-            const page = await browser.newPage();
+            const pages = await browser.pages();
+            const page = pages[0];
+            const beforeResults = await before({ page, browser });
 
             page.on('error', (error) => {
               jobdebug(`${job.id}: Error on page: ${error.message}`);
@@ -139,8 +155,11 @@ export class ChromeService {
             });
 
             return Promise.resolve(handler({ page, context, browser }))
-              .then(({ data, type = 'text/plain' } = {}) => {
+              .then(async ({ data, type = 'text/plain' } = {}) => {
+                const afterResults = await after({ page, browser }, beforeResults);
                 jobdebug(`${job.id}: Function complete, cleaning up.`);
+                const finalData = afterResults ? afterResults.data : data;
+                const finalType = afterResults ? afterResults.type : type;
 
                 // If we've already responded (detached)
                 // Then call done and return
@@ -148,14 +167,14 @@ export class ChromeService {
                   return done();
                 }
 
-                res.type(type);
+                res.type(finalType);
 
-                if (Buffer.isBuffer(data)) {
-                  res.end(data, 'binary');
+                if (Buffer.isBuffer(finalData)) {
+                  res.end(finalData, 'binary');
                 } else if (type.includes('json')) {
-                  res.json(data);
+                  res.json(finalData);
                 } else {
-                  res.send(data);
+                  res.send(finalData);
                 }
 
                 return done();
@@ -351,9 +370,9 @@ export class ChromeService {
     return this.checkChromeSwarm();
   }
 
-  private getChrome(flags: any = []): Promise<puppeteer.Browser> {
+  private getChrome(flags: any = [], headless: boolean = true): Promise<puppeteer.Browser> {
     const canUseChromeSwarm = !flags.length && !!this.chromeSwarmSize;
-    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags);
+    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(flags, headless);
 
     return launchPromise as Promise<puppeteer.Browser>;
   }
@@ -421,10 +440,12 @@ export class ChromeService {
       }`;
   }
 
-  private async launchChrome(flags: string[] = [], retries: number = 1): Promise<puppeteer.Browser> {
+  private async launchChrome(
+    flags: string[] = [], headless: boolean = true, retries: number = 1,
+  ): Promise<puppeteer.Browser> {
     const start = Date.now();
 
-    return launchChrome(flags)
+    return launchChrome(flags, headless)
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
@@ -433,7 +454,7 @@ export class ChromeService {
         if (retries > 0) {
           const nextRetries = retries - 1;
           sysdebug(error, `Issue launching Chrome, retrying ${retries} times.`);
-          return this.launchChrome(flags, nextRetries);
+          return this.launchChrome(flags, headless, nextRetries);
         }
 
         sysdebug(error, `Issue launching Chrome, retries exhausted.`);

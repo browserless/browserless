@@ -44,6 +44,8 @@ const content = fnLoader('content');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
+const screenCastPre = require('../functions/screencast-pre');
+const screenCastPost = require('../functions/screencast-post');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
@@ -206,6 +208,30 @@ export class BrowserlessServer {
         const { code, context, detached } = req.body;
 
         return this.chromeService.runHTTP({ code, context, req, res, detached });
+      }));
+
+      // Screen cast route -- we inject some fun stuff here so that it all works properly :)
+      app.post('/screencast', asyncMiddleware(async (req, res) => {
+        const { code, context, detached } = req.body;
+
+        return this.chromeService.runHTTP({
+          after: screenCastPost,
+          before: screenCastPre,
+          code,
+          context,
+          detached,
+          flags: [
+            '--enable-usermedia-screen-capturing',
+            '--allow-http-screen-capture',
+            '--auto-select-desktop-capture-source=browserless-screencast',
+            '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
+            '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
+            '--disable-infobars',
+          ],
+          headless: false,
+          req,
+          res,
+        });
       }));
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
