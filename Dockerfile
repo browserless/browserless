@@ -106,9 +106,6 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run build &&\
   npm run symlink-chrome
 
-# Start XVFB
-RUN nohup Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
-
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

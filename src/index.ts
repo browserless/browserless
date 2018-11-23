@@ -2,6 +2,8 @@ import { BrowserlessServer } from './browserless-web-server';
 import { getDebug } from './utils';
 
 const debug = getDebug('system');
+const xvfb = require('xvfb');
+new xvfb({ silent: true }).startSync();
 
 const parseParam = (param: any, defaultParam: any) => {
   if (param) {

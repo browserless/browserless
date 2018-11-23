@@ -1,6 +1,7 @@
 const fs = require('fs');
-const homeDir = require('os').homedir();
 const shortid = require('shortid');
+const path = require('path');
+const homeDir = require('os').homedir();
 
 module.exports = async function setupScreencast ({ page }) {
   const file = shortid.generate() + '.webm';
@@ -16,5 +17,5 @@ module.exports = async function setupScreencast ({ page }) {
   return {
     type: 'video/webm',
     data: fs.readFileSync(path.join(homeDir, 'Downloads', file)),
-  }
+  };
 };
