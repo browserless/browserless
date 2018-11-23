@@ -12,6 +12,7 @@
   }],
   "permissions": [
     "desktopCapture",
+    "audio",
     "<all_urls>",
     "downloads"
   ]

@@ -26,7 +26,7 @@ export interface IRunHTTP {
   res: any;
   detached?: boolean;
   before?: ({ page, browser }) => Promise<any>;
-  after?: ({ page, browser, jobId, req, res, done }) => Promise<any>;
+  after?: ({ page, browser, jobId, req, res, done, debug }) => Promise<any>;
   flags?: string[];
   options?: any;
   headless?: boolean;
@@ -171,12 +171,21 @@ export class ChromeService {
 
             return Promise.resolve(handler({ page, context, browser }))
               .then(async ({ data, type = 'text/plain' } = {}) => {
-                jobdebug(`${job.id}: Function complete, cleaning up.`);
 
                 // If there's a specified "after" hook allow that to run
                 if (after) {
-                  return after({ page, browser, jobId, done, req, res});
+                  return after({
+                    browser,
+                    debug: (message) => jobdebug(`${job.id}: ${message}`),
+                    done,
+                    jobId,
+                    page,
+                    req,
+                    res,
+                  });
                 }
+
+                jobdebug(`${job.id}: Function complete, cleaning up.`);
 
                 // If we've already responded (detached/error) we're done
                 if (res.headersSent) {

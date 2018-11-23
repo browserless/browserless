@@ -20,7 +20,7 @@ chrome.runtime.onConnect.addListener((port) => {
           // Get the stream
           navigator.webkitGetUserMedia(
             {
-              audio: true,
+              audio: false,
               video: {
                 mandatory: {
                   chromeMediaSource: 'desktop',
