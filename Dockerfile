@@ -106,6 +106,12 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run build &&\
   npm run symlink-chrome
 
+# Start XVFB
+RUN nohup Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 & 
+
+# Cleanup
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 # Add user so we don't need --no-sandbox.
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
     && mkdir -p /home/blessuser/Downloads \
@@ -114,9 +120,6 @@ RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
 
 # Run everything after as non-privileged user.
 USER blessuser
-
-# Cleanup
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
