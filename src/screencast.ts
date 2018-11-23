@@ -18,7 +18,7 @@ export const after = async ({ page, jobId, res, done }) => {
 
   await page.waitForSelector('html.downloadComplete', { timeout: 0 });
 
-  if (fs.existsSync) {
+  if (!fs.existsSync(filePath)) {
     throw new Error(`Couldn't locate screencast file "${filePath}"`);
   }
 
