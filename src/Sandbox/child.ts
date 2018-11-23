@@ -43,7 +43,7 @@ const start = async (
 ) => {
   debug(`Starting sandbox running code "${code}"`);
 
-  const browser = await launchChrome(flags);
+  const browser = await launchChrome({ flags, headless: true });
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
   page.on('error', (error) => {

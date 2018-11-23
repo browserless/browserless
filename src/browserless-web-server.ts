@@ -33,6 +33,11 @@ import { ChromeService } from './puppeteer-provider';
 import { Queue } from './queue';
 import { WebDriver } from './webdriver-provider';
 
+import {
+  after as screencastAfter,
+  before as screenCastBefore,
+} from './screencast';
+
 const debug = getDebug('server');
 
 const request = require('request');
@@ -44,8 +49,6 @@ const content = fnLoader('content');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
-const screenCastPre = require('../functions/screencast-pre');
-const screenCastPost = require('../functions/screencast-post');
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
@@ -215,8 +218,8 @@ export class BrowserlessServer {
         const { code, context, detached } = req.body;
 
         return this.chromeService.runHTTP({
-          after: screenCastPost,
-          before: screenCastPre,
+          after: screencastAfter,
+          before: screenCastBefore,
           code,
           context,
           detached,

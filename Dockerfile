@@ -5,6 +5,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV application_directory=/usr/src/app
+ENV ENABLE_XVBF=true
 
 # Build Args
 ARG USE_CHROME_STABLE
