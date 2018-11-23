@@ -1,4 +1,5 @@
 const recordingKey = '__browserless_recording__';
+
 window.onload = () => {
   if (window[recordingKey]) {
     return null;
