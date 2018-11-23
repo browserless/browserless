@@ -1,10 +1,23 @@
 const fs = require('fs');
-const { exec } = require('child_process');
+const { promisify } = require('util');
+const { exec: nodeExec } = require('child_process');
+const execAsync = promisify(nodeExec);
 
 const puppeteer = require('puppeteer');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const IS_DOCKER = fs.existsSync('/.dockerenv');
+
+const exec = async (command) => {
+  const { stdout, stderr } = await execAsync(command);
+
+  if (stderr.trim().length) {
+    console.error(stderr);
+    return process.exit(1);
+  }
+
+  return stdout.trim();
+};
 
 // This is used in docker to symlink the puppeteer's
 // chrome to a place where most other libraries expect it
@@ -14,21 +27,10 @@ if (!IS_DOCKER) {
   process.exit(1);
 }
 
-if (fs.existsSync(CHROME_BINARY_LOCATION)) {
-  console.log('Chrome binary already present, exiting');
-  process.exit(0);
-} else {
-  // Use puppeteer's copy otherwise
-  const browserFetcher = puppeteer.createBrowserFetcher();
-  const revisionInfo = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
-  executablePath = revisionInfo.executablePath;
+const browserFetcher = puppeteer.createBrowserFetcher();
+const { executablePath } = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
 
-  exec(`ln -s ${executablePath} ${CHROME_BINARY_LOCATION}`, (error, stdout, stderr) => {
-    if (error || stderr) {
-      console.error(`Error establishing symlink: ${error || stderr}`);
-      process.exit(1);
-    }
-    console.log(`Successful symlink of Chrome: ${stdout}`);
-    process.exit(0);
-  });
-}
+(async () => fs.existsSync(CHROME_BINARY_LOCATION) ?
+  Promise.resolve() :
+  exec(`ln -s ${executablePath} ${CHROME_BINARY_LOCATION}`)
+)();
