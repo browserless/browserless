@@ -48,7 +48,6 @@ chrome.runtime.onConnect.addListener((port) => {
               };
 
               recorder.onstop = () => {
-
                 const url = URL.createObjectURL(new Blob(chunks, {
                   type: 'video/webm'
                 }));
