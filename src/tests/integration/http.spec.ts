@@ -507,8 +507,8 @@ describe('Browserless Chrome HTTP', () => {
         method: 'POST',
       })
         .then((res) => {
-          expect(res.status).toBe(200);
           expect(res.statusText ).toEqual('OK');
+          expect(res.status).toBe(200);
           expect(res.headers.get('content-type')).toEqual('video/webm');
         });
     });
