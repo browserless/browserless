@@ -162,8 +162,10 @@ export class BrowserlessServer {
 
     return new Promise(async (resolve) => {
       const app = express();
-
-      app.use(bodyParser.json({ limit: '5mb' }));
+      const jsonParser = bodyParser.json({ limit: '5mb' });
+      const jsParser = bodyParser.text({
+        type: ['text/plain', 'application/javascript'],
+      });
 
       if (this.config.enableCors) {
         app.use(cors());
@@ -207,22 +209,23 @@ export class BrowserlessServer {
 
       // function route for executing puppeteer scripts, accepts a JSON body with
       // code and context
-      app.post('/function', bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
+      app.post('/function', jsonParser, bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
         const { code, context, detached } = req.body;
 
         return this.chromeService.runHTTP({ code, context, req, res, detached });
       }));
 
       // Screen cast route -- we inject some fun stuff here so that it all works properly :)
-      app.post('/screencast', asyncMiddleware(async (req, res) => {
-        const { code, context, detached } = req.body;
+      app.post('/screencast', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
+        const isJson = typeof req.body === 'object';
+        const code = isJson ? req.body.code : req.body;
+        const context = isJson ? req.body.context : {};
 
         return this.chromeService.runHTTP({
           after: screencastAfter,
           before: screenCastBefore,
           code,
           context,
-          detached,
           flags: [
             '--enable-usermedia-screen-capturing',
             '--allow-http-screen-capture',
@@ -239,7 +242,7 @@ export class BrowserlessServer {
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
-      app.post('/screenshot', bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
+      app.post('/screenshot', jsonParser, bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
         this.chromeService.runHTTP({
           code: screenshot,
           context: req.body,
@@ -250,7 +253,7 @@ export class BrowserlessServer {
 
       // Helper route for capturing content body, accepts a POST body containing a URL
       // (see the schema in schemas.ts);
-      app.post('/content', bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
+      app.post('/content', jsonParser, bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
         this.chromeService.runHTTP({
           code: content,
           context: req.body,
@@ -261,7 +264,7 @@ export class BrowserlessServer {
 
       // Helper route for capturing screenshots, accepts a POST body containing a URL and
       // puppeteer's screenshot options (see the schema in schemas.ts);
-      app.post('/pdf', bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
+      app.post('/pdf', jsonParser, bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
         this.chromeService.runHTTP({
           code: pdf,
           context: req.body,
@@ -271,7 +274,7 @@ export class BrowserlessServer {
       ));
 
       // Helper route for capturing stats, accepts a POST body containing a URL
-      app.post('/stats', bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
+      app.post('/stats', jsonParser, bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
         this.chromeService.runHTTP({
           code: stats,
           context: req.body,

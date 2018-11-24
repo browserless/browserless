@@ -513,6 +513,29 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows "application/javascript" requests', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = `module.exports = async ({ page }) => {
+        await page.goto('https://example.com/');
+        await page.waitFor(5000);
+      }`;
+
+      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/javascript',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.statusText ).toEqual('OK');
+          expect(res.status).toBe(200);
+          expect(res.headers.get('content-type')).toEqual('video/webm');
+        });
+    });
+
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
