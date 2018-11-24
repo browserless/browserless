@@ -11,7 +11,7 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "ci": "npm run lint && npm test",
+    "ci": "DEBUG=browserless* npm run lint && npm test",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "dev": "npm run build && source ./env.dev.sh && node build/index.js",
     "meta": "./scripts/get-meta.js",
