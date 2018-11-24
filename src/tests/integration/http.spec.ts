@@ -523,7 +523,7 @@ describe('Browserless Chrome HTTP', () => {
       }`;
 
       return fetch(`http://localhost:${defaultParams.port}/screencast`, {
-        body: JSON.stringify(body),
+        body,
         headers: {
           'content-type': 'application/javascript',
         },
