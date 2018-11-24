@@ -494,8 +494,8 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
-          await page.goto('https://example.com');
-          await page.waitFor(2000);
+          await page.goto('https://example.com/');
+          await page.waitFor(5000);
         }`,
       };
 
@@ -522,7 +522,7 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
-          await page.goto('https://example.com');
+          await page.setContent('<h1>Hello, World!</h1>');
         }`,
       };
 
@@ -549,7 +549,7 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
-          await page.goto('https://example.com');
+          await page.setContent('<h1>Hello, World!</h1>');
         }`,
       };
 
