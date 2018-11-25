@@ -8,13 +8,7 @@ const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
-const DEFAULT_ARGS = ['--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
-
-// Sandboxing requires a custom seccomp.json file, which is a breaking change
-// This will drop in v1.0.0
-if (process.env.ENABLE_SANDBOX !== 'true') {
-  DEFAULT_ARGS.push('--no-sandbox');
-}
+const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 
 let executablePath: string;
 
