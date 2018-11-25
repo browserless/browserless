@@ -14,8 +14,6 @@ chrome.runtime.onConnect.addListener((port) => {
         if (recorder) {
           return;
         }
-        const tab = port.sender.tab;
-        tab.url = msg.data.url;
         chrome.desktopCapture.chooseDesktopMedia(['tab', 'audio'], streamId => {
           // Get the stream
           navigator.webkitGetUserMedia(
@@ -33,7 +31,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 }
               }
             },
-            stream => {
+            (stream) => {
               const chunks = [];
               recorder = new MediaRecorder(stream, {
                 videoBitsPerSecond: 2500000,
