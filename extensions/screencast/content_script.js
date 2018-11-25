@@ -11,7 +11,6 @@ window.onload = () => {
   port.onMessage.addListener((msg) => window.postMessage(msg, '*'));
 
   window.addEventListener('message', event => {
-    console.log('>>>', event);
     // Relay client messages
     if (event.source === window && event.data.type) {
       port.postMessage(event.data);

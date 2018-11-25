@@ -1,7 +1,7 @@
-chrome.runtime.onConnect.addListener((port) => {
-  let recorder = null;
-  let filename = null;
+let recorder = null;
+let filename = null;
 
+chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((msg) => {
     switch (msg.type) {
       case 'SET_EXPORT_PATH':
