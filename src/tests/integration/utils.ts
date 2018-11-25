@@ -10,6 +10,7 @@ export const defaultParams: IBrowserlessOptions = {
   demoMode: false,
   enableCors: false,
   enableDebugger: true,
+  enableXvfb: 'CI' in process.env ? true : false,
   functionBuiltIns: ['url'],
   functionExternals: ['lighthouse'],
   healthFailureURL: null,

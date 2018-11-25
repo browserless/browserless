@@ -5,6 +5,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV application_directory=/usr/src/app
+ENV ENABLE_XVBF=true
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -77,6 +78,7 @@ RUN apt-get update && \
   lsb-release \
   xdg-utils \
   wget \
+  xvfb \
   curl &&\
   # Install Node
   curl --silent --location https://deb.nodesource.com/setup_8.x | bash - &&\
@@ -107,6 +109,15 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
 
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Add user
+RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
+  && mkdir -p /home/blessuser/Downloads \
+  && chown -R blessuser:blessuser /home/blessuser \
+  && chown -R blessuser:blessuser $application_directory
+
+# Run everything after as non-privileged user.
+USER blessuser
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000

@@ -487,6 +487,109 @@ describe('Browserless Chrome HTTP', () => {
     });
   });
 
+  describe('/screencast', () => {
+    it('allows requests', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = {
+        code: `module.exports = async ({ page }) => {
+          await page.goto('https://example.com/');
+          await page.waitFor(5000);
+        }`,
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.statusText ).toEqual('OK');
+          expect(res.status).toBe(200);
+          expect(res.headers.get('content-type')).toEqual('video/webm');
+        });
+    });
+
+    it('allows "application/javascript" requests', async () => {
+      const browserless = start(defaultParams);
+      await browserless.startServer();
+
+      const body = `module.exports = async ({ page }) => {
+        await page.goto('https://example.com/');
+        await page.waitFor(5000);
+      }`;
+
+      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+        body,
+        headers: {
+          'content-type': 'application/javascript',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.statusText ).toEqual('OK');
+          expect(res.status).toBe(200);
+          expect(res.headers.get('content-type')).toEqual('video/webm');
+        });
+    });
+
+    it('times out requests', async () => {
+      const browserless = start({
+        ...defaultParams,
+        connectionTimeout: 1,
+      });
+
+      await browserless.startServer();
+
+      const body = {
+        code: `module.exports = async ({ page }) => {
+          await page.setContent('<h1>Hello, World!</h1>');
+        }`,
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(408);
+        });
+    });
+
+    it('rejects requests', async () => {
+      const browserless = start({
+        ...defaultParams,
+        maxConcurrentSessions: 0,
+        maxQueueLength: 0,
+      });
+
+      await browserless.startServer();
+
+      const body = {
+        code: `module.exports = async ({ page }) => {
+          await page.setContent('<h1>Hello, World!</h1>');
+        }`,
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(429);
+        });
+    });
+  });
+
   describe('/pdf', () => {
     it('allows requests', async () => {
       const browserless = start(defaultParams);
