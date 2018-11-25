@@ -1,5 +1,5 @@
 {
-  "name": "Browserless VHS",
+  "name": "browserless-vhs",
   "version": "1.0.0",
   "manifest_version": 2,
   "background": {
