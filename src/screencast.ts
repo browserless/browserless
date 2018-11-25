@@ -3,7 +3,6 @@ const path = require('path');
 const homeDir = require('os').homedir();
 
 export const before = async ({ page }) => {
-  await page._client.send('Emulation.clearDeviceMetricsOverride');
   await page.setBypassCSP(true);
 };
 

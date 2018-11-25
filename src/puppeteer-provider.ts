@@ -146,8 +146,7 @@ export class ChromeService {
         this.getChrome({ flags: [...flags, ...launchFlags], headless })
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
-            const pages = await browser.pages();
-            const page = pages.length ? pages[0] : await browser.newPage();
+            const page = await browser.newPage();
 
             if (before) {
               await before({ page, browser });
