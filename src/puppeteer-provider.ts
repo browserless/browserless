@@ -25,7 +25,7 @@ export interface IRunHTTP {
   req: any;
   res: any;
   detached?: boolean;
-  before?: ({ page, browser }) => Promise<any>;
+  before?: ({ page, browser, debug }) => Promise<any>;
   after?: ({ page, browser, jobId, req, res, done, debug }) => Promise<any>;
   flags?: string[];
   options?: any;
@@ -136,7 +136,8 @@ export class ChromeService {
 
     const job: IJob = Object.assign(
       (done: IDone) => {
-        jobdebug(`${job.id}: Getting browser.`);
+        const debug = (message) => jobdebug(`${job.id}: ${message}`);
+        debug(`Getting browser.`);
 
         const launchFlags = _.chain(req.query)
           .pickBy((_value, param) => _.startsWith(param, '--'))
@@ -148,23 +149,25 @@ export class ChromeService {
             jobdetaildebug(`${job.id}: Executing function.`);
             const page = await browser.newPage();
 
-            if (before) {
-              await before({ page, browser });
-            }
-
             page.on('error', (error) => {
-              jobdebug(`${job.id}: Error on page: ${error.message}`);
+              debug(`Error on page: ${error.message}`);
               if (!res.headersSent) {
                 res.status(400).send(error.message);
               }
               done();
             });
 
+            if (before) {
+              debug(`Running before hook`);
+              await before({ page, browser, debug });
+              debug(`Before hook done!`);
+            }
+
             job.browser = browser;
 
             req.removeListener('close', earlyClose);
             req.once('close', () => {
-              jobdebug(`${job.id}: Request terminated during execution, closing`);
+              debug(`Request terminated during execution, closing`);
               done();
             });
 
@@ -175,7 +178,7 @@ export class ChromeService {
                 if (after) {
                   return after({
                     browser,
-                    debug: (message) => jobdebug(`${job.id}: ${message}`),
+                    debug,
                     done,
                     jobId,
                     page,
@@ -184,7 +187,7 @@ export class ChromeService {
                   });
                 }
 
-                jobdebug(`${job.id}: Function complete, cleaning up.`);
+                debug(`Function complete, cleaning up.`);
 
                 // If we've already responded (detached/error) we're done
                 if (res.headersSent) {
@@ -208,7 +211,7 @@ export class ChromeService {
             if (!res.headersSent) {
               res.status(400).send(error.message);
             }
-            jobdebug(`${job.id}: Function errored, stopping Chrome`);
+            debug(`Function errored, stopping Chrome`);
             done(error);
           });
       },
