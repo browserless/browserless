@@ -67,7 +67,7 @@
     "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "1.1.1",
+    "puppeteer": "1.2.0",
     "queue": "^4.4.2",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
