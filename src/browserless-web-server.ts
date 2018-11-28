@@ -13,8 +13,8 @@ import {
   asyncMiddleware,
   bodyValidation,
   generateChromeTarget,
+  getBasicAuthToken,
   getDebug,
-  getWebdriverToken,
   writeFile,
 } from './utils';
 
@@ -175,16 +175,6 @@ export class BrowserlessServer {
         app.use('/', express.static('./debugger'));
       }
 
-      if (this.config.token) {
-        app.use((req, res, next) => {
-          if (this.config.token && req.query.token !== this.config.token) {
-            return res.sendStatus(403);
-          }
-          next();
-          return;
-        });
-      }
-
       app.get('/introspection', (_req, res) => res.json(hints));
       app.get('/json/version', (_req, res) => res.json(version));
       app.get('/json/protocol', (_req, res) => res.json(protocol));
@@ -303,22 +293,20 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
-          // Handle webdriver requests
-          if (req.url && req.url.includes(webDriverPath)) {
-            if (this.config.token && getWebdriverToken(req) !== this.config.token) {
-              res.writeHead(403, { 'Content-Type': 'text/plain' });
-              return res.end('Unauthorized');
-            }
-            return this.handleWebDriver(req, res);
-          }
-
+          // Handle token auth
           if (this.config.token) {
             const parsedUrl = url.parse(req.url as string, true);
+            const authToken = _.get(parsedUrl, 'query.token', null) || getBasicAuthToken(req);
 
-            if (_.get(parsedUrl, 'query.token', null) !== this.config.token) {
+            if (authToken !== this.config.token) {
               res.writeHead(403, { 'Content-Type': 'text/plain' });
               return res.end('Unauthorized');
             }
+          }
+
+          // Handle webdriver requests
+          if (req.url && req.url.includes(webDriverPath)) {
+            return this.handleWebDriver(req, res);
           }
 
           return app(req, res);

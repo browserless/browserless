@@ -1,6 +1,9 @@
 import { ChildProcess } from 'child_process';
 import * as chromeDriver from 'chromedriver';
 import * as fs from 'fs';
+import * as _ from 'lodash';
+import { LaunchOptions } from 'puppeteer';
+import * as url from 'url';
 import { canLog, getDebug, sleep } from './utils';
 
 const puppeteer = require('puppeteer');
@@ -29,19 +32,68 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   executablePath = revisionInfo.executablePath;
 }
 
-export const launchChrome = (
-  { flags, headless }:
-  { flags: string[], headless: boolean },
-) => {
+export const defaultLaunchArgs = {
+  args: undefined,
+  headless: true,
+  ignoreDefaultArgs: false,
+  ignoreHTTPSErrors: false,
+  slowMo: undefined,
+  userDataDir: undefined,
+};
+
+const parseIgnoreDefaultArgs = (argsString: string | string[]): boolean | string[] => {
+  if (Array.isArray(argsString)) {
+    return argsString;
+  }
+
+  if (argsString === 'true' || argsString === 'false') {
+    return argsString === 'true';
+  }
+
+  if (argsString.includes(',')) {
+    return argsString.split(',');
+  }
+
+  return false;
+};
+
+export const launchChrome = (opts: LaunchOptions) => {
   const launchArgs = {
-    args: [...flags, ...DEFAULT_ARGS],
+    ...opts,
+    args: [...opts.args || [], ...DEFAULT_ARGS],
     executablePath,
-    headless,
   };
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
 
   return puppeteer.launch(launchArgs);
+};
+
+export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
+  const urlParts = url.parse(req.url, true);
+  const args = _.chain(urlParts.query)
+    .pickBy((_value, param) => _.startsWith(param, '--'))
+    .map((value, key) => `${key}${value ? `=${value}` : ''}`)
+    .value();
+
+  const {
+    headless,
+    ignoreDefaultArgs,
+    ignoreHTTPSErrors,
+    slowMo,
+    userDataDir,
+  } = urlParts.query;
+
+  return {
+    args,
+    headless: headless !== 'false',
+    ignoreDefaultArgs: ignoreDefaultArgs ?
+      parseIgnoreDefaultArgs(ignoreDefaultArgs) :
+      false,
+    ignoreHTTPSErrors: ignoreHTTPSErrors === 'true',
+    slowMo: parseInt(slowMo as string, 10) || undefined,
+    userDataDir: userDataDir as string,
+  };
 };
 
 export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) => {

@@ -38,12 +38,12 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
 };
 
 const start = async (
-  { code, flags = [] }:
-  { code: string; flags: string[] },
+  { code, opts }:
+  { code: string; opts: puppeteer.LaunchOptions },
 ) => {
   debug(`Starting sandbox running code "${code}"`);
 
-  const browser = await launchChrome({ flags, headless: true });
+  const browser = await launchChrome(opts);
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
   page.on('error', (error) => {

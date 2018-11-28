@@ -1,10 +1,11 @@
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
+import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless-web-server';
-import { launchChrome } from './chrome-helper';
+import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { getDebug, id } from './utils';
@@ -17,7 +18,7 @@ const oneMinute = 60 * 1000;
 const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
-const xvfb = require('xvfb');
+const XVFB = require('@cypress/xvfb');
 
 export interface IRunHTTP {
   code: any;
@@ -44,10 +45,6 @@ export class ChromeService {
     this.queue = queue;
 
     this.chromeSwarm = [];
-
-    if (config.enableXvfb) {
-      new xvfb({ silent: true }).startSync();
-    }
   }
 
   get chromeSwarmSize() {
@@ -78,7 +75,7 @@ export class ChromeService {
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
-        const chrome = this.launchChrome();
+        const chrome = this.launchChrome(defaultLaunchArgs);
         this.chromeSwarm.push(chrome);
         return chrome;
       });
@@ -86,6 +83,12 @@ export class ChromeService {
       setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
 
       return Promise.all(launching);
+    }
+
+    if (this.config.enableXvfb) {
+      const xvfb = new XVFB();
+      const start = promisify(xvfb.start.bind(xvfb));
+      await start();
     }
 
     return Promise.resolve();
@@ -98,9 +101,9 @@ export class ChromeService {
     res,
     before,
     after,
-    flags = [],
     detached = false,
-    headless = true,
+    headless,
+    flags,
   }: IRunHTTP) {
     const jobId = id();
 
@@ -139,12 +142,14 @@ export class ChromeService {
         const debug = (message) => jobdebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
-        const launchFlags = _.chain(req.query)
-          .pickBy((_value, param) => _.startsWith(param, '--'))
-          .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-          .value();
+        const urlOpts = convertUrlParamsToLaunchOpts(req);
+        const launchOpts = {
+          ...urlOpts,
+          args: [...urlOpts.args || [], ...flags || []],
+          headless,
+        };
 
-        this.getChrome({ flags: [...flags, ...launchFlags], headless })
+        this.getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
             const page = await browser.newPage();
@@ -259,10 +264,7 @@ export class ChromeService {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
     }
 
-    const flags = _.chain(parsedUrl.query)
-      .pickBy((_value, param) => _.startsWith(param, '--'))
-      .map((value, key) => `${key}${value ? `=${value}` : ''}`)
-      .value();
+    const opts = convertUrlParamsToLaunchOpts(req);
 
     // If debug code is submitted, sandbox it in
     // its own process to prevent infinite/runaway scripts
@@ -273,7 +275,7 @@ export class ChromeService {
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
           code,
-          flags,
+          opts,
           timeout,
         });
         job.browser = handler;
@@ -295,7 +297,7 @@ export class ChromeService {
       } :
       (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
-        const launchPromise = this.getChrome({ flags, headless: true });
+        const launchPromise = this.getChrome(opts);
 
         launchPromise
           .then(async (browser) => {
@@ -397,12 +399,9 @@ export class ChromeService {
     return this.checkChromeSwarm();
   }
 
-  private getChrome(
-    { flags = [], headless }:
-    { flags: string[], headless: boolean },
-  ): Promise<puppeteer.Browser> {
-    const canUseChromeSwarm = !flags.length && !!this.chromeSwarmSize;
-    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome({ flags, headless });
+  private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
+    const canUseChromeSwarm = _.isEqual(opts, defaultLaunchArgs);
+    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(opts);
 
     return launchPromise as Promise<puppeteer.Browser>;
   }
@@ -420,7 +419,7 @@ export class ChromeService {
   private checkChromeSwarm() {
     if (this.needsChromeInstances) {
       sysdebug(`Adding to Chrome swarm`);
-      return this.chromeSwarm.push(this.launchChrome({ flags: [], headless: true }));
+      return this.chromeSwarm.push(this.launchChrome(defaultLaunchArgs));
     }
     return sysdebug(`Chrome swarm is ok`);
   }
@@ -470,13 +469,10 @@ export class ChromeService {
       }`;
   }
 
-  private async launchChrome(
-    { flags = [], headless = true, retries = 1 }:
-    { flags?: string[], headless?: boolean, retries?: number } = {},
-  ): Promise<puppeteer.Browser> {
+  private async launchChrome(opts: puppeteer.LaunchOptions, retries = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
 
-    return launchChrome({ flags, headless })
+    return launchChrome(opts)
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
@@ -485,7 +481,7 @@ export class ChromeService {
         if (retries > 0) {
           const nextRetries = retries - 1;
           sysdebug(error, `Issue launching Chrome, retrying ${retries} times.`);
-          return this.launchChrome({ flags, headless, retries: nextRetries });
+          return this.launchChrome(opts, nextRetries);
         }
 
         sysdebug(error, `Issue launching Chrome, retries exhausted.`);

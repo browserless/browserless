@@ -32,6 +32,7 @@
     "puppeteer-1.7.0": "1.7.0",
     "puppeteer-1.8.0": "1.8.0",
     "puppeteer-1.9.0": "1.9.0",
+    "puppeteer-1.10.0": "1.10.0",
     "chrome-stable": "1.4.0"
   },
   "releaseBranches": [
@@ -50,6 +51,7 @@
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
+    "@cypress/xvfb": "^1.2.4",
     "@types/express": "^4.11.1",
     "@types/jest": "^23.3.1",
     "@types/node": "^10.11.0",
@@ -77,8 +79,7 @@
     "ts-jest": "^23.1.2",
     "tslint": "^5.10.0",
     "typescript": "^3.0.1",
-    "vm2": "^3.5.2",
-    "xvfb": "^0.2.3"
+    "vm2": "^3.5.2"
   },
   "devDependencies": {
     "husky": "^1.1.1",

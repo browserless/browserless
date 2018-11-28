@@ -49,7 +49,7 @@ export const sleep = (time = 0) => {
   });
 };
 
-export const getWebdriverToken = (req): string => {
+export const getBasicAuthToken = (req): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';
   return new Buffer(token, 'base64').toString();
