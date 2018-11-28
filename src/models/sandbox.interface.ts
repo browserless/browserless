@@ -1,7 +1,9 @@
+import { LaunchOptions } from 'puppeteer';
+
 export interface IConfig {
   code: string;
   timeout: number;
-  flags?: string[];
+  opts?: LaunchOptions;
 }
 
 export interface IMessage {
