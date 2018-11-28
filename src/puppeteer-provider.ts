@@ -18,7 +18,7 @@ const oneMinute = 60 * 1000;
 const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
-const xvfb = require('@cypress/xvfb');
+const Xvfb = require('@cypress/xvfb');
 
 export interface IRunHTTP {
   code: any;
@@ -86,7 +86,9 @@ export class ChromeService {
     }
 
     if (this.config.enableXvfb) {
-      await promisify(new xvfb().start)();
+      const xvfb = new Xvfb();
+      const start = promisify(xvfb.start.bind(xvfb));
+      await start();
     }
 
     return Promise.resolve();
