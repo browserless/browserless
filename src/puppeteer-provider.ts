@@ -71,7 +71,7 @@ export class ChromeService {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
       if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions);
+        process.setMaxListeners(this.config.maxConcurrentSessions + 1);
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
@@ -143,10 +143,11 @@ export class ChromeService {
         debug(`Getting browser.`);
 
         const urlOpts = convertUrlParamsToLaunchOpts(req);
+
         const launchOpts = {
           ...urlOpts,
           args: [...urlOpts.args || [], ...flags || []],
-          headless,
+          headless: typeof headless !== 'undefined' ? headless : urlOpts.headless,
         };
 
         this.getChrome(launchOpts)
