@@ -5,6 +5,7 @@ import { NodeVM } from 'vm2';
 
 import { launchChrome } from '../chrome-helper';
 import { IMessage } from '../models/sandbox.interface';
+import { ISandboxOpts } from '../models/sandbox.interface';
 import { getDebug } from '../utils';
 
 const debug = getDebug('sandbox');
@@ -38,8 +39,8 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
 };
 
 const start = async (
-  { code, opts }:
-  { code: string; opts: puppeteer.LaunchOptions },
+  { code, opts, sandboxOpts }:
+  { code: string; opts: puppeteer.LaunchOptions, sandboxOpts: ISandboxOpts },
 ) => {
   debug(`Starting sandbox running code "${code}"`);
 
@@ -68,7 +69,10 @@ const start = async (
   send(data);
 
   const sandbox = buildBrowserSandbox(page);
-  const vm: any = new NodeVM({ sandbox });
+  const vm: any = new NodeVM({
+    require: sandboxOpts,
+    sandbox,
+  });
   const handler = vm.run(code);
 
   await handler({ page, context: {} });
