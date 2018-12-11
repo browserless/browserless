@@ -122,4 +122,4 @@ USER blessuser
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
 ENTRYPOINT ["dumb-init", "--"]
-CMD [ "npm", "start" ]
+CMD [ "node", "./build/index.js" ]
