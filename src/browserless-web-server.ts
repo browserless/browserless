@@ -79,6 +79,7 @@ export class BrowserlessServer {
     // The backing queue doesn't let you set a max limitation
     // on length, so we add concurrent sessions + queue length
     // to determine the `queue` array's max length
+    const debounceOpts = { leading: true, trailing: false };
     this.config = opts;
     this.queue = new Queue({
       autostart: true,
@@ -107,33 +108,39 @@ export class BrowserlessServer {
       res.end(`Issue communicating with Chrome`);
     });
 
+    function restartOnFailure() {
+      if (opts.exitOnHealthFailure) {
+        process.exit(1);
+      }
+    }
+
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for queued session(s): ${opts.queuedAlertURL}`);
         request(opts.queuedAlertURL, _.noop);
-      }, thirtyMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.rejectHook = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
-      }, thirtyMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.timeoutHook = opts.timeoutAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL, _.noop);
-      }, thirtyMinutes, { leading: true, trailing: false }) :
+      }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.healthFailureHook = opts.healthFailureURL ?
       _.debounce(() => {
         debug(`Calling web-hook for health-failure: ${opts.healthFailureURL}`);
-        request(opts.healthFailureURL, _.noop);
-      }, thirtyMinutes, { leading: true, trailing: false }) :
-      _.noop;
+        request(opts.healthFailureURL, restartOnFailure);
+      }, thirtyMinutes, debounceOpts) :
+      restartOnFailure;
 
     this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
