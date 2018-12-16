@@ -12,7 +12,7 @@
 
 [Feeling Generous? Send us a tip via paypal](https://www.paypal.me/griffithjoel)
 
-Severless Chrome on your own infrastructure. Each session gets its own clean Chrome context for total isolation. After the session is complete Chrome is shutdown. You can also think of it like a database connection where your app connects to browserless, runs some work, and gets results back. No more worrying about Chrome availability or how to parallelize work as that's done for you seamlessly.
+Serverless Chrome on your own infrastructure. Each session gets its own clean Chrome context for total isolation. After the session is complete Chrome is shutdown. You can also think of it like a database connection where your app connects to browserless, runs some work, and gets results back. No more worrying about Chrome availability or how to parallelize work as that's done for you seamlessly.
 
 ## 🙌 Features
 
