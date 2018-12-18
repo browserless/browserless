@@ -277,6 +277,10 @@ export class ChromeService {
         const handler = new BrowserlessSandbox({
           code,
           opts,
+          sandboxOpts: {
+            builtin: this.config.functionBuiltIns,
+            external: this.config.functionExternals,
+          },
           timeout,
         });
         job.browser = handler;

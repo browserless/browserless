@@ -31,6 +31,7 @@ const chromeRefreshTime =       parseParam(process.env.CHROME_REFRESH_TIME, thir
 const maxChromeRefreshRetries = parseParam(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
 const enableCors =              parseParam(process.env.ENABLE_CORS, false);
 const enableXvfb =              parseParam(process.env.ENABLE_XVBF, false);
+const exitOnHealthFailure =     parseParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
 const host =                    process.env.HOST;
 const token =                   process.env.TOKEN || null;
 const queuedAlertURL =          process.env.QUEUE_ALERT_URL || null;
@@ -50,6 +51,7 @@ new BrowserlessServer({
   enableCors,
   enableDebugger,
   enableXvfb,
+  exitOnHealthFailure,
   functionBuiltIns,
   functionExternals,
   healthFailureURL,

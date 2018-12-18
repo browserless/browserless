@@ -8,6 +8,7 @@ Array [
   "enableCors",
   "enableDebugger",
   "enableXvfb",
+  "exitOnHealthFailure",
   "functionBuiltIns",
   "functionExternals",
   "healthFailureURL",

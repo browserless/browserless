@@ -11,6 +11,7 @@ export interface IBrowserlessServerConfiguration {
   timeoutAlertURL: string | null;
   healthFailureURL: string | null;
   metricsJSONPath: string | null;
+  exitOnHealthFailure: boolean;
 }
 
 export interface IChromeServiceConfiguration {

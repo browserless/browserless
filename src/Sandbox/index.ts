@@ -12,7 +12,7 @@ export class BrowserlessSandbox extends EventEmitter {
   private child: ChildProcess;
   private timer: NodeJS.Timer;
 
-  constructor({ code, timeout, opts }: IConfig) {
+  constructor({ code, timeout, opts, sandboxOpts }: IConfig) {
     super();
 
     this.child = fork(path.join(__dirname, 'child'));
@@ -38,6 +38,7 @@ export class BrowserlessSandbox extends EventEmitter {
       context: {
         code,
         opts,
+        sandboxOpts,
       },
       event: 'start',
     });
