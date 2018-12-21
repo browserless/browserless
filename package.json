@@ -22,10 +22,6 @@
     "symlink-chrome": "node ./scripts/symlink-chrome"
   },
   "puppeteerVersions": {
-    "puppeteer-1.0.0": "1.0.0",
-    "puppeteer-1.1.1": "1.1.1",
-    "puppeteer-1.2.0": "1.2.0",
-    "puppeteer-1.3.0": "1.3.0",
     "puppeteer-1.4.0": "1.4.0",
     "puppeteer-1.5.0": "1.5.0",
     "puppeteer-1.6.2": "1.6.2",
@@ -36,16 +32,13 @@
     "chrome-stable": "1.4.0"
   },
   "releaseBranches": [
-    "puppeteer-1.0.0",
-    "puppeteer-1.1.1",
-    "puppeteer-1.2.0",
-    "puppeteer-1.3.0",
     "puppeteer-1.4.0",
     "puppeteer-1.5.0",
     "puppeteer-1.6.2",
     "puppeteer-1.7.0",
     "puppeteer-1.8.0",
     "puppeteer-1.9.0",
+    "puppeteer-1.10.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
