@@ -52,7 +52,7 @@
     "body-parser": "^1.18.2",
     "chromedriver": "^2.41.0",
     "cors": "^2.8.4",
-    "debug": "^4.0.0",
+    "debug": "^4.1.1",
     "express": "^4.16.2",
     "get-port": "^4.0.0",
     "http-proxy": "^1.16.2",
