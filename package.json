@@ -29,6 +29,7 @@
     "puppeteer-1.8.0": "1.8.0",
     "puppeteer-1.9.0": "1.9.0",
     "puppeteer-1.10.0": "1.10.0",
+    "puppeteer-1.11.0": "1.11.0",
     "chrome-stable": "1.4.0"
   },
   "releaseBranches": [
@@ -39,6 +40,7 @@
     "puppeteer-1.8.0",
     "puppeteer-1.9.0",
     "puppeteer-1.10.0",
+    "puppeteer-1.11.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
@@ -62,7 +64,7 @@
     "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "^1.10.0",
+    "puppeteer": "^1.11.0",
     "queue": "^5.0.0",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
