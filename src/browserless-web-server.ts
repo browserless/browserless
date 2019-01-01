@@ -162,6 +162,9 @@ export class BrowserlessServer {
     }
 
     setInterval(this.recordMetrics.bind(this), fiveMinutes);
+
+    process.on('SIGTERM', this.close.bind(this));
+    process.on('SIGINT', this.kill.bind(this));
   }
 
   public async startServer(): Promise<any> {
@@ -323,8 +326,10 @@ export class BrowserlessServer {
     });
   }
 
-  public async close() {
-    return Promise.all([
+  public async kill() {
+    debug(`Kill received, forcefully closing`);
+
+    await Promise.all([
       new Promise((resolve) => {
         this.httpServer.close(resolve);
         delete this.httpServer;
@@ -334,9 +339,25 @@ export class BrowserlessServer {
         this.proxy = null;
         resolve();
       }),
-      this.chromeService.close(),
+      this.chromeService.kill(),
       this.webdriver.close(),
     ]);
+
+    debug(`Successfully shutdown, exiting`);
+    process.exit(0);
+  }
+
+  public async close() {
+    debug(`Close received, gracefully closing`);
+
+    await this.chromeService.close();
+    await new Promise((resolve) => {
+      debug(`Closing server`);
+      this.httpServer.close(resolve);
+    });
+
+    debug(`Successfully shutdown, exiting`);
+    process.exit(0);
   }
 
   public rejectReq(req, res, code, message) {

@@ -19,7 +19,7 @@ export class Queue {
     this.queue = q(opts);
   }
 
-  public on(event: string, cb: () => {}) {
+  public on(event: string, cb: () => any) {
     this.queue.on(event, cb);
   }
 
