@@ -356,8 +356,8 @@ export class ChromeService {
     this.addJob(job);
   }
 
-  public async close() {
-    sysdebug(`Close received, forcing queue and swarm to shutdown`);
+  public async kill() {
+    sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job) => job.close()),
       ...this.chromeSwarm.map(async (instance) => {
@@ -365,7 +365,21 @@ export class ChromeService {
         await browser.close();
       }),
     ]);
-    sysdebug(`Close complete.`);
+    sysdebug(`Kill complete.`);
+  }
+
+  public async close() {
+    sysdebug(`Close received, closing queue and swarm gracefully`);
+    return new Promise((resolve) => {
+      if (this.queue.length === 0) {
+        return resolve(0);
+      }
+
+      this.queue.on('end', () => {
+        sysdebug(`Queue drained`);
+        resolve();
+      });
+    });
   }
 
   private removeJob(job: IJob) {

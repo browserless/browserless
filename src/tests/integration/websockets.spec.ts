@@ -15,7 +15,7 @@ describe('Browserless Chrome WebSockets', () => {
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
-    browserless.close();
+    browserless.kill();
 
     return killChrome();
   });
