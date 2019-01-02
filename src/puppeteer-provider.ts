@@ -359,11 +359,12 @@ export class ChromeService {
   public async kill() {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
-      ...this.queue.map(async (job) => job.close()),
+      ...this.queue.map(async (job: IJob) => job.close && job.close()),
       ...this.chromeSwarm.map(async (instance) => {
         const browser = await instance;
         await browser.close();
       }),
+      this.queue.removeAllListeners(),
     ]);
     sysdebug(`Kill complete.`);
   }

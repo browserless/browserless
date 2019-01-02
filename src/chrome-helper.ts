@@ -60,6 +60,7 @@ const parseIgnoreDefaultArgs = (argsString: string | string[]): boolean | string
 export const launchChrome = (opts: LaunchOptions) => {
   const launchArgs = {
     ...opts,
+    handleSIGTERM: false,
     args: [...opts.args || [], ...DEFAULT_ARGS],
     executablePath,
   };

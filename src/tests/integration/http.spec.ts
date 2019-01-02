@@ -11,7 +11,7 @@ describe('Browserless Chrome HTTP', () => {
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
-    browserless.kill();
+    await browserless.kill();
 
     return killChrome();
   });

@@ -15,7 +15,7 @@ describe('Browserless Chrome WebSockets', () => {
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
-    browserless.kill();
+    await browserless.kill();
 
     return killChrome();
   });
@@ -28,15 +28,11 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.startServer();
 
     const job = async () => {
-      return new Promise(async (resolve) => {
-        const browser: any = await puppeteer.connect({
-          browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
-        });
-
-        browser.on('disconnected', resolve);
-
-        browser.close();
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
       });
+
+      return browser.close();
     };
 
     await Promise.all([
@@ -44,7 +40,7 @@ describe('Browserless Chrome WebSockets', () => {
       job(),
     ]);
 
-    await sleep(20);
+    await sleep(500);
 
     expect(browserless.currentStat.successful).toEqual(2);
     expect(browserless.currentStat.rejected).toEqual(0);

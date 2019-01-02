@@ -11,7 +11,7 @@ describe('Browserless Debugger', () => {
   const start = (args) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
-    browserless.kill();
+    await browserless.kill();
 
     return killChrome();
   });
