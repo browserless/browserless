@@ -33,7 +33,7 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
 }
 
 export const defaultLaunchArgs = {
-  args: undefined,
+  args: [],
   headless: true,
   ignoreDefaultArgs: false,
   ignoreHTTPSErrors: false,
