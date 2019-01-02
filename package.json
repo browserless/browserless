@@ -67,7 +67,7 @@
     "puppeteer": "^1.11.0",
     "queue": "^5.0.0",
     "request": "^2.83.0",
-    "rimraf": "^2.6.1",
+    "rimraf": "^2.6.3",
     "selenium-webdriver": "^4.0.0-alpha.1",
     "shortid": "^2.2.8",
     "tree-kill": "^1.2.0",
