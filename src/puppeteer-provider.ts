@@ -19,6 +19,7 @@ const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
 const XVFB = require('@cypress/xvfb');
+const treekill = require('tree-kill');
 
 export interface IRunHTTP {
   code: any;
@@ -71,7 +72,7 @@ export class ChromeService {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
       if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions + 1);
+        process.setMaxListeners(this.config.maxConcurrentSessions + 2);
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
@@ -414,6 +415,7 @@ export class ChromeService {
 
     jobdebug(`${job.id}: Browser not needed, closing`);
     await browser.close();
+    treekill(browser.process().pid, 'SIGKILL');
 
     jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
     return this.checkChromeSwarm();
