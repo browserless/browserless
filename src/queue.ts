@@ -23,6 +23,10 @@ export class Queue {
     this.queue.on(event, cb);
   }
 
+  public removeAllListeners() {
+    this.queue.removeAllListeners();
+  }
+
   public add(job: IJob) {
     if (!job.id) {
       job.id = id();

@@ -74,6 +74,7 @@ export class BrowserlessServer {
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
   private webdriver: WebDriver;
+  private metricsInterval: NodeJS.Timeout;
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -161,10 +162,9 @@ export class BrowserlessServer {
       }
     }
 
-    setInterval(this.recordMetrics.bind(this), fiveMinutes);
+    this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
     process.on('SIGTERM', this.close.bind(this));
-    process.on('SIGINT', this.kill.bind(this));
   }
 
   public async startServer(): Promise<any> {
@@ -329,14 +329,15 @@ export class BrowserlessServer {
   public async kill() {
     debug(`Kill received, forcefully closing`);
 
+    clearInterval(this.metricsInterval);
+    process.removeAllListeners();
+    this.proxy.removeAllListeners();
+    this.resourceMonitor.close();
+
     await Promise.all([
-      new Promise((resolve) => {
-        this.httpServer.close(resolve);
-        delete this.httpServer;
-      }),
+      new Promise((resolve) => this.httpServer.close(resolve)),
       new Promise((resolve) => {
         this.proxy.close();
-        this.proxy = null;
         resolve();
       }),
       this.chromeService.kill(),
@@ -344,20 +345,24 @@ export class BrowserlessServer {
     ]);
 
     debug(`Successfully shutdown, exiting`);
-    process.exit(0);
   }
 
   public async close() {
     debug(`Close received, gracefully closing`);
 
-    await this.chromeService.close();
+    clearInterval(this.metricsInterval);
+    process.removeAllListeners();
+    this.proxy.removeAllListeners();
+    this.resourceMonitor.close();
+
     await new Promise((resolve) => {
       debug(`Closing server`);
       this.httpServer.close(resolve);
     });
 
+    await this.chromeService.close();
+
     debug(`Successfully shutdown, exiting`);
-    process.exit(0);
   }
 
   public rejectReq(req, res, code, message) {

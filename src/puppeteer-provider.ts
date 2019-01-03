@@ -19,6 +19,7 @@ const sysdebug = getDebug('system');
 const jobdebug = getDebug('job');
 const jobdetaildebug = getDebug('jobdetail');
 const XVFB = require('@cypress/xvfb');
+const treekill = require('tree-kill');
 
 export interface IRunHTTP {
   code: any;
@@ -71,7 +72,7 @@ export class ChromeService {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
       if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions + 1);
+        process.setMaxListeners(this.config.maxConcurrentSessions + 2);
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
@@ -359,11 +360,12 @@ export class ChromeService {
   public async kill() {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
-      ...this.queue.map(async (job) => job.close()),
+      ...this.queue.map(async (job: IJob) => job.close && job.close()),
       ...this.chromeSwarm.map(async (instance) => {
         const browser = await instance;
         await browser.close();
       }),
+      this.queue.removeAllListeners(),
     ]);
     sysdebug(`Kill complete.`);
   }
@@ -413,13 +415,15 @@ export class ChromeService {
 
     jobdebug(`${job.id}: Browser not needed, closing`);
     await browser.close();
+    treekill(browser.process().pid, 'SIGKILL');
 
     jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
     return this.checkChromeSwarm();
   }
 
   private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
-    const canUseChromeSwarm = _.isEqual(opts, defaultLaunchArgs);
+    const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
+    sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(opts);
 
     return launchPromise as Promise<puppeteer.Browser>;

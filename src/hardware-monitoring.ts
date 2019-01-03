@@ -16,6 +16,8 @@ export class ResourceMonitor {
   private maxCPU: number;
   private maxMemory: number;
   private currentResources: IResourceLoad;
+  private metricsInterval: NodeJS.Timeout;
+  private metricsTimeout: NodeJS.Timeout;
 
   constructor(maxCPU, maxMemory) {
     this.maxCPU = maxCPU;
@@ -26,7 +28,7 @@ export class ResourceMonitor {
       memoryUsage: 0,
     };
 
-    setInterval(this.recordMachineStats.bind(this), halfSecond);
+    this.metricsInterval = setInterval(this.recordMachineStats.bind(this), halfSecond);
   }
 
   public getCPUIdleAndTotal(): ICPULoad {
@@ -59,7 +61,7 @@ export class ResourceMonitor {
     return new Promise((resolve) => {
       const start = this.getCPUIdleAndTotal();
 
-      setTimeout(() => {
+      this.metricsTimeout = setTimeout(() => {
         const end = this.getCPUIdleAndTotal();
         const idleDifference = end.idle - start.idle;
         const totalDifference = end.total - start.total;
@@ -73,6 +75,16 @@ export class ResourceMonitor {
         });
       }, 100);
     });
+  }
+
+  public close() {
+    if (this.metricsTimeout) {
+      clearTimeout(this.metricsTimeout);
+    }
+
+    if (this.metricsInterval) {
+      clearInterval(this.metricsInterval);
+    }
   }
 
   private async recordMachineStats() {

@@ -33,7 +33,7 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
 }
 
 export const defaultLaunchArgs = {
-  args: undefined,
+  args: [],
   headless: true,
   ignoreDefaultArgs: false,
   ignoreHTTPSErrors: false,
@@ -62,6 +62,7 @@ export const launchChrome = (opts: LaunchOptions) => {
     ...opts,
     args: [...opts.args || [], ...DEFAULT_ARGS],
     executablePath,
+    handleSIGTERM: false,
   };
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
