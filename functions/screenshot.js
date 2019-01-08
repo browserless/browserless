@@ -45,17 +45,7 @@ module.exports = async function screenshot ({ page, context }) {
   if (url !== null) {
     await page.goto(url, gotoOptions);
   } else {
-    // Whilst there is no way of waiting for all requests to finish with setContent,
-    // you can simulate a webrequest this way
-    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
-
-    await page.setRequestInterception(true);
-    page.once('request', request => {
-      request.respond({ body: html });
-      page.on('request', request => request.continue());
-    });
-
-    await page.goto('http://localhost', gotoOptions);
+    await page.setContent('http://localhost', gotoOptions);
   }
 
   const data = await page.screenshot(options);
