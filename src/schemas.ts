@@ -20,6 +20,15 @@ const cookies = Joi.array().items(Joi.object({
   value: Joi.string().required(),
 })).default([]);
 
+export const viewport = Joi.object().keys({
+  deviceScaleFactor: Joi.number().min(1).max(100),
+  hasTouch: Joi.boolean(),
+  height: Joi.number().min(0).required(),
+  isLandscape: Joi.boolean(),
+  isMobile: Joi.boolean(),
+  width: Joi.number().min(0).required(),
+});
+
 export const screenshot = Joi.object().keys({
   cookies,
   gotoOptions,
@@ -38,6 +47,7 @@ export const screenshot = Joi.object().keys({
   }),
   rejectRequestPattern,
   url: Joi.string(),
+  viewport,
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
