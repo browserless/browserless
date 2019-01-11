@@ -26,6 +26,7 @@ module.exports = async function screenshot ({ page, context }) {
     html,
     options = {},
     rejectRequestPattern,
+    viewport,
   } = context;
 
   if (rejectRequestPattern.length) {
@@ -40,6 +41,10 @@ module.exports = async function screenshot ({ page, context }) {
 
   if (cookies.length) {
     await page.setCookie(...cookies);
+  }
+
+  if (viewport) {
+    await page.setViewport(viewport);
   }
 
   if (url !== null) {

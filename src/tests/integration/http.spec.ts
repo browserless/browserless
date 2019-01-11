@@ -465,6 +465,32 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows custom viewport options', async () => {
+      const browserless = start(defaultParams);
+
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        viewport: {
+          deviceScaleFactor: 3,
+          height: 0,
+          width: 0,
+        },
+      };
+
+      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows for injecting HTML', async () => {
       const browserless = start(defaultParams);
 
