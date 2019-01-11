@@ -30,7 +30,9 @@ COPY . .
 RUN apt-get update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get install -y software-properties-common &&\
+  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-add-repository ppa:malteworld/ppa && apt-get update && apt-get install -y \
+  adobe-flashplugin \
   msttcorefonts \
   fonts-noto-color-emoji \
   fonts-noto-cjk \

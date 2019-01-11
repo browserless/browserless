@@ -48,6 +48,7 @@ const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
+const twentyFourHours = 1000 * 60 * 60 * 24;
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
@@ -171,6 +172,11 @@ export class BrowserlessServer {
     await this.chromeService.start();
 
     return new Promise(async (resolve) => {
+      // Make sure we have http server setup with some headroom
+      // for timeouts (so we can respond with appropriate http codes)
+      const httpTimeout = this.config.connectionTimeout === -1 ?
+        twentyFourHours :
+        this.config.connectionTimeout + 100;
       const app = express();
       const jsonParser = bodyParser.json({ limit: '5mb' });
       const jsParser = bodyParser.text({
@@ -322,6 +328,7 @@ export class BrowserlessServer {
           return app(req, res);
         })
         .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
+        .setTimeout(httpTimeout)
         .listen(this.config.port, this.config.host, resolve);
     });
   }

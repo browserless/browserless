@@ -296,7 +296,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times-out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
       await browserless.startServer();
 
@@ -396,7 +396,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
       await browserless.startServer();
 
@@ -565,7 +565,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
 
       await browserless.startServer();
@@ -663,7 +663,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
       await browserless.startServer();
 
@@ -825,7 +825,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
       await browserless.startServer();
 
@@ -920,7 +920,7 @@ describe('Browserless Chrome HTTP', () => {
     it('times out requests', async () => {
       const browserless = start({
         ...defaultParams,
-        connectionTimeout: 1,
+        connectionTimeout: 50,
       });
       await browserless.startServer();
 
