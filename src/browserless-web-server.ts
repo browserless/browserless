@@ -319,6 +319,7 @@ export class BrowserlessServer {
           return app(req, res);
         })
         .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
+        .setTimeout(this.config.connectionTimeout)
         .listen(this.config.port, this.config.host, resolve);
     });
   }
