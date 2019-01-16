@@ -20,34 +20,41 @@ describe('Browserless Chrome WebSockets', () => {
     return killChrome();
   });
 
-  it.skip('runs concurrently', async () => {
+  it.skip('runs concurrently', async (done) => {
+    const params = defaultParams();
     const browserless = await start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 2,
     });
+
     await browserless.startServer();
 
     const job = async () => {
-      const browser = await puppeteer.connect({
-        browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
-      });
+      return new Promise(async (resolve) => {
+        const browser = await puppeteer.connect({
+          browserWSEndpoint: `ws://localhost:${params.port}`,
+        });
 
-      return browser.close();
+        browser.on('disconnected', resolve);
+        browser.close();
+      });
     };
 
-    await Promise.all([
-      job(),
-      job(),
-    ]);
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
 
-    expect(browserless.currentStat.successful).toEqual(2);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    job();
+    job();
   });
 
-  it('runs with no timeouts', async () => {
+  it('runs with no timeouts', async (done) => {
+    const params = defaultParams();
     const browserless = await start({
-      ...defaultParams,
+      ...params,
       connectionTimeout: -1,
     });
     await browserless.startServer();
@@ -55,7 +62,7 @@ describe('Browserless Chrome WebSockets', () => {
     const job = async () => {
       return new Promise(async (resolve) => {
         const browser: any = await puppeteer.connect({
-          browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+          browserWSEndpoint: `ws://localhost:${params.port}`,
         });
 
         browser.on('disconnected', resolve);
@@ -64,52 +71,56 @@ describe('Browserless Chrome WebSockets', () => {
       });
     };
 
-    await job();
-    await sleep(20);
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(0);
+      expect(browserless.currentStat.successful).toEqual(1);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
 
-    expect(browserless.currentStat.timedout).toEqual(0);
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    job();
   });
 
-  it('queues requests', async () => {
+  it('queues requests', async (done) => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 1,
     });
+
     await browserless.startServer();
 
     const job = async () => {
       const browser = await puppeteer.connect({
-        browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+        browserWSEndpoint: `ws://localhost:${params.port}`,
       });
 
-      return browser.close();
+      browser.close();
     };
 
-    await Promise.all([
-      job(),
-      job(),
-    ]);
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.successful).toEqual(2);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(1);
+      done();
+    });
 
-    await sleep(10);
-
-    expect(browserless.currentStat.successful).toEqual(2);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(1);
+    job();
+    job();
   });
 
   it('fails requests', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 0,
       maxQueueLength: 0,
     });
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -120,14 +131,15 @@ describe('Browserless Chrome WebSockets', () => {
   });
 
   it('fails requests in demo mode', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       demoMode: true,
     });
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -138,14 +150,15 @@ describe('Browserless Chrome WebSockets', () => {
   });
 
   it('fails requests without tokens', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       token: 'abc',
     });
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${defaultParams.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -156,14 +169,15 @@ describe('Browserless Chrome WebSockets', () => {
   });
 
   it.skip('closes chrome when the session is closed', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 2,
     });
     await browserless.startServer();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:${defaultParams.port}`,
+      browserWSEndpoint: `ws://localhost:${params.port}`,
     });
 
     await browser.close();

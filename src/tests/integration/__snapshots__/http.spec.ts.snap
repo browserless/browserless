@@ -5,6 +5,7 @@ Array [
   "chromeRefreshTime",
   "connectionTimeout",
   "demoMode",
+  "downloadDir",
   "enableCors",
   "enableDebugger",
   "enableXvfb",

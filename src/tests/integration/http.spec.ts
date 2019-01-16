@@ -17,10 +17,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /json/version', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/json/version`)
+    return fetch(`http://localhost:${params.port}/json/version`)
       .then((res) => res.json())
       .then((version) => {
         expect(Object.keys(version)).toMatchSnapshot();
@@ -28,10 +29,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /introspection', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/introspection`)
+    return fetch(`http://localhost:${params.port}/introspection`)
       .then((res) => res.json())
       .then((introspection) => {
         expect(introspection);
@@ -39,10 +41,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /json/protocol', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/json/protocol`)
+    return fetch(`http://localhost:${params.port}/json/protocol`)
       .then((res) => res.json())
       .then((protocol) => {
         expect(Object.keys(protocol)).toMatchSnapshot();
@@ -50,10 +53,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /metrics', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/metrics`)
+    return fetch(`http://localhost:${params.port}/metrics`)
       .then((res) => res.json())
       .then((metrics) => {
         expect(metrics).toMatchSnapshot();
@@ -61,10 +65,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /config', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/config`)
+    return fetch(`http://localhost:${params.port}/config`)
       .then((res) => res.json())
       .then((config) => {
         expect(Object.keys(config)).toMatchSnapshot();
@@ -72,10 +77,11 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   it('allows requests to /pressure', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/pressure`)
+    return fetch(`http://localhost:${params.port}/pressure`)
       .then((res) => res.json())
       .then((res) => {
         const { pressure } = res;
@@ -85,7 +91,8 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/function', () => {
     it('allows running functions', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -98,7 +105,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -112,7 +119,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows running detached functions', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -126,7 +134,7 @@ describe('Browserless Chrome HTTP', () => {
         detached: true,
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -140,8 +148,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows functions that require node built-ins', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         functionBuiltIns: ['util'],
       });
       await browserless.startServer();
@@ -158,7 +167,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -172,8 +181,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows functions that require external modules', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         functionExternals: ['node-fetch'],
       });
       await browserless.startServer();
@@ -190,7 +200,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -204,7 +214,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('denies functions that require node built-ins', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -219,7 +230,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -233,8 +244,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('denies functions that require external modules', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         functionExternals: [],
       });
       await browserless.startServer();
@@ -251,7 +263,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -265,7 +277,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows custom response-types', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -280,7 +293,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -294,8 +307,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times-out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
       await browserless.startServer();
@@ -307,7 +321,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -321,7 +335,8 @@ describe('Browserless Chrome HTTP', () => {
 
     it('catches errors', async () => {
       const error = 'Bad Request!';
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -331,7 +346,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/function`, {
+      return fetch(`http://localhost:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -351,14 +366,15 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/screenshot', () => {
     it('allows requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -372,7 +388,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows cookies', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -380,7 +397,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -394,8 +411,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
       await browserless.startServer();
@@ -404,7 +422,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -417,8 +435,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('rejects requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
       });
@@ -429,7 +448,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -442,7 +461,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows custom goto options', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -453,7 +473,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -466,7 +486,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows custom viewport options', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -479,7 +500,7 @@ describe('Browserless Chrome HTTP', () => {
         },
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -492,7 +513,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows for injecting HTML', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -500,7 +522,7 @@ describe('Browserless Chrome HTTP', () => {
         html: '<h1>Hello!</h1>',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screenshot`, {
+      return fetch(`http://localhost:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -515,7 +537,8 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/screencast', () => {
     it('allows requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -525,7 +548,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+      return fetch(`http://localhost:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -540,7 +563,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows "application/javascript" requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = `module.exports = async ({ page }) => {
@@ -548,7 +572,7 @@ describe('Browserless Chrome HTTP', () => {
         await page.waitFor(5000);
       }`;
 
-      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+      return fetch(`http://localhost:${params.port}/screencast`, {
         body,
         headers: {
           'content-type': 'application/javascript',
@@ -563,8 +587,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
 
@@ -576,7 +601,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+      return fetch(`http://localhost:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -589,8 +614,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('rejects requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
       });
@@ -603,7 +629,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/screencast`, {
+      return fetch(`http://localhost:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -618,14 +644,15 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/pdf', () => {
     it('allows requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -639,7 +666,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows cookies', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -647,7 +675,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -661,8 +689,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
       await browserless.startServer();
@@ -671,7 +700,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -684,8 +713,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('rejects requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
       });
@@ -696,7 +726,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -709,7 +739,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows custom goto options', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -720,7 +751,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -733,7 +764,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows for injecting HTML', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -741,7 +773,7 @@ describe('Browserless Chrome HTTP', () => {
         html: '<h1>Hello!</h1>',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -754,7 +786,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows for PDF options', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -765,7 +798,7 @@ describe('Browserless Chrome HTTP', () => {
         },
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/pdf`, {
+      return fetch(`http://localhost:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -780,14 +813,15 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/content', () => {
     it('allows requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/content`, {
+      return fetch(`http://localhost:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -801,7 +835,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows cookies', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
@@ -809,7 +844,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/content`, {
+      return fetch(`http://localhost:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -823,8 +858,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
       await browserless.startServer();
@@ -833,7 +869,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/content`, {
+      return fetch(`http://localhost:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -846,8 +882,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('rejects requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
       });
@@ -858,7 +895,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/content`, {
+      return fetch(`http://localhost:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -871,7 +908,8 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('allows custom goto options', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
 
       await browserless.startServer();
 
@@ -882,7 +920,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/content`, {
+      return fetch(`http://localhost:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -898,14 +936,15 @@ describe('Browserless Chrome HTTP', () => {
   describe('/stats', () => {
     jest.setTimeout(10000);
     it('allows requests', async () => {
-      const browserless = start(defaultParams);
+      const params = defaultParams();
+      const browserless = start(params);
       await browserless.startServer();
 
       const body = {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/stats`, {
+      return fetch(`http://localhost:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -918,8 +957,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('times out requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         connectionTimeout: 50,
       });
       await browserless.startServer();
@@ -928,7 +968,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/stats`, {
+      return fetch(`http://localhost:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -941,8 +981,9 @@ describe('Browserless Chrome HTTP', () => {
     });
 
     it('rejects requests', async () => {
+      const params = defaultParams();
       const browserless = start({
-        ...defaultParams,
+        ...params,
         maxConcurrentSessions: 0,
         maxQueueLength: 0,
       });
@@ -953,7 +994,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${defaultParams.port}/stats`, {
+      return fetch(`http://localhost:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
