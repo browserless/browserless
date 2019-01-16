@@ -1,10 +1,11 @@
 import { exec as execNode } from 'child_process';
+import * as _ from 'lodash';
 import * as util from 'util';
 import { IBrowserlessOptions } from '../../models/options.interface';
 
 export const exec = util.promisify(execNode);
-
-export const defaultParams: IBrowserlessOptions = {
+export const getPort = () => 3000 + (+_.uniqueId());
+export const defaultParams = (): IBrowserlessOptions => ({
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
   demoMode: false,
@@ -24,13 +25,13 @@ export const defaultParams: IBrowserlessOptions = {
   maxMemory: 100,
   maxQueueLength: 2,
   metricsJSONPath: null,
-  port: 3000,
+  port: getPort(),
   prebootChrome: false,
   queuedAlertURL: null,
   rejectAlertURL: null,
   timeoutAlertURL: null,
   token: null,
-};
+});
 
 export const throws = () => {
   throw new Error(`Should have thrown`);

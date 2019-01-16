@@ -52,6 +52,16 @@ export const sleep = (time = 0) => {
   });
 };
 
+export const eventAsync = (emitterLike, event: string) =>
+  new Promise((resolve, reject) => {
+    emitterLike.on(event, (err, ...data) => {
+      if (err) {
+        return reject(err);
+      }
+      return resolve(...data);
+    });
+  });
+
 export const getBasicAuthToken = (req): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';

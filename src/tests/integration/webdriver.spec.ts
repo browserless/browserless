@@ -22,9 +22,10 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('runs concurrently', async () => {
+    const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 2,
     });
 
@@ -35,7 +36,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+        .usingServer(`http://localhost:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -51,9 +52,10 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('works with no timeouts', async () => {
+    const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       connectionTimeout: -1,
     });
 
@@ -64,7 +66,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+        .usingServer(`http://localhost:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -81,9 +83,10 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('authorizes with tokens', async () => {
+    const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       token: 'abcd',
     });
 
@@ -94,7 +97,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://abcd@localhost:${defaultParams.port}/webdriver`)
+        .usingServer(`http://abcd@localhost:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -110,8 +113,9 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('queues sessions', async () => {
+    const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
-    const browserless = start(defaultParams);
+    const browserless = start(params);
 
     await browserless.startServer();
     chromeCapabilities.set('chromeOptions', webdriverOpts);
@@ -120,7 +124,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+        .usingServer(`http://localhost:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -135,8 +139,9 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('fails requests', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 0,
       maxQueueLength: 0,
     });
@@ -148,7 +153,7 @@ describe('Browserless Chrome Webdriver', () => {
     return new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+      .usingServer(`http://localhost:${params.port}/webdriver`)
       .build()
       .then(throws)
       .catch((error) => {
@@ -157,8 +162,9 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('fails requests without tokens', async () => {
+    const params = defaultParams();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       token: 'abc',
     });
 
@@ -169,7 +175,7 @@ describe('Browserless Chrome Webdriver', () => {
     return new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+      .usingServer(`http://localhost:${params.port}/webdriver`)
       .build()
       .then(throws)
       .catch((error) => {
@@ -178,9 +184,10 @@ describe('Browserless Chrome Webdriver', () => {
   });
 
   it('closes chrome when the session is closed', async () => {
+    const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
-      ...defaultParams,
+      ...params,
       maxConcurrentSessions: 2,
     });
 
@@ -190,7 +197,7 @@ describe('Browserless Chrome Webdriver', () => {
     const driver = new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${defaultParams.port}/webdriver`)
+      .usingServer(`http://localhost:${params.port}/webdriver`)
       .build();
 
     await driver.get('https://example.com');
