@@ -17,7 +17,7 @@
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand --detectOpenHandles",
     "prepush": "npm run lint && npm test",
     "symlink-chrome": "node ./scripts/symlink-chrome"
   },
@@ -64,7 +64,7 @@
     "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "^1.10.0",
+    "puppeteer": "^1.11.0",
     "queue": "^5.0.0",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
