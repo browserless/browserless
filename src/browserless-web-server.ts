@@ -70,11 +70,11 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly queue: Queue;
   public proxy: any;
 
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
-  private queue: Queue;
   private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
