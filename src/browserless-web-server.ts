@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
+import * as os from 'os';
 import * as path from 'path';
 import { setInterval } from 'timers';
 import * as url from 'url';
@@ -12,9 +13,12 @@ import * as url from 'url';
 import {
   asyncMiddleware,
   bodyValidation,
+  exists,
   generateChromeTarget,
   getBasicAuthToken,
   getDebug,
+  lstat,
+  readdir,
   writeFile,
 } from './utils';
 
@@ -66,16 +70,17 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly queue: Queue;
   public proxy: any;
 
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
-  private queue: Queue;
   private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
   private chromeService: ChromeService;
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
+  private downloadDir: IBrowserlessOptions['downloadDir'];
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -163,6 +168,13 @@ export class BrowserlessServer {
       }
     }
 
+    const hasDownloadDir = fs.existsSync(opts.downloadDir);
+    this.downloadDir = hasDownloadDir ? opts.downloadDir : os.tmpdir();
+
+    if (!hasDownloadDir) {
+      debug(`The download-directory "${opts.downloadDir}" doesn't exist, setting it to "${this.downloadDir}"`);
+    }
+
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
     process.on('SIGTERM', this.close.bind(this));
@@ -196,6 +208,50 @@ export class BrowserlessServer {
       app.get('/json/protocol', (_req, res) => res.json(protocol));
       app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
       app.get('/config', (_req, res) => res.json(this.config));
+
+      app.get('/downloads', async (_req, res) => {
+        const hasDownloads = await exists(this.downloadDir);
+
+        if (!hasDownloads) {
+          res.sendStatus(404);
+        }
+
+        const files = await readdir(this.downloadDir);
+
+        const stats = await Promise.all(files.map(async (file) => {
+          const stats = await lstat(path.join(this.downloadDir, file));
+
+          return {
+            isDirectory: stats.isDirectory(),
+            name: file,
+            size: stats.size,
+          };
+        }));
+
+        return res.json(stats);
+      });
+
+      app.get('/download/:file', async (req, res) => {
+        const filePath = path.join(this.downloadDir, req.params.file);
+        const hasFile = await exists(filePath);
+        if (!hasFile) {
+          return res.sendStatus(404);
+        }
+
+        return res.sendFile(filePath);
+      });
+
+      app.delete('/download/:file', async (req, res) => {
+        const filePath = path.join(this.downloadDir, req.params.file);
+        const hasFile = await exists(filePath);
+        if (!hasFile) {
+          return res.sendStatus(404);
+        }
+
+        fs.unlink(filePath, _.noop);
+
+        return res.sendStatus(204);
+      });
 
       app.get('/pressure', (_req, res) => {
         const queueLength = this.queue.length;

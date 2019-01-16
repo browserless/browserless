@@ -17,10 +17,11 @@ describe('Browserless Debugger', () => {
   });
 
   it('serves the debugger page', async () => {
-    const browserless = start(defaultParams);
+    const params = defaultParams();
+    const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${defaultParams.port}/`)
+    return fetch(`http://localhost:${params.port}/`)
       .then((res) =>
         expect(res.headers.get('content-type')).toContain('text/html'),
       );
