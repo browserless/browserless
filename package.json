@@ -60,7 +60,7 @@
     "http-proxy": "^1.16.2",
     "jest": "^23.1.0",
     "joi": "^14.1.1",
-    "lighthouse": "^3.2.0",
+    "lighthouse": "^4.0.0",
     "lodash": "^4.17.11",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
