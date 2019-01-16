@@ -83,7 +83,7 @@ RUN apt-get update && \
   xvfb \
   curl &&\
   # Install Node
-  curl --silent --location https://deb.nodesource.com/setup_8.x | bash - &&\
+  curl --silent --location https://deb.nodesource.com/setup_10.x | bash - &&\
   apt-get install --yes nodejs &&\
   apt-get install --yes build-essential &&\
   # Fonts
