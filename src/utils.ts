@@ -6,6 +6,9 @@ import * as util from 'util';
 const debug = require('debug');
 const debuggerEnvVar = process.env.DEBUG;
 
+export const exists = util.promisify(fs.exists);
+export const lstat = util.promisify(fs.lstat);
+export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
 export const getDebug = (level) => debug(`browserless:${level}`);
 export const id = shortid.generate;
