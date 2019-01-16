@@ -93,7 +93,7 @@ describe('Browserless Chrome WebSockets', () => {
       job(),
     ]);
 
-    await sleep(10);
+    await sleep(20);
 
     expect(browserless.currentStat.successful).toEqual(2);
     expect(browserless.currentStat.rejected).toEqual(0);
