@@ -1,5 +1,6 @@
 import { exec as execNode } from 'child_process';
 import * as _ from 'lodash';
+import * as os from 'os';
 import * as util from 'util';
 import { IBrowserlessOptions } from '../../models/options.interface';
 
@@ -9,7 +10,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
   demoMode: false,
-  downloadDir: '/tmp',
+  downloadDir: os.tmpdir(),
   enableCors: false,
   enableDebugger: true,
   enableXvfb: 'CI' in process.env ? true : false,

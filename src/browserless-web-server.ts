@@ -38,9 +38,14 @@ import { Queue } from './queue';
 import { WebDriver } from './webdriver-provider';
 
 import {
+  after as downloadAfter,
+  before as downloadBefore,
+} from './apis/download';
+
+import {
   after as screencastAfter,
   before as screenCastBefore,
-} from './screencast';
+} from './apis/screencast';
 
 const debug = getDebug('server');
 
@@ -252,6 +257,21 @@ export class BrowserlessServer {
 
         return res.sendStatus(204);
       });
+
+      app.post('/download', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
+        const isJson = typeof req.body === 'object';
+        const code = isJson ? req.body.code : req.body;
+        const context = isJson ? req.body.context : {};
+
+        return this.chromeService.runHTTP({
+          after: downloadAfter,
+          before: downloadBefore,
+          code,
+          context,
+          req,
+          res,
+        });
+      }));
 
       app.get('/pressure', (_req, res) => {
         const queueLength = this.queue.length;

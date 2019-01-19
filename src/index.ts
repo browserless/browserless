@@ -1,6 +1,5 @@
-import * as os from 'os';
 import { BrowserlessServer } from './browserless-web-server';
-import { getDebug } from './utils';
+import { downloadDir, getDebug } from './utils';
 
 const debug = getDebug('system');
 
@@ -40,7 +39,6 @@ const rejectAlertURL =          process.env.REJECT_ALERT_URL || null;
 const timeoutAlertURL =         process.env.TIMEOUT_ALERT_URL || null;
 const healthFailureURL =        process.env.FAILED_HEALTH_URL || null;
 const metricsJSONPath =         process.env.METRICS_JSON_PATH || null;
-const downloadDir =             process.env.DOWNLOAD_DIR || os.tmpdir();
 const functionBuiltIns =        parseParam(process.env.FUNCTION_BUILT_INS, []);
 const functionExternals =       parseParam(process.env.FUNCTION_EXTERNALS, []);
 
