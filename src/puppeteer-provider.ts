@@ -28,7 +28,7 @@ export interface IRunHTTP {
   res: any;
   detached?: boolean;
   before?: ({ page, browser, debug }) => Promise<any>;
-  after?: ({ page, browser, jobId, req, res, done, debug }) => Promise<any>;
+  after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
   headless?: boolean;
@@ -155,6 +155,7 @@ export class ChromeService {
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
             const page = await browser.newPage();
+            let beforeArgs = {};
 
             page.on('error', (error) => {
               debug(`Error on page: ${error.message}`);
@@ -166,7 +167,7 @@ export class ChromeService {
 
             if (before) {
               debug(`Running before hook`);
-              await before({ page, browser, debug });
+              beforeArgs = await before({ page, browser, debug });
               debug(`Before hook done!`);
             }
 
@@ -178,12 +179,18 @@ export class ChromeService {
               done();
             });
 
-            return Promise.resolve(handler({ page, context, browser }))
+            return Promise.resolve(handler({
+              ...beforeArgs,
+              browser,
+              context,
+              page,
+            }))
               .then(async ({ data, type = 'text/plain' } = {}) => {
 
                 // If there's a specified "after" hook allow that to run
                 if (after) {
                   return after({
+                    ...beforeArgs ,
                     browser,
                     debug,
                     done,

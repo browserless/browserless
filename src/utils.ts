@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as Joi from 'joi';
+import * as os from 'os';
 import * as shortid from 'shortid';
 import * as util from 'util';
 
@@ -10,9 +11,11 @@ export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
+export const mkdir = util.promisify(fs.mkdir);
 export const getDebug = (level) => debug(`browserless:${level}`);
 export const id = shortid.generate;
 export const canLog = debuggerEnvVar && debuggerEnvVar.includes('browserless');
+export const downloadDir = process.env.DOWNLOAD_DIR ? process.env.DOWNLOAD_DIR : os.tmpdir();
 
 export const asyncMiddleware = (handler) => {
   return (req, socket, head) => {
