@@ -21,7 +21,7 @@ function readJson {
 
 USE_CHROME_STABLE=false;
 
-if [ "$SOURCE_BRANCH" = "chrome-stable" ]; then
+if [[ $SOURCE_BRANCH == *"chrome-stable"* ]]; then
   USE_CHROME_STABLE=true;
 fi
 
