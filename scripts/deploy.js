@@ -3,10 +3,15 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
+const {
+  flatMap,
+  noop
+} = require('lodash');
 
 const {
-  releaseBranches,
+  chromeVersions,
   puppeteerVersions,
+  version,
 } = require('../package.json');
 
 const DEPLOY_BRANCH = 'master';
@@ -32,15 +37,15 @@ async function checkoutReleaseBranch () {
   return logExec(`git checkout ${DEPLOY_BRANCH} --quiet`);
 }
 
-const deployPuppeteerVersion = async (branch) => {
-  const version = puppeteerVersions[branch];
+const deployVersion = async (branch, chromeVersion) => {
+  const version = puppeteerVersions[chromeVersion];
 
   debug(`${branch}: Deploying release of browserless, puppeteer@${version}`);
 
   const currentBranch = await logExec('git rev-parse --abbrev-ref HEAD');
 
   if (currentBranch !== DEPLOY_BRANCH) {
-    await checkoutReleaseBranch;
+    await checkoutReleaseBranch();
   }
 
   await logExec(`git checkout -b ${branch} --quiet`);
@@ -59,32 +64,15 @@ const deployPuppeteerVersion = async (branch) => {
   }
 
   // Have to do `&> /dev/null` to avoid remote messages
-  await logExec(`git push origin ${branch} --quiet --no-verify &> /dev/null`);
+  await logExec(`git push origin ${branch} --force --quiet --no-verify &> /dev/null`);
 }
 
-async function cleanLocalBranches() {
+async function deleteBranches(branches) {
   return Promise.all(
-    releaseBranches.map((branch) =>
-      exec(`git branch -D ${branch}`)
-        .catch(() => {})
+    branches.map((branch) =>
+      exec(`git branch -D ${branch}`).catch(noop)
     )
   );
-}
-
-async function cleanRemoteBranches() {
-  return Promise.all(
-    releaseBranches.map((branch) =>
-      exec(`git push origin --delete ${branch} --quiet --no-verify`)
-        .catch(() => {})
-    )
-  );
-}
-
-async function cleanReleaseBranches() {
-  return Promise.all([
-    cleanLocalBranches(),
-    cleanRemoteBranches(),
-  ]);
 }
 
 async function deploy () {
@@ -103,14 +91,25 @@ async function deploy () {
   }
 
   debug(`On branch ${DEPLOY_BRANCH} and no un-tracked files in git, proceeding to build deployment.`);
-  debug(`Cleaning out local and remote deployment branches`);
 
-  await cleanReleaseBranches();
+  const branches = flatMap(chromeVersions, (chromeVersion) => {
+    const [ major, minor, patch ] = version.split('.');
 
-  debug(`Starting release`);
+    const patchBranch = `${major}.${minor}.${patch}-${chromeVersion}`;
+    const minorBranch = `${major}.${minor}-${chromeVersion}`;
+    const majorBranch = `${major}-${chromeVersion}`;
 
-  await releaseBranches.reduce((lastJob, puppeteerVersion) =>
-    lastJob.then(() => deployPuppeteerVersion(puppeteerVersion)), Promise.resolve());
+    return [
+      [ patchBranch, chromeVersion ],
+      [ minorBranch, chromeVersion ],
+      [ majorBranch, chromeVersion ],
+    ];
+  });
+
+  await deleteBranches(branches.map(([ branch ]) => branch));
+
+  await branches.reduce((lastJob, [branch, chromeVersion]) =>
+    lastJob.then(() => deployVersion(branch, chromeVersion)), Promise.resolve());
 
   debug(`Checking out master and removing release branches.`);
 
