@@ -33,15 +33,16 @@ import {
   before as screenCastBefore,
 } from './apis/screencast';
 
+const version = require('../version.json');
+const protocol = require('../protocol.json');
+const hints = require('../hints.json');
+const multer = require('multer');
+
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
-
-const version = require('../version.json');
-const protocol = require('../protocol.json');
-const hints = require('../hints.json');
 
 const jsonParser = bodyParser.json({ limit: '5mb' });
 const jsParser = bodyParser.text({
@@ -64,6 +65,15 @@ export const getRoutes = ({
   workspaceDir,
 }: IGetRoutes): Router => {
   const router = Router();
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, workspaceDir);
+    },
+    filename: (_req, file, cb) => {
+      cb(null, file.originalname);
+    },
+  });
+  const upload = multer({ storage }).any();
 
   router.get('/introspection', (_req, res) => res.json(hints));
   router.get('/json/version', (_req, res) => res.json(version));
@@ -101,6 +111,16 @@ export const getRoutes = ({
     }
 
     return res.sendFile(filePath);
+  });
+
+  router.post('/workspace', async (req: any, res) => {
+    upload(req, res, (err) => {
+      if (err) {
+        return res.status(400).send(err.message);
+      }
+
+      return res.json(req.files);
+    });
   });
 
   router.delete('/workspace/:file', async (req, res) => {
