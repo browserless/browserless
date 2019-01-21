@@ -5,7 +5,6 @@ Array [
   "chromeRefreshTime",
   "connectionTimeout",
   "demoMode",
-  "downloadDir",
   "enableCors",
   "enableDebugger",
   "enableXvfb",
@@ -27,6 +26,7 @@ Array [
   "rejectAlertURL",
   "timeoutAlertURL",
   "token",
+  "workspaceDir",
 ]
 `;
 
