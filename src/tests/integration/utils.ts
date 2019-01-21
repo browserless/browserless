@@ -10,7 +10,6 @@ export const defaultParams = (): IBrowserlessOptions => ({
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
   demoMode: false,
-  downloadDir: os.tmpdir(),
   enableCors: false,
   enableDebugger: true,
   enableXvfb: 'CI' in process.env ? true : false,
@@ -32,6 +31,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   rejectAlertURL: null,
   timeoutAlertURL: null,
   token: null,
+  workspaceDir: os.tmpdir(),
 });
 
 export const throws = () => {

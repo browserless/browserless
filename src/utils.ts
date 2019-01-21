@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as Joi from 'joi';
 import * as os from 'os';
+import * as path from 'path';
 import * as shortid from 'shortid';
 import * as util from 'util';
 
@@ -15,7 +16,7 @@ export const mkdir = util.promisify(fs.mkdir);
 export const getDebug = (level) => debug(`browserless:${level}`);
 export const id = shortid.generate;
 export const canLog = debuggerEnvVar && debuggerEnvVar.includes('browserless');
-export const downloadDir = process.env.DOWNLOAD_DIR ? process.env.DOWNLOAD_DIR : os.tmpdir();
+export const workspaceDir = process.env.WORKSPACE_DIR ? process.env.WORKSPACE_DIR : os.tmpdir();
 
 export const asyncMiddleware = (handler) => {
   return (req, socket, head) => {
@@ -70,3 +71,6 @@ export const getBasicAuthToken = (req): string => {
   const token = header.split(/\s+/).pop() || '';
   return new Buffer(token, 'base64').toString();
 };
+
+export const fnLoader = (fnName: string) =>
+  fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');

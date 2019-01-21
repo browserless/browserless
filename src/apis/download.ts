@@ -1,17 +1,17 @@
 import { noop } from 'lodash';
 import * as path from 'path';
 import {
-  downloadDir,
   id,
   mkdir,
   readdir,
   sleep,
+  workspaceDir,
 } from '../utils';
 
 const rimraf = require('rimraf');
 
 export const before = async ({ page }) => {
-  const downloadPath = path.join(downloadDir, `.browserless.download.${id()}`);
+  const downloadPath = path.join(workspaceDir, `.browserless.download.${id()}`);
   await mkdir(downloadPath);
 
   await page._client.send('Page.setDownloadBehavior', {

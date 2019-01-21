@@ -1,4 +1,4 @@
-import { BrowserlessServer } from '../../browserless-web-server';
+import { BrowserlessServer } from '../../browserless';
 import {
   defaultParams,
   killChrome,

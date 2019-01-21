@@ -69,9 +69,10 @@ const deployVersion = async (branch, chromeVersion) => {
 
 async function deleteBranches(branches) {
   return Promise.all(
-    branches.map((branch) =>
-      exec(`git branch -D ${branch}`).catch(noop)
-    )
+    branches.map((branch) => {
+      console.log(`Deleting branch ${branch}`);
+      return exec(`git branch -D ${branch}`).catch(noop);
+    })
   );
 }
 
@@ -87,6 +88,14 @@ async function deploy () {
 
   if (status.length) {
     console.error('Un-tracked files in git, please commit before deploying.');
+    process.exit(1);
+  }
+
+  const preCheckBranch = `${version}-chrome-stable`;
+  const versionExists = await logExec(`git ls-remote --heads https://github.com/joelgriffith/browserless.git ${preCheckBranch}`);
+
+  if (versionExists.trim().length) {
+    console.log(`Version ${version} already exists on GitHub. Did you forget to 'npm bump'?`);
     process.exit(1);
   }
 

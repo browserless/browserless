@@ -1,5 +1,5 @@
-import { BrowserlessServer } from './browserless-web-server';
-import { downloadDir, getDebug } from './utils';
+import { BrowserlessServer } from './browserless';
+import { getDebug, workspaceDir } from './utils';
 
 const debug = getDebug('system');
 
@@ -48,7 +48,6 @@ new BrowserlessServer({
   chromeRefreshTime,
   connectionTimeout,
   demoMode,
-  downloadDir,
   enableCors,
   enableDebugger,
   enableXvfb,
@@ -70,5 +69,6 @@ new BrowserlessServer({
   rejectAlertURL,
   timeoutAlertURL,
   token,
+  workspaceDir,
 })
 .startServer();
