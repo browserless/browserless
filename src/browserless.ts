@@ -1,4 +1,3 @@
-import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -6,63 +5,28 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as os from 'os';
-import * as path from 'path';
 import { setInterval } from 'timers';
 import * as url from 'url';
 
 import {
   asyncMiddleware,
-  bodyValidation,
-  exists,
-  generateChromeTarget,
   getBasicAuthToken,
   getDebug,
-  lstat,
-  readdir,
   writeFile,
 } from './utils';
-
-import {
-  content as contentSchema,
-  fn as fnSchema,
-  pdf as pdfSchema,
-  screenshot as screenshotSchema,
-  stats as statsSchema,
-} from './schemas';
 
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
 import { IJob } from './models/queue.interface';
 import { ChromeService } from './puppeteer-provider';
 import { Queue } from './queue';
+import { getRoutes } from './routes';
 import { WebDriver } from './webdriver-provider';
-
-import {
-  after as downloadAfter,
-  before as downloadBefore,
-} from './apis/download';
-
-import {
-  after as screencastAfter,
-  before as screenCastBefore,
-} from './apis/screencast';
 
 const debug = getDebug('server');
 
 const request = require('request');
-const fnLoader = (fnName: string) => fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
-
-// Browserless fn's
-const screenshot = fnLoader('screenshot');
-const content = fnLoader('content');
-const pdf = fnLoader('pdf');
-const stats = fnLoader('stats');
 const twentyFourHours = 1000 * 60 * 60 * 24;
-
-const version = require('../version.json');
-const protocol = require('../protocol.json');
-const hints = require('../hints.json');
-
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
@@ -85,7 +49,7 @@ export class BrowserlessServer {
   private chromeService: ChromeService;
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
-  private downloadDir: IBrowserlessOptions['downloadDir'];
+  private workspaceDir: IBrowserlessOptions['workspaceDir'];
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -173,16 +137,38 @@ export class BrowserlessServer {
       }
     }
 
-    const hasDownloadDir = fs.existsSync(opts.downloadDir);
-    this.downloadDir = hasDownloadDir ? opts.downloadDir : os.tmpdir();
+    const hasWorkspaceDir = fs.existsSync(opts.workspaceDir);
+    this.workspaceDir = hasWorkspaceDir ? opts.workspaceDir : os.tmpdir();
 
-    if (!hasDownloadDir) {
-      debug(`The download-directory "${opts.downloadDir}" doesn't exist, setting it to "${this.downloadDir}"`);
+    if (!hasWorkspaceDir) {
+      debug(`The download-directory "${opts.workspaceDir}" doesn't exist, setting it to "${this.workspaceDir}"`);
     }
 
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
     process.on('SIGTERM', this.close.bind(this));
+  }
+
+  public getMetrics() {
+    return [...this.stats, this.currentStat];
+  }
+
+  public getConfig() {
+    return this.config;
+  }
+
+  public getPressure() {
+    const queueLength = this.queue.length;
+    const queueConcurrency = this.queue.concurrencySize;
+    const concurrencyMet = queueLength >= queueConcurrency;
+
+    return {
+      date: Date.now(),
+      isAvailable: queueLength < this.config.maxQueueLength,
+      queued: concurrencyMet ? queueLength - queueConcurrency : 0,
+      recentlyRejected: this.currentStat.rejected,
+      running: concurrencyMet ? queueConcurrency : queueLength,
+    };
   }
 
   public async startServer(): Promise<any> {
@@ -195,10 +181,16 @@ export class BrowserlessServer {
         twentyFourHours :
         this.config.connectionTimeout + 100;
       const app = express();
-      const jsonParser = bodyParser.json({ limit: '5mb' });
-      const jsParser = bodyParser.text({
-        type: ['text/plain', 'application/javascript'],
+
+      const routes = getRoutes({
+        browserless: this.chromeService,
+        getConfig: this.getConfig.bind(this),
+        getMetrics: this.getMetrics.bind(this),
+        getPressure: this.getPressure.bind(this),
+        workspaceDir: this.workspaceDir,
       });
+
+      app.use(routes);
 
       if (this.config.enableCors) {
         app.use(cors());
@@ -207,181 +199,6 @@ export class BrowserlessServer {
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
       }
-
-      app.get('/introspection', (_req, res) => res.json(hints));
-      app.get('/json/version', (_req, res) => res.json(version));
-      app.get('/json/protocol', (_req, res) => res.json(protocol));
-      app.get('/metrics', (_req, res) => res.json([...this.stats, this.currentStat]));
-      app.get('/config', (_req, res) => res.json(this.config));
-
-      app.get('/downloads', async (_req, res) => {
-        const hasDownloads = await exists(this.downloadDir);
-
-        if (!hasDownloads) {
-          res.sendStatus(404);
-        }
-
-        const files = await readdir(this.downloadDir);
-
-        const stats = await Promise.all(files.map(async (file) => {
-          const stats = await lstat(path.join(this.downloadDir, file));
-
-          return {
-            isDirectory: stats.isDirectory(),
-            name: file,
-            size: stats.size,
-          };
-        }));
-
-        return res.json(stats);
-      });
-
-      app.get('/download/:file', async (req, res) => {
-        const filePath = path.join(this.downloadDir, req.params.file);
-        const hasFile = await exists(filePath);
-        if (!hasFile) {
-          return res.sendStatus(404);
-        }
-
-        return res.sendFile(filePath);
-      });
-
-      app.delete('/download/:file', async (req, res) => {
-        const filePath = path.join(this.downloadDir, req.params.file);
-        const hasFile = await exists(filePath);
-        if (!hasFile) {
-          return res.sendStatus(404);
-        }
-
-        fs.unlink(filePath, _.noop);
-
-        return res.sendStatus(204);
-      });
-
-      app.post('/download', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
-        const isJson = typeof req.body === 'object';
-        const code = isJson ? req.body.code : req.body;
-        const context = isJson ? req.body.context : {};
-
-        return this.chromeService.runHTTP({
-          after: downloadAfter,
-          before: downloadBefore,
-          code,
-          context,
-          req,
-          res,
-        });
-      }));
-
-      app.get('/pressure', (_req, res) => {
-        const queueLength = this.queue.length;
-        const queueConcurrency = this.queue.concurrencySize;
-        const concurrencyMet = queueLength >= queueConcurrency;
-
-        return res.json({
-          pressure: {
-            date: Date.now(),
-            isAvailable: queueLength < this.config.maxQueueLength,
-            queued: concurrencyMet ? queueLength - queueConcurrency : 0,
-            recentlyRejected: this.currentStat.rejected,
-            running: concurrencyMet ? queueConcurrency : queueLength,
-          },
-        });
-      });
-
-      // function route for executing puppeteer scripts, accepts a JSON body with
-      // code and context
-      app.post('/function', jsonParser, bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
-        const { code, context, detached } = req.body;
-
-        return this.chromeService.runHTTP({ code, context, req, res, detached });
-      }));
-
-      // Screen cast route -- we inject some fun stuff here so that it all works properly :)
-      app.post('/screencast', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
-        const isJson = typeof req.body === 'object';
-        const code = isJson ? req.body.code : req.body;
-        const context = isJson ? req.body.context : {};
-
-        return this.chromeService.runHTTP({
-          after: screencastAfter,
-          before: screenCastBefore,
-          code,
-          context,
-          flags: [
-            '--enable-usermedia-screen-capturing',
-            '--allow-http-screen-capture',
-            '--auto-select-desktop-capture-source=browserless-screencast',
-            '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-            '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-            '--disable-infobars',
-          ],
-          headless: false,
-          req,
-          res,
-        });
-      }));
-
-      // Helper route for capturing screenshots, accepts a POST body containing a URL and
-      // puppeteer's screenshot options (see the schema in schemas.ts);
-      app.post('/screenshot', jsonParser, bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runHTTP({
-          code: screenshot,
-          context: req.body,
-          req,
-          res,
-        }),
-      ));
-
-      // Helper route for capturing content body, accepts a POST body containing a URL
-      // (see the schema in schemas.ts);
-      app.post('/content', jsonParser, bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runHTTP({
-          code: content,
-          context: req.body,
-          req,
-          res,
-        }),
-      ));
-
-      // Helper route for capturing screenshots, accepts a POST body containing a URL and
-      // puppeteer's screenshot options (see the schema in schemas.ts);
-      app.post('/pdf', jsonParser, bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runHTTP({
-          code: pdf,
-          context: req.body,
-          req,
-          res,
-        }),
-      ));
-
-      // Helper route for capturing stats, accepts a POST body containing a URL
-      app.post('/stats', jsonParser, bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
-        this.chromeService.runHTTP({
-          code: stats,
-          context: req.body,
-          req,
-          res,
-        }),
-      ));
-
-      app.get('/json*', asyncMiddleware(async (req, res) => {
-        const targetId = generateChromeTarget();
-        const baseUrl = req.get('host');
-        const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
-
-        debug(`${req.url}: JSON protocol request.`);
-
-        res.json([{
-          description: '',
-          devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
-          targetId,
-          title: 'about:blank',
-          type: 'page',
-          url: 'about:blank',
-          webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
-        }]);
-      }));
 
       return this.httpServer = http
         .createServer(async (req, res) => {

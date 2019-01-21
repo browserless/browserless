@@ -12,7 +12,7 @@ export interface IBrowserlessServerConfiguration {
   healthFailureURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
-  downloadDir: string;
+  workspaceDir: string;
 }
 
 export interface IChromeServiceConfiguration {

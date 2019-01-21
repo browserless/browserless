@@ -4,7 +4,7 @@ import * as url from 'url';
 import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
-import { BrowserlessServer } from './browserless-web-server';
+import { BrowserlessServer } from './browserless';
 import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
