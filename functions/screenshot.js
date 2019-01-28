@@ -37,11 +37,7 @@ module.exports = async function screenshot ({ page, context }) {
         return req.abort();
       }
       const interceptor = requestInterceptors
-        .find(r => {
-          console.log(req.url());
-          console.log(req.url().match(r.pattern))
-          return req.url().match(r.pattern)
-        });
+        .find(r => req.url().match(r.pattern));
       if (interceptor) {
         return req.respond(interceptor.response);
       }
