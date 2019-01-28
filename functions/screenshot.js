@@ -26,14 +26,24 @@ module.exports = async function screenshot ({ page, context }) {
     html,
     options = {},
     rejectRequestPattern,
+    requestInterceptors,
     viewport,
   } = context;
 
-  if (rejectRequestPattern.length) {
+  if (rejectRequestPattern.length || requestInterceptors.length) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
         return req.abort();
+      }
+      const interceptor = requestInterceptors
+        .find(r => {
+          console.log(req.url());
+          console.log(req.url().match(r.pattern))
+          return req.url().match(r.pattern)
+        });
+      if (interceptor) {
+        return req.respond(interceptor.response);
       }
       return req.continue();
     });

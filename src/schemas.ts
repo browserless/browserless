@@ -8,6 +8,19 @@ const gotoOptions = Joi.object().keys({
 
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 
+const requestInterceptors = Joi.array().items(Joi.object().keys({
+  pattern: Joi.string().required(),
+  response: Joi.object().keys({
+    body: Joi.alternatives([
+      Joi.string(),
+      Joi.binary(),
+    ]).required(),
+    contentType: Joi.string().required(),
+    headers: Joi.object(),
+    status: Joi.number().required(),
+  }),
+})).default([]);
+
 const cookies = Joi.array().items(Joi.object({
   domain: Joi.string(),
   expires: Joi.number().min(0),
@@ -46,6 +59,7 @@ export const screenshot = Joi.object().keys({
     type: Joi.string().valid('jpeg', 'png'),
   }),
   rejectRequestPattern,
+  requestInterceptors,
   url: Joi.string(),
   viewport,
 }).xor('url', 'html');
