@@ -1,8 +1,11 @@
+import * as cookie from 'cookie';
 import * as fs from 'fs';
 import * as Joi from 'joi';
+import * as _ from 'lodash';
 import * as os from 'os';
 import * as path from 'path';
 import * as shortid from 'shortid';
+import * as url from 'url';
 import * as util from 'util';
 
 const debug = require('debug');
@@ -44,6 +47,23 @@ export const bodyValidation = (schema) => {
 
     return next();
   };
+};
+
+export const tokenCookieName = 'browserless_token';
+export const codeCookieName = 'browserless_code';
+
+export const isAuthorized = (req, token) => {
+  const cookies = cookie.parse(req.headers.cookie || '');
+  const parsedUrl = url.parse(req.url as string, true);
+  const authToken = _.get(parsedUrl, 'query.token', null) ||
+    getBasicAuthToken(req) ||
+    cookies[tokenCookieName];
+
+  if (authToken !== token) {
+    return false;
+  }
+
+  return true;
 };
 
 export const generateChromeTarget = () => {

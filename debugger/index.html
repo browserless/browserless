@@ -339,8 +339,6 @@ module.exports = async ({ page }) => {
 <script>
   const { port, hostname, protocol } = window.location;
   const baseURL = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
-  const token = new URLSearchParams(window.location.search).get('token');
-  const qsParams = token ? `?token=${token}`: '';
   const secure = /(https)|(wss)/g.test(protocol);
   const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
   const globalVars = [
@@ -592,8 +590,8 @@ const puppeteer = require('puppeteer');
     }
 
     const stringifiedCode = encodeURIComponent(code);
-    const params = `/debugger/${stringifiedCode}` + qsParams;
-    const wsLocation = `${hostname}${port ? `:${port}` : ''}${params}`;
+    document.cookie = `browserless_code=${stringifiedCode}`;
+    const wsLocation = `${hostname}${port ? `:${port}` : ''}/debugger`;
 
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?remoteFrontend=true&${secure ? 'wss' : 'ws'}=${wsLocation}`;
   };
@@ -640,7 +638,7 @@ const puppeteer = require('puppeteer');
     onEditScript(editor.getValue());
   });
 
-  fetch(`${baseURL}/introspection${qsParams}`, {
+  fetch(`${baseURL}/introspection`, {
     headers: {
       'Accept': 'application/json',
     }
@@ -648,7 +646,7 @@ const puppeteer = require('puppeteer');
   .then(res => res.json())
   .then((hints) => pageMethods = pageMethods.concat(hints))
 
-  fetch(`${baseURL}/json/version${qsParams}`, {
+  fetch(`${baseURL}/json/version`, {
     headers: {
       'Accept': 'application/json',
     }
@@ -666,6 +664,6 @@ const puppeteer = require('puppeteer');
 </script>
 
 <!-- Inject public metrics and carbon on non-paid debugger instances -->
-<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-3',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-1')}</script>
+<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-3',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-3')}</script>
 </body>
 </html>

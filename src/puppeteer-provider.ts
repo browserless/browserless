@@ -1,3 +1,4 @@
+import * as cookie from 'cookie';
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
@@ -8,7 +9,7 @@ import { BrowserlessServer } from './browserless';
 import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
-import { getDebug, id } from './utils';
+import { codeCookieName, getDebug, id, isAuthorized } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
 import { IDone, IJob } from './models/queue.interface';
@@ -112,7 +113,7 @@ export class ChromeService {
 
     if (this.config.demoMode) {
       jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
-      return this.server.rejectReq(req, res, 403, 'Unauthorized');
+      return this.server.rejectReq(req, res, 403, 'Unauthorized', false);
     }
 
     if (!this.queue.hasCapacity) {
@@ -251,26 +252,25 @@ export class ChromeService {
     const jobId = id();
     const parsedUrl: any = url.parse(req.url, true);
     const route = parsedUrl.pathname || '/';
-    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger/');
+    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
     const debugCode = hasDebugCode ?
-      parsedUrl.pathname.replace('/debugger/', '') :
+      cookie.parse(req.headers.cookie)[codeCookieName] :
       '';
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
-    if (this.config.demoMode && !debugCode) {
-      jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+    if (this.config.token && !isAuthorized(req, this.config.token)) {
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
     }
 
-    if (this.config.token && !req.url.includes(this.config.token)) {
-      jobdebug(`${jobId}: No token sent, closing with 403.`);
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`);
+    if (this.config.demoMode && !debugCode) {
+      jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
     }
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`);
+      return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`, true);
     }
 
     const opts = convertUrlParamsToLaunchOpts(req);
@@ -280,7 +280,7 @@ export class ChromeService {
     const handler = debugCode ?
       (done: IDone) => {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
-        const code = this.parseUserCode(decodeURIComponent(debugCode), job);
+        const code = this.parseUserCode(debugCode, job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
           code,

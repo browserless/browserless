@@ -1,3 +1,4 @@
+import * as cookie from 'cookie';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -6,12 +7,12 @@ import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as os from 'os';
 import { setInterval } from 'timers';
-import * as url from 'url';
 
 import {
   asyncMiddleware,
-  getBasicAuthToken,
   getDebug,
+  isAuthorized,
+  tokenCookieName,
   writeFile,
 } from './utils';
 
@@ -202,15 +203,20 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
-          // Handle token auth
-          if (this.config.token) {
-            const parsedUrl = url.parse(req.url as string, true);
-            const authToken = _.get(parsedUrl, 'query.token', null) || getBasicAuthToken(req);
+          if (this.config.token && !isAuthorized(req, this.config.token)) {
+            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            return res.end('Unauthorized');
+          }
 
-            if (authToken !== this.config.token) {
-              res.writeHead(403, { 'Content-Type': 'text/plain' });
-              return res.end('Unauthorized');
-            }
+          // Handle token auth
+          const cookies = cookie.parse(req.headers.cookie || '');
+
+          if (!cookies[tokenCookieName]) {
+            const cookieToken = cookie.serialize(tokenCookieName, this.config.token, {
+              httpOnly: true,
+              maxAge: twentyFourHours / 1000,
+            });
+            res.setHeader('Set-Cookie', cookieToken);
           }
 
           // Handle webdriver requests
@@ -265,17 +271,21 @@ export class BrowserlessServer {
     debug(`Successfully shutdown, exiting`);
   }
 
-  public rejectReq(req, res, code, message) {
+  public rejectReq(req, res, code, message, recordStat = true) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
-    this.currentStat.rejected++;
+    if (recordStat) {
+      this.currentStat.rejected++;
+    }
     this.rejectHook();
   }
 
-  public rejectSocket(req, socket, message) {
+  public rejectSocket(req, socket, message, recordStat = true) {
     debug(`${req.url}: ${message}`);
     socket.end(message);
-    this.currentStat.rejected++;
+    if (recordStat) {
+      this.currentStat.rejected++;
+    }
     this.rejectHook();
   }
 
