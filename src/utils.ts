@@ -46,6 +46,9 @@ export const bodyValidation = (schema) => {
   };
 };
 
+export const tokenCookieName = 'browserless_token';
+export const codeCookieName = 'browserless_code';
+
 export const generateChromeTarget = () => {
   return `/devtools/page/${id()}`;
 };

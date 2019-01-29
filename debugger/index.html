@@ -363,7 +363,7 @@ module.exports = async ({ page }) => {
   const $about = document.querySelector('#about');
   const $download = document.querySelector('#download');
 
-  const save = (code) => document.cookie = `${key}=code`;
+  const save = (code) => window.localStorage.setItem(key, code);
   const previousCode = window.localStorage.getItem(key);
   const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const README = `
@@ -590,8 +590,8 @@ const puppeteer = require('puppeteer');
     }
 
     const stringifiedCode = encodeURIComponent(code);
-    const params = `/debugger/${stringifiedCode}`;
-    const wsLocation = `${hostname}${port ? `:${port}` : ''}${params}`;
+    document.cookie = `browserless_code=${stringifiedCode}`;
+    const wsLocation = `${hostname}${port ? `:${port}` : ''}/debugger`;
 
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?remoteFrontend=true&${secure ? 'wss' : 'ws'}=${wsLocation}`;
   };
@@ -664,6 +664,6 @@ const puppeteer = require('puppeteer');
 </script>
 
 <!-- Inject public metrics and carbon on non-paid debugger instances -->
-<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-3',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-1')}</script>
+<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-3',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-3')}</script>
 </body>
 </html>

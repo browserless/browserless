@@ -13,6 +13,7 @@ import {
   asyncMiddleware,
   getBasicAuthToken,
   getDebug,
+  tokenCookieName,
   writeFile,
 } from './utils';
 
@@ -204,13 +205,13 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           // Handle token auth
-          const cookies = cookie.parse(req.headers.cookie);
+          const cookies = cookie.parse(req.headers.cookie || '');
 
           if (this.config.token) {
             const parsedUrl = url.parse(req.url as string, true);
             const authToken = _.get(parsedUrl, 'query.token', null) ||
               getBasicAuthToken(req) ||
-              cookies.token;
+              cookies[tokenCookieName];
 
             if (authToken !== this.config.token) {
               res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -218,10 +219,10 @@ export class BrowserlessServer {
             }
           }
 
-          if (!cookies.token) {
-            const cookieToken = cookie.serialize('token', this.config.token, {
+          if (!cookies[tokenCookieName]) {
+            const cookieToken = cookie.serialize(tokenCookieName, this.config.token, {
               httpOnly: true,
-              maxAge: this.config.connectionTimeout,
+              maxAge: twentyFourHours / 1000,
             });
             res.setHeader('Set-Cookie', cookieToken);
           }
