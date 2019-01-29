@@ -1,3 +1,4 @@
+import * as cookie from 'cookie';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as fs from 'fs';
@@ -203,14 +204,26 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           // Handle token auth
+          const cookies = cookie.parse(req.headers.cookie);
+
           if (this.config.token) {
             const parsedUrl = url.parse(req.url as string, true);
-            const authToken = _.get(parsedUrl, 'query.token', null) || getBasicAuthToken(req);
+            const authToken = _.get(parsedUrl, 'query.token', null) ||
+              getBasicAuthToken(req) ||
+              cookies.token;
 
             if (authToken !== this.config.token) {
               res.writeHead(403, { 'Content-Type': 'text/plain' });
               return res.end('Unauthorized');
             }
+          }
+
+          if (!cookies.token) {
+            const cookieToken = cookie.serialize('token', this.config.token, {
+              httpOnly: true,
+              maxAge: this.config.connectionTimeout,
+            });
+            res.setHeader('Set-Cookie', cookieToken);
           }
 
           // Handle webdriver requests

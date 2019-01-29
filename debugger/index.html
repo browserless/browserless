@@ -339,8 +339,6 @@ module.exports = async ({ page }) => {
 <script>
   const { port, hostname, protocol } = window.location;
   const baseURL = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
-  const token = new URLSearchParams(window.location.search).get('token');
-  const qsParams = token ? `?token=${token}`: '';
   const secure = /(https)|(wss)/g.test(protocol);
   const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
   const globalVars = [
@@ -365,7 +363,7 @@ module.exports = async ({ page }) => {
   const $about = document.querySelector('#about');
   const $download = document.querySelector('#download');
 
-  const save = (code) => window.localStorage.setItem(key, code);
+  const save = (code) => document.cookie = `${key}=code`;
   const previousCode = window.localStorage.getItem(key);
   const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const README = `
@@ -592,7 +590,7 @@ const puppeteer = require('puppeteer');
     }
 
     const stringifiedCode = encodeURIComponent(code);
-    const params = `/debugger/${stringifiedCode}` + qsParams;
+    const params = `/debugger/${stringifiedCode}`;
     const wsLocation = `${hostname}${port ? `:${port}` : ''}${params}`;
 
     $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?remoteFrontend=true&${secure ? 'wss' : 'ws'}=${wsLocation}`;
@@ -640,7 +638,7 @@ const puppeteer = require('puppeteer');
     onEditScript(editor.getValue());
   });
 
-  fetch(`${baseURL}/introspection${qsParams}`, {
+  fetch(`${baseURL}/introspection`, {
     headers: {
       'Accept': 'application/json',
     }
@@ -648,7 +646,7 @@ const puppeteer = require('puppeteer');
   .then(res => res.json())
   .then((hints) => pageMethods = pageMethods.concat(hints))
 
-  fetch(`${baseURL}/json/version${qsParams}`, {
+  fetch(`${baseURL}/json/version`, {
     headers: {
       'Accept': 'application/json',
     }
