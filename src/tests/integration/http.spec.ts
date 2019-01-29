@@ -512,6 +512,38 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows for providing http response payloads', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+
+      await browserless.startServer();
+
+      const body = {
+        requestInterceptors: [
+          {
+            pattern: '.*data\.json',
+            response: {
+              body: '{"data": 123}',
+              contentType: 'application/json',
+              status: 200,
+            },
+          },
+        ],
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://localhost:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows for injecting HTML', async () => {
       const params = defaultParams();
       const browserless = start(params);
