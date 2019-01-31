@@ -73,3 +73,5 @@ Array [
   "running",
 ]
 `;
+
+exports[`Browserless Chrome HTTP sets a cookie when a token is present 1`] = `undefined`;
