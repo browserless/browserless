@@ -68,6 +68,7 @@ export const content = Joi.object().keys({
   cookies,
   gotoOptions,
   rejectRequestPattern,
+  requestInterceptors,
   url: Joi.string().required(),
 });
 
@@ -96,6 +97,7 @@ export const pdf = Joi.object().keys({
     width: Joi.any().optional(),
   }),
   rejectRequestPattern,
+  requestInterceptors,
   safeMode: Joi.boolean().default(
     false,
     'Whether to safely generate the PDF (renders pages one-at-a-time and merges it in-memory). ' +
