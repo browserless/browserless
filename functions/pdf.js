@@ -64,13 +64,19 @@ module.exports = async function pdf({ page, context }) {
     safeMode,
     gotoOptions,
     rejectRequestPattern,
+    requestInterceptors,
   } = context;
 
-  if (rejectRequestPattern.length) {
+  if (rejectRequestPattern.length || requestInterceptors.length) {
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
         return req.abort();
+      }
+      const interceptor = requestInterceptors
+        .find(r => req.url().match(r.pattern));
+      if (interceptor) {
+        return req.respond(interceptor.response);
       }
       return req.continue();
     });
