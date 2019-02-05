@@ -89,6 +89,31 @@ describe('Browserless Chrome HTTP', () => {
       });
   });
 
+  it('sets a cookie when a token is present', async () => {
+    const params = defaultParams();
+    const browserless = start({
+      ...params,
+      token: 'abc',
+    });
+    await browserless.startServer();
+
+    return fetch(`http://abc@localhost:${params.port}/json`)
+      .then((res) => {
+        expect(res.headers['set-cookie']).toMatchSnapshot();
+      });
+  });
+
+  it('does NOT set a cookie when no token is present', async () => {
+    const params = defaultParams();
+    const browserless = start(params);
+    await browserless.startServer();
+
+    return fetch(`http://localhost:${params.port}/json`)
+      .then((res) => {
+        expect(res.headers).not.toHaveProperty('set-cookie');
+      });
+  });
+
   describe('/function', () => {
     it('allows running functions', async () => {
       const params = defaultParams();

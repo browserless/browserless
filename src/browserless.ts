@@ -211,7 +211,7 @@ export class BrowserlessServer {
           // Handle token auth
           const cookies = cookie.parse(req.headers.cookie || '');
 
-          if (!cookies[tokenCookieName]) {
+          if (!cookies[tokenCookieName] && this.config.token) {
             const cookieToken = cookie.serialize(tokenCookieName, this.config.token, {
               httpOnly: true,
               maxAge: twentyFourHours / 1000,
