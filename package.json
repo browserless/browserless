@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "husky": "^1.1.1",
-    "nodemon": "^1.17.3"
+    "nodemon": "^1.18.10"
   },
   "jest": {
     "testEnvironment": "node",
