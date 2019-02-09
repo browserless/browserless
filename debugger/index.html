@@ -76,7 +76,7 @@
   .flex-hz {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 190px);
+    height: calc(100vh - 130px);
   }
   #code-mount {
     font-size: 16px;
@@ -141,7 +141,7 @@
   }
   footer {
     background: #333;
-    height: 130px;
+    height: 70px;
     overflow: hidden;
     display: flex;
     justify-content: space-between;
@@ -231,51 +231,6 @@
     background: rgba(155,157,162,0.37);
     z-index: 1;
   }
-
-  #carbonads {
-    max-width: 400px;
-    display: flex;
-    overflow: hidden;
-    padding: 1em;
-    line-height: 1.4;
-  }
-
-  #carbonads span {
-    position: relative;
-    display: block;
-    overflow: hidden;
-  }
-
-  .carbon-img {
-    float: left;
-    margin-right: 1em;
-  }
-
-  .carbon-img img {
-    display: block;
-    line-height: 1;
-  }
-
-  .carbon-text {
-    max-width: calc(100% - 130px - 1em);
-    text-align: left;
-    font-size: 14px;
-    text-decoration: none;
-    font-family: sans-serif;
-  }
-
-  .carbon-poweredby {
-    position: absolute;
-    left: calc(130px + 14px);
-    bottom: 0;
-    display: block;
-    font-size: .8em;
-    text-transform: uppercase;
-    line-height: 1;
-    letter-spacing: 1px;
-    font-family: sans-serif;
-    font-size: 10px;
-  }
   </style>
 </head>
 <body>
@@ -337,6 +292,7 @@ module.exports = async ({ page }) => {
 <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
 
 <script>
+  window.__is_demo_machine__ = 'chrome.browserless.io' === window.location.host && !window.location.search.includes('?token=');
   const { port, hostname, protocol } = window.location;
   const baseURL = `${protocol}//${hostname}${port ? `:${port}` : ''}`;
   const secure = /(https)|(wss)/g.test(protocol);
@@ -437,6 +393,10 @@ const puppeteer = require('puppeteer');
     `You can download your script and all the appropriate packages by clicking the download button`,
     `You can easily copy and share the link in the URL bar. Your script even loads as well`,
   ];
+
+  if (window.__is_demo_machine__) {
+    hints.push(`Looking to run this in the cloud? <a href="https://browserless.io/sign-up">Sign-up for an account<a>`);
+  }
 
   setHint = () => {
     const text = rand(hints);
@@ -663,7 +623,21 @@ const puppeteer = require('puppeteer');
   });
 </script>
 
-<!-- Inject public metrics and carbon on non-paid debugger instances -->
-<script>if('chrome.browserless.io'===window.location.host&&!window.location.search.includes('?token=')){function a(){dataLayer.push(arguments)}const b=document.createElement('script'),c=document.createElement('script');b.src='//www.googletagmanager.com/gtag/js?id=UA-105866025-3',b.async=!0,c.src='//cdn.carbonads.com/carbon.js?serve=CK7DV23E&placement=wwwbrowserlessio',c.async=!0,c.id='_carbonads_js',document.head.appendChild(b),document.querySelector('footer').appendChild(c),window.dataLayer=window.dataLayer||[],a('js',new Date),a('config','UA-105866025-3')}</script>
+<!-- Fathom metrics on our public demo -->
+<script>
+if (window.__is_demo_machine__) {
+  (function(f, a, t, h, o, m){
+    a[h]=a[h]||function(){
+      (a[h].q=a[h].q||[]).push(arguments)
+    };
+    o=f.createElement('script'),
+    m=f.getElementsByTagName('script')[0];
+    o.async=1; o.src=t; o.id='fathom-script';
+    m.parentNode.insertBefore(o,m)
+  })(document, window, '//analytics.browserless.io/tracker.js', 'fathom');
+  fathom('set', 'siteId', 'JGAKA');
+  fathom('trackPageview');
+}
+</script>
 </body>
 </html>
