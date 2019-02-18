@@ -1,6 +1,7 @@
 # Built Assets
 node_modules/
 build/
+hooks/
 
 # MAC
 .DS_Store
