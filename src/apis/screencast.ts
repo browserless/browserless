@@ -1,6 +1,9 @@
 import * as fs from 'fs';
+import { noop } from 'lodash';
+
 const path = require('path');
 const homeDir = require('os').homedir();
+const rimraf = require('rimraf');
 
 export const before = async ({ page }) => {
   await page._client.send('Emulation.clearDeviceMetricsOverride');
@@ -28,27 +31,18 @@ export const after = async ({ page, jobId, res, done, debug }) => {
   }
 
   if (res.headersSent) {
-    fs.unlinkSync(filePath);
+    rimraf(filePath, noop);
     return done();
   }
 
-  res.type('video/webm');
+  return res.sendFile(filePath, (err) => {
+    const message = err ?
+      `Error streaming file back ${err}` :
+      `File sent successfully`;
 
-  const stream = fs.createReadStream(filePath);
+    debug(message);
+    rimraf(filePath, noop);
 
-  stream.pipe(res);
-
-  debug(`Streaming screencast "${file}" to client`);
-
-  return stream
-    .on('error', (error) => {
-      debug(`Error streaming screencast "${file}": ${error}`);
-      fs.unlinkSync(filePath);
-      done(error);
-    })
-    .on('end', () => {
-      debug(`Screencast "${file}" is done streaming, deleting and closing job.`);
-      fs.unlinkSync(filePath);
-      done();
-    });
+    done(err);
+  });
 };
