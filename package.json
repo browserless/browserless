@@ -41,7 +41,10 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@cypress/xvfb": "^1.2.4",
+    "@types/express": "^4.16.1",
+    "@types/jest": "^24.0.6",
     "@types/node": "^10.11.0",
+    "@types/puppeteer": "^1.12.1",
     "body-parser": "^1.18.2",
     "chromedriver": "^2.41.0",
     "cookie": "^0.3.1",
@@ -70,9 +73,6 @@
     "vm2": "^3.6.10"
   },
   "devDependencies": {
-    "@types/express": "^4.16.1",
-    "@types/jest": "^24.0.6",
-    "@types/puppeteer": "^1.12.1",
     "husky": "^1.1.1"
   },
   "jest": {
