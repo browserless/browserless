@@ -34,15 +34,15 @@ const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 const webDriverPath = '/webdriver/session';
-const beforeHookPath = path.join('..', 'hooks', 'before');
-const afterHookPath = path.join('..', 'hooks', 'after');
+const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
+const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
 
 const beforeHook = fs.existsSync(beforeHookPath) ?
   require(beforeHookPath) :
   () => true;
 
 const afterHook = fs.existsSync(afterHookPath) ?
-  require(beforeHookPath) :
+  require(afterHookPath) :
   () => true;
 
 export class BrowserlessServer {
