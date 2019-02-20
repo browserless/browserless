@@ -214,7 +214,7 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
-          const beforeResults = await beforeHook({ req });
+          const beforeResults = await beforeHook({ req, res });
 
           if (!beforeResults) {
             return res.end();
