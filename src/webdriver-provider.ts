@@ -87,6 +87,8 @@ export class WebDriver {
         browser: null,
         close: () => {},
         id: '',
+        req,
+        start: Date.now(),
       },
     );
 

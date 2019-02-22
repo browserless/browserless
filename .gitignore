@@ -1,6 +1,7 @@
 # Built Assets
 node_modules/
 build/
+external/
 
 # MAC
 .DS_Store

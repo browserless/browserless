@@ -6,6 +6,7 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import * as os from 'os';
+import * as path from 'path';
 import { setInterval } from 'timers';
 
 import {
@@ -33,6 +34,16 @@ const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 const webDriverPath = '/webdriver/session';
+const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
+const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
+
+const beforeHook = fs.existsSync(beforeHookPath) ?
+  require(beforeHookPath) :
+  () => true;
+
+const afterHook = fs.existsSync(afterHookPath) ?
+  require(afterHookPath) :
+  () => true;
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
@@ -203,6 +214,12 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
+          const beforeResults = await beforeHook({ req, res });
+
+          if (!beforeResults) {
+            return res.end();
+          }
+
           if (this.config.token && !isAuthorized(req, this.config.token)) {
             res.writeHead(403, { 'Content-Type': 'text/plain' });
             return res.end('Unauthorized');
@@ -226,7 +243,15 @@ export class BrowserlessServer {
 
           return app(req, res);
         })
-        .on('upgrade', asyncMiddleware(this.chromeService.runWebSocket.bind(this.chromeService)))
+        .on('upgrade', asyncMiddleware(async (req, socket, head) => {
+          const beforeResults = await beforeHook(req);
+
+          if (!beforeResults) {
+            return socket.end();
+          }
+
+          return this.chromeService.runWebSocket(req, socket, head);
+        }))
         .setTimeout(httpTimeout)
         .listen(this.config.port, this.config.host, resolve);
     });
@@ -309,12 +334,22 @@ export class BrowserlessServer {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
     job.close && job.close();
+    afterHook({
+      req: job.req,
+      start: job.start,
+      status: 'success',
+    });
   }
 
   private onSessionFail(error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
     job.close && job.close();
+    afterHook({
+      req: job.req,
+      start: job.start,
+      status: 'fail',
+    });
   }
 
   private onTimedOut(next, job: IJob) {
@@ -323,6 +358,11 @@ export class BrowserlessServer {
     this.timeoutHook();
     job.timeout && job.timeout();
     job.close && job.close();
+    afterHook({
+      req: job.req,
+      start: job.start,
+      status: 'timeout',
+    });
     next();
   }
 

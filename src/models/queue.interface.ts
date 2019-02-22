@@ -1,13 +1,16 @@
 import * as EventEmitter from 'events';
+import * as http from 'http';
 import { Browser } from 'puppeteer';
 import { BrowserlessSandbox } from '../Sandbox';
 
 export interface IJob {
-  (done?: () => {}): any | Promise<any>;
+  (done?: IDone): any | Promise<any>;
   id?: string;
   browser?: Browser | BrowserlessSandbox | null;
   close?: () => any;
   timeout?: () => any;
+  start: number;
+  req: http.IncomingMessage;
 }
 
 export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
@@ -16,4 +19,4 @@ export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
   add: (job: IJob) => any;
 }
 
-export type IDone = (error?: Error) => any;
+export type IDone = (error?: Error | null) => any;
