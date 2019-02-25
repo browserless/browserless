@@ -356,7 +356,7 @@ export class BrowserlessServer {
     debug(`${job.id}: Recording timedout stat.`);
     this.currentStat.timedout++;
     this.timeoutHook();
-    job.timeout && job.timeout();
+    job.onTimeout && job.onTimeout();
     job.close && job.close();
     afterHook({
       req: job.req,
