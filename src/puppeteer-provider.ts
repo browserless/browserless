@@ -236,7 +236,7 @@ export class ChromeService {
         id: jobId,
         req,
         start: Date.now(),
-        timeout: () => {
+        onTimeout: () => {
           if (!res.headersSent) {
             jobdebug(`${job.id}: Function has timed-out, sending 408.`);
             res.status(408).send('browserless function has timed-out');
@@ -351,7 +351,7 @@ export class ChromeService {
       id: jobId,
       req,
       start: Date.now(),
-      timeout: () => {
+      onTimeout: () => {
         jobdebug(`${job.id}: Job has timed-out, closing the WebSocket.`);
         socket.end();
       },
