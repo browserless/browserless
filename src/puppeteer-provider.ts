@@ -234,8 +234,6 @@ export class ChromeService {
         browser: null,
         close: () => this.cleanUpJob(job),
         id: jobId,
-        req,
-        start: Date.now(),
         onTimeout: () => {
           if (!res.headersSent) {
             jobdebug(`${job.id}: Function has timed-out, sending 408.`);
@@ -243,6 +241,8 @@ export class ChromeService {
           }
           jobdebug(`${job.id}: Function has timed-out but headers already sent...`);
         },
+        req,
+        start: Date.now(),
       },
     );
 
@@ -349,12 +349,12 @@ export class ChromeService {
       browser: null,
       close: () => this.cleanUpJob(job),
       id: jobId,
-      req,
-      start: Date.now(),
       onTimeout: () => {
         jobdebug(`${job.id}: Job has timed-out, closing the WebSocket.`);
         socket.end();
       },
+      req,
+      start: Date.now(),
     };
 
     const job: IJob = Object.assign(handler, jobProps);
