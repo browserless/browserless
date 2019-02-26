@@ -70,8 +70,7 @@ export const launchChrome = (opts: LaunchOptions) => {
   return puppeteer.launch(launchArgs);
 };
 
-export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
-  const urlParts = url.parse(req.url, true);
+export const convertUrlParamsToLaunchOpts = (urlParts: url.UrlWithParsedQuery): LaunchOptions => {
   const args = _.chain(urlParts.query)
     .pickBy((_value, param) => _.startsWith(param, '--'))
     .map((value, key) => `${key}${value ? `=${value}` : ''}`)

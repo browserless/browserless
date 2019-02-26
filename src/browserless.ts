@@ -134,6 +134,7 @@ export class BrowserlessServer {
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
+    this.queue.on('start', this.onSessionStart.bind(this));
 
     debug(this.config, `Final Options`);
 
@@ -162,7 +163,7 @@ export class BrowserlessServer {
   }
 
   public getMetrics() {
-    return [...this.stats, this.currentStat];
+    return [...this.stats, { ...this.currentStat, date: Date.now() }];
   }
 
   public getConfig() {
@@ -330,6 +331,10 @@ export class BrowserlessServer {
     return this.webdriver.proxySession(req, res);
   }
 
+  private onSessionStart(job) {
+    job.start = Date.now();
+  }
+
   private onSessionSuccess(_res, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
@@ -375,7 +380,7 @@ export class BrowserlessServer {
   private resetCurrentStat() {
     this.currentStat = {
       cpu: 0,
-      date: null,
+      date: Date.now(),
       error: 0,
       memory: 0,
       queued: 0,

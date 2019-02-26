@@ -1,5 +1,5 @@
 interface IBrowserlessStats {
-  date: number | null;
+  date: number;
   successful: number;
   error: number;
   queued: number;

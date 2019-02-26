@@ -1,4 +1,6 @@
 import * as cookie from 'cookie';
+import * as express from 'express';
+import * as http from 'http';
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
@@ -9,24 +11,24 @@ import { BrowserlessServer } from './browserless';
 import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
-import { codeCookieName, getDebug, id, isAuthorized } from './utils';
+import { codeCookieName, getDebug, getTimeout, id, isAuthorized } from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
 import { IDone, IJob } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
-const sysdebug = getDebug('system');
-const jobdebug = getDebug('job');
-const jobdetaildebug = getDebug('jobdetail');
+const systemDebug = getDebug('system');
+const jobDebug = getDebug('job');
+const verboseDebug = getDebug('verbose');
 const XVFB = require('@cypress/xvfb');
-const treekill = require('tree-kill');
+const treeKill = require('tree-kill');
 
 export interface IRunHTTP {
-  code: any;
+  code: string;
   context: any;
-  req: any;
-  res: any;
+  req: express.Request;
+  res: express.Response;
   detached?: boolean;
   before?: ({ page, browser, debug }) => Promise<any>;
   after?: (...args: any) => Promise<any>;
@@ -70,7 +72,7 @@ export class ChromeService {
 
   public async start() {
     if (this.config.prebootChrome) {
-      sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
+      systemDebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
       if (this.config.maxConcurrentSessions > 10) {
         process.setMaxListeners(this.config.maxConcurrentSessions + 2);
@@ -108,21 +110,23 @@ export class ChromeService {
     flags,
   }: IRunHTTP) {
     const jobId = id();
+    const parsedUrl = url.parse(req.url || '', true);
+    const timeout = getTimeout(parsedUrl);
 
-    jobdebug(`${jobId}: ${req.url}: Inbound HTTP request. Context: ${JSON.stringify(context)}`);
+    jobDebug(`${jobId}: ${req.url}: Inbound HTTP request. Context: ${JSON.stringify(context)}`);
 
     if (this.config.demoMode) {
-      jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
+      jobDebug(`${jobId}: Running in demo-mode, closing with 403.`);
       return this.server.rejectReq(req, res, 403, 'Unauthorized', false);
     }
 
     if (!this.queue.hasCapacity) {
-      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      jobDebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectReq(req, res, 429, `Too Many Requests`);
     }
 
     if (detached) {
-      jobdebug(`${jobId}: Function is detached, resolving request.`);
+      jobDebug(`${jobId}: Function is detached, resolving request.`);
       res.json({ id: jobId });
     }
 
@@ -135,17 +139,16 @@ export class ChromeService {
     });
     const handler: (args) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
-      jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
+      jobDebug(`${job.id}: Function terminated prior to execution removing from queue`);
       this.removeJob(job);
     };
 
     const job: IJob = Object.assign(
       (done: IDone) => {
-        const debug = (message) => jobdebug(`${job.id}: ${message}`);
+        const debug = (message) => jobDebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
-        const urlOpts = convertUrlParamsToLaunchOpts(req);
-
+        const urlOpts = convertUrlParamsToLaunchOpts(parsedUrl);
         const launchOpts = {
           ...urlOpts,
           args: [...urlOpts.args || [], ...flags || []],
@@ -154,7 +157,7 @@ export class ChromeService {
 
         this.getChrome(launchOpts)
           .then(async (browser) => {
-            jobdetaildebug(`${job.id}: Executing function.`);
+            verboseDebug(`${job.id}: Executing function.`);
             const page = await browser.newPage();
             let beforeArgs = {};
 
@@ -236,13 +239,13 @@ export class ChromeService {
         id: jobId,
         onTimeout: () => {
           if (!res.headersSent) {
-            jobdebug(`${job.id}: Function has timed-out, sending 408.`);
+            jobDebug(`${job.id}: Function has timed-out, sending 408.`);
             res.status(408).send('browserless function has timed-out');
           }
-          jobdebug(`${job.id}: Function has timed-out but headers already sent...`);
+          jobDebug(`${job.id}: Function has timed-out but headers already sent...`);
         },
         req,
-        start: Date.now(),
+        timeout,
       },
     );
 
@@ -250,38 +253,39 @@ export class ChromeService {
     this.addJob(job);
   }
 
-  public async runWebSocket(req, socket: NodeJS.Socket, head) {
+  public async runWebSocket(req: http.IncomingMessage, socket: NodeJS.Socket, head: http.IncomingHttpHeaders) {
     const jobId = id();
-    const parsedUrl: any = url.parse(req.url, true);
+    const parsedUrl: any = url.parse(req.url || '', true);
+    const timeout = getTimeout(parsedUrl);
     const route = parsedUrl.pathname || '/';
     const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
     const debugCode = hasDebugCode ?
       cookie.parse(req.headers.cookie)[codeCookieName] :
       '';
 
-    jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
+    jobDebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
     if (this.config.token && !isAuthorized(req, this.config.token)) {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
     }
 
     if (this.config.demoMode && !debugCode) {
-      jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
+      jobDebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
     }
 
     if (!this.queue.hasCapacity) {
-      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      jobDebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`, true);
     }
 
-    const opts = convertUrlParamsToLaunchOpts(req);
+    const opts = convertUrlParamsToLaunchOpts(parsedUrl);
 
     // If debug code is submitted, sandbox it in
     // its own process to prevent infinite/runaway scripts
     const handler = debugCode ?
       (done: IDone) => {
-        jobdebug(`${job.id}: Starting debugger sandbox.`);
+        jobDebug(`${job.id}: Starting debugger sandbox.`);
         const code = this.parseUserCode(debugCode, job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
@@ -300,23 +304,23 @@ export class ChromeService {
 
         handler.on('launched', ({ port, url }) => {
           req.url = url;
-          jobdebug(`${job.id}: Got URL ${url}, proxying traffic to ${port}.`);
+          jobDebug(`${job.id}: Got URL ${url}, proxying traffic to ${port}.`);
           this.server.proxy.ws(req, socket, head, { target: `ws://127.0.0.1:${port}` });
         });
 
         handler.on('error', (err) => {
-          jobdebug(`${job.id}: Debugger crashed, exiting connection`);
+          jobDebug(`${job.id}: Debugger crashed, exiting connection`);
           done(err);
           socket.end();
         });
       } :
       (done: IDone) => {
-        jobdebug(`${job.id}: Getting browser.`);
+        jobDebug(`${job.id}: Getting browser.`);
         const launchPromise = this.getChrome(opts);
 
         launchPromise
           .then(async (browser) => {
-            jobdebug(`${job.id}: Starting session.`);
+            jobDebug(`${job.id}: Starting session.`);
             const browserWsEndpoint = browser.wsEndpoint();
             job.browser = browser;
 
@@ -324,7 +328,7 @@ export class ChromeService {
             socket.once('close', done);
 
             if (!route.includes('/devtools/page')) {
-              jobdebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
+              jobDebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
               req.url = route;
 
               return browserWsEndpoint;
@@ -339,7 +343,7 @@ export class ChromeService {
           })
           .then((target) => this.server.proxy.ws(req, socket, head, { target }))
           .catch((error) => {
-            jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
+            jobDebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
             done(error);
             socket.end();
           });
@@ -350,17 +354,17 @@ export class ChromeService {
       close: () => this.cleanUpJob(job),
       id: jobId,
       onTimeout: () => {
-        jobdebug(`${job.id}: Job has timed-out, closing the WebSocket.`);
+        jobDebug(`${job.id}: Job has timed-out, closing the WebSocket.`);
         socket.end();
       },
       req,
-      start: Date.now(),
+      timeout,
     };
 
     const job: IJob = Object.assign(handler, jobProps);
 
     const earlyClose = () => {
-      jobdebug(`${job.id}: Websocket closed early, removing from queue and closing.`);
+      jobDebug(`${job.id}: Websocket closed early, removing from queue and closing.`);
       this.removeJob(job);
     };
 
@@ -369,7 +373,7 @@ export class ChromeService {
   }
 
   public async kill() {
-    sysdebug(`Kill received, forcing queue and swarm to shutdown`);
+    systemDebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job: IJob) => job.close && job.close()),
       ...this.chromeSwarm.map(async (instance) => {
@@ -378,40 +382,40 @@ export class ChromeService {
       }),
       this.queue.removeAllListeners(),
     ]);
-    sysdebug(`Kill complete.`);
+    systemDebug(`Kill complete.`);
   }
 
   public async close() {
-    sysdebug(`Close received, closing queue and swarm gracefully`);
+    systemDebug(`Close received, closing queue and swarm gracefully`);
     return new Promise((resolve) => {
       if (this.queue.length === 0) {
         return resolve(0);
       }
 
       this.queue.on('end', () => {
-        sysdebug(`Queue drained`);
+        systemDebug(`Queue drained`);
         resolve();
       });
     });
   }
 
   private removeJob(job: IJob) {
-    jobdebug(`${job.id}: Removing job from queue and cleaning up.`);
+    jobDebug(`${job.id}: Removing job from queue and cleaning up.`);
     job.close && job.close();
     this.queue.remove(job);
   }
 
   private addJob(job: IJob) {
-    jobdebug(`${job.id}: Adding new job to queue.`);
+    jobDebug(`${job.id}: Adding new job to queue.`);
     this.queue.add(job);
   }
 
   private async cleanUpJob(job: IJob) {
     const { browser } = job;
-    jobdebug(`${job.id}: Cleaning up job`);
+    jobDebug(`${job.id}: Cleaning up job`);
 
     if (!browser) {
-      jobdebug(`${job.id}: No browser to cleanup, exiting`);
+      jobDebug(`${job.id}: No browser to cleanup, exiting`);
       return;
     }
 
@@ -420,53 +424,53 @@ export class ChromeService {
     }
 
     if (this.keepChromeInstance) {
-      jobdebug(`${job.id}: Browser still needed`);
+      jobDebug(`${job.id}: Browser still needed`);
       return this.reuseChromeInstance(browser);
     }
 
-    jobdebug(`${job.id}: Browser not needed, closing`);
+    jobDebug(`${job.id}: Browser not needed, closing`);
     await browser.close();
-    treekill(browser.process().pid, 'SIGKILL');
+    treeKill(browser.process().pid, 'SIGKILL');
 
-    jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
+    jobDebug(`${job.id}: Browser cleanup complete, checking swarm.`);
     return this.checkChromeSwarm();
   }
 
   private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
     const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
-    sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
+    systemDebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(opts);
 
     return launchPromise as Promise<puppeteer.Browser>;
   }
 
   private async reuseChromeInstance(browser: puppeteer.Browser) {
-    sysdebug('Clearing browser for reuse');
+    systemDebug('Clearing browser for reuse');
 
     const openPages = await browser.pages();
     openPages.forEach((page) => page.close());
     this.chromeSwarm.push(Promise.resolve(browser));
 
-    return sysdebug(`Chrome swarm: ${this.chromeSwarmSize} online`);
+    return systemDebug(`Chrome swarm: ${this.chromeSwarmSize} online`);
   }
 
   private checkChromeSwarm() {
     if (this.needsChromeInstances) {
-      sysdebug(`Adding to Chrome swarm`);
+      systemDebug(`Adding to Chrome swarm`);
       return this.chromeSwarm.push(this.launchChrome(defaultLaunchArgs));
     }
-    return sysdebug(`Chrome swarm is ok`);
+    return systemDebug(`Chrome swarm is ok`);
   }
 
   private refreshChromeSwarm(retries: number = 0) {
     if (retries > this.config.maxChromeRefreshRetries) {
-      sysdebug(`Refresh retries exhausted, forcing replacement of Chrome instances`);
+      systemDebug(`Refresh retries exhausted, forcing replacement of Chrome instances`);
       this.chromeSwarm.forEach((chromeInstance) => this.replaceChromeInstance(chromeInstance));
     }
 
     if (this.queue.length > this.chromeSwarmSize) {
       // tries to refresh later if more jobs than there are available chromes
-      sysdebug(`Refreshing in ${oneMinute}ms due to queue size of ${this.queue.length}.`);
+      systemDebug(`Refreshing in ${oneMinute}ms due to queue size of ${this.queue.length}.`);
       setTimeout(() => this.refreshChromeSwarm(retries + 1), oneMinute);
     }
 
@@ -481,7 +485,7 @@ export class ChromeService {
   }
 
   private async replaceChromeInstance(instance: Promise<puppeteer.Browser>) {
-    sysdebug(`Replacing Chrome instance for re-use`);
+    systemDebug(`Replacing Chrome instance for re-use`);
 
     const chrome = await instance;
     chrome.close();
@@ -490,7 +494,7 @@ export class ChromeService {
   }
 
   private parseUserCode(code: string, job: IJob): string {
-    jobdebug(`${job.id}: Parsing user-uploaded code: "${code}"`);
+    jobDebug(`${job.id}: Parsing user-uploaded code: "${code}"`);
     const codeWithDebugger = code.replace('debugger', 'await page.evaluate(() => { debugger; })');
     return codeWithDebugger.includes('module.exports') ?
       codeWithDebugger :
@@ -508,17 +512,17 @@ export class ChromeService {
 
     return launchChrome(opts)
       .then((chrome) => {
-        sysdebug(`Chrome launched ${Date.now() - start}ms`);
+        systemDebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;
       })
       .catch((error) => {
         if (retries > 0) {
           const nextRetries = retries - 1;
-          sysdebug(error, `Issue launching Chrome, retrying ${retries} times.`);
+          systemDebug(error, `Issue launching Chrome, retrying ${retries} times.`);
           return this.launchChrome(opts, nextRetries);
         }
 
-        sysdebug(error, `Issue launching Chrome, retries exhausted.`);
+        systemDebug(error, `Issue launching Chrome, retries exhausted.`);
         throw error;
       });
   }

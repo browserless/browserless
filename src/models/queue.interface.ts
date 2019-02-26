@@ -9,7 +9,8 @@ export interface IJob {
   browser?: Browser | BrowserlessSandbox | null;
   close?: () => any;
   onTimeout?: () => any;
-  start: number;
+  start?: number;
+  timeout: number | null;
   req: http.IncomingMessage;
 }
 

@@ -66,6 +66,11 @@ export const isAuthorized = (req, token) => {
   return true;
 };
 
+export const getTimeout = (urlParts: url.UrlWithParsedQuery) => {
+  const timeoutString = +urlParts.query.timeout;
+  return !isNaN(timeoutString) ? timeoutString : null;
+};
+
 export const generateChromeTarget = () => {
   return `/devtools/page/${id()}`;
 };

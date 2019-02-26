@@ -1,8 +1,10 @@
 import * as httpProxy from 'http-proxy';
+import * as url from 'url';
+
 import { launchChromeDriver } from './chrome-helper';
 import { IDone, IJob } from './models/queue.interface';
 import { Queue } from './queue';
-import { getDebug } from './utils';
+import { getDebug, getTimeout } from './utils';
 
 const debug = getDebug('webdriver');
 const kill = require('tree-kill');
@@ -31,6 +33,8 @@ export class WebDriver {
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
   public start(req, res) {
+    const parsedUrl = url.parse(req.url, true);
+    const timeout = getTimeout(parsedUrl);
     debug(`Inbound webdriver request`);
     req.headers.host = '127.0.0.1:3000';
 
@@ -88,7 +92,7 @@ export class WebDriver {
         close: () => {},
         id: '',
         req,
-        start: Date.now(),
+        timeout,
       },
     );
 
