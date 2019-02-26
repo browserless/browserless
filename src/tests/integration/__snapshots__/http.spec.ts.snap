@@ -51,16 +51,7 @@ Array [
 
 exports[`Browserless Chrome HTTP allows requests to /metrics 1`] = `
 Array [
-  Object {
-    "cpu": 0,
-    "date": null,
-    "error": 0,
-    "memory": 0,
-    "queued": 0,
-    "rejected": 0,
-    "successful": 0,
-    "timedout": 0,
-  },
+  "0",
 ]
 `;
 

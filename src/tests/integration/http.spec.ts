@@ -60,7 +60,7 @@ describe('Browserless Chrome HTTP', () => {
     return fetch(`http://localhost:${params.port}/metrics`)
       .then((res) => res.json())
       .then((metrics) => {
-        expect(metrics).toMatchSnapshot();
+        expect(Object.keys(metrics)).toMatchSnapshot();
       });
   });
 
