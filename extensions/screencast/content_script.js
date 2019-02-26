@@ -22,16 +22,8 @@ window.onload = () => {
 
     if (event.data.downloadComplete){
       document.querySelector('html').classList.add('downloadComplete');
-      console.log(document.querySelector('html'));
     }
   });
 
   document.title = 'browserless-screencast';
-
-  window.postMessage({
-    type: 'REC_CLIENT_PLAY',
-    data: {
-      url: window.location.origin
-    },
-  }, '*');
 };

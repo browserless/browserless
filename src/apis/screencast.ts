@@ -5,21 +5,42 @@ const path = require('path');
 const homeDir = require('os').homedir();
 const rimraf = require('rimraf');
 
-export const before = async ({ page }) => {
-  await page._client.send('Emulation.clearDeviceMetricsOverride');
-  await page.setBypassCSP(true);
-};
-
-export const after = async ({ page, jobId, res, done, debug }) => {
+export const before = async ({ page, jobId, code }) => {
   const file = `${jobId}.webm`;
   const filePath = path.join(homeDir, 'Downloads', file);
 
-  await page.evaluate((filename) => {
-    window.postMessage({ type: 'SET_EXPORT_PATH', filename }, '*');
-    window.postMessage({ type: 'REC_STOP' }, '*');
-  }, file);
+  await page._client.send('Emulation.clearDeviceMetricsOverride');
+  await page.setBypassCSP(true);
 
-  debug(`Downloading screencast to "${filePath}"`);
+  const startScreencast = () => page.evaluate(() =>
+    window.postMessage({
+      data: {
+        url: window.location.origin,
+      },
+      type: 'REC_CLIENT_PLAY',
+    }, '*'));
+
+  const stopScreencast = () =>
+    page.evaluate((filename) => {
+      window.postMessage({ type: 'SET_EXPORT_PATH', filename }, '*');
+      window.postMessage({ type: 'REC_STOP' }, '*');
+    }, file);
+
+  if (!code.includes('startScreencast')) {
+    await startScreencast();
+  }
+
+  return {
+    filePath,
+    startScreencast,
+    stopScreencast,
+  };
+};
+
+export const after = async ({ page, filePath, res, done, debug, code, stopScreencast }) => {
+  if (!code.includes('stopScreencast')) {
+    await stopScreencast();
+  }
 
   await page.waitForSelector('html.downloadComplete', { timeout: 0 });
 

@@ -28,7 +28,7 @@ export interface IRunHTTP {
   req: any;
   res: any;
   detached?: boolean;
-  before?: ({ page, browser, debug }) => Promise<any>;
+  before?: ({ page, browser, debug, jobId, code }) => Promise<any>;
   after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
@@ -168,7 +168,7 @@ export class ChromeService {
 
             if (before) {
               debug(`Running before hook`);
-              beforeArgs = await before({ page, browser, debug });
+              beforeArgs = await before({ page, browser, debug, jobId, code });
               debug(`Before hook done!`);
             }
 
@@ -193,6 +193,7 @@ export class ChromeService {
                   return after({
                     ...beforeArgs ,
                     browser,
+                    code,
                     debug,
                     done,
                     jobId,
