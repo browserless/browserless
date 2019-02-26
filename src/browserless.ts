@@ -245,7 +245,7 @@ export class BrowserlessServer {
           return app(req, res);
         })
         .on('upgrade', asyncMiddleware(async (req, socket, head) => {
-          const beforeResults = await beforeHook(req);
+          const beforeResults = await beforeHook({ req });
 
           if (!beforeResults) {
             return socket.end();
