@@ -435,9 +435,9 @@ export class ChromeService {
   private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
     const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
     sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
-    const launchPromise = canUseChromeSwarm ? this.chromeSwarm.shift() : this.launchChrome(opts);
+    const priorChrome = canUseChromeSwarm && this.chromeSwarm.shift();
 
-    return launchPromise as Promise<puppeteer.Browser>;
+    return (priorChrome || this.launchChrome(opts));
   }
 
   private async reuseChromeInstance(browser: puppeteer.Browser) {
