@@ -337,7 +337,7 @@ export class BrowserlessServer {
     afterHook({
       req: job.req,
       start: job.start,
-      status: 'success',
+      status: 'successful',
     });
   }
 
@@ -348,7 +348,7 @@ export class BrowserlessServer {
     afterHook({
       req: job.req,
       start: job.start,
-      status: 'fail',
+      status: 'error',
     });
   }
 
@@ -361,7 +361,7 @@ export class BrowserlessServer {
     afterHook({
       req: job.req,
       start: job.start,
-      status: 'timeout',
+      status: 'timedout',
     });
     next();
   }
@@ -375,7 +375,7 @@ export class BrowserlessServer {
   private resetCurrentStat() {
     this.currentStat = {
       cpu: 0,
-      date: null,
+      date: Date.now(),
       error: 0,
       memory: 0,
       queued: 0,
