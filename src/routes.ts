@@ -48,6 +48,9 @@ const jsonParser = bodyParser.json({ limit: '5mb' });
 const jsParser = bodyParser.text({
   type: ['text/plain', 'application/javascript'],
 });
+const htmlParser = bodyParser.text({
+  type: ['text/plain', 'text/html'],
+});
 
 interface IGetRoutes {
   browserless: ChromeService;
@@ -158,11 +161,25 @@ export const getRoutes = ({
 
   // function route for executing puppeteer scripts, accepts a JSON body with
   // code and context
-  router.post('/function', jsonParser, bodyValidation(fnSchema), asyncMiddleware(async (req, res) => {
-    const { code, context, detached } = req.body;
+  router.post('/function',
+    jsonParser,
+    jsParser,
+    bodyValidation(fnSchema),
+    asyncMiddleware(async (req, res) => {
+      const isJson = typeof req.body === 'object';
+      const code = isJson ? req.body.code : req.body;
+      const context = isJson ? req.body.context : {};
+      const detached = isJson ? !!req.body.detached : false;
 
-    return browserless.runHTTP({ code, context, req, res, detached });
-  }));
+      return browserless.runHTTP({
+        code,
+        context,
+        detached,
+        req,
+        res,
+      });
+    }),
+  );
 
   // Screen cast route -- we inject some fun stuff here so that it all works properly :)
   router.post('/screencast', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
@@ -191,36 +208,60 @@ export const getRoutes = ({
 
   // Helper route for capturing screenshots, accepts a POST body containing a URL and
   // puppeteer's screenshot options (see the schema in schemas.ts);
-  router.post('/screenshot', jsonParser, bodyValidation(screenshotSchema), asyncMiddleware(async (req, res) =>
-    browserless.runHTTP({
-      code: screenshot,
-      context: req.body,
-      req,
-      res,
+  router.post('/screenshot',
+    jsonParser,
+    htmlParser,
+    bodyValidation(screenshotSchema),
+    asyncMiddleware(async (req, res) => {
+      const isJson = typeof req.body === 'object';
+      const context = isJson ? req.body : { html: req.body };
+
+      return browserless.runHTTP({
+        code: screenshot,
+        context,
+        req,
+        res,
+      });
     }),
-  ));
+  );
 
   // Helper route for capturing content body, accepts a POST body containing a URL
   // (see the schema in schemas.ts);
-  router.post('/content', jsonParser, bodyValidation(contentSchema), asyncMiddleware(async (req, res) =>
-    browserless.runHTTP({
-      code: content,
-      context: req.body,
-      req,
-      res,
+  router.post('/content',
+    jsonParser,
+    htmlParser,
+    bodyValidation(contentSchema),
+    asyncMiddleware(async (req, res) => {
+      const isJson = typeof req.body === 'object';
+      const context = isJson ? req.body : { html: req.body };
+
+      return browserless.runHTTP({
+        code: content,
+        context,
+        req,
+        res,
+      });
     }),
-  ));
+  );
 
   // Helper route for capturing screenshots, accepts a POST body containing a URL and
   // puppeteer's screenshot options (see the schema in schemas.ts);
-  router.post('/pdf', jsonParser, bodyValidation(pdfSchema), asyncMiddleware(async (req, res) =>
-    browserless.runHTTP({
-      code: pdf,
-      context: req.body,
-      req,
-      res,
+  router.post('/pdf',
+    jsonParser,
+    htmlParser,
+    bodyValidation(pdfSchema),
+    asyncMiddleware(async (req, res) => {
+      const isJson = typeof req.body === 'object';
+      const context = isJson ? req.body : { html: req.body };
+
+      return browserless.runHTTP({
+        code: pdf,
+        context,
+        req,
+        res,
+      });
     }),
-  ));
+  );
 
   // Helper route for capturing stats, accepts a POST body containing a URL
   router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>

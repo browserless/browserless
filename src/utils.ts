@@ -34,6 +34,10 @@ export const asyncMiddleware = (handler) => {
 
 export const bodyValidation = (schema) => {
   return (req, res, next) => {
+    if (!req.header('content-type').includes('json')) {
+      return next();
+    }
+
     const result = Joi.validate(req.body, schema);
 
     if (result.error) {

@@ -143,6 +143,31 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows running "application/javascript" functions', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = `module.exports = ({ page }) => {
+        return Promise.resolve({
+          data: 'ok',
+          type: 'application/text',
+        });
+      }`;
+
+      return fetch(`http://localhost:${params.port}/function`, {
+        body,
+        headers: {
+          'content-type': 'application/javascript',
+        },
+        method: 'POST',
+      })
+        .then((res) => res.text())
+        .then((res) => {
+          expect(res).toBe('ok');
+        });
+    });
+
     it('allows running detached functions', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -403,6 +428,26 @@ describe('Browserless Chrome HTTP', () => {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows requests with "application/html" types', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = `<h1>Hellow, world!</h1>`;
+
+      return fetch(`http://localhost:${params.port}/screenshot`, {
+        body,
+        headers: {
+          'content-type': 'text/html',
         },
         method: 'POST',
       })
@@ -914,6 +959,26 @@ describe('Browserless Chrome HTTP', () => {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows requests with text/html content-types', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = `<h1>Hello, World!</h1>`;
+
+      return fetch(`http://localhost:${params.port}/content`, {
+        body,
+        headers: {
+          'content-type': 'text/html',
         },
         method: 'POST',
       })

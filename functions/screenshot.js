@@ -18,15 +18,15 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-module.exports = async function screenshot ({ page, context }) {
+module.exports = async function screenshot ({ page, context } = {}) {
   const {
     url = null,
-    cookies,
+    cookies = [],
     gotoOptions,
-    html,
+    html = '',
     options = {},
-    rejectRequestPattern,
-    requestInterceptors,
+    rejectRequestPattern = [],
+    requestInterceptors = [],
     viewport,
   } = context;
 
