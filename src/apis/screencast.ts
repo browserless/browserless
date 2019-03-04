@@ -27,7 +27,7 @@ export const before = async ({ page, jobId, code }) => {
     }, file);
 
   if (!code.includes('startScreencast')) {
-    await startScreencast();
+    page.on('load', startScreencast);
   }
 
   return {
