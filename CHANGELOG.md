@@ -1,3 +1,17 @@
+# 1.3.0
+
+# Minor changes
+- The `screenshot`, `function`, `pdf`, and `content` API's now accept new content-types for easier POSTing of small payloads (see docsite).
+- The `screencast` API can now start/stop recording programmatically via a `startScreencast` and `stopScreencast` params (see docsite).
+- New `external` dir for injecting custom `before` and `after` hooks in external docker builds.
+- A new `timeout` query-option for session-based timeouts vs using the global one.
+- New `requestInterceptors` for injection custom request behavior.
+
+# Fixes
+- Numerous default fixes in the APIs.
+- Stray consoles removed :)
+- Consolidated download behavior in `screencast` and `download` APIs
+
 # 1.2.0
 
 # Minor Changes
