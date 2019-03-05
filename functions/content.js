@@ -16,11 +16,12 @@
  */
 module.exports = async function content ({ page, context }) {
   const {
-    url,
+    url = null,
+    html,
     gotoOptions,
-    rejectRequestPattern,
-    requestInterceptors,
-    cookies,
+    rejectRequestPattern = [],
+    requestInterceptors = [],
+    cookies = [],
   } = context;
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
@@ -42,7 +43,21 @@ module.exports = async function content ({ page, context }) {
     await page.setCookie(...cookies);
   }
 
-  await page.goto(url, gotoOptions);
+  if (url !== null) {
+    await page.goto(url, gotoOptions);
+  } else {
+    // Whilst there is no way of waiting for all requests to finish with setContent,
+    // you can simulate a webrequest this way
+    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
+
+    await page.setRequestInterception(true);
+    page.once('request', request => {
+      request.respond({ body: html });
+      page.on('request', request => request.continue());
+    });
+
+    await page.goto('http://localhost', gotoOptions);
+  }
 
   const data = await page.content();
 

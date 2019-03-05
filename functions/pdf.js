@@ -56,15 +56,15 @@ const buildPages = async (page, opts = {}) => {
 
 module.exports = async function pdf({ page, context }) {
   const {
-    cookies,
+    cookies = [],
     emulateMedia,
     html,
     options,
     url = null,
     safeMode,
     gotoOptions,
-    rejectRequestPattern,
-    requestInterceptors,
+    rejectRequestPattern = [],
+    requestInterceptors = [],
   } = context;
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
