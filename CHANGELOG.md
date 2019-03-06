@@ -1,5 +1,6 @@
 # 1.3.0
 
+
 # Minor changes
 - The `screenshot`, `function`, `pdf`, and `content` API's now accept new content-types for easier POSTing of small payloads (see docsite).
 - The `screencast` API can now start/stop recording programmatically via a `startScreencast` and `stopScreencast` params (see docsite).
