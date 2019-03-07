@@ -191,8 +191,6 @@ export class BrowserlessServer {
         workspaceDir: this.workspaceDir,
       });
 
-      app.use(routes);
-
       if (this.config.enableCors) {
         app.use(cors());
       }
@@ -200,6 +198,8 @@ export class BrowserlessServer {
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
       }
+
+      app.use(routes);
 
       return this.httpServer = http
         .createServer(async (req, res) => {
