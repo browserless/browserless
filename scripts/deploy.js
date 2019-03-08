@@ -11,7 +11,7 @@ const {
   version,
 } = require('../package.json');
 
-const REPO = 'browserless/chrome'
+const REPO = 'browserless/chrome';
 
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
@@ -43,16 +43,22 @@ const deployVersion = async (tagVersion, chromeVersion) => {
   // docker build
   await logExec(`docker build \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
-  --label "browser=${versionJson.Browser} \
-  --label "protocolVersion=${versionJson['Protocol-Version']} \
-  --label "v8Version=${versionJson['V8-Version']} \
-  --label "webkitVersion=${versionJson['WebKit-Version']} \
-  --label "debuggerVersion=${versionJson.Browser['Debugger-Version']} \
-  --label "puppeteerVersion=${versionJson.Browser['Puppeteer-Version']} \
+  --label "browser=${versionJson.Browser}" \
+  --label "protocolVersion=${versionJson['Protocol-Version']}" \
+  --label "v8Version=${versionJson['V8-Version']}" \
+  --label "webkitVersion=${versionJson['WebKit-Version']}" \
+  --label "debuggerVersion=${versionJson['Debugger-Version']}" \
+  --label "puppeteerVersion=${versionJson['Puppeteer-Version']}" \
   -t ${REPO}:${tagVersion} .`);
 
   // docker push
   await logExec(`docker push ${REPO}:${tagVersion}`);
+
+  // Commit the resulting package/meta file changes, tag and push
+  await logExec(`git add ./*.json`);
+  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${tagVersion}"`);
+  await logExec(`git tag ${tagVersion}`);
+  await logExec(`git push origin ${tagVersion} --force --quiet --no-verify &> /dev/null`);
 
   // git reset for next update
   await cleanup();
@@ -84,6 +90,7 @@ async function deploy () {
     Promise.resolve()
   );
 
+  await logExec(`docker system prune -af`);
   debug(`Complete! Cleaning up file-system and exiting.`);
 }
 
