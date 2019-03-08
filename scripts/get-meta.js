@@ -10,6 +10,7 @@ const url = require('url');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const {
   dependencies: {
@@ -19,8 +20,13 @@ const {
   }
 } = require('../package-lock.json');
 
+const getChromeStablePath = () => {
+  return os.platform() === 'darwin' ?
+    '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome' :
+    '/usr/bin/google-chrome';
+}
+
 const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVersion}/docs/api.md`;
-const chromeStablePath = '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome';
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
@@ -30,6 +36,7 @@ let launchArgs = {
 };
 
 if (process.argv.includes('--chrome-stable')) {
+  const chromeStablePath = getChromeStablePath();
   console.log(`Using Chrome Stable for meta capturing at: "${chromeStablePath}"`);
   launchArgs.executablePath = chromeStablePath;
 }

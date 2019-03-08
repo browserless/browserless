@@ -1,3 +1,10 @@
+# 1.3.1
+
+# Fixes
+- New deploy.js file to do deployments "on-prem"
+- Updated new builds for puppeteer 1.12.2 and 1.13.0
+- Fixes an issues in CORS handling
+
 # 1.3.0
 
 # Minor changes
