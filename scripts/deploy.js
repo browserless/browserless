@@ -58,7 +58,7 @@ const deployVersion = async (tagVersion, chromeVersion) => {
   await logExec(`git add ./*.json`);
   await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${tagVersion}"`).catch(noop);
   await logExec(`git tag --force ${tagVersion}`);
-  await logExec(`git push origin ${tagVersion} --force --quiet --no-verify &> /dev/null`);
+  await logExec(`git push origin ${tagVersion} --force --quiet --no-verify &> /dev/null`).catch(noop);
 
   // git reset for next update
   await cleanup();
