@@ -8,6 +8,7 @@ const { flatMap } = require('lodash');
 const {
   chromeVersions,
   puppeteerVersions,
+  version,
 } = require('../package.json');
 
 const REPO = 'browserless/chrome'
