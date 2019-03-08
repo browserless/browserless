@@ -3,7 +3,7 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
-const { flatMap } = require('lodash');
+const { flatMap, noop } = require('lodash');
 
 const {
   chromeVersions,
@@ -56,7 +56,7 @@ const deployVersion = async (tagVersion, chromeVersion) => {
 
   // Commit the resulting package/meta file changes, tag and push
   await logExec(`git add ./*.json`);
-  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${tagVersion}"`);
+  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${tagVersion}"`).catch(noop);
   await logExec(`git tag ${tagVersion}`);
   await logExec(`git push origin ${tagVersion} --force --quiet --no-verify &> /dev/null`);
 
