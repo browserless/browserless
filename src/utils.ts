@@ -93,7 +93,7 @@ export const eventAsync = (emitterLike, event: string) =>
 export const getBasicAuthToken = (req): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';
-  return new Buffer(token, 'base64').toString();
+  return new Buffer(token, 'base64').toString().replace(':', '');
 };
 
 export const fnLoader = (fnName: string) =>
