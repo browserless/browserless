@@ -1,3 +1,6 @@
+# 1.3.2
+- Fixes a basic auth issue in clients that append a `:`
+
 # 1.3.1
 
 # Fixes
