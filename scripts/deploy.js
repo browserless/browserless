@@ -16,7 +16,7 @@ const REPO = 'browserless/chrome';
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
   return exec(cmd).then(({ stdout, stderr }) => {
-    if (stderr.trim().length) {
+    if (stderr.trim().length > 0) {
       throw new Error(stderr);
     }
     return stdout.trim();
@@ -44,6 +44,7 @@ const deployVersion = async (tags, chromeVersion) => {
 
   // docker build
   await logExec(`docker build \
+  --quiet \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --label "browser=${versionJson.Browser}" \
   --label "protocolVersion=${versionJson['Protocol-Version']}" \
