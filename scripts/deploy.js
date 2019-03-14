@@ -3,7 +3,7 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
-const { flatMap, noop } = require('lodash');
+const { map, noop } = require('lodash');
 
 const {
   chromeVersions,
@@ -29,16 +29,18 @@ async function cleanup () {
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
 // chrome version is one of the versions in packageJson.chromeVersions
-const deployVersion = async (tagVersion, chromeVersion) => {
+const deployVersion = async (tags, chromeVersion) => {
   const puppeteerVersion = puppeteerVersions[chromeVersion];
+  const [ patchBranch, minorBranch, majorBranch ] = tags;
+  const isChromeStable = majorBranch.includes('chrome-stable');
 
-  debug(`${tagVersion}: Beginning docker build and publish`);
+  debug(`Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`);
 
   await logExec(`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`);
-  await logExec(`npm run meta --silent ${tagVersion.includes('chrome-stable') ? '-- --chrome-stable' : ''}`);
+  await logExec(`npm run meta --silent ${isChromeStable ? '-- --chrome-stable' : ''}`);
 
   const versionJson = require('../version.json');
-  const chromeStableArg = tagVersion.includes('chrome-stable') ? 'true' : 'false';
+  const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
   await logExec(`docker build \
@@ -49,40 +51,45 @@ const deployVersion = async (tagVersion, chromeVersion) => {
   --label "webkitVersion=${versionJson['WebKit-Version']}" \
   --label "debuggerVersion=${versionJson['Debugger-Version']}" \
   --label "puppeteerVersion=${versionJson['Puppeteer-Version']}" \
-  -t ${REPO}:${tagVersion} .`);
+  -t ${REPO}:${patchBranch} \
+  -t ${REPO}:${minorBranch} \
+  -t ${REPO}:${majorBranch} .`);
 
   // docker push
-  await logExec(`docker push ${REPO}:${tagVersion}`);
+  await Promise.all([
+    logExec(`docker push ${REPO}:${patchBranch}`),
+    logExec(`docker push ${REPO}:${minorBranch}`),
+    logExec(`docker push ${REPO}:${majorBranch}`),
+  ]);
 
   // Commit the resulting package/meta file changes, tag and push
   await logExec(`git add ./*.json`);
-  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${tagVersion}"`).catch(noop);
-  await logExec(`git tag --force ${tagVersion}`);
-  await logExec(`git push origin ${tagVersion} --force --quiet --no-verify &> /dev/null`).catch(noop);
+  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${patchBranch}"`).catch(noop);
+  await logExec(`git tag --force ${patchBranch}`);
+  await logExec(`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`).catch(noop);
 
   // git reset for next update
   await cleanup();
 }
 
 async function deploy () {
-  const versions = flatMap(chromeVersions, (chromeVersion) => {
+  const versions = map(chromeVersions, (chromeVersion) => {
     const [ major, minor, patch ] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${chromeVersion}`;
     const minorBranch = `${major}.${minor}-${chromeVersion}`;
     const majorBranch = `${major}-${chromeVersion}`;
 
-    return [
-      [ patchBranch, chromeVersion ],
-      [ minorBranch, chromeVersion ],
-      [ majorBranch, chromeVersion ],
-    ];
+    return {
+      tags: [ patchBranch, minorBranch, majorBranch ],
+      chromeVersion,
+    };
   });
 
   await versions.reduce(
-    (lastJob, [version, chromeVersion]) =>
+    (lastJob, { tags, chromeVersion }) =>
       lastJob
-        .then(() => deployVersion(version, chromeVersion))
+        .then(() => deployVersion(tags, chromeVersion))
         .catch((error) => {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
