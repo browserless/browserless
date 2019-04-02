@@ -69,16 +69,16 @@ export const launchChrome = (opts: LaunchOptions) => {
 
   return puppeteer.launch(launchArgs).then((browser: Browser) => {
     browser.on('targetcreated', async (target) => {
-      const page: any = await target.page();
-
-      if (page && page._client) {
-        page._client.send('Page.setDownloadBehavior', {
-          behavior: 'allow',
-          downloadPath: workspaceDir,
-        })
-        .catch((err) => {
-          debug(`Error setting download dir: ${err}`);
-        });
+      try {
+        const page: any = await target.page();
+        if (page && page._client) {
+          page._client.send('Page.setDownloadBehavior', {
+            behavior: 'allow',
+            downloadPath: workspaceDir,
+          });
+        }
+      } catch (err) {
+        debug(`Error setting download dir: ${err}`);
       }
     });
 
