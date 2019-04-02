@@ -2,9 +2,9 @@ import { ChildProcess } from 'child_process';
 import * as chromeDriver from 'chromedriver';
 import * as fs from 'fs';
 import * as _ from 'lodash';
-import { LaunchOptions } from 'puppeteer';
+import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { canLog, getDebug, sleep } from './utils';
+import { canLog, getDebug, sleep, workspaceDir } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -67,7 +67,18 @@ export const launchChrome = (opts: LaunchOptions) => {
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
 
-  return puppeteer.launch(launchArgs);
+  return puppeteer.launch(launchArgs).then((browser: Browser) => {
+    browser.on('targetcreated', async (target) => {
+      const page = await target.page();
+      // @ts-ignore: Reaching into private clients
+      page._client.send('Page.setDownloadBehavior', {
+        behavior: 'allow',
+        downloadPath: workspaceDir,
+      });
+    });
+
+    return browser;
+  });
 };
 
 export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
