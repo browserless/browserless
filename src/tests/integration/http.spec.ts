@@ -1119,6 +1119,46 @@ describe('Browserless Chrome HTTP', () => {
     });
   });
 
+  describe('/download', () => {
+    jest.setTimeout(10000);
+
+    it('allows requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = `module.exports = async({ page }) => await page.evaluate(() => {
+          const rows = [
+              ["name1", "city1", "some other info"],
+              ["name2", "city2", "more info"]
+          ];
+          let csvContent = "data:text/csv;charset=utf-8,";
+          rows.forEach(function(rowArray){
+              let row = rowArray.join(",");
+              csvContent += row + "\r\n";
+          });
+          const encodedUri = encodeURI(csvContent);
+          const link = document.createElement("a");
+          link.setAttribute("href", encodedUri);
+          link.setAttribute("download", "data.csv");
+          document.body.appendChild(link);
+
+          return link.click();
+      });`;
+
+      return fetch(`http://localhost:${params.port}/download`, {
+        body,
+        headers: {
+          'content-type': 'application/javascript',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+  });
+
   describe('/stats', () => {
     jest.setTimeout(10000);
     it('allows requests', async () => {

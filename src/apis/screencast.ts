@@ -1,13 +1,9 @@
 import * as fs from 'fs';
 import { noop } from 'lodash';
-import { workspaceDir } from '../utils';
 
-const path = require('path');
 const rimraf = require('rimraf');
 
-export const before = async ({ page, jobId, code }) => {
-  const file = `${jobId}.webm`;
-  const filePath = path.join(workspaceDir, file);
+export const before = async ({ page, code }) => {
 
   await page._client.send('Emulation.clearDeviceMetricsOverride');
   await page.setBypassCSP(true);
@@ -20,29 +16,25 @@ export const before = async ({ page, jobId, code }) => {
       type: 'REC_CLIENT_PLAY',
     }, '*'));
 
-  const stopScreencast = () =>
-    page.evaluate((filename) => {
-      window.postMessage({ type: 'SET_EXPORT_PATH', filename }, '*');
-      window.postMessage({ type: 'REC_STOP' }, '*');
-    }, file);
+  const stopScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_STOP' }, '*'));
 
   if (!code.includes('startScreencast')) {
     page.on('load', startScreencast);
   }
 
   return {
-    filePath,
     startScreencast,
     stopScreencast,
   };
 };
 
-export const after = async ({ page, filePath, res, done, debug, code, stopScreencast }) => {
+export const after = async ({ page, res, done, debug, code, stopScreencast }) => {
   if (!code.includes('stopScreencast')) {
     await stopScreencast();
   }
 
   await page.waitForSelector('html.downloadComplete', { timeout: 0 });
+  const filePath = await page.evaluate(() => document.querySelector('html')!.getAttribute('data-filepath'));
 
   debug(`Screencast download "${filePath}" complete!`);
 

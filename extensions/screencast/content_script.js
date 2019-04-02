@@ -20,7 +20,11 @@ window.onload = () => {
       port.postMessage({ type: 'REC_STOP' }, '*');
     }
 
-    if (event.data.downloadComplete){
+    if (event.data.filename) {
+      document.querySelector('html').setAttribute('data-filepath', event.data.filename);
+    }
+
+    if (event.data.downloadComplete) {
       document.querySelector('html').classList.add('downloadComplete');
     }
   });
