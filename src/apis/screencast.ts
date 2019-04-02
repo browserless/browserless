@@ -1,13 +1,13 @@
 import * as fs from 'fs';
 import { noop } from 'lodash';
+import { workspaceDir } from '../utils';
 
 const path = require('path');
-const homeDir = require('os').homedir();
 const rimraf = require('rimraf');
 
 export const before = async ({ page, jobId, code }) => {
   const file = `${jobId}.webm`;
-  const filePath = path.join(homeDir, 'Downloads', file);
+  const filePath = path.join(workspaceDir, file);
 
   await page._client.send('Emulation.clearDeviceMetricsOverride');
   await page.setBypassCSP(true);
