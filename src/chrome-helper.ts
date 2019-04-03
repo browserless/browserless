@@ -21,6 +21,7 @@ interface IChromeDriver {
 }
 
 const defaultDriverFlags = ['--url-base=webdriver'];
+const isCI = process.env.CI === 'true';
 
 if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   // If it's installed already, consume it
@@ -68,7 +69,7 @@ export const launchChrome = (opts: LaunchOptions) => {
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
 
   return puppeteer.launch(launchArgs).then((browser: Browser) => {
-    browser.on('targetcreated', async (target) => {
+    !isCI && browser.on('targetcreated', async (target) => {
       try {
         const page: any = await target.page();
         if (page && page._client) {

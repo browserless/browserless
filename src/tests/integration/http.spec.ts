@@ -1119,7 +1119,7 @@ describe('Browserless Chrome HTTP', () => {
     });
   });
 
-  describe.skip('/download', () => {
+  describe('/download', () => {
     jest.setTimeout(10000);
 
     it('allows requests', async () => {
