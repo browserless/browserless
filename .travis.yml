@@ -3,9 +3,5 @@ sudo: required
 services:
   - docker
 
-before_install:
-  - docker build -t browserless/chrome .
-  - docker run -d -p 4000:4000 -e PORT=4000 -e CI=true --name browserless browserless/chrome
-
 script:
-  - docker exec browserless npm run ci
+  - docker build -t browserless/chrome .
