@@ -1,3 +1,6 @@
+# 1.4.0
+- During connection, we now set the download dir of REST and puppeteer sessions. Cloud users and docker users no longer have to manually set this field, and the `/workspace` API references it as well!
+
 # 1.3.1
 
 # Fixes
