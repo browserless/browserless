@@ -1,12 +1,8 @@
 let recorder = null;
-let filename = null;
 
 chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((msg) => {
     switch (msg.type) {
-      case 'SET_EXPORT_PATH':
-        filename = msg.filename;
-        break;
       case 'REC_STOP':
         recorder.stop();
         break;
@@ -50,7 +46,7 @@ chrome.runtime.onConnect.addListener((port) => {
                   type: 'video/webm'
                 }));
 
-                chrome.downloads.download({ url: url, filename: filename }, () => {});
+                chrome.downloads.download({ url }, () => {});
               };
 
               recorder.start();
@@ -65,9 +61,14 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 
   chrome.downloads.onChanged.addListener((delta) => {
-    if (!delta.state || delta.state.current != 'complete') {
+    if (delta.filename && delta.filename.current) {
+      port.postMessage({ filename: delta.filename.current });
+    }
+
+    if (!delta.state || delta.state.current !== 'complete') {
       return;
     }
+
     try {
       port.postMessage({ downloadComplete: true });
     } catch (e) {}
