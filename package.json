@@ -47,7 +47,7 @@
     "@cypress/xvfb": "^1.2.4",
     "@types/express": "^4.16.1",
     "@types/jest": "^24.0.6",
-    "@types/node": "^11.9.5",
+    "@types/node": "^11.13.2",
     "@types/puppeteer": "^1.12.1",
     "body-parser": "^1.18.2",
     "chromedriver": "^2.41.0",
