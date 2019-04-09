@@ -6,10 +6,17 @@ import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
-import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, findSessionForPageUrl, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { codeCookieName, getDebug, id, isAuthorized } from './utils';
+
+import {
+  convertUrlParamsToLaunchOpts,
+  defaultLaunchArgs,
+  findSessionForPageUrl,
+  ILaunchOptions,
+  launchChrome,
+} from './chrome-helper';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
 import { IDone, IJob } from './models/queue.interface';
@@ -476,7 +483,7 @@ export class PuppeteerProvider {
     return this.checkChromeSwarm();
   }
 
-  private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
+  private getChrome(opts: ILaunchOptions): Promise<puppeteer.Browser> {
     const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
     sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const priorChrome = canUseChromeSwarm && this.chromeSwarm.shift();
@@ -547,7 +554,7 @@ export class PuppeteerProvider {
       }`;
   }
 
-  private async launchChrome(opts: puppeteer.LaunchOptions, retries = 1): Promise<puppeteer.Browser> {
+  private async launchChrome(opts: ILaunchOptions, retries = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
 
     return launchChrome(opts)

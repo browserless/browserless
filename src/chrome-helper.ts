@@ -26,6 +26,10 @@ interface IBrowser extends Browser {
   port: string | undefined;
 }
 
+export interface ILaunchOptions extends LaunchOptions {
+  pauseOnConnect: boolean;
+}
+
 const defaultDriverFlags = ['--url-base=webdriver'];
 
 if (fs.existsSync(CHROME_BINARY_LOCATION)) {
@@ -43,6 +47,7 @@ export const defaultLaunchArgs = {
   headless: true,
   ignoreDefaultArgs: false,
   ignoreHTTPSErrors: false,
+  pauseOnConnect: false,
   slowMo: undefined,
   userDataDir: undefined,
 };
@@ -90,7 +95,7 @@ export const getDebuggingPages = async (): Promise<any> => {
   return [].concat(...results);
 };
 
-export const launchChrome = (opts: LaunchOptions) => {
+export const launchChrome = (opts: ILaunchOptions) => {
   const launchArgs = {
     ...opts,
     args: [...opts.args || [], ...DEFAULT_ARGS],
@@ -111,6 +116,12 @@ export const launchChrome = (opts: LaunchOptions) => {
       return target.type() === 'page' ? target.page()
         .then(async (page) => {
           if (page) {
+            if (opts.pauseOnConnect) {
+              // @ts-ignore
+              await page._client.send('Debugger.enable');
+              // @ts-ignore
+              await page._client.send('Debugger.pause');
+            }
             // @ts-ignore
             return page._client && page._client.send('Page.setDownloadBehavior', {
               behavior: 'allow',
@@ -130,7 +141,7 @@ export const launchChrome = (opts: LaunchOptions) => {
   });
 };
 
-export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
+export const convertUrlParamsToLaunchOpts = (req): ILaunchOptions => {
   const urlParts = url.parse(req.url, true);
   const args = _.chain(urlParts.query)
     .pickBy((_value, param) => _.startsWith(param, '--'))
@@ -143,6 +154,7 @@ export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
     ignoreHTTPSErrors,
     slowMo,
     userDataDir,
+    pause,
   } = urlParts.query;
 
   return {
@@ -152,6 +164,7 @@ export const convertUrlParamsToLaunchOpts = (req): LaunchOptions => {
       parseIgnoreDefaultArgs(ignoreDefaultArgs) :
       false,
     ignoreHTTPSErrors: ignoreHTTPSErrors === 'true',
+    pauseOnConnect: typeof pause !== 'undefined',
     slowMo: parseInt(slowMo as string, 10) || undefined,
     userDataDir: userDataDir as string,
   };
