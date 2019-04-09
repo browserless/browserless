@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 import { NodeVM } from 'vm2';
 
-import { launchChrome } from '../chrome-helper';
+import { ILaunchOptions, launchChrome } from '../chrome-helper';
 import { IMessage } from '../models/sandbox.interface';
 import { ISandboxOpts } from '../models/sandbox.interface';
 import { getDebug } from '../utils';
@@ -40,7 +40,7 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
 
 const start = async (
   { code, opts, sandboxOpts }:
-  { code: string; opts: puppeteer.LaunchOptions, sandboxOpts: ISandboxOpts },
+  { code: string; opts: ILaunchOptions, sandboxOpts: ISandboxOpts },
 ) => {
   debug(`Starting sandbox running code "${code}"`);
 

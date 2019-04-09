@@ -6,10 +6,17 @@ import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
-import { convertUrlParamsToLaunchOpts, defaultLaunchArgs, launchChrome } from './chrome-helper';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import { codeCookieName, getDebug, id, isAuthorized } from './utils';
+
+import {
+  convertUrlParamsToLaunchOpts,
+  defaultLaunchArgs,
+  findSessionForPageUrl,
+  ILaunchOptions,
+  launchChrome,
+} from './chrome-helper';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
 import { IDone, IJob } from './models/queue.interface';
@@ -35,7 +42,7 @@ export interface IRunHTTP {
   headless?: boolean;
 }
 
-export class ChromeService {
+export class PuppeteerProvider {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<puppeteer.Browser>>;
@@ -94,6 +101,40 @@ export class ChromeService {
     }
 
     return Promise.resolve();
+  }
+
+  public proxyWebRequestToPort({
+    req,
+    res,
+    port,
+  }: {
+    req: any;
+    res: any;
+    port: string;
+  }) {
+    const target = `http://127.0.0.1:${port}`;
+
+    this.server.proxy.web(req, res, { target }, (err) => {
+      sysdebug('Error proxying static debugger asset request', err.message);
+    });
+  }
+
+  public proxyWsRequestToPort({
+    req,
+    socket,
+    head,
+    port,
+  }: {
+    req: any;
+    socket: any;
+    head: any;
+    port: string;
+  }) {
+    const target = `ws://127.0.0.1:${port}`;
+
+    this.server.proxy.ws(req, socket, head, { target }, (err) => {
+      sysdebug('Error proxying debugger ws request:', err.message);
+    });
   }
 
   public async runHTTP({
@@ -261,6 +302,15 @@ export class ChromeService {
       '';
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
+
+    if (route.includes('/devtools/page')) {
+      const session = await findSessionForPageUrl(route);
+      if (session && session.port) {
+        const { port } = session;
+        return this.proxyWsRequestToPort({ req, socket, head, port });
+      }
+      return this.server.rejectSocket(req, socket, `HTTP/1.1\n404 Not Found`, false);
+    }
 
     if (this.config.token && !isAuthorized(req, this.config.token)) {
       return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
@@ -433,7 +483,7 @@ export class ChromeService {
     return this.checkChromeSwarm();
   }
 
-  private getChrome(opts: puppeteer.LaunchOptions): Promise<puppeteer.Browser> {
+  private getChrome(opts: ILaunchOptions): Promise<puppeteer.Browser> {
     const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
     sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const priorChrome = canUseChromeSwarm && this.chromeSwarm.shift();
@@ -504,7 +554,7 @@ export class ChromeService {
       }`;
   }
 
-  private async launchChrome(opts: puppeteer.LaunchOptions, retries = 1): Promise<puppeteer.Browser> {
+  private async launchChrome(opts: ILaunchOptions, retries = 1): Promise<puppeteer.Browser> {
     const start = Date.now();
 
     return launchChrome(opts)

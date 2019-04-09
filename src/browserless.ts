@@ -20,7 +20,7 @@ import {
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
 import { IJob } from './models/queue.interface';
-import { ChromeService } from './puppeteer-provider';
+import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { WebDriver } from './webdriver-provider';
@@ -58,7 +58,7 @@ export class BrowserlessServer {
   private stats: IBrowserlessStats[];
   private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
-  private chromeService: ChromeService;
+  private puppeteerProvider: PuppeteerProvider;
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
@@ -78,7 +78,7 @@ export class BrowserlessServer {
       },
     });
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
-    this.chromeService = new ChromeService(opts, this, this.queue);
+    this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
     this.stats = [];
 
@@ -184,7 +184,7 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    await this.chromeService.start();
+    await this.puppeteerProvider.start();
 
     return new Promise(async (resolve) => {
       // Make sure we have http server setup with some headroom
@@ -195,10 +195,10 @@ export class BrowserlessServer {
       const app = express();
 
       const routes = getRoutes({
-        browserless: this.chromeService,
         getConfig: this.getConfig.bind(this),
         getMetrics: this.getMetrics.bind(this),
         getPressure: this.getPressure.bind(this),
+        puppeteerProvider: this.puppeteerProvider,
         workspaceDir: this.workspaceDir,
       });
 
@@ -250,7 +250,7 @@ export class BrowserlessServer {
             return socket.end();
           }
 
-          return this.chromeService.runWebSocket(req, socket, head);
+          return this.puppeteerProvider.runWebSocket(req, socket, head);
         }))
         .setTimeout(httpTimeout)
         .listen(this.config.port, this.config.host, resolve);
@@ -271,7 +271,7 @@ export class BrowserlessServer {
         this.proxy.close();
         resolve();
       }),
-      this.chromeService.kill(),
+      this.puppeteerProvider.kill(),
       this.webdriver.close(),
     ]);
 
@@ -291,7 +291,7 @@ export class BrowserlessServer {
       this.httpServer.close(resolve);
     });
 
-    await this.chromeService.close();
+    await this.puppeteerProvider.close();
 
     debug(`Successfully shutdown, exiting`);
   }
