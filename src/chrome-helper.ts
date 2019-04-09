@@ -112,7 +112,8 @@ export const launchChrome = (opts: ILaunchOptions) => {
       runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint()),
     );
 
-    browser.on('targetcreated', (target) => {
+    browser.on('targetcreated', async (target) => {
+      await sleep();
       return target.type() === 'page' ? target.page()
         .then(async (page) => {
           if (page) {
