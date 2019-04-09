@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { canLog, getDebug, sleep, workspaceDir } from './utils';
+import { canLog, fetchJson, getDebug, sleep, workspaceDir } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -14,10 +14,16 @@ const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 
 let executablePath: string;
+let runningBrowsers: IBrowser[] = [];
+const WS_PORT = process.env.PORT;
 
 interface IChromeDriver {
   port: number;
   chromeProcess: ChildProcess;
+}
+
+interface IBrowser extends Browser {
+  port: string | undefined;
 }
 
 const defaultDriverFlags = ['--url-base=webdriver'];
@@ -57,6 +63,33 @@ const parseIgnoreDefaultArgs = (argsString: string | string[]): boolean | string
   return false;
 };
 
+export const getRandomSession = () => _.sample(runningBrowsers) as IBrowser | undefined;
+
+export const findSessionForPageUrl = async (pathname: string) => {
+  const pages = await getDebuggingPages();
+
+  return pages.find((session) => session.devtoolsFrontendUrl.includes(pathname));
+};
+
+export const getDebuggingPages = async (): Promise<any> => {
+  const results = await Promise.all(
+    runningBrowsers.map(async (browser) => {
+      const { port } = url.parse(browser.wsEndpoint());
+
+      const sessions = await fetchJson(`http://127.0.0.1:${port}/json/list`);
+
+      return sessions.map((session) => ({
+        ...session,
+        devtoolsFrontendUrl: session.devtoolsFrontendUrl.replace(port, WS_PORT),
+        port,
+        webSocketDebuggerUrl: session.webSocketDebuggerUrl.replace(port, WS_PORT),
+      }));
+    }),
+  );
+
+  return [].concat(...results);
+};
+
 export const launchChrome = (opts: LaunchOptions) => {
   const launchArgs = {
     ...opts,
@@ -67,20 +100,31 @@ export const launchChrome = (opts: LaunchOptions) => {
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
 
-  return puppeteer.launch(launchArgs).then((browser: Browser) => {
-    browser.on('targetcreated', async (target) => {
-      try {
-        const page: any = await target.page();
-        if (page && page._client) {
-          page._client.send('Page.setDownloadBehavior', {
-            behavior: 'allow',
-            downloadPath: workspaceDir,
-          });
-        }
-      } catch (err) {
-        debug(`Error setting download dir: ${err}`);
-      }
+  return puppeteer.launch(launchArgs).then((browser: IBrowser) => {
+    const { port } = url.parse(browser.wsEndpoint());
+
+    browser.once('disconnected', () =>
+      runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint()),
+    );
+
+    browser.on('targetcreated', (target) => {
+      return target.type() === 'page' ? target.page()
+        .then(async (page) => {
+          if (page) {
+            // @ts-ignore
+            return page._client && page._client.send('Page.setDownloadBehavior', {
+              behavior: 'allow',
+              downloadPath: workspaceDir,
+            });
+          }
+        })
+        .catch((err) => debug(`Error setting up page watchers: ${err}`)) :
+        Promise.resolve();
     });
+
+    browser.port = port;
+
+    runningBrowsers.push(browser);
 
     return browser;
   });

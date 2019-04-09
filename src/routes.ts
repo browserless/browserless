@@ -3,7 +3,8 @@ import { Router } from 'express';
 import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as path from 'path';
-import { ChromeService } from './puppeteer-provider';
+import * as chromeHelper from './chrome-helper';
+import { PuppeteerProvider } from './puppeteer-provider';
 
 import {
   asyncMiddleware,
@@ -53,7 +54,7 @@ const htmlParser = bodyParser.text({
 });
 
 interface IGetRoutes {
-  browserless: ChromeService;
+  puppeteerProvider: PuppeteerProvider;
   getMetrics: () => IBrowserlessStats[];
   getConfig: () => any;
   getPressure: () => any;
@@ -61,7 +62,7 @@ interface IGetRoutes {
 }
 
 export const getRoutes = ({
-  browserless,
+  puppeteerProvider,
   getMetrics,
   getConfig,
   getPressure,
@@ -143,7 +144,7 @@ export const getRoutes = ({
     const code = isJson ? req.body.code : req.body;
     const context = isJson ? req.body.context : {};
 
-    return browserless.runHTTP({
+    return puppeteerProvider.runHTTP({
       after: downloadAfter,
       before: downloadBefore,
       code,
@@ -171,7 +172,7 @@ export const getRoutes = ({
       const context = isJson ? req.body.context : {};
       const detached = isJson ? !!req.body.detached : false;
 
-      return browserless.runHTTP({
+      return puppeteerProvider.runHTTP({
         code,
         context,
         detached,
@@ -187,7 +188,7 @@ export const getRoutes = ({
     const code = isJson ? req.body.code : req.body;
     const context = isJson ? req.body.context : {};
 
-    return browserless.runHTTP({
+    return puppeteerProvider.runHTTP({
       after: screencastAfter,
       before: screenCastBefore,
       code,
@@ -216,7 +217,7 @@ export const getRoutes = ({
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
-      return browserless.runHTTP({
+      return puppeteerProvider.runHTTP({
         code: screenshot,
         context,
         req,
@@ -235,7 +236,7 @@ export const getRoutes = ({
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
-      return browserless.runHTTP({
+      return puppeteerProvider.runHTTP({
         code: content,
         context,
         req,
@@ -254,7 +255,7 @@ export const getRoutes = ({
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
-      return browserless.runHTTP({
+      return puppeteerProvider.runHTTP({
         code: pdf,
         context,
         req,
@@ -265,7 +266,7 @@ export const getRoutes = ({
 
   // Helper route for capturing stats, accepts a POST body containing a URL
   router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
-    browserless.runHTTP({
+    puppeteerProvider.runHTTP({
       code: stats,
       context: req.body,
       req,
@@ -287,6 +288,32 @@ export const getRoutes = ({
       url: 'about:blank',
       webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
     }]);
+  }));
+
+  router.get('/sessions', asyncMiddleware(async (req, res) => {
+    const pages = await chromeHelper.getDebuggingPages();
+
+    if (req.header('accept').includes('html')) {
+      const anchors = pages.map((page) => `<a href="${page.devtoolsFrontendUrl}">${page.title}</a>`);
+      const html = `<h1>browserless pages</h1>${anchors.join('<br>')}`;
+
+      return res.send(html);
+    }
+
+    return res.json(pages);
+  }));
+
+  // Since all chromium browsers here are running the same version,
+  // funnel any static asset request to any browser
+  router.all('/devtools*', asyncMiddleware(async (req, res) => {
+    const session = chromeHelper.getRandomSession();
+
+    if (session && session.port) {
+      const port = session.port;
+      return puppeteerProvider.proxyWebRequestToPort({ req, res, port });
+    }
+
+    return res.status(404).send('Not found');
   }));
 
   return router;

@@ -2,6 +2,7 @@ import * as cookie from 'cookie';
 import * as fs from 'fs';
 import * as Joi from 'joi';
 import * as _ from 'lodash';
+import fetch = require('node-fetch');
 import * as os from 'os';
 import * as path from 'path';
 import * as shortid from 'shortid';
@@ -69,6 +70,12 @@ export const isAuthorized = (req, token) => {
 
   return true;
 };
+
+export const fetchJson = (url, opts?) => fetch(url, opts)
+  .then((res) => {
+    if (!res.ok) { throw res; }
+    return res.json();
+  });
 
 export const generateChromeTarget = () => {
   return `/devtools/page/${id()}`;
