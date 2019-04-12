@@ -1,5 +1,7 @@
 import * as cookie from 'cookie';
+import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
+import * as net from 'net';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 import { promisify } from 'util';
@@ -29,13 +31,21 @@ const jobdetaildebug = getDebug('jobdetail');
 const XVFB = require('@cypress/xvfb');
 const treekill = require('tree-kill');
 
+interface IBefore {
+  page: puppeteer.Page;
+  browser: puppeteer.Browser;
+  debug: (message: string) => void;
+  jobId: string;
+  code: string;
+}
+
 export interface IRunHTTP {
   code: any;
   context: any;
   req: any;
   res: any;
   detached?: boolean;
-  before?: ({ page, browser, debug, jobId, code }) => Promise<any>;
+  before?: (params: IBefore) => Promise<any>;
   after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
@@ -132,9 +142,7 @@ export class PuppeteerProvider {
   }) {
     const target = `ws://127.0.0.1:${port}`;
 
-    this.server.proxy.ws(req, socket, head, { target }, (err) => {
-      sysdebug('Error proxying debugger ws request:', err.message);
-    });
+    this.server.proxy.ws(req, socket, head, { target });
   }
 
   public async runHTTP({
@@ -174,7 +182,7 @@ export class PuppeteerProvider {
         root: './',
       },
     });
-    const handler: (args) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
+    const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
       jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
       this.removeJob(job);
@@ -182,7 +190,7 @@ export class PuppeteerProvider {
 
     const job: IJob = Object.assign(
       (done: IDone) => {
-        const debug = (message) => jobdebug(`${job.id}: ${message}`);
+        const debug = (message: string) => jobdebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
         const urlOpts = convertUrlParamsToLaunchOpts(req);
@@ -292,13 +300,13 @@ export class PuppeteerProvider {
     this.addJob(job);
   }
 
-  public async runWebSocket(req, socket: NodeJS.Socket, head) {
+  public async runWebSocket(req: IncomingMessage, socket: net.Socket, head: Buffer) {
     const jobId = id();
-    const parsedUrl: any = url.parse(req.url, true);
+    const parsedUrl: any = url.parse(req.url || '', true);
     const route = parsedUrl.pathname || '/';
     const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
     const debugCode = hasDebugCode ?
-      cookie.parse(req.headers.cookie)[codeCookieName] :
+      cookie.parse(req.headers.cookie || '')[codeCookieName] :
       '';
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);

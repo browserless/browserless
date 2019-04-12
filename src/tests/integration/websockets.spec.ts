@@ -1,6 +1,7 @@
 import * as puppeteer from 'puppeteer';
 
 import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../models/options.interface';
 import { sleep } from '../../utils';
 
 import {
@@ -12,7 +13,7 @@ import {
 
 describe('Browserless Chrome WebSockets', () => {
   let browserless: BrowserlessServer;
-  const start = (args) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     await browserless.kill();

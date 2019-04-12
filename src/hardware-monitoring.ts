@@ -1,3 +1,4 @@
+import * as _ from 'lodash';
 import * as os from 'os';
 
 export interface ICPULoad {
@@ -19,7 +20,7 @@ export class ResourceMonitor {
   private metricsInterval: NodeJS.Timeout;
   private metricsTimeout: NodeJS.Timeout;
 
-  constructor(maxCPU, maxMemory) {
+  constructor(maxCPU: number, maxMemory: number) {
     this.maxCPU = maxCPU;
     this.maxMemory = maxMemory;
 
@@ -40,11 +41,9 @@ export class ResourceMonitor {
     for (let i = 0, len = cpus.length; i < len; i++) {
       const cpu = cpus[i];
 
-      for (const type in cpu.times) {
-        if (cpu.times[type]) {
-          totalTick += cpu.times[type];
-        }
-      }
+      _.forEach(cpu.times, (tick) => {
+        totalTick += tick;
+      });
 
       // Total up the idle time of the core
       totalIdle += cpu.times.idle;

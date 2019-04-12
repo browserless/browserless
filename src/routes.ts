@@ -1,13 +1,15 @@
 import * as bodyParser from 'body-parser';
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import * as fs from 'fs';
 import * as _ from 'lodash';
+import * as multer from 'multer';
 import * as path from 'path';
 import * as chromeHelper from './chrome-helper';
+import { MAX_PAYLOAD_SIZE } from './config';
 import { PuppeteerProvider } from './puppeteer-provider';
 
 import {
-  asyncMiddleware,
+  asyncWebHandler,
   bodyValidation,
   exists,
   fnLoader,
@@ -37,7 +39,6 @@ import {
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
-const multer = require('multer');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -45,11 +46,16 @@ const content = fnLoader('content');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
-const jsonParser = bodyParser.json({ limit: '5mb' });
+const jsonParser = bodyParser.json({
+  limit: MAX_PAYLOAD_SIZE,
+  type: ['application/json'],
+});
 const jsParser = bodyParser.text({
+  limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'application/javascript'],
 });
 const htmlParser = bodyParser.text({
+  limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'text/html'],
 });
 
@@ -139,7 +145,7 @@ export const getRoutes = ({
     return res.sendStatus(204);
   });
 
-  router.post('/download', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
+  router.post('/download', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
     const isJson = typeof req.body === 'object';
     const code = isJson ? req.body.code : req.body;
     const context = isJson ? req.body.context : {};
@@ -166,7 +172,7 @@ export const getRoutes = ({
     jsonParser,
     jsParser,
     bodyValidation(fnSchema),
-    asyncMiddleware(async (req, res) => {
+    asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
       const code = isJson ? req.body.code : req.body;
       const context = isJson ? req.body.context : {};
@@ -183,7 +189,7 @@ export const getRoutes = ({
   );
 
   // Screen cast route -- we inject some fun stuff here so that it all works properly :)
-  router.post('/screencast', jsonParser, jsParser, asyncMiddleware(async (req, res) => {
+  router.post('/screencast', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
     const isJson = typeof req.body === 'object';
     const code = isJson ? req.body.code : req.body;
     const context = isJson ? req.body.context : {};
@@ -213,7 +219,7 @@ export const getRoutes = ({
     jsonParser,
     htmlParser,
     bodyValidation(screenshotSchema),
-    asyncMiddleware(async (req, res) => {
+    asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
@@ -232,7 +238,7 @@ export const getRoutes = ({
     jsonParser,
     htmlParser,
     bodyValidation(contentSchema),
-    asyncMiddleware(async (req, res) => {
+    asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
@@ -251,7 +257,7 @@ export const getRoutes = ({
     jsonParser,
     htmlParser,
     bodyValidation(pdfSchema),
-    asyncMiddleware(async (req, res) => {
+    asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
       const context = isJson ? req.body : { html: req.body };
 
@@ -265,7 +271,7 @@ export const getRoutes = ({
   );
 
   // Helper route for capturing stats, accepts a POST body containing a URL
-  router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncMiddleware(async (req, res) =>
+  router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncWebHandler(async (req: Request, res: Response) =>
     puppeteerProvider.runHTTP({
       code: stats,
       context: req.body,
@@ -274,7 +280,7 @@ export const getRoutes = ({
     }),
   ));
 
-  router.get('/json*', asyncMiddleware(async (req, res) => {
+  router.get('/json*', asyncWebHandler(async (req: Request, res: Response) => {
     const targetId = generateChromeTarget();
     const baseUrl = req.get('host');
     const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
@@ -290,10 +296,11 @@ export const getRoutes = ({
     }]);
   }));
 
-  router.get('/sessions', asyncMiddleware(async (req, res) => {
+  router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
     const pages = await chromeHelper.getDebuggingPages();
+    const header = req.header('accept');
 
-    if (req.header('accept').includes('html')) {
+    if (header && header.includes('html')) {
       const anchors = pages.map((page) => `<a href="${page.devtoolsFrontendUrl}">${page.title}</a>`);
       const html = `<h1>browserless pages</h1>${anchors.join('<br>')}`;
 
@@ -305,7 +312,7 @@ export const getRoutes = ({
 
   // Since all chromium browsers here are running the same version,
   // funnel any static asset request to any browser
-  router.all('/devtools*', asyncMiddleware(async (req, res) => {
+  router.all('/devtools*', asyncWebHandler(async (req: Request, res: Response) => {
     const session = chromeHelper.getRandomSession();
 
     if (session && session.port) {

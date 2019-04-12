@@ -5,12 +5,12 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
+import { Socket } from 'net';
 import * as os from 'os';
 import * as path from 'path';
-import { setInterval } from 'timers';
 
 import {
-  asyncMiddleware,
+  asyncWsHandler,
   getDebug,
   isAuthorized,
   tokenCookieName,
@@ -19,7 +19,7 @@ import {
 
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
-import { IJob } from './models/queue.interface';
+import { IDone, IJob } from './models/queue.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
 import { getRoutes } from './routes';
@@ -52,7 +52,7 @@ export class BrowserlessServer {
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
   public readonly queue: Queue;
-  public proxy: any;
+  public proxy: httpProxy;
 
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
@@ -82,14 +82,10 @@ export class BrowserlessServer {
     this.webdriver = new WebDriver(this.queue);
     this.stats = [];
 
-    this.proxy = new httpProxy.createProxyServer();
-    this.proxy.on('error', (err, _req, res) => {
+    this.proxy = httpProxy.createProxyServer();
+    this.proxy.on('error', (err: Error, _req, res) => {
       if (res.writeHead) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
-      }
-
-      if (res.close) {
-        res.close();
       }
 
       debug(`Issue communicating with Chrome: "${err.message}"`);
@@ -243,7 +239,7 @@ export class BrowserlessServer {
 
           return app(req, res);
         })
-        .on('upgrade', asyncMiddleware(async (req, socket, head) => {
+        .on('upgrade', asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
           const beforeResults = await beforeHook({ req });
 
           if (!beforeResults) {
@@ -296,7 +292,7 @@ export class BrowserlessServer {
     debug(`Successfully shutdown, exiting`);
   }
 
-  public rejectReq(req, res, code, message, recordStat = true) {
+  public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
     if (recordStat) {
@@ -305,7 +301,7 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  public rejectSocket(req, socket, message, recordStat = true) {
+  public rejectSocket(req: http.IncomingMessage, socket: Socket, message: string, recordStat = true) {
     debug(`${req.url}: ${message}`);
     socket.end(message);
     if (recordStat) {
@@ -314,10 +310,11 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  private handleWebDriver(req, res) {
+  private handleWebDriver(req: http.IncomingMessage, res: http.OutgoingMessage) {
     const sessionPathMatcher = new RegExp('^' + webDriverPath + '/\\w+$');
-    const isStarting = req.method.toLowerCase() === 'post' && req.url === webDriverPath;
-    const isClosing = req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url);
+
+    const isStarting = req.method && req.method.toLowerCase() === 'post' && req.url === webDriverPath;
+    const isClosing = req.method && req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url || '');
 
     if (isStarting) {
       return this.webdriver.start(req, res);
@@ -330,7 +327,7 @@ export class BrowserlessServer {
     return this.webdriver.proxySession(req, res);
   }
 
-  private onSessionSuccess(_res, job: IJob) {
+  private onSessionSuccess(_res: express.Response, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
     job.close && job.close();
@@ -341,7 +338,7 @@ export class BrowserlessServer {
     });
   }
 
-  private onSessionFail(error, job: IJob) {
+  private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
     job.close && job.close();
@@ -352,7 +349,7 @@ export class BrowserlessServer {
     });
   }
 
-  private onTimedOut(next, job: IJob) {
+  private onTimedOut(next: IDone, job: IJob) {
     debug(`${job.id}: Recording timedout stat.`);
     this.currentStat.timedout++;
     this.timeoutHook();

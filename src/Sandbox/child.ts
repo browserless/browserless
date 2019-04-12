@@ -9,6 +9,7 @@ import { ISandboxOpts } from '../models/sandbox.interface';
 import { getDebug } from '../utils';
 
 const debug = getDebug('sandbox');
+type consoleMethods = 'log' | 'warn' | 'debug' | 'table' | 'info';
 
 const send = (msg: IMessage) => {
   debug(`Sending parent message: ${JSON.stringify(msg)}`);
@@ -24,10 +25,10 @@ const buildBrowserSandbox = (page: puppeteer.Page): { console: any } => {
   debug(`Generating sandbox console`);
 
   return {
-    console: _.reduce(_.keys(console), (browserConsole, consoleMethod) => {
-      browserConsole[consoleMethod] = (...args) => {
+    console: _.reduce(_.keys(console), (browserConsole: any, consoleMethod: consoleMethods) => {
+      browserConsole[consoleMethod] = (...args: any[]) => {
         args.unshift(consoleMethod);
-        return page.evaluate((...args) => {
+        return page.evaluate((...args: [consoleMethods, any]) => {
           const [consoleMethod, ...consoleArgs] = args;
           return console[consoleMethod](...consoleArgs);
         }, ...args);
@@ -47,10 +48,10 @@ const start = async (
   const browser = await launchChrome(opts);
   const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
-  page.on('error', (error) => {
+  page.on('error', (error: Error) => {
     debug(`Page error: ${error.message}`);
     send({
-      error,
+      error: error.message,
       event: 'error',
     });
   });

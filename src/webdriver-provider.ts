@@ -1,3 +1,4 @@
+import { IncomingMessage, OutgoingMessage } from 'http';
 import * as httpProxy from 'http-proxy';
 import { launchChromeDriver } from './chrome-helper';
 import { IDone, IJob } from './models/queue.interface';
@@ -22,7 +23,7 @@ export class WebDriver {
   private queue: Queue;
   private webDriverSessions: IWebDriverSessions;
 
-  constructor(queue) {
+  constructor(queue: Queue) {
     this.queue = queue;
     this.webDriverSessions = {};
   }
@@ -30,7 +31,7 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public start(req, res) {
+  public start(req: IncomingMessage, res: OutgoingMessage) {
     debug(`Inbound webdriver request`);
     req.headers.host = '127.0.0.1:3000';
 
@@ -48,10 +49,10 @@ export class WebDriver {
       (done: IDone) => {
         req.removeListener('close', earlyClose);
         launchChromeDriver().then(({ port, chromeProcess }) => {
-          const proxy = new httpProxy.createProxyServer({ target: `http://localhost:${port}` });
+          const proxy: any = httpProxy.createProxyServer({ target: `http://localhost:${port}` });
 
-          proxy.once('proxyRes', (proxyRes) => {
-            let body = new Buffer('');
+          proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
+            let body = Buffer.from('');
             proxyRes.on('data', (data) => body = Buffer.concat([body, data]));
             proxyRes.on('end', () => {
               const responseBody = body.toString();
@@ -77,7 +78,7 @@ export class WebDriver {
             });
           });
 
-          proxy.web(req, res, (error) => {
+          proxy.web(req, res, (error: Error) => {
             debug(`Issue in webdriver: ${error.message}`);
             res.end();
             done(error);
@@ -96,7 +97,7 @@ export class WebDriver {
     this.queue.add(job);
   }
 
-  public proxySession(req, res) {
+  public proxySession(req: IncomingMessage, res: OutgoingMessage) {
     debug(`Inbound webdriver command`);
     const session = this.getSession(req);
 
@@ -104,12 +105,12 @@ export class WebDriver {
       return res.end();
     }
 
-    return session.proxy.web(req, res, (error) => {
+    return session.proxy.web(req, res, (error: Error) => {
       debug(`Issue in webdriver: ${error.message}`);
     });
   }
 
-  public closeSession(req, res) {
+  public closeSession(req: IncomingMessage, res: OutgoingMessage) {
     debug(`Inbound webdriver close`);
     const session = this.getSession(req);
 
@@ -119,7 +120,7 @@ export class WebDriver {
 
     session.proxy.once('proxyRes', () => session.done());
 
-    session.proxy.web(req, res, (error) => {
+    session.proxy.web(req, res, (error: Error) => {
       debug(`Issue in webdriver: ${error.message}`);
     });
   }
@@ -136,8 +137,8 @@ export class WebDriver {
     }
   }
 
-  private getSession(req): IWebDriverSession | null {
-    const urlParts = req.url.split('/');
+  private getSession(req: IncomingMessage): IWebDriverSession | null {
+    const urlParts = (req.url || '').split('/');
     const sessionId = urlParts[3];
 
     if (!sessionId) {
