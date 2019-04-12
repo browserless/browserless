@@ -47,8 +47,8 @@ export class Queue {
     }
   }
 
-  public map(...args) {
-    return Array.prototype.map.apply(this.queue, args);
+  public map(mapFn: (job: IJob) => any) {
+    return Array.prototype.map.call(this.queue, mapFn);
   }
 
   get length() {

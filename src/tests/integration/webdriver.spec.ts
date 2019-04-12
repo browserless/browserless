@@ -1,6 +1,7 @@
 import { BrowserlessServer } from '../../browserless';
 import { sleep } from '../../utils';
 
+import { IBrowserlessOptions } from '../../models/options.interface';
 import {
   defaultParams,
   getChromeProcesses,
@@ -13,7 +14,7 @@ const webdriver = require('selenium-webdriver');
 
 describe('Browserless Chrome Webdriver', () => {
   let browserless: BrowserlessServer;
-  const start = (args) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     await browserless.kill();
@@ -156,7 +157,7 @@ describe('Browserless Chrome Webdriver', () => {
       .usingServer(`http://localhost:${params.port}/webdriver`)
       .build()
       .then(throws)
-      .catch((error) => {
+      .catch((error: Error) => {
         expect(error.message).toEqual('Unable to parse new session response: ');
       });
   });
@@ -178,7 +179,7 @@ describe('Browserless Chrome Webdriver', () => {
       .usingServer(`http://localhost:${params.port}/webdriver`)
       .build()
       .then(throws)
-      .catch((error) => {
+      .catch((error: Error) => {
         expect(error.message).toEqual('Unauthorized');
       });
   });

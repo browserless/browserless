@@ -1,74 +1,32 @@
 import { BrowserlessServer } from './browserless';
-import { getDebug, workspaceDir } from './utils';
-
-const debug = getDebug('system');
-
-const parseParam = (param: any, defaultParam: any) => {
-  if (param) {
-    try {
-      return JSON.parse(param);
-    } catch (err) {
-      debug(`Couldn't parse parameter: "${param}". Saw error "${err}"`);
-      return defaultParam;
-    }
-  }
-  return defaultParam;
-};
-
-const thirtyMinutes = 30 * 60 * 1000;
-
-const connectionTimeout =       parseParam(process.env.CONNECTION_TIMEOUT, 30000);
-const maxConcurrentSessions =   parseParam(process.env.MAX_CONCURRENT_SESSIONS, 10);
-const queueLength =             parseParam(process.env.MAX_QUEUE_LENGTH, 10);
-const port =                    parseParam(process.env.PORT, 8080);
-const prebootChrome =           parseParam(process.env.PREBOOT_CHROME, false);
-const demoMode =                parseParam(process.env.DEMO_MODE, false);
-const enableDebugger =          parseParam(process.env.ENABLE_DEBUGGER, true);
-const maxMemory =               parseParam(process.env.MAX_MEMORY_PERCENT, 99);
-const maxCPU =                  parseParam(process.env.MAX_CPU_PERCENT, 99);
-const keepAlive =               parseParam(process.env.KEEP_ALIVE, false);
-const chromeRefreshTime =       parseParam(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
-const maxChromeRefreshRetries = parseParam(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
-const enableCors =              parseParam(process.env.ENABLE_CORS, false);
-const enableXvfb =              parseParam(process.env.ENABLE_XVBF, false);
-const exitOnHealthFailure =     parseParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
-const host =                    process.env.HOST;
-const token =                   process.env.TOKEN || null;
-const queuedAlertURL =          process.env.QUEUE_ALERT_URL || null;
-const rejectAlertURL =          process.env.REJECT_ALERT_URL || null;
-const timeoutAlertURL =         process.env.TIMEOUT_ALERT_URL || null;
-const healthFailureURL =        process.env.FAILED_HEALTH_URL || null;
-const metricsJSONPath =         process.env.METRICS_JSON_PATH || null;
-const functionBuiltIns =        parseParam(process.env.FUNCTION_BUILT_INS, []);
-const functionExternals =       parseParam(process.env.FUNCTION_EXTERNALS, []);
-
-const maxQueueLength = queueLength + maxConcurrentSessions;
+import * as config from './config';
 
 new BrowserlessServer({
-  chromeRefreshTime,
-  connectionTimeout,
-  demoMode,
-  enableCors,
-  enableDebugger,
-  enableXvfb,
-  exitOnHealthFailure,
-  functionBuiltIns,
-  functionExternals,
-  healthFailureURL,
-  host,
-  keepAlive,
-  maxCPU,
-  maxChromeRefreshRetries,
-  maxConcurrentSessions,
-  maxMemory,
-  maxQueueLength,
-  metricsJSONPath,
-  port,
-  prebootChrome,
-  queuedAlertURL,
-  rejectAlertURL,
-  timeoutAlertURL,
-  token,
-  workspaceDir,
+  chromeRefreshTime: config.CHROME_REFRESH_TIME,
+  connectionTimeout: config.CONNECTION_TIMEOUT,
+  demoMode: config.DEMO_MODE,
+  enableCors: config.ENABLE_CORS,
+  enableDebugViewer: config.ENABLE_DEBUG_VIEWER,
+  enableDebugger: config.ENABLE_DEBUGGER,
+  enableXvfb: config.ENABLE_XVBF,
+  exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
+  functionBuiltIns: config.FUNCTION_BUILT_INS,
+  functionExternals: config.FUNCTION_EXTERNALS,
+  healthFailureURL: config.FAILED_HEALTH_URL,
+  host: config.HOST,
+  keepAlive: config.KEEP_ALIVE,
+  maxCPU: config.MAX_CPU_PERCENT,
+  maxChromeRefreshRetries: config.MAX_CHROME_REFRESH_RETRIES,
+  maxConcurrentSessions: config.MAX_CONCURRENT_SESSIONS,
+  maxMemory: config.MAX_MEMORY_PERCENT,
+  maxQueueLength: config.QUEUE_LENGTH + config.MAX_CONCURRENT_SESSIONS,
+  metricsJSONPath: config.METRICS_JSON_PATH,
+  port: config.PORT,
+  prebootChrome: config.PREBOOT_CHROME,
+  queuedAlertURL: config.QUEUE_ALERT_URL,
+  rejectAlertURL: config.REJECT_ALERT_URL,
+  timeoutAlertURL: config.TIMEOUT_ALERT_URL,
+  token: config.TOKEN,
+  workspaceDir: config.WORKSPACE_DIR,
 })
 .startServer();

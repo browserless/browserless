@@ -1,14 +1,14 @@
+import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../models/options.interface';
 import {
   defaultParams,
   killChrome,
 } from './utils';
 
-const fetch = require('node-fetch');
-
 describe('Browserless Debugger', () => {
   let browserless: BrowserlessServer;
-  const start = (args) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     await browserless.kill();

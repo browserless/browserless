@@ -1,19 +1,21 @@
 import { noop } from 'lodash';
 import * as path from 'path';
+import { Page } from 'puppeteer';
+import { WORKSPACE_DIR } from '../config';
 import {
   id,
   mkdir,
   readdir,
   sleep,
-  workspaceDir,
 } from '../utils';
 
 const rimraf = require('rimraf');
 
-export const before = async ({ page }) => {
-  const downloadPath = path.join(workspaceDir, `.browserless.download.${id()}`);
+export const before = async ({ page }: { page: Page }) => {
+  const downloadPath = path.join(WORKSPACE_DIR, `.browserless.download.${id()}`);
   await mkdir(downloadPath);
 
+  // @ts-ignore
   await page._client.send('Page.setDownloadBehavior', {
     behavior: 'allow',
     downloadPath,
@@ -24,11 +26,11 @@ export const before = async ({ page }) => {
 
 export const after = async (
   { downloadPath, debug, res, done }:
-  { downloadPath: string, debug: (...args) => {}, res: any, done: (errBack?: Error | null) => {} },
+  { downloadPath: string, debug: (...args: string[]) => {}, res: any, done: (errBack?: Error | null) => {} },
 ) => {
   debug(`Waiting for download to finish in ${downloadPath}`);
 
-  async function checkIfDownloadComplete() {
+  async function checkIfDownloadComplete(): Promise<string | null> {
     if (res.headersSent) {
       return null;
     }
@@ -50,7 +52,7 @@ export const after = async (
     return done();
   }
 
-  return res.sendFile(filePath, (err) => {
+  return res.sendFile(filePath, (err: Error) => {
     const message = err ?
       `Error streaming file back ${err}` :
       `File sent successfully`;

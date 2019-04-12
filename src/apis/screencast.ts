@@ -1,10 +1,26 @@
+import { Response } from 'express';
 import * as fs from 'fs';
 import { noop } from 'lodash';
+import { Page } from 'puppeteer';
 
 const rimraf = require('rimraf');
 
-export const before = async ({ page, code }) => {
+interface IBefore {
+  page: Page;
+  code: string;
+}
 
+interface IAfter {
+  page: Page;
+  res: Response;
+  done: (err?: Error) => any;
+  debug: (message: string) => any;
+  code: string;
+  stopScreencast: () => void;
+}
+
+export const before = async ({ page, code }: IBefore) => {
+  // @ts-ignore
   await page._client.send('Emulation.clearDeviceMetricsOverride');
   await page.setBypassCSP(true);
 
@@ -28,7 +44,7 @@ export const before = async ({ page, code }) => {
   };
 };
 
-export const after = async ({ page, res, done, debug, code, stopScreencast }) => {
+export const after = async ({ page, res, done, debug, code, stopScreencast }: IAfter) => {
   if (!code.includes('stopScreencast')) {
     await stopScreencast();
   }
@@ -38,7 +54,7 @@ export const after = async ({ page, res, done, debug, code, stopScreencast }) =>
 
   debug(`Screencast download "${filePath}" complete!`);
 
-  if (!fs.existsSync(filePath)) {
+  if (!filePath || !fs.existsSync(filePath)) {
     debug(`Couldn't located screencast in the filesystem at "${filePath}"`);
     throw new Error(`Couldn't locate screencast file "${filePath}"`);
   }
@@ -48,7 +64,7 @@ export const after = async ({ page, res, done, debug, code, stopScreencast }) =>
     return done();
   }
 
-  return res.sendFile(filePath, (err) => {
+  return res.sendFile(filePath, (err: Error) => {
     const message = err ?
       `Error streaming file back ${err}` :
       `File sent successfully`;

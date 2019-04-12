@@ -1,14 +1,14 @@
+import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../models/options.interface';
 import {
   defaultParams,
   killChrome,
 } from './utils';
 
-const fetch = require('node-fetch');
-
 describe('Browserless Chrome HTTP', () => {
   let browserless: BrowserlessServer;
-  const start = (args) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
 
   afterEach(async () => {
     await browserless.kill();
@@ -98,7 +98,7 @@ describe('Browserless Chrome HTTP', () => {
     await browserless.startServer();
 
     return fetch(`http://abc@localhost:${params.port}/json`)
-      .then((res) => {
+      .then((res: any) => {
         expect(res.headers['set-cookie']).toMatchSnapshot();
       });
   });
@@ -1135,7 +1135,7 @@ describe('Browserless Chrome HTTP', () => {
           let csvContent = "data:text/csv;charset=utf-8,";
           rows.forEach(function(rowArray){
               let row = rowArray.join(",");
-              csvContent += row + "\r\n";
+              csvContent += row + "\\r\\n";
           });
           const encodedUri = encodeURI(csvContent);
           const link = document.createElement("a");
@@ -1149,7 +1149,7 @@ describe('Browserless Chrome HTTP', () => {
       return fetch(`http://localhost:${params.port}/download`, {
         body,
         headers: {
-          'content-type': 'application/javascript',
+          'Content-Type': 'application/javascript',
         },
         method: 'POST',
       })

@@ -1,10 +1,14 @@
 import { ChildProcess } from 'child_process';
+// @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
+import * as express from 'express';
 import * as fs from 'fs';
+import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { canLog, fetchJson, getDebug, sleep, workspaceDir } from './utils';
+import { ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
+import { canLog, fetchJson, getDebug, sleep } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -15,7 +19,6 @@ const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-loggi
 
 let executablePath: string;
 let runningBrowsers: IBrowser[] = [];
-const WS_PORT = process.env.PORT;
 
 interface IChromeDriver {
   port: number;
@@ -24,6 +27,17 @@ interface IChromeDriver {
 
 interface IBrowser extends Browser {
   port: string | undefined;
+}
+
+interface ISession {
+  description: string;
+  devtoolsFrontendUrl: string;
+  id: string;
+  title: string;
+  type: string;
+  url: string;
+  webSocketDebuggerUrl: string;
+  port: string;
 }
 
 export interface ILaunchOptions extends LaunchOptions {
@@ -76,26 +90,31 @@ export const findSessionForPageUrl = async (pathname: string) => {
   return pages.find((session) => session.devtoolsFrontendUrl.includes(pathname));
 };
 
-export const getDebuggingPages = async (): Promise<any> => {
+export const getDebuggingPages = async (): Promise<ISession[]> => {
   const results = await Promise.all(
     runningBrowsers.map(async (browser) => {
-      const { port } = url.parse(browser.wsEndpoint());
+      const endpoint = browser.wsEndpoint();
+      const { port } = url.parse(endpoint);
 
-      const sessions = await fetchJson(`http://127.0.0.1:${port}/json/list`);
+      if (!port) {
+        throw new Error('Error locating port in browser endpoint: ${endpoint}');
+      }
+
+      const sessions: ISession[] = await fetchJson(`http://127.0.0.1:${port}/json/list`);
 
       return sessions.map((session) => ({
         ...session,
-        devtoolsFrontendUrl: session.devtoolsFrontendUrl.replace(port, WS_PORT),
+        devtoolsFrontendUrl: session.devtoolsFrontendUrl.replace(port, PORT.toString()),
         port,
-        webSocketDebuggerUrl: session.webSocketDebuggerUrl.replace(port, WS_PORT),
+        webSocketDebuggerUrl: session.webSocketDebuggerUrl.replace(port, PORT.toString()),
       }));
     }),
   );
 
-  return [].concat(...results);
+  return _.flatten(results);
 };
 
-export const launchChrome = (opts: ILaunchOptions) => {
+export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
   const launchArgs = {
     ...opts,
     args: [...opts.args || [], ...DEFAULT_ARGS],
@@ -113,25 +132,20 @@ export const launchChrome = (opts: ILaunchOptions) => {
     );
 
     browser.on('targetcreated', async (target) => {
-      await sleep();
-      return target.type() === 'page' ? target.page()
-        .then(async (page) => {
-          if (page) {
-            if (opts.pauseOnConnect) {
-              // @ts-ignore
-              await page._client.send('Debugger.enable');
-              // @ts-ignore
-              await page._client.send('Debugger.pause');
-            }
-            // @ts-ignore
-            return page._client && page._client.send('Page.setDownloadBehavior', {
-              behavior: 'allow',
-              downloadPath: workspaceDir,
-            });
-          }
-        })
-        .catch((err) => debug(`Error setting up page watchers: ${err}`)) :
-        Promise.resolve();
+      const page = await target.page();
+
+      if (page) {
+        // @ts-ignore
+        const client = page._client;
+        if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+          await client.send('Debugger.enable');
+          await client.send('Debugger.pause');
+        }
+        client.send('Page.setDownloadBehavior', {
+          behavior: 'allow',
+          downloadPath: WORKSPACE_DIR,
+        });
+      }
     });
 
     browser.port = port;
@@ -142,8 +156,8 @@ export const launchChrome = (opts: ILaunchOptions) => {
   });
 };
 
-export const convertUrlParamsToLaunchOpts = (req): ILaunchOptions => {
-  const urlParts = url.parse(req.url, true);
+export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Request): ILaunchOptions => {
+  const urlParts = url.parse(req.url || '', true);
   const args = _.chain(urlParts.query)
     .pickBy((_value, param) => _.startsWith(param, '--'))
     .map((value, key) => `${key}${value ? `=${value}` : ''}`)
@@ -187,7 +201,7 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
       resolve({ port, chromeProcess });
     });
 
-    chromeProcess.stderr.once('data', (err) => reject(err));
+    chromeProcess.stderr.once('data', (err: Error) => reject(err));
   });
 };
 
