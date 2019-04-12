@@ -6,6 +6,7 @@ import * as multer from 'multer';
 import * as path from 'path';
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
+import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 
 import {
@@ -62,7 +63,7 @@ const htmlParser = bodyParser.text({
 interface IGetRoutes {
   puppeteerProvider: PuppeteerProvider;
   getMetrics: () => IBrowserlessStats[];
-  getConfig: () => any;
+  getConfig: () => IBrowserlessOptions;
   getPressure: () => any;
   workspaceDir: string;
 }
@@ -84,12 +85,13 @@ export const getRoutes = ({
     },
   });
   const upload = multer({ storage }).any();
+  const config = getConfig();
 
   router.get('/introspection', (_req, res) => res.json(hints));
   router.get('/json/version', (_req, res) => res.json(version));
   router.get('/json/protocol', (_req, res) => res.json(protocol));
   router.get('/metrics', (_req, res) => res.json(getMetrics()));
-  router.get('/config', (_req, res) => res.json(getConfig()));
+  router.get('/config', (_req, res) => res.json(config));
 
   router.get('/workspace', async (_req, res) => {
     const hasDownloads = await exists(workspaceDir);
@@ -296,32 +298,34 @@ export const getRoutes = ({
     }]);
   }));
 
-  router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
-    const pages = await chromeHelper.getDebuggingPages();
-    const header = req.header('accept');
+  if (config.enableDebugViewer) {
+    router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
+      const pages = await chromeHelper.getDebuggingPages();
+      const header = req.header('accept');
 
-    if (header && header.includes('html')) {
-      const anchors = pages.map((page) => `<a href="${page.devtoolsFrontendUrl}">${page.title}</a>`);
-      const html = `<h1>browserless pages</h1>${anchors.join('<br>')}`;
+      if (header && header.includes('html')) {
+        const anchors = pages.map((page) => `<a href="${page.devtoolsFrontendUrl}">${page.title}</a>`);
+        const html = `<h1>browserless pages</h1>${anchors.join('<br>')}`;
 
-      return res.send(html);
-    }
+        return res.send(html);
+      }
 
-    return res.json(pages);
-  }));
+      return res.json(pages);
+    }));
 
-  // Since all chromium browsers here are running the same version,
-  // funnel any static asset request to any browser
-  router.all('/devtools*', asyncWebHandler(async (req: Request, res: Response) => {
-    const session = chromeHelper.getRandomSession();
+    // Since all chromium browsers here are running the same version,
+    // funnel any static asset request to any browser
+    router.all('/devtools*', asyncWebHandler(async (req: Request, res: Response) => {
+      const session = chromeHelper.getRandomSession();
 
-    if (session && session.port) {
-      const port = session.port;
-      return puppeteerProvider.proxyWebRequestToPort({ req, res, port });
-    }
+      if (session && session.port) {
+        const port = session.port;
+        return puppeteerProvider.proxyWebRequestToPort({ req, res, port });
+      }
 
-    return res.status(404).send('Not found');
-  }));
+      return res.status(404).send('Not found');
+    }));
+  }
 
   return router;
 };
