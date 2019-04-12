@@ -106,7 +106,7 @@ export const sleep = (time = 0) => {
 export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';
-  return Buffer.from(token, 'base64').toString();
+  return Buffer.from(token, 'base64').toString().replace(':', '');
 };
 
 export const fnLoader = (fnName: string) =>

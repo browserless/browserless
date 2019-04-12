@@ -299,16 +299,8 @@ export const getRoutes = ({
   }));
 
   if (config.enableDebugViewer) {
-    router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
+    router.get('/sessions', asyncWebHandler(async (_req: Request, res: Response) => {
       const pages = await chromeHelper.getDebuggingPages();
-      const header = req.header('accept');
-
-      if (header && header.includes('html')) {
-        const anchors = pages.map((page) => `<a href="${page.devtoolsFrontendUrl}">${page.title}</a>`);
-        const html = `<h1>browserless pages</h1>${anchors.join('<br>')}`;
-
-        return res.send(html);
-      }
 
       return res.json(pages);
     }));
