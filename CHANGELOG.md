@@ -1,3 +1,11 @@
+# 1.5.0
+- New `/session` API (and accompanying routes) for display/viewing active sesions in a remote debugger(!).
+- New `?pause` query-param for pausing sessions prior to running them (useful for the live debug viewer).
+- The browserless debugger now exposes links to these debug pages via the sidebar.
+- New Debugger page can be disabled via the `ENABLE_DEBUG_VIEWER=false` environment variable flag.
+- Move to use `node@10`.
+- No more `no-implicit-any`'s inside the codebase.
+
 # 1.4.0
 - During connection, we now set the download dir of REST and puppeteer sessions. Cloud users and docker users no longer have to manually set this field, and the `/workspace` API references it as well!
 
