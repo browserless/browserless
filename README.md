@@ -11,7 +11,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 2. [How it works](#how-it-works)
 3. [Docker](#docker)
 4. [Bare-metal with node](#node)
-5. [Using the debugger](#live-debugger)
+5. [Using the debuggers](#live-debugger)
 6. [Recommended NGINX Config](#Recommended-NGINX-Config)
 7. [Hosting](#hosting-providers)
 8. [Using with puppeteer](#puppeteer)
@@ -29,6 +29,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 
 - Parallelization and queueing are built-in and configurable.
 - Fonts and emoji's working out-of-the-box.
+- Debug Viewer for actively viewing/debugging running sessions.
 - Docker releases that are built for specific puppeteer versions.
 - Docker image's are labelled with information on the version of Chrome, V8, webkit and more.
 - An interactive puppeteer debugger, so you can see what the headless browser is doing and use its DevTools.
@@ -71,6 +72,12 @@ In order to run Browserless, you'll need:
 # Live Debugger
 
 ![Browserless Debugger](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/demo.gif)
+
+browserless comes with _two_ methods of debugging. The first is a web-based debugger for trying out small chunks of code without setting up a new project. You can see our public-facing [debugger here](https://chrome.browserless.io/).
+
+The second method is an active-session debugger. When browserless runs http requests, and puppteer sessions, it keeps track of some browser state, and makes those sessions available for debugging. You can simply load the web-based debugger in the browser, and click the menu icon in the top-left. It'll reveal all currently running sessions and a link to "view" them in Chrome's remote devtools. You can also query the `/session` API to get a JSON representation of sessions as well.
+
+If you're using the active-session debugger, and it's executing too fast, you can apply a `?pause` query parameter to your `puppeteer.connect` call (or HTTP REST calls) and browserless will pause your script until the debugger connects. This way you don't any critical actions!
 
 ⚠️ **HOSTING**: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site _needs_ to be deployed under HTTPS. This is due to devtools scripts being loaded from an http-based domain. For further help/information look at some projects like [localtunnel](https://github.com/localtunnel/localtunnel), [certbot](https://certbot.eff.org/), or even netlify to achieve these efforts.
 
