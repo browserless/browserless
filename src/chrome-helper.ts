@@ -132,19 +132,23 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
     );
 
     browser.on('targetcreated', async (target) => {
-      const page = await target.page();
+      try {
+        const page = await target.page();
 
-      if (page) {
-        // @ts-ignore
-        const client = page._client;
-        if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
-          await client.send('Debugger.enable');
-          await client.send('Debugger.pause');
+        if (page) {
+          // @ts-ignore
+          const client = page._client;
+          if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+            await client.send('Debugger.enable');
+            await client.send('Debugger.pause');
+          }
+          client.send('Page.setDownloadBehavior', {
+            behavior: 'allow',
+            downloadPath: WORKSPACE_DIR,
+          });
         }
-        client.send('Page.setDownloadBehavior', {
-          behavior: 'allow',
-          downloadPath: WORKSPACE_DIR,
-        });
+      } catch (error) {
+        debug(`Error setting download paths`, error);
       }
     });
 

@@ -37,7 +37,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${params.port}/webdriver`)
+        .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -67,7 +67,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${params.port}/webdriver`)
+        .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -98,7 +98,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://abcd@localhost:${params.port}/webdriver`)
+        .usingServer(`http://abcd@127.0.0.1:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -125,7 +125,7 @@ describe('Browserless Chrome Webdriver', () => {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
         .withCapabilities(chromeCapabilities)
-        .usingServer(`http://localhost:${params.port}/webdriver`)
+        .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
         .build();
 
       await driver.get('https://example.com');
@@ -154,7 +154,7 @@ describe('Browserless Chrome Webdriver', () => {
     return new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${params.port}/webdriver`)
+      .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
       .build()
       .then(throws)
       .catch((error: Error) => {
@@ -176,7 +176,7 @@ describe('Browserless Chrome Webdriver', () => {
     return new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${params.port}/webdriver`)
+      .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
       .build()
       .then(throws)
       .catch((error: Error) => {
@@ -198,7 +198,7 @@ describe('Browserless Chrome Webdriver', () => {
     const driver = new webdriver.Builder()
       .forBrowser('chrome')
       .withCapabilities(chromeCapabilities)
-      .usingServer(`http://localhost:${params.port}/webdriver`)
+      .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
       .build();
 
     await driver.get('https://example.com');
