@@ -197,7 +197,7 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
       flags.push('--verbose');
     }
 
-    const chromeProcess = chromeDriver.start([...flags, `--port=${port}`]);
+    const chromeProcess = chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips']);
 
     chromeProcess.stdout.once('data', async () => {
       await sleep(10); // Wait for ports to bind
