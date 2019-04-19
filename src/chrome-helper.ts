@@ -135,7 +135,7 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
       try {
         const page = await target.page();
 
-        if (page) {
+        if (page && !page.isClosed()) {
           // @ts-ignore
           const client = page._client;
           if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
@@ -145,7 +145,7 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
           client.send('Page.setDownloadBehavior', {
             behavior: 'allow',
             downloadPath: WORKSPACE_DIR,
-          });
+          }).catch((error: Error) => debug(`Error setting download paths`, error));
         }
       } catch (error) {
         debug(`Error setting download paths`, error);

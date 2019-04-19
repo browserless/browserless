@@ -4,8 +4,7 @@ services:
   - docker
 
 before_install:
-  - docker build -t browserless/chrome .
-  - docker run -d -p 4000:4000 -e PORT=4000 -e CI=true --name browserless browserless/chrome
+  - docker build -t browserless/chrome:latest .
 
 script:
-  - docker exec browserless npm run ci
+  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:latest --runInBand --bail --forceExit
