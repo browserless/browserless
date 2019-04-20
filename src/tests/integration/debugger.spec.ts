@@ -21,7 +21,7 @@ describe('Browserless Debugger', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/`)
+    return fetch(`http://127.0.0.1:${params.port}/`)
       .then((res) =>
         expect(res.headers.get('content-type')).toContain('text/html'),
       );

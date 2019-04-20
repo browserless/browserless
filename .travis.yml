@@ -3,5 +3,8 @@ sudo: required
 services:
   - docker
 
+before_install:
+  - docker build -t browserless/chrome:latest .
+
 script:
-  - docker build -t browserless/chrome .
+  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:latest --runInBand --bail --forceExit

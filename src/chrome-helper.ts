@@ -132,19 +132,23 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
     );
 
     browser.on('targetcreated', async (target) => {
-      const page = await target.page();
+      try {
+        const page = await target.page();
 
-      if (page) {
-        // @ts-ignore
-        const client = page._client;
-        if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
-          await client.send('Debugger.enable');
-          await client.send('Debugger.pause');
+        if (page && !page.isClosed()) {
+          // @ts-ignore
+          const client = page._client;
+          if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+            await client.send('Debugger.enable');
+            await client.send('Debugger.pause');
+          }
+          client.send('Page.setDownloadBehavior', {
+            behavior: 'allow',
+            downloadPath: WORKSPACE_DIR,
+          }).catch((error: Error) => debug(`Error setting download paths`, error));
         }
-        client.send('Page.setDownloadBehavior', {
-          behavior: 'allow',
-          downloadPath: WORKSPACE_DIR,
-        });
+      } catch (error) {
+        debug(`Error setting download paths`, error);
       }
     });
 
@@ -193,7 +197,7 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
       flags.push('--verbose');
     }
 
-    const chromeProcess = chromeDriver.start([...flags, `--port=${port}`]);
+    const chromeProcess = chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips']);
 
     chromeProcess.stdout.once('data', async () => {
       await sleep(10); // Wait for ports to bind

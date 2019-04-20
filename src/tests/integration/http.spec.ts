@@ -21,7 +21,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/json/version`)
+    return fetch(`http://127.0.0.1:${params.port}/json/version`)
       .then((res) => res.json())
       .then((version) => {
         expect(Object.keys(version)).toMatchSnapshot();
@@ -33,7 +33,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/introspection`)
+    return fetch(`http://127.0.0.1:${params.port}/introspection`)
       .then((res) => res.json())
       .then((introspection) => {
         expect(introspection);
@@ -45,7 +45,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/json/protocol`)
+    return fetch(`http://127.0.0.1:${params.port}/json/protocol`)
       .then((res) => res.json())
       .then((protocol) => {
         expect(Object.keys(protocol)).toMatchSnapshot();
@@ -57,7 +57,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/metrics`)
+    return fetch(`http://127.0.0.1:${params.port}/metrics`)
       .then((res) => res.json())
       .then((metrics) => {
         expect(Object.keys(metrics)).toMatchSnapshot();
@@ -69,7 +69,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/config`)
+    return fetch(`http://127.0.0.1:${params.port}/config`)
       .then((res) => res.json())
       .then((config) => {
         expect(Object.keys(config)).toMatchSnapshot();
@@ -81,7 +81,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/pressure`)
+    return fetch(`http://127.0.0.1:${params.port}/pressure`)
       .then((res) => res.json())
       .then((res) => {
         const { pressure } = res;
@@ -97,7 +97,7 @@ describe('Browserless Chrome HTTP', () => {
     });
     await browserless.startServer();
 
-    return fetch(`http://abc@localhost:${params.port}/json`)
+    return fetch(`http://abc@127.0.0.1:${params.port}/json`)
       .then((res: any) => {
         expect(res.headers['set-cookie']).toMatchSnapshot();
       });
@@ -108,7 +108,7 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://localhost:${params.port}/json`)
+    return fetch(`http://127.0.0.1:${params.port}/json`)
       .then((res) => {
         expect(res.headers).not.toHaveProperty('set-cookie');
       });
@@ -130,7 +130,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -155,7 +155,7 @@ describe('Browserless Chrome HTTP', () => {
         });
       }`;
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body,
         headers: {
           'content-type': 'application/javascript',
@@ -184,7 +184,7 @@ describe('Browserless Chrome HTTP', () => {
         detached: true,
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -217,7 +217,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -250,7 +250,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -280,7 +280,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -313,7 +313,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -343,7 +343,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -371,7 +371,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -396,7 +396,7 @@ describe('Browserless Chrome HTTP', () => {
         context: {},
       };
 
-      return fetch(`http://localhost:${params.port}/function`, {
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -424,7 +424,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -444,7 +444,7 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = `<h1>Hellow, world!</h1>`;
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body,
         headers: {
           'content-type': 'text/html',
@@ -467,7 +467,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -492,7 +492,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -518,7 +518,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -543,7 +543,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -570,7 +570,7 @@ describe('Browserless Chrome HTTP', () => {
         },
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -602,7 +602,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -624,7 +624,7 @@ describe('Browserless Chrome HTTP', () => {
         html: '<h1>Hello!</h1>',
       };
 
-      return fetch(`http://localhost:${params.port}/screenshot`, {
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -650,7 +650,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -674,7 +674,7 @@ describe('Browserless Chrome HTTP', () => {
         await page.waitFor(5000);
       }`;
 
-      return fetch(`http://localhost:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
         body,
         headers: {
           'content-type': 'application/javascript',
@@ -703,7 +703,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -731,7 +731,7 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://localhost:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -754,7 +754,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -777,7 +777,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -802,7 +802,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -828,7 +828,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -860,7 +860,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -885,7 +885,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -907,7 +907,7 @@ describe('Browserless Chrome HTTP', () => {
         html: '<h1>Hello!</h1>',
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -932,7 +932,7 @@ describe('Browserless Chrome HTTP', () => {
         },
       };
 
-      return fetch(`http://localhost:${params.port}/pdf`, {
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -955,7 +955,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -975,7 +975,7 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = `<h1>Hello, World!</h1>`;
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body,
         headers: {
           'content-type': 'text/html',
@@ -998,7 +998,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1023,7 +1023,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1049,7 +1049,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1081,7 +1081,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1106,7 +1106,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/content`, {
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1146,7 +1146,7 @@ describe('Browserless Chrome HTTP', () => {
           return link.click();
       });`;
 
-      return fetch(`http://localhost:${params.port}/download`, {
+      return fetch(`http://127.0.0.1:${params.port}/download`, {
         body,
         headers: {
           'Content-Type': 'application/javascript',
@@ -1170,7 +1170,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/stats`, {
+      return fetch(`http://127.0.0.1:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1194,7 +1194,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/stats`, {
+      return fetch(`http://127.0.0.1:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -1220,7 +1220,7 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://localhost:${params.port}/stats`, {
+      return fetch(`http://127.0.0.1:${params.port}/stats`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',

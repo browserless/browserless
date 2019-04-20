@@ -33,7 +33,7 @@ describe('Browserless Chrome WebSockets', () => {
     const job = async () => {
       return new Promise(async (resolve) => {
         const browser = await puppeteer.connect({
-          browserWSEndpoint: `ws://localhost:${params.port}`,
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
         });
 
         browser.on('disconnected', resolve);
@@ -63,7 +63,7 @@ describe('Browserless Chrome WebSockets', () => {
     const job = async () => {
       return new Promise(async (resolve) => {
         const browser: any = await puppeteer.connect({
-          browserWSEndpoint: `ws://localhost:${params.port}`,
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
         });
 
         browser.on('disconnected', resolve);
@@ -94,7 +94,7 @@ describe('Browserless Chrome WebSockets', () => {
 
     const job = async () => {
       const browser = await puppeteer.connect({
-        browserWSEndpoint: `ws://localhost:${params.port}`,
+        browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
       });
 
       browser.close();
@@ -121,7 +121,7 @@ describe('Browserless Chrome WebSockets', () => {
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -140,7 +140,7 @@ describe('Browserless Chrome WebSockets', () => {
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -159,7 +159,7 @@ describe('Browserless Chrome WebSockets', () => {
 
     await browserless.startServer();
 
-    return puppeteer.connect({ browserWSEndpoint: `ws://localhost:${params.port}` })
+    return puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);
@@ -178,7 +178,7 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.startServer();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:${params.port}`,
+      browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
     });
 
     await browser.close();
