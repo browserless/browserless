@@ -42,3 +42,4 @@ export const FUNCTION_EXTERNALS: string[] =       parseJSONParam(process.env.FUN
 export const WORKSPACE_DIR: string =              process.env.WORKSPACE_DIR ? process.env.WORKSPACE_DIR : os.tmpdir();
 export const DEBUG: string | undefined =          process.env.DEBUG;
 export const MAX_PAYLOAD_SIZE: string =           process.env.MAX_PAYLOAD_SIZE || '5mb';
+export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);

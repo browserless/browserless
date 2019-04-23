@@ -7,7 +7,7 @@ import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
+import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
 import { canLog, fetchJson, getDebug, sleep } from './utils';
 
 const puppeteer = require('puppeteer');
@@ -131,26 +131,28 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
       runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint()),
     );
 
-    browser.on('targetcreated', async (target) => {
-      try {
-        const page = await target.page();
+    if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
+      browser.on('targetcreated', async (target) => {
+        try {
+          const page = await target.page();
 
-        if (page && !page.isClosed()) {
-          // @ts-ignore
-          const client = page._client;
-          if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
-            await client.send('Debugger.enable');
-            await client.send('Debugger.pause');
+          if (page && !page.isClosed()) {
+            // @ts-ignore
+            const client = page._client;
+            if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+              await client.send('Debugger.enable');
+              await client.send('Debugger.pause');
+            }
+            client.send('Page.setDownloadBehavior', {
+              behavior: 'allow',
+              downloadPath: WORKSPACE_DIR,
+            }).catch((error: Error) => debug(`Error setting download paths`, error));
           }
-          client.send('Page.setDownloadBehavior', {
-            behavior: 'allow',
-            downloadPath: WORKSPACE_DIR,
-          }).catch((error: Error) => debug(`Error setting download paths`, error));
+        } catch (error) {
+          debug(`Error setting download paths`, error);
         }
-      } catch (error) {
-        debug(`Error setting download paths`, error);
-      }
-    });
+      });
+    }
 
     browser.port = port;
 
