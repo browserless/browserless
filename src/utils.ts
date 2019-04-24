@@ -1,7 +1,7 @@
 import * as cookie from 'cookie';
 import * as express from 'express';
 import * as fs from 'fs';
-import { IncomingMessage, OutgoingMessage } from 'http';
+import { IncomingMessage, ServerResponse } from 'http';
 import * as Joi from 'joi';
 import * as _ from 'lodash';
 import * as net from 'net';
@@ -21,11 +21,11 @@ export const writeFile = util.promisify(fs.writeFile);
 export const mkdir = util.promisify(fs.mkdir);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 export const id = shortid.generate;
-export const canLog = DEBUG && DEBUG.includes('browserless');
+export const canLog = DEBUG && DEBUG === '*';
 const debug = getDebug('system');
 
 type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
-type IRequestHandler = (req: IncomingMessage, res: OutgoingMessage) => Promise<any>;
+type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {

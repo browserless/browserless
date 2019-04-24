@@ -310,7 +310,7 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  private handleWebDriver(req: http.IncomingMessage, res: http.OutgoingMessage) {
+  private handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
     const sessionPathMatcher = new RegExp('^' + webDriverPath + '/\\w+$');
 
     const isStarting = req.method && req.method.toLowerCase() === 'post' && req.url === webDriverPath;

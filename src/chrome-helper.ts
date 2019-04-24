@@ -8,7 +8,7 @@ import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
 import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
-import { canLog, fetchJson, getDebug, sleep } from './utils';
+import { canLog, fetchJson, getDebug } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -20,7 +20,7 @@ const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-loggi
 let executablePath: string;
 let runningBrowsers: IBrowser[] = [];
 
-interface IChromeDriver {
+export interface IChromeDriver {
   port: number;
   chromeProcess: ChildProcess;
 }
@@ -192,22 +192,21 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
 };
 
 export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) => {
-  return new Promise<IChromeDriver>(async (resolve, reject) => {
+  debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
+
+  return new Promise<IChromeDriver>(async (resolve) => {
     const port = await getPort();
 
     if (canLog) {
       flags.push('--verbose');
     }
 
-    const chromeProcess = chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips']);
+    const chromeProcess = await chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips'], true);
 
-    chromeProcess.stdout.once('data', async () => {
-      await sleep(10); // Wait for ports to bind
-
-      resolve({ port, chromeProcess });
+    return resolve({
+      chromeProcess,
+      port,
     });
-
-    chromeProcess.stderr.once('data', (err: Error) => reject(err));
   });
 };
 

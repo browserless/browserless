@@ -1,6 +1,6 @@
-import { IncomingMessage, OutgoingMessage } from 'http';
+import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
-import { launchChromeDriver } from './chrome-helper';
+import { IChromeDriver, launchChromeDriver } from './chrome-helper';
 import { IDone, IJob } from './models/queue.interface';
 import { Queue } from './queue';
 import { getDebug } from './utils';
@@ -13,6 +13,7 @@ interface IWebDriverSession {
   done: IDone;
   sessionId: string;
   proxy: any;
+  res: ServerResponse;
 }
 
 interface IWebDriverSessions {
@@ -31,7 +32,7 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public start(req: IncomingMessage, res: OutgoingMessage) {
+  public start(req: IncomingMessage, res: ServerResponse) {
     debug(`Inbound webdriver request`);
     req.headers.host = '127.0.0.1:3000';
 
@@ -48,42 +49,58 @@ export class WebDriver {
     const job: IJob = Object.assign(
       (done: IDone) => {
         req.removeListener('close', earlyClose);
-        launchChromeDriver().then(({ port, chromeProcess }) => {
-          const proxy: any = httpProxy.createProxyServer({ target: `http://localhost:${port}` });
+        this.launchChrome()
+          .then(({ port, chromeProcess }) => {
+            const proxy: any = httpProxy.createProxyServer({ target: `http://localhost:${port}` });
 
-          proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
-            let body = Buffer.from('');
-            proxyRes.on('data', (data) => body = Buffer.concat([body, data]));
-            proxyRes.on('end', () => {
-              const responseBody = body.toString();
-              const session = JSON.parse(responseBody);
-              const id = session.sessionId;
-              debug('Session started, got body: ', responseBody);
+            proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
+              let body = Buffer.from('');
+              proxyRes.on('data', (data) => body = Buffer.concat([body, data]));
+              proxyRes.on('end', () => {
+                const responseBody = body.toString();
+                const session = JSON.parse(responseBody);
+                const id = session.sessionId;
+                debug('Session started, got body: ', responseBody);
 
-              job.id = id;
+                job.id = id;
 
-              this.webDriverSessions[id] = {
-                chromeProcess,
-                done,
-                proxy,
-                sessionId: id,
-              };
+                this.webDriverSessions[id] = {
+                  chromeProcess,
+                  done,
+                  proxy,
+                  res,
+                  sessionId: id,
+                };
 
-              job.close = () => {
-                debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
-                kill(chromeProcess.pid, 'SIGTERM');
-                proxy.close();
-                delete this.webDriverSessions[id];
-              };
+                job.onTimeout = () => {
+                  const res = this.webDriverSessions[id].res;
+                  if (res && !res.headersSent) {
+                    res.writeHead(408);
+                    return res.end(`Webdriver session timed-out`);
+                  }
+                };
+
+                job.close = () => {
+                  debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
+                  kill(chromeProcess.pid, 'SIGKILL');
+                  proxy.close();
+                  delete this.webDriverSessions[id];
+                };
+              });
             });
-          });
 
-          proxy.web(req, res, (error: Error) => {
-            debug(`Issue in webdriver: ${error.message}`);
-            res.end();
+            proxy.web(req, res, (error: Error) => {
+              debug(`Issue in webdriver: ${error.message}`);
+              res.end();
+              done(error);
+            });
+          })
+          .catch((error) => {
+            debug(`Failure to launch ChromeDriver`);
             done(error);
+            res.writeHead(500);
+            res.end('ChromeDriver failed to launch.');
           });
-        });
       }, {
         browser: null,
         close: () => {},
@@ -97,31 +114,54 @@ export class WebDriver {
     this.queue.add(job);
   }
 
-  public proxySession(req: IncomingMessage, res: OutgoingMessage) {
-    debug(`Inbound webdriver command`);
+  public proxySession(req: IncomingMessage, res: ServerResponse) {
+    debug(`Inbound existing webdriver command`);
     const session = this.getSession(req);
 
     if (!session) {
+      res.writeHead(404);
+      res.end(`Couldn't access session, did it timeout?`);
       return res.end();
     }
 
+    session.res = res;
+
     return session.proxy.web(req, res, (error: Error) => {
-      debug(`Issue in webdriver: ${error.message}`);
+      debug(`Issue proxying current webdriver session, closing session: ${error.message}`);
+
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end('ChromeDriver failed to receive traffic');
+      }
+
+      session.done(error);
+      res.end();
     });
   }
 
-  public closeSession(req: IncomingMessage, res: OutgoingMessage) {
+  public closeSession(req: IncomingMessage, res: ServerResponse) {
     debug(`Inbound webdriver close`);
     const session = this.getSession(req);
 
     if (!session) {
+      res.writeHead(200);
+      res.end(`Session not found, did it timeout?`);
       return res.end();
     }
 
+    session.res = res;
     session.proxy.once('proxyRes', () => session.done());
 
-    session.proxy.web(req, res, (error: Error) => {
-      debug(`Issue in webdriver: ${error.message}`);
+    return session.proxy.web(req, res, (error: Error) => {
+      debug(`Issue when closing webdriver session: ${error.message}`);
+
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end('ChromeDriver failed to receive traffic');
+      }
+
+      session.done(error);
+      res.end();
     });
   }
 
@@ -153,5 +193,20 @@ export class WebDriver {
     }
 
     return session;
+  }
+
+  private launchChrome(retries = 1): Promise<IChromeDriver> {
+    return launchChromeDriver()
+      .catch((error) => {
+        debug(`Issue launching ChromeDriver, error:`, error);
+
+        if (retries) {
+          debug(`Retrying launch of ChromeDriver`);
+          return this.launchChrome(retries - 1);
+        }
+
+        debug(`Retries exhaused, throwing`);
+        throw error;
+      });
   }
 }
