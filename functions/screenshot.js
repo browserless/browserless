@@ -20,6 +20,7 @@
  */
 module.exports = async function screenshot ({ page, context } = {}) {
   const {
+    authenticate = null,
     url = null,
     cookies = [],
     gotoOptions,
@@ -27,8 +28,17 @@ module.exports = async function screenshot ({ page, context } = {}) {
     options = {},
     rejectRequestPattern = [],
     requestInterceptors = [],
+    setExtraHTTPHeaders = null,
     viewport,
   } = context;
+
+  if (authenticate) {
+    await page.authenticate(authenticate);
+  }
+
+  if (setExtraHTTPHeaders) {
+    await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+  }
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
     await page.setRequestInterception(true);

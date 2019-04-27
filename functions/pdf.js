@@ -56,6 +56,7 @@ const buildPages = async (page, opts = {}) => {
 
 module.exports = async function pdf({ page, context }) {
   const {
+    authenticate = null,
     cookies = [],
     emulateMedia,
     html,
@@ -65,7 +66,16 @@ module.exports = async function pdf({ page, context }) {
     gotoOptions,
     rejectRequestPattern = [],
     requestInterceptors = [],
+    setExtraHTTPHeaders,
   } = context;
+
+  if (authenticate) {
+    await page.authenticate(authenticate);
+  }
+
+  if (setExtraHTTPHeaders) {
+    await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+  }
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
     await page.setRequestInterception(true);

@@ -16,13 +16,23 @@
  */
 module.exports = async function content ({ page, context }) {
   const {
+    authenticate = null,
     url = null,
     html,
     gotoOptions,
     rejectRequestPattern = [],
     requestInterceptors = [],
     cookies = [],
+    setExtraHTTPHeaders = null,
   } = context;
+
+  if (authenticate) {
+    await page.authenticate(authenticate);
+  }
+
+  if (setExtraHTTPHeaders) {
+    await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+  }
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
     await page.setRequestInterception(true);

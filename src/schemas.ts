@@ -6,6 +6,13 @@ const gotoOptions = Joi.object().keys({
     .valid('load', 'domcontentloaded', 'networkidle0', 'networkidle2'),
 });
 
+const authenticate = Joi.object().keys({
+  password: Joi.string(),
+  username: Joi.string(),
+});
+
+const setExtraHTTPHeaders = Joi.object().unknown();
+
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 
 const requestInterceptors = Joi.array().items(Joi.object().keys({
@@ -43,6 +50,7 @@ export const viewport = Joi.object().keys({
 });
 
 export const screenshot = Joi.object().keys({
+  authenticate,
   cookies,
   gotoOptions,
   html: Joi.string(),
@@ -60,19 +68,23 @@ export const screenshot = Joi.object().keys({
   }),
   rejectRequestPattern,
   requestInterceptors,
+  setExtraHTTPHeaders,
   url: Joi.string(),
   viewport,
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
+  authenticate,
   cookies,
   gotoOptions,
   rejectRequestPattern,
   requestInterceptors,
+  setExtraHTTPHeaders,
   url: Joi.string().required(),
 });
 
 export const pdf = Joi.object().keys({
+  authenticate,
   cookies,
   emulateMedia: Joi.string().valid('screen', 'print'),
   gotoOptions,
@@ -103,6 +115,7 @@ export const pdf = Joi.object().keys({
     'Whether to safely generate the PDF (renders pages one-at-a-time and merges it in-memory). ' +
     'Can prevent page crashes but is slower, consumes more memory, and returns a larger PDF.',
   ),
+  setExtraHTTPHeaders,
   url: Joi.string(),
 }).xor('url', 'html');
 
