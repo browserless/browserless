@@ -1,3 +1,10 @@
+# 1.6.0
+- New `authenticate` and `setExtraHTTPHeaders` params for the `content`, `pdf`, and `screenshot` APIs. Useful for using proxies in our REST APIs.
+- Fixed a bunch of bugs inside of the webdriver integration, making it more REST-ful.
+- Updated dependencies inside of Chromedriver.
+- New `DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR` for mitigating errors in puppeteer < 1.15.0.
+- Bumped Puppeteer to 1.15.0.
+
 # 1.5.0
 - New `/session` API (and accompanying routes) for display/viewing active sesions in a remote debugger(!).
 - New `?pause` query-param for pausing sessions prior to running them (useful for the live debug viewer).
