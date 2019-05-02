@@ -5,6 +5,7 @@
   so that we can label builds nicely in docker and facilitate
   portions of the chrome-remote-protocol API (/json/version and so on)
 */
+const _ = require('lodash');
 const puppeteer = require('puppeteer');
 const url = require('url');
 const fetch = require('node-fetch');
@@ -30,6 +31,7 @@ const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVer
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
+const rejectList = path.join(__dirname, '..', 'hosts.json');
 
 let launchArgs = {
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -101,6 +103,27 @@ const getMeta = () => puppeteer
           fs.writeFileSync(
             protocolFile,
             JSON.stringify(protocol)
+          );
+        }),
+      fetch('https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts')
+        .then((res) => res.text())
+        .then((raw) =>
+          _.chain(raw)
+            .split('\n')
+            .map((line) => {
+              const fragments = line.split(' ');
+              if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
+                return fragments[1].trim();
+              }
+              return null
+            })
+            .reject(_.isNil)
+            .value()
+        )
+        .then((hostsArr) => {
+          fs.writeFileSync(
+            rejectList,
+            JSON.stringify(hostsArr, null, '  ')
           );
         })
     ])
