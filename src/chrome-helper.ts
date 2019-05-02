@@ -16,6 +16,7 @@ const getPort = require('get-port');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
+const blacklist = require('../hosts.json');
 
 let executablePath: string;
 let runningBrowsers: IBrowser[] = [];
@@ -42,6 +43,7 @@ interface ISession {
 
 export interface ILaunchOptions extends LaunchOptions {
   pauseOnConnect: boolean;
+  blockAds: boolean;
 }
 
 const defaultDriverFlags = ['--url-base=webdriver'];
@@ -58,6 +60,7 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
 
 export const defaultLaunchArgs = {
   args: [],
+  blockAds: false,
   headless: true,
   ignoreDefaultArgs: false,
   ignoreHTTPSErrors: false,
@@ -143,6 +146,17 @@ export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
               await client.send('Debugger.enable');
               await client.send('Debugger.pause');
             }
+            if (opts.blockAds) {
+              await page.setRequestInterception(true);
+              page.on('request', (request) => {
+                const fragments = request.url().split('/');
+                const domain = fragments.length > 2 ? fragments[2] : null;
+                if (blacklist.includes(domain)) {
+                  return request.abort();
+                }
+                return request.continue();
+              });
+            }
             client.send('Page.setDownloadBehavior', {
               behavior: 'allow',
               downloadPath: WORKSPACE_DIR,
@@ -170,6 +184,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     .value();
 
   const {
+    blockAds,
     headless,
     ignoreDefaultArgs,
     ignoreHTTPSErrors,
@@ -180,6 +195,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
 
   return {
     args,
+    blockAds: typeof blockAds !== 'undefined',
     headless: headless !== 'false',
     ignoreDefaultArgs: ignoreDefaultArgs ?
       parseIgnoreDefaultArgs(ignoreDefaultArgs) :
