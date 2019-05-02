@@ -84,7 +84,7 @@
     "vm2": "^3.7.0"
   },
   "devDependencies": {
-    "husky": "^2.1.0"
+    "husky": "^2.2.0"
   },
   "jest": {
     "testEnvironment": "node",
