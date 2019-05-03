@@ -54,7 +54,7 @@
     "@types/multer": "^1.3.7",
     "@types/node": "^11.9.5",
     "@types/node-fetch": "^2.3.2",
-    "@types/puppeteer": "^1.12.1",
+    "@types/puppeteer": "^1.12.4",
     "@types/shortid": "0.0.29",
     "body-parser": "^1.18.2",
     "chromedriver": "^74.0.0",
