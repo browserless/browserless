@@ -1,3 +1,7 @@
+# 1.7.0
+- Dep updates
+- New `?blockAds` query-parameter for disabling 3rd-party ad calls.
+
 # 1.6.0
 - New `authenticate` and `setExtraHTTPHeaders` params for the `content`, `pdf`, and `screenshot` APIs. Useful for using proxies in our REST APIs.
 - Fixed a bunch of bugs inside of the webdriver integration, making it more REST-ful.
