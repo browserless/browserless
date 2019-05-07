@@ -66,7 +66,7 @@
     "http-proxy": "^1.16.2",
     "jest": "^24.1.0",
     "joi": "^14.1.1",
-    "lighthouse": "^4.1.0",
+    "lighthouse": "^5.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
