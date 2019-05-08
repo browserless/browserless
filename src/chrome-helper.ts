@@ -127,7 +127,10 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<Browser> => {
     handleSIGTERM: false,
   };
 
-  if (!launchArgs.args.includes('--user-data-dir')) {
+  const hasUserDataDir = _.some((launchArgs.args), (arg) => arg.includes('--user-data-dir='));
+
+  // If no data-dir is set, build one that is managed by us and cleanedup after
+  if (!hasUserDataDir) {
     browserlessDataDir = await getUserDataDir();
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }

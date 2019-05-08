@@ -264,6 +264,7 @@ export class BrowserlessServer {
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();
+    await clearBrowserlessDataDirs();
 
     await Promise.all([
       new Promise((resolve) => this.httpServer.close(resolve)),
