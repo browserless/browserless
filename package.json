@@ -55,6 +55,7 @@
     "@types/node": "^11.9.5",
     "@types/node-fetch": "^2.3.2",
     "@types/puppeteer": "^1.12.1",
+    "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
     "body-parser": "^1.18.2",
     "chromedriver": "^74.0.0",
@@ -66,7 +67,7 @@
     "http-proxy": "^1.16.2",
     "jest": "^24.1.0",
     "joi": "^14.1.1",
-    "lighthouse": "^4.1.0",
+    "lighthouse": "^5.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
@@ -81,7 +82,7 @@
     "ts-jest": "^24.0.0",
     "tslint": "^5.10.0",
     "typescript": "^3.3.3",
-    "vm2": "3.7.0"
+    "vm2": "^3.8.1"
   },
   "devDependencies": {
     "husky": "^2.1.0"

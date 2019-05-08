@@ -11,6 +11,7 @@ import * as path from 'path';
 
 import {
   asyncWsHandler,
+  clearBrowserlessDataDirs,
   getDebug,
   isAuthorized,
   tokenCookieName,
@@ -154,7 +155,10 @@ export class BrowserlessServer {
 
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
-    process.on('SIGTERM', this.close.bind(this));
+    const boundClose = this.close.bind(this);
+
+    process.on('SIGTERM', boundClose);
+    process.on('SIGINT', boundClose);
   }
 
   public getMetrics() {
@@ -281,6 +285,7 @@ export class BrowserlessServer {
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();
+    await clearBrowserlessDataDirs();
 
     await new Promise((resolve) => {
       debug(`Closing server`);
@@ -290,6 +295,8 @@ export class BrowserlessServer {
     await this.puppeteerProvider.close();
 
     debug(`Successfully shutdown, exiting`);
+
+    process.exit(0);
   }
 
   public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {

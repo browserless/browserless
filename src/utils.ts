@@ -6,7 +6,9 @@ import * as Joi from 'joi';
 import * as _ from 'lodash';
 import * as net from 'net';
 import fetch from 'node-fetch';
+import * as os from 'os';
 import * as path from 'path';
+import rmrf = require('rimraf');
 import * as shortid from 'shortid';
 import * as url from 'url';
 import * as util from 'util';
@@ -19,6 +21,8 @@ export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
 export const mkdir = util.promisify(fs.mkdir);
+export const mkdtemp = util.promisify(fs.mkdtemp);
+export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 export const id = shortid.generate;
 export const canLog = DEBUG && DEBUG === '*';
@@ -111,3 +115,9 @@ export const getBasicAuthToken = (req: express.Request | IncomingMessage): strin
 
 export const fnLoader = (fnName: string) =>
   fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
+
+export const browserlessDataDirPrefix = 'browserless-data-dir-';
+
+export const getUserDataDir = () => mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
+
+export const clearBrowserlessDataDirs = () => rimraf(path.join(os.tmpdir(), `${browserlessDataDirPrefix}*`));

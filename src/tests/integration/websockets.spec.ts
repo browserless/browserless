@@ -66,7 +66,7 @@ describe('Browserless Chrome WebSockets', () => {
           browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
         });
 
-        browser.on('disconnected', resolve);
+        browser.once('disconnected', resolve);
 
         browser.close();
       });

@@ -8,7 +8,7 @@ import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
 import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
-import { canLog, fetchJson, getDebug } from './utils';
+import { canLog, fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 const puppeteer = require('puppeteer');
 const debug = getDebug('chrome-helper');
@@ -117,22 +117,33 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
   return _.flatten(results);
 };
 
-export const launchChrome = (opts: ILaunchOptions): Promise<Browser> => {
+export const launchChrome = async (opts: ILaunchOptions): Promise<Browser> => {
+  let browserlessDataDir: string | null = null;
   const launchArgs = {
     ...opts,
     args: [...opts.args || [], ...DEFAULT_ARGS],
     executablePath,
+    handleSIGINT: false,
     handleSIGTERM: false,
   };
 
-  debug(`Launching Chrome with args: ${JSON.stringify(launchArgs)}`);
+  if (!launchArgs.args.includes('--user-data-dir')) {
+    browserlessDataDir = await getUserDataDir();
+    launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
+  }
+
+  debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
 
   return puppeteer.launch(launchArgs).then((browser: IBrowser) => {
     const { port } = url.parse(browser.wsEndpoint());
 
-    browser.once('disconnected', () =>
-      runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint()),
-    );
+    browser.once('disconnected', () => {
+      if (browserlessDataDir) {
+        rimraf(browserlessDataDir);
+      }
+
+      runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
+    });
 
     if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
       browser.on('targetcreated', async (target) => {

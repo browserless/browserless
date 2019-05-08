@@ -441,17 +441,27 @@ export class PuppeteerProvider {
   }
 
   public async close() {
-    sysdebug(`Close received, closing queue and swarm gracefully`);
-    return new Promise((resolve) => {
-      if (this.queue.length === 0) {
-        return resolve(0);
-      }
+    sysdebug(`Closing queue and swarm gracefully`);
 
-      this.queue.on('end', () => {
-        sysdebug(`Queue drained`);
-        resolve();
+    if (this.queue.length) {
+      sysdebug('Jobs are running, waiting for completion.');
+      await new Promise((resolve) => {
+        this.queue.on('end', () => {
+          sysdebug(`All jobs complete, proceeding with close`);
+          resolve();
+        });
       });
-    });
+    }
+
+    if (this.chromeSwarm.length) {
+      sysdebug('Instances of chrome in swarm, closing');
+      await Promise.all(this.chromeSwarm.map(async (instance) => {
+        const browser = await instance;
+        return browser.close();
+      }));
+    }
+
+    return Promise.resolve();
   }
 
   private removeJob(job: IJob) {
