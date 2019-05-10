@@ -12,7 +12,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
-    "dev": "npm run build && source ./env.dev.sh && node build/index.js",
+    "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
@@ -85,6 +85,7 @@
     "vm2": "^3.8.1"
   },
   "devDependencies": {
+    "env-cmd": "^9.0.1",
     "husky": "^2.1.0"
   },
   "jest": {
