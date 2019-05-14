@@ -68,7 +68,7 @@ describe('Browserless Chrome WebSockets', () => {
 
         browser.once('disconnected', resolve);
 
-        browser.close();
+        browser.disconnect();
       });
     };
 

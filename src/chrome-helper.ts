@@ -7,7 +7,7 @@ import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
+import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, HOST, PORT, WORKSPACE_DIR } from './config';
 import { canLog, fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 const puppeteer = require('puppeteer');
@@ -98,6 +98,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
     runningBrowsers.map(async (browser) => {
       const endpoint = browser.wsEndpoint();
       const { port } = url.parse(endpoint);
+      const host = HOST || '127.0.0.1';
 
       if (!port) {
         throw new Error('Error locating port in browser endpoint: ${endpoint}');
@@ -107,9 +108,14 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 
       return sessions.map((session) => ({
         ...session,
-        devtoolsFrontendUrl: session.devtoolsFrontendUrl.replace(port, PORT.toString()),
         port,
-        webSocketDebuggerUrl: session.webSocketDebuggerUrl.replace(port, PORT.toString()),
+
+        devtoolsFrontendUrl: session.devtoolsFrontendUrl
+          .replace(port, PORT.toString())
+          .replace('127.0.0.1', host),
+        webSocketDebuggerUrl: session.webSocketDebuggerUrl
+          .replace(port, PORT.toString())
+          .replace('127.0.0.1', host),
       }));
     }),
   );
@@ -208,7 +214,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
   } = urlParts.query;
 
   return {
-    args,
+    args: args as string[],
     blockAds: typeof blockAds !== 'undefined',
     headless: headless !== 'false',
     ignoreDefaultArgs: ignoreDefaultArgs ?
