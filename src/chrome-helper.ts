@@ -7,7 +7,7 @@ import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import { Browser, LaunchOptions } from 'puppeteer';
 import * as url from 'url';
-import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR } from './config';
+import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, PORT, WORKSPACE_DIR, LAUNCH_ARGS } from './config';
 import { canLog, fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 const puppeteer = require('puppeteer');
@@ -58,7 +58,7 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   executablePath = revisionInfo.executablePath;
 }
 
-export const defaultLaunchArgs = {
+const _defaultLaunchArgs = {
   args: [],
   blockAds: false,
   headless: true,
@@ -68,6 +68,8 @@ export const defaultLaunchArgs = {
   slowMo: undefined,
   userDataDir: undefined,
 };
+
+export const defaultLaunchArgs = {..._defaultLaunchArgs, ...LAUNCH_ARGS};
 
 const parseIgnoreDefaultArgs = (argsString: string | string[]): boolean | string[] => {
   if (Array.isArray(argsString)) {

@@ -1,6 +1,6 @@
 import * as os from 'os';
 
-const parseJSONParam = (param: string | undefined, defaultParam: number | boolean | string[]) => {
+const parseJSONParam = (param: string | undefined, defaultParam: number | boolean | string[] | object) => {
   if (param) {
     try {
       return JSON.parse(param);
@@ -43,3 +43,4 @@ export const WORKSPACE_DIR: string =              process.env.WORKSPACE_DIR ? pr
 export const DEBUG: string | undefined =          process.env.DEBUG;
 export const MAX_PAYLOAD_SIZE: string =           process.env.MAX_PAYLOAD_SIZE || '5mb';
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);
+export const LAUNCH_ARGS: object =                parseJSONParam(process.env.LAUNCH_ARGS, {});
