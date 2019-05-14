@@ -86,7 +86,7 @@
   },
   "devDependencies": {
     "env-cmd": "^9.0.1",
-    "husky": "^2.1.0"
+    "husky": "^2.3.0"
   },
   "jest": {
     "testEnvironment": "node",
