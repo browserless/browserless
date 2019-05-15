@@ -120,20 +120,31 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 };
 
 export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Browser> => {
-  const browserlessDataDir = opts.userDataDir;
+  let isUsingTempDataDir = true;
+  let browserlessDataDir: string | null = null;
+
   const launchArgs = {
     ...opts,
-    args: [...opts.args || [], ...BROWSERLESS_ARGS],
+    args: [
+      ...BROWSERLESS_ARGS,
+      ...(opts.args || []),
+    ],
     executablePath,
     handleSIGINT: false,
     handleSIGTERM: false,
   };
 
+  // Having a user-data-dir in args is higher precedence than in opts
   const hasUserDataDir = _.some((launchArgs.args), (arg) => arg.includes('--user-data-dir='));
 
-  // If no data-dir is set, build one that is managed by us and cleanedup after
-  if (!hasUserDataDir && !browserlessDataDir) {
-    launchArgs.args.push(`--user-data-dir=${await getUserDataDir()}`);
+  if (hasUserDataDir || opts.userDataDir) {
+    isUsingTempDataDir = false;
+  }
+
+  // If no data-dir is specified, use the default one in opts or generate one
+  if (!hasUserDataDir) {
+    browserlessDataDir = opts.userDataDir || await getUserDataDir();
+    launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
@@ -142,7 +153,8 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
     const { port } = url.parse(browser.wsEndpoint());
 
     browser.once('disconnected', () => {
-      if (browserlessDataDir) {
+      if (isUsingTempDataDir && browserlessDataDir) {
+        debug(`Removing temp data-dir ${browserlessDataDir}`);
         rimraf(browserlessDataDir);
       }
 
