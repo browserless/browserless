@@ -97,7 +97,7 @@ describe('Browserless Chrome WebSockets', () => {
         browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
       });
 
-      browser.close();
+      browser.disconnect();
     };
 
     browserless.queue.on('end', () => {
@@ -181,7 +181,7 @@ describe('Browserless Chrome WebSockets', () => {
       browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
     });
 
-    await browser.close();
+    await browser.disconnect();
     const processes = await getChromeProcesses();
 
     await sleep(100);
