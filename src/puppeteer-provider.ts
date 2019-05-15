@@ -90,7 +90,7 @@ export class PuppeteerProvider {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
       if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions + 2);
+        process.setMaxListeners(this.config.maxConcurrentSessions + 3);
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
@@ -106,8 +106,7 @@ export class PuppeteerProvider {
 
     if (this.config.enableXvfb) {
       const xvfb = new XVFB();
-      const start = promisify(xvfb.start.bind(xvfb));
-      await start();
+      await promisify(xvfb.start.bind(xvfb))();
     }
 
     return Promise.resolve();
