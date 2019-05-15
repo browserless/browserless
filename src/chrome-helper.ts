@@ -5,17 +5,29 @@ import * as express from 'express';
 import * as fs from 'fs';
 import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
-import { Browser, LaunchOptions } from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 import * as url from 'url';
-import { DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, ENABLE_DEBUG_VIEWER, HOST, PORT, WORKSPACE_DIR } from './config';
 import { canLog, fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
-const puppeteer = require('puppeteer');
+import {
+  DEFAULT_BLOCK_ADS,
+  DEFAULT_HEADLESS,
+  DEFAULT_IGNORE_DEFAULT_ARGS,
+  DEFAULT_IGNORE_HTTPS_ERRORS,
+  DEFAULT_LAUNCH_ARGS,
+  DEFAULT_USER_DATA_DIR,
+  DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
+  ENABLE_DEBUG_VIEWER,
+  HOST,
+  PORT,
+  WORKSPACE_DIR,
+} from './config';
+
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const packageJson = require('puppeteer/package.json');
 const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
-const DEFAULT_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
+const BROWSERLESS_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
 let executablePath: string;
@@ -26,7 +38,7 @@ export interface IChromeDriver {
   chromeProcess: ChildProcess;
 }
 
-interface IBrowser extends Browser {
+interface IBrowser extends puppeteer.Browser {
   port: string | undefined;
 }
 
@@ -41,7 +53,7 @@ interface ISession {
   port: string;
 }
 
-export interface ILaunchOptions extends LaunchOptions {
+export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
 }
@@ -59,30 +71,14 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
 }
 
 export const defaultLaunchArgs = {
-  args: [],
-  blockAds: false,
-  headless: true,
-  ignoreDefaultArgs: false,
-  ignoreHTTPSErrors: false,
+  args: DEFAULT_LAUNCH_ARGS,
+  blockAds: DEFAULT_BLOCK_ADS,
+  headless: DEFAULT_HEADLESS,
+  ignoreDefaultArgs: DEFAULT_IGNORE_DEFAULT_ARGS,
+  ignoreHTTPSErrors: DEFAULT_IGNORE_HTTPS_ERRORS,
   pauseOnConnect: false,
   slowMo: undefined,
-  userDataDir: undefined,
-};
-
-const parseIgnoreDefaultArgs = (argsString: string | string[]): boolean | string[] => {
-  if (Array.isArray(argsString)) {
-    return argsString;
-  }
-
-  if (argsString === 'true' || argsString === 'false') {
-    return argsString === 'true';
-  }
-
-  if (argsString.includes(',')) {
-    return argsString.split(',');
-  }
-
-  return false;
+  userDataDir: DEFAULT_USER_DATA_DIR,
 };
 
 export const getRandomSession = () => _.sample(runningBrowsers) as IBrowser | undefined;
@@ -123,21 +119,31 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
   return _.flatten(results);
 };
 
-export const launchChrome = async (opts: ILaunchOptions): Promise<Browser> => {
+export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Browser> => {
+  let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
+
   const launchArgs = {
     ...opts,
-    args: [...opts.args || [], ...DEFAULT_ARGS],
+    args: [
+      ...BROWSERLESS_ARGS,
+      ...(opts.args || []),
+    ],
     executablePath,
     handleSIGINT: false,
     handleSIGTERM: false,
   };
 
+  // Having a user-data-dir in args is higher precedence than in opts
   const hasUserDataDir = _.some((launchArgs.args), (arg) => arg.includes('--user-data-dir='));
 
-  // If no data-dir is set, build one that is managed by us and cleanedup after
+  if (hasUserDataDir || opts.userDataDir) {
+    isUsingTempDataDir = false;
+  }
+
+  // If no data-dir is specified, use the default one in opts or generate one
   if (!hasUserDataDir) {
-    browserlessDataDir = await getUserDataDir();
+    browserlessDataDir = opts.userDataDir || await getUserDataDir();
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }
 
@@ -147,7 +153,8 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<Browser> => {
     const { port } = url.parse(browser.wsEndpoint());
 
     browser.once('disconnected', () => {
-      if (browserlessDataDir) {
+      if (isUsingTempDataDir && browserlessDataDir) {
+        debug(`Removing temp data-dir ${browserlessDataDir}`);
         rimraf(browserlessDataDir);
       }
 
@@ -214,16 +221,14 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
   } = urlParts.query;
 
   return {
-    args: args as string[],
-    blockAds: typeof blockAds !== 'undefined',
-    headless: headless !== 'false',
-    ignoreDefaultArgs: ignoreDefaultArgs ?
-      parseIgnoreDefaultArgs(ignoreDefaultArgs) :
-      false,
-    ignoreHTTPSErrors: ignoreHTTPSErrors === 'true',
-    pauseOnConnect: typeof pause !== 'undefined',
+    args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
+    blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
+    headless: !_.isUndefined(headless) || DEFAULT_HEADLESS,
+    ignoreDefaultArgs: !_.isUndefined(ignoreDefaultArgs) || DEFAULT_IGNORE_DEFAULT_ARGS,
+    ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
+    pauseOnConnect: !_.isUndefined(pause),
     slowMo: parseInt(slowMo as string, 10) || undefined,
-    userDataDir: userDataDir as string,
+    userDataDir: userDataDir as string || DEFAULT_USER_DATA_DIR,
   };
 };
 
