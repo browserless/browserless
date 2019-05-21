@@ -38,6 +38,7 @@ RUN apt-get update && \
   fonts-noto-cjk \
   fonts-liberation \
   fonts-thai-tlwg \
+  fonts-indic \
   fontconfig \
   libappindicator3-1 \
   pdftk \
