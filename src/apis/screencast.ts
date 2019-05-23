@@ -20,12 +20,8 @@ interface IAfter {
 }
 
 export const before = async ({ page, code }: IBefore) => {
-  // @ts-ignore
-  await page._client.send('Emulation.clearDeviceMetricsOverride');
-  await page.setBypassCSP(true);
-
-  const startScreencast = () => page.evaluate(() =>
-    window.postMessage({
+  const startScreencast = async () =>
+    page.evaluate(() => window.postMessage({
       data: {
         url: window.location.origin,
       },
