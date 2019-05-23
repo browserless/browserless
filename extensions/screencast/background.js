@@ -10,19 +10,21 @@ chrome.runtime.onConnect.addListener((port) => {
         if (recorder) {
           return;
         }
-        chrome.desktopCapture.chooseDesktopMedia(['tab', 'audio'], streamId => {
+        chrome.desktopCapture.chooseDesktopMedia(['audio','tab'], streamId => {
           // Get the stream
           navigator.webkitGetUserMedia(
             {
-              audio: false,
+              audio: {
+                mandatory: {
+                  chromeMediaSource: 'desktop',
+                  chromeMediaSourceId: streamId,
+                  echoCancellation: true
+                },
+              },
               video: {
                 mandatory: {
                   chromeMediaSource: 'desktop',
                   chromeMediaSourceId: streamId,
-                  minWidth: 1280,
-                  maxWidth: 1280,
-                  minHeight: 720,
-                  maxHeight: 720,
                   minFrameRate: 60
                 }
               }
@@ -30,7 +32,6 @@ chrome.runtime.onConnect.addListener((port) => {
             (stream) => {
               const chunks = [];
               recorder = new MediaRecorder(stream, {
-                videoBitsPerSecond: 2500000,
                 ignoreMutedMedia: true,
                 mimeType: 'video/webm'
               });
