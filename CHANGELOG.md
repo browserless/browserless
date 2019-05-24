@@ -1,3 +1,10 @@
+# 1.8.0
+- Better windows dev experience.
+- Indian font support.
+- Video capture now supports audio and browser width/height.
+- Dependency updates.
+- DEFAULT env variables for launching pre-booted Chrome.
+
 # 1.7.0
 - Dep updates
 - New `?blockAds` query-parameter for disabling 3rd-party ad calls.
