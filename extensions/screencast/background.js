@@ -1,11 +1,19 @@
 let recorder = null;
+let shouldRecord = false;
 
 chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((msg) => {
     switch (msg.type) {
       case 'REC_STOP':
-        recorder.stop();
+        recorder && recorder.stop();
         break;
+
+      case 'REC_START':
+        // Set a flag to start in case the stream hasn't been setup yet
+        shouldRecord = true
+        recorder && recorder.start();
+        break;
+
       case 'REC_CLIENT_PLAY':
         if (recorder) {
           return;
@@ -50,12 +58,13 @@ chrome.runtime.onConnect.addListener((port) => {
                 chrome.downloads.download({ url }, () => {});
               };
 
-              recorder.start();
+              shouldRecord && recorder.start();
             },
             error => console.log('Unable to get user media', error)
           );
         });
         break;
+
       default:
         console.log('Unrecognized message', msg);
     }

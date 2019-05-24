@@ -20,19 +20,17 @@ interface IAfter {
 }
 
 export const before = async ({ page, code }: IBefore) => {
-  const startScreencast = async () =>
-    page.evaluate(() => window.postMessage({
-      data: {
-        url: window.location.origin,
-      },
-      type: 'REC_CLIENT_PLAY',
-    }, '*'));
-
+  const setupScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_CLIENT_PLAY' }, '*'));
+  const startScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_START' }, '*'));
   const stopScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_STOP' }, '*'));
 
-  if (!code.includes('startScreencast')) {
-    page.on('load', startScreencast);
-  }
+  page.on('load', async () => {
+    await setupScreencast();
+
+    if (!code.includes('startScreencast')) {
+      startScreencast();
+    }
+  });
 
   return {
     startScreencast,
