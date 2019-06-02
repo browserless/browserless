@@ -1,6 +1,8 @@
 ![browserless splash logo](https://raw.githubusercontent.com/browserless/chrome/master/assets/splash.png)
 
-[![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
+![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)
+
+![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
 
 **NOTE: We've migrated this repo to the browserless organization. Update your git remotes:**
 
