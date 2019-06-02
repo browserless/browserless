@@ -16,10 +16,6 @@ window.onload = () => {
       port.postMessage(event.data);
     }
 
-    if (event.data.type === 'PLAYBACK_COMPLETE') {
-      port.postMessage({ type: 'REC_STOP' }, '*');
-    }
-
     if (event.data.filename) {
       document.querySelector('html').setAttribute('data-filepath', event.data.filename);
     }

@@ -1,6 +1,12 @@
 ![browserless splash logo](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/splash.png)
 
-[![Build Status](https://travis-ci.org/joelgriffith/browserless.svg?branch=master)](https://travis-ci.org/joelgriffith/browserless) [![Greenkeeper badge](https://badges.greenkeeper.io/joelgriffith/browserless.svg)](https://greenkeeper.io/)
+[![Build Status](https://travis-ci.org/joelgriffith/browserless.svg?branch=master)](https://travis-ci.org/joelgriffith/browserless)
+
+**NOTE: We've migrated this repo to the browserless organization. Update your git remotes:**
+
+```sh
+git remote set-url origin https://github.com/browserless/chrome.git
+```
 
 browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, selenium's webdriver, and a slew of handy REST API's for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements.
 
