@@ -340,6 +340,7 @@ export class PuppeteerProvider {
     const handler = debugCode ?
       (done: IDone) => {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
+        const doneOnce = _.once(done);
         const code = this.parseUserCode(debugCode, job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
@@ -354,7 +355,7 @@ export class PuppeteerProvider {
         job.browser = handler;
 
         socket.removeListener('close', earlyClose);
-        socket.once('close', done);
+        socket.once('close', doneOnce);
 
         handler.on('launched', ({ port, url }) => {
           req.url = url;
@@ -364,12 +365,13 @@ export class PuppeteerProvider {
 
         handler.on('error', (err) => {
           jobdebug(`${job.id}: Debugger crashed, exiting connection`);
-          done(err);
+          doneOnce(err);
           socket.end();
         });
       } :
       (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
+        const doneOnce = _.once(done);
         const launchPromise = this.getChrome(opts);
 
         launchPromise
@@ -378,8 +380,11 @@ export class PuppeteerProvider {
             const browserWsEndpoint = browser.wsEndpoint();
             job.browser = browser;
 
+            // Cleanup prior listener + listen for socket and browser close
+            // events just in case something doesn't trigger
             socket.removeListener('close', earlyClose);
-            socket.once('close', done);
+            socket.once('close', doneOnce);
+            browser.once('disconnected', doneOnce);
 
             if (!route.includes('/devtools/page')) {
               jobdebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
@@ -398,7 +403,7 @@ export class PuppeteerProvider {
           .then((target) => this.server.proxy.ws(req, socket, head, { target }))
           .catch((error) => {
             jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
-            done(error);
+            doneOnce(error);
             socket.end();
           });
       };
@@ -493,7 +498,7 @@ export class PuppeteerProvider {
     }
 
     jobdebug(`${job.id}: Browser not needed, closing`);
-    await browser.close();
+    browser.close().catch(_.noop);
     treekill(browser.process().pid, 'SIGKILL');
 
     jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
