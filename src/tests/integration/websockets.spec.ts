@@ -21,7 +21,7 @@ describe('Browserless Chrome WebSockets', () => {
     return killChrome();
   });
 
-  it.skip('runs concurrently', async (done) => {
+  it('runs concurrently', async (done) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -169,7 +169,7 @@ describe('Browserless Chrome WebSockets', () => {
       });
   });
 
-  it.skip('closes chrome when the session is closed', async () => {
+  it('closes chrome when the session is closed', async () => {
     const params = defaultParams();
     const browserless = start({
       ...params,

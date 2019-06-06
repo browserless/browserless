@@ -189,6 +189,7 @@ export class PuppeteerProvider {
 
     const job: IJob = Object.assign(
       (done: IDone) => {
+        const doneOnce = _.once(done);
         const debug = (message: string) => jobdebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
@@ -211,7 +212,7 @@ export class PuppeteerProvider {
               if (!res.headersSent) {
                 res.status(400).send(error.message);
               }
-              done();
+              doneOnce();
             });
 
             if (before) {
@@ -223,9 +224,10 @@ export class PuppeteerProvider {
             job.browser = browser;
 
             req.removeListener('close', earlyClose);
+            browser.once('disconnected', () => doneOnce());
             req.once('close', () => {
               debug(`Request terminated during execution, closing`);
-              done();
+              doneOnce();
             });
 
             return Promise.resolve(handler({
@@ -243,7 +245,7 @@ export class PuppeteerProvider {
                     browser,
                     code,
                     debug,
-                    done,
+                    done: doneOnce,
                     jobId,
                     page,
                     req,
@@ -255,7 +257,7 @@ export class PuppeteerProvider {
 
                 // If we've already responded (detached/error) we're done
                 if (res.headersSent) {
-                  return done();
+                  return doneOnce();
                 }
 
                 res.type(type);
@@ -268,7 +270,7 @@ export class PuppeteerProvider {
                   res.send(data);
                 }
 
-                return done();
+                return doneOnce();
               });
           })
           .catch((error) => {
@@ -276,7 +278,7 @@ export class PuppeteerProvider {
               res.status(400).send(error.message);
             }
             debug(`Function errored, stopping Chrome`);
-            done(error);
+            doneOnce(error);
           });
       },
       {

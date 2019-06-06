@@ -184,7 +184,7 @@ describe('Browserless Chrome Webdriver', () => {
       });
   });
 
-  it.skip('closes chrome when the session is closed', async () => {
+  it('closes chrome when the session is closed', async () => {
     const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
