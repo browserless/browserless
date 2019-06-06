@@ -1,3 +1,9 @@
+# 1.9.0
+- Better handling of browser/socket closing in puppeteer integrations.
+- Numerous screencast fixes.
+- Moved all GH links to new repo location.
+- Dep updates.
+
 # 1.8.0
 - Better windows dev experience.
 - Indian font support.
