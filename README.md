@@ -1,6 +1,7 @@
-![browserless splash logo](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/splash.png)
+![browserless splash logo](https://raw.githubusercontent.com/browserless/chrome/master/assets/splash.png)
 
-[![Build Status](https://travis-ci.org/joelgriffith/browserless.svg?branch=master)](https://travis-ci.org/joelgriffith/browserless)
+[![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
+![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
 
 **NOTE: We've migrated this repo to the browserless organization. Update your git remotes:**
 
@@ -69,7 +70,7 @@ In order to run Browserless, you'll need:
 
 **Browserless Install**
 
-1. `git clone https://github.com/joelgriffith/browserless.git`
+1. `git clone https://github.com/browserless/chrome.git`
 2. `cd browserless`
 3. `npm install`
 4. `npm run dev`
@@ -77,7 +78,7 @@ In order to run Browserless, you'll need:
 
 # Live Debugger
 
-![Browserless Debugger](https://raw.githubusercontent.com/joelgriffith/browserless/master/assets/demo.gif)
+![Browserless Debugger](https://raw.githubusercontent.com/browserless/chrome/master/assets/demo.gif)
 
 browserless comes with _two_ methods of debugging. The first is a web-based debugger for trying out small chunks of code without setting up a new project. You can see our public-facing [debugger here](https://chrome.browserless.io/).
 

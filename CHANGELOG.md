@@ -1,3 +1,9 @@
+# 1.9.0
+- Better handling of browser/socket closing in puppeteer integrations.
+- Numerous screencast fixes.
+- Moved all GH links to new repo location.
+- Dep updates.
+
 # 1.8.0
 - Better windows dev experience.
 - Indian font support.
@@ -51,12 +57,12 @@
 # 1.2.0
 
 # Minor Changes
-- New `requestInterceptors` for the /screenshot API, [allowing you to mock data in response to a request](https://github.com/joelgriffith/browserless/pull/119).
+- New `requestInterceptors` for the /screenshot API, [allowing you to mock data in response to a request](https://github.com/browserless/chrome/pull/119).
 - Code debugger now transmits code over-the-wire via cookies to avoid URL max-length issues.
 - Now supports cookie-based authentication via a `browserless_token=TOKEN;` cookie.
 
 # Fixes
-- [Comments in the debugger won't break it.](https://github.com/joelgriffith/browserless/issues/118)
+- [Comments in the debugger won't break it.](https://github.com/browserless/chrome/issues/118)
 - Requests that are rejected due to auth reasons aren't logged in stats.
 
 # 1.1.0
