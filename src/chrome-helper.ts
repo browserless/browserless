@@ -220,10 +220,14 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     pause,
   } = urlParts.query;
 
+  const isHeadless = !_.isUndefined(headless) ?
+    headless !== 'false' :
+    DEFAULT_HEADLESS;
+
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
-    headless: !_.isUndefined(headless) || DEFAULT_HEADLESS,
+    headless: isHeadless,
     ignoreDefaultArgs: !_.isUndefined(ignoreDefaultArgs) || DEFAULT_IGNORE_DEFAULT_ARGS,
     ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
     pauseOnConnect: !_.isUndefined(pause),
