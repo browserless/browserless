@@ -24,7 +24,7 @@ const logExec = (cmd) => {
 };
 
 async function cleanup () {
-  return logExec(`git reset HEAD --hard`);
+  return logExec(`git reset origin/master --hard`);
 }
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
