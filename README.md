@@ -74,7 +74,7 @@ In order to run Browserless, you'll need:
 2. `cd browserless`
 3. `npm install`
 4. `npm run dev`
-5. Visit `http://localhost:8080/` to use the interactive debugger.
+5. Visit `http://localhost:3000/` to use the interactive debugger.
 
 # Live Debugger
 
