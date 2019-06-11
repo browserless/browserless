@@ -58,7 +58,7 @@
     "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
     "body-parser": "^1.18.2",
-    "chromedriver": "^74.0.0",
+    "chromedriver": "^75.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
     "debug": "^4.0.0",
