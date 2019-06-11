@@ -70,7 +70,7 @@ In order to run Browserless, you'll need:
 
 **Browserless Install**
 
-1. `git clone https://github.com/browserless/chrome.git`
+1. `git clone https://github.com/browserless/chrome.git browserless`
 2. `cd browserless`
 3. `npm install`
 4. `npm run dev`
