@@ -31,7 +31,7 @@ describe('Browserless Chrome Webdriver', () => {
     });
 
     await browserless.startServer();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     async function run() {
       const driver = new webdriver.Builder()
@@ -61,7 +61,7 @@ describe('Browserless Chrome Webdriver', () => {
     });
 
     await browserless.startServer();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     async function run() {
       const driver = new webdriver.Builder()
@@ -92,7 +92,7 @@ describe('Browserless Chrome Webdriver', () => {
     });
 
     await browserless.startServer();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     async function run() {
       const driver = new webdriver.Builder()
@@ -113,13 +113,44 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
+  it('authorizes with webdriver-backed tokens', async () => {
+    const params = defaultParams();
+    const chromeCapabilities = webdriver.Capabilities.chrome();
+    const browserless = start({
+      ...params,
+      token: 'abcd',
+    });
+
+    await browserless.startServer();
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
+    chromeCapabilities.set('browserless.token', 'abcd');
+
+    async function run() {
+      const driver = new webdriver.Builder()
+        .forBrowser('chrome')
+        .withCapabilities(chromeCapabilities)
+        .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
+        .build();
+
+      await driver.get('https://example.com');
+      await driver.quit();
+    }
+
+    await run();
+    await sleep(50);
+
+    expect(browserless.currentStat.successful).toEqual(1);
+    expect(browserless.currentStat.rejected).toEqual(0);
+    expect(browserless.currentStat.queued).toEqual(0);
+  });
+
   it('queues sessions', async () => {
     const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start(params);
 
     await browserless.startServer();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     async function run() {
       const driver = new webdriver.Builder()
@@ -149,7 +180,7 @@ describe('Browserless Chrome Webdriver', () => {
 
     await browserless.startServer();
     const chromeCapabilities = webdriver.Capabilities.chrome();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     return new webdriver.Builder()
       .forBrowser('chrome')
@@ -171,7 +202,7 @@ describe('Browserless Chrome Webdriver', () => {
 
     await browserless.startServer();
     const chromeCapabilities = webdriver.Capabilities.chrome();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     return new webdriver.Builder()
       .forBrowser('chrome')
@@ -193,7 +224,7 @@ describe('Browserless Chrome Webdriver', () => {
     });
 
     await browserless.startServer();
-    chromeCapabilities.set('chromeOptions', webdriverOpts);
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
 
     const driver = new webdriver.Builder()
       .forBrowser('chrome')

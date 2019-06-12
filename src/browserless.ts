@@ -14,6 +14,9 @@ import {
   clearBrowserlessDataDirs,
   getDebug,
   isAuthorized,
+  isWebdriverAuthorized,
+  readRequestBody,
+  safeParse,
   tokenCookieName,
   writeFile,
 } from './utils';
@@ -220,6 +223,11 @@ export class BrowserlessServer {
             return res.end();
           }
 
+          // Handle webdriver requests early, which handles it's own auth
+          if (req.url && req.url.includes(webDriverPath)) {
+            return this.handleWebDriver(req, res);
+          }
+
           if (this.config.token && !isAuthorized(req, this.config.token)) {
             res.writeHead(403, { 'Content-Type': 'text/plain' });
             return res.end('Unauthorized');
@@ -234,11 +242,6 @@ export class BrowserlessServer {
               maxAge: twentyFourHours / 1000,
             });
             res.setHeader('Set-Cookie', cookieToken);
-          }
-
-          // Handle webdriver requests
-          if (req.url && req.url.includes(webDriverPath)) {
-            return this.handleWebDriver(req, res);
           }
 
           return app(req, res);
@@ -318,13 +321,26 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  private handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
+  private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
     const sessionPathMatcher = new RegExp('^' + webDriverPath + '/\\w+$');
 
     const isStarting = req.method && req.method.toLowerCase() === 'post' && req.url === webDriverPath;
     const isClosing = req.method && req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url || '');
 
     if (isStarting) {
+      const body = await readRequestBody(req);
+      const parsed = safeParse(body);
+
+      if (!parsed) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        return res.end('Bad Request, no body posted');
+      }
+
+      if (this.config.token && !isWebdriverAuthorized(req, parsed, this.config.token)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        return res.end('Unauthorized');
+      }
+
       return this.webdriver.start(req, res);
     }
 

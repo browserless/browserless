@@ -10,8 +10,10 @@ import * as os from 'os';
 import * as path from 'path';
 import rmrf = require('rimraf');
 import * as shortid from 'shortid';
+import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
+
 import { DEBUG } from './config';
 
 const dbg = require('debug');
@@ -77,6 +79,19 @@ export const bodyValidation = (schema: Joi.Schema) => {
 export const tokenCookieName = 'browserless_token';
 export const codeCookieName = 'browserless_code';
 
+export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: string) => {
+  const authToken = (
+    getBasicAuthToken(req) ||
+    _.get(body, ['desiredCapabilities', 'browserless.token'], null)
+  );
+
+  if (authToken !== token) {
+    return false;
+  }
+
+  return true;
+};
+
 export const isAuthorized = (req: express.Request | IncomingMessage, token: string) => {
   const cookies = cookie.parse(req.headers.cookie || '');
   const parsedUrl = url.parse(req.url as string, true);
@@ -104,6 +119,53 @@ export const generateChromeTarget = () => {
 export const sleep = (time = 0) => {
   return new Promise((resolve) => {
     setTimeout(resolve, time);
+  });
+};
+
+export const safeParse = (maybeJson: any) => {
+  try {
+    return JSON.parse(maybeJson);
+  } catch {
+    return null;
+  }
+};
+
+export const attachBodyToRequest = (req: IncomingMessage, body: any) => {
+  const bufferStream = new PassThrough();
+  bufferStream.end(Buffer.from(body));
+
+  Object.assign(req, bufferStream);
+};
+
+export const readRequestBody = async (req: IncomingMessage): Promise<any> => {
+  return new Promise((resolve) => {
+    const body: Uint8Array[] = [];
+    let hasResolved = false;
+
+    const resolveNow = (results: any) => {
+      if (hasResolved) {
+        return;
+      }
+      hasResolved = true;
+      attachBodyToRequest(req, results);
+      resolve(results);
+    };
+
+    req
+      .on('data', (chunk) => body.push(chunk))
+      .on('end', () => {
+        if (!req.complete || hasResolved) {
+          resolveNow(null);
+        }
+        const final = Buffer.concat(body).toString();
+        resolveNow(final);
+      })
+      .on('aborted', () => {
+        resolveNow(null);
+      })
+      .on('error', () => {
+        resolveNow(null);
+      });
   });
 };
 
