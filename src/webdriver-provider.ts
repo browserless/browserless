@@ -59,7 +59,7 @@ export class WebDriver {
               proxyRes.on('end', () => {
                 const responseBody = body.toString();
                 const session = JSON.parse(responseBody);
-                const id = session.sessionId;
+                const id = session.sessionId || session.value.sessionId;
                 debug('Session started, got body: ', responseBody);
 
                 job.id = id;
