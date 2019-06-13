@@ -34,7 +34,6 @@ export class WebDriver {
   // with some special circumstances and use it inside our queue
   public start(req: IncomingMessage, res: ServerResponse) {
     debug(`Inbound webdriver request`);
-    req.headers.host = '127.0.0.1:3000';
 
     if (!this.queue.hasCapacity) {
       debug(`Too many concurrent and queued requests, rejecting.`);
@@ -51,7 +50,10 @@ export class WebDriver {
         req.removeListener('close', earlyClose);
         this.launchChrome()
           .then(({ port, chromeProcess }) => {
-            const proxy: any = httpProxy.createProxyServer({ target: `http://localhost:${port}` });
+            const proxy: any = httpProxy.createProxyServer({
+              target: `http://localhost:${port}`,
+              changeOrigin: true,
+            });
 
             proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
               let body = Buffer.from('');
