@@ -36,7 +36,7 @@ export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USE
 export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME, false);
 
 // Security and accessibility
-export const DEBUG: string = process.env.DEBUG || 'browserless*';
+export const DEBUG: string = process.env.DEBUG || (process.env.DEBUG = 'browserless*');
 export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
 export const ENABLE_CORS: boolean  = parseJSONParam(process.env.ENABLE_CORS, false);
 export const ENABLE_DEBUGGER: boolean = parseJSONParam(process.env.ENABLE_DEBUGGER, true);
