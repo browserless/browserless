@@ -134,11 +134,7 @@ module.exports = async function pdf({ page, context }) {
     data = await pdftk
       .input(data)
       .rotate(rotateValue)
-      .output()
-      .then((raw) => {
-        console.log(raw);
-        return raw;
-      })
+      .output();
   }
 
   return {
