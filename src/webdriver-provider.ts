@@ -51,8 +51,8 @@ export class WebDriver {
         this.launchChrome()
           .then(({ port, chromeProcess }) => {
             const proxy: any = httpProxy.createProxyServer({
-              target: `http://localhost:${port}`,
               changeOrigin: true,
+              target: `http://localhost:${port}`,
             });
 
             proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
