@@ -1,5 +1,21 @@
 import * as os from 'os';
 
+// Required, by default, to make certain API's work
+const REQUIRED_INTERNALS = ['url'];
+const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk'];
+
+const getDebug = () => {
+  if (typeof process.env.DEBUG !== 'undefined') {
+    return process.env.DEBUG;
+  }
+
+  if (process.env.CI) {
+    return process.env.DEBUG;
+  }
+
+  return process.env.DEBUG = 'browserless*';
+};
+
 const parseJSONParam = (param: string | undefined, defaultParam: number | boolean | string[]) => {
   if (param) {
     try {
@@ -32,7 +48,7 @@ export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USE
 export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME, false);
 
 // Security and accessibility
-export const DEBUG: string | undefined = process.env.DEBUG;
+export const DEBUG: string | undefined = getDebug();
 export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
 export const ENABLE_CORS: boolean  = parseJSONParam(process.env.ENABLE_CORS, false);
 export const ENABLE_DEBUGGER: boolean = parseJSONParam(process.env.ENABLE_DEBUGGER, true);
@@ -42,8 +58,8 @@ export const TOKEN: string | null = process.env.TOKEN || null;
 
 // Puppeteer behavior
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);
-export const FUNCTION_BUILT_INS: string[] = parseJSONParam(process.env.FUNCTION_BUILT_INS, []);
-export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_EXTERNALS, []);
+export const FUNCTION_BUILT_INS: string[] = parseJSONParam(process.env.FUNCTION_BUILT_INS, REQUIRED_INTERNALS);
+export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_EXTERNALS, REQUIRED_EXTERNALS);
 export const WORKSPACE_DIR: string = process.env.WORKSPACE_DIR ? process.env.WORKSPACE_DIR : os.tmpdir();
 
 // Webhooks

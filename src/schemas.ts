@@ -110,6 +110,7 @@ export const pdf = Joi.object().keys({
   }),
   rejectRequestPattern,
   requestInterceptors,
+  rotate: Joi.number().valid(90, -90, 180),
   safeMode: Joi.boolean().default(
     false,
     'Whether to safely generate the PDF (renders pages one-at-a-time and merges it in-memory). ' +

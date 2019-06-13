@@ -62,6 +62,7 @@ module.exports = async function pdf({ page, context }) {
     html,
     options,
     url = null,
+    rotate = null,
     safeMode,
     gotoOptions,
     rejectRequestPattern = [],
@@ -116,9 +117,25 @@ module.exports = async function pdf({ page, context }) {
     await page.goto('http://localhost', gotoOptions);
   }
 
-  const data = safeMode ?
+  let data = safeMode ?
     await buildPages(page, options) :
     await page.pdf(options);
+
+  if (rotate) {
+    const pdftk = require('node-pdftk');
+    const rotateValue = rotate === 90 ?
+      '1-endright' :
+      rotate === -90 ?
+      '1-endleft' :
+      rotate === 180 ?
+      '1-enddown' :
+      '';
+
+    data = await pdftk
+      .input(data)
+      .rotate(rotateValue)
+      .output();
+  }
 
   return {
     data,
