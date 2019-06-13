@@ -7,7 +7,7 @@ import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
-import { canLog, fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
+import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 import {
   DEFAULT_BLOCK_ADS,
@@ -39,7 +39,7 @@ export interface IChromeDriver {
 }
 
 interface IBrowser extends puppeteer.Browser {
-  port: string | undefined;
+  port?: string | undefined;
 }
 
 interface ISession {
@@ -58,7 +58,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   blockAds: boolean;
 }
 
-const defaultDriverFlags = ['--url-base=webdriver'];
+const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
 
 if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   // If it's installed already, consume it
@@ -102,17 +102,19 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 
       const sessions: ISession[] = await fetchJson(`http://127.0.0.1:${port}/json/list`);
 
-      return sessions.map((session) => ({
-        ...session,
-        port,
+      return sessions
+        .filter(({ title }) => title !== 'about:blank')
+        .map((session) => ({
+          ...session,
+          port,
 
-        devtoolsFrontendUrl: session.devtoolsFrontendUrl
-          .replace(port, PORT.toString())
-          .replace('127.0.0.1', host),
-        webSocketDebuggerUrl: session.webSocketDebuggerUrl
-          .replace(port, PORT.toString())
-          .replace('127.0.0.1', host),
-      }));
+          devtoolsFrontendUrl: session.devtoolsFrontendUrl
+            .replace(port, PORT.toString())
+            .replace('127.0.0.1', host),
+          webSocketDebuggerUrl: session.webSocketDebuggerUrl
+            .replace(port, PORT.toString())
+            .replace('127.0.0.1', host),
+        }));
     }),
   );
 
@@ -242,11 +244,35 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
   return new Promise<IChromeDriver>(async (resolve) => {
     const port = await getPort();
 
-    if (canLog) {
-      flags.push('--verbose');
+    const chromeProcess: ChildProcess = await chromeDriver.start(
+      [...flags, `--port=${port}`, '--whitelisted-ips'],
+      true,
+    );
+
+    async function onMessage(data: Buffer) {
+      const message = data.toString();
+      const match = message.match(/DevTools listening on (ws:\/\/.*)/);
+
+      if (match) {
+        chromeProcess.stderr && chromeProcess.stderr.off('data', onMessage);
+        const [, wsEndpoint] = match;
+        const { port } = url.parse(wsEndpoint);
+        debug(`Attaching to chromedriver browser on ${port}`);
+
+        const browser: IBrowser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+
+        browser.once('disconnected', () => {
+          debug(`Detaching from chromedriver browser on ${port}`);
+          runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
+        });
+
+        browser.port = port;
+
+        runningBrowsers.push(browser);
+      }
     }
 
-    const chromeProcess = await chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips'], true);
+    chromeProcess.stderr && chromeProcess.stderr.on('data', onMessage);
 
     return resolve({
       chromeProcess,
