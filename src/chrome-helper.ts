@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 // @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
 import * as express from 'express';
@@ -244,14 +244,17 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
   return new Promise<IChromeDriver>(async (resolve) => {
     const port = await getPort();
 
-    const chromeProcess = await chromeDriver.start([...flags, `--port=${port}`, '--whitelisted-ips'], true);
+    const chromeProcess: ChildProcess = await chromeDriver.start(
+      [...flags, `--port=${port}`, '--whitelisted-ips'],
+      true,
+    );
 
     async function onMessage(data: Buffer) {
       const message = data.toString();
       const match = message.match(/DevTools listening on (ws:\/\/.*)/);
 
       if (match) {
-        chromeProcess.stderr.off('data', onMessage);
+        chromeProcess.stderr && chromeProcess.stderr.off('data', onMessage);
         const [, wsEndpoint] = match;
         const { port } = url.parse(wsEndpoint);
         debug(`Attaching to chromedriver browser on ${port}`);
@@ -269,7 +272,7 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
       }
     }
 
-    chromeProcess.stderr.on('data', onMessage);
+    chromeProcess.stderr && chromeProcess.stderr.on('data', onMessage);
 
     return resolve({
       chromeProcess,
