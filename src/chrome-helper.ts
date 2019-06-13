@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess } from 'child_process';
 // @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
 import * as express from 'express';
