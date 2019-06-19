@@ -310,9 +310,22 @@ export class BrowserlessServer {
     this.rejectHook();
   }
 
-  public rejectSocket(req: http.IncomingMessage, socket: Socket, message: string, recordStat = true) {
+  public rejectSocket(
+    { req, socket, header, message, recordStat }:
+    { req: http.IncomingMessage; socket: Socket; header: string; message: string; recordStat: boolean; },
+  ) {
     debug(`${req.url}: ${message}`);
-    socket.end(message);
+
+    socket.write([
+      header,
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Encoding: UTF-8',
+      'Accept-Ranges: bytes',
+      'Connection: keep-alive',
+    ].join('\n') + '\n\n');
+    socket.write(message);
+    socket.end();
+
     if (recordStat) {
       this.currentStat.rejected++;
     }

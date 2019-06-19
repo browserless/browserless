@@ -36,9 +36,16 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
     Promise.resolve(handler(req, socket, head))
-      .catch((error) => {
+      .catch((error: Error) => {
         debug(`Error in WebSocket handler: ${error}`);
-        socket.write(`HTTP/1.1 400 ${error.message}\r\n`);
+        socket.write([
+          'HTTP/1.1 400 Bad Request',
+          'Content-Type: text/plain; charset=UTF-8',
+          'Content-Encoding: UTF-8',
+          'Accept-Ranges: bytes',
+          'Connection: keep-alive',
+        ].join('\n') + '\n\n');
+        socket.write('Bad Request, ', error.message);
         socket.end();
       });
   };

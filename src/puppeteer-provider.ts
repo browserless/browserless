@@ -318,21 +318,45 @@ export class PuppeteerProvider {
         const { port } = session;
         return this.proxyWsRequestToPort({ req, socket, head, port });
       }
-      return this.server.rejectSocket(req, socket, `HTTP/1.1\n404 Not Found`, false);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 404 Not Found`,
+        message: `Couldn't load session for ${route}`,
+        recordStat: false,
+        req,
+        socket,
+      });
     }
 
     if (this.config.token && !isAuthorized(req, this.config.token)) {
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 403 Forbidden`,
+        message: `Forbidden`,
+        recordStat: false,
+        req,
+        socket,
+      });
     }
 
     if (this.config.demoMode && !debugCode) {
       jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 403 Forbidden`, false);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 403 Forbidden`,
+        message: `Forbidden`,
+        recordStat: false,
+        req,
+        socket,
+      });
     }
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectSocket(req, socket, `HTTP/1.1 429 Too Many Requests`, true);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 429 Too Many Requests`,
+        message: `Too Many Requests`,
+        recordStat: true,
+        req,
+        socket,
+      });
     }
 
     const opts = convertUrlParamsToLaunchOpts(req);
