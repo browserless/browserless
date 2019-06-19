@@ -88,9 +88,7 @@ export class BrowserlessServer {
 
     this.proxy = httpProxy.createProxyServer();
     this.proxy.on('error', (err: Error, _req, res) => {
-      if (res.writeHead) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-      }
+      res.writeHead && res.writeHead(500, { 'Content-Type': 'text/plain' });
 
       debug(`Issue communicating with Chrome: "${err.message}"`);
       res.end(`Issue communicating with Chrome`);
@@ -229,7 +227,7 @@ export class BrowserlessServer {
           }
 
           if (this.config.token && !isAuthorized(req, this.config.token)) {
-            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
             return res.end('Unauthorized');
           }
 
@@ -332,12 +330,12 @@ export class BrowserlessServer {
       const parsed = safeParse(body);
 
       if (!parsed) {
-        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.writeHead && res.writeHead(400, { 'Content-Type': 'text/plain' });
         return res.end('Bad Request, no body posted');
       }
 
       if (this.config.token && !isWebdriverAuthorized(req, parsed, this.config.token)) {
-        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Unauthorized');
       }
 

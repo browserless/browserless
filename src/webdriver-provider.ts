@@ -77,7 +77,7 @@ export class WebDriver {
                 job.onTimeout = () => {
                   const res = this.webDriverSessions[id].res;
                   if (res && !res.headersSent) {
-                    res.writeHead(408);
+                    res.writeHead && res.writeHead(408);
                     return res.end(`Webdriver session timed-out`);
                   }
                 };
@@ -100,7 +100,7 @@ export class WebDriver {
           .catch((error) => {
             debug(`Failure to launch ChromeDriver`);
             done(error);
-            res.writeHead(500);
+            res.writeHead && res.writeHead(500);
             res.end('ChromeDriver failed to launch.');
           });
       }, {
@@ -121,7 +121,7 @@ export class WebDriver {
     const session = this.getSession(req);
 
     if (!session) {
-      res.writeHead(404);
+      res.writeHead && res.writeHead(404);
       res.end(`Couldn't access session, did it timeout?`);
       return res.end();
     }
@@ -132,7 +132,7 @@ export class WebDriver {
       debug(`Issue proxying current webdriver session, closing session: ${error.message}`);
 
       if (!res.headersSent) {
-        res.writeHead(500);
+        res.writeHead && res.writeHead(500);
         res.end('ChromeDriver failed to receive traffic');
       }
 
@@ -158,7 +158,7 @@ export class WebDriver {
       debug(`Issue when closing webdriver session: ${error.message}`);
 
       if (!res.headersSent) {
-        res.writeHead(500);
+        res.writeHead && res.writeHead(500);
         res.end('ChromeDriver failed to receive traffic');
       }
 
