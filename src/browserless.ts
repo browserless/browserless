@@ -245,7 +245,7 @@ export class BrowserlessServer {
           return app(req, res);
         })
         .on('upgrade', asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-          const beforeResults = await beforeHook({ req });
+          const beforeResults = await beforeHook({ req, socket });
 
           if (!beforeResults) {
             return socket.end();
