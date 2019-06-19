@@ -127,7 +127,7 @@ describe('Browserless Chrome WebSockets', () => {
         expect(browserless.currentStat.successful).toEqual(0);
         expect(browserless.currentStat.rejected).toEqual(1);
         expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toEqual(`socket hang up`);
+        expect(error.message).toContain(`429`);
       });
   });
 
@@ -146,7 +146,7 @@ describe('Browserless Chrome WebSockets', () => {
         expect(browserless.currentStat.successful).toEqual(0);
         expect(browserless.currentStat.rejected).toEqual(0);
         expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toEqual(`socket hang up`);
+        expect(error.message).toContain(`403`);
       });
   });
 
@@ -165,7 +165,7 @@ describe('Browserless Chrome WebSockets', () => {
         expect(browserless.currentStat.successful).toEqual(0);
         expect(browserless.currentStat.rejected).toEqual(0);
         expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toEqual(`socket hang up`);
+        expect(error.message).toContain(`403`);
       });
   });
 
