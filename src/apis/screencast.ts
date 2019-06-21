@@ -1,9 +1,4 @@
-import { Response } from 'express';
-import * as fs from 'fs';
-import { noop } from 'lodash';
 import { Page } from 'puppeteer';
-
-const rimraf = require('rimraf');
 
 interface IBefore {
   page: Page;
@@ -11,18 +6,45 @@ interface IBefore {
 }
 
 interface IAfter {
-  page: Page;
-  res: Response;
-  done: (err?: Error) => any;
-  debug: (message: string) => any;
   code: string;
   stopScreencast: () => void;
 }
 
+declare var MediaRecorder: any;
+declare var navigator: any;
+
 export const before = async ({ page, code }: IBefore) => {
-  const setupScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_CLIENT_PLAY' }, '*'));
-  const startScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_START' }, '*'));
-  const stopScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_STOP' }, '*'));
+  let rec: any;
+  let stream: any;
+
+  const setupScreencast = () => page.evaluate(async () => {
+    document.title = 'browserless-screencast';
+
+    const desktopStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: false});
+
+    const tracks = [...desktopStream.getVideoTracks()];
+    stream = new MediaStream(tracks);
+
+    let blobs: any;
+    blobs = [];
+
+    rec = new MediaRecorder(stream, {mimeType: 'video/webm; codecs=vp8,opus'});
+    rec.ondataavailable = (e: any) => blobs.push(e.data);
+    rec.onstop = async () => {
+      const blob = new Blob(blobs, {type: 'video/webm'});
+      const el = document.createElement('a');
+      el.setAttribute('download', '');
+      el.href = window.URL.createObjectURL(blob);
+      el.click();
+    };
+  });
+
+  const startScreencast = () => page.evaluate(() => rec.start());
+
+  const stopScreencast = () => page.evaluate(async () => {
+    await rec.stop();
+    stream.getTracks().forEach((s: any) => s.stop());
+  });
 
   page.on('load', async () => {
     await setupScreencast();
@@ -38,34 +60,8 @@ export const before = async ({ page, code }: IBefore) => {
   };
 };
 
-export const after = async ({ page, res, done, debug, code, stopScreencast }: IAfter) => {
+export const after = async ({ code, stopScreencast }: IAfter) => {
   if (!code.includes('stopScreencast')) {
     await stopScreencast();
   }
-
-  await page.waitForSelector('html.downloadComplete', { timeout: 0 });
-  const filePath = await page.evaluate(() => document.querySelector('html')!.getAttribute('data-filepath'));
-
-  debug(`Screencast download "${filePath}" complete!`);
-
-  if (!filePath || !fs.existsSync(filePath)) {
-    debug(`Couldn't located screencast in the filesystem at "${filePath}"`);
-    throw new Error(`Couldn't locate screencast file "${filePath}"`);
-  }
-
-  if (res.headersSent) {
-    rimraf(filePath, noop);
-    return done();
-  }
-
-  return res.sendFile(filePath, (err: Error) => {
-    const message = err ?
-      `Error streaming file back ${err}` :
-      `File sent successfully`;
-
-    debug(message);
-    rimraf(filePath, noop);
-
-    done(err);
-  });
 };

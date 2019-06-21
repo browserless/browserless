@@ -196,17 +196,26 @@ export const getRoutes = ({
     const code = isJson ? req.body.code : req.body;
     const context = isJson ? req.body.context : {};
 
+    const before = async (args: any) => {
+      const downloadBeforeArgs = await downloadBefore(args);
+      const screenCastBeforeArgs = await screenCastBefore(args);
+      return {...screenCastBeforeArgs, ...downloadBeforeArgs};
+    };
+
+    const after = async (args: any) => {
+      await screencastAfter(args);
+      await downloadAfter(args);
+    };
+
     return puppeteerProvider.runHTTP({
-      after: screencastAfter,
-      before: screenCastBefore,
+      after,
+      before,
       code,
       context,
       flags: [
         '--enable-usermedia-screen-capturing',
         '--allow-http-screen-capture',
         '--auto-select-desktop-capture-source=browserless-screencast',
-        '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-        '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
         '--disable-infobars',
       ],
       headless: false,
