@@ -8,17 +8,16 @@ import * as net from 'net';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
-import * as puppeteer from 'puppeteer';
 import rmrf = require('rimraf');
 import * as shortid from 'shortid';
 import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
+import { executablePath } from './chrome-helper';
 import { DEBUG } from './config';
 
 const dbg = require('debug');
-const packageJson = require('puppeteer/package.json');
 
 export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
@@ -37,8 +36,6 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
-const browserFetcher = puppeteer.createBrowserFetcher();
-const { executablePath } = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {

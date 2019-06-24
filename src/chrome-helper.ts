@@ -30,7 +30,7 @@ const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const BROWSERLESS_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
-let executablePath: string;
+export let executablePath: string;
 let runningBrowsers: IBrowser[] = [];
 
 export interface IChromeDriver {
