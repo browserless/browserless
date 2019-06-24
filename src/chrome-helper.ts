@@ -2,11 +2,12 @@ import { ChildProcess } from 'child_process';
 // @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
 import * as express from 'express';
-import * as fs from 'fs';
 import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
+
+import { CHROME_BINARY_LOCATION } from './config';
 import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 import {
@@ -25,12 +26,9 @@ import {
 
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
-const packageJson = require('puppeteer/package.json');
-const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
 const BROWSERLESS_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
-export let executablePath: string;
 let runningBrowsers: IBrowser[] = [];
 
 export interface IChromeDriver {
@@ -59,16 +57,6 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
 }
 
 const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
-
-if (fs.existsSync(CHROME_BINARY_LOCATION)) {
-  // If it's installed already, consume it
-  executablePath = CHROME_BINARY_LOCATION;
-} else {
-  // Use puppeteer's copy otherwise
-  const browserFetcher = puppeteer.createBrowserFetcher();
-  const revisionInfo = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
-  executablePath = revisionInfo.executablePath;
-}
 
 const setupPage = async ({
   page,
@@ -220,7 +208,7 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
       ...BROWSERLESS_ARGS,
       ...(opts.args || []),
     ],
-    executablePath,
+    executablePath: CHROME_BINARY_LOCATION,
     handleSIGINT: false,
     handleSIGTERM: false,
   };
@@ -324,4 +312,4 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
   });
 };
 
-export const getChromePath = () => executablePath;
+export const getChromePath = () => CHROME_BINARY_LOCATION;

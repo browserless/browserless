@@ -1,9 +1,15 @@
+import * as fs from 'fs';
 import * as os from 'os';
+import * as puppeteer from 'puppeteer';
+
 const debug = require('debug');
+const packageJson = require('puppeteer/package.json');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
 const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk'];
+const IS_DOCKER = fs.existsSync('/.dockerenv');
+const CHROME_BINARY_DEFAULT_LOCATION = '/usr/bin/google-chrome';
 
 const getDebug = () => {
   if (typeof process.env.DEBUG !== 'undefined') {
@@ -49,6 +55,17 @@ export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(process.env.D
 export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_HTTPS_ERRORS, false);
 export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR;
 export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME, false);
+export const CHROME_BINARY_LOCATION: string = (() => {
+  // If it's installed already (docker) use it
+  if (IS_DOCKER && fs.existsSync(CHROME_BINARY_DEFAULT_LOCATION)) {
+    return CHROME_BINARY_DEFAULT_LOCATION;
+  } else {
+    // Use puppeteer's copy otherwise
+    const browserFetcher = puppeteer.createBrowserFetcher();
+
+    return browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision).executablePath;
+  }
+})();
 
 // Security and accessibility
 export const DEBUG: string | undefined = getDebug();

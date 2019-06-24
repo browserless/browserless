@@ -14,8 +14,7 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
-import { executablePath } from './chrome-helper';
-import { DEBUG } from './config';
+import { CHROME_BINARY_LOCATION, DEBUG } from './config';
 
 const dbg = require('debug');
 
@@ -173,11 +172,11 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any
 
   // Set binary path
   if (_.has(parsed, ['desiredCapabilities', w3cChromeOptions])) {
-    parsed.desiredCapabilities[w3cChromeOptions].binary = executablePath;
+    parsed.desiredCapabilities[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
   }
 
   if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptions])) {
-    parsed.capabilities.alwaysMatch[w3cChromeOptions].binary = executablePath;
+    parsed.capabilities.alwaysMatch[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
   }
 
   if (
@@ -186,7 +185,7 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any
   ) {
     _.each(parsed.capabilities.firstMatch, (opt) => {
       if (opt[w3cChromeOptions]) {
-        opt[w3cChromeOptions].binary = executablePath;
+        opt[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
       }
     });
   }
