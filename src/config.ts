@@ -1,4 +1,5 @@
 import * as os from 'os';
+const debug = require('debug');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
@@ -13,7 +14,9 @@ const getDebug = () => {
     return process.env.DEBUG;
   }
 
-  return process.env.DEBUG = 'browserless*';
+  process.env.DEBUG = 'browserless*';
+  debug.enable(process.env.DEBUG);
+  return process.env.DEBUG;
 };
 
 const parseJSONParam = (param: string | undefined, defaultParam: number | boolean | string[]) => {
