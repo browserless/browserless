@@ -1,3 +1,16 @@
+# 1.10.0
+- Dropped support for puppeteer `1.9.0 => 1.14.0`.
+- Added support for puppeteer `1.16.0 => 1.18.0`.
+- A version of chromedriver is now installed to perfectly match the version of puppeteer's chromium.
+- In dev, chromedriver now uses the puppeteer version of chromium.
+- Defaulted most ENV-variables in docker to sensible defaults.
+- New `rotate` feature for PDF endpoint: `{ rotate: 90 }` => rotate left 90 degrees.
+- Support for `browserless.token` in the docker image.
+- puppeteer integration now returns semantic HTTP codes for certain errors (`400`, `403` and `429`).
+- Support for chromedriver's move to the W3C spec 'goog:chromeOptions'.
+- The debugger now filters out `about:blank` pages, and includes sessions by Selenium.
+- Workspace support for selenium-based integrations.
+
 # 1.9.0
 - Better handling of browser/socket closing in puppeteer integrations.
 - Numerous screencast fixes.
