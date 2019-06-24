@@ -21,7 +21,7 @@ const {
   }
 } = require('../package-lock.json');
 
-const getChromeStablePath = () => {
+const getChromePath = () => {
   return os.platform() === 'darwin' ?
     '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome' :
     '/usr/bin/google-chrome';
@@ -32,15 +32,16 @@ const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
 const rejectList = path.join(__dirname, '..', 'hosts.json');
+const IS_DOCKER = fs.existsSync('/.dockerenv');
 
 let launchArgs = {
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 };
 
-if (process.argv.includes('--chrome-stable')) {
-  const chromeStablePath = getChromeStablePath();
-  console.log(`Using Chrome Stable for meta capturing at: "${chromeStablePath}"`);
-  launchArgs.executablePath = chromeStablePath;
+if (IS_DOCKER) {
+  const chromePath = getChromePath();
+  console.log(`Using Chrome Stable for meta capturing at: "${chromePath}"`);
+  launchArgs.executablePath = chromePath;
 }
 
 const getDocs = (docsPage) => [].map.call(
