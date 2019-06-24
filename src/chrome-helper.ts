@@ -70,6 +70,95 @@ if (fs.existsSync(CHROME_BINARY_LOCATION)) {
   executablePath = revisionInfo.executablePath;
 }
 
+const setupPage = async ({
+  page,
+  pauseOnConnect,
+  blockAds,
+}: {
+  page: puppeteer.Page;
+  pauseOnConnect: boolean;
+  blockAds: boolean;
+}) => {
+  const client = _.get(page, '_client', _.noop);
+
+  if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
+    await client.send('Page.setDownloadBehavior', {
+      behavior: 'allow',
+      downloadPath: WORKSPACE_DIR,
+    });
+  }
+
+  if (pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+    await client.send('Debugger.enable');
+    await client.send('Debugger.pause');
+  }
+
+  if (blockAds) {
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const fragments = request.url().split('/');
+      const domain = fragments.length > 2 ? fragments[2] : null;
+      if (blacklist.includes(domain)) {
+        return request.abort();
+      }
+      return request.continue();
+    });
+  }
+
+  page.once('close', () => page.removeAllListeners());
+};
+
+const setupBrowser = async ({
+  browser,
+  isUsingTempDataDir,
+  browserlessDataDir,
+  blockAds,
+  pauseOnConnect,
+}: {
+  browser: IBrowser;
+  isUsingTempDataDir: boolean;
+  browserlessDataDir?: string | null;
+  blockAds: boolean;
+  pauseOnConnect: boolean;
+}): Promise<IBrowser> => {
+  const { port } = url.parse(browser.wsEndpoint());
+
+  browser.once('disconnected', () => {
+    if (isUsingTempDataDir && browserlessDataDir) {
+      debug(`Removing temp data-dir ${browserlessDataDir}`);
+      rimraf(browserlessDataDir);
+    }
+
+    runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
+    browser.removeAllListeners();
+  });
+
+  browser.on('targetcreated', async (target) => {
+    try {
+      const page = await target.page();
+
+      if (page && !page.isClosed()) {
+        // @ts-ignore
+        setupPage({
+          blockAds,
+          page,
+          pauseOnConnect,
+        });
+      }
+    } catch (error) {
+      debug(`Error setting up new browser`, error);
+    }
+  });
+
+  const pages = await browser.pages();
+  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect }));
+
+  runningBrowsers.push(browser);
+
+  browser.port = port;
+  return browser;
+};
+
 export const defaultLaunchArgs = {
   args: DEFAULT_LAUNCH_ARGS,
   blockAds: DEFAULT_BLOCK_ADS,
@@ -151,58 +240,14 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
 
-  return puppeteer.launch(launchArgs).then((browser: IBrowser) => {
-    const { port } = url.parse(browser.wsEndpoint());
-
-    browser.once('disconnected', () => {
-      if (isUsingTempDataDir && browserlessDataDir) {
-        debug(`Removing temp data-dir ${browserlessDataDir}`);
-        rimraf(browserlessDataDir);
-      }
-
-      runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
-    });
-
-    if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
-      browser.on('targetcreated', async (target) => {
-        try {
-          const page = await target.page();
-
-          if (page && !page.isClosed()) {
-            // @ts-ignore
-            const client = page._client;
-            if (opts.pauseOnConnect && ENABLE_DEBUG_VIEWER) {
-              await client.send('Debugger.enable');
-              await client.send('Debugger.pause');
-            }
-            if (opts.blockAds) {
-              await page.setRequestInterception(true);
-              page.on('request', (request) => {
-                const fragments = request.url().split('/');
-                const domain = fragments.length > 2 ? fragments[2] : null;
-                if (blacklist.includes(domain)) {
-                  return request.abort();
-                }
-                return request.continue();
-              });
-            }
-            client.send('Page.setDownloadBehavior', {
-              behavior: 'allow',
-              downloadPath: WORKSPACE_DIR,
-            }).catch((error: Error) => debug(`Error setting download paths`, error));
-          }
-        } catch (error) {
-          debug(`Error setting download paths`, error);
-        }
-      });
-    }
-
-    browser.port = port;
-
-    runningBrowsers.push(browser);
-
-    return browser;
-  });
+  return puppeteer.launch(launchArgs)
+    .then((browser: IBrowser) => setupBrowser({
+      blockAds: opts.blockAds,
+      browser,
+      browserlessDataDir,
+      isUsingTempDataDir,
+      pauseOnConnect: opts.pauseOnConnect,
+    }));
 };
 
 export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Request): ILaunchOptions => {
@@ -261,14 +306,12 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
 
         const browser: IBrowser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
 
-        browser.once('disconnected', () => {
-          debug(`Detaching from chromedriver browser on ${port}`);
-          runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
+        setupBrowser({
+          blockAds: false,
+          browser,
+          isUsingTempDataDir: false,
+          pauseOnConnect: false,
         });
-
-        browser.port = port;
-
-        runningBrowsers.push(browser);
       }
     }
 

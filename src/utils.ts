@@ -8,6 +8,7 @@ import * as net from 'net';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
+import * as puppeteer from 'puppeteer';
 import rmrf = require('rimraf');
 import * as shortid from 'shortid';
 import { PassThrough } from 'stream';
@@ -17,6 +18,7 @@ import * as util from 'util';
 import { DEBUG } from './config';
 
 const dbg = require('debug');
+const packageJson = require('puppeteer/package.json');
 
 export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
@@ -32,6 +34,11 @@ const debug = getDebug('system');
 
 type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
 type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
+
+const legacyChromeOptions = 'chromeOptions';
+const w3cChromeOptions = 'goog:chromeOptions';
+const browserFetcher = puppeteer.createBrowserFetcher();
+const { executablePath } = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
@@ -135,6 +142,63 @@ export const safeParse = (maybeJson: any) => {
   } catch {
     return null;
   }
+};
+
+export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any> => {
+  const body = await readRequestBody(req);
+  const parsed = safeParse(body);
+
+  // Make old selenium requests bw compatible
+  if (_.has(parsed, ['desiredCapabilities', legacyChromeOptions])) {
+    parsed.desiredCapabilities[w3cChromeOptions] = _.cloneDeep(parsed.desiredCapabilities[legacyChromeOptions]);
+    delete parsed.desiredCapabilities[legacyChromeOptions];
+  }
+
+  if (_.has(parsed, ['capabilities', 'alwaysMatch'])) {
+    parsed.capabilities.alwaysMatch[w3cChromeOptions] = _.cloneDeep(
+      parsed.capabilities.alwaysMatch[legacyChromeOptions] ||
+      parsed.desiredCapabilities[w3cChromeOptions],
+    );
+    delete parsed.capabilities.alwaysMatch[legacyChromeOptions];
+  }
+
+  if (
+    _.has(parsed, ['capabilities', 'firstMatch']) &&
+    _.some(parsed.capabilities.firstMatch, (opt) => opt[legacyChromeOptions])
+  ) {
+    _.each(parsed.capabilities.firstMatch, (opt) => {
+      if (opt[legacyChromeOptions]) {
+        opt[w3cChromeOptions] = _.cloneDeep(opt[legacyChromeOptions]);
+        delete opt[legacyChromeOptions];
+      }
+    });
+  }
+
+  // Set binary path
+  if (_.has(parsed, ['desiredCapabilities', w3cChromeOptions])) {
+    parsed.desiredCapabilities[w3cChromeOptions].binary = executablePath;
+  }
+
+  if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptions])) {
+    parsed.capabilities.alwaysMatch[w3cChromeOptions].binary = executablePath;
+  }
+
+  if (
+    _.has(parsed, ['capabilities', 'firstMatch']) &&
+    _.some(parsed.capabilities.firstMatch, (opt) => opt[w3cChromeOptions])
+  ) {
+    _.each(parsed.capabilities.firstMatch, (opt) => {
+      if (opt[w3cChromeOptions]) {
+        opt[w3cChromeOptions].binary = executablePath;
+      }
+    });
+  }
+
+  const stringifiedBody = JSON.stringify(parsed, null, '');
+  req.headers['content-length'] = stringifiedBody.length.toString();
+  attachBodyToRequest(req, stringifiedBody);
+
+  return parsed;
 };
 
 export const attachBodyToRequest = (req: IncomingMessage, body: any) => {

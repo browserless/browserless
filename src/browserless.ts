@@ -15,8 +15,7 @@ import {
   getDebug,
   isAuthorized,
   isWebdriverAuthorized,
-  readRequestBody,
-  safeParse,
+  normalizeWebdriverStart,
   tokenCookieName,
   writeFile,
 } from './utils';
@@ -32,6 +31,7 @@ import { WebDriver } from './webdriver-provider';
 const debug = getDebug('server');
 
 const request = require('request');
+
 const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
@@ -339,15 +339,13 @@ export class BrowserlessServer {
     const isClosing = req.method && req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url || '');
 
     if (isStarting) {
-      const body = await readRequestBody(req);
-      const parsed = safeParse(body);
-
-      if (!parsed) {
+      const postBody = await normalizeWebdriverStart(req);
+      if (!postBody) {
         res.writeHead && res.writeHead(400, { 'Content-Type': 'text/plain' });
         return res.end('Bad Request, no body posted');
       }
 
-      if (this.config.token && !isWebdriverAuthorized(req, parsed, this.config.token)) {
+      if (this.config.token && !isWebdriverAuthorized(req, postBody, this.config.token)) {
         res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Unauthorized');
       }

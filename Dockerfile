@@ -6,6 +6,7 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV application_directory=/usr/src/app
 ENV ENABLE_XVBF=true
+ENV CHROMEDRIVER_SKIP_DOWNLOAD=true
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -108,7 +109,9 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm install -g typescript @types/node &&\
   npm install &&\
   npm run build &&\
-  npm run symlink-chrome
+  npm run symlink-chrome &&\
+  npm run install-chromedriver &&\
+  npm run meta
 
 # Cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
