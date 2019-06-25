@@ -28,11 +28,11 @@ COPY tsconfig.json .
 COPY . .
 
 # Dependencies + NodeJS
-RUN apt-get update && \
+RUN apt-get -qq update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
-  apt-get install -y software-properties-common &&\
+  apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
-  apt-add-repository ppa:malteworld/ppa && apt-get update && apt-get install -y \
+  apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
   adobe-flashplugin \
   msttcorefonts \
   fonts-noto-color-emoji \
@@ -86,8 +86,8 @@ RUN apt-get update && \
   curl &&\
   # Install Node
   curl --silent --location https://deb.nodesource.com/setup_10.x | bash - &&\
-  apt-get install --yes nodejs &&\
-  apt-get install --yes build-essential &&\
+  apt-get -y -qq install nodejs &&\
+  apt-get -y -qq install build-essential &&\
   # Fonts
   fc-cache -f -v
 
@@ -114,7 +114,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run meta
 
 # Cleanup
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Add user
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \

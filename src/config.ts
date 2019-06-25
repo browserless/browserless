@@ -57,7 +57,7 @@ export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USE
 export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME, false);
 export const CHROME_BINARY_LOCATION: string = (() => {
   // If it's installed already (docker) use it
-  if (IS_DOCKER && fs.existsSync(CHROME_BINARY_DEFAULT_LOCATION)) {
+  if (IS_DOCKER) {
     return CHROME_BINARY_DEFAULT_LOCATION;
   } else {
     // Use puppeteer's copy otherwise
