@@ -36,6 +36,12 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
 
+export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
+  const header = req.headers.authorization || '';
+  const token = header.split(/\s+/).pop() || '';
+  return Buffer.from(token, 'base64').toString().replace(':', '');
+};
+
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
     Promise.resolve(handler(req, socket, head))
@@ -234,12 +240,6 @@ const readRequestBody = async (req: IncomingMessage): Promise<any> => {
         resolveNow(null);
       });
   });
-};
-
-const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
-  const header = req.headers.authorization || '';
-  const token = header.split(/\s+/).pop() || '';
-  return Buffer.from(token, 'base64').toString().replace(':', '');
 };
 
 export const fnLoader = (fnName: string) =>
