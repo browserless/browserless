@@ -37,7 +37,6 @@ const deployVersion = async (tags, chromeVersion) => {
   debug(`Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`);
 
   await logExec(`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`);
-  await logExec(`npm run meta`);
 
   const versionJson = require('../version.json');
   const chromeStableArg = isChromeStable ? 'true' : 'false';
