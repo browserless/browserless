@@ -107,6 +107,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi &&\
   npm install -g typescript @types/node &&\
   npm install &&\
+  npm run post-install &&\
   npm run build
 
 # Cleanup

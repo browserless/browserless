@@ -73,8 +73,9 @@ In order to run Browserless, you'll need:
 1. `git clone https://github.com/browserless/chrome.git browserless`
 2. `cd browserless`
 3. `npm install`
-4. `npm run dev`
-5. Visit `http://localhost:3000/` to use the interactive debugger.
+4. `npm run post-install`
+5. `npm run dev`
+6. Visit `http://localhost:3000/` to use the interactive debugger.
 
 # Live Debugger
 
