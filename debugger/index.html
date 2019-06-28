@@ -637,7 +637,7 @@ const puppeteer = require('puppeteer');
     document.cookie = `browserless_code=${stringifiedCode}`;
     const wsLocation = `${hostname}${port ? `:${port}` : ''}/debugger`;
 
-    $debugFrame.src = `https://chrome-devtools-frontend.appspot.com/serve_file/@${debuggerVersion}/inspector.html?remoteFrontend=true&${secure ? 'wss' : 'ws'}=${wsLocation}`;
+    $debugFrame.src = `/devtools/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}`;
   };
 
   $resizer.addEventListener('mousedown', (evt) => {
