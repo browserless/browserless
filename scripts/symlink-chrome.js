@@ -23,8 +23,7 @@ const exec = async (command) => {
 // chrome to a place where most other libraries expect it
 // (IE: WebDriver) without having to specify it
 if (!IS_DOCKER) {
-  console.error('"npm run symlink" is only meant to be executed inside of docker.');
-  process.exit(1);
+  return;
 }
 
 const browserFetcher = puppeteer.createBrowserFetcher();

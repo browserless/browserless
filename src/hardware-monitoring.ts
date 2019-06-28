@@ -1,12 +1,12 @@
 import * as _ from 'lodash';
 import * as os from 'os';
 
-export interface ICPULoad {
+interface ICPULoad {
   idle: number;
   total: number;
 }
 
-export interface IResourceLoad {
+interface IResourceLoad {
   cpuUsage: number;
   memoryUsage: number;
 }

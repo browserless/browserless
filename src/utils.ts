@@ -14,20 +14,20 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
-import { CHROME_BINARY_LOCATION, DEBUG } from './config';
+import { CHROME_BINARY_LOCATION } from './config';
 
 const dbg = require('debug');
+
+const mkdtemp = util.promisify(fs.mkdtemp);
 
 export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
 export const mkdir = util.promisify(fs.mkdir);
-export const mkdtemp = util.promisify(fs.mkdtemp);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 export const id = shortid.generate;
-export const canLog = DEBUG && DEBUG === '*';
 const debug = getDebug('system');
 
 type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
@@ -35,6 +35,12 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
+
+export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
+  const header = req.headers.authorization || '';
+  const token = header.split(/\s+/).pop() || '';
+  return Buffer.from(token, 'base64').toString().replace(':', '');
+};
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
@@ -132,7 +138,7 @@ export const sleep = (time = 0) => {
   });
 };
 
-export const safeParse = (maybeJson: any) => {
+const safeParse = (maybeJson: any) => {
   try {
     return JSON.parse(maybeJson);
   } catch {
@@ -197,14 +203,14 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any
   return parsed;
 };
 
-export const attachBodyToRequest = (req: IncomingMessage, body: any) => {
+const attachBodyToRequest = (req: IncomingMessage, body: any) => {
   const bufferStream = new PassThrough();
   bufferStream.end(Buffer.from(body));
 
   Object.assign(req, bufferStream);
 };
 
-export const readRequestBody = async (req: IncomingMessage): Promise<any> => {
+const readRequestBody = async (req: IncomingMessage): Promise<any> => {
   return new Promise((resolve) => {
     const body: Uint8Array[] = [];
     let hasResolved = false;
@@ -236,16 +242,10 @@ export const readRequestBody = async (req: IncomingMessage): Promise<any> => {
   });
 };
 
-export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
-  const header = req.headers.authorization || '';
-  const token = header.split(/\s+/).pop() || '';
-  return Buffer.from(token, 'base64').toString().replace(':', '');
-};
-
 export const fnLoader = (fnName: string) =>
   fs.readFileSync(path.join(__dirname, '..', 'functions', `${fnName}.js`), 'utf8');
 
-export const browserlessDataDirPrefix = 'browserless-data-dir-';
+const browserlessDataDirPrefix = 'browserless-data-dir-';
 
 export const getUserDataDir = () => mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
 

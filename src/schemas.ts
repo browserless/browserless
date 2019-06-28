@@ -40,7 +40,7 @@ const cookies = Joi.array().items(Joi.object({
   value: Joi.string().required(),
 })).default([]);
 
-export const viewport = Joi.object().keys({
+const viewport = Joi.object().keys({
   deviceScaleFactor: Joi.number().min(1).max(100),
   hasTouch: Joi.boolean(),
   height: Joi.number().min(0).required(),

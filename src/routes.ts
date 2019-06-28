@@ -304,19 +304,6 @@ export const getRoutes = ({
 
       return res.json(pages);
     }));
-
-    // Since all chromium browsers here are running the same version,
-    // funnel any static asset request to any browser
-    router.all('/devtools*', asyncWebHandler(async (req: Request, res: Response) => {
-      const session = chromeHelper.getRandomSession();
-
-      if (session && session.port) {
-        const port = session.port;
-        return puppeteerProvider.proxyWebRequestToPort({ req, res, port });
-      }
-
-      return res.status(404).send('Not found');
-    }));
   }
 
   return router;

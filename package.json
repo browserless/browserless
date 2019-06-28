@@ -19,7 +19,8 @@
     "test": "DEBUG=quiet jest --runInBand",
     "prepush": "npm run lint && npm test",
     "symlink-chrome": "node ./scripts/symlink-chrome",
-    "install-chromedriver": "node ./scripts/chromedriver"
+    "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
+    "post-install": "npm run symlink-chrome && npm run meta && npm run external"
   },
   "puppeteerVersions": {
     "puppeteer-1.15.0": "1.15.0",

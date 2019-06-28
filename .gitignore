@@ -2,6 +2,7 @@
 node_modules/
 build/
 external/
+debugger/devtools
 
 # MAC
 .DS_Store
