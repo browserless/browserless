@@ -107,9 +107,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi &&\
   npm install -g typescript @types/node &&\
   npm install &&\
-  npm run build &&\
-  npm run symlink-chrome &&\
-  npm run meta
+  npm run build
 
 # Cleanup
 RUN apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
