@@ -39,7 +39,7 @@ interface IBefore {
   code: string;
 }
 
-export interface IRunHTTP {
+interface IRunHTTP {
   code: any;
   context: any;
   req: any;

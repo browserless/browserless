@@ -2,7 +2,7 @@ export interface IBrowserlessOptions
   extends IBrowserlessServerConfiguration,
     IChromeServiceConfiguration {}
 
-export interface IBrowserlessServerConfiguration {
+interface IBrowserlessServerConfiguration {
   host: string | undefined;
   port: number;
   token: string | null;

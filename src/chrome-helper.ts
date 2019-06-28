@@ -158,8 +158,6 @@ export const defaultLaunchArgs = {
   userDataDir: DEFAULT_USER_DATA_DIR,
 };
 
-export const getRandomSession = () => _.sample(runningBrowsers) as IBrowser | undefined;
-
 export const findSessionForPageUrl = async (pathname: string) => {
   const pages = await getDebuggingPages();
 
