@@ -104,6 +104,7 @@ export const pdf = Joi.object().keys({
       top: Joi.string(),
     }),
     pageRanges: Joi.string(),
+    preferCSSPageSize: Joi.boolean(),
     printBackground: Joi.boolean(),
     scale: Joi.number().min(0),
     width: Joi.any().optional(),
