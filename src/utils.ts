@@ -14,7 +14,7 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
-import { CHROME_BINARY_LOCATION } from './config';
+import { CHROME_BINARY_LOCATION, WORKSPACE_DIR } from './config';
 
 const dbg = require('debug');
 
@@ -35,6 +35,34 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
+
+export const buildWorkspaceDir = async (dir: string): Promise<any> => {
+  const hasDownloads = await exists(dir);
+  const [, parentDir] = dir.split(WORKSPACE_DIR);
+  const deburredParentDir = parentDir.replace(/^\//, '');
+
+  if (!hasDownloads) {
+    return null;
+  }
+
+  const files = await readdir(dir);
+
+  return await Promise.all(files.map(async (file) => {
+    const stats = await lstat(path.join(dir, file));
+    if (stats.isDirectory()) {
+      return buildWorkspaceDir(path.join(dir, file));
+    }
+
+    return {
+      created: stats.birthtime,
+      isDirectory: stats.isDirectory(),
+      name: file,
+      path: path.join('/workspace', parentDir, file),
+      size: stats.size,
+      workspaceId: deburredParentDir.length ? deburredParentDir : null,
+    };
+  })).then(_.flattenDeep);
+};
 
 export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
   const header = req.headers.authorization || '';

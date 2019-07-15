@@ -4,6 +4,7 @@ import * as chromeDriver from 'chromedriver';
 import * as express from 'express';
 import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
+import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
@@ -54,6 +55,7 @@ interface ISession {
 export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
+  workspaceId?: string;
 }
 
 const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
@@ -62,17 +64,23 @@ const setupPage = async ({
   page,
   pauseOnConnect,
   blockAds,
+  workspaceId,
 }: {
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
+  workspaceId?: string;
 }) => {
   const client = _.get(page, '_client', _.noop);
 
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
+    const workspaceDir = workspaceId ?
+      path.join(WORKSPACE_DIR, workspaceId) :
+      WORKSPACE_DIR;
+
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
-      downloadPath: WORKSPACE_DIR,
+      downloadPath: workspaceDir,
     });
   }
 
@@ -102,12 +110,14 @@ const setupBrowser = async ({
   browserlessDataDir,
   blockAds,
   pauseOnConnect,
+  workspaceId,
 }: {
   browser: IBrowser;
   isUsingTempDataDir: boolean;
   browserlessDataDir?: string | null;
   blockAds: boolean;
   pauseOnConnect: boolean;
+  workspaceId?: string;
 }): Promise<IBrowser> => {
   const { port } = url.parse(browser.wsEndpoint());
 
@@ -131,6 +141,7 @@ const setupBrowser = async ({
           blockAds,
           page,
           pauseOnConnect,
+          workspaceId,
         });
       }
     } catch (error) {
@@ -139,7 +150,7 @@ const setupBrowser = async ({
   });
 
   const pages = await browser.pages();
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect }));
+  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, workspaceId }));
 
   runningBrowsers.push(browser);
 
@@ -233,6 +244,7 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
       browserlessDataDir,
       isUsingTempDataDir,
       pauseOnConnect: opts.pauseOnConnect,
+      workspaceId: opts.workspaceId,
     }));
 };
 
@@ -251,6 +263,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     slowMo,
     userDataDir,
     pause,
+    workspaceId,
   } = urlParts.query;
 
   const isHeadless = !_.isUndefined(headless) ?
@@ -266,6 +279,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     pauseOnConnect: !_.isUndefined(pause),
     slowMo: parseInt(slowMo as string, 10) || undefined,
     userDataDir: userDataDir as string || DEFAULT_USER_DATA_DIR,
+    workspaceId: _.isArray(workspaceId) ? workspaceId[0] : workspaceId,
   };
 };
 
