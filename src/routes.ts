@@ -1,3 +1,4 @@
+import archiver = require('archiver');
 import * as bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
 import * as _ from 'lodash';
@@ -16,6 +17,7 @@ import {
   exists,
   fnLoader,
   generateChromeTarget,
+  lstat,
 } from './utils';
 
 import {
@@ -123,8 +125,17 @@ export const getRoutes = ({
     const filePath = path.join(workspaceDir, file);
 
     const hasFile = await exists(filePath);
+
     if (!hasFile) {
       return res.sendStatus(404);
+    }
+
+    const stats = await lstat(filePath);
+
+    if (stats.isDirectory()) {
+      const zipStream = archiver('zip');
+      zipStream.pipe(res);
+      return zipStream.directory(filePath, false).finalize();
     }
 
     return res.sendFile(filePath, { dotfiles: 'allow' });
