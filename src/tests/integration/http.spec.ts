@@ -28,6 +28,18 @@ describe('Browserless Chrome HTTP', () => {
       });
   });
 
+  it('allows requests to /json/new', async () => {
+    const params = defaultParams();
+    const browserless = start(params);
+    await browserless.startServer();
+
+    return fetch(`http://127.0.0.1:${params.port}/json/new`)
+      .then((res) => res.json())
+      .then((version) => {
+        expect(Object.keys(version)).toMatchSnapshot();
+      });
+  });
+
   it('allows requests to /introspection', async () => {
     const params = defaultParams();
     const browserless = start(params);
