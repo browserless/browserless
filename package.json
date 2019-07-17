@@ -26,11 +26,11 @@
     "puppeteer-1.15.0": "1.15.0",
     "puppeteer-1.16.0": "1.16.0",
     "puppeteer-1.17.0": "1.17.0",
-    "puppeteer-1.18.0": "1.18.0",
+    "puppeteer-1.18.1": "1.18.1",
     "chrome-stable": "1.4.0"
   },
   "chromeVersions": [
-    "puppeteer-1.18.0",
+    "puppeteer-1.18.1",
     "puppeteer-1.17.0",
     "puppeteer-1.16.0",
     "puppeteer-1.15.0",
@@ -70,7 +70,7 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "^1.18.0",
+    "puppeteer": "^1.18.1",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^2.6.1",
