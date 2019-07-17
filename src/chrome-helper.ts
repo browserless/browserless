@@ -4,6 +4,7 @@ import * as chromeDriver from 'chromedriver';
 import * as express from 'express';
 import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
+import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
@@ -38,6 +39,7 @@ export interface IChromeDriver {
 
 interface IBrowser extends puppeteer.Browser {
   port?: string | undefined;
+  trackingId?: string;
 }
 
 interface ISession {
@@ -49,11 +51,13 @@ interface ISession {
   url: string;
   webSocketDebuggerUrl: string;
   port: string;
+  trackingId: string | null;
 }
 
 export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
+  trackingId?: string;
 }
 
 const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
@@ -62,17 +66,23 @@ const setupPage = async ({
   page,
   pauseOnConnect,
   blockAds,
+  trackingId,
 }: {
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
+  trackingId?: string;
 }) => {
   const client = _.get(page, '_client', _.noop);
 
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
+    const workspaceDir = trackingId ?
+      path.join(WORKSPACE_DIR, trackingId) :
+      WORKSPACE_DIR;
+
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
-      downloadPath: WORKSPACE_DIR,
+      downloadPath: workspaceDir,
     });
   }
 
@@ -102,12 +112,14 @@ const setupBrowser = async ({
   browserlessDataDir,
   blockAds,
   pauseOnConnect,
+  trackingId,
 }: {
   browser: IBrowser;
   isUsingTempDataDir: boolean;
   browserlessDataDir?: string | null;
   blockAds: boolean;
   pauseOnConnect: boolean;
+  trackingId?: string;
 }): Promise<IBrowser> => {
   const { port } = url.parse(browser.wsEndpoint());
 
@@ -131,6 +143,7 @@ const setupBrowser = async ({
           blockAds,
           page,
           pauseOnConnect,
+          trackingId,
         });
       }
     } catch (error) {
@@ -139,11 +152,13 @@ const setupBrowser = async ({
   });
 
   const pages = await browser.pages();
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect }));
+  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId }));
 
   runningBrowsers.push(browser);
 
   browser.port = port;
+  browser.trackingId = trackingId;
+
   return browser;
 };
 
@@ -186,6 +201,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
           devtoolsFrontendUrl: session.devtoolsFrontendUrl
             .replace(port, PORT.toString())
             .replace('127.0.0.1', host),
+          trackingId: browser.trackingId || null,
           webSocketDebuggerUrl: session.webSocketDebuggerUrl
             .replace(port, PORT.toString())
             .replace('127.0.0.1', host),
@@ -233,6 +249,7 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
       browserlessDataDir,
       isUsingTempDataDir,
       pauseOnConnect: opts.pauseOnConnect,
+      trackingId: opts.trackingId,
     }));
 };
 
@@ -251,6 +268,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     slowMo,
     userDataDir,
     pause,
+    trackingId,
   } = urlParts.query;
 
   const isHeadless = !_.isUndefined(headless) ?
@@ -265,6 +283,7 @@ export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Requ
     ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
     pauseOnConnect: !_.isUndefined(pause),
     slowMo: parseInt(slowMo as string, 10) || undefined,
+    trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: userDataDir as string || DEFAULT_USER_DATA_DIR,
   };
 };

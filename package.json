@@ -40,6 +40,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@cypress/xvfb": "^1.2.4",
+    "@types/archiver": "^3.0.0",
     "@types/cookie": "^0.3.2",
     "@types/cors": "^2.8.4",
     "@types/express": "^4.16.1",
@@ -53,6 +54,7 @@
     "@types/puppeteer": "^1.12.1",
     "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
+    "archiver": "^3.0.0",
     "body-parser": "^1.18.2",
     "chromedriver": "^75.0.0",
     "cookie": "^0.4.0",

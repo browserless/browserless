@@ -1,9 +1,10 @@
+import archiver = require('archiver');
 import * as bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
-import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as multer from 'multer';
 import * as path from 'path';
+
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { IBrowserlessOptions } from './models/options.interface';
@@ -12,11 +13,11 @@ import { PuppeteerProvider } from './puppeteer-provider';
 import {
   asyncWebHandler,
   bodyValidation,
+  buildWorkspaceDir,
   exists,
   fnLoader,
   generateChromeTarget,
   lstat,
-  readdir,
 } from './utils';
 
 import {
@@ -40,6 +41,7 @@ import {
 const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
+const rimraf = require('rimraf');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -94,35 +96,13 @@ export const getRoutes = ({
   router.get('/config', (_req, res) => res.json(config));
 
   router.get('/workspace', async (_req, res) => {
-    const hasDownloads = await exists(workspaceDir);
+    const downloads = await buildWorkspaceDir(workspaceDir);
 
-    if (!hasDownloads) {
-      res.sendStatus(404);
+    if (!downloads) {
+      return res.json([]);
     }
 
-    const files = await readdir(workspaceDir);
-
-    const stats = await Promise.all(files.map(async (file) => {
-      const stats = await lstat(path.join(workspaceDir, file));
-
-      return {
-        isDirectory: stats.isDirectory(),
-        name: file,
-        size: stats.size,
-      };
-    }));
-
-    return res.json(stats);
-  });
-
-  router.get('/workspace/:file', async (req, res) => {
-    const filePath = path.join(workspaceDir, req.params.file);
-    const hasFile = await exists(filePath);
-    if (!hasFile) {
-      return res.sendStatus(404);
-    }
-
-    return res.sendFile(filePath);
+    return res.json(downloads);
   });
 
   router.post('/workspace', async (req: any, res) => {
@@ -135,14 +115,47 @@ export const getRoutes = ({
     });
   });
 
-  router.delete('/workspace/:file', async (req, res) => {
-    const filePath = path.join(workspaceDir, req.params.file);
+  router.get(/^\/workspace\/(.*)/, async (req, res) => {
+    const file = req.params[0];
+
+    if (!file) {
+      return res.sendStatus(400);
+    }
+
+    const filePath = path.join(workspaceDir, file);
+
     const hasFile = await exists(filePath);
+
     if (!hasFile) {
       return res.sendStatus(404);
     }
 
-    fs.unlink(filePath, _.noop);
+    const stats = await lstat(filePath);
+
+    if (stats.isDirectory()) {
+      const zipStream = archiver('zip');
+      zipStream.pipe(res);
+      return zipStream.directory(filePath, false).finalize();
+    }
+
+    return res.sendFile(filePath, { dotfiles: 'allow' });
+  });
+
+  router.delete(/^\/workspace\/(.*)/, async (req, res) => {
+    const file = req.params[0];
+
+    if (!file) {
+      return res.sendStatus(400);
+    }
+
+    const filePath = path.join(workspaceDir, file);
+    const hasFile = await exists(filePath);
+
+    if (!hasFile) {
+      return res.sendStatus(404);
+    }
+
+    rimraf(filePath, _.noop);
 
     return res.sendStatus(204);
   });
