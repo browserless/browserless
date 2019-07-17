@@ -31,6 +31,18 @@ Array [
 ]
 `;
 
+exports[`Browserless Chrome HTTP allows requests to /json/new 1`] = `
+Array [
+  "description",
+  "devtoolsFrontendUrl",
+  "targetId",
+  "title",
+  "type",
+  "url",
+  "webSocketDebuggerUrl",
+]
+`;
+
 exports[`Browserless Chrome HTTP allows requests to /json/protocol 1`] = `
 Array [
   "domains",

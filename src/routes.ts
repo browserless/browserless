@@ -282,6 +282,22 @@ export const getRoutes = ({
     }),
   ));
 
+  router.get('/json/new', asyncWebHandler(async (req: Request, res: Response) => {
+    const targetId = generateChromeTarget();
+    const baseUrl = req.get('host');
+    const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+
+    res.json({
+      description: '',
+      devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
+      targetId,
+      title: 'about:blank',
+      type: 'page',
+      url: 'about:blank',
+      webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
+    });
+  }));
+
   router.get('/json*', asyncWebHandler(async (req: Request, res: Response) => {
     const targetId = generateChromeTarget();
     const baseUrl = req.get('host');
