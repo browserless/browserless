@@ -119,11 +119,11 @@
   #frame-mount::before {
     content: "";
     position: absolute;
-    top: 0; 
+    top: 0;
     left: 0;
     bottom: 0;
     right: 0;
-    opacity: .4; 
+    opacity: .4;
     z-index: -1;
     background-repeat: no-repeat;
     background-position: 50% 50%;
@@ -349,11 +349,11 @@ module.exports = async ({ page }) => {
   const secure = /(https)|(wss)/g.test(protocol);
   const AUTO_COMPLETE_AFTER_KEY = /^[a-zA-Z0-9_@(]$/;
   const globalVars = [
-    { text: 'debugger;', description: 'The debugger statement invokes any available debugging functionality, such as setting a breakpoint. If no debugging functionality is available, this statement has no effect.' }, 
-    { text: 'await', description: 'The await operator is used to wait for a Promise. It can only be used inside an async function.' }, 
-    { text: 'page' }, 
-    { text: 'console', description: 'Outputs a message to the Web Console.' }, 
-    { text: 'function', description: 'A function is a code snippet that can be called by other code or by itself, or a variable that refers to the function. When a function is called, arguments are passed to the function as input, and the function can optionally return an output. A function in JavaScript is also an object.' }, 
+    { text: 'debugger;', description: 'The debugger statement invokes any available debugging functionality, such as setting a breakpoint. If no debugging functionality is available, this statement has no effect.' },
+    { text: 'await', description: 'The await operator is used to wait for a Promise. It can only be used inside an async function.' },
+    { text: 'page' },
+    { text: 'console', description: 'Outputs a message to the Web Console.' },
+    { text: 'function', description: 'A function is a code snippet that can be called by other code or by itself, or a variable that refers to the function. When a function is called, arguments are passed to the function as input, and the function can optionally return an output. A function in JavaScript is also an object.' },
     { text: 'const', description: 'Constants are block-scoped, much like variables defined using the let statement. The value of a constant cannot change through re-assignment, and it can\'t be redeclared.' },
     { text: 'var', description: 'The variable statement declares a variable, optionally initializing it to a value.' },
     { text: 'let', description: 'The let statement declares a block scope local variable, optionally initializing it to a value.' },
@@ -493,7 +493,8 @@ const puppeteer = require('puppeteer');
   function fetchSessions() {
     if (!isSidebarOpen) return;
 
-    return fetch(`${baseURL}/sessions`, { 
+    return fetch(`${baseURL}/sessions`, {
+      credentials: 'same-origin',
       headers: {
         'Accept': 'application/json',
       }
@@ -581,7 +582,7 @@ const puppeteer = require('puppeteer');
       const readMoreHref = ctx.href ?
         '<a href="' + ctx.href + '" target="_blank">...Read more</a>' :
         '';
-      
+
       const descriptionText = ctx.description ?
         `<h4>Description</h4>` + description.outerHTML :
         '';
@@ -683,6 +684,7 @@ const puppeteer = require('puppeteer');
   });
 
   fetch(`${baseURL}/introspection`, {
+    credentials: 'same-origin',
     headers: {
       'Accept': 'application/json',
     }
@@ -691,6 +693,7 @@ const puppeteer = require('puppeteer');
   .then((hints) => pageMethods = pageMethods.concat(hints))
 
   fetch(`${baseURL}/json/version`, {
+    credentials: 'same-origin',
     headers: {
       'Accept': 'application/json',
     }
