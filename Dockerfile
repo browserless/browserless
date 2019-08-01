@@ -7,7 +7,7 @@ ENV PORT=3000
 ENV application_directory=/usr/src/app
 ENV ENABLE_XVBF=true
 ENV WORKSPACE_DIR=$application_directory/workspace
-ENV USERDATA_DIR=$application_directory/userdata
+ENV DEFAULT_USER_DATA_DIR=$application_directory/userdata
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -17,7 +17,7 @@ ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
 ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
 
-RUN mkdir -p $application_directory $WORKSPACE_DIR $USERDATA_DIR
+RUN mkdir -p $application_directory $WORKSPACE_DIR $DEFAULT_USER_DATA_DIR
 
 WORKDIR $application_directory
 
