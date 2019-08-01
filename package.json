@@ -56,7 +56,7 @@
     "@types/shortid": "0.0.29",
     "archiver": "^3.0.0",
     "body-parser": "^1.18.2",
-    "chromedriver": "^75.0.0",
+    "chromedriver": "^76.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
     "debug": "^4.0.0",
