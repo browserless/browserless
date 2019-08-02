@@ -23,17 +23,17 @@
     "post-install": "npm run symlink-chrome && npm run meta && npm run external"
   },
   "puppeteerVersions": {
-    "puppeteer-1.15.0": "1.15.0",
     "puppeteer-1.16.0": "1.16.0",
     "puppeteer-1.17.0": "1.17.0",
     "puppeteer-1.18.1": "1.18.1",
+    "puppeteer-1.19.0": "1.19.0",
     "chrome-stable": "1.15.0"
   },
   "chromeVersions": [
+    "puppeteer-1.19.0",
     "puppeteer-1.18.1",
     "puppeteer-1.17.0",
     "puppeteer-1.16.0",
-    "puppeteer-1.15.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
