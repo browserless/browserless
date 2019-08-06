@@ -1,5 +1,29 @@
-import { IJob, IQueue } from './models/queue.interface';
-import { id } from './utils';
+import * as EventEmitter from 'events';
+import * as _ from 'lodash';
+
+import { IWebdriverStartHTTP } from './browserless';
+import { IBrowser } from './chrome-helper';
+import { BrowserlessSandbox } from './Sandbox';
+import * as util from './utils';
+
+export interface IJob {
+  (done?: IDone): any | Promise<any>;
+  id?: string;
+  browser?: IBrowser | BrowserlessSandbox | null;
+  close?: () => any;
+  onTimeout?: () => any;
+  start: number;
+  req: util.IHTTPRequest | IWebdriverStartHTTP;
+  timeout?: number | undefined;
+}
+
+export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
+  readonly concurrency: number;
+  remove: (job: IJob) => any;
+  add: (job: IJob) => any;
+}
+
+export type IDone = (error?: Error | null) => any;
 
 interface IQueueConfig {
   autostart: boolean;
@@ -29,11 +53,19 @@ export class Queue {
 
   public add(job: IJob) {
     if (!job.id) {
-      job.id = id();
+      job.id = util.id();
     }
 
     if (!this.canRunImmediately) {
       this.queue.emit('queued');
+    }
+
+    if (!job.hasOwnProperty('timeout')) {
+      const timeout = util.getTimeoutParam(job.req);
+
+      if (timeout !== null) {
+        job.timeout = timeout;
+      }
     }
 
     this.queue.push(job);

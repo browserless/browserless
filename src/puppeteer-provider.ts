@@ -1,33 +1,23 @@
 import * as cookie from 'cookie';
-import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import * as net from 'net';
 import * as puppeteer from 'puppeteer';
-import * as url from 'url';
 import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
-import { Queue } from './queue';
+import * as chromeHelper from './chrome-helper';
+import { IDone, IJob, Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
-import { codeCookieName, getDebug, id, isAuthorized } from './utils';
-
-import {
-  convertUrlParamsToLaunchOpts,
-  defaultLaunchArgs,
-  findSessionForPageUrl,
-  ILaunchOptions,
-  launchChrome,
-} from './chrome-helper';
+import * as utils from './utils';
 
 import { IChromeServiceConfiguration } from './models/options.interface';
-import { IDone, IJob } from './models/queue.interface';
 
 const oneMinute = 60 * 1000;
 
-const sysdebug = getDebug('system');
-const jobdebug = getDebug('job');
-const jobdetaildebug = getDebug('jobdetail');
+const sysdebug = utils.getDebug('system');
+const jobdebug = utils.getDebug('job');
+const jobdetaildebug = utils.getDebug('jobdetail');
 const XVFB = require('@cypress/xvfb');
 const treekill = require('tree-kill');
 
@@ -55,7 +45,7 @@ interface IRunHTTP {
 export class PuppeteerProvider {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
-  private chromeSwarm: Array<Promise<puppeteer.Browser>>;
+  private chromeSwarm: Array<Promise<chromeHelper.IBrowser>>;
   private queue: Queue;
 
   constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue) {
@@ -94,7 +84,7 @@ export class PuppeteerProvider {
       }
 
       const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
-        const chrome = this.launchChrome(defaultLaunchArgs);
+        const chrome = this.launchChrome(chromeHelper.defaultLaunchArgs);
         this.chromeSwarm.push(chrome);
         return chrome;
       });
@@ -155,7 +145,7 @@ export class PuppeteerProvider {
     headless,
     flags,
   }: IRunHTTP) {
-    const jobId = id();
+    const jobId = utils.id();
 
     jobdebug(`${jobId}: ${req.url}: Inbound HTTP request. Context: ${JSON.stringify(context)}`);
 
@@ -193,7 +183,7 @@ export class PuppeteerProvider {
         const debug = (message: string) => jobdebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
-        const urlOpts = convertUrlParamsToLaunchOpts(req);
+        const urlOpts = chromeHelper.convertUrlParamsToLaunchOpts(req);
 
         const launchOpts = {
           ...urlOpts,
@@ -207,7 +197,7 @@ export class PuppeteerProvider {
             const page = await browser.newPage();
             let beforeArgs = {};
 
-            page.on('error', (error) => {
+            page.on('error', (error: Error) => {
               debug(`Error on page: ${error.message}`);
               if (!res.headersSent) {
                 res.status(400).send(error.message);
@@ -301,19 +291,19 @@ export class PuppeteerProvider {
     this.addJob(job);
   }
 
-  public async runWebSocket(req: IncomingMessage, socket: net.Socket, head: Buffer) {
-    const jobId = id();
-    const parsedUrl: any = url.parse(req.url || '', true);
+  public async runWebSocket(req: utils.IHTTPRequest, socket: net.Socket, head: Buffer) {
+    const jobId = utils.id();
+    const parsedUrl = req.parsed;
     const route = parsedUrl.pathname || '/';
     const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
     const debugCode = hasDebugCode ?
-      cookie.parse(req.headers.cookie || '')[codeCookieName] :
+      cookie.parse(req.headers.cookie || '')[utils.codeCookieName] :
       '';
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
     if (route.includes('/devtools/page')) {
-      const session = await findSessionForPageUrl(route);
+      const session = await chromeHelper.findSessionForPageUrl(route);
       if (session && session.port) {
         const { port } = session;
         return this.proxyWsRequestToPort({ req, socket, head, port });
@@ -321,16 +311,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 404 Not Found`,
         message: `Couldn't load session for ${route}`,
-        recordStat: false,
-        req,
-        socket,
-      });
-    }
-
-    if (this.config.token && !isAuthorized(req, this.config.token)) {
-      return this.server.rejectSocket({
-        header: `HTTP/1.1 403 Forbidden`,
-        message: `Forbidden`,
         recordStat: false,
         req,
         socket,
@@ -359,7 +339,7 @@ export class PuppeteerProvider {
       });
     }
 
-    const opts = convertUrlParamsToLaunchOpts(req);
+    const opts = chromeHelper.convertUrlParamsToLaunchOpts(req);
 
     // If debug code is submitted, sandbox it in
     // its own process to prevent infinite/runaway scripts
@@ -420,7 +400,7 @@ export class PuppeteerProvider {
             }
 
             const page: any = await browser.newPage();
-            const port = url.parse(browserWsEndpoint).port;
+            const port = browser.parsed.port;
             const pageLocation = `/devtools/page/${page._target._targetId}`;
             req.url = pageLocation;
 
@@ -531,15 +511,15 @@ export class PuppeteerProvider {
     return this.checkChromeSwarm();
   }
 
-  private getChrome(opts: ILaunchOptions): Promise<puppeteer.Browser> {
-    const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, defaultLaunchArgs);
+  private getChrome(opts: chromeHelper.ILaunchOptions): Promise<chromeHelper.IBrowser> {
+    const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(opts, chromeHelper.defaultLaunchArgs);
     sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const priorChrome = canUseChromeSwarm && this.chromeSwarm.shift();
 
     return (priorChrome || this.launchChrome(opts));
   }
 
-  private async reuseChromeInstance(browser: puppeteer.Browser) {
+  private async reuseChromeInstance(browser: chromeHelper.IBrowser) {
     sysdebug('Clearing browser for reuse');
 
     const openPages = await browser.pages();
@@ -552,7 +532,7 @@ export class PuppeteerProvider {
   private checkChromeSwarm() {
     if (this.needsChromeInstances) {
       sysdebug(`Adding to Chrome swarm`);
-      return this.chromeSwarm.push(this.launchChrome(defaultLaunchArgs));
+      return this.chromeSwarm.push(this.launchChrome(chromeHelper.defaultLaunchArgs));
     }
     return sysdebug(`Chrome swarm is ok`);
   }
@@ -602,10 +582,10 @@ export class PuppeteerProvider {
       }`;
   }
 
-  private async launchChrome(opts: ILaunchOptions, retries = 1): Promise<puppeteer.Browser> {
+  private async launchChrome(opts: chromeHelper.ILaunchOptions, retries = 1): Promise<chromeHelper.IBrowser> {
     const start = Date.now();
 
-    return launchChrome(opts)
+    return chromeHelper.launchChrome(opts)
       .then((chrome) => {
         sysdebug(`Chrome launched ${Date.now() - start}ms`);
         return chrome;

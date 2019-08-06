@@ -1,8 +1,9 @@
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
+
+import { IWebdriverStartHTTP } from './browserless';
 import { IChromeDriver, launchChromeDriver } from './chrome-helper';
-import { IDone, IJob } from './models/queue.interface';
-import { Queue } from './queue';
+import { IDone, IJob, Queue } from './queue';
 import { getDebug } from './utils';
 
 const debug = getDebug('webdriver');
@@ -32,7 +33,7 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public start(req: IncomingMessage, res: ServerResponse) {
+  public start(req: IWebdriverStartHTTP, res: ServerResponse) {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {

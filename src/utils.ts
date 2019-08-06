@@ -14,6 +14,7 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
+import { IWebdriverStartHTTP } from './browserless';
 import { CHROME_BINARY_LOCATION, WORKSPACE_DIR } from './config';
 
 const dbg = require('debug');
@@ -35,6 +36,14 @@ type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<an
 
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
+
+export interface IHTTPRequest extends IncomingMessage {
+  parsed: url.UrlWithParsedQuery;
+}
+
+export interface IHTTPRequestBody extends IncomingMessage {
+  body: any;
+}
 
 export const buildWorkspaceDir = async (dir: string): Promise<any> => {
   const hasDownloads = await exists(dir);
@@ -64,7 +73,7 @@ export const buildWorkspaceDir = async (dir: string): Promise<any> => {
   })).then(_.flattenDeep);
 };
 
-export const getBasicAuthToken = (req: express.Request | IncomingMessage): string => {
+export const getBasicAuthToken = (req: IncomingMessage): string => {
   const header = req.headers.authorization || '';
   const token = header.split(/\s+/).pop() || '';
   return Buffer.from(token, 'base64').toString().replace(':', '');
@@ -136,9 +145,9 @@ export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: st
   return true;
 };
 
-export const isAuthorized = (req: express.Request | IncomingMessage, token: string) => {
+export const isAuthorized = (req: IHTTPRequest, token: string) => {
   const cookies = cookie.parse(req.headers.cookie || '');
-  const parsedUrl = url.parse(req.url as string, true);
+  const parsedUrl = req.parsed;
   const authToken = _.get(parsedUrl, 'query.token', null) ||
     getBasicAuthToken(req) ||
     cookies[tokenCookieName];
@@ -278,3 +287,44 @@ const browserlessDataDirPrefix = 'browserless-data-dir-';
 export const getUserDataDir = () => mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
 
 export const clearBrowserlessDataDirs = () => rimraf(path.join(os.tmpdir(), `${browserlessDataDirPrefix}*`));
+
+export const parseRequest = (req: IncomingMessage): IHTTPRequest => {
+  const ret: IHTTPRequest = req as IHTTPRequest;
+  const parsed = url.parse(req.url || '', true);
+
+  ret.parsed = parsed;
+
+  return ret;
+};
+
+// Number = time in MS, undefined = no timeout, null = no timeout set and should use system-default
+export const getTimeoutParam = (req: IHTTPRequest | IWebdriverStartHTTP): number | undefined | null => {
+  const payloadTimer = (
+    req.method === 'POST' &&
+    req.url &&
+    req.url.includes('webdriver') &&
+    req.hasOwnProperty('body')
+  ) ?
+    _.get(req, ['body', 'desiredCapabilities', 'browserless.timeout'], null) :
+    _.get(req, 'parsed.query.timeout', null);
+
+  if (_.isArray(payloadTimer)) {
+    return null;
+  }
+
+  const parsedTimer = _.parseInt(payloadTimer || '');
+
+  if (_.isNaN(parsedTimer)) {
+    return null;
+  }
+
+  if (parsedTimer === -1) {
+    return undefined;
+  }
+
+  if (_.isNumber(parsedTimer)) {
+    return parsedTimer;
+  }
+
+  return null;
+};

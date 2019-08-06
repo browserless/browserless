@@ -83,6 +83,38 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
+  it('works with job-based timeouts', async () => {
+    const params = defaultParams();
+    const chromeCapabilities = webdriver.Capabilities.chrome();
+    const browserless = start({
+      ...params,
+      connectionTimeout: -1,
+    });
+
+    await browserless.startServer();
+    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
+    chromeCapabilities.set('browserless.timeout', 10);
+
+    async function run() {
+      const driver = new webdriver.Builder()
+        .forBrowser('chrome')
+        .withCapabilities(chromeCapabilities)
+        .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
+        .build();
+
+      await driver.get('https://example.com');
+      await driver.quit();
+    }
+
+    await run();
+    await sleep(50);
+
+    expect(browserless.currentStat.timedout).toEqual(1);
+    expect(browserless.currentStat.successful).toEqual(0);
+    expect(browserless.currentStat.rejected).toEqual(0);
+    expect(browserless.currentStat.queued).toEqual(0);
+  });
+
   it('authorizes with tokens', async () => {
     const params = defaultParams();
     const chromeCapabilities = webdriver.Capabilities.chrome();

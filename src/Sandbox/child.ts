@@ -1,6 +1,5 @@
 import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
-import * as url from 'url';
 import { NodeVM } from 'vm2';
 
 import { ILaunchOptions, launchChrome } from '../chrome-helper';
@@ -46,7 +45,6 @@ const start = async (
   debug(`Starting sandbox running code "${code}"`);
 
   const browser = await launchChrome(opts);
-  const browserWsEndpoint = browser.wsEndpoint();
   const page: any = await browser.newPage();
   page.on('error', (error: Error) => {
     debug(`Page error: ${error.message}`);
@@ -56,7 +54,7 @@ const start = async (
     });
   });
   const pageLocation = `/devtools/page/${page._target._targetId}`;
-  const port = url.parse(browserWsEndpoint).port;
+  const port = browser.parsed.port;
   const data = {
     context: {
       port,
