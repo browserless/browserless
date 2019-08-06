@@ -1,4 +1,25 @@
-# 1.10.0
+# [1.13.0](https://github.com/browserless/chrome/compare/v1.12.0...v1.13.0)
+- A minor refactor to consolidate calls to `url.parse` for performance gains.
+- Introduces a per-session based timeout that overrides the global timeout.
+- Consolidates authorization checks to remove duplication.
+- Moves more types into their backing modules in order to better consolidate files.
+
+# [1.12.0](https://github.com/browserless/chrome/compare/v1.11.0...v1.12.0)
+- Set's a non-conflicting `WORKSPACE_DIR` and `DEFAULT_USER_DATA_DIR` in docker by default.
+- Drops support for puppeteer `1.15.0` and adds `1.19.0`.
+- Web-based debugger now sends cookies for docker deployments that are secure.
+
+# [1.11.0](https://github.com/browserless/chrome/compare/v1.10.0...v1.11.0)
+- Live debugger is now self-hosted, no more enforced https though it's still recommended.
+- Consolidated build steps.
+- Using the same chromedriver binary that matches the puppeteer's bundled chromium.
+- Introducing `trackingId` workflows.
+- Fixing unused export's, removing extraneous internal methods.
+- `/workspace` API now returns sub-files and scopes sessions by `trackingId` when present.
+- Support for `/json/new` protocol.
+- Dependency updates.
+
+# [1.10.0](https://github.com/browserless/chrome/compare/v1.9.0...v1.10.0)
 - Dropped support for puppeteer `1.9.0 => 1.14.0`.
 - Added support for puppeteer `1.16.0 => 1.18.0`.
 - A version of chromedriver is now installed to perfectly match the version of puppeteer's chromium.
@@ -11,13 +32,13 @@
 - The debugger now filters out `about:blank` pages, and includes sessions by Selenium.
 - Workspace support for selenium-based integrations.
 
-# 1.9.0
+# [1.9.0](https://github.com/browserless/chrome/compare/v1.8.0...v1.9.0)
 - Better handling of browser/socket closing in puppeteer integrations.
 - Numerous screencast fixes.
 - Moved all GH links to new repo location.
 - Dep updates.
 
-# 1.8.0
+# [1.8.0](https://github.com/browserless/chrome/compare/v1.7.0...v1.8.0)
 - Better windows dev experience.
 - Indian font support.
 - Video capture now supports audio and browser width/height.

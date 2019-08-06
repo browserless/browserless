@@ -3,13 +3,7 @@
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
 ![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
 
-**NOTE: We've migrated this repo to the browserless organization. Update your git remotes:**
-
-```sh
-git remote set-url origin https://github.com/browserless/chrome.git
-```
-
-browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, selenium's webdriver, and a slew of handy REST API's for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements.
+browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, selenium's webdriver, and a slew of handy REST API's for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edgecases like downloading files, managing sessions, and have a fully-fledged documentation site.
 
 If you've been struggling to get Chrome up and running docker, or scaling out your headless workloads, then browserless was built for you.
 # Table of Contents
@@ -24,6 +18,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 8. [Using with puppeteer](#puppeteer)
 9. [Using with selenium](#webdriver)
 10. [Licensing](#licensing)
+11. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
 
 ## External links
 
@@ -65,7 +60,7 @@ Your application still runs the script itself (much like a database interaction)
 
 In order to run Browserless, you'll need:
 * Node version 8+
-* Chrome Dependencies: 
+* Chrome Dependencies:
   * `sudo apt-get install -y  wget  unzip   fontconfig   locales  gconf-service   libasound2 libatk1.0-0   libc6   libcairo2   libcups2   libdbus-1-3   libexpat1   libfontconfig1   libgcc1   libgconf-2-4   libgdk-pixbuf2.0-0 libglib2.0-0   libgtk-3-0   libnspr4   libpango-1.0-0   libpangocairo-1.0-0   libstdc++6   libx11-6   libx11-xcb1   libxcb1 libxcomposite1   libxcursor1   libxdamage1   libxext6  libxfixes3   libxi6   libxrandr2   libxrender1   libxss1 libxtst6   ca-certificates   fonts-liberation   libappindicator1   libnss3   lsb-release   xdg-utils   wget`
 
 **Browserless Install**
