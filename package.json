@@ -68,6 +68,7 @@
     "lighthouse": "^5.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
+    "node-cron": "^2.0.3",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "puppeteer": "^1.18.1",

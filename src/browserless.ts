@@ -16,6 +16,7 @@ import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { IDone, IJob, Queue } from './queue';
 import { getRoutes } from './routes';
+import { clearTimers } from './scheduler';
 import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
@@ -268,6 +269,7 @@ export class BrowserlessServer {
     debug(`Kill received, forcefully closing`);
 
     clearInterval(this.metricsInterval);
+    clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();
@@ -290,6 +292,7 @@ export class BrowserlessServer {
     debug(`Close received, gracefully closing`);
 
     clearInterval(this.metricsInterval);
+    clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();

@@ -45,32 +45,50 @@ export interface IHTTPRequestBody extends IncomingMessage {
   body: any;
 }
 
-export const buildWorkspaceDir = async (dir: string): Promise<any> => {
-  const hasDownloads = await exists(dir);
+export interface IWorkspaceItem {
+  created: Date;
+  isDirectory: boolean;
+  name: string;
+  path: string;
+  size: number;
+  workspaceId: string | null;
+}
+
+const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) => {
   const [, parentDir] = dir.split(WORKSPACE_DIR);
   const deburredParentDir = parentDir.replace(/^\//, '');
-
-  if (!hasDownloads) {
-    return null;
-  }
-
   const files = await readdir(dir);
 
-  return await Promise.all(files.map(async (file) => {
+  await Promise.all(files.map(async (file) => {
     const stats = await lstat(path.join(dir, file));
+
     if (stats.isDirectory()) {
-      return buildWorkspaceDir(path.join(dir, file));
+      return readFilesRecursive(path.join(dir, file), results);
     }
 
-    return {
+    results.push({
       created: stats.birthtime,
       isDirectory: stats.isDirectory(),
       name: file,
       path: path.join('/workspace', parentDir, file),
       size: stats.size,
       workspaceId: deburredParentDir.length ? deburredParentDir : null,
-    };
-  })).then(_.flattenDeep);
+    });
+
+    return results;
+  }));
+
+  return results;
+};
+
+export const buildWorkspaceDir = async (dir: string): Promise<IWorkspaceItem[] | null> => {
+  const hasDownloads = await exists(dir);
+
+  if (!hasDownloads) {
+    return null;
+  }
+
+  return  await readFilesRecursive(dir);
 };
 
 export const getBasicAuthToken = (req: IncomingMessage): string => {

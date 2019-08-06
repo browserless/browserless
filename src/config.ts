@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as _ from 'lodash';
 import * as os from 'os';
 import * as puppeteer from 'puppeteer';
 
@@ -37,17 +38,27 @@ const parseJSONParam = (param: string | undefined, defaultParam: number | boolea
   return defaultParam;
 };
 
+const parseNumber = (param: string | undefined, defaultParam: number): number => {
+  const parsed = _.parseInt(param || '');
+
+  if (_.isNaN(parsed)) {
+    return defaultParam;
+  }
+
+  return parsed;
+};
+
 const thirtyMinutes = 30 * 60 * 1000;
 
 // Timers/Queue/Concurrency
-export const CHROME_REFRESH_TIME: number = parseJSONParam(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
-export const CONNECTION_TIMEOUT: number = parseJSONParam(process.env.CONNECTION_TIMEOUT, 30000);
-export const MAX_CONCURRENT_SESSIONS: number = parseJSONParam(process.env.MAX_CONCURRENT_SESSIONS, 10);
-export const QUEUE_LENGTH: number = parseJSONParam(process.env.MAX_QUEUE_LENGTH, 10);
+export const CHROME_REFRESH_TIME: number = parseNumber(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
+export const CONNECTION_TIMEOUT: number = parseNumber(process.env.CONNECTION_TIMEOUT, 30000);
+export const MAX_CONCURRENT_SESSIONS: number = parseNumber(process.env.MAX_CONCURRENT_SESSIONS, 10);
+export const QUEUE_LENGTH: number = parseNumber(process.env.MAX_QUEUE_LENGTH, 10);
 
 // Preboot/Default Launch Options
 export const KEEP_ALIVE: boolean = parseJSONParam(process.env.KEEP_ALIVE, false);
-export const MAX_CHROME_REFRESH_RETRIES: number = parseJSONParam(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
+export const MAX_CHROME_REFRESH_RETRIES: number = parseNumber(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
 export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(process.env.DEFAULT_BLOCK_ADS, false);
 export const DEFAULT_HEADLESS: boolean = parseJSONParam(process.env.DEFAULT_CHROME, true);
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_LAUNCH_ARGS, []);
@@ -81,6 +92,7 @@ export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DIS
 export const FUNCTION_BUILT_INS: string[] = parseJSONParam(process.env.FUNCTION_BUILT_INS, REQUIRED_INTERNALS);
 export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_EXTERNALS, REQUIRED_EXTERNALS);
 export const WORKSPACE_DIR: string = process.env.WORKSPACE_DIR ? process.env.WORKSPACE_DIR : os.tmpdir();
+export const WORKSPACE_EXPIRE_DAYS: number = parseNumber(process.env.WORKSPACE_EXPIRE_DAYS, 30);
 
 // Webhooks
 export const FAILED_HEALTH_URL: string | null = process.env.FAILED_HEALTH_URL || null;
@@ -90,11 +102,11 @@ export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL ||
 
 // Health
 export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
-export const MAX_CPU_PERCENT: number = parseJSONParam(process.env.MAX_CPU_PERCENT, 99);
-export const MAX_MEMORY_PERCENT: number = parseJSONParam(process.env.MAX_MEMORY_PERCENT, 99);
+export const MAX_CPU_PERCENT: number = parseNumber(process.env.MAX_CPU_PERCENT, 99);
+export const MAX_MEMORY_PERCENT: number = parseNumber(process.env.MAX_MEMORY_PERCENT, 99);
 export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH || null;
 
 // Server Options
 export const HOST: string | undefined = process.env.HOST;
 export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';
-export const PORT: number = parseJSONParam(process.env.PORT, 8080);
+export const PORT: number = parseNumber(process.env.PORT, 8080);
