@@ -9,26 +9,16 @@ import { Socket } from 'net';
 import * as os from 'os';
 import * as path from 'path';
 
-import {
-  asyncWsHandler,
-  clearBrowserlessDataDirs,
-  getDebug,
-  isAuthorized,
-  isWebdriverAuthorized,
-  normalizeWebdriverStart,
-  tokenCookieName,
-  writeFile,
-} from './utils';
+import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
 import { IBrowserlessOptions } from './models/options.interface';
-import { IDone, IJob } from './models/queue.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
-import { Queue } from './queue';
+import { IDone, IJob, Queue } from './queue';
 import { getRoutes } from './routes';
 import { WebDriver } from './webdriver-provider';
 
-const debug = getDebug('server');
+const debug = util.getDebug('server');
 
 const request = require('request');
 
@@ -48,6 +38,10 @@ const beforeHook = fs.existsSync(beforeHookPath) ?
 const afterHook = fs.existsSync(afterHookPath) ?
   require(afterHookPath) :
   () => true;
+
+export interface IWebdriverStartHTTP extends util.IHTTPRequest {
+  body: any;
+}
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
@@ -215,27 +209,28 @@ export class BrowserlessServer {
 
       return this.httpServer = http
         .createServer(async (req, res) => {
-          const beforeResults = await beforeHook({ req, res });
+          const reqParsed = util.parseRequest(req);
+          const beforeResults = await beforeHook({ req: reqParsed, res });
 
           if (!beforeResults) {
             return res.end();
           }
 
           // Handle webdriver requests early, which handles it's own auth
-          if (req.url && req.url.includes(webDriverPath)) {
-            return this.handleWebDriver(req, res);
+          if (reqParsed.url && reqParsed.url.includes(webDriverPath)) {
+            return this.handleWebDriver(reqParsed, res);
           }
 
-          if (this.config.token && !isAuthorized(req, this.config.token)) {
+          if (this.config.token && !util.isAuthorized(reqParsed, this.config.token)) {
             res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
             return res.end('Unauthorized');
           }
 
           // Handle token auth
-          const cookies = cookie.parse(req.headers.cookie || '');
+          const cookies = cookie.parse(reqParsed.headers.cookie || '');
 
-          if (!cookies[tokenCookieName] && this.config.token) {
-            const cookieToken = cookie.serialize(tokenCookieName, this.config.token, {
+          if (!cookies[util.tokenCookieName] && this.config.token) {
+            const cookieToken = cookie.serialize(util.tokenCookieName, this.config.token, {
               httpOnly: true,
               maxAge: twentyFourHours / 1000,
             });
@@ -244,14 +239,25 @@ export class BrowserlessServer {
 
           return app(req, res);
         })
-        .on('upgrade', asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-          const beforeResults = await beforeHook({ req, socket });
+        .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
+          const reqParsed = util.parseRequest(req);
+          const beforeResults = await beforeHook({ req: reqParsed, socket });
 
           if (!beforeResults) {
             return socket.end();
           }
 
-          return this.puppeteerProvider.runWebSocket(req, socket, head);
+          if (this.config.token && !util.isAuthorized(reqParsed, this.config.token)) {
+            return this.rejectSocket({
+              header: `HTTP/1.1 403 Forbidden`,
+              message: `Forbidden`,
+              recordStat: false,
+              req: reqParsed,
+              socket,
+            });
+          }
+
+          return this.puppeteerProvider.runWebSocket(reqParsed, socket, head);
         }))
         .setTimeout(httpTimeout)
         .listen(this.config.port, this.config.host, resolve);
@@ -265,7 +271,7 @@ export class BrowserlessServer {
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();
-    await clearBrowserlessDataDirs();
+    await util.clearBrowserlessDataDirs();
 
     await Promise.all([
       new Promise((resolve) => this.httpServer.close(resolve)),
@@ -287,7 +293,7 @@ export class BrowserlessServer {
     process.removeAllListeners();
     this.proxy.removeAllListeners();
     this.resourceMonitor.close();
-    await clearBrowserlessDataDirs();
+    await util.clearBrowserlessDataDirs();
 
     await new Promise((resolve) => {
       debug(`Closing server`);
@@ -339,18 +345,21 @@ export class BrowserlessServer {
     const isClosing = req.method && req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url || '');
 
     if (isStarting) {
-      const postBody = await normalizeWebdriverStart(req);
+      const ret = req as IWebdriverStartHTTP;
+      const postBody = await util.normalizeWebdriverStart(req);
       if (!postBody) {
         res.writeHead && res.writeHead(400, { 'Content-Type': 'text/plain' });
-        return res.end('Bad Request, no body posted');
+        return res.end('Bad Request');
       }
 
-      if (this.config.token && !isWebdriverAuthorized(req, postBody, this.config.token)) {
+      if (this.config.token && !util.isWebdriverAuthorized(req, postBody, this.config.token)) {
         res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Unauthorized');
       }
 
-      return this.webdriver.start(req, res);
+      ret.body = postBody;
+
+      return this.webdriver.start(ret, res);
     }
 
     if (isClosing) {
@@ -437,7 +446,7 @@ export class BrowserlessServer {
     }
 
     if (this.config.metricsJSONPath) {
-      writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
+      util.writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
         .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
         .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
     }

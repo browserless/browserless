@@ -83,6 +83,33 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
+  it('runs with job-based timeouts', async (done) => {
+    const params = defaultParams();
+    const browserless = await start({
+      ...params,
+      connectionTimeout: -1,
+    });
+    await browserless.startServer();
+
+    const job = async () => {
+      await puppeteer.connect({
+        browserWSEndpoint: `ws://127.0.0.1:${params.port}?timeout=100`,
+      }).catch((error) => {
+        expect(error.message).toContain('socket hang up');
+      });
+    };
+
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(1);
+      expect(browserless.currentStat.successful).toEqual(0);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
   it('queues requests', async (done) => {
     const params = defaultParams();
     const browserless = start({

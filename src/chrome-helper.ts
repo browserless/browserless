@@ -1,15 +1,13 @@
 import { ChildProcess } from 'child_process';
 // @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
-import * as express from 'express';
-import { IncomingMessage } from 'http';
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
 import { CHROME_BINARY_LOCATION } from './config';
-import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
+import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
 
 import {
   DEFAULT_BLOCK_ADS,
@@ -37,8 +35,8 @@ export interface IChromeDriver {
   chromeProcess: ChildProcess;
 }
 
-interface IBrowser extends puppeteer.Browser {
-  port?: string | undefined;
+export interface IBrowser extends puppeteer.Browser {
+  parsed: url.UrlWithParsedQuery;
   trackingId?: string;
 }
 
@@ -114,26 +112,27 @@ const setupBrowser = async ({
   pauseOnConnect,
   trackingId,
 }: {
-  browser: IBrowser;
+  browser: puppeteer.Browser;
   isUsingTempDataDir: boolean;
   browserlessDataDir?: string | null;
   blockAds: boolean;
   pauseOnConnect: boolean;
   trackingId?: string;
 }): Promise<IBrowser> => {
-  const { port } = url.parse(browser.wsEndpoint());
+  const iBrowser = browser as IBrowser;
+  iBrowser.parsed = url.parse(iBrowser.wsEndpoint(), true);
 
-  browser.once('disconnected', () => {
+  iBrowser.once('disconnected', () => {
     if (isUsingTempDataDir && browserlessDataDir) {
       debug(`Removing temp data-dir ${browserlessDataDir}`);
       rimraf(browserlessDataDir);
     }
 
-    runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
-    browser.removeAllListeners();
+    runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== iBrowser.wsEndpoint());
+    iBrowser.removeAllListeners();
   });
 
-  browser.on('targetcreated', async (target) => {
+  iBrowser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
 
@@ -151,15 +150,14 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await browser.pages();
+  const pages = await iBrowser.pages();
   pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId }));
 
-  runningBrowsers.push(browser);
+  runningBrowsers.push(iBrowser);
 
-  browser.port = port;
-  browser.trackingId = trackingId;
+  iBrowser.trackingId = trackingId;
 
-  return browser;
+  return iBrowser;
 };
 
 export const defaultLaunchArgs = {
@@ -182,8 +180,7 @@ export const findSessionForPageUrl = async (pathname: string) => {
 export const getDebuggingPages = async (): Promise<ISession[]> => {
   const results = await Promise.all(
     runningBrowsers.map(async (browser) => {
-      const endpoint = browser.wsEndpoint();
-      const { port } = url.parse(endpoint);
+      const { port } = browser.parsed;
       const host = HOST || '127.0.0.1';
 
       if (!port) {
@@ -212,7 +209,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
   return _.flatten(results);
 };
 
-export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Browser> => {
+export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
 
@@ -253,8 +250,8 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<puppeteer.Brow
     }));
 };
 
-export const convertUrlParamsToLaunchOpts = (req: IncomingMessage | express.Request): ILaunchOptions => {
-  const urlParts = url.parse(req.url || '', true);
+export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions => {
+  const urlParts = req.parsed;
   const args = _.chain(urlParts.query)
     .pickBy((_value, param) => _.startsWith(param, '--'))
     .map((value, key) => `${key}${value ? `=${value}` : ''}`)
@@ -309,7 +306,7 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
         const { port } = url.parse(wsEndpoint);
         debug(`Attaching to chromedriver browser on ${port}`);
 
-        const browser: IBrowser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+        const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
 
         setupBrowser({
           blockAds: false,
