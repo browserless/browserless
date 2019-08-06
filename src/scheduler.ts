@@ -1,14 +1,34 @@
-import { WORKSPACE_DIR, WORKSPACE_EXPIRE_DAYS } from './config';
-import { buildWorkspaceDir, exists, getDebug } from './utils';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const debug = getDebug('cron');
+import { WORKSPACE_DIR, WORKSPACE_EXPIRE_DAYS } from './config';
+import { exists, getDebug, lstat, readdir } from './utils';
+
+const debug = getDebug('scheduler');
 const rimraf = require('rimraf');
+const IS_DOCKER = fs.existsSync('/.dockerenv');
 const DAILY = 24 * 60 * 60 * 1000;
 
 const intervalIds: NodeJS.Timeout[] = [];
 
+const getWorkspaceFiles = async (): Promise<Array<{ created: Date; location: string; name: string }>> => {
+  const files = await readdir(WORKSPACE_DIR);
+
+  return Promise.all(files.map(async (file) => {
+    const location = path.join(WORKSPACE_DIR, file);
+    const stats = await lstat(location);
+
+    return {
+      created: stats.birthtime,
+      location,
+      name: file,
+    };
+  }));
+};
+
 const checkExpiredDownloads = async () => {
-  const workspace = await buildWorkspaceDir(WORKSPACE_DIR);
+  debug(`Checking workspace for expired files...`);
+  const workspace = await getWorkspaceFiles();
 
   if (workspace) {
     workspace.forEach(async (workspaceItem) => {
@@ -28,8 +48,11 @@ const checkExpiredDownloads = async () => {
   }
 };
 
-checkExpiredDownloads();
-
-intervalIds.push(setInterval(checkExpiredDownloads, DAILY));
+// Only cleanup workspace files if this is docker, otherwise
+// might delete stuff in /tmp
+if (IS_DOCKER) {
+  checkExpiredDownloads();
+  intervalIds.push(setInterval(checkExpiredDownloads, DAILY));
+}
 
 export const clearTimers = () => intervalIds.forEach((intervalId) => clearInterval(intervalId));
