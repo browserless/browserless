@@ -81,6 +81,7 @@
     "ts-jest": "^24.0.0",
     "tslint": "^5.10.0",
     "typescript": "^3.3.3",
+    "untildify": "^4.0.0",
     "unzipper": "^0.10.1",
     "vm2": "^3.8.1"
   },

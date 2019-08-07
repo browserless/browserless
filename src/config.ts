@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as puppeteer from 'puppeteer';
 
 const debug = require('debug');
+const untildify = require('untildify');
 const packageJson = require('puppeteer/package.json');
 
 // Required, by default, to make certain API's work
@@ -26,7 +27,7 @@ const getDebug = () => {
   return process.env.DEBUG;
 };
 
-const parseJSONParam = (param: string | undefined, defaultParam: number | boolean | string[]) => {
+const parseJSONParam = (param: string | undefined, defaultParam: boolean | string[]) => {
   if (param) {
     try {
       return JSON.parse(param);
@@ -64,7 +65,9 @@ export const DEFAULT_HEADLESS: boolean = parseJSONParam(process.env.DEFAULT_CHRO
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_LAUNCH_ARGS, []);
 export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_DEFAULT_ARGS, false);
 export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_HTTPS_ERRORS, false);
-export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR;
+export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR ?
+  untildify(process.env.DEFAULT_USER_DATA_DIR) :
+  undefined;
 export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME, false);
 export const CHROME_BINARY_LOCATION: string = (() => {
   // If it's installed already (docker) use it
@@ -91,7 +94,8 @@ export const TOKEN: string | null = process.env.TOKEN || null;
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);
 export const FUNCTION_BUILT_INS: string[] = parseJSONParam(process.env.FUNCTION_BUILT_INS, REQUIRED_INTERNALS);
 export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_EXTERNALS, REQUIRED_EXTERNALS);
-export const WORKSPACE_DIR: string = process.env.WORKSPACE_DIR ? process.env.WORKSPACE_DIR : os.tmpdir();
+export const WORKSPACE_DIR: string = process.env.WORKSPACE_DIR ? untildify(process.env.WORKSPACE_DIR) : os.tmpdir();
+export const WORKSPACE_DELETE_EXPIRED: boolean = parseJSONParam(process.env.WORKSPACE_DELETE_EXPIRED, false);
 export const WORKSPACE_EXPIRE_DAYS: number = parseNumber(process.env.WORKSPACE_EXPIRE_DAYS, 30);
 
 // Webhooks
@@ -104,7 +108,9 @@ export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL ||
 export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
 export const MAX_CPU_PERCENT: number = parseNumber(process.env.MAX_CPU_PERCENT, 99);
 export const MAX_MEMORY_PERCENT: number = parseNumber(process.env.MAX_MEMORY_PERCENT, 99);
-export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH || null;
+export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH ?
+  untildify(process.env.METRICS_JSON_PATH) :
+  null;
 
 // Server Options
 export const HOST: string | undefined = process.env.HOST;

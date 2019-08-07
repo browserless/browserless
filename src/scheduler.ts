@@ -1,12 +1,10 @@
-import * as fs from 'fs';
 import * as path from 'path';
 
-import { WORKSPACE_DIR, WORKSPACE_EXPIRE_DAYS } from './config';
+import { WORKSPACE_DELETE_EXPIRED, WORKSPACE_DIR, WORKSPACE_EXPIRE_DAYS } from './config';
 import { exists, getDebug, lstat, readdir } from './utils';
 
 const debug = getDebug('scheduler');
 const rimraf = require('rimraf');
-const IS_DOCKER = fs.existsSync('/.dockerenv');
 const DAILY = 24 * 60 * 60 * 1000;
 
 const intervalIds: NodeJS.Timeout[] = [];
@@ -50,7 +48,7 @@ const checkExpiredDownloads = async () => {
 
 // Only cleanup workspace files if this is docker, otherwise
 // might delete stuff in /tmp
-if (IS_DOCKER) {
+if (WORKSPACE_DELETE_EXPIRED) {
   checkExpiredDownloads();
   intervalIds.push(setInterval(checkExpiredDownloads, DAILY));
 }
