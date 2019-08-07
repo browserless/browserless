@@ -19,7 +19,6 @@ const sysdebug = utils.getDebug('system');
 const jobdebug = utils.getDebug('job');
 const jobdetaildebug = utils.getDebug('jobdetail');
 const XVFB = require('@cypress/xvfb');
-const treekill = require('tree-kill');
 
 interface IBefore {
   page: puppeteer.Page;
@@ -317,6 +316,21 @@ export class PuppeteerProvider {
       });
     }
 
+    if (route.includes('/devtools/browser')) {
+      const session = await chromeHelper.findSessionForBrowserUrl(route);
+      if (session && session.port) {
+        const { port } = session;
+        return this.proxyWsRequestToPort({ req, socket, head, port });
+      }
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 404 Not Found`,
+        message: `Couldn't load session for ${route}`,
+        recordStat: false,
+        req,
+        socket,
+      });
+    }
+
     if (this.config.demoMode && !debugCode) {
       jobdebug(`${jobId}: No demo code sent, running in demo mode, closing with 403.`);
       return this.server.rejectSocket({
@@ -400,7 +414,7 @@ export class PuppeteerProvider {
             }
 
             const page: any = await browser.newPage();
-            const port = browser.parsed.port;
+            const port = browser._parsed.port;
             const pageLocation = `/devtools/page/${page._target._targetId}`;
             req.url = pageLocation;
 
@@ -498,17 +512,29 @@ export class PuppeteerProvider {
       return browser.close();
     }
 
+    const closeChrome = async () => {
+      jobdebug(`${job.id}: Browser not needed, closing`);
+      await chromeHelper.closeBrowser(browser);
+
+      jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
+      this.checkChromeSwarm();
+    };
+
     if (this.keepChromeInstance) {
       jobdebug(`${job.id}: Browser still needed`);
       return this.reuseChromeInstance(browser);
     }
 
-    jobdebug(`${job.id}: Browser not needed, closing`);
-    browser.close().catch(_.noop);
-    treekill(browser.process().pid, 'SIGKILL');
+    // If it's marked as "keepalive", set a timer to kill it, and if we
+    // see it again reset that timer, otherwise proceed with closing.
+    if (browser._keepalive) {
+      browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
+      jobdebug(`${job.id}: Browser marked as keep-alive, closing in ${browser._keepalive}ms`);
+      browser._keepaliveTimeout = setTimeout(closeChrome, browser._keepalive);
+      return;
+    }
 
-    jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
-    return this.checkChromeSwarm();
+    closeChrome();
   }
 
   private getChrome(opts: chromeHelper.ILaunchOptions): Promise<chromeHelper.IBrowser> {

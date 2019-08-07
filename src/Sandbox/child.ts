@@ -54,7 +54,7 @@ const start = async (
     });
   });
   const pageLocation = `/devtools/page/${page._target._targetId}`;
-  const port = browser.parsed.port;
+  const port = browser._parsed.port;
   const data = {
     context: {
       port,

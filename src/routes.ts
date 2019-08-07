@@ -203,6 +203,12 @@ export const getRoutes = ({
     }),
   );
 
+  router.get('/kill/all', async (_req, res) => {
+    await chromeHelper.killAll();
+
+    return res.sendStatus(204);
+  });
+
   // Screen cast route -- we inject some fun stuff here so that it all works properly :)
   router.post('/screencast', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
     const isJson = typeof req.body === 'object';
