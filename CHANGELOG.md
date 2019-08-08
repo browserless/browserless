@@ -1,3 +1,14 @@
+# [1.14.0](https://github.com/browserless/chrome/compare/v1.13.0...v1.14.0)
+- New `WORKSPACE_DELETE_EXPIRED` and `WORKSPACE_EXPIRE_DAYS` to auto-cleanup workspace dirs.
+- README.md cleanup now that HTTPS is no longer required.
+- Support for `~` in docker env parameters.
+- More alignment with how chromedriver and puppeteer sessions get cleaned up.
+- `/session` API now returns `browserWSEndpoint` and `browserId` properties for having multiple debuggers connected.
+- Support for reconnecting(!!). When a `?keepalive=KEEP-ALIVE-IN-MS` is seen in the `puppeteer.connect` call we keep the browser active for that many ms after the debugger disconnects.
+- New `/kill/all` route which closes _all_ actively running sessions.
+- New internal scheduler module, making future things like cron-based jobs a possibility.
+- Better internal types.
+
 # [1.13.0](https://github.com/browserless/chrome/compare/v1.12.0...v1.13.0)
 - A minor refactor to consolidate calls to `url.parse` for performance gains.
 - Introduces a per-session based timeout that overrides the global timeout.
