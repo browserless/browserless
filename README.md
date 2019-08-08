@@ -11,14 +11,13 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 1. [Features](#features)
 2. [How it works](#how-it-works)
 3. [Docker](#docker)
-4. [Bare-metal with node](#node)
-5. [Using the debuggers](#live-debugger)
-6. [Recommended NGINX Config](#Recommended-NGINX-Config)
-7. [Hosting](#hosting-providers)
-8. [Using with puppeteer](#puppeteer)
-9. [Using with selenium](#webdriver)
-10. [Licensing](#licensing)
-11. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
+4. [Using the debuggers](#live-debugger)
+5. [Recommended NGINX Config](#Recommended-NGINX-Config)
+6. [Hosting](#hosting-providers)
+7. [Using with puppeteer](#puppeteer)
+8. [Using with selenium](#webdriver)
+9. [Licensing](#licensing)
+10. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
 
 ## External links
 
@@ -49,28 +48,9 @@ Your application still runs the script itself (much like a database interaction)
 
 > See more options on our [full documentation site](https://docs.browserless.io/docs/docker.html).
 
-⚠️ HOSTING: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site needs to be deployed under HTTPS. This is due to devtools scripts being loaded from a secure domain. For further help/information look at some projects like localtunnel, certbot, or even netlify to achieve these efforts.
-
-1. `docker pull browserless/chrome`
-2. `docker run -p 3000:3000 browserless/chrome`
-3. Visit `http://localhost:3000/` to use the interactive debugger.
-4. See more at our [docker repository](https://hub.docker.com/r/browserless/chrome/).
-
-# Node
-
-In order to run Browserless, you'll need:
-* Node version 8+
-* Chrome Dependencies:
-  * `sudo apt-get install -y  wget  unzip   fontconfig   locales  gconf-service   libasound2 libatk1.0-0   libc6   libcairo2   libcups2   libdbus-1-3   libexpat1   libfontconfig1   libgcc1   libgconf-2-4   libgdk-pixbuf2.0-0 libglib2.0-0   libgtk-3-0   libnspr4   libpango-1.0-0   libpangocairo-1.0-0   libstdc++6   libx11-6   libx11-xcb1   libxcb1 libxcomposite1   libxcursor1   libxdamage1   libxext6  libxfixes3   libxi6   libxrandr2   libxrender1   libxss1 libxtst6   ca-certificates   fonts-liberation   libappindicator1   libnss3   lsb-release   xdg-utils   wget`
-
-**Browserless Install**
-
-1. `git clone https://github.com/browserless/chrome.git browserless`
-2. `cd browserless`
-3. `npm install`
-4. `npm run post-install`
-5. `npm run dev`
-6. Visit `http://localhost:3000/` to use the interactive debugger.
+1. `docker run -p 3000:3000 browserless/chrome`
+2. Visit `http://localhost:3000/` to use the interactive debugger.
+3. See more at our [docker repository](https://hub.docker.com/r/browserless/chrome/).
 
 # Live Debugger
 
@@ -81,8 +61,6 @@ browserless comes with _two_ methods of debugging. The first is a web-based debu
 The second method is an active-session debugger. When browserless runs http requests, and puppteer sessions, it keeps track of some browser state, and makes those sessions available for debugging. You can simply load the web-based debugger in the browser, and click the menu icon in the top-left. It'll reveal all currently running sessions and a link to "view" them in Chrome's remote devtools. You can also query the `/session` API to get a JSON representation of sessions as well.
 
 If you're using the active-session debugger, and it's executing too fast, you can apply a `?pause` query parameter to your `puppeteer.connect` call (or HTTP REST calls) and browserless will pause your script until the debugger connects. This way you don't any critical actions!
-
-⚠️ **HOSTING**: In order for the debugger to work properly in hosted environments (AWS, Heroku, and others) your site _needs_ to be deployed under HTTPS. This is due to devtools scripts being loaded from an http-based domain. For further help/information look at some projects like [localtunnel](https://github.com/localtunnel/localtunnel), [certbot](https://certbot.eff.org/), or even netlify to achieve these efforts.
 
 browserless ships with an interactive debugger that makes writing scripts faster and interactive. You can use things like `debugger;` and `console.log` to capture what's happening on the page while your script is running. All of the Chrome devtools are there at your disposal. A small list of features includes:
 

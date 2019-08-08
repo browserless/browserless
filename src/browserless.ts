@@ -128,8 +128,6 @@ export class BrowserlessServer {
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
 
-    debug(this.config, `Final Options`);
-
     this.resetCurrentStat();
 
     // If we're saving metrics, load any potential prior-state
@@ -155,6 +153,8 @@ export class BrowserlessServer {
 
     process.on('SIGTERM', boundClose);
     process.on('SIGINT', boundClose);
+
+    debug(require('./config'), `Final configuration`);
   }
 
   public getMetrics() {

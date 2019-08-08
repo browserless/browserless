@@ -2,7 +2,7 @@ import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
 
 import { IWebdriverStartHTTP } from './browserless';
-import { IChromeDriver, launchChromeDriver } from './chrome-helper';
+import * as chromeHelper from './chrome-helper';
 import { IDone, IJob, Queue } from './queue';
 import { getDebug } from './utils';
 
@@ -50,7 +50,7 @@ export class WebDriver {
       (done: IDone) => {
         req.removeListener('close', earlyClose);
         this.launchChrome()
-          .then(({ port, chromeProcess }) => {
+          .then(({ chromeProcess, port }) => {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
               target: `http://localhost:${port}`,
@@ -198,8 +198,8 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(retries = 1): Promise<IChromeDriver> {
-    return launchChromeDriver()
+  private launchChrome(retries = 1): Promise<chromeHelper.IChromeDriver> {
+    return chromeHelper.launchChromeDriver()
       .catch((error) => {
         debug(`Issue launching ChromeDriver, error:`, error);
 
