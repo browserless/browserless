@@ -1,3 +1,12 @@
+# [1.15.0](https://github.com/browserless/chrome/compare/v1.14.1...v1.15.0)
+- New `page` and `browser` hooks for docker images that `FROM` browserless.
+- `bluebird` added as a module for `function` and other endpoints.
+- More dependency updates.
+
+# [1.14.1](https://github.com/browserless/chrome/compare/v1.14.0...v1.14.1)
+- Bugfix when running multiple "headfull" sessions.
+- Dependency updates.
+
 # [1.14.0](https://github.com/browserless/chrome/compare/v1.13.0...v1.14.0)
 - New `WORKSPACE_DELETE_EXPIRED` and `WORKSPACE_EXPIRE_DAYS` to auto-cleanup workspace dirs.
 - README.md cleanup now that HTTPS is no longer required.
