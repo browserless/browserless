@@ -55,6 +55,7 @@
     "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
     "archiver": "^3.0.0",
+    "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
     "chromedriver": "^76.0.0",
     "cookie": "^0.4.0",
