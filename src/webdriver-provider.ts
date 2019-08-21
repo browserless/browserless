@@ -173,7 +173,7 @@ export class WebDriver {
       if (sessionId) {
         const session = this.webDriverSessions[sessionId];
         debug(`Killing chromedriver and proxy ${session.chromeProcess.pid}`);
-        kill(session.chromeProcess.pid, 'SIGTERM');
+        kill(session.chromeProcess.pid, 'SIGKILL');
         session.proxy.close();
         delete this.webDriverSessions[sessionId];
       }
