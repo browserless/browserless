@@ -35,6 +35,7 @@ RUN apt-get -qq update && \
   apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
   adobe-flashplugin \
   msttcorefonts \
+  ffmpeg \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
   fonts-liberation \
