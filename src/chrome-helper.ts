@@ -147,6 +147,7 @@ const setupBrowser = async ({
   trackingId: string | null;
   keepalive: number | null;
 }): Promise<IBrowser> => {
+  debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
 
   iBrowser._isOpen = true;
@@ -399,7 +400,7 @@ export const closeBrowser = async (browser: IBrowser) => {
   }
 
   browser._isOpen = false;
-  debug(`Shutting down browser with close command and killing process`);
+  debug(`Shutting down browser with close command and killing process ${browser._browserProcess.pid}`);
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
