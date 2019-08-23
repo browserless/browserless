@@ -400,7 +400,7 @@ export const closeBrowser = async (browser: IBrowser) => {
   }
 
   browser._isOpen = false;
-  debug(`Shutting down browser with close command and killing process ${browser._browserProcess.pid}`);
+  debug(`Shutting down browser with close command`);
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
@@ -412,10 +412,11 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
     browser.removeAllListeners();
-    await browser.close().catch(_.noop);
+    browser.close().catch(_.noop);
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
+    debug(`Sending SIGKILL signall to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
   }
 };
