@@ -75,6 +75,11 @@ export class PuppeteerProvider {
   }
 
   public async start() {
+    if (this.config.enableXvfb) {
+      const xvfb = new XVFB();
+      await promisify(xvfb.start.bind(xvfb))();
+    }
+
     if (this.config.prebootChrome) {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 
@@ -91,11 +96,6 @@ export class PuppeteerProvider {
       setTimeout(() => this.refreshChromeSwarm(), this.config.chromeRefreshTime);
 
       return Promise.all(launching);
-    }
-
-    if (this.config.enableXvfb) {
-      const xvfb = new XVFB();
-      await promisify(xvfb.start.bind(xvfb))();
     }
 
     return Promise.resolve();
