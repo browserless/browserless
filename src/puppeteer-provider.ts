@@ -549,7 +549,8 @@ export class PuppeteerProvider {
     sysdebug('Clearing browser for reuse');
 
     const openPages = await browser.pages();
-    openPages.forEach((page) => page.close());
+    // Close all tabs except the beginning "about:blank" tab as closing that would inadvertently lead to the browser being closed
+    openPages.slice(1).forEach((page) => page.close());
     this.chromeSwarm.push(Promise.resolve(browser));
 
     return sysdebug(`Chrome swarm: ${this.chromeSwarmSize} online`);
