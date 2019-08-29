@@ -59,6 +59,7 @@ Array [
   "WebKit-Version",
   "Debugger-Version",
   "Puppeteer-Version",
+  "webSocketDebuggerUrl",
 ]
 `;
 

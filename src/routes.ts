@@ -90,7 +90,6 @@ export const getRoutes = ({
   const config = getConfig();
 
   router.get('/introspection', (_req, res) => res.json(hints));
-  router.get('/json/version', (_req, res) => res.json(version));
   router.get('/json/protocol', (_req, res) => res.json(protocol));
   router.get('/metrics', (_req, res) => res.json(getMetrics()));
   router.get('/config', (_req, res) => res.json(config));
@@ -316,6 +315,16 @@ export const getRoutes = ({
       webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
     });
   }));
+
+  router.get('/json/version', (req, res) => {
+    const baseUrl = req.get('host');
+    const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+
+    return res.json({
+      ...version,
+      webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
+    });
+  });
 
   router.get('/json*', asyncWebHandler(async (req: Request, res: Response) => {
     const targetId = generateChromeTarget();

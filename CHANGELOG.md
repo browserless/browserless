@@ -1,3 +1,12 @@
+# [1.16.0](https://github.com/browserless/chrome/compare/v1.15.0...v1.16.0)
+- Adding `ffmpeg` to the docker dependency list.
+- Add `timecut` as a dependency for recording.
+- Better logs on chrome PID's and closing forcefully.
+- Fixed `DEFAULT_CHROME` => `DEFAULT_HEADLESS`.
+- Fixed a bug where `xvfb` doesn't start in time.
+- Use `SIGKILL` for killing chromedriver.
+- `/json/version` now returns a `webSocketDebuggerUrl`.
+
 # [1.15.0](https://github.com/browserless/chrome/compare/v1.14.1...v1.15.0)
 - New `page` and `browser` hooks for docker images that `FROM` browserless.
 - `bluebird` added as a module for `function` and other endpoints.
