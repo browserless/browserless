@@ -87,7 +87,7 @@
     "vm2": "^3.8.1"
   },
   "devDependencies": {
-    "env-cmd": "^9.0.1",
+    "env-cmd": "^10.0.0",
     "husky": "^3.0.0"
   },
   "jest": {
