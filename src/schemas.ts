@@ -41,7 +41,7 @@ const cookies = Joi.array().items(Joi.object({
 })).default([]);
 
 const viewport = Joi.object().keys({
-  deviceScaleFactor: Joi.number().min(1).max(100),
+  deviceScaleFactor: Joi.number().min(0.01).max(100),
   hasTouch: Joi.boolean(),
   height: Joi.number().min(0).required(),
   isLandscape: Joi.boolean(),
