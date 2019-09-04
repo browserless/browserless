@@ -9,6 +9,7 @@ Array [
   "enableDebugViewer",
   "enableDebugger",
   "enableXvfb",
+  "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",
   "functionExternals",
