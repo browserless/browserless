@@ -9,6 +9,7 @@ interface IBrowserlessServerConfiguration {
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
+  errorAlertURL: string | null;
   healthFailureURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;

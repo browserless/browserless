@@ -1,5 +1,6 @@
 import * as EventEmitter from 'events';
 import * as _ from 'lodash';
+import q from 'queue';
 
 import { IWebdriverStartHTTP } from './browserless';
 import { IBrowser } from './chrome-helper';
@@ -23,7 +24,7 @@ export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
   add: (job: IJob) => any;
 }
 
-export type IDone = (error?: Error | null) => any;
+export type IDone = (error?: Error) => any;
 
 interface IQueueConfig {
   autostart: boolean;
@@ -32,10 +33,8 @@ interface IQueueConfig {
   timeout?: number;
 }
 
-const q = require('queue');
-
 export class Queue {
-  private queue: IQueue<IJob>;
+  private queue: q;
   private maxQueueLength: number;
 
   constructor(opts: IQueueConfig) {

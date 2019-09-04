@@ -8,6 +8,8 @@ import * as _ from 'lodash';
 import { Socket } from 'net';
 import * as os from 'os';
 import * as path from 'path';
+import request = require('request');
+import * as url from 'url';
 
 import * as util from './utils';
 
@@ -21,16 +23,16 @@ import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
 
-const request = require('request');
-
 const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 const webDriverPath = '/webdriver/session';
+
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
 const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
+const externalRoutesPath = path.join(__dirname, '..', 'external', 'routes.js');
 
 const beforeHook = fs.existsSync(beforeHookPath) ?
   require(beforeHookPath) :
@@ -39,6 +41,10 @@ const beforeHook = fs.existsSync(beforeHookPath) ?
 const afterHook = fs.existsSync(afterHookPath) ?
   require(afterHookPath) :
   () => true;
+
+const externalRoutes = fs.existsSync(externalRoutesPath) ?
+  require(externalRoutesPath) :
+  null;
 
 export interface IWebdriverStartHTTP extends util.IHTTPRequest {
   body: any;
@@ -50,6 +56,7 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly errorHook: (message: string) => void;
   public readonly queue: Queue;
   public proxy: httpProxy;
 
@@ -98,28 +105,39 @@ export class BrowserlessServer {
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for queued session(s): ${opts.queuedAlertURL}`);
-        request(opts.queuedAlertURL, _.noop);
+        request(opts.queuedAlertURL as string, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.rejectHook = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL, _.noop);
+        request(opts.rejectAlertURL as string, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.timeoutHook = opts.timeoutAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL, _.noop);
+        request(opts.rejectAlertURL as string, _.noop);
+      }, thirtyMinutes, debounceOpts) :
+      _.noop;
+
+    this.errorHook = opts.errorAlertURL ?
+      _.debounce((message) => {
+        debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
+        const parsed = url.parse(opts.errorAlertURL as string, true);
+        parsed.query.error = message;
+        delete parsed.search;
+        const finalUrl = url.format(parsed);
+        request(finalUrl, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.healthFailureHook = opts.healthFailureURL ?
       _.debounce(() => {
         debug(`Calling web-hook for health-failure: ${opts.healthFailureURL}`);
-        request(opts.healthFailureURL, restartOnFailure);
+        request(opts.healthFailureURL as string, restartOnFailure);
       }, thirtyMinutes, debounceOpts) :
       restartOnFailure;
 
@@ -204,6 +222,10 @@ export class BrowserlessServer {
 
       if (this.config.enableDebugger) {
         app.use('/', express.static('./debugger'));
+      }
+
+      if (externalRoutes) {
+        app.use(externalRoutes);
       }
 
       app.use(routes);
@@ -386,6 +408,7 @@ export class BrowserlessServer {
   private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
+    this.errorHook(error.message);
     job.close && job.close();
     afterHook({
       req: job.req,
