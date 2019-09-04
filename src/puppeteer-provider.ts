@@ -538,7 +538,10 @@ export class PuppeteerProvider {
   }
 
   private getChrome(opts: chromeHelper.ILaunchOptions): Promise<chromeHelper.IBrowser> {
-    const canUseChromeSwarm = this.config.prebootChrome && _.isEqual(_.omitBy(opts, _.isUndefined), _.omitBy(chromeHelper.defaultLaunchArgs, _.isUndefined));
+    const canUseChromeSwarm = (
+      this.config.prebootChrome &&
+      _.isEqual(_.omitBy(opts, _.isUndefined), _.omitBy(chromeHelper.defaultLaunchArgs, _.isUndefined))
+    );
     sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
     const priorChrome = canUseChromeSwarm && this.chromeSwarm.shift();
 

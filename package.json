@@ -52,6 +52,7 @@
     "@types/node": "^12.0.3",
     "@types/node-fetch": "^2.3.2",
     "@types/puppeteer": "^1.12.1",
+    "@types/request": "^2.48.2",
     "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
     "archiver": "^3.0.0",

@@ -103,6 +103,7 @@ export const FAILED_HEALTH_URL: string | null = process.env.FAILED_HEALTH_URL ||
 export const QUEUE_ALERT_URL: string | null = process.env.QUEUE_ALERT_URL || null;
 export const REJECT_ALERT_URL: string | null = process.env.REJECT_ALERT_URL || null;
 export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL || null;
+export const ERROR_ALERT_URL: string | null = process.env.ERROR_ALERT_URL || null;
 
 // Health
 export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(process.env.EXIT_ON_HEALTH_FAILURE, false);

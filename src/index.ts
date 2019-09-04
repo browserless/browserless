@@ -1,7 +1,7 @@
 import { BrowserlessServer } from './browserless';
 import * as config from './config';
 
-new BrowserlessServer({
+const browserless = new BrowserlessServer({
   chromeRefreshTime: config.CHROME_REFRESH_TIME,
   connectionTimeout: config.CONNECTION_TIMEOUT,
   demoMode: config.DEMO_MODE,
@@ -9,6 +9,7 @@ new BrowserlessServer({
   enableDebugViewer: config.ENABLE_DEBUG_VIEWER,
   enableDebugger: config.ENABLE_DEBUGGER,
   enableXvfb: config.ENABLE_XVBF,
+  errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
   functionExternals: config.FUNCTION_EXTERNALS,
@@ -28,5 +29,10 @@ new BrowserlessServer({
   timeoutAlertURL: config.TIMEOUT_ALERT_URL,
   token: config.TOKEN,
   workspaceDir: config.WORKSPACE_DIR,
-})
-.startServer();
+});
+
+browserless.startServer();
+
+if (module.parent) {
+  module.exports.browserless = browserless;
+}
