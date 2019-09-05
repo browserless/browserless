@@ -72,7 +72,7 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "puppeteer": "^1.18.1",
+    "puppeteer": "1.17.0",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
