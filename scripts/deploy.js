@@ -29,8 +29,8 @@ async function cleanup () {
 }
 
 const buildBase = async () => {
-  logExec(`docker build -t ${BASE}:latest ./base`);
-  logExec(`docker push ${BASE}:latest`);
+  await logExec(`docker build -t ${BASE}:latest ./base`);
+  await logExec(`docker push ${BASE}:latest`);
 }
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
