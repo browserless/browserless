@@ -6,7 +6,6 @@ import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import { Socket } from 'net';
-import * as os from 'os';
 import * as path from 'path';
 import request = require('request');
 import * as url from 'url';
@@ -83,9 +82,11 @@ export class BrowserlessServer {
         timeout: this.config.connectionTimeout,
       },
     });
+
     this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
+    this.workspaceDir = opts.workspaceDir;
     this.stats = [];
 
     this.proxy = httpProxy.createProxyServer();
@@ -156,13 +157,6 @@ export class BrowserlessServer {
       } catch (err) {
         debug(`Couldn't load metrics at path ${opts.metricsJSONPath}, setting to empty.`);
       }
-    }
-
-    const hasWorkspaceDir = fs.existsSync(opts.workspaceDir);
-    this.workspaceDir = hasWorkspaceDir ? opts.workspaceDir : os.tmpdir();
-
-    if (!hasWorkspaceDir) {
-      debug(`The download-directory "${opts.workspaceDir}" doesn't exist, setting it to "${this.workspaceDir}"`);
     }
 
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
