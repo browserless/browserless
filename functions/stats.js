@@ -7,13 +7,23 @@ const DEFAULT_AUDIT_CONFIG = {
 }
 
 module.exports = async ({ browser, context }) => {
-  const { url, config = DEFAULT_AUDIT_CONFIG } = context;
+  const { 
+    url,
+    config = DEFAULT_AUDIT_CONFIG,
+    budgets 
+  } = context;
 
-  const { lhr } = await lighthouse(url, {
+  const options = {
     port: (new URL(browser.wsEndpoint())).port,
     output: 'json',
     logLevel: canLog ? 'info' : 'silent',
-  }, config);
+  };
+
+  if (budgets) {
+    options.budgets = budgets;
+  }
+
+  const { lhr } = await lighthouse(url, options, config);
 
   return {
     data: lhr,
