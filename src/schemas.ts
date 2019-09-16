@@ -128,5 +128,6 @@ export const fn = Joi.object().keys({
 });
 
 export const stats = Joi.object().keys({
+  budgets:  Joi.array().items(Joi.object()).optional(),
   url: Joi.string().required(),
 });
