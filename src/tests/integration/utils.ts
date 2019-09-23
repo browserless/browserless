@@ -22,7 +22,6 @@ export const defaultParams = (): IBrowserlessOptions => ({
   host: '',
   keepAlive: false,
   maxCPU: 100,
-  maxChromeRefreshRetries: 1,
   maxConcurrentSessions: 1,
   maxMemory: 100,
   maxQueueLength: 2,

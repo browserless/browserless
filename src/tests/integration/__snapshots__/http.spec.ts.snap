@@ -17,7 +17,6 @@ Array [
   "host",
   "keepAlive",
   "maxCPU",
-  "maxChromeRefreshRetries",
   "maxConcurrentSessions",
   "maxMemory",
   "maxQueueLength",

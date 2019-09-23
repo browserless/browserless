@@ -58,6 +58,7 @@ export interface IBrowser extends puppeteer.Browser {
   _trackingId: string | null;
   _browserlessDataDir: string | null;
   _browserProcess: ChildProcess;
+  _startTime: number;
 }
 
 interface ISession {
@@ -158,6 +159,7 @@ const setupBrowser = async ({
   iBrowser._browserlessDataDir = browserlessDataDir;
   iBrowser._trackingId = trackingId;
   iBrowser._keepaliveTimeout = null;
+  iBrowser._startTime = Date.now();
 
   await browserHook({ browser: iBrowser });
 
@@ -416,7 +418,7 @@ export const closeBrowser = async (browser: IBrowser) => {
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    debug(`Sending SIGKILL signall to browser process ${browser._browserProcess.pid}`);
+    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
   }
 };

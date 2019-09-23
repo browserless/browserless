@@ -17,7 +17,6 @@ const browserless = new BrowserlessServer({
   host: config.HOST,
   keepAlive: config.KEEP_ALIVE,
   maxCPU: config.MAX_CPU_PERCENT,
-  maxChromeRefreshRetries: config.MAX_CHROME_REFRESH_RETRIES,
   maxConcurrentSessions: config.MAX_CONCURRENT_SESSIONS,
   maxMemory: config.MAX_MEMORY_PERCENT,
   maxQueueLength: config.QUEUE_LENGTH + config.MAX_CONCURRENT_SESSIONS,
