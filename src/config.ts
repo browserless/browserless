@@ -53,14 +53,13 @@ const thirtyMinutes = 30 * 60 * 1000;
 const expandedDir = untildify(process.env.WORKSPACE_DIR || '');
 
 // Timers/Queue/Concurrency
-export const CHROME_REFRESH_TIME: number = parseNumber(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
 export const CONNECTION_TIMEOUT: number = parseNumber(process.env.CONNECTION_TIMEOUT, 30000);
 export const MAX_CONCURRENT_SESSIONS: number = parseNumber(process.env.MAX_CONCURRENT_SESSIONS, 10);
 export const QUEUE_LENGTH: number = parseNumber(process.env.MAX_QUEUE_LENGTH, 10);
 
 // Pre-boot/Default Launch Options
+export const CHROME_REFRESH_TIME: number = parseNumber(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
 export const KEEP_ALIVE: boolean = parseJSONParam(process.env.KEEP_ALIVE, false);
-export const MAX_CHROME_REFRESH_RETRIES: number = parseNumber(process.env.MAX_CHROME_REFRESH_RETRIES, 5);
 export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(process.env.DEFAULT_BLOCK_ADS, false);
 export const DEFAULT_HEADLESS: boolean = parseJSONParam(process.env.DEFAULT_HEADLESS, true);
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_LAUNCH_ARGS, []);

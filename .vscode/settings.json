@@ -1,6 +1,15 @@
 {
   "editor.formatOnSave": false,
   "cSpell.words": [
-    "screencast"
+    "chrome",
+    "ihttp",
+    "jobdebug",
+    "jobdetail",
+    "jobdetaildebug",
+    "preboot",
+    "request",
+    "screencast",
+    "sysdebug",
+    "xvfb"
   ]
 }
