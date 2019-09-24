@@ -30,6 +30,7 @@ module.exports = async function screenshot ({ page, context } = {}) {
     requestInterceptors = [],
     setExtraHTTPHeaders = null,
     viewport,
+    waitFor,
   } = context;
 
   if (authenticate) {
@@ -77,6 +78,20 @@ module.exports = async function screenshot ({ page, context } = {}) {
     });
 
     await page.goto('http://localhost', gotoOptions);
+  }
+
+  if (waitFor) {
+    if (typeof waitFor === 'string') {
+      const isSelector = await page.evaluate((s) => {
+        try { document.createDocumentFragment().querySelector(s); }
+        catch (e) { return false; }
+        return true;
+      }, waitFor);
+
+      await (isSelector ? page.waitFor(waitFor) : page.waitForFunction(waitFor));
+    } else {
+      await page.waitFor(waitFor);
+    }
   }
 
   const data = await page.screenshot(options);

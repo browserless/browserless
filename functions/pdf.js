@@ -68,6 +68,7 @@ module.exports = async function pdf({ page, context }) {
     rejectRequestPattern = [],
     requestInterceptors = [],
     setExtraHTTPHeaders,
+    waitFor,
   } = context;
 
   if (authenticate) {
@@ -115,6 +116,20 @@ module.exports = async function pdf({ page, context }) {
     });
 
     await page.goto('http://localhost', gotoOptions);
+  }
+
+  if (waitFor) {
+    if (typeof waitFor === 'string') {
+      const isSelector = await page.evaluate((s) => {
+        try { document.createDocumentFragment().querySelector(s); }
+        catch (e) { return false; }
+        return true;
+      }, waitFor);
+
+      await (isSelector ? page.waitFor(waitFor) : page.waitForFunction(waitFor));
+    } else {
+      await page.waitFor(waitFor);
+    }
   }
 
   let data = safeMode ?

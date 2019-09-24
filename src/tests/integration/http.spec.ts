@@ -449,6 +449,75 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows selector "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 'body',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows function "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: '() => !!document.querySelector("body")',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows number "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 10,
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows requests with "application/html" types', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -779,6 +848,75 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows selector "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 'body',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('application/pdf');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows function "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: '() => !!document.querySelector("body")',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('application/pdf');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows number "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 10,
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('application/pdf');
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows cookies', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -965,6 +1103,75 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         url: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows selector "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 'body',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows function "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: '() => !!document.querySelector("body")',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/content`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows number "waitFor"s', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        waitFor: 10,
       };
 
       return fetch(`http://127.0.0.1:${params.port}/content`, {
