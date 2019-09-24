@@ -90,21 +90,14 @@
   }
   .run-container {
     cursor: pointer;
-    top: 50px;
-    right: 0;
-    position: absolute;
-    background: #333;
     color: white;
     border: none;
     font: inherit;
-    font-size: 20px;
     padding: 2px 8px;
     display: flex;
     flex-direction: row;
     align-items: center;
     z-index: 10;
-    border-top-left-radius: 5px;
-    border-bottom-left-radius: 5px;
   }
   .execute-button {
     background: #3ecf8e;
@@ -115,6 +108,8 @@
     margin: 10px;
     width: 34px;
     cursor: pointer;
+    display: flex;
+    justify-content: center;
   }
   #frame-mount::before {
     content: "";
@@ -285,6 +280,12 @@
       <a onclick="return toggleMenu();" href="#" class="box-shadow-menu">&#9776;</a>
       <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="isolation:isolate" viewBox="1123.044 453.491 93.911 147.019" height="40"><path d=" M 1180.143 521.337 L 1193.478 527.466 L 1207.698 534.002 C 1212.807 536.35 1216.956 542.822 1216.956 548.445 L 1216.956 559.839 L 1216.956 571.233 C 1216.956 576.856 1212.807 583.328 1207.698 585.676 L 1193.478 592.212 L 1179.257 598.748 C 1174.148 601.097 1165.852 601.097 1160.742 598.748 L 1146.522 592.212 L 1132.302 585.676 C 1127.193 583.328 1123.044 576.856 1123.044 571.233 L 1123.044 559.839 L 1123.044 548.445 C 1123.044 547.762 1123.106 547.067 1123.222 546.367 L 1123.222 468.669 C 1123.222 463.978 1126.844 458.993 1131.305 457.544 L 1142.555 453.889 C 1147.016 452.439 1150.637 455.071 1150.637 459.761 L 1150.637 525.574 L 1150.659 525.564 C 1150.644 525.577 1150.636 525.584 1150.637 525.585 L 1166.521 543.39 L 1141.468 543.944 C 1141.093 543.931 1140.817 543.934 1140.632 543.956 C 1139.762 544.057 1139.006 544.357 1138.368 544.854 C 1137.607 545.508 1137.519 546.14 1138.1 546.751 L 1178.18 589.359 C 1178.858 589.988 1179.859 590.225 1181.188 590.071 C 1181.371 590.05 1181.689 589.985 1182.141 589.876 C 1182.903 589.647 1183.457 589.314 1183.802 588.878 C 1184.146 588.443 1184.201 588.013 1183.966 587.587 L 1168.776 557.871 L 1194.905 556.344 C 1195.092 556.35 1195.368 556.332 1195.735 556.289 C 1196.56 556.194 1197.252 555.959 1197.812 555.583 C 1198.588 555.068 1198.823 554.49 1198.516 553.847 L 1180.143 521.337 Z " fill-rule="evenodd" fill="#fff"/></svg>
       <h1>browserless</h1>
+
+      <div class="run-container">
+        <button class="execute-button" title="Execute Script">
+          <svg height='18' width='18' fill="#fff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 60 65" style="enable-background:new 0 0 60 60;" xml:space="preserve"><path d="M5.4,8V52c0,4.3,4.7,7,8.4,4.9l38-22c3.7-2.2,3.7-7.5,0-9.7l-38-22C10.1,1,5.4,3.7,5.4,8z"></path></svg>
+        </button>
+      </div>
     <section class="links">
       <span id="download" title="Download a zip file with all the required packages">
         <svg width='22' height='22' fill="#fff" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve"><path d="M67,43.7l5.3,5.3L49.5,71.8L26.7,49l5.3-5.3l13.7,13.7v-30h7.5v30L67,43.7z M94.5,50c0,24.8-20.2,45-45,45s-45-20.2-45-45  s20.2-45,45-45S94.5,25.2,94.5,50z M87,50c0-20.7-16.8-37.5-37.5-37.5S12,29.3,12,50s16.8,37.5,37.5,37.5S87,70.7,87,50z"></path></svg>
@@ -304,16 +305,6 @@
   </div>
   <div class="flex-hz">
     <section id="code-mount">
-      <div class="run-container">
-          <button class="execute-button" title="Execute Script">
-            <svg height='20' width='20' fill="#fefefe" version="1.1" x="0px" y="0px" viewBox="0 0 100 100" enable-background="new 0 0 100 100" xml:space="preserve">
-              <path d="M20.796,34l-6.036-5.987c-1.122-1.124-2.938-1.092-4.062,0.028c-1.123,1.12-1.126,2.956-0.007,4.079l6.879,6.468  C18.108,39.128,18.841,39,19.604,39h5.596c-3.985,5-6.601,11-7.569,17H7.872C6.285,56,5,57.413,5,59c0,1.586,1.285,3,2.872,3h9.335  c0.05,5,1.315,10,3.522,14h-2.083c-0.763,0-1.495,0.436-2.034,0.977l-6.878,6.965c-1.12,1.123-1.118,2.975,0.005,4.095  c0.562,0.559,1.294,0.855,2.028,0.855c0.736,0,1.473-0.278,2.033-0.841L19.839,82h4.638C30.127,89,39,93.544,48,94.055V34H20.796z"></path>
-              <path d="M92.128,56h-9.961c-1.24-6-4.434-12-8.176-17h6.405c0.763,0,1.495,0.137,2.034-0.404l6.879-6.679  c1.119-1.124,1.116-2.832-0.007-3.952c-1.125-1.121-2.941-1.131-4.062-0.007L79.204,34H52v60.033C61,93.447,69.713,88,75.363,82  h4.798l6.038,6.059c0.561,0.563,1.297,0.847,2.033,0.847c0.734,0,1.467-0.279,2.028-0.837c1.123-1.12,1.125-2.938,0.005-4.061  l-6.878-7.031C82.849,76.436,82.116,76,81.354,76h-2.2c2.234-4,3.517-9,3.567-14h9.407C93.715,62,95,60.586,95,59  C95,57.413,93.715,56,92.128,56z"></path>
-              <path d="M31.421,30h37.158c0-7-3.473-12.264-8.687-15.555l3.75-3.673c1.122-1.121,1.122-2.902,0-4.024  c-1.122-1.121-2.939-1.102-4.062,0.02l-5.424,5.434c-1.338-0.306-2.726-0.478-4.157-0.478s-2.819,0.179-4.157,0.485l-5.425-5.423  c-1.122-1.121-2.939-1.121-4.062,0s-1.122,2.941,0,4.063l3.75,3.597C34.894,17.737,31.421,23,31.421,30z"></path>
-            </svg>
-          </button>
-          DEBUG
-      </div>
       <textarea style="visibility: hidden;">
 module.exports = async ({ page }) => {
   await page.goto('https://example.com');
@@ -605,6 +596,7 @@ const puppeteer = require('puppeteer');
 
   const editor = CodeMirror.fromTextArea($codeText, {
     lineNumbers: true,
+    lineWrapping: true,
     showCursorWhenSelecting: true,
     mode: {
       name: 'javascript',
@@ -625,9 +617,16 @@ const puppeteer = require('puppeteer');
     },
     keyMap: 'sublime',
   });
+  const charWidth = editor.defaultCharWidth()
+  const basePadding = 4;
 
   editor.on('keyup', (cm, event) => AUTO_COMPLETE_AFTER_KEY.test(event.key) && editor.execCommand('autocomplete'));
   editor.on('hasCompletion', onHasCompletion);
+  editor.on('renderLine', (cm, line, elt) => {
+    const off = CodeMirror.countColumn(line.text, null, cm.getOption('tabSize')) * charWidth;
+    elt.style.textIndent = '-' + off + 'px';
+    elt.style.paddingLeft = (basePadding + off) + 'px';
+  });
 
   const loadIframe = (code) => {
     if (document.querySelector('.intro')) {
