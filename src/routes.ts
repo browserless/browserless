@@ -91,7 +91,7 @@ export const getRoutes = ({
 
   router.get('/introspection', (_req, res) => res.json(hints));
   router.get('/json/protocol', (_req, res) => res.json(protocol));
-  router.get('/metrics', (_req, res) => res.json(getMetrics()));
+  router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
   router.get('/config', (_req, res) => res.json(config));
 
   router.get('/workspace', async (_req, res) => {
