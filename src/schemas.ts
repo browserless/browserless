@@ -1,5 +1,7 @@
 import * as Joi from 'joi';
 
+const waitFor = [Joi.string(), Joi.number()];
+
 const gotoOptions = Joi.object().keys({
   timeout: Joi.number(),
   waitUntil: Joi.string()
@@ -71,6 +73,7 @@ export const screenshot = Joi.object().keys({
   setExtraHTTPHeaders,
   url: Joi.string(),
   viewport,
+  waitFor,
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
@@ -81,6 +84,7 @@ export const content = Joi.object().keys({
   requestInterceptors,
   setExtraHTTPHeaders,
   url: Joi.string().required(),
+  waitFor,
 });
 
 export const pdf = Joi.object().keys({
@@ -119,6 +123,7 @@ export const pdf = Joi.object().keys({
   ),
   setExtraHTTPHeaders,
   url: Joi.string(),
+  waitFor,
 }).xor('url', 'html');
 
 export const fn = Joi.object().keys({
