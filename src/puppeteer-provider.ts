@@ -163,7 +163,7 @@ export class PuppeteerProvider {
       require: {
         builtin: this.config.functionBuiltIns,
         external: this.config.functionExternals,
-        root: './',
+        root: './node_modules',
       },
     });
     const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
@@ -365,6 +365,7 @@ export class PuppeteerProvider {
           sandboxOpts: {
             builtin: this.config.functionBuiltIns,
             external: this.config.functionExternals,
+            root: './node_modules',
           },
           timeout,
         });
