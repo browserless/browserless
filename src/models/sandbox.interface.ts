@@ -3,6 +3,7 @@ import { LaunchOptions } from 'puppeteer';
 export interface ISandboxOpts {
   builtin: string[];
   external: boolean | string[];
+  root: string;
 }
 export interface IConfig {
   code: string;

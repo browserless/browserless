@@ -83,7 +83,7 @@ export class BrowserlessServer {
       },
     });
 
-    this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
+    this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
     this.workspaceDir = opts.workspaceDir;
@@ -169,8 +169,15 @@ export class BrowserlessServer {
     debug(require('./config'), `Final configuration`);
   }
 
-  public getMetrics() {
-    return [...this.stats, this.currentStat];
+  public async getMetrics() {
+    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
+
+    return [...this.stats, {
+      ...this.currentStat,
+      cpu,
+      date: Date.now(),
+      memory,
+    }];
   }
 
   public getConfig() {
@@ -288,7 +295,6 @@ export class BrowserlessServer {
     clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
-    this.resourceMonitor.close();
     await util.clearBrowserlessDataDirs();
 
     await Promise.all([
@@ -311,7 +317,6 @@ export class BrowserlessServer {
     clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
-    this.resourceMonitor.close();
     await util.clearBrowserlessDataDirs();
 
     await new Promise((resolve) => {
@@ -445,13 +450,13 @@ export class BrowserlessServer {
   }
 
   private async recordMetrics() {
-    const { cpuUsage, memoryUsage } = await this.resourceMonitor.getMachineStats();
+    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
-      cpu: cpuUsage,
+      cpu,
       date: Date.now(),
-      memory: memoryUsage,
+      memory,
     }));
 
     this.resetCurrentStat();
@@ -460,8 +465,8 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    if (cpuUsage >= this.config.maxCPU || memoryUsage >= this.config.maxMemory) {
-      debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
+    if (cpu >= this.config.maxCPU || memory >= this.config.maxMemory) {
+      debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
       this.healthFailureHook();
     }
 
