@@ -443,8 +443,8 @@ export class BrowserlessServer {
     debug(`Current workload complete.`);
 
     if (this.singleRun) {
-      debug(`Running in single-run mode, exiting`);
-      process.exit();
+      debug(`Running in single-run mode, exiting in 1 second`);
+      setTimeout(process.exit, 1000);
     }
   }
 
