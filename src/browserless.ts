@@ -67,6 +67,7 @@ export class BrowserlessServer {
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
+  private singleRun: IBrowserlessOptions['singleRun'];
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -86,6 +87,7 @@ export class BrowserlessServer {
     this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
+    this.singleRun = opts.singleRun;
     this.workspaceDir = opts.workspaceDir;
     this.stats = [];
 
@@ -146,6 +148,7 @@ export class BrowserlessServer {
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
+    this.queue.on('end', this.onQueueDrained.bind(this));
 
     this.resetCurrentStat();
 
@@ -434,6 +437,15 @@ export class BrowserlessServer {
     debug(`${id}: Recording queued stat.`);
     this.currentStat.queued++;
     this.queueHook();
+  }
+
+  private onQueueDrained() {
+    debug(`Current workload complete.`);
+
+    if (this.singleRun) {
+      debug(`Running in single-run mode, exiting`);
+      process.exit();
+    }
   }
 
   private resetCurrentStat() {

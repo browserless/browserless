@@ -25,6 +25,7 @@ const browserless = new BrowserlessServer({
   prebootChrome: config.PREBOOT_CHROME,
   queuedAlertURL: config.QUEUE_ALERT_URL,
   rejectAlertURL: config.REJECT_ALERT_URL,
+  singleRun: config.SINGLE_RUN,
   timeoutAlertURL: config.TIMEOUT_ALERT_URL,
   token: config.TOKEN,
   workspaceDir: config.WORKSPACE_DIR,

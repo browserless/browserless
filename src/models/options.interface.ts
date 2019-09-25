@@ -32,5 +32,6 @@ export interface IChromeServiceConfiguration {
   chromeRefreshTime: number;
   enableCors: boolean;
   enableXvfb: boolean;
+  singleRun: boolean;
   token: string | null;
 }

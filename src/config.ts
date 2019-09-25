@@ -56,6 +56,7 @@ const expandedDir = untildify(process.env.WORKSPACE_DIR || '');
 export const CONNECTION_TIMEOUT: number = parseNumber(process.env.CONNECTION_TIMEOUT, 30000);
 export const MAX_CONCURRENT_SESSIONS: number = parseNumber(process.env.MAX_CONCURRENT_SESSIONS, 10);
 export const QUEUE_LENGTH: number = parseNumber(process.env.MAX_QUEUE_LENGTH, 10);
+export const SINGLE_RUN: boolean = parseJSONParam(process.env.SINGLE_RUN, false);
 
 // Pre-boot/Default Launch Options
 export const CHROME_REFRESH_TIME: number = parseNumber(process.env.CHROME_REFRESH_TIME, thirtyMinutes);
