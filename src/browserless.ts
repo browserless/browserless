@@ -434,7 +434,7 @@ export class BrowserlessServer {
   }
 
   private onQueued(id: string) {
-    debug(`${id}: Recording queued stat.`);
+    debug(`${job.id}: Recording queued stat.`);
     this.currentStat.queued++;
     this.queueHook();
   }
