@@ -25,6 +25,7 @@ Array [
   "prebootChrome",
   "queuedAlertURL",
   "rejectAlertURL",
+  "singleRun",
   "timeoutAlertURL",
   "token",
   "workspaceDir",

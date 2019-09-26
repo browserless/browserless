@@ -30,6 +30,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   prebootChrome: false,
   queuedAlertURL: null,
   rejectAlertURL: null,
+  singleRun: false,
   timeoutAlertURL: null,
   token: null,
   workspaceDir: os.tmpdir(),
