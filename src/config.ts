@@ -116,6 +116,7 @@ export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_
 export const WORKSPACE_DIR: string = fs.existsSync(expandedDir) ? expandedDir : os.tmpdir();
 export const WORKSPACE_DELETE_EXPIRED: boolean = parseJSONParam(process.env.WORKSPACE_DELETE_EXPIRED, false);
 export const WORKSPACE_EXPIRE_DAYS: number = parseNumber(process.env.WORKSPACE_EXPIRE_DAYS, 30);
+export const ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(process.env.ENABLE_INCOGNITO_MODE, false);
 
 // Web-hooks
 export const FAILED_HEALTH_URL: string | null = process.env.FAILED_HEALTH_URL || null;

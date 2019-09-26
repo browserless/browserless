@@ -12,6 +12,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   demoMode: false,
   disabledFeatures: [],
   enableCors: false,
+  enableIncognitoMode: false,
   enableXvfb: 'CI' in process.env ? true : false,
   errorAlertURL: null,
   exitOnHealthFailure: false,

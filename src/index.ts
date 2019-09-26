@@ -7,6 +7,7 @@ const browserless = new BrowserlessServer({
   demoMode: config.DEMO_MODE,
   disabledFeatures: config.DISABLED_FEATURES,
   enableCors: config.ENABLE_CORS,
+  enableIncognitoMode: config.ENABLE_INCOGNITO_MODE,
   enableXvfb: config.ENABLE_XVBF,
   errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,

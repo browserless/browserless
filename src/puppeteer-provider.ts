@@ -192,7 +192,7 @@ export class PuppeteerProvider {
         this.getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
-            const page = await browser.newPage();
+            const page = await this.newPage(browser);
             let beforeArgs = {};
 
             page.on('error', (error: Error) => {
@@ -599,5 +599,13 @@ export class PuppeteerProvider {
         sysdebug(error, `Issue launching Chrome, retries exhausted.`);
         throw error;
       });
+  }
+
+  private async newPage(browser: chromeHelper.IBrowser) {
+    if (this.config.enableIncognitoMode) {
+      const browserContext = await browser.createIncognitoBrowserContext();
+      return await browserContext.newPage();
+    }
+    return browser.newPage();
   }
 }
