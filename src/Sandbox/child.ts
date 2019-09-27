@@ -44,8 +44,18 @@ const start = async (
 ) => {
   debug(`Starting sandbox running code "${code}"`);
 
+  process.on('unhandledRejection', (error) => {
+    debug(`uncaughtException error: ${error}`);
+    send({
+      error: JSON.stringify(error),
+      event: 'error',
+    });
+  });
+
   const browser = await launchChrome(opts);
-  const page: any = await browser.newPage();
+  const page = await browser.newPage();
+  await page.setRequestInterception(true);
+
   page.on('error', (error: Error) => {
     debug(`Page error: ${error.message}`);
     send({
@@ -53,6 +63,21 @@ const start = async (
       event: 'error',
     });
   });
+
+  page.on('request', (request) => {
+    if (request.url().startsWith('file://')) {
+      return page.browser().close();
+    }
+    return request.continue();
+  });
+
+  page.on('response', (response) => {
+    if (response.url().startsWith('file://')) {
+      page.browser().close();
+    }
+  });
+
+  // @ts-ignore
   const pageLocation = `/devtools/page/${page._target._targetId}`;
   const port = browser._parsed.port;
   const data = {
