@@ -24,7 +24,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 1. [Full documentation site](https://docs.browserless.io/)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
 3. [Docker](https://hub.docker.com/r/browserless/chrome/)
-4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LWMzMThjZTdkNzM5NDgwYTgwYzg0YzRhMGFhZGViYjQ4MzgyYWMxNDc0OTgyYzE0ZWFkOGQ2MjI4Yzk3MmQzNTk)
+4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
 
 # Features
 
