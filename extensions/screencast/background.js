@@ -21,7 +21,6 @@ chrome.runtime.onConnect.addListener((port) => {
         break;
 
       case 'SET_PREFERENCES':
-        alert('HIT');
         preferences = {
           ...preferences,
           ...msg.prefs,
@@ -38,8 +37,8 @@ chrome.runtime.onConnect.addListener((port) => {
         if (recorder) {
           return;
         }
-        alert('REC_CLIENT_SETUP');
-        chrome.desktopCapture.chooseDesktopMedia(['audio','tab'], streamId => {
+
+        chrome.desktopCapture.chooseDesktopMedia(['audio','tab'], (streamId) => {
           // Get the stream
           navigator.webkitGetUserMedia(
             {
