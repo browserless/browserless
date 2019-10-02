@@ -19,20 +19,48 @@ interface IAfter {
   stopScreencast: () => void;
 }
 
+interface IPreferences {
+  width: number;
+  height: number;
+  audio: boolean;
+  code: string;
+  type: string;
+  mimeType: string;
+}
+
 export const before = async ({ page, code }: IBefore) => {
-  const setupScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_CLIENT_PLAY' }, '*'));
   const startScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_START' }, '*'));
   const stopScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_STOP' }, '*'));
 
-  page.on('load', async () => {
-    await setupScreencast();
+  const setPreferences = (preferences: IPreferences) => page.evaluate(
+    (prefs) => window.postMessage({
+      prefs: JSON.parse(prefs),
+      type: 'SET_PREFERENCES',
+    }, '*'),
+    JSON.stringify(preferences),
+  );
 
+  const setupScreencast = () => page.evaluate(
+    (viewport) => {
+      const { height, width } = JSON.parse(viewport);
+      return window.postMessage({
+        height,
+        type: 'REC_CLIENT_SETUP',
+        width,
+      }, '*');
+    },
+    JSON.stringify(page.viewport()),
+  );
+
+  page.on('load', async () => {
+    setupScreencast();
     if (!code.includes('startScreencast')) {
-      startScreencast();
+      setTimeout(startScreencast, 0);
     }
   });
 
   return {
+    setPreferences,
     startScreencast,
     stopScreencast,
   };

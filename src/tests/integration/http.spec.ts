@@ -726,12 +726,13 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
+          await page.setViewport({ width: 640, height: 480 });
           await page.goto('https://example.com/');
           await page.waitFor(5000);
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -751,11 +752,12 @@ describe('Browserless Chrome HTTP', () => {
       await browserless.startServer();
 
       const body = `module.exports = async ({ page }) => {
+        await page.setViewport({ width: 640, height: 480 });
         await page.goto('https://example.com/');
         await page.waitFor(5000);
       }`;
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
         body,
         headers: {
           'content-type': 'application/javascript',
@@ -780,11 +782,12 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
+          await page.setViewport({ width: 640, height: 480 });
           await page.setContent('<h1>Hello, World!</h1>');
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
@@ -808,11 +811,12 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         code: `module.exports = async ({ page }) => {
+          await page.setViewport({ width: 640, height: 480 });
           await page.setContent('<h1>Hello, World!</h1>');
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast`, {
+      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
