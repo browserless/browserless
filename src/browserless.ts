@@ -1,12 +1,14 @@
 import * as cookie from 'cookie';
 import * as cors from 'cors';
 import * as express from 'express';
+import * as promBundle from 'express-prom-bundle';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import { Socket } from 'net';
 import * as path from 'path';
+import * as client from 'prom-client';
 import request = require('request');
 import * as url from 'url';
 
@@ -211,7 +213,16 @@ export class BrowserlessServer {
         twentyFourHours :
         this.config.connectionTimeout + 100;
       const app = express();
+      const metricsMiddleware = promBundle({
+        includeMethod: true,
+        includePath: true,
+        includeStatusCode: true,
+        includeUp: false,
+        metricsPath: '/prometheus',
+      });
+      app.use(metricsMiddleware);
 
+      client.collectDefaultMetrics({ timeout: 5000 });
       const routes = getRoutes({
         getConfig: this.getConfig.bind(this),
         getMetrics: this.getMetrics.bind(this),
