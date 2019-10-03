@@ -37,6 +37,7 @@ interface IRunHTTP {
   flags?: string[];
   options?: any;
   headless?: boolean;
+  ignoreDefaultArgs?: boolean | string[];
 }
 
 export class PuppeteerProvider {
@@ -139,6 +140,7 @@ export class PuppeteerProvider {
     detached = false,
     headless,
     flags,
+    ignoreDefaultArgs = false,
   }: IRunHTTP) {
     const jobId = utils.id();
 
@@ -184,6 +186,7 @@ export class PuppeteerProvider {
           ...urlOpts,
           args: [...urlOpts.args || [], ...flags || []],
           headless: typeof headless !== 'undefined' ? headless : urlOpts.headless,
+          ignoreDefaultArgs,
         };
 
         this.getChrome(launchOpts)

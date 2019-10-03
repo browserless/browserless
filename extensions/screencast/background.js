@@ -1,11 +1,30 @@
 let recorder = null;
 let shouldRecord = false;
 
+// Some of these get defaulted by REC_CLIENT_SETUP
+// and all can be overridden by calling `setPreferences`
+let preferences = {
+  source: 'desktop',
+  audio: true,
+  type: 'video/webm',
+  mimeType: 'video/webm',
+  framerate: 60,
+  width: 0,
+  height: 0,
+};
+
 chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((msg) => {
     switch (msg.type) {
       case 'REC_STOP':
         recorder && recorder.stop();
+        break;
+
+      case 'SET_PREFERENCES':
+        preferences = {
+          ...preferences,
+          ...msg.prefs,
+        };
         break;
 
       case 'REC_START':
@@ -14,26 +33,32 @@ chrome.runtime.onConnect.addListener((port) => {
         recorder && recorder.start();
         break;
 
-      case 'REC_CLIENT_PLAY':
+      case 'REC_CLIENT_SETUP':
         if (recorder) {
           return;
         }
-        chrome.desktopCapture.chooseDesktopMedia(['audio','tab'], streamId => {
+
+        chrome.desktopCapture.chooseDesktopMedia(['audio','tab'], (streamId) => {
           // Get the stream
           navigator.webkitGetUserMedia(
             {
-              audio: {
+              audio: preferences.audio && {
                 mandatory: {
-                  chromeMediaSource: 'desktop',
+                  chromeMediaSource: preferences.source,
                   chromeMediaSourceId: streamId,
                   echoCancellation: true
                 },
               },
               video: {
                 mandatory: {
-                  chromeMediaSource: 'desktop',
+                  chromeMediaSource: preferences.source,
                   chromeMediaSourceId: streamId,
-                  minFrameRate: 60
+                  minFrameRate: preferences.framerate,
+                  maxFrameRate: preferences.framerate,
+                  minWidth: preferences.width || msg.width,
+                  maxWidth: preferences.width || msg.width,
+                  minHeight: preferences.width || msg.height,
+                  maxHeight: preferences.width || msg.height,
                 }
               }
             },
@@ -41,7 +66,7 @@ chrome.runtime.onConnect.addListener((port) => {
               const chunks = [];
               recorder = new MediaRecorder(stream, {
                 ignoreMutedMedia: true,
-                mimeType: 'video/webm'
+                mimeType: preferences.mimeType
               });
 
               recorder.ondataavailable = (event) => {
@@ -52,7 +77,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
               recorder.onstop = () => {
                 const url = URL.createObjectURL(new Blob(chunks, {
-                  type: 'video/webm'
+                  type: preferences.type
                 }));
 
                 chrome.downloads.download({ url }, () => {});

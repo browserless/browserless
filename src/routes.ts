@@ -225,9 +225,11 @@ export const getRoutes = ({
         '--auto-select-desktop-capture-source=browserless-screencast',
         '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
         '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-        '--disable-infobars',
       ],
       headless: false,
+      ignoreDefaultArgs: [
+        '--enable-automation',
+      ],
       req,
       res,
     });

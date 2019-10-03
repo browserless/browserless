@@ -54,7 +54,6 @@ const start = async (
 
   const browser = await launchChrome(opts);
   const page = await browser.newPage();
-  await page.setRequestInterception(true);
 
   page.on('error', (error: Error) => {
     debug(`Page error: ${error.message}`);
@@ -66,9 +65,8 @@ const start = async (
 
   page.on('request', (request) => {
     if (request.url().startsWith('file://')) {
-      return page.browser().close();
+      page.browser().close();
     }
-    return request.continue();
   });
 
   page.on('response', (response) => {
