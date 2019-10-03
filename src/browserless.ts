@@ -213,6 +213,7 @@ export class BrowserlessServer {
         twentyFourHours :
         this.config.connectionTimeout + 100;
       const app = express();
+      client.register.clear();
       const metricsMiddleware = promBundle({
         includeMethod: true,
         includePath: true,
