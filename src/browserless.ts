@@ -235,7 +235,6 @@ export class BrowserlessServer {
         client.collectDefaultMetrics({ timeout: 5000 });
       }
 
-      app.use(express.json({limit: '1mb'}));
       const routes = getRoutes({
         codeCache: this.codeCache,
         disabledFeatures: this.config.disabledFeatures,
