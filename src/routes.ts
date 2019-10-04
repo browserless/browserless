@@ -6,6 +6,7 @@ import * as multer from 'multer';
 import * as path from 'path';
 
 import * as chromeHelper from './chrome-helper';
+import {CodeCache} from './code-cache';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Feature } from './features';
 import { IBrowserlessOptions } from './models/options.interface';
@@ -70,6 +71,7 @@ interface IGetRoutes {
   getPressure: () => any;
   workspaceDir: string;
   disabledFeatures: Feature[];
+  codeCache: CodeCache;
 }
 
 export const getRoutes = ({
@@ -79,6 +81,7 @@ export const getRoutes = ({
   getPressure,
   workspaceDir,
   disabledFeatures,
+  codeCache,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -91,6 +94,11 @@ export const getRoutes = ({
   });
   const upload = multer({ storage }).any();
   const config = getConfig();
+  router.post('/cache', async (req, res) => {
+    const code = req.body.code;
+    const id = codeCache.set(code);
+    return res.json(id);
+  });
 
   if (!disabledFeatures.includes(Feature.INTROSPECTION_ENDPOINT)) {
     router.get('/introspection', (_req, res) => res.json(hints));

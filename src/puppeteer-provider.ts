@@ -1,5 +1,6 @@
 import * as cookie from 'cookie';
 import * as _ from 'lodash';
+import * as LZString from 'lz-string';
 import * as net from 'net';
 import * as puppeteer from 'puppeteer';
 import { promisify } from 'util';
@@ -7,6 +8,7 @@ import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
+import { CodeCache } from './code-cache';
 import { IDone, IJob, Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import * as utils from './utils';
@@ -45,11 +47,13 @@ export class PuppeteerProvider {
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<chromeHelper.IBrowser>>;
   private queue: Queue;
+  private codeCache: CodeCache;
 
-  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue) {
+  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue, codeCache: CodeCache) {
     this.config = config;
     this.server = server;
     this.queue = queue;
+    this.codeCache = codeCache;
 
     this.chromeSwarm = [];
   }
@@ -294,11 +298,18 @@ export class PuppeteerProvider {
     const parsedUrl = req.parsed;
     const route = parsedUrl.pathname || '/';
     const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
-    const debugCode = hasDebugCode ?
-      cookie.parse(req.headers.cookie || '')[utils.codeCookieName] :
-      '';
-
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
+
+    let debugCode = '';
+    if (hasDebugCode) {
+      const id = cookie.parse(req.headers.cookie || '')[utils.codeCookieName];
+      if (id !== '') {
+        const code = this.codeCache.get(id);
+        if (code !== undefined) {
+          debugCode = LZString.decompressFromUTF16(code);
+        }
+      }
+    }
 
     if (route.includes('/devtools/page')) {
       const session = await chromeHelper.findSessionForPageUrl(route);

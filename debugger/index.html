@@ -332,6 +332,7 @@ module.exports = async ({ page }) => {
 <script src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.31.0/keymap/sublime.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
 
 <script>
   window.__is_demo_machine__ = 'chrome.browserless.io' === window.location.host && !window.location.search.includes('?token=');
@@ -620,11 +621,23 @@ const puppeteer = require('puppeteer');
       $intro.parentElement.removeChild($intro);
     }
 
-    const stringifiedCode = encodeURIComponent(code);
-    document.cookie = `browserless_code=${stringifiedCode}`;
-    const wsLocation = `${hostname}${port ? `:${port}` : ''}/debugger`;
-
-    $debugFrame.src = `/devtools/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}`;
+    const compressedCode = LZString.compressToUTF16(code);
+    fetch(`${baseURL}/cache`, {
+      credentials: 'same-origin',
+      cache: 'no-cache',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+      body: JSON.stringify({code: compressedCode}),
+    })
+    .then(res => res.json())
+    .then((id) => {
+      document.cookie = `browserless_code_id=${id}`;
+      const wsLocation = `${hostname}${port ? `:${port}` : ''}/debugger`;
+      $debugFrame.src = `/devtools/inspector.html?${secure ? 'wss' : 'ws'}=${wsLocation}`;
+    })
   };
 
   $resizer.addEventListener('mousedown', (evt) => {

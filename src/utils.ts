@@ -148,7 +148,7 @@ export const bodyValidation = (schema: Joi.Schema) => {
 };
 
 export const tokenCookieName = 'browserless_token';
-export const codeCookieName = 'browserless_code';
+export const codeCookieName = 'browserless_code_id';
 
 export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: string) => {
   const authToken = (
