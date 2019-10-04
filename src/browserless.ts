@@ -88,7 +88,11 @@ export class BrowserlessServer {
         timeout: this.config.connectionTimeout,
       },
     });
-    this.codeCache = new CodeCache((this.config.maxConcurrentSessions + this.config.maxQueueLength) * 10);
+    let codeCacheSize = (this.config.maxConcurrentSessions + this.config.maxQueueLength) * 10;
+    if (codeCacheSize === 0) {
+      codeCacheSize = 1000;
+    }
+    this.codeCache = new CodeCache(codeCacheSize);
 
     this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue, this.codeCache);
