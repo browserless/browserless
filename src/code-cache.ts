@@ -1,5 +1,5 @@
 import { TTLCache } from '@brokerloop/ttlcache';
-import * as uuid from 'uuid/v4';
+import shortid = require('shortid');
 
 export interface ICodeCache {
   readonly concurrency: number;
@@ -10,17 +10,19 @@ export interface ICodeCache {
 export class CodeCache {
   private cache: TTLCache;
 
-  constructor(max: number) {
-    this.cache = new TTLCache({ ttl: 300000, max });
+  constructor(ttl: number, max: number) {
+    this.cache = new TTLCache({ ttl, max });
   }
 
   public set(code: string): string {
-    const id = uuid();
+    const id = shortid.generate();
     this.cache.set(id, code);
     return id;
   }
 
   public get(id: string): string | undefined {
-    return this.cache.get(id);
+    const code = this.cache.get(id);
+    this.cache.delete(id);
+    return code;
   }
 }

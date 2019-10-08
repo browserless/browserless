@@ -58,7 +58,6 @@
     "@types/request": "^2.48.2",
     "@types/rimraf": "^2.0.2",
     "@types/shortid": "0.0.29",
-    "@types/uuid": "^3.4.5",
     "archiver": "^3.0.0",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
@@ -93,7 +92,6 @@
     "typescript": "^3.3.3",
     "untildify": "^4.0.0",
     "unzipper": "^0.10.1",
-    "uuid": "^3.3.3",
     "vm2": "^3.8.1"
   },
   "devDependencies": {
