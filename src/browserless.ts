@@ -12,6 +12,7 @@ import * as client from 'prom-client';
 import request = require('request');
 import * as url from 'url';
 
+import { Feature } from './features';
 import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
@@ -213,18 +214,22 @@ export class BrowserlessServer {
         twentyFourHours :
         this.config.connectionTimeout + 100;
       const app = express();
-      client.register.clear();
-      const metricsMiddleware = promBundle({
-        includeMethod: true,
-        includePath: true,
-        includeStatusCode: true,
-        includeUp: false,
-        metricsPath: '/prometheus',
-      });
-      app.use(metricsMiddleware);
 
-      client.collectDefaultMetrics({ timeout: 5000 });
+      if (!this.config.disabledFeatures.includes(Feature.PROMETHEUS)) {
+        client.register.clear();
+        const metricsMiddleware = promBundle({
+          includeMethod: true,
+          includePath: true,
+          includeStatusCode: true,
+          includeUp: false,
+          metricsPath: '/prometheus',
+        });
+        app.use(metricsMiddleware);
+        client.collectDefaultMetrics({ timeout: 5000 });
+      }
+
       const routes = getRoutes({
+        disabledFeatures: this.config.disabledFeatures,
         getConfig: this.getConfig.bind(this),
         getMetrics: this.getMetrics.bind(this),
         getPressure: this.getPressure.bind(this),
@@ -236,7 +241,7 @@ export class BrowserlessServer {
         app.use(cors());
       }
 
-      if (this.config.enableDebugger) {
+      if (!this.config.disabledFeatures.includes(Feature.DEBUGGER)) {
         app.use('/', express.static('./debugger'));
       }
 

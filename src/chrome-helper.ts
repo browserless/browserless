@@ -8,6 +8,7 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
 import { CHROME_BINARY_LOCATION } from './config';
+import { Feature } from './features';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
 
 import {
@@ -18,7 +19,7 @@ import {
   DEFAULT_LAUNCH_ARGS,
   DEFAULT_USER_DATA_DIR,
   DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
-  ENABLE_DEBUG_VIEWER,
+  DISABLED_FEATURES,
   HOST,
   PORT,
   WORKSPACE_DIR,
@@ -109,7 +110,7 @@ const setupPage = async ({
     });
   }
 
-  if (pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+  if (pauseOnConnect && !DISABLED_FEATURES.includes(Feature.DEBUG_VIEWER)) {
     await client.send('Debugger.enable');
     await client.send('Debugger.pause');
   }
