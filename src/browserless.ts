@@ -88,7 +88,7 @@ export class BrowserlessServer {
         timeout: this.config.connectionTimeout,
       },
     });
-    this.codeCache = new CodeCache(this.config.connectionTimeout,
+    this.codeCache = new CodeCache(Math.max(this.config.connectionTimeout, 0),
       Math.max((this.config.maxConcurrentSessions + this.config.maxQueueLength), 2));
 
     this.resourceMonitor = new ResourceMonitor();
