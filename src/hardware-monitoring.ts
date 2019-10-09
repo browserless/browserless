@@ -17,8 +17,8 @@ export class ResourceMonitor {
       si.mem(),
     ]);
 
-    const cpu = cpuLoad.currentload;
-    const memory = (memLoad.active / memLoad.total) * 100;
+    const cpu = cpuLoad.currentload / 100;
+    const memory = memLoad.active / memLoad.total;
 
     return {
       cpu,
