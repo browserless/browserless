@@ -7,7 +7,7 @@ import * as path from 'path';
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
-import { Feature } from './Features';
+import { Feature } from './features';
 import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 
