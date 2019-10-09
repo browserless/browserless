@@ -27,6 +27,13 @@ const getDebug = () => {
   return process.env.DEBUG;
 };
 
+const getHealthCheckServicePort = () => {
+  if (typeof process.env.HEALTH_CHECK_SERVICE_PORT !== 'undefined') {
+    return parseNumber(process.env.HEALTH_CHECK_SERVICE_PORT, 9000);
+  }
+  return undefined;
+};
+
 const parseJSONParam = (param: string | undefined, defaultParam: boolean | string[]) => {
   if (param) {
     try {
@@ -118,4 +125,4 @@ export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH ?
 export const HOST: string | undefined = process.env.HOST;
 export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';
 export const PORT: number = parseNumber(process.env.PORT, 8080);
-export const HEALTH_CHECK_SERVICE_PORT: number = parseNumber(process.env.HEALTH_CHECK_SERVICE_PORT, 9000);
+export const HEALTH_CHECK_SERVICE_PORT: number | undefined = getHealthCheckServicePort();
