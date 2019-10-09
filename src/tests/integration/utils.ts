@@ -18,6 +18,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
   functionExternals: ['lighthouse'],
+  healthCheckServicePort: 9000,
   healthFailureURL: null,
   host: '',
   keepAlive: false,
