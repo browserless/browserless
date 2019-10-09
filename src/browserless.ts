@@ -230,9 +230,8 @@ export class BrowserlessServer {
         });
         app.use(metricsMiddleware);
         client.collectDefaultMetrics({ timeout: 5000 });
-      }
 
-      const routes = getRoutes({
+      }
         codeCache: this.codeCache,
         disabledFeatures: this.config.disabledFeatures,
         getConfig: this.getConfig.bind(this),
