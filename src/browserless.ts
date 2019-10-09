@@ -5,6 +5,7 @@ import * as promBundle from 'express-prom-bundle';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
+import { createLightship, LightshipType } from 'lightship';
 import * as _ from 'lodash';
 import { Socket } from 'net';
 import * as path from 'path';
@@ -70,6 +71,7 @@ export class BrowserlessServer {
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
   private singleRun: IBrowserlessOptions['singleRun'];
+  private lightship: LightshipType;
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -86,9 +88,23 @@ export class BrowserlessServer {
       },
     });
 
+    this.lightship = createLightship({
+      detectKubernetes: false,
+      port: this.config.healthCheckServicePort,
+      signals: ['SIGINT', 'SIGTERM'],
+    });
+
+    const readinessHook = (ready: boolean) => {
+      if (ready) {
+        this.lightship.signalReady();
+      } else {
+        this.lightship.signalNotReady();
+      }
+    };
+
     this.resourceMonitor = new ResourceMonitor();
-    this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
-    this.webdriver = new WebDriver(this.queue);
+    this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue, readinessHook);
+    this.webdriver = new WebDriver(this.queue, readinessHook);
     this.singleRun = opts.singleRun;
     this.workspaceDir = opts.workspaceDir;
     this.stats = [];
@@ -166,11 +182,6 @@ export class BrowserlessServer {
 
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
-    const boundClose = this.close.bind(this);
-
-    process.on('SIGTERM', boundClose);
-    process.on('SIGINT', boundClose);
-
     debug(require('./config'), `Final configuration`);
   }
 
@@ -246,7 +257,7 @@ export class BrowserlessServer {
 
       app.use(routes);
 
-      return this.httpServer = http
+      this.httpServer = http
         .createServer(async (req, res) => {
           const reqParsed = util.parseRequest(req);
           const beforeResults = await beforeHook({ req: reqParsed, res });
@@ -298,8 +309,14 @@ export class BrowserlessServer {
 
           return this.puppeteerProvider.runWebSocket(reqParsed, socket, head);
         }))
-        .setTimeout(httpTimeout)
-        .listen(this.config.port, this.config.host, resolve);
+        .setTimeout(httpTimeout);
+      return this.httpServer.listen(this.config.port, this.config.host, async () => {
+        this.lightship.registerShutdownHandler(() => {
+          this.close();
+        });
+        this.lightship.signalReady();
+        await resolve();
+      });
     });
   }
 
@@ -342,8 +359,6 @@ export class BrowserlessServer {
     await this.puppeteerProvider.close();
 
     debug(`Successfully shutdown, exiting`);
-
-    process.exit(0);
   }
 
   public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
@@ -410,6 +425,7 @@ export class BrowserlessServer {
 
   private onSessionSuccess(_res: express.Response, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
+    this.signalReadiness();
     this.currentStat.successful++;
     job.close && job.close();
     afterHook({
@@ -421,6 +437,7 @@ export class BrowserlessServer {
 
   private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
+    this.signalReadiness();
     this.currentStat.error++;
     this.errorHook(error.message);
     job.close && job.close();
@@ -433,6 +450,7 @@ export class BrowserlessServer {
 
   private onTimedOut(next: IDone, job: IJob) {
     debug(`${job.id}: Recording timedout stat.`);
+    this.signalReadiness();
     this.currentStat.timedout++;
     this.timeoutHook();
     job.onTimeout && job.onTimeout();
@@ -453,7 +471,7 @@ export class BrowserlessServer {
 
   private onQueueDrained() {
     debug(`Current workload complete.`);
-
+    this.signalReadiness();
     if (this.singleRun) {
       debug(`Running in single-run mode, exiting in 1 second`);
       setTimeout(process.exit, 1000);
@@ -498,6 +516,14 @@ export class BrowserlessServer {
       util.writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
         .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
         .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
+    }
+  }
+
+  private signalReadiness() {
+    if (!this.queue.hasCapacity) {
+      this.lightship.signalNotReady();
+    } else {
+      this.lightship.signalReady();
     }
   }
 }

@@ -5,6 +5,7 @@ export interface IBrowserlessOptions
 interface IBrowserlessServerConfiguration {
   host: string | undefined;
   port: number;
+  healthCheckServicePort: number;
   token: string | null;
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;

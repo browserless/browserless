@@ -45,11 +45,14 @@ export class PuppeteerProvider {
   private config: IChromeServiceConfiguration;
   private chromeSwarm: Array<Promise<chromeHelper.IBrowser>>;
   private queue: Queue;
+  private readinessHook: (ready: boolean) => void;
 
-  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue) {
+  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue,
+              readinessHook: (ready: boolean) => void) {
     this.config = config;
     this.server = server;
     this.queue = queue;
+    this.readinessHook = readinessHook;
 
     this.chromeSwarm = [];
   }
@@ -153,6 +156,7 @@ export class PuppeteerProvider {
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      this.readinessHook(false);
       return this.server.rejectReq(req, res, 429, `Too Many Requests`);
     }
 
@@ -343,6 +347,7 @@ export class PuppeteerProvider {
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
+      this.readinessHook(false);
       return this.server.rejectSocket({
         header: `HTTP/1.1 429 Too Many Requests`,
         message: `Too Many Requests`,

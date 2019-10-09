@@ -13,6 +13,7 @@ const browserless = new BrowserlessServer({
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
   functionExternals: config.FUNCTION_EXTERNALS,
+  healthCheckServicePort: config.HEALTH_CHECK_SERVICE_PORT,
   healthFailureURL: config.FAILED_HEALTH_URL,
   host: config.HOST,
   keepAlive: config.KEEP_ALIVE,

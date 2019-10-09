@@ -25,9 +25,11 @@ interface IWebDriverSessions {
 export class WebDriver {
   private queue: Queue;
   private webDriverSessions: IWebDriverSessions;
+  private readinessHook: (ready: boolean) => void;
 
-  constructor(queue: Queue) {
+  constructor(queue: Queue, readinessHook: (ready: boolean) => void) {
     this.queue = queue;
+    this.readinessHook = readinessHook;
     this.webDriverSessions = {};
   }
 
@@ -39,6 +41,7 @@ export class WebDriver {
 
     if (!this.queue.hasCapacity) {
       debug(`Too many concurrent and queued requests, rejecting.`);
+      this.readinessHook(false);
       return res.end();
     }
 
