@@ -13,7 +13,6 @@ Array [
   "exitOnHealthFailure",
   "functionBuiltIns",
   "functionExternals",
-  "healthCheckServicePort",
   "healthFailureURL",
   "host",
   "keepAlive",
