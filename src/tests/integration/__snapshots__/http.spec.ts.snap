@@ -5,7 +5,7 @@ Array [
   "chromeRefreshTime",
   "connectionTimeout",
   "demoMode",
-  "disabledFeatures"
+  "disabledFeatures",
   "enableCors",
   "enableXvfb",
   "errorAlertURL",
