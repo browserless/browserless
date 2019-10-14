@@ -1,3 +1,26 @@
+# [1.18.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
+- Dependency updates
+- Better `IS_DOCKER` check for kubernetes.
+- Updates to README.md, spelling fixes and Slack link.
+- Fixes to debugger and larger code bodies.
+- Removal of analytics in debugger.
+- Screencast improvements and adding ability to set new options.
+- New `waitFor` property in our APIs (content, pdf and screenshot).
+- Don't allow file requests on the debugger for security reasons.
+- Better metrics monitoring.
+- `singleRun` mode in docker.
+- New prometheus support!
+- Fixing issues with keeping chrome alive (only closing once TTL is met).
+
+# [1.17.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
+- Dependency updates
+- Splitting docker images into two repositories for faster builds and pulls
+- Adding in external routing capabilities
+- New error hook
+- More/better types
+- Updating `deviceScaleFactor` in API's for more granular control.
+- Better chromedriver failure messages.
+
 # [1.16.0](https://github.com/browserless/chrome/compare/v1.15.0...v1.16.0)
 - Adding `ffmpeg` to the docker dependency list.
 - Add `timecut` as a dependency for recording.
