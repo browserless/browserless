@@ -42,7 +42,7 @@ const chromedriverUrl = platform === 'darwin' ?
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${chromium_revision}%2Fdevtools-frontend.zip?alt=media`
 
 const downloadChromedriver = () => {
-  if (process.env.CHROMEDRIVER_SKIP_DOWNLOAD) {
+  if (process.env.CHROMEDRIVER_SKIP_DOWNLOAD === 'false') {
     console.log('Chromedriver binary already downloaded, exiting');
     return Promise.resolve();
   }
