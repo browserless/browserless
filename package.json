@@ -27,13 +27,14 @@
     "puppeteer-1.17.0": "1.17.0",
     "puppeteer-1.18.1": "1.18.1",
     "puppeteer-1.19.0": "1.19.0",
+    "puppeteer-1.20.0": "1.20.0",
     "chrome-stable": "1.15.0"
   },
   "chromeVersions": [
+    "puppeteer-1.20.0",
     "puppeteer-1.19.0",
     "puppeteer-1.18.1",
     "puppeteer-1.17.0",
-    "puppeteer-1.16.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
