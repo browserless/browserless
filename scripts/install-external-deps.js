@@ -38,10 +38,14 @@ const chromedriverUrl = platform === 'darwin' ?
   platform === 'win32' ?
     `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${chromium_revision}%2Fchromedriver_win32.zip?alt=media` :
     `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${chromium_revision}%2Fchromedriver_linux64.zip?alt=media`;
-  
+
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${chromium_revision}%2Fdevtools-frontend.zip?alt=media`
 
 const downloadChromedriver = () => {
+  if (process.env.CHROMEDRIVER_SKIP_DOWNLOAD) {
+    console.log('Chromedriver binary already downloaded, exiting');
+    return Promise.resolve();
+  }
   const chromedriverZipDir = path.join(chromedriverDownloadPath, chromedriverZipFolder);
   const chromedriverUnzippedPath = path.join(chromedriverZipDir, 'chromedriver');
   const chromedriverFinalPath = path.join(chromedriverDownloadPath, 'chromedriver');

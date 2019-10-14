@@ -34,6 +34,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
 # Build
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
+    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
   npm install &&\
   npm run post-install &&\
