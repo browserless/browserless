@@ -57,8 +57,8 @@ chrome.runtime.onConnect.addListener((port) => {
                   maxFrameRate: preferences.framerate,
                   minWidth: preferences.width || msg.width,
                   maxWidth: preferences.width || msg.width,
-                  minHeight: preferences.width || msg.height,
-                  maxHeight: preferences.width || msg.height,
+                  minHeight: preferences.height || msg.height,
+                  maxHeight: preferences.height || msg.height,
                 }
               }
             },
