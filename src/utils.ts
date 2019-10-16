@@ -9,7 +9,6 @@ import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
 import rmrf = require('rimraf');
-import * as shortid from 'shortid';
 import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
@@ -21,6 +20,9 @@ const dbg = require('debug');
 
 const mkdtemp = util.promisify(fs.mkdtemp);
 
+const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+export const jsonProtocolPrefix = 'BROWSERLESS';
 export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
@@ -28,7 +30,7 @@ export const writeFile = util.promisify(fs.writeFile);
 export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
-export const id = shortid.generate;
+
 const debug = getDebug('system');
 
 type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
@@ -80,6 +82,11 @@ const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) =
 
   return results;
 };
+
+export const id = (prepend: string = '') =>
+  prepend + Array.from({ length: prepend ? 32 - prepend.length : 32 }, () =>
+    characters.charAt(Math.floor(Math.random() * characters.length)),
+  ).join('');
 
 export const buildWorkspaceDir = async (dir: string): Promise<IWorkspaceItem[] | null> => {
   const hasDownloads = await exists(dir);
@@ -184,7 +191,7 @@ export const fetchJson = (url: string, opts?: any) => fetch(url, opts)
   });
 
 export const generateChromeTarget = () => {
-  return `/devtools/page/${id()}`;
+  return `/devtools/page/${id(jsonProtocolPrefix)}`;
 };
 
 export const sleep = (time = 0) => {

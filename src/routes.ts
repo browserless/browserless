@@ -336,6 +336,7 @@ export const getRoutes = ({
     res.json([{
       description: '',
       devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
+      id: targetId,
       targetId,
       title: 'about:blank',
       type: 'page',
