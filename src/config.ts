@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as puppeteer from 'puppeteer';
+import {Feature, isFeature} from './features';
 
 const debug = require('debug');
 const untildify = require('untildify');
@@ -25,6 +26,24 @@ const getDebug = () => {
   process.env.DEBUG = 'browserless*';
   debug.enable(process.env.DEBUG);
   return process.env.DEBUG;
+};
+
+const getDisabledFeatures = () => {
+  const disabledFeatures: Feature[] = parseJSONParam(process.env.DISABLED_FEATURES, [])
+    .map((disabledFeature: string) => {
+      if (isFeature(disabledFeature)) {
+        return disabledFeature as Feature;
+      }
+      throw new Error(`Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(Feature)
+        .map(([_, v]) => v).join(',')}]`);
+    });
+  if (!parseJSONParam(process.env.ENABLE_DEBUGGER, true) && !disabledFeatures.includes(Feature.DEBUGGER)) {
+    disabledFeatures.push(Feature.DEBUGGER);
+  }
+  if (!parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true) && !disabledFeatures.includes(Feature.DEBUG_VIEWER)) {
+    disabledFeatures.push(Feature.DEBUG_VIEWER);
+  }
+  return disabledFeatures;
 };
 
 const parseJSONParam = (param: string | undefined, defaultParam: boolean | string[]) => {
@@ -85,9 +104,8 @@ export const CHROME_BINARY_LOCATION: string = process.env.CHROME_BINARY_LOCATION
 // Security and accessibility
 export const DEBUG: string | undefined = getDebug();
 export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
+export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
 export const ENABLE_CORS: boolean  = parseJSONParam(process.env.ENABLE_CORS, false);
-export const ENABLE_DEBUGGER: boolean = parseJSONParam(process.env.ENABLE_DEBUGGER, true);
-export const ENABLE_DEBUG_VIEWER: boolean = parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true);
 export const ENABLE_XVBF: boolean = parseJSONParam(process.env.ENABLE_XVBF, false);
 export const TOKEN: string | null = process.env.TOKEN || null;
 
