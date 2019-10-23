@@ -1,7 +1,6 @@
 import { ChildProcess } from 'child_process';
 // @ts-ignore no types
 import * as chromeDriver from 'chromedriver';
-import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as puppeteer from 'puppeteer';
@@ -9,6 +8,7 @@ import * as url from 'url';
 
 import { CHROME_BINARY_LOCATION } from './config';
 import { Feature } from './features';
+import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
 
 import {
@@ -28,21 +28,11 @@ import {
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const treekill = require('tree-kill');
-const browserSetupPath = path.join(__dirname, '..', 'external', 'browser.js');
-const pageSetupPath = path.join(__dirname, '..', 'external', 'page.js');
 
 const BROWSERLESS_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
 let runningBrowsers: IBrowser[] = [];
-
-const browserHook = fs.existsSync(browserSetupPath) ?
-  require(browserSetupPath) :
-  () => Promise.resolve(true);
-
-const pageHook = fs.existsSync(pageSetupPath) ?
-  require(pageSetupPath) :
-  () => Promise.resolve(true);
 
 export interface IChromeDriver {
   port: number;

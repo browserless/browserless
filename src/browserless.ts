@@ -2,12 +2,10 @@ import * as cookie from 'cookie';
 import * as cors from 'cors';
 import * as express from 'express';
 import * as promBundle from 'express-prom-bundle';
-import * as fs from 'fs';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import { Socket } from 'net';
-import * as path from 'path';
 import * as client from 'prom-client';
 import request = require('request');
 import * as url from 'url';
@@ -16,6 +14,7 @@ import { Feature } from './features';
 import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
+import { afterRequest, beforeRequest, externalRoutes } from './hooks';
 import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { IDone, IJob, Queue } from './queue';
@@ -31,22 +30,6 @@ const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 const webDriverPath = '/webdriver/session';
-
-const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
-const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
-const externalRoutesPath = path.join(__dirname, '..', 'external', 'routes.js');
-
-const beforeHook = fs.existsSync(beforeHookPath) ?
-  require(beforeHookPath) :
-  () => true;
-
-const afterHook = fs.existsSync(afterHookPath) ?
-  require(afterHookPath) :
-  () => true;
-
-const externalRoutes = fs.existsSync(externalRoutesPath) ?
-  require(externalRoutesPath) :
-  null;
 
 export interface IWebdriverStartHTTP extends util.IHTTPRequest {
   body: any;
@@ -254,7 +237,7 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeHook({ req: reqParsed, res });
+          const beforeResults = await beforeRequest({ req: reqParsed, res });
 
           if (!beforeResults) {
             return res.end();
@@ -285,7 +268,7 @@ export class BrowserlessServer {
         })
         .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
           const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeHook({ req: reqParsed, socket });
+          const beforeResults = await beforeRequest({ req: reqParsed, socket });
 
           if (!beforeResults) {
             return socket.end();
@@ -417,7 +400,7 @@ export class BrowserlessServer {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'successful',
@@ -429,7 +412,7 @@ export class BrowserlessServer {
     this.currentStat.error++;
     this.errorHook(error.message);
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'error',
@@ -442,7 +425,7 @@ export class BrowserlessServer {
     this.timeoutHook();
     job.onTimeout && job.onTimeout();
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'timedout',
