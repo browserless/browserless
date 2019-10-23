@@ -300,7 +300,8 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
-    if (route.includes('/devtools/page')) {
+    // Catch actual running pages and route them appropriately
+    if (route.includes('/devtools/page') && !route.includes(utils.jsonProtocolPrefix)) {
       const session = await chromeHelper.findSessionForPageUrl(route);
       if (session && session.port) {
         const { port } = session;
