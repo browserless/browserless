@@ -602,7 +602,7 @@ export class PuppeteerProvider {
   }
 
   private async newPage(browser: chromeHelper.IBrowser) {
-    if (this.config.enableIncognitoMode) {
+    if (this.config.functionEnableIncognitoMode) {
       const browserContext = await browser.createIncognitoBrowserContext();
       return await browserContext.newPage();
     }

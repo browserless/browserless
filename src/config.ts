@@ -112,11 +112,11 @@ export const TOKEN: string | null = process.env.TOKEN || null;
 // Puppeteer behavior
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);
 export const FUNCTION_BUILT_INS: string[] = parseJSONParam(process.env.FUNCTION_BUILT_INS, REQUIRED_INTERNALS);
+export const FUNCTION_ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(process.env.FUNCTION_ENABLE_INCOGNITO_MODE, false);
 export const FUNCTION_EXTERNALS: string[] = parseJSONParam(process.env.FUNCTION_EXTERNALS, REQUIRED_EXTERNALS);
 export const WORKSPACE_DIR: string = fs.existsSync(expandedDir) ? expandedDir : os.tmpdir();
 export const WORKSPACE_DELETE_EXPIRED: boolean = parseJSONParam(process.env.WORKSPACE_DELETE_EXPIRED, false);
 export const WORKSPACE_EXPIRE_DAYS: number = parseNumber(process.env.WORKSPACE_EXPIRE_DAYS, 30);
-export const ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(process.env.ENABLE_INCOGNITO_MODE, false);
 
 // Web-hooks
 export const FAILED_HEALTH_URL: string | null = process.env.FAILED_HEALTH_URL || null;

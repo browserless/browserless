@@ -25,8 +25,8 @@ export interface IChromeServiceConfiguration {
   maxQueueLength: number;
   prebootChrome: boolean;
   demoMode: boolean;
-  enableIncognitoMode: boolean;
   functionExternals: string[];
+  functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
   maxMemory: number;
   maxCPU: number;
