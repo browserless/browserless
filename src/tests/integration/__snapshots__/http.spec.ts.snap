@@ -11,6 +11,7 @@ Array [
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",
+  "functionEnableIncognitoMode",
   "functionExternals",
   "healthFailureURL",
   "host",
