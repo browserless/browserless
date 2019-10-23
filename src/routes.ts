@@ -95,7 +95,6 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-
   if (!disabledFeatures.includes(Feature.INTROSPECTION_ENDPOINT)) {
     router.get('/introspection', (_req, res) => res.json(hints));
   }
@@ -380,14 +379,14 @@ export const getRoutes = ({
       }]);
     }));
   }
-  if (config.enableDebugger) {
-    router.post('/cache', jsonParser, async (req, res) => {
+
+  if (!disabledFeatures.includes(Feature.DEBUGGER)) {
+    router.post('/debugger', jsonParser, async (req, res) => {
       const code = req.body.code;
       const id = codeCache.set(code);
       return res.json(id);
     });
   }
-
 
   if (!disabledFeatures.includes(Feature.DEBUG_VIEWER)) {
     router.get('/sessions', asyncWebHandler(async (_req: Request, res: Response) => {
