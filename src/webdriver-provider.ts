@@ -50,7 +50,7 @@ export class WebDriver {
     const job: IJob = Object.assign(
       (done: IDone) => {
         req.removeListener('close', earlyClose);
-        this.launchChrome()
+        this.launchChrome(req.body)
           .then((chromeDriver) => {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
@@ -210,17 +210,25 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(retries = 1): Promise<chromeHelper.IChromeDriver> {
-    return chromeHelper.launchChromeDriver()
+  private launchChrome(body: any, retries = 1): Promise<chromeHelper.IChromeDriver> {
+    const blockAds = body.desiredCapabilities['browserless.blockAds'];
+    const trackingId = body.desiredCapabilities['browserless.trackingId'];
+    const pauseOnConnect = body.desiredCapabilities['browserless.pause'];
+
+    return chromeHelper.launchChromeDriver({
+      blockAds,
+      pauseOnConnect,
+      trackingId,
+    })
       .catch((error) => {
         debug(`Issue launching ChromeDriver, error:`, error);
 
         if (retries) {
           debug(`Retrying launch of ChromeDriver`);
-          return this.launchChrome(retries - 1);
+          return this.launchChrome(body, retries - 1);
         }
 
-        debug(`Retries exhaused, throwing`);
+        debug(`Retries exhausted, throwing`);
         throw error;
       });
   }

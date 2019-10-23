@@ -82,8 +82,6 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   keepalive?: number;
 }
 
-const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
-
 const setupPage = async ({
   page,
   pauseOnConnect,
@@ -337,17 +335,22 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
     }));
 };
 
-export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) => {
-  debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
-
+export const launchChromeDriver = async ({
+  blockAds = false,
+  trackingId = null,
+  pauseOnConnect = false,
+}: {
+  blockAds: boolean,
+  trackingId: null | string,
+  pauseOnConnect: boolean,
+}) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
     let iBrowser = null;
+    const flags = ['--url-base=webdriver', '--verbose', `--port=${port}`, '--whitelisted-ips'];
+    debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
 
-    const chromeProcess: ChildProcess = await chromeDriver.start(
-      [...flags, `--port=${port}`, '--whitelisted-ips'],
-      true,
-    );
+    const chromeProcess: ChildProcess = await chromeDriver.start(flags, true);
 
     async function onMessage(data: Buffer) {
       const message = data.toString();
@@ -361,14 +364,14 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
         const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
 
         iBrowser = await setupBrowser({
-          blockAds: false,
+          blockAds,
           browser,
           browserlessDataDir: null,
           isUsingTempDataDir: false,
           keepalive: null,
-          pauseOnConnect: false,
+          pauseOnConnect,
           process: chromeProcess,
-          trackingId: null,
+          trackingId,
         });
       }
     }
