@@ -1,3 +1,5 @@
+import { Feature } from '../features';
+
 export interface IBrowserlessOptions
   extends IBrowserlessServerConfiguration,
     IChromeServiceConfiguration {}
@@ -14,6 +16,7 @@ interface IBrowserlessServerConfiguration {
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
   workspaceDir: string;
+  disabledFeatures: Feature[];
 }
 
 export interface IChromeServiceConfiguration {
@@ -22,8 +25,6 @@ export interface IChromeServiceConfiguration {
   maxQueueLength: number;
   prebootChrome: boolean;
   demoMode: boolean;
-  enableDebugger: boolean;
-  enableDebugViewer: boolean;
   functionExternals: string[];
   functionBuiltIns: string[];
   maxMemory: number;
