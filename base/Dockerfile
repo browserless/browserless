@@ -58,7 +58,7 @@ RUN apt-get -qq update && \
   wget \
   xvfb \
   curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_10.x | bash - &&\
+  curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
