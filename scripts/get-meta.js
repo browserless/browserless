@@ -40,7 +40,7 @@ let launchArgs = {
 
 if (IS_DOCKER) {
   const chromePath = getChromePath();
-  console.log(`Using Chrome Stable for meta capturing at: "${chromePath}"`);
+  console.log(`Using Chrome located at: "${chromePath}" for compiling hints`);
   launchArgs.executablePath = chromePath;
 }
 

@@ -65,6 +65,7 @@
     "debug": "^4.0.0",
     "express": "^4.16.2",
     "express-prom-bundle": "^5.1.5",
+    "fs-extra": "^8.1.0",
     "get-port": "^5.0.0",
     "http-proxy": "^1.16.2",
     "jest": "^24.1.0",
@@ -87,7 +88,6 @@
     "tslint": "^5.10.0",
     "typescript": "^3.3.3",
     "untildify": "^4.0.0",
-    "unzipper": "^0.10.1",
     "vm2": "^3.8.1"
   },
   "devDependencies": {
