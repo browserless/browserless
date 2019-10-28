@@ -1,37 +1,14 @@
-/*
-  ChromeDriver:
-  Linux: https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F662092%2Fchromedriver_linux64.zip?alt=media
-  Mac: https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html?prefix=Mac/
-  Windows: https://commondatastorage.googleapis.com/chromium-browser-snapshots/index.html?prefix=Win/
-
-  DevTools:
-  Mac: https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F672088%2Fdevtools-frontend.zip?alt=media
-*/
 const os = require('os');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs-extra');
 const fetch = require('node-fetch');
-const unzipper = require('unzipper');
+const extract = require('extract-zip');
 const rimraf = require('rimraf');
 
-const {
-  puppeteer: {
-    chromium_revision,
-  },
-} = require('puppeteer/package.json');
-
 const platform = os.platform();
+const browserlessTmpDir = path.join(os.tmpdir(), `browserless-devtools-${Date.now()}`);
 
-const chromedriverDownloadPath = path.join(__dirname, '..', 'node_modules', 'chromedriver', 'lib', 'chromedriver');
-const devtoolsDownloadPath = path.join(__dirname, '..', 'debugger');
-
-const devtoolsTmpPath = path.join(os.tmpdir(), 'browserless-devtools');
-
-const chromedriverZipFolder = platform === 'darwin' ?
-  `chromedriver_mac64` :
-  platform === 'win32' ?
-    `chromedriver_win32` :
-    `chromedriver_linux64`;
+const { puppeteer: { chromium_revision } } = require('puppeteer/package.json');
 
 const chromedriverUrl = platform === 'darwin' ?
   `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${chromium_revision}%2Fchromedriver_mac64.zip?alt=media` :
@@ -41,53 +18,66 @@ const chromedriverUrl = platform === 'darwin' ?
 
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${chromium_revision}%2Fdevtools-frontend.zip?alt=media`
 
+const downloadUrlToDirectory = (url, dir) =>
+  fetch(url)
+    .then((response) => new Promise((resolve, reject) => {
+      response.body
+        .pipe(fs.createWriteStream(dir))
+        .on('error', reject)
+        .on('finish', resolve)
+    }));
+
+const unzip = (source, target) => new Promise((resolve, reject) => {
+  extract(source, { dir: target }, (err) => {
+    if (err) {
+      reject(err);
+    }
+    resolve(target);
+  });
+});
+
 const downloadChromedriver = () => {
   if (process.env.CHROMEDRIVER_SKIP_DOWNLOAD === 'false') {
     console.log('Chromedriver binary already downloaded, exiting');
     return Promise.resolve();
   }
-  const chromedriverZipDir = path.join(chromedriverDownloadPath, chromedriverZipFolder);
-  const chromedriverUnzippedPath = path.join(chromedriverZipDir, 'chromedriver');
-  const chromedriverFinalPath = path.join(chromedriverDownloadPath, 'chromedriver');
 
-  return fetch(chromedriverUrl)
-  .then((response) => new Promise((resolve, reject) => {
-    console.log(`Chromedriver download finished, unzipping...`);
-    response.body
-      .pipe(unzipper.Extract({ path: chromedriverDownloadPath }))
-      .on('error', reject)
-      .on('finish', resolve)
-  }))
-  .then(() => fs.renameSync(chromedriverUnzippedPath, chromedriverFinalPath))
-  .then(() => fs.chmodSync(chromedriverFinalPath, '755'));
+  const chromedriverZipFolder = platform === 'darwin' ?
+    `chromedriver_mac64` :
+    platform === 'win32' ?
+      `chromedriver_win32` :
+      `chromedriver_linux64`;
+  const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver`);
+  const chromedriverUnzippedPath = path.join(browserlessTmpDir, chromedriverZipFolder, 'chromedriver');
+  const chromedriverFinalPath = path.join(__dirname, '..', 'node_modules', 'chromedriver', 'lib', 'chromedriver', 'chromedriver');
+
+  return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
+    .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
+    .then(() => fs.move(chromedriverUnzippedPath, chromedriverFinalPath, { overwrite: true }))
+    .then(() => fs.chmodSync(chromedriverFinalPath, '755'));
 };
 
 const downloadDevTools = () => {
-  const devtoolsUnzippedPath = path.join(devtoolsTmpPath, 'devtools-frontend', 'resources', 'inspector');
-  const devtoolsFinalPath = path.join(devtoolsDownloadPath, 'devtools');
+  const devtoolsTmpZip = path.join(browserlessTmpDir, 'devtools');
+  const devtoolsUnzippedPath = path.join(browserlessTmpDir, 'devtools-frontend', 'resources', 'inspector');
+  const devtoolsFinalPath = path.join(__dirname, '..', 'debugger', 'devtools');
 
-  return fetch(devtoolsUrl)
-  .then((response) => new Promise((resolve, reject) => {
-    console.log(`Devtools download finished, unzipping...`);
-    response.body
-      .pipe(unzipper.Extract({ path: devtoolsTmpPath }))
-      .on('error', reject)
-      .on('finish', resolve)
-  }))
-  .then(() => fs.renameSync(devtoolsUnzippedPath, devtoolsFinalPath))
-  .then(() => new Promise((resolve, reject) => {
-    rimraf(devtoolsTmpPath, (err) => {
-      if (err) {
-        return reject(`Error removing temporary folder ${devtoolsTmpPath}: ${err.message}`);
-      }
-      resolve();
-    });
-  }))
+  return downloadUrlToDirectory(devtoolsUrl, devtoolsTmpZip)
+    .then(() => unzip(devtoolsTmpZip, browserlessTmpDir))
+    .then(() => fs.move(devtoolsUnzippedPath, devtoolsFinalPath, { overwrite: true }))
 };
 
-Promise.all([
-  downloadChromedriver(),
-  downloadDevTools(),
-])
-.then(() => console.log('Done unpacking external dependencies'))
-.catch((err) => console.error(`Error unpacking external dependencies:\n${err.message}`));
+(async () => {
+  try {
+    await fs.mkdir(browserlessTmpDir);
+    await Promise.all([
+      downloadChromedriver(),
+      downloadDevTools(),
+    ]);
+    console.log('Done unpacking external dependencies');
+  } catch(err) {
+    console.error(`Error unpacking external dependencies:\n${err.message}\n${err.stack}`);
+  } finally {
+    rimraf(browserlessTmpDir, () => {});
+  }
+})();
