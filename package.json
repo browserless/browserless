@@ -77,7 +77,7 @@
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "prom-client": "^11.5.3",
-    "puppeteer": "^2.0.0",
+    "puppeteer": "1.17.0",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
