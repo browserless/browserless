@@ -25,6 +25,7 @@ import {
   content as contentSchema,
   fn as fnSchema,
   pdf as pdfSchema,
+  scrape as scrapeSchema,
   screenshot as screenshotSchema,
   stats as statsSchema,
 } from './schemas';
@@ -47,6 +48,7 @@ const rimraf = require('rimraf');
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
+const scrape = fnLoader('scrape');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
@@ -296,6 +298,24 @@ export const getRoutes = ({
       }),
     );
   }
+
+  // Helper route for scraping, accepts a POST body containing a URL
+  // (see the schema in schemas.ts);
+  router.post('/scrape',
+    jsonParser,
+    bodyValidation(scrapeSchema),
+    asyncWebHandler(async (req: Request, res: Response) => {
+      const isJson = typeof req.body === 'object';
+      const context = isJson ? req.body : {};
+
+      return puppeteerProvider.runHTTP({
+        code: scrape,
+        context,
+        req,
+        res,
+      });
+    }),
+  );
 
   if (!disabledFeatures.includes(Feature.PDF_ENDPOINT)) {
     // Helper route for capturing screenshots, accepts a POST body containing a URL and
