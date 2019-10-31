@@ -301,21 +301,23 @@ export const getRoutes = ({
 
   // Helper route for scraping, accepts a POST body containing a URL
   // (see the schema in schemas.ts);
-  router.post('/scrape',
-    jsonParser,
-    bodyValidation(scrapeSchema),
-    asyncWebHandler(async (req: Request, res: Response) => {
-      const isJson = typeof req.body === 'object';
-      const context = isJson ? req.body : {};
+  if (!disabledFeatures.includes(Feature.SCRAPE_ENDPOINT)) {
+    router.post('/scrape',
+      jsonParser,
+      bodyValidation(scrapeSchema),
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const isJson = typeof req.body === 'object';
+        const context = isJson ? req.body : {};
 
-      return puppeteerProvider.runHTTP({
-        code: scrape,
-        context,
-        req,
-        res,
-      });
-    }),
-  );
+        return puppeteerProvider.runHTTP({
+          code: scrape,
+          context,
+          req,
+          res,
+        });
+      }),
+    );
+  }
 
   if (!disabledFeatures.includes(Feature.PDF_ENDPOINT)) {
     // Helper route for capturing screenshots, accepts a POST body containing a URL and

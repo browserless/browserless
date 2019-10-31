@@ -1,13 +1,13 @@
 export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
   'configEndpoint' | 'workspaces' | 'downloadEndpoint' | 'pressureEndpoint' | 'functionEndpoint' | 'killEndpoint' |
-  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint';
+  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint';
 
 export function isFeature(str: string): str is Feature {
   return str === 'prometheus' || str === 'debugger' || str === 'debugViewer' || str === 'introspectionEndpoint'
     || str === 'metricsEndpoint' || str === 'configEndpoint' || str === 'workspaces' || str === 'downloadEndpoint'
     || str === 'pressureEndpoint' || str === 'functionEndpoint' || str === 'killEndpoint'
     || str === 'screencastEndpoint' || str === 'screenshotEndpoint' || str === 'contentEndpoint'
-    || str === 'pdfEndpoint' || str === 'statsEndpoint';
+    || str === 'pdfEndpoint' || str === 'statsEndpoint' || str === 'scrapeEndpoint';
 }
 
 // tslint:disable-next-line:variable-name
@@ -24,6 +24,7 @@ export const Feature = {
   PDF_ENDPOINT: 'pdfEndpoint' as Feature,
   PRESSURE_ENDPOINT: 'pressureEndpoint' as Feature,
   PROMETHEUS: 'prometheus' as Feature,
+  SCRAPE_ENDPOINT: 'scrapeEndpoint' as Feature,
   SCREENCAST_ENDPOINT: 'screencastEndpoint' as Feature,
   SCREENSHOT_ENDPOINT: 'screenshotEndpoint' as Feature,
   STATS_ENDPOINT: 'statsEndpoint' as Feature,

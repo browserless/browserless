@@ -43,7 +43,7 @@ module.exports = async function scrape ({ page, context }) {
     requestInterceptors = [],
     setExtraHTTPHeaders = null,
     url,
-    selectors,
+    elements,
     waitFor,
     debug = {
       cookies: false,
@@ -119,12 +119,12 @@ module.exports = async function scrape ({ page, context }) {
     }
   }
 
-  const data = await page.evaluate(async (selectors, waitForElementString) => {
+  const data = await page.evaluate(async (elements, waitForElementString) => {
     const wait = new Function('return ' + waitForElementString)();
 
-    await Promise.all(selectors.map((selector) => wait(selector)));
+    await Promise.all(elements.map(({ selector, timeout }) => wait(selector, timeout)));
 
-    return selectors.map((selector) => {
+    return elements.map(({ selector }) => {
       const $els = [...document.querySelectorAll(selector)];
       return {
         selector,
@@ -137,7 +137,7 @@ module.exports = async function scrape ({ page, context }) {
         })),
       }
     });
-  }, selectors, waitForElement.toString());
+  }, elements, waitForElement.toString());
 
   const [
     html,

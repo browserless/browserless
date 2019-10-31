@@ -105,7 +105,7 @@ export const CHROME_BINARY_LOCATION: string = process.env.CHROME_BINARY_LOCATION
 export const DEBUG: string | undefined = getDebug();
 export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
 export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
-export const ENABLE_CORS: boolean  = parseJSONParam(process.env.ENABLE_CORS, false);
+export const ENABLE_CORS: boolean = parseJSONParam(process.env.ENABLE_CORS, false);
 export const ENABLE_XVBF: boolean = parseJSONParam(process.env.ENABLE_XVBF, false);
 export const TOKEN: string | null = process.env.TOKEN || null;
 
