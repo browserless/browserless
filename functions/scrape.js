@@ -145,7 +145,7 @@ module.exports = async function scrape ({ page, context }) {
     screenshot,
     pageCookies,
   ] = await Promise.all([
-    debug.content ? page.content() : Promise.resolve(null),
+    debug.html ? page.content() : Promise.resolve(null),
     debug.screenshot ? page.screenshot({ fullPage: true, type: 'jpeg', quality: 20, encoding: 'base64' }) : Promise.resolve(null),
     debug.cookies ? page.cookies() : Promise.resolve(null),
   ]);
