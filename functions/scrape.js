@@ -132,7 +132,8 @@ module.exports = async function scrape ({ page, context }) {
           html: $el.innerHTML,
           text: $el.innerText,
           attributes: [...$el.attributes].map((attr) => ({
-            [attr.name]: attr.value,
+            name: attr.name,
+            value: attr.value,
           })),
         })),
       }
