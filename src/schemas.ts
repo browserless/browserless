@@ -126,6 +126,28 @@ export const pdf = Joi.object().keys({
   waitFor,
 }).xor('url', 'html');
 
+export const scrape = Joi.object().keys({
+  authenticate,
+  cookies,
+  debug: Joi.object().keys({
+    console: Joi.boolean().default(false),
+    cookies: Joi.boolean().default(false),
+    html: Joi.boolean().default(false),
+    network: Joi.boolean().default(false),
+    screenshot: Joi.boolean().default(false),
+  }),
+  elements: Joi.array().items(Joi.object({
+    selector: Joi.string(),
+    timeout: Joi.number(),
+  })).required(),
+  gotoOptions,
+  rejectRequestPattern,
+  requestInterceptors,
+  setExtraHTTPHeaders,
+  url: Joi.string().required(),
+  waitFor,
+});
+
 export const fn = Joi.object().keys({
   code: Joi.string().required(),
   context: Joi.object(),
