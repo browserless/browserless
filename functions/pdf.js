@@ -59,6 +59,7 @@ module.exports = async function pdf({ page, context }) {
     authenticate = null,
     cookies = [],
     emulateMedia,
+    viewport,
     html,
     options,
     url = null,
@@ -100,6 +101,10 @@ module.exports = async function pdf({ page, context }) {
 
   if (cookies.length) {
     await page.setCookie(...cookies);
+  }
+
+  if (viewport) {
+    await page.setViewport(viewport);
   }
 
   if (url !== null) {

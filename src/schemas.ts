@@ -123,6 +123,7 @@ export const pdf = Joi.object().keys({
   ),
   setExtraHTTPHeaders,
   url: Joi.string(),
+  viewport,
   waitFor,
 }).xor('url', 'html');
 
