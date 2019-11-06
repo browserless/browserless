@@ -1,4 +1,22 @@
-# [1.18.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
+# [1.20.0](https://github.com/browserless/chrome/compare/v1.19.0...v1.20.0)
+- Dependency updates.
+- New `/scrape` API!
+
+# [1.19.0](https://github.com/browserless/chrome/compare/v1.18.0...v1.19.0)
+- Dependency updates.
+- Fixes chrome-stable's binary chromedriver.
+- Move over to Node 12.
+- Bugfix on width/height in the screencast API.
+- Support for puppeteer@2.0.0.
+- Fixed issues with the devtools JS files missing.
+- Adds support for blacklisting routes in Docker.
+- Consolidates hooks into a hooks module.
+- Allows Selenium to specify download-paths and pausing via preferences.
+- Fixes an issue in certain JSON-based CDP libraries.
+- Function API's can now run incognito mode with a new Docker param.
+-
+
+# [1.18.0](https://github.com/browserless/chrome/compare/v1.17.0...v1.18.0)
 - Dependency updates
 - Better `IS_DOCKER` check for kubernetes.
 - Updates to README.md, spelling fixes and Slack link.
