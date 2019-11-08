@@ -645,7 +645,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         url: 'https://example.com',
         viewport: {
-          deviceScaleFactor: 3,
+          deviceScaleFactor: 1.2,
           height: 0,
           width: 0,
         },
