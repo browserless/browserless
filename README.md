@@ -34,7 +34,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 - Docker releases that are built for specific puppeteer versions.
 - Docker image's are labelled with information on the version of Chrome, V8, webkit and more.
 - An interactive puppeteer debugger, so you can see what the headless browser is doing and use its DevTools.
-- Works most headless libraries.
+- Works with most headless libraries.
 - Configurable session timers and health-checks to keep things running smoothly.
 - Error tolerant: if Chrome dies it won't.
 
