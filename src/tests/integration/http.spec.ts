@@ -645,7 +645,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         url: 'https://example.com',
         viewport: {
-          deviceScaleFactor: 3,
+          deviceScaleFactor: 1.2,
           height: 0,
           width: 0,
         },
@@ -1083,6 +1083,33 @@ describe('Browserless Chrome HTTP', () => {
         html: '<h1>Hello!</h1>',
         options: {
           landscape: true,
+        },
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows custom viewport options', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+
+      await browserless.startServer();
+
+      const body = {
+        html: '<h1>Hello!</h1>',
+        viewport: {
+          deviceScaleFactor: 3,
+          height: 0,
+          width: 0,
         },
       };
 
