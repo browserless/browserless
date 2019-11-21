@@ -87,6 +87,9 @@ const setupPage = async ({
 
   await pageHook({ page });
 
+  // Don't let us intercept these as they're needed by consumers
+  client.send('Page.setInterceptFileChooserDialog', { enabled: false });
+
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
     const workspaceDir = trackingId ?
       path.join(WORKSPACE_DIR, trackingId) :

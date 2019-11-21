@@ -110,6 +110,30 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
+  it('allows the file-chooser', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+      });
+      const [ page ] = await browser.pages();
+      page.setDefaultTimeout(500);
+      await page.goto('https://example.com');
+      await page.waitForFileChooser().catch((err) => {
+        if (!(err instanceof puppeteer.errors.TimeoutError)) {
+          throw err;
+        }
+      });
+      browser.disconnect();
+      done();
+    };
+
+    job();
+  });
+
   it('queues requests', async (done) => {
     const params = defaultParams();
     const browserless = start({
