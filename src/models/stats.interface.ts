@@ -4,7 +4,7 @@ interface IBrowserlessStats {
   error: number;
   queued: number;
   rejected: number;
-  memory: number;
-  cpu: number;
+  memory: number | null;
+  cpu: number | null;
   timedout: number;
 }

@@ -477,7 +477,7 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    if (cpu >= this.config.maxCPU || memory >= this.config.maxMemory) {
+    if (!cpu || cpu >= this.config.maxCPU || !memory || memory >= this.config.maxMemory) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
       this.healthFailureHook();
     }
