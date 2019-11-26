@@ -8,6 +8,7 @@ const rimraf = require('rimraf');
 interface IBefore {
   page: Page;
   code: string;
+  debug: (...args: any) => void;
 }
 
 interface IAfter {
@@ -19,20 +20,57 @@ interface IAfter {
   stopScreencast: () => void;
 }
 
-export const before = async ({ page, code }: IBefore) => {
-  const setupScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_CLIENT_PLAY' }, '*'));
+interface IPreferences {
+  width: number;
+  height: number;
+  audio: boolean;
+  code: string;
+  type: string;
+  mimeType: string;
+}
+
+export const before = async ({ page, code, debug }: IBefore) => {
+  let prefs: IPreferences;
+
   const startScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_START' }, '*'));
   const stopScreencast = () => page.evaluate(() => window.postMessage({ type: 'REC_STOP' }, '*'));
+  const setPreferences = (preferences: IPreferences) => prefs = preferences;
+
+  const setupScreencast = () => page.evaluate(
+    (viewport) => {
+      const { height, width } = JSON.parse(viewport);
+      return window.postMessage({
+        height,
+        type: 'REC_CLIENT_SETUP',
+        width,
+      }, '*');
+    },
+    JSON.stringify(page.viewport()),
+  );
 
   page.on('load', async () => {
+    if (prefs) {
+      debug(`Injecting preferences: ${JSON.stringify(prefs, null, '  ')}`);
+      await page.evaluate(
+        (prefs) => window.postMessage({
+          prefs: JSON.parse(prefs),
+          type: 'SET_PREFERENCES',
+        }, '*'),
+        JSON.stringify(prefs),
+      );
+    }
+
+    debug(`Setting up screencast`);
     await setupScreencast();
 
     if (!code.includes('startScreencast')) {
-      startScreencast();
+      debug(`Starting to record`);
+      setTimeout(startScreencast, 0);
     }
   });
 
   return {
+    setPreferences,
     startScreencast,
     stopScreencast,
   };

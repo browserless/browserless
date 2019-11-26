@@ -34,6 +34,11 @@ export class BrowserlessSandbox extends EventEmitter {
       }
     });
 
+    this.child.on('error', (err) => {
+      debug(`Error in sandbox ${err.message}, closing`);
+      this.close();
+    });
+
     this.child.send({
       context: {
         code,

@@ -1,17 +1,20 @@
 import * as cookie from 'cookie';
 import * as cors from 'cors';
 import * as express from 'express';
-import * as fs from 'fs';
+import * as promBundle from 'express-prom-bundle';
 import * as http from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 import { Socket } from 'net';
-import * as os from 'os';
-import * as path from 'path';
+import * as client from 'prom-client';
+import request = require('request');
+import * as url from 'url';
 
+import { Feature } from './features';
 import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
+import { afterRequest, beforeRequest, externalRoutes } from './hooks';
 import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { IDone, IJob, Queue } from './queue';
@@ -21,24 +24,12 @@ import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
 
-const request = require('request');
-
 const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 const webDriverPath = '/webdriver/session';
-const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
-const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
-
-const beforeHook = fs.existsSync(beforeHookPath) ?
-  require(beforeHookPath) :
-  () => true;
-
-const afterHook = fs.existsSync(afterHookPath) ?
-  require(afterHookPath) :
-  () => true;
 
 export interface IWebdriverStartHTTP extends util.IHTTPRequest {
   body: any;
@@ -50,6 +41,7 @@ export class BrowserlessServer {
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly errorHook: (message: string) => void;
   public readonly queue: Queue;
   public proxy: httpProxy;
 
@@ -61,6 +53,7 @@ export class BrowserlessServer {
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
+  private singleRun: IBrowserlessOptions['singleRun'];
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -76,9 +69,12 @@ export class BrowserlessServer {
         timeout: this.config.connectionTimeout,
       },
     });
-    this.resourceMonitor = new ResourceMonitor(this.config.maxCPU, this.config.maxMemory);
+
+    this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
+    this.singleRun = opts.singleRun;
+    this.workspaceDir = opts.workspaceDir;
     this.stats = [];
 
     this.proxy = httpProxy.createProxyServer();
@@ -98,28 +94,39 @@ export class BrowserlessServer {
     this.queueHook = opts.queuedAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for queued session(s): ${opts.queuedAlertURL}`);
-        request(opts.queuedAlertURL, _.noop);
+        request(opts.queuedAlertURL as string, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.rejectHook = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL, _.noop);
+        request(opts.rejectAlertURL as string, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.timeoutHook = opts.timeoutAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL, _.noop);
+        request(opts.rejectAlertURL as string, _.noop);
+      }, thirtyMinutes, debounceOpts) :
+      _.noop;
+
+    this.errorHook = opts.errorAlertURL ?
+      _.debounce((message) => {
+        debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
+        const parsed = url.parse(opts.errorAlertURL as string, true);
+        parsed.query.error = message;
+        delete parsed.search;
+        const finalUrl = url.format(parsed);
+        request(finalUrl, _.noop);
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
     this.healthFailureHook = opts.healthFailureURL ?
       _.debounce(() => {
         debug(`Calling web-hook for health-failure: ${opts.healthFailureURL}`);
-        request(opts.healthFailureURL, restartOnFailure);
+        request(opts.healthFailureURL as string, restartOnFailure);
       }, thirtyMinutes, debounceOpts) :
       restartOnFailure;
 
@@ -127,6 +134,7 @@ export class BrowserlessServer {
     this.queue.on('error', this.onSessionFail.bind(this));
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
+    this.queue.on('end', this.onQueueDrained.bind(this));
 
     this.resetCurrentStat();
 
@@ -140,13 +148,6 @@ export class BrowserlessServer {
       }
     }
 
-    const hasWorkspaceDir = fs.existsSync(opts.workspaceDir);
-    this.workspaceDir = hasWorkspaceDir ? opts.workspaceDir : os.tmpdir();
-
-    if (!hasWorkspaceDir) {
-      debug(`The download-directory "${opts.workspaceDir}" doesn't exist, setting it to "${this.workspaceDir}"`);
-    }
-
     this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
     const boundClose = this.close.bind(this);
@@ -157,8 +158,15 @@ export class BrowserlessServer {
     debug(require('./config'), `Final configuration`);
   }
 
-  public getMetrics() {
-    return [...this.stats, this.currentStat];
+  public async getMetrics() {
+    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
+
+    return [...this.stats, {
+      ...this.currentStat,
+      cpu,
+      date: Date.now(),
+      memory,
+    }];
   }
 
   public getConfig() {
@@ -190,7 +198,21 @@ export class BrowserlessServer {
         this.config.connectionTimeout + 100;
       const app = express();
 
+      if (!this.config.disabledFeatures.includes(Feature.PROMETHEUS)) {
+        client.register.clear();
+        const metricsMiddleware = promBundle({
+          includeMethod: true,
+          includePath: true,
+          includeStatusCode: true,
+          includeUp: false,
+          metricsPath: '/prometheus',
+        });
+        app.use(metricsMiddleware);
+        client.collectDefaultMetrics({ timeout: 5000 });
+      }
+
       const routes = getRoutes({
+        disabledFeatures: this.config.disabledFeatures,
         getConfig: this.getConfig.bind(this),
         getMetrics: this.getMetrics.bind(this),
         getPressure: this.getPressure.bind(this),
@@ -202,8 +224,12 @@ export class BrowserlessServer {
         app.use(cors());
       }
 
-      if (this.config.enableDebugger) {
+      if (!this.config.disabledFeatures.includes(Feature.DEBUGGER)) {
         app.use('/', express.static('./debugger'));
+      }
+
+      if (externalRoutes) {
+        app.use(externalRoutes);
       }
 
       app.use(routes);
@@ -211,7 +237,7 @@ export class BrowserlessServer {
       return this.httpServer = http
         .createServer(async (req, res) => {
           const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeHook({ req: reqParsed, res });
+          const beforeResults = await beforeRequest({ req: reqParsed, res });
 
           if (!beforeResults) {
             return res.end();
@@ -242,7 +268,7 @@ export class BrowserlessServer {
         })
         .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
           const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeHook({ req: reqParsed, socket });
+          const beforeResults = await beforeRequest({ req: reqParsed, socket });
 
           if (!beforeResults) {
             return socket.end();
@@ -272,7 +298,6 @@ export class BrowserlessServer {
     clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
-    this.resourceMonitor.close();
     await util.clearBrowserlessDataDirs();
 
     await Promise.all([
@@ -295,7 +320,6 @@ export class BrowserlessServer {
     clearTimers();
     process.removeAllListeners();
     this.proxy.removeAllListeners();
-    this.resourceMonitor.close();
     await util.clearBrowserlessDataDirs();
 
     await new Promise((resolve) => {
@@ -376,7 +400,7 @@ export class BrowserlessServer {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'successful',
@@ -386,8 +410,9 @@ export class BrowserlessServer {
   private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
+    this.errorHook(error.message);
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'error',
@@ -400,7 +425,7 @@ export class BrowserlessServer {
     this.timeoutHook();
     job.onTimeout && job.onTimeout();
     job.close && job.close();
-    afterHook({
+    afterRequest({
       req: job.req,
       start: job.start,
       status: 'timedout',
@@ -412,6 +437,15 @@ export class BrowserlessServer {
     debug(`${id}: Recording queued stat.`);
     this.currentStat.queued++;
     this.queueHook();
+  }
+
+  private onQueueDrained() {
+    debug(`Current workload complete.`);
+
+    if (this.singleRun) {
+      debug(`Running in single-run mode, exiting in 1 second`);
+      setTimeout(process.exit, 1000);
+    }
   }
 
   private resetCurrentStat() {
@@ -428,13 +462,13 @@ export class BrowserlessServer {
   }
 
   private async recordMetrics() {
-    const { cpuUsage, memoryUsage } = await this.resourceMonitor.getMachineStats();
+    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
-      cpu: cpuUsage,
+      cpu,
       date: Date.now(),
-      memory: memoryUsage,
+      memory,
     }));
 
     this.resetCurrentStat();
@@ -443,8 +477,9 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    if (cpuUsage >= this.config.maxCPU || memoryUsage >= this.config.maxMemory) {
-      debug(`Health checks have failed, calling failure webhook: CPU: ${cpuUsage}% Memory: ${memoryUsage}%`);
+    // CPU/Memory being `null` is an indicator of bad health
+    if (!cpu || cpu >= this.config.maxCPU || !memory || memory >= this.config.maxMemory) {
+      debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
       this.healthFailureHook();
     }
 

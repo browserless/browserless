@@ -1,5 +1,7 @@
 import * as Joi from 'joi';
 
+const waitFor = [Joi.string(), Joi.number()];
+
 const gotoOptions = Joi.object().keys({
   timeout: Joi.number(),
   waitUntil: Joi.string()
@@ -41,7 +43,7 @@ const cookies = Joi.array().items(Joi.object({
 })).default([]);
 
 const viewport = Joi.object().keys({
-  deviceScaleFactor: Joi.number().min(1).max(100),
+  deviceScaleFactor: Joi.number().min(0.01).max(100),
   hasTouch: Joi.boolean(),
   height: Joi.number().min(0).required(),
   isLandscape: Joi.boolean(),
@@ -71,6 +73,7 @@ export const screenshot = Joi.object().keys({
   setExtraHTTPHeaders,
   url: Joi.string(),
   viewport,
+  waitFor,
 }).xor('url', 'html');
 
 export const content = Joi.object().keys({
@@ -81,6 +84,7 @@ export const content = Joi.object().keys({
   requestInterceptors,
   setExtraHTTPHeaders,
   url: Joi.string().required(),
+  waitFor,
 });
 
 export const pdf = Joi.object().keys({
@@ -119,7 +123,31 @@ export const pdf = Joi.object().keys({
   ),
   setExtraHTTPHeaders,
   url: Joi.string(),
+  viewport,
+  waitFor,
 }).xor('url', 'html');
+
+export const scrape = Joi.object().keys({
+  authenticate,
+  cookies,
+  debug: Joi.object().keys({
+    console: Joi.boolean().default(false),
+    cookies: Joi.boolean().default(false),
+    html: Joi.boolean().default(false),
+    network: Joi.boolean().default(false),
+    screenshot: Joi.boolean().default(false),
+  }),
+  elements: Joi.array().items(Joi.object({
+    selector: Joi.string(),
+    timeout: Joi.number(),
+  })).required(),
+  gotoOptions,
+  rejectRequestPattern,
+  requestInterceptors,
+  setExtraHTTPHeaders,
+  url: Joi.string().required(),
+  waitFor,
+});
 
 export const fn = Joi.object().keys({
   code: Joi.string().required(),
@@ -128,5 +156,6 @@ export const fn = Joi.object().keys({
 });
 
 export const stats = Joi.object().keys({
+  budgets:  Joi.array().items(Joi.object()).optional(),
   url: Joi.string().required(),
 });

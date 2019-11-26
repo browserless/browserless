@@ -1,5 +1,6 @@
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
+import * as _ from 'lodash';
 
 import { IWebdriverStartHTTP } from './browserless';
 import * as chromeHelper from './chrome-helper';
@@ -49,11 +50,11 @@ export class WebDriver {
     const job: IJob = Object.assign(
       (done: IDone) => {
         req.removeListener('close', earlyClose);
-        this.launchChrome()
-          .then(({ chromeProcess, port }) => {
+        this.launchChrome(req.body)
+          .then((chromeDriver) => {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
-              target: `http://localhost:${port}`,
+              target: `http://localhost:${chromeDriver.port}`,
             });
 
             proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {
@@ -63,12 +64,23 @@ export class WebDriver {
                 const responseBody = body.toString();
                 const session = JSON.parse(responseBody);
                 const id = session.sessionId || session.value.sessionId;
+
+                if (!id) {
+                  if (chromeDriver.browser) {
+                    debug(`Error starting chromedriver, killing underlying chromium.`);
+                    chromeHelper.closeBrowser(chromeDriver.browser);
+                  }
+                  return done(
+                    new Error(`No session ID in chromedriver response: ${_.truncate(responseBody, { length: 500 })}`),
+                  );
+                }
+
                 debug('Session started, got body: ', responseBody);
 
                 job.id = id;
 
                 this.webDriverSessions[id] = {
-                  chromeProcess,
+                  chromeProcess: chromeDriver.chromeProcess,
                   done,
                   proxy,
                   res,
@@ -84,8 +96,8 @@ export class WebDriver {
                 };
 
                 job.close = () => {
-                  debug(`Killing chromedriver and proxy ${chromeProcess.pid}`);
-                  kill(chromeProcess.pid, 'SIGKILL');
+                  debug(`Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`);
+                  kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
                   proxy.close();
                   delete this.webDriverSessions[id];
                 };
@@ -173,7 +185,7 @@ export class WebDriver {
       if (sessionId) {
         const session = this.webDriverSessions[sessionId];
         debug(`Killing chromedriver and proxy ${session.chromeProcess.pid}`);
-        kill(session.chromeProcess.pid, 'SIGTERM');
+        kill(session.chromeProcess.pid, 'SIGKILL');
         session.proxy.close();
         delete this.webDriverSessions[sessionId];
       }
@@ -198,17 +210,25 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(retries = 1): Promise<chromeHelper.IChromeDriver> {
-    return chromeHelper.launchChromeDriver()
+  private launchChrome(body: any, retries = 1): Promise<chromeHelper.IChromeDriver> {
+    const blockAds = body.desiredCapabilities['browserless.blockAds'];
+    const trackingId = body.desiredCapabilities['browserless.trackingId'];
+    const pauseOnConnect = body.desiredCapabilities['browserless.pause'];
+
+    return chromeHelper.launchChromeDriver({
+      blockAds,
+      pauseOnConnect,
+      trackingId,
+    })
       .catch((error) => {
         debug(`Issue launching ChromeDriver, error:`, error);
 
         if (retries) {
           debug(`Retrying launch of ChromeDriver`);
-          return this.launchChrome(retries - 1);
+          return this.launchChrome(body, retries - 1);
         }
 
-        debug(`Retries exhaused, throwing`);
+        debug(`Retries exhausted, throwing`);
         throw error;
       });
   }

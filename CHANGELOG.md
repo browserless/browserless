@@ -1,3 +1,62 @@
+# [1.20.0](https://github.com/browserless/chrome/compare/v1.19.0...v1.20.0)
+- Dependency updates.
+- New `/scrape` API!
+
+# [1.19.0](https://github.com/browserless/chrome/compare/v1.18.0...v1.19.0)
+- Dependency updates.
+- Fixes chrome-stable's binary chromedriver.
+- Move over to Node 12.
+- Bugfix on width/height in the screencast API.
+- Support for puppeteer@2.0.0.
+- Fixed issues with the devtools JS files missing.
+- Adds support for blacklisting routes in Docker.
+- Consolidates hooks into a hooks module.
+- Allows Selenium to specify download-paths and pausing via preferences.
+- Fixes an issue in certain JSON-based CDP libraries.
+- Function API's can now run incognito mode with a new Docker param.
+-
+
+# [1.18.0](https://github.com/browserless/chrome/compare/v1.17.0...v1.18.0)
+- Dependency updates
+- Better `IS_DOCKER` check for kubernetes.
+- Updates to README.md, spelling fixes and Slack link.
+- Fixes to debugger and larger code bodies.
+- Removal of analytics in debugger.
+- Screencast improvements and adding ability to set new options.
+- New `waitFor` property in our APIs (content, pdf and screenshot).
+- Don't allow file requests on the debugger for security reasons.
+- Better metrics monitoring.
+- `singleRun` mode in docker.
+- New prometheus support!
+- Fixing issues with keeping chrome alive (only closing once TTL is met).
+
+# [1.17.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
+- Dependency updates
+- Splitting docker images into two repositories for faster builds and pulls
+- Adding in external routing capabilities
+- New error hook
+- More/better types
+- Updating `deviceScaleFactor` in API's for more granular control.
+- Better chromedriver failure messages.
+
+# [1.16.0](https://github.com/browserless/chrome/compare/v1.15.0...v1.16.0)
+- Adding `ffmpeg` to the docker dependency list.
+- Add `timecut` as a dependency for recording.
+- Better logs on chrome PID's and closing forcefully.
+- Fixed `DEFAULT_CHROME` => `DEFAULT_HEADLESS`.
+- Fixed a bug where `xvfb` doesn't start in time.
+- Use `SIGKILL` for killing chromedriver.
+- `/json/version` now returns a `webSocketDebuggerUrl`.
+
+# [1.15.0](https://github.com/browserless/chrome/compare/v1.14.1...v1.15.0)
+- New `page` and `browser` hooks for docker images that `FROM` browserless.
+- `bluebird` added as a module for `function` and other endpoints.
+- More dependency updates.
+
+# [1.14.1](https://github.com/browserless/chrome/compare/v1.14.0...v1.14.1)
+- Bugfix when running multiple "headfull" sessions.
+- Dependency updates.
+
 # [1.14.0](https://github.com/browserless/chrome/compare/v1.13.0...v1.14.0)
 - New `WORKSPACE_DELETE_EXPIRED` and `WORKSPACE_EXPIRE_DAYS` to auto-cleanup workspace dirs.
 - README.md cleanup now that HTTPS is no longer required.

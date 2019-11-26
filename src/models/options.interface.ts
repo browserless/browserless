@@ -1,3 +1,5 @@
+import { Feature } from '../features';
+
 export interface IBrowserlessOptions
   extends IBrowserlessServerConfiguration,
     IChromeServiceConfiguration {}
@@ -9,10 +11,12 @@ interface IBrowserlessServerConfiguration {
   rejectAlertURL: string | null;
   queuedAlertURL: string | null;
   timeoutAlertURL: string | null;
+  errorAlertURL: string | null;
   healthFailureURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
   workspaceDir: string;
+  disabledFeatures: Feature[];
 }
 
 export interface IChromeServiceConfiguration {
@@ -21,16 +25,15 @@ export interface IChromeServiceConfiguration {
   maxQueueLength: number;
   prebootChrome: boolean;
   demoMode: boolean;
-  enableDebugger: boolean;
-  enableDebugViewer: boolean;
   functionExternals: string[];
+  functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
   maxMemory: number;
   maxCPU: number;
   keepAlive: boolean;
   chromeRefreshTime: number;
-  maxChromeRefreshRetries: number;
   enableCors: boolean;
   enableXvfb: boolean;
+  singleRun: boolean;
   token: string | null;
 }

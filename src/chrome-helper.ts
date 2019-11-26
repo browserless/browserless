@@ -7,6 +7,8 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
 import { CHROME_BINARY_LOCATION } from './config';
+import { Feature } from './features';
+import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
 
 import {
@@ -17,7 +19,7 @@ import {
   DEFAULT_LAUNCH_ARGS,
   DEFAULT_USER_DATA_DIR,
   DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
-  ENABLE_DEBUG_VIEWER,
+  DISABLED_FEATURES,
   HOST,
   PORT,
   WORKSPACE_DIR,
@@ -47,6 +49,7 @@ export interface IBrowser extends puppeteer.Browser {
   _trackingId: string | null;
   _browserlessDataDir: string | null;
   _browserProcess: ChildProcess;
+  _startTime: number;
 }
 
 interface ISession {
@@ -69,8 +72,6 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   keepalive?: number;
 }
 
-const defaultDriverFlags = ['--url-base=webdriver', '--verbose'];
-
 const setupPage = async ({
   page,
   pauseOnConnect,
@@ -84,6 +85,11 @@ const setupPage = async ({
 }) => {
   const client = _.get(page, '_client', _.noop);
 
+  await pageHook({ page });
+
+  // Don't let us intercept these as they're needed by consumers
+  client.send('Page.setInterceptFileChooserDialog', { enabled: false });
+
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
     const workspaceDir = trackingId ?
       path.join(WORKSPACE_DIR, trackingId) :
@@ -95,7 +101,7 @@ const setupPage = async ({
     });
   }
 
-  if (pauseOnConnect && ENABLE_DEBUG_VIEWER) {
+  if (pauseOnConnect && !DISABLED_FEATURES.includes(Feature.DEBUG_VIEWER)) {
     await client.send('Debugger.enable');
     await client.send('Debugger.pause');
   }
@@ -134,6 +140,7 @@ const setupBrowser = async ({
   trackingId: string | null;
   keepalive: number | null;
 }): Promise<IBrowser> => {
+  debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
 
   iBrowser._isOpen = true;
@@ -144,6 +151,9 @@ const setupBrowser = async ({
   iBrowser._browserlessDataDir = browserlessDataDir;
   iBrowser._trackingId = trackingId;
   iBrowser._keepaliveTimeout = null;
+  iBrowser._startTime = Date.now();
+
+  await browserHook({ browser: iBrowser });
 
   iBrowser._browserProcess.on('exit', () => closeBrowser(iBrowser));
 
@@ -318,17 +328,22 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
     }));
 };
 
-export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) => {
-  debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
-
+export const launchChromeDriver = async ({
+  blockAds = false,
+  trackingId = null,
+  pauseOnConnect = false,
+}: {
+  blockAds: boolean,
+  trackingId: null | string,
+  pauseOnConnect: boolean,
+}) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
     let iBrowser = null;
+    const flags = ['--url-base=webdriver', '--verbose', `--port=${port}`, '--whitelisted-ips'];
+    debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
 
-    const chromeProcess: ChildProcess = await chromeDriver.start(
-      [...flags, `--port=${port}`, '--whitelisted-ips'],
-      true,
-    );
+    const chromeProcess: ChildProcess = await chromeDriver.start(flags, true);
 
     async function onMessage(data: Buffer) {
       const message = data.toString();
@@ -342,14 +357,14 @@ export const launchChromeDriver = async (flags: string[] = defaultDriverFlags) =
         const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
 
         iBrowser = await setupBrowser({
-          blockAds: false,
+          blockAds,
           browser,
           browserlessDataDir: null,
           isUsingTempDataDir: false,
           keepalive: null,
-          pauseOnConnect: false,
+          pauseOnConnect,
           process: chromeProcess,
-          trackingId: null,
+          trackingId,
         });
       }
     }
@@ -384,7 +399,7 @@ export const closeBrowser = async (browser: IBrowser) => {
   }
 
   browser._isOpen = false;
-  debug(`Shutting down browser with close command and killing process`);
+  debug(`Shutting down browser with close command`);
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
@@ -396,10 +411,11 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
     browser.removeAllListeners();
-    await browser.close().catch(_.noop);
+    browser.close().catch(_.noop);
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
+    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
   }
 };
