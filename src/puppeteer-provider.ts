@@ -75,7 +75,8 @@ export class PuppeteerProvider {
 
   public async start() {
     if (this.config.enableXvfb) {
-      const xvfb = new XVFB();
+      const options = ['-screen', '0', '1920x1080x24'];
+      const xvfb = new XVFB({ xvfb_args: options });
       await promisify(xvfb.start.bind(xvfb))();
     }
 
