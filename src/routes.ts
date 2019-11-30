@@ -345,8 +345,10 @@ export const getRoutes = ({
     router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncWebHandler(
       async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
+          builtin: ['url', 'child_process', 'path'],
           code: stats,
           context: req.body,
+          external: ['tree-kill'],
           req,
           res,
         }),
