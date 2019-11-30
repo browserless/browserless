@@ -38,6 +38,8 @@ interface IRunHTTP {
   options?: any;
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
+  builtin?: string[];
+  external?: string[];
 }
 
 export class PuppeteerProvider {
@@ -141,6 +143,8 @@ export class PuppeteerProvider {
     headless,
     flags,
     ignoreDefaultArgs = false,
+    builtin = this.config.functionBuiltIns,
+    external = this.config.functionExternals,
   }: IRunHTTP) {
     const jobId = utils.id();
 
@@ -163,8 +167,8 @@ export class PuppeteerProvider {
 
     const vm = new NodeVM({
       require: {
-        builtin: this.config.functionBuiltIns,
-        external: this.config.functionExternals,
+        builtin,
+        external,
         root: './node_modules',
       },
     });
@@ -223,6 +227,7 @@ export class PuppeteerProvider {
               browser,
               context,
               page,
+              timeout: this.config.connectionTimeout,
             }))
               .then(async ({ data, type = 'text/plain' } = {}) => {
 
@@ -265,7 +270,7 @@ export class PuppeteerProvider {
             if (!res.headersSent) {
               res.status(400).send(error.message);
             }
-            debug(`Function errored, stopping Chrome`);
+            debug(`Function errored, stopping Chrome: ${error.stack}`);
             doneOnce(error);
           });
       },
@@ -276,7 +281,7 @@ export class PuppeteerProvider {
         onTimeout: () => {
           if (!res.headersSent) {
             jobdebug(`${job.id}: Function has timed-out, sending 408.`);
-            res.status(408).send('browserless function has timed-out');
+            return res.status(408).send('browserless function has timed-out');
           }
           jobdebug(`${job.id}: Function has timed-out but headers already sent...`);
         },
