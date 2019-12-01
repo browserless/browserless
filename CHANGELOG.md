@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/browserless/chrome/compare/v1.20.0...v1.21.0)
+- Dependency updates.
+- New `viewport` property option for PDF endpoint.
+- The `/stats` endpoint now runs in a separate process meaning it can be parallelized.
+- Fixed a bug where hardware monitoring can cause the container to restart/crash.
+- Fixes an issue with the file-chooser API not working in puppeteer.
+
 # [1.20.0](https://github.com/browserless/chrome/compare/v1.19.0...v1.20.0)
 - Dependency updates.
 - New `/scrape` API!
