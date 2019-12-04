@@ -4,9 +4,10 @@ import * as chromeDriver from 'chromedriver';
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as puppeteer from 'puppeteer';
+import { Transform } from 'stream';
 import * as url from 'url';
 
-import { CHROME_BINARY_LOCATION } from './config';
+import { CHROME_BINARY_LOCATION, DEBUG } from './config';
 import { Feature } from './features';
 import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
@@ -344,36 +345,44 @@ export const launchChromeDriver = async ({
     debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
 
     const chromeProcess: ChildProcess = await chromeDriver.start(flags, true);
+    const findPort = new Transform({
+      transform: async (chunk, _, done) => {
+        const message = chunk.toString();
+        const match = message.match(/DevTools listening on (ws:\/\/.*)/);
 
-    async function onMessage(data: Buffer) {
-      const message = data.toString();
-      const match = message.match(/DevTools listening on (ws:\/\/.*)/);
+        if (match) {
+          chromeProcess.stderr && chromeProcess.stderr.unpipe(findPort);
+          const [, wsEndpoint] = match;
+          debug(`Attaching to chromedriver browser on ${wsEndpoint}`);
 
-      if (match) {
-        chromeProcess.stderr && chromeProcess.stderr.off('data', onMessage);
-        const [, wsEndpoint] = match;
-        debug(`Attaching to chromedriver browser on ${wsEndpoint}`);
+          const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
 
-        const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+          iBrowser = await setupBrowser({
+            blockAds,
+            browser,
+            browserlessDataDir: null,
+            isUsingTempDataDir: false,
+            keepalive: null,
+            pauseOnConnect,
+            process: chromeProcess,
+            trackingId,
+          });
+        }
 
-        iBrowser = await setupBrowser({
-          blockAds,
-          browser,
-          browserlessDataDir: null,
-          isUsingTempDataDir: false,
-          keepalive: null,
-          pauseOnConnect,
-          process: chromeProcess,
-          trackingId,
-        });
-      }
-    }
+        done(null, chunk);
+      },
+    });
 
     if (!chromeProcess.stderr) {
       return reject(`Couldn't setup the chromedriver process`);
     }
 
-    chromeProcess.stderr.on('data', onMessage);
+    // Does user want verbose logging?
+    if (DEBUG !== '*') {
+      chromeProcess.stderr.unpipe(process.stderr);
+    }
+
+    chromeProcess.stderr.pipe(findPort);
 
     return resolve({
       browser: iBrowser,
