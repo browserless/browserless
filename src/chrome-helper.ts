@@ -29,7 +29,7 @@ const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const treekill = require('tree-kill');
 
-const BROWSERLESS_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--enable-logging', '--v1=1'];
+const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
 let runningBrowsers: IBrowser[] = [];
