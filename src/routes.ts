@@ -226,6 +226,12 @@ export const getRoutes = ({
 
       return res.sendStatus(204);
     });
+
+    router.get('/kill/:id', async (req, res) => {
+      await chromeHelper.kill(req.params.id);
+
+      return res.sendStatus(204);
+    });
   }
 
   if (!disabledFeatures.includes(Feature.SCREENCAST_ENDPOINT)) {
