@@ -51,6 +51,7 @@ export interface IBrowser extends puppeteer.Browser {
   _browserlessDataDir: string | null;
   _browserProcess: ChildProcess;
   _startTime: number;
+  _id: string;
 }
 
 interface ISession {
@@ -153,6 +154,7 @@ const setupBrowser = async ({
   iBrowser._trackingId = trackingId;
   iBrowser._keepaliveTimeout = null;
   iBrowser._startTime = Date.now();
+  iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
 
   await browserHook({ browser: iBrowser });
 
@@ -226,7 +228,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 
           return {
             ...session,
-            browserId: browserWSEndpoint.split('/').pop(),
+            browserId: browser._id,
             browserWSEndpoint: browserWSEndpoint
               .replace(port, PORT.toString())
               .replace('127.0.0.1', host),
@@ -400,6 +402,16 @@ export const killAll = async () => {
   runningBrowsers = [];
 
   return;
+};
+
+export const kill = (id: string) => {
+  const browser = runningBrowsers.find((b) => b._id === id);
+
+  if (browser) {
+    return closeBrowser(browser);
+  }
+
+  return null;
 };
 
 export const closeBrowser = async (browser: IBrowser) => {
