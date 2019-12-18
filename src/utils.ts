@@ -58,7 +58,12 @@ export interface IWorkspaceItem {
 
 const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) => {
   const [, parentDir] = dir.split(WORKSPACE_DIR);
-  const deburredParentDir = parentDir.replace(/^\//, '');
+  const workspaceDir = _.chain(parentDir)
+    .split(path.sep)
+    .compact()
+    .head()
+    .value();
+
   const files = await readdir(dir);
 
   await Promise.all(files.map(async (file) => {
@@ -74,7 +79,7 @@ const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) =
       name: file,
       path: path.join('/workspace', parentDir, file),
       size: stats.size,
-      workspaceId: deburredParentDir.length ? deburredParentDir : null,
+      workspaceId: workspaceDir || null,
     });
 
     return results;
