@@ -69,6 +69,7 @@ module.exports = async function pdf({ page, context }) {
     rejectRequestPattern = [],
     requestInterceptors = [],
     setExtraHTTPHeaders,
+    setJavaScriptEnabled = null,
     waitFor,
   } = context;
 
@@ -78,6 +79,10 @@ module.exports = async function pdf({ page, context }) {
 
   if (setExtraHTTPHeaders) {
     await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+  }
+
+  if (setJavaScriptEnabled !== null) {
+    await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
   if (rejectRequestPattern.length || requestInterceptors.length) {

@@ -24,6 +24,7 @@ module.exports = async function content ({ page, context }) {
     requestInterceptors = [],
     cookies = [],
     setExtraHTTPHeaders = null,
+    setJavaScriptEnabled = null,
     waitFor,
   } = context;
 
@@ -33,6 +34,10 @@ module.exports = async function content ({ page, context }) {
 
   if (setExtraHTTPHeaders) {
     await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+  }
+
+  if (setJavaScriptEnabled !== null) {
+    await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
   if (rejectRequestPattern.length || requestInterceptors.length) {
