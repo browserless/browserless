@@ -15,6 +15,8 @@ const authenticate = Joi.object().keys({
 
 const setExtraHTTPHeaders = Joi.object().unknown();
 
+const setJavaScriptEnabled = Joi.boolean();
+
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 
 const requestInterceptors = Joi.array().items(Joi.object().keys({
@@ -71,6 +73,7 @@ export const screenshot = Joi.object().keys({
   rejectRequestPattern,
   requestInterceptors,
   setExtraHTTPHeaders,
+  setJavaScriptEnabled,
   url: Joi.string(),
   viewport,
   waitFor,
@@ -83,6 +86,7 @@ export const content = Joi.object().keys({
   rejectRequestPattern,
   requestInterceptors,
   setExtraHTTPHeaders,
+  setJavaScriptEnabled,
   url: Joi.string().required(),
   waitFor,
 });
@@ -122,6 +126,7 @@ export const pdf = Joi.object().keys({
     'Can prevent page crashes but is slower, consumes more memory, and returns a larger PDF.',
   ),
   setExtraHTTPHeaders,
+  setJavaScriptEnabled,
   url: Joi.string(),
   viewport,
   waitFor,
