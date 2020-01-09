@@ -2,16 +2,6 @@ FROM ubuntu:18.04
 
 RUN dpkgArch="$(dpkg --print-architecture)" && \
     echo "Building Arch: $dpkgArch / ${dpkgArch}"
-
-
-# Dependencies + NodeJS
-RUN apt-get -qq update && \
-  apt-get -y -qq install wget
-  
-# Bake-in an init system to avoid the zombie apocalypse
-RUN dpkgArch="$(dpkg --print-architecture)" && \
-    wget -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
-    dpkg -i "/tmp/dumb-init.deb"
     
 # Dependencies + NodeJS
 RUN apt-get -qq update && \
@@ -70,12 +60,18 @@ RUN apt-get -qq update && \
   xdg-utils \
   wget \
   xvfb \
-  curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
+  curl
+  
+RUN curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
 
+# Bake-in an init system to avoid the zombie apocalypse
+RUN dpkgArch="$(dpkg --print-architecture)" && \
+    wget -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
+    dpkg -i "/tmp/dumb-init.deb"
+    
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
   && mkdir -p /home/blessuser/Downloads \
