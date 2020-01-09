@@ -34,7 +34,7 @@ jobs:
         docker buildx build \
           --platform linux/amd64,linux/arm/v7,linux/arm64 \
           --output "type=image,push=true" \
-          -t ${{ secrets.DOCKERHUB_USER }}/browserless-base:latest \
+          -t ${{ secrets.DOCKER_USER }}/browserless-base:latest \
           -f ./base/Dockerfile \
           ./base/
 
@@ -43,5 +43,5 @@ jobs:
         docker buildx build \
           --platform linux/amd64,linux/arm/v7,linux/arm64 \
           --output "type=image,push=true" \
-          -t ${{ secrets.DOCKERHUB_USER }}/browserless:latest \
+          -t ${{ secrets.DOCKER_USER }}/browserless:latest \
           .
