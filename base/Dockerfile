@@ -1,9 +1,4 @@
 FROM ubuntu:18.04
-
-# Application parameters and variables
-ENV FONT_DIRECTORY=/usr/share/fonts/noto
-
-RUN mkdir -p $FONT_DIRECTORY
     
 # Dependencies + NodeJS
 RUN apt-get -qq update && \
@@ -71,12 +66,6 @@ RUN apt-get -qq update && \
 RUN dpkgArch="$(dpkg --print-architecture)" && \
     wget --quiet -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
     dpkg -i "/tmp/dumb-init.deb"
-    
-# Install emoji's and CJK fonts
-RUN cd $FONT_DIRECTORY &&\
-  wget https://github.com/emojione/emojione-assets/releases/download/3.1.2/emojione-android.ttf &&\
-  wget https://github.com/googlei18n/noto-cjk/blob/master/NotoSansCJKsc-Medium.otf?raw=true && \
-  fc-cache -f -v
     
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
