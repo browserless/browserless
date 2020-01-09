@@ -3,7 +3,8 @@ FROM ubuntu:18.04
 RUN dpkgArch="$(dpkg --print-architecture)"
 
 # Dependencies + NodeJS
-RUN apt-get -qq update && \
+RUN echo "Building Arch: ${dpkgArch}" && \
+  apt-get -qq update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
@@ -66,7 +67,7 @@ RUN apt-get -qq update && \
   fc-cache -f -v
 
 # Bake-in an init system to avoid the zombie apocalypse
-RUN curl -O /tmp/dumb-init.deb https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.1-1_${dpkgArch}.deb && dpkg -i /tmp/dumb-init.deb
+RUN curl -O /tmp/dumb-init.deb "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.1-1_${dpkgArch}.deb" && dpkg -i /tmp/dumb-init.deb
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
