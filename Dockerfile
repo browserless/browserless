@@ -1,4 +1,4 @@
-FROM badmikko/browserless-base:latest ubuntu:19.04
+FROM badmikko/browserless-base:latest
 
 # Build Args
 ARG USE_CHROME_STABLE=true
