@@ -3,9 +3,14 @@ FROM ubuntu:18.04
 RUN dpkgArch="$(dpkg --print-architecture)" && \
     echo "Building Arch: $dpkgArch / ${dpkgArch}"
 
+
+# Dependencies + NodeJS
+RUN apt-get -qq update && \
+  apt-get -y -qq install wget
+  
 # Bake-in an init system to avoid the zombie apocalypse
 RUN dpkgArch="$(dpkg --print-architecture)" && \
-    curl -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
+    wget -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
     dpkg -i "/tmp/dumb-init.deb"
     
 # Dependencies + NodeJS
