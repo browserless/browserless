@@ -35,7 +35,8 @@ jobs:
           --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64 \
           --output "type=image,push=true" \
           -t badmikko/browserless-base:latest \
-          .
+          -f ./base/Dockerfile \
+          ./base/
 
     - name: Run Browserless Image
       run: |
