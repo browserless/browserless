@@ -9,7 +9,6 @@ RUN apt-get -qq update && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
-  adobe-flashplugin \
   msttcorefonts \
   ffmpeg \
   fonts-noto-color-emoji \
@@ -69,7 +68,7 @@ RUN curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
 
 # Bake-in an init system to avoid the zombie apocalypse
 RUN dpkgArch="$(dpkg --print-architecture)" && \
-    wget -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
+    wget --quiet -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
     dpkg -i "/tmp/dumb-init.deb"
     
 # Add the browserless user (blessuser)
