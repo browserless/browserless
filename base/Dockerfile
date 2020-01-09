@@ -1,7 +1,4 @@
 FROM ubuntu:18.04
-
-RUN dpkgArch="$(dpkg --print-architecture)" && \
-    echo "Building Arch: $dpkgArch / ${dpkgArch}"
     
 # Dependencies + NodeJS
 RUN apt-get -qq update && \
@@ -59,9 +56,8 @@ RUN apt-get -qq update && \
   xdg-utils \
   wget \
   xvfb \
-  curl
-  
-RUN curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
+  curl &&\
+  curl --silent --location https://deb.nodesource.com/setup_12.x | bash - &&\
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
