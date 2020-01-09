@@ -29,7 +29,15 @@ jobs:
     - name: DockerHub Login
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
 
-    - name: Run Buildx
+    - name: Build Base Image
+      run: |
+        docker buildx build \
+          --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64 \
+          --output "type=image,push=true" \
+          -t badmikko/browserless-base:latest \
+          .
+
+    - name: Run Browserless Image
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64 \
