@@ -6,6 +6,7 @@ RUN apt-get -qq update && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
+  git \
   msttcorefonts \
   ffmpeg \
   fonts-noto-color-emoji \
