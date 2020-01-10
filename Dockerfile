@@ -1,7 +1,7 @@
 FROM badmikko/browserless-base:latest
 
 # Build Args
-ARG USE_CHROME_STABLE=false
+ARG USE_CHROME_STABLE=true
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
