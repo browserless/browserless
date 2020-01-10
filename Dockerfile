@@ -1,12 +1,12 @@
 FROM badmikko/browserless-base:latest
 
 # Build Args
-ARG USE_CHROME_STABLE=true
+ARG USE_CHROME_STABLE=false
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
 ENV CONNECTION_TIMEOUT=60000
-ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/google-chrome
 ENV ENABLE_XVBF=true
 ENV HOST=0.0.0.0
 ENV IS_DOCKER=true
