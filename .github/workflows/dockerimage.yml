@@ -30,6 +30,7 @@ jobs:
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
 
     - name: Build Base Image
+      if: false
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm/v7,linux/arm64 \
