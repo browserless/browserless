@@ -50,7 +50,7 @@ jobs:
     - name: Build Browserless Image
       run: |
         docker buildx build \
-          --shm-size 1gb \
+          --shm-size 4gb \
           --platform linux/amd64,linux/arm64 \
           --output "type=image,push=true" \
           -t ${{ secrets.DOCKER_USER }}/browserless:latest \
