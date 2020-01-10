@@ -28,9 +28,17 @@ jobs:
       
     - name: DockerHub Login
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_TOKEN }}
+    
+    - name: Pre-check
+      id: precheck
+      run: |
+          BUILD_BASE=$(git diff --name-only '$GITHUB_BASE_REF..$GITHUB_SHA' | grep 'base/Dockerfile' | wc -l)
+          echo "::set-output name=BUILD_BASE::${BUILD_BASE}" 
+          echo "BUILD_BASE: ${BUILD_BASE}"
+
 
     - name: Build Base Image
-      if: false
+      if: ${{ steps.precheck.outputs.BUILD_BASE }} > 0
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm/v7,linux/arm64 \
