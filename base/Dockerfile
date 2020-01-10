@@ -65,7 +65,7 @@ RUN apt-get -qq update && \
 
 # Bake-in an init system to avoid the zombie apocalypse
 RUN dpkgArch="$(dpkg --print-architecture)" &&\
-    wget --quiet -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" && \
+    wget --quiet -O "/tmp/dumb-init.deb" "https://launchpad.net/ubuntu/+archive/primary/+files/dumb-init_1.2.2-1.1_${dpkgArch}.deb" &&\
     dpkg -i "/tmp/dumb-init.deb"
     
 # Add the browserless user (blessuser)
