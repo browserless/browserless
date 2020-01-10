@@ -29,9 +29,9 @@ COPY . .
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     dpkgArch="$(dpkg --print-architecture)" && \
     cd /tmp && \
-    wget -O "chromium-codecs-ffmpeg.deb" "http://ppa.launchpad.net/canonical-chromium-builds/stage/ubuntu/pool/main/c/chromium-browser/chromium-codecs-ffmpeg_79.0.3945.79-0ubuntu0.18.04.1_${dpkgArch}.deb" &&\
+    wget --quiet -O "chromium-codecs-ffmpeg.deb" "http://ppa.launchpad.net/canonical-chromium-builds/stage/ubuntu/pool/main/c/chromium-browser/chromium-codecs-ffmpeg_79.0.3945.79-0ubuntu0.18.04.1_${dpkgArch}.deb" &&\
     dpkg -i "chromium-codecs-ffmpeg.deb" &&\
-    wget -O "chromium-browser.deb" "http://ppa.launchpad.net/canonical-chromium-builds/stage/ubuntu/pool/main/c/chromium-browser/chromium-browser_79.0.3945.79-0ubuntu0.18.04.1_${dpkgArch}.deb" &&\
+    wget --quiet -O "chromium-browser.deb" "http://ppa.launchpad.net/canonical-chromium-builds/stage/ubuntu/pool/main/c/chromium-browser/chromium-browser_79.0.3945.79-0ubuntu0.18.04.1_${dpkgArch}.deb" &&\
     dpkg -i "chromium-browser.deb" ; \
   fi
 
