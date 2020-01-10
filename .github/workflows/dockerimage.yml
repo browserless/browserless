@@ -38,7 +38,7 @@ jobs:
 
 
     - name: Build Base Image
-      if: ${{ steps.precheck.outputs.BUILD_BASE }} > 0
+      if: steps.precheck.outputs.BUILD_BASE > 0
       run: |
         docker buildx build \
           --platform linux/amd64,linux/arm/v7,linux/arm64 \
