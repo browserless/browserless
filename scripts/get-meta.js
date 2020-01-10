@@ -22,6 +22,9 @@ const {
 } = require('../package-lock.json');
 
 const getChromePath = () => {
+  if('CHROME_PATH' in process.env) {
+    return process.env.CHROME_PATH;
+  }
   return os.platform() === 'darwin' ?
     '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome' :
     '/usr/bin/google-chrome';
