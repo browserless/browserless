@@ -12,7 +12,7 @@ const packageJson = require('puppeteer/package.json');
 const REQUIRED_INTERNALS = ['url'];
 const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk'];
 const IS_DOCKER = process.env.IS_DOCKER || false;
-const CHROME_BINARY_DEFAULT_LOCATION = '/usr/bin/google-chrome';
+const CHROME_BINARY_DEFAULT_LOCATION = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 
 const getDebug = () => {
   if (typeof process.env.DEBUG !== 'undefined') {
