@@ -22,7 +22,7 @@ const {
 } = require('../package-lock.json');
 
 const getChromePath = () => {
-  if('CHROME_PATH' in process.env) {
+  if ('CHROME_PATH' in process.env) {
     return process.env.CHROME_PATH;
   }
   return os.platform() === 'darwin' ?
@@ -38,7 +38,7 @@ const rejectList = path.join(__dirname, '..', 'hosts.json');
 const IS_DOCKER = fs.existsSync('/.dockerenv');
 
 let launchArgs = {
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-setuid-sandbox', '--headless', '--disable-gpu'],
 };
 
 if (IS_DOCKER) {
@@ -68,25 +68,29 @@ const getMeta = () => puppeteer
   .then((browser) => {
     console.log('Chrome launched, compiling hints, protocol and version info...');
     const wsEndpoint = browser.wsEndpoint();
-    const { port } = url.parse(wsEndpoint);
+    const {
+      port
+    } = url.parse(wsEndpoint);
 
     return Promise.all([
-      (async() => {
-        const page = await browser.newPage();
-        const jquery = await page.evaluate(() => window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js').then((res) => res.text()));
-        await page.goto(docsPage);
-        await page.evaluate(jquery);
-        const hints = await page.evaluate(getDocs, docsPage);
+        (async() => {
+          const page = await browser.newPage();
+          const jquery = await page.evaluate(() => window.fetch('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js').then((res) => res.text()));
+          await page.goto(docsPage);
+          await page.evaluate(jquery);
+          const hints = await page.evaluate(getDocs, docsPage);
 
-        fs.writeFileSync(
-          hintsFile,
-          JSON.stringify(hints)
-        );
-      })(),
-      fetch(`http://127.0.0.1:${port}/json/version`)
+          fs.writeFileSync(
+            hintsFile,
+            JSON.stringify(hints)
+          );
+        })(),
+        fetch(`http://127.0.0.1:${port}/json/version`)
         .then((res) => res.json())
         .then((meta) => {
-          const { 'WebKit-Version': webkitVersion } = meta;
+          const {
+            'WebKit-Version': webkitVersion
+          } = meta;
 
           delete meta.webSocketDebuggerUrl;
 
@@ -95,13 +99,15 @@ const getMeta = () => puppeteer
           fs.writeFileSync(
             versionFile,
             JSON.stringify(Object.assign(
-              meta,
-              { 'Debugger-Version': debuggerVersion },
-              { 'Puppeteer-Version': puppeteerVersion }
+              meta, {
+                'Debugger-Version': debuggerVersion
+              }, {
+                'Puppeteer-Version': puppeteerVersion
+              }
             ), null, '  ')
           );
         }),
-      fetch(`http://127.0.0.1:${port}/json/protocol`)
+        fetch(`http://127.0.0.1:${port}/json/protocol`)
         .then((res) => res.json())
         .then((protocol) => {
           fs.writeFileSync(
@@ -109,20 +115,20 @@ const getMeta = () => puppeteer
             JSON.stringify(protocol)
           );
         }),
-      fetch('https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts')
+        fetch('https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts')
         .then((res) => res.text())
         .then((raw) =>
           _.chain(raw)
-            .split('\n')
-            .map((line) => {
-              const fragments = line.split(' ');
-              if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
-                return fragments[1].trim();
-              }
-              return null
-            })
-            .reject(_.isNil)
-            .value()
+          .split('\n')
+          .map((line) => {
+            const fragments = line.split(' ');
+            if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
+              return fragments[1].trim();
+            }
+            return null
+          })
+          .reject(_.isNil)
+          .value()
         )
         .then((hostsArr) => {
           fs.writeFileSync(
@@ -130,8 +136,8 @@ const getMeta = () => puppeteer
             JSON.stringify(hostsArr, null, '  ')
           );
         })
-    ])
-    .then(() => browser.close())
+      ])
+      .then(() => browser.close())
   })
   .catch((error) => {
     console.error(`Issue compiling JSON meta`, error);
