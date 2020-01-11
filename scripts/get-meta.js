@@ -38,7 +38,7 @@ const rejectList = path.join(__dirname, '..', 'hosts.json');
 const IS_DOCKER = fs.existsSync('/.dockerenv');
 
 let launchArgs = {
-  args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-setuid-sandbox', '--headless', '--disable-gpu'],
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-setuid-sandbox', '--headless', '--disable-gpu', '--single-process'],
 };
 
 if (IS_DOCKER) {
