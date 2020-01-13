@@ -57,22 +57,11 @@ export class PuppeteerProvider {
     this.chromeSwarm = new EventArray();
   }
 
-  get chromeSwarmSize() {
-    return this.chromeSwarm.length;
-  }
-
   get keepChromeInstance() {
     return (
       this.config.keepAlive &&
       this.config.prebootChrome &&
-      this.chromeSwarmSize < this.queue.concurrencySize
-    );
-  }
-
-  get needsChromeInstances() {
-    return (
-      this.config.prebootChrome &&
-      this.chromeSwarmSize < this.queue.concurrencySize
+      this.chromeSwarm.length < this.queue.concurrencySize
     );
   }
 
@@ -181,7 +170,12 @@ export class PuppeteerProvider {
 
     const job: IJob = Object.assign(
       (done: IDone) => {
-        const doneOnce = _.once(done);
+        const doneOnce = _.once((err?: Error) => {
+          if (job.browser) {
+            job.browser.removeListener('disconnected', doneOnce);
+          }
+          done(err);
+        });
         const debug = (message: string) => jobdebug(`${job.id}: ${message}`);
         debug(`Getting browser.`);
 
@@ -205,7 +199,7 @@ export class PuppeteerProvider {
               if (!res.headersSent) {
                 res.status(400).send(error.message);
               }
-              doneOnce();
+              doneOnce(error);
             });
 
             if (before) {
@@ -217,7 +211,7 @@ export class PuppeteerProvider {
             job.browser = browser;
 
             req.removeListener('close', earlyClose);
-            browser.once('disconnected', () => doneOnce());
+            browser.once('disconnected', doneOnce);
             req.once('close', () => {
               debug(`Request terminated during execution, closing`);
               doneOnce();
@@ -366,7 +360,12 @@ export class PuppeteerProvider {
     const handler = debugCode ?
       (done: IDone) => {
         jobdebug(`${job.id}: Starting debugger sandbox.`);
-        const doneOnce = _.once(done);
+        const doneOnce = _.once((err?: Error) => {
+          if (job.browser) {
+            job.browser.removeListener('disconnected', doneOnce);
+          }
+          done(err);
+        });
         const code = this.parseUserCode(debugCode, job);
         const timeout = this.config.connectionTimeout;
         const handler = new BrowserlessSandbox({
@@ -398,7 +397,12 @@ export class PuppeteerProvider {
       } :
       (done: IDone) => {
         jobdebug(`${job.id}: Getting browser.`);
-        const doneOnce = _.once(done);
+        const doneOnce = _.once((err) => {
+          if (job.browser) {
+            job.browser.removeListener('disconnected', doneOnce);
+          }
+          done(err);
+        });
         const launchPromise = this.getChrome(opts);
 
         launchPromise
@@ -523,8 +527,12 @@ export class PuppeteerProvider {
       jobdebug(`${job.id}: Browser not needed, closing`);
       await chromeHelper.closeBrowser(browser);
 
-      jobdebug(`${job.id}: Browser cleanup complete, checking swarm.`);
-      this.checkChromeSwarm();
+      jobdebug(`${job.id}: Browser cleanup complete.`);
+
+      if (this.config.prebootChrome) {
+        sysdebug(`Adding to Chrome swarm`);
+        return this.chromeSwarm.push(this.launchChrome(chromeHelper.defaultLaunchArgs));
+      }
     };
 
     if (this.keepChromeInstance) {
@@ -537,8 +545,7 @@ export class PuppeteerProvider {
         pages.forEach((page) => page.close());
         blank.goto('about:blank');
         jobdebug(`${job.id}: Cleanup done, pushing into swarm.`);
-        this.chromeSwarm.push(Promise.resolve(browser));
-        return this.checkChromeSwarm();
+        return this.chromeSwarm.push(Promise.resolve(browser));
       }
     }
 
@@ -582,15 +589,6 @@ export class PuppeteerProvider {
       resolve(browser);
       return;
     });
-  }
-
-  private checkChromeSwarm() {
-    if (this.needsChromeInstances) {
-      sysdebug(`Adding to Chrome swarm`);
-      return this.chromeSwarm.push(this.launchChrome(chromeHelper.defaultLaunchArgs));
-    }
-
-    return sysdebug(`Chrome swarm is ok, not adding additional browsers`);
   }
 
   private parseUserCode(code: string, job: IJob): string {
