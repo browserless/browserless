@@ -560,7 +560,13 @@ export class PuppeteerProvider {
         this.config.prebootChrome &&
         _.isEqual(_.omitBy(opts, _.isUndefined), _.omitBy(chromeHelper.defaultLaunchArgs, _.isUndefined))
       );
+
       sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
+
+      if (!canUseChromeSwarm) {
+        resolve(await this.launchChrome(opts));
+        return;
+      }
 
       if (!this.chromeSwarm.length) {
         sysdebug(`Waiting for chrome instance to be added back`);
