@@ -564,7 +564,7 @@ export class PuppeteerProvider {
       sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
 
       if (!canUseChromeSwarm) {
-        resolve(await this.launchChrome(opts));
+        resolve(this.launchChrome(opts));
         return;
       }
 
@@ -573,13 +573,13 @@ export class PuppeteerProvider {
         this.chromeSwarm.once('push', async () => {
           sysdebug(`Got chrome instance in swarm`);
           const browser = this.chromeSwarm.shift();
-          resolve(await browser);
+          resolve(browser);
         });
         return;
       }
 
       const browser = this.chromeSwarm.shift();
-      resolve(await browser);
+      resolve(browser);
       return;
     });
   }
