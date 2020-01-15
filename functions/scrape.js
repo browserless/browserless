@@ -113,7 +113,7 @@ module.exports = async function scrape ({ page, context }) {
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitFor(waitFor) : page.waitForFunction(waitFor));
+      await (isSelector ? page.waitFor(waitFor) : page.evaluate(`(${waitFor})()`));
     } else {
       await page.waitFor(waitFor);
     }
