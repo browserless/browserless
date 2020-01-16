@@ -6,6 +6,7 @@ RUN apt-get -qq update && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
+  dumb-init \
   adobe-flashplugin \
   msttcorefonts \
   ffmpeg \
@@ -62,10 +63,6 @@ RUN apt-get -qq update && \
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
-
-# Bake-in an init system to avoid the zombie apocalypse
-ADD https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64 /usr/local/bin/dumb-init
-RUN chmod +x /usr/local/bin/dumb-init
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
