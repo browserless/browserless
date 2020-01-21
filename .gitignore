@@ -3,6 +3,10 @@ node_modules/
 build/
 external/
 debugger/devtools
+hints.json
+hosts.json
+protocol.json
+version.json
 
 # MAC
 .DS_Store
