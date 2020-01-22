@@ -3,7 +3,9 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
-const { map, noop } = require('lodash');
+const { map } = require('lodash');
+const path = require('path');
+const fs = require('fs-extra');
 
 const {
   chromeVersions,
@@ -45,7 +47,7 @@ const deployVersion = async (tags, chromeVersion) => {
   await logExec(`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`);
   await logExec(`${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false ' : ''}npm run post-install`);
 
-  const versionJson = require('../version.json');
+  const versionJson = fs.readJSONSync(path.join('..', 'version.json'));
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
