@@ -69,12 +69,6 @@ const deployVersion = async (tags, chromeVersion) => {
     logExec(`docker push ${REPO}:${majorBranch}`),
   ]);
 
-  // Commit the resulting package/meta file changes, tag and push
-  await logExec(`git add ./*.json`);
-  await logExec(`git commit --quiet -m "DEPLOY.js commitings JSON files for tag ${patchBranch}"`).catch(noop);
-  await logExec(`git tag --force ${patchBranch}`);
-  await logExec(`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`).catch(noop);
-
   // git reset for next update
   await cleanup();
 }
