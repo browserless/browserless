@@ -7,3 +7,4 @@ build/
 .dockerignore
 .git/
 .no-git/
+.vscode/

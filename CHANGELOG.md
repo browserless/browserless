@@ -1,3 +1,19 @@
+# [1.22.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
+- Dependency updates.
+- Use `apt-get` to install `dumb-init`.
+- Add a LANG arg in docker.
+- New `setJavaScriptEnabled` property for REST APIs.
+- Fixes an issue with `waitFor` functions in REST API calls.
+- Fixes issues when PREBOOT_CHROME and KEEPALIVE are true.
+- Updates protocol and host information in ad-blocking.
+
+# [1.22.0](https://github.com/browserless/chrome/compare/v1.21.0...v1.22.0)
+- Dependency updates.
+- Removal of unnecessary '--disable-dev-shm-usage'
+- Squelching of chromedriver's verbose args unless `DEBUG=*` is set.
+- New `/kill/${id}` route for remotely killing a certain browser.
+- Allowing of sub-child routes in workspaces.
+
 # [1.21.0](https://github.com/browserless/chrome/compare/v1.20.0...v1.21.0)
 - Dependency updates.
 - New `viewport` property option for PDF endpoint.

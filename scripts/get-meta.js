@@ -25,20 +25,22 @@ const getChromePath = () => {
   return os.platform() === 'darwin' ?
     '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome' :
     '/usr/bin/google-chrome';
-}
+};
 
 const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVersion}/docs/api.md`;
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
 const hintsFile = path.join(__dirname, '..', 'hints.json');
 const rejectList = path.join(__dirname, '..', 'hosts.json');
+
 const IS_DOCKER = fs.existsSync('/.dockerenv');
+const USE_CHROME_STABLE = process.env.USE_CHROME_STABLE === 'true';
 
 let launchArgs = {
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 };
 
-if (IS_DOCKER) {
+if (IS_DOCKER || USE_CHROME_STABLE) {
   const chromePath = getChromePath();
   console.log(`Using Chrome located at: "${chromePath}" for compiling hints`);
   launchArgs.executablePath = chromePath;
