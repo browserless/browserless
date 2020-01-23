@@ -7,7 +7,7 @@ import * as puppeteer from 'puppeteer';
 import { Transform } from 'stream';
 import * as url from 'url';
 
-import { CHROME_BINARY_LOCATION, DEBUG } from './config';
+import { CHROME_BINARY_LOCATION } from './config';
 import { Feature } from './features';
 import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
@@ -377,11 +377,6 @@ export const launchChromeDriver = async ({
 
     if (!chromeProcess.stderr) {
       return reject(`Couldn't setup the chromedriver process`);
-    }
-
-    // Does user want verbose logging?
-    if (DEBUG !== '*') {
-      chromeProcess.stderr.unpipe(process.stderr);
     }
 
     chromeProcess.stderr.pipe(findPort);
