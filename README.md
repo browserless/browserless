@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
 ![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
 
-browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, selenium's webdriver, and a slew of handy REST APIs for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edge-cases like downloading files, managing sessions, and have a fully-fledged documentation site.
+browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, playwright, selenium's webdriver, and a slew of handy REST APIs for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edge-cases like downloading files, managing sessions, and have a fully-fledged documentation site.
 
 If you've been struggling to get Chrome up and running docker, or scaling out your headless workloads, then browserless was built for you.
 # Table of Contents
@@ -16,8 +16,9 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 6. [Hosting](#hosting-providers)
 7. [Using with puppeteer](#puppeteer)
 8. [Using with selenium](#webdriver)
-9. [Licensing](#licensing)
-10. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
+9. [Using with playwright](#playwright)
+10. [Licensing](#licensing)
+12. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
 
 ## External links
 
@@ -90,7 +91,7 @@ We offer a first-class hosted product located [here](https://browserless.io). Al
 
 - Easily upgrade and toggle between versions at the press of a button. No managing repositories and other code artifacts.
 - Never need to update or pull anything from docker. There's literally zero software to install to get started.
-- Scale your consumption up or down with different plans. We support up to 100 concurrent sessions at a given time.
+- Scale your consumption up or down with different plans. We support up to thousands of concurrent sessions at a given time.
 
 If you're interested in using this image for commercial aspects, then please read the below section on licensing.
 
@@ -155,9 +156,29 @@ const driver = new webdriver.Builder()
   .build();
 ```
 
+# Playwright
+
+We support running with playwright via their remote connection method on the `chromium` interface. Since playwright is very similar to puppeteer, even launch arguments and other things "just work":
+
+**Before**
+```js
+const browser = await pw.chromium.launch();
+```
+
+**After**
+```js
+const browser = await pw.chromium.connect({
+  browserWSEndpoint: 'wss://chrome.browserless.io?token=YOUR-API-TOKEN',
+});
+```
+
+After that, the rest of your code remains the same with no other changes required.
+
 # Usage with other libraries
 
 Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless.
+
+You can find a much larger list of supported libraries [on our documentation site](https://docs.browserless.io/docs/puppeteer-library.html).
 
 # Motivations
 
