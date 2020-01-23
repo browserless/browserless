@@ -307,7 +307,7 @@ export class BrowserlessServer {
         resolve();
       }),
       this.puppeteerProvider.kill(),
-      this.webdriver.close(),
+      this.webdriver.kill(),
     ]);
 
     debug(`Successfully shutdown, exiting`);

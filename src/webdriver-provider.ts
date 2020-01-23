@@ -1,3 +1,4 @@
+import { ChildProcess } from 'child_process';
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
@@ -11,7 +12,8 @@ const debug = getDebug('webdriver');
 const kill = require('tree-kill');
 
 interface IWebDriverSession {
-  chromeProcess: any;
+  browser: chromeHelper.IBrowser | null;
+  chromeDriver: ChildProcess;
   done: IDone;
   sessionId: string;
   proxy: any;
@@ -80,7 +82,8 @@ export class WebDriver {
                 job.id = id;
 
                 this.webDriverSessions[id] = {
-                  chromeProcess: chromeDriver.chromeProcess,
+                  browser: chromeDriver.browser,
+                  chromeDriver: chromeDriver.chromeProcess,
                   done,
                   proxy,
                   res,
@@ -98,6 +101,7 @@ export class WebDriver {
                 job.close = () => {
                   debug(`Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`);
                   kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+                  chromeDriver.browser && chromeHelper.closeBrowser(chromeDriver.browser);
                   proxy.close();
                   delete this.webDriverSessions[id];
                 };
@@ -180,12 +184,16 @@ export class WebDriver {
     });
   }
 
-  public close() {
+  // Used during shutdown
+  public kill() {
     for (const sessionId in this.webDriverSessions) {
       if (sessionId) {
         const session = this.webDriverSessions[sessionId];
-        debug(`Killing chromedriver and proxy ${session.chromeProcess.pid}`);
-        kill(session.chromeProcess.pid, 'SIGKILL');
+        kill(session.chromeDriver.pid, 'SIGKILL');
+        if (session.browser) {
+          debug(`Killing chromedriver and proxy ${session.browser._browserProcess.pid}`);
+          chromeHelper.closeBrowser(session.browser);
+        }
         session.proxy.close();
         delete this.webDriverSessions[sessionId];
       }
