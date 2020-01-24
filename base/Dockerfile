@@ -5,7 +5,7 @@ RUN apt-get -qq update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
-  apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq install \
+  apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq --no-install-recommends install \
   dumb-init \
   adobe-flashplugin \
   msttcorefonts \
