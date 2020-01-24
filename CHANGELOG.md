@@ -1,4 +1,8 @@
-# [1.22.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
+# [1.23.1](https://github.com/browserless/chrome/compare/v1.23.0...v1.23.1)
+- Fixes an issue in chromedriver where commands would hang.
+- Fixes an issue in chromedriver sessions not being removed properly.
+
+# [1.23.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
 - Dependency updates.
 - Use `apt-get` to install `dumb-init`.
 - Add a LANG arg in docker.
