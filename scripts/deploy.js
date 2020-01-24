@@ -14,7 +14,6 @@ const {
 } = require('../package.json');
 
 const REPO = 'browserless/chrome';
-const BASE = 'browserless/base';
 
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
@@ -28,11 +27,6 @@ const logExec = (cmd) => {
 
 async function cleanup () {
   return logExec(`git reset origin/master --hard`);
-}
-
-const buildBase = async () => {
-  await logExec(`docker build -t ${BASE}:latest ./base`);
-  await logExec(`docker push ${BASE}:latest`);
 }
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
@@ -76,10 +70,6 @@ const deployVersion = async (tags, chromeVersion) => {
 }
 
 async function deploy () {
-  // Build a fresh base image first, then subsequent
-  // docker builds are super fast.
-  await buildBase();
-
   const versions = map(chromeVersions, (chromeVersion) => {
     const [ major, minor, patch ] = version.split('.');
 
@@ -104,7 +94,7 @@ async function deploy () {
     Promise.resolve()
   );
 
-  await logExec(`docker system prune -af`);
+  await logExec(`docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi`);
   debug(`Complete! Cleaning up file-system and exiting.`);
 }
 

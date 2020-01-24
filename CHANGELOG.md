@@ -1,6 +1,7 @@
 # [1.23.1](https://github.com/browserless/chrome/compare/v1.23.0...v1.23.1)
 - Fixes an issue in chromedriver where commands would hang.
 - Fixes an issue in chromedriver sessions not being removed properly.
+- Fixes and pins the base image so that headful sessions work again.
 
 # [1.23.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
 - Dependency updates.
