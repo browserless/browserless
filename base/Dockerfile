@@ -51,6 +51,7 @@ RUN apt-get -qq update && \
   libxrender1 \
   libxss1 \
   libxtst6 \
+  libllvm8 \
   ca-certificates \
   libappindicator1 \
   libnss3 \
@@ -63,6 +64,20 @@ RUN apt-get -qq update && \
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
+
+# Pin old GL libs
+RUN wget -q https://launchpadlibrarian.net/445014413/libglapi-mesa_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  wget -q https://launchpadlibrarian.net/445014412/libgl1-mesa-dri_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  wget -q https://launchpadlibrarian.net/445014393/libgl1-mesa-glx_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  wget -q https://launchpadlibrarian.net/445014414/libglx-mesa0_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  wget -q https://launchpadlibrarian.net/445014418/mesa-va-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  wget -q https://launchpadlibrarian.net/445014419/mesa-vdpau-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i libglapi-mesa_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i libgl1-mesa-dri_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i libgl1-mesa-glx_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i libglx-mesa0_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i mesa-va-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
+  dpkg -i mesa-vdpau-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
