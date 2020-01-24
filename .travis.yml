@@ -4,7 +4,6 @@ services:
   - docker
 
 before_install:
-  - docker build -t browserless/base:latest base
   - docker build -t browserless/chrome:latest .
   - docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
 

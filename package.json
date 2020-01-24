@@ -12,6 +12,7 @@
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
+    "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
