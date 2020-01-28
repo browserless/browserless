@@ -300,6 +300,10 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
+    socket.on('error', (err: Error) => {
+      jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
+    });
+
     // Catch actual running pages and route them appropriately
     if (route.includes('/devtools/page') && !route.includes(utils.jsonProtocolPrefix)) {
       const session = await chromeHelper.findSessionForPageUrl(route);
