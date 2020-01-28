@@ -6,6 +6,7 @@ Array [
   "connectionTimeout",
   "demoMode",
   "disabledFeatures",
+  "enableAPIGet",
   "enableCors",
   "enableXvfb",
   "errorAlertURL",
