@@ -449,6 +449,22 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows /GET requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const query = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(query)}`)
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('image/png');
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows selector "waitFor"s', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -558,6 +574,22 @@ describe('Browserless Chrome HTTP', () => {
         .then(async (res) => {
           expect(res.headers.get('content-type')).toEqual('image/png');
           expect(res.status).toBe(200);
+        });
+    });
+
+    it('rejects bad /GET requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const query = {
+        wat: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(query)}`)
+        .then((res) => {
+          expect(res.status).toBe(400);
+          expect(res.headers.get('content-type')).toContain('application/json');
         });
     });
 
@@ -846,6 +878,22 @@ describe('Browserless Chrome HTTP', () => {
         },
         method: 'POST',
       })
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('application/pdf');
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows /GET requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const query = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/pdf?body=${JSON.stringify(query)}`)
         .then((res) => {
           expect(res.headers.get('content-type')).toEqual('application/pdf');
           expect(res.status).toBe(200);
@@ -1149,6 +1197,22 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows /GET requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const query = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/content?body=${JSON.stringify(query)}`)
+        .then((res) => {
+          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+          expect(res.status).toBe(200);
+        });
+    });
+
     it('allows selector "waitFor"s', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -1411,6 +1475,7 @@ describe('Browserless Chrome HTTP', () => {
 
   describe('/stats', () => {
     jest.setTimeout(10000);
+
     it('allows requests', async () => {
       const params = defaultParams();
       const browserless = start(params);
@@ -1427,6 +1492,21 @@ describe('Browserless Chrome HTTP', () => {
         },
         method: 'POST',
       })
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('allows /GET requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      const query = {
+        url: 'https://example.com',
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/stats?body=${JSON.stringify(query)}`)
         .then((res) => {
           expect(res.status).toBe(200);
         });
