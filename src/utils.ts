@@ -159,6 +159,35 @@ export const bodyValidation = (schema: Joi.Schema) => {
   };
 };
 
+export const queryValidation = (schema: Joi.Schema) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    let inflated: string | null = null;
+
+    try {
+      inflated = JSON.parse(req.query.body);
+    } catch {
+      inflated = null;
+    }
+
+    if (!inflated) {
+      return res.status(400).send(`The query-parameter "body" is required, and must be a URL-encoded JSON object.`);
+    }
+
+    const result = Joi.validate(inflated, schema);
+
+    if (result.error) {
+      debug(`Malformed incoming request: ${result.error}`);
+      return res.status(400).send(result.error.details);
+    }
+
+    // Allow .defaults to work otherwise
+    // Joi schemas default's won't apply
+    req.body = result.value;
+
+    return next();
+  };
+};
+
 export const tokenCookieName = 'browserless_token';
 export const codeCookieName = 'browserless_code';
 
