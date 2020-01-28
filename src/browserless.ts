@@ -74,6 +74,7 @@ export class BrowserlessServer {
     this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
+    this.enableAPIGet = opts.enableAPIGet;
     this.singleRun = opts.singleRun;
     this.workspaceDir = opts.workspaceDir;
     this.stats = [];
