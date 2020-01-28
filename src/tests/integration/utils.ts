@@ -11,6 +11,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   connectionTimeout: 10000,
   demoMode: false,
   disabledFeatures: [],
+  enableAPIGet: true,
   enableCors: false,
   enableXvfb: 'CI' in process.env ? true : false,
   errorAlertURL: null,

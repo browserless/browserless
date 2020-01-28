@@ -6,6 +6,7 @@ const browserless = new BrowserlessServer({
   connectionTimeout: config.CONNECTION_TIMEOUT,
   demoMode: config.DEMO_MODE,
   disabledFeatures: config.DISABLED_FEATURES,
+  enableAPIGet: config.ENABLE_API_GET,
   enableCors: config.ENABLE_CORS,
   enableXvfb: config.ENABLE_XVBF,
   errorAlertURL: config.ERROR_ALERT_URL,

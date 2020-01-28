@@ -75,6 +75,7 @@ interface IGetRoutes {
   getPressure: () => any;
   workspaceDir: string;
   disabledFeatures: Feature[];
+  enableAPIGet: boolean;
 }
 
 export const getRoutes = ({
@@ -84,6 +85,7 @@ export const getRoutes = ({
   getPressure,
   workspaceDir,
   disabledFeatures,
+  enableAPIGet,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -265,7 +267,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.SCREENSHOT_ENDPOINT)) {
-    router.get('/screenshot',
+    enableAPIGet && router.get('/screenshot',
       queryValidation(screenshotSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -296,7 +298,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.CONTENT_ENDPOINT)) {
-    router.get('/content',
+    enableAPIGet && router.get('/content',
       queryValidation(contentSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -327,7 +329,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.SCRAPE_ENDPOINT)) {
-    router.get('/scrape',
+    enableAPIGet && router.get('/scrape',
       queryValidation(scrapeSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -357,7 +359,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.PDF_ENDPOINT)) {
-    router.get('/pdf',
+    enableAPIGet && router.get('/pdf',
       queryValidation(pdfSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -388,7 +390,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.STATS_ENDPOINT)) {
-    router.get('/stats',
+    enableAPIGet && router.get('/stats',
       queryValidation(statsSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({

@@ -54,6 +54,7 @@ export class BrowserlessServer {
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
   private singleRun: IBrowserlessOptions['singleRun'];
+  private enableAPIGet: IBrowserlessOptions['enableAPIGet'];
 
   constructor(opts: IBrowserlessOptions) {
     // The backing queue doesn't let you set a max limitation
@@ -218,6 +219,7 @@ export class BrowserlessServer {
         getPressure: this.getPressure.bind(this),
         puppeteerProvider: this.puppeteerProvider,
         workspaceDir: this.workspaceDir,
+        enableAPIGet: this.enableAPIGet,
       });
 
       if (this.config.enableCors) {

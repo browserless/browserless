@@ -17,6 +17,7 @@ interface IBrowserlessServerConfiguration {
   exitOnHealthFailure: boolean;
   workspaceDir: string;
   disabledFeatures: Feature[];
+  enableAPIGet: boolean;
 }
 
 export interface IChromeServiceConfiguration {
