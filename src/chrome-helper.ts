@@ -158,7 +158,7 @@ const setupBrowser = async ({
 
   await browserHook({ browser: iBrowser });
 
-  iBrowser._browserProcess.on('exit', () => closeBrowser(iBrowser));
+  iBrowser._browserProcess.once('exit', () => closeBrowser(iBrowser));
 
   iBrowser.on('targetcreated', async (target) => {
     try {

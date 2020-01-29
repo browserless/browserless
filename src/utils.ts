@@ -31,6 +31,9 @@ export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 
+const webDriverPath = '/webdriver/session';
+const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
+
 const debug = getDebug('system');
 
 type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
@@ -386,4 +389,16 @@ export const getTimeoutParam = (req: IHTTPRequest | IWebdriverStartHTTP): number
   }
 
   return null;
+};
+
+export const isWebdriverStart = (req: IncomingMessage) => {
+  return req.method?.toLowerCase() === 'post' && req.url === webDriverPath
+};
+
+export const isWebdriverClose = (req: IncomingMessage) => {
+  return req.method?.toLowerCase() === 'delete' && webdriverSessionCloseReg.test(req.url || '')
+};
+
+export const isWebdriver = (req: IncomingMessage) => {
+  return req.url?.includes(webDriverPath);
 };
