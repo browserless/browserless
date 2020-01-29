@@ -29,8 +29,6 @@ const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
-const webDriverPath = '/webdriver/session';
-
 export interface IWebdriverStartHTTP extends util.IHTTPRequest {
   body: any;
 }
@@ -247,7 +245,7 @@ export class BrowserlessServer {
           }
 
           // Handle webdriver requests early, which handles it's own auth
-          if (reqParsed.url && reqParsed.url.includes(webDriverPath)) {
+          if (util.isWebdriver(req)) {
             return this.handleWebDriver(reqParsed, res);
           }
 
@@ -369,14 +367,13 @@ export class BrowserlessServer {
   }
 
   private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
-    const sessionPathMatcher = new RegExp('^' + webDriverPath + '/\\w+$');
-
-    const isStarting = req.method && req.method.toLowerCase() === 'post' && req.url === webDriverPath;
-    const isClosing = req.method && req.method.toLowerCase() === 'delete' && sessionPathMatcher.test(req.url || '');
+    const isStarting = util.isWebdriverStart(req);
+    const isClosing = util.isWebdriverClose(req);
 
     if (isStarting) {
       const ret = req as IWebdriverStartHTTP;
       const postBody = await util.normalizeWebdriverStart(req);
+
       if (!postBody) {
         res.writeHead && res.writeHead(400, { 'Content-Type': 'text/plain' });
         return res.end('Bad Request');
