@@ -31,9 +31,13 @@ const getPort = require('get-port');
 const treekill = require('tree-kill');
 
 const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
+
 const blacklist = require('../hosts.json');
+const version = require('../version.json');
 
 let runningBrowsers: IBrowser[] = [];
+
+const puppeteerVersion = +(version['Puppeteer-Version'].split('.').join(''));
 
 export interface IChromeDriver {
   port: number;
@@ -90,7 +94,10 @@ const setupPage = async ({
   await pageHook({ page });
 
   // Don't let us intercept these as they're needed by consumers
-  client.send('Page.setInterceptFileChooserDialog', { enabled: false });
+  // Fixed in later version of chromium
+  puppeteerVersion <= 200 && client
+    .send('Page.setInterceptFileChooserDialog', { enabled: false })
+    .catch(_.noop);
 
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
     const workspaceDir = trackingId ?
@@ -158,7 +165,10 @@ const setupBrowser = async ({
 
   await browserHook({ browser: iBrowser });
 
-  iBrowser._browserProcess.once('exit', () => closeBrowser(iBrowser));
+  iBrowser._browserProcess.once('exit', (code, signal) => {
+    debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
+    closeBrowser(iBrowser)
+  });
 
   iBrowser.on('targetcreated', async (target) => {
     try {
