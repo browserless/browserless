@@ -95,9 +95,12 @@ const setupPage = async ({
 
   // Don't let us intercept these as they're needed by consumers
   // Fixed in later version of chromium
-  puppeteerVersion <= 200 && client
-    .send('Page.setInterceptFileChooserDialog', { enabled: false })
-    .catch(_.noop);
+  if (puppeteerVersion > 200) {
+    debug(`Patching file-chooser dialog`);
+    client
+      .send('Page.setInterceptFileChooserDialog', { enabled: false })
+      .catch(_.noop);
+  }
 
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
     const workspaceDir = trackingId ?
