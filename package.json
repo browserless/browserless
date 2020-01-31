@@ -23,26 +23,46 @@
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "post-install": "npm run symlink-chrome && npm run meta && npm run external"
   },
+  "config": {
+    "puppeteer_chromium_revision": "737027"
+  },
   "puppeteerVersions": {
-    "puppeteer-1.17.0": "1.17.0",
-    "puppeteer-1.18.1": "1.18.1",
-    "puppeteer-1.19.0": "1.19.0",
-    "puppeteer-1.20.0": "1.20.0",
-    "puppeteer-2.0.0": "2.0.0",
-    "chrome-stable": "1.15.0"
+    "puppeteer-1.17.0": {
+      "puppeteer": "1.17.0",
+      "chromeRevision": ""
+    },
+    "puppeteer-1.18.1": {
+      "puppeteer": "1.18.1",
+      "chromeRevision": ""
+    },
+    "puppeteer-1.19.0": {
+      "puppeteer": "1.19.0",
+      "chromeRevision": ""
+    },
+    "puppeteer-1.20.0": {
+      "puppeteer": "1.20.0",
+      "chromeRevision": ""
+    },
+    "puppeteer-2.0.0": {
+      "puppeteer": "2.0.0",
+      "chromeRevision": ""
+    },
+    "chrome-stable": {
+      "puppeteer": "1.15.0",
+      "chromeRevision": ""
+    }
   },
   "chromeVersions": [
+    "puppeteer-2.1.0",
     "puppeteer-2.0.0",
     "puppeteer-1.20.0",
     "puppeteer-1.19.0",
     "puppeteer-1.18.1",
-    "puppeteer-1.17.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
-    "@cypress/xvfb": "^1.2.4",
     "@types/archiver": "^3.0.0",
     "@types/cookie": "^0.3.2",
     "@types/cors": "^2.8.4",
@@ -78,7 +98,8 @@
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "prom-client": "^11.5.3",
-    "puppeteer": "^2.0.0",
+    "puppeteer": "^2.1.0",
+    "puppeteer-proxy": "^1.9.0",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
@@ -97,16 +118,10 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "coverageDirectory": "../coverage/",
-    "collectCoverageFrom": [
-      "**/*.ts",
-      "!*.*"
-    ],
     "rootDir": "src",
     "moduleFileExtensions": [
       "ts",
-      "js",
-      "json"
+      "js"
     ],
     "transform": {
       ".(ts)": "ts-jest"

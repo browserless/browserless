@@ -32,7 +32,11 @@ async function cleanup () {
 // version is the full tag (1.2.3-puppeteer-1.11.1)
 // chrome version is one of the versions in packageJson.chromeVersions
 const deployVersion = async (tags, chromeVersion) => {
-  const puppeteerVersion = puppeteerVersions[chromeVersion];
+  // Meta-data about the install, found in our package.json
+  const versionInfo = puppeteerVersions[chromeVersion];
+  const puppeteerVersion = versionInfo.puppeteer;
+  const puppeteerChromiumRevision = versionInfo.chromeRevision;
+
   const [ patchBranch, minorBranch, majorBranch ] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 

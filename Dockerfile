@@ -2,6 +2,7 @@ FROM browserless/base:1.0.0
 
 # Build Args
 ARG USE_CHROME_STABLE
+ARG PUPPETEER_CHROMIUM_REVISION
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
@@ -13,6 +14,7 @@ ENV IS_DOCKER=true
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
+ENV PUPPETEER_CHROMIUM_REVISION=${PUPPETEER_CHROMIUM_REVISION}
 ENV WORKSPACE_DIR=$APP_DIR/workspace
 ENV LANG="C.UTF-8"
 
@@ -24,22 +26,21 @@ WORKDIR $APP_DIR
 COPY package.json .
 COPY tsconfig.json .
 COPY . .
+RUN chmod +x ./start.sh ./test.sh
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
+    export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
     cd /tmp &&\
     wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb;\
+  else \
+    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi
 
 # Build
-RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
-    export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
-  else \
-    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
-  fi &&\
-  npm install &&\
+RUN npm install &&\
   npm run post-install &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
@@ -49,5 +50,5 @@ USER blessuser
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
-ENTRYPOINT ["dumb-init", "--"]
-CMD [ "node", "./build/index.js" ]
+
+CMD ["./start.sh"]

@@ -106,7 +106,6 @@ export const DEBUG: string | undefined = getDebug();
 export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
 export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
 export const ENABLE_CORS: boolean = parseJSONParam(process.env.ENABLE_CORS, false);
-export const ENABLE_XVBF: boolean = parseJSONParam(process.env.ENABLE_XVBF, false);
 export const ENABLE_API_GET: boolean = parseJSONParam(process.env.ENABLE_API_GET, false);
 export const TOKEN: string | null = process.env.TOKEN || null;
 

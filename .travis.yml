@@ -3,10 +3,11 @@ sudo: required
 services:
   - docker
 
+# Pinning chromium rev until it's stable for 2.1.x
 before_install:
   - docker build -t browserless/chrome:latest .
   - docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
 
 script:
-  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:latest --runInBand --bail --forceExit
-  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:stable --runInBand --bail --forceExit
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:latest
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:USE_CHROME_STABLE

@@ -8,7 +8,6 @@ Array [
   "disabledFeatures",
   "enableAPIGet",
   "enableCors",
-  "enableXvfb",
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",

@@ -26,8 +26,9 @@ if (!IS_DOCKER) {
   return;
 }
 
+const revision = process.env.PUPPETEER_CHROMIUM_REVISION || packageJson.puppeteer.chromium_revision;
 const browserFetcher = puppeteer.createBrowserFetcher();
-const { executablePath } = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
+const { executablePath } = browserFetcher.revisionInfo(revision);
 
 (async () => fs.existsSync(CHROME_BINARY_LOCATION) ?
   Promise.resolve() :
