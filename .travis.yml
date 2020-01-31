@@ -10,4 +10,4 @@ before_install:
 
 script:
   - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:latest
-  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:USE_CHROME_STABLE
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:stable
