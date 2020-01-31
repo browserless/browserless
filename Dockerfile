@@ -1,4 +1,4 @@
-FROM browserless/base:1.0.0
+FROM browserless/base:1.1.0
 
 # Build Args
 ARG USE_CHROME_STABLE
