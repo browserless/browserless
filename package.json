@@ -29,27 +29,27 @@
   "puppeteerVersions": {
     "puppeteer-1.17.0": {
       "puppeteer": "1.17.0",
-      "chromeRevision": ""
+      "chromeRevision": "662092"
     },
     "puppeteer-1.18.1": {
       "puppeteer": "1.18.1",
-      "chromeRevision": ""
+      "chromeRevision": "672088"
     },
     "puppeteer-1.19.0": {
       "puppeteer": "1.19.0",
-      "chromeRevision": ""
+      "chromeRevision": "674921"
     },
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
-      "chromeRevision": ""
+      "chromeRevision": "686378"
     },
     "puppeteer-2.0.0": {
       "puppeteer": "2.0.0",
-      "chromeRevision": ""
+      "chromeRevision": "706915"
     },
     "chrome-stable": {
       "puppeteer": "1.15.0",
-      "chromeRevision": ""
+      "chromeRevision": null
     }
   },
   "releaseVersions": [
