@@ -21,7 +21,7 @@
     "prepush": "npm run lint && npm test",
     "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "post-install": "npm run symlink-chrome && npm run meta && npm run external"
+    "postinstall": "npm run symlink-chrome && npm run meta && npm run external"
   },
   "config": {
     "puppeteer_chromium_revision": "737027"
@@ -52,7 +52,7 @@
       "chromeRevision": ""
     }
   },
-  "chromeVersions": [
+  "releaseVersions": [
     "puppeteer-2.1.0",
     "puppeteer-2.0.0",
     "puppeteer-1.20.0",

@@ -30,17 +30,19 @@ RUN chmod +x ./start.sh ./test.sh
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
-    export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
     cd /tmp &&\
     wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb;\
-  else \
-    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi
 
-# Build
-RUN npm install &&\
+# Build and install external binaries + assets
+RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
+    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
+    export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
+  else \
+    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
+  fi &&\
+  npm install &&\
   npm run post-install &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR

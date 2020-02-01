@@ -14,9 +14,10 @@ import * as url from 'url';
 import * as util from 'util';
 
 import { IWebdriverStartHTTP } from './browserless';
-import { CHROME_BINARY_LOCATION, WORKSPACE_DIR } from './config';
+import { WORKSPACE_DIR } from './config';
 
 const dbg = require('debug');
+const { CHROME_BINARY_LOCATION } = require('../env');
 
 const mkdtemp = util.promisify(fs.mkdtemp);
 

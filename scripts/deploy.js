@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs-extra');
 
 const {
-  chromeVersions,
+  releaseVersions,
   puppeteerVersions,
   version,
 } = require('../package.json');
@@ -30,7 +30,7 @@ async function cleanup () {
 }
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
-// chrome version is one of the versions in packageJson.chromeVersions
+// chrome version is one of the versions in packageJson.releaseVersions
 const deployVersion = async (tags, chromeVersion) => {
   // Meta-data about the install, found in our package.json
   const versionInfo = puppeteerVersions[chromeVersion];
@@ -74,7 +74,7 @@ const deployVersion = async (tags, chromeVersion) => {
 }
 
 async function deploy () {
-  const versions = map(chromeVersions, (chromeVersion) => {
+  const versions = map(releaseVersions, (chromeVersion) => {
     const [ major, minor, patch ] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${chromeVersion}`;

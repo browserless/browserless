@@ -7,7 +7,6 @@ import * as puppeteer from 'puppeteer';
 import { Transform } from 'stream';
 import * as url from 'url';
 
-import { CHROME_BINARY_LOCATION } from './config';
 import { Feature } from './features';
 import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
@@ -29,6 +28,7 @@ import {
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const treekill = require('tree-kill');
+const { CHROME_BINARY_LOCATION } = require('../env');
 
 const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 
