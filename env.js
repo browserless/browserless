@@ -3,7 +3,7 @@ const os = require('os');
 const puppeteer = require('puppeteer');
 
 const packageJson = require('./package.json');
-const IS_DOCKER = fs.existsSync('/.dockerenv');
+const IS_DOCKER = process.env.IS_DOCKER === 'true';
 
 const USE_CHROME_STABLE = process.env.USE_CHROME_STABLE && process.env.USE_CHROME_STABLE === 'true';
 
