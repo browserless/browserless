@@ -19,16 +19,16 @@ const CHROME_BINARY_PATHS = {
 
 const PLATFORM = os.platform() === 'win32' ?
   WINDOWS :
-    os.platform() === 'debian' ?
+    os.platform() === 'darwin' ?
       MAC :
-        LINUX;
+      LINUX;
 
 /*
  * Tells puppeteer, in its install script, what revision to download.
  * This is set in our deploy.js file in our docker build. If
  * PUPPETEER_SKIP_CHROMIUM_DOWNLOAD is true, then this is ignored
  */
-const PUPPETEER_CHROMIUM_REVISION = process.env.PUPPETEER_CHROMIUM_REVISION = (() => {
+const PUPPETEER_CHROMIUM_REVISION = (() => {
   if (process.env.PUPPETEER_CHROMIUM_REVISION) {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
   }
@@ -40,7 +40,7 @@ const PUPPETEER_CHROMIUM_REVISION = process.env.PUPPETEER_CHROMIUM_REVISION = ((
  * Sometimes we don't use puppeteer's built-in chromium
  * for compatibility reasons
  */
-const PUPPETEER_BINARY_LOCATION = process.env.PUPPETEER_BINARY_LOCATION = (() => {
+const PUPPETEER_BINARY_LOCATION = (() => {
   // Use the copy that comes with puppeteer otherwise
   const browserFetcher = puppeteer.createBrowserFetcher();
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION).executablePath;
@@ -51,7 +51,7 @@ const PUPPETEER_BINARY_LOCATION = process.env.PUPPETEER_BINARY_LOCATION = (() =>
  * This is set in our deploy.js file in our docker build. If
  * PUPPETEER_SKIP_CHROMIUM_DOWNLOAD is true, then this is ignored
  */
-const CHROME_BINARY_LOCATION = process.env.CHROME_BINARY_LOCATION = (() => {
+const CHROME_BINARY_LOCATION = (() => {
   if (process.env.CHROME_BINARY_LOCATION) {
     return process.env.CHROME_BINARY_LOCATION;
   }
@@ -75,7 +75,7 @@ const CHROME_BINARY_LOCATION = process.env.CHROME_BINARY_LOCATION = (() => {
  * Tells the chromedriver library to download the appropriate chromedriver binary.
  * The only time this should be false is when building chrome stable in docker.
  */
-const CHROMEDRIVER_SKIP_DOWNLOAD = process.env.CHROMEDRIVER_SKIP_DOWNLOAD = (() => {
+const CHROMEDRIVER_SKIP_DOWNLOAD = (() => {
   if (process.env.CHROMEDRIVER_SKIP_DOWNLOAD) {
     return process.env.CHROMEDRIVER_SKIP_DOWNLOAD;
   }
@@ -92,7 +92,7 @@ const CHROMEDRIVER_SKIP_DOWNLOAD = process.env.CHROMEDRIVER_SKIP_DOWNLOAD = (() 
  * not the case, however when installing chrome-stable in docker we want to skip it as
  * we'll download google-chrome-stable from a deb package instead.
  */
-const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
+const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
   if (process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD) {
     return process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD;
   }

@@ -44,20 +44,6 @@ Array [
 ]
 `;
 
-exports[`Browserless Chrome HTTP allows requests to /json/protocol 1`] = `
-Array [
-  "domains",
-  "version",
-]
-`;
-
-exports[`Browserless Chrome HTTP allows requests to /json/protocol 2`] = `
-Array [
-  "domains",
-  "version",
-]
-`;
-
 exports[`Browserless Chrome HTTP allows requests to /json/version 1`] = `
 Array [
   "Browser",

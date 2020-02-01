@@ -8,9 +8,7 @@ ARG PUPPETEER_CHROMIUM_REVISION
 ENV APP_DIR=/usr/src/app
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
-ENV ENABLE_XVBF=true
 ENV HOST=0.0.0.0
-ENV IS_DOCKER=true
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
@@ -26,7 +24,6 @@ WORKDIR $APP_DIR
 COPY package.json .
 COPY tsconfig.json .
 COPY . .
-RUN chmod +x ./start.sh ./test.sh
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
