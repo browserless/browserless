@@ -98,7 +98,7 @@ const setupPage = async ({
   // Fixed in later version of chromium
   if (USE_CHROME_STABLE || PUPPETEER_CHROMIUM_REVISION <= 706915) {
     debug(`Patching file-chooser dialog`);
-    await client
+    client
       .send('Page.setInterceptFileChooserDialog', { enabled: false })
       .catch(_.noop);
   }
