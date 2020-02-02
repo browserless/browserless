@@ -3,6 +3,7 @@ FROM browserless/base:1.1.0
 # Build Args
 ARG USE_CHROME_STABLE
 ARG PUPPETEER_CHROMIUM_REVISION
+ARG PUPPETEER_VERSION
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
@@ -41,6 +42,9 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
   npm install &&\
+  if [ -n "$PUPPETEER_VERSION" ]; then \
+    npm i --save-exact puppeteer@$PUPPETEER_VERSION;\
+  fi &&\
   npm run post-install &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
