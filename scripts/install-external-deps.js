@@ -4,6 +4,8 @@ const fs = require('fs-extra');
 const fetch = require('node-fetch');
 const extract = require('extract-zip');
 const rimraf = require('rimraf');
+const puppeteer = require('puppeteer');
+
 const {
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
@@ -37,6 +39,19 @@ const unzip = (source, target) => new Promise((resolve, reject) => {
     resolve(target);
   });
 });
+
+const downloadChromium = () => {
+  if (USE_CHROME_STABLE) {
+    console.log('Using chrome stable, not proceeding with chromium download');
+    return Promise.resolve();
+  }
+
+  console.log(`Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`);
+
+  return puppeteer
+    .createBrowserFetcher()
+    .download(PUPPETEER_CHROMIUM_REVISION);
+};
 
 const downloadChromedriver = () => {
   if (USE_CHROME_STABLE) {
@@ -75,7 +90,11 @@ const downloadDevTools = () => {
 (async () => {
   try {
     await fs.mkdir(browserlessTmpDir);
-    await Promise.all([ downloadChromedriver(), downloadDevTools() ]);
+    await Promise.all([
+      downloadChromium(),
+      downloadChromedriver(),
+      downloadDevTools(),
+    ]);
     console.log('Done unpacking chromedriver and devtools assets');
   } catch(err) {
     console.error(`Error unpacking chromedriver and devtools assets:\n${err.message}\n${err.stack}`);

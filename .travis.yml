@@ -9,5 +9,5 @@ before_install:
   - docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
 
 script:
-  - docker run -it --entrypoint ./test.sh browserless/chrome:latest
-  - docker run -it --entrypoint ./test.sh browserless/chrome:stable
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:latest
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:stable

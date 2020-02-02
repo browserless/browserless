@@ -1,6 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const puppeteer = require('puppeteer');
+const pptrVersion = require('puppeteer/package.json').version;
 
 const packageJson = require('./package.json');
 const IS_DOCKER = process.env.IS_DOCKER === 'true';
@@ -33,7 +34,7 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
   }
 
-  return packageJson.config.puppeteer_chromium_revision;
+  return packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`].chromeRevision;
 })();
 
 /*

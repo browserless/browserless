@@ -15,6 +15,10 @@ const getDebug = () => {
     return process.env.DEBUG;
   }
 
+  if (process.env.CI) {
+    return process.env.DEBUG;
+  }
+
   process.env.DEBUG = 'browserless*';
   debug.enable(process.env.DEBUG);
   return process.env.DEBUG;
