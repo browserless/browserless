@@ -1,7 +1,8 @@
 const fs = require('fs');
 const os = require('os');
 const puppeteer = require('puppeteer');
-const pptrVersion = require('puppeteer/package.json').version;
+const pptrPackageJSON = require('puppeteer/package.json');
+const pptrVersion = pptrPackageJSON.version;
 
 const packageJson = require('./package.json');
 const IS_DOCKER = process.env.IS_DOCKER === 'true';
@@ -25,16 +26,22 @@ const PLATFORM = os.platform() === 'win32' ?
       LINUX;
 
 /*
- * Tells puppeteer, in its install script, what revision to download.
- * This is set in our deploy.js file in our docker build. If
- * PUPPETEER_SKIP_CHROMIUM_DOWNLOAD is true, then this is ignored
+ * Assess which chromium revision to install.
+ * Note that in docker we do our own install, and
+ * ignore puppeteer's install.js file.
  */
 const PUPPETEER_CHROMIUM_REVISION = (() => {
   if (process.env.PUPPETEER_CHROMIUM_REVISION) {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
   }
 
-  return packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`].chromeRevision;
+  const pinnedRevision = packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`];
+
+  if (pinnedRevision) {
+    return pinnedRevision.chromeRevision
+  }
+
+  return pptrPackageJSON.puppeteer.chromium_revision;
 })();
 
 /*

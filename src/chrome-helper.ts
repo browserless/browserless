@@ -28,16 +28,17 @@ import {
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const treekill = require('tree-kill');
-const { CHROME_BINARY_LOCATION } = require('../env');
+const {
+  CHROME_BINARY_LOCATION,
+  USE_CHROME_STABLE,
+  PUPPETEER_CHROMIUM_REVISION,
+} = require('../env');
 
 const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 
 const blacklist = require('../hosts.json');
-const version = require('../version.json');
 
 let runningBrowsers: IBrowser[] = [];
-
-const puppeteerVersion = +(version['Puppeteer-Version'].split('.').join(''));
 
 export interface IChromeDriver {
   port: number;
@@ -95,9 +96,9 @@ const setupPage = async ({
 
   // Don't let us intercept these as they're needed by consumers
   // Fixed in later version of chromium
-  if (puppeteerVersion > 200) {
+  if (USE_CHROME_STABLE || PUPPETEER_CHROMIUM_REVISION <= 706915) {
     debug(`Patching file-chooser dialog`);
-    client
+    await client
       .send('Page.setInterceptFileChooserDialog', { enabled: false })
       .catch(_.noop);
   }
@@ -401,8 +402,6 @@ export const launchChromeDriver = async ({
     });
   });
 };
-
-export const getChromePath = () => CHROME_BINARY_LOCATION;
 
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));

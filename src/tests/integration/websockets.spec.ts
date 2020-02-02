@@ -125,11 +125,13 @@ describe('Browserless Chrome WebSockets', () => {
         <input type="file" id="avatar" name="avatar" accept="image/png, image/jpeg">
       </div>`);
 
-      const [fileChooser] = await Promise.all([
-        page.waitForFileChooser(),
-        page.click('#avatar'),
-      ]);
-      expect(fileChooser).toEqual(expect.anything());
+      if (page.waitForFileChooser) {
+        const [fileChooser] = await Promise.all([
+          page.waitForFileChooser(),
+          page.click('#avatar'),
+        ]);
+        expect(fileChooser).toEqual(expect.anything());
+      }
       browser.disconnect();
       done();
     };
