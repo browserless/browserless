@@ -25,6 +25,7 @@ import {
   PORT,
   WORKSPACE_DIR,
 } from './config';
+import { ParsedUrlQuery } from 'querystring';
 
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
@@ -73,6 +74,22 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   trackingId?: string;
   keepalive?: number;
 }
+
+const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
+  const defaultArgs = query.ignoreDefaultArgs;
+
+  if (_.isUndefined(defaultArgs) || defaultArgs === 'false') {
+    return false;
+  }
+
+  if (defaultArgs === '' || defaultArgs === 'true') {
+    return true;
+  }
+
+  return Array.isArray(defaultArgs) ?
+    defaultArgs :
+    defaultArgs.split(',');
+};
 
 const setupPage = async ({
   page,
@@ -258,7 +275,6 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
   const {
     blockAds,
     headless,
-    ignoreDefaultArgs,
     ignoreHTTPSErrors,
     slowMo,
     userDataDir,
@@ -273,12 +289,13 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
 
   const parsedKeepalive = _.parseInt(keepaliveQuery as string);
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
+  const parsedIgnoreDefaultArgs = parseIgnoreDefaultArgs(urlParts.query);
 
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
     headless: isHeadless,
-    ignoreDefaultArgs: !_.isUndefined(ignoreDefaultArgs) || DEFAULT_IGNORE_DEFAULT_ARGS,
+    ignoreDefaultArgs: parsedIgnoreDefaultArgs,
     ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
     keepalive,
     pauseOnConnect: !_.isUndefined(pause),
