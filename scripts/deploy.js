@@ -26,7 +26,8 @@ const logExec = (cmd) => {
 };
 
 async function cleanup () {
-  return logExec(`git reset origin/master --hard`);
+  await logExec(`git reset origin/master --hard`);
+  await logExec(`rm -rf node_modules`);
 }
 
 // version is the full tag (1.2.3-puppeteer-1.11.1)
@@ -42,6 +43,7 @@ const deployVersion = async (tags, pptrVersion) => {
   debug(`Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`);
 
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
+    ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
     npm install --silent --save --save-exact puppeteer@${puppeteerVersion}
   `);
 
@@ -74,6 +76,10 @@ const deployVersion = async (tags, pptrVersion) => {
     logExec(`docker push ${REPO}:${minorBranch}`),
     logExec(`docker push ${REPO}:${majorBranch}`),
   ]);
+
+  await logExec(`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`).catch(noop);
+  await logExec(`git tag --force ${patchBranch}`);
+  await logExec(`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`).catch(noop);
 
   // git reset for next update
   await cleanup();
