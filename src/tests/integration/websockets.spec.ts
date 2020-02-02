@@ -120,13 +120,18 @@ describe('Browserless Chrome WebSockets', () => {
         browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
       });
       const [ page ] = await browser.pages();
-      page.setDefaultTimeout(500);
-      await page.goto('https://example.com');
-      await page.waitForFileChooser().catch((err) => {
-        if (!(err instanceof puppeteer.errors.TimeoutError)) {
-          throw err;
-        }
-      });
+
+      await page.setContent(`<div class="output" style="height: 62%;"><label for="avatar">Choose a profile picture:</label>
+        <input type="file" id="avatar" name="avatar" accept="image/png, image/jpeg">
+      </div>`);
+
+      if (page.waitForFileChooser) {
+        const [fileChooser] = await Promise.all([
+          page.waitForFileChooser(),
+          page.click('#avatar'),
+        ]);
+        expect(fileChooser).toEqual(expect.anything());
+      }
       browser.disconnect();
       done();
     };

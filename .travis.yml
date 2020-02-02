@@ -5,8 +5,8 @@ services:
 
 before_install:
   - docker build -t browserless/chrome:latest .
-  - docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
+  - docker build --build-arg "USE_CHROME_STABLE=true" --build-arg "PUPPETEER_VERSION=1.15.0" -t browserless/chrome:stable .
 
 script:
-  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:latest --runInBand --bail --forceExit
-  - docker run -it -e CI=true --entrypoint ./node_modules/.bin/jest browserless/chrome:stable --runInBand --bail --forceExit
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:latest
+  - docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:stable

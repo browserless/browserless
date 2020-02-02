@@ -2,7 +2,6 @@ import * as cookie from 'cookie';
 import * as _ from 'lodash';
 import * as net from 'net';
 import * as puppeteer from 'puppeteer';
-import { promisify } from 'util';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
@@ -17,7 +16,6 @@ import { IChromeServiceConfiguration } from './models/options.interface';
 const sysdebug = utils.getDebug('system');
 const jobdebug = utils.getDebug('job');
 const jobdetaildebug = utils.getDebug('jobdetail');
-const XVFB = require('@cypress/xvfb');
 
 interface IBefore {
   page: puppeteer.Page;
@@ -66,11 +64,6 @@ export class PuppeteerProvider {
   }
 
   public async start() {
-    if (this.config.enableXvfb) {
-      const xvfb = new XVFB();
-      await promisify(xvfb.start.bind(xvfb))();
-    }
-
     if (this.config.prebootChrome) {
       sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
 

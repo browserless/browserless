@@ -7,7 +7,6 @@ import * as puppeteer from 'puppeteer';
 import { Transform } from 'stream';
 import * as url from 'url';
 
-import { CHROME_BINARY_LOCATION } from './config';
 import { Feature } from './features';
 import { browserHook, pageHook } from './hooks';
 import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
@@ -30,8 +29,14 @@ import { ParsedUrlQuery } from 'querystring';
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
 const treekill = require('tree-kill');
+const {
+  CHROME_BINARY_LOCATION,
+  USE_CHROME_STABLE,
+  PUPPETEER_CHROMIUM_REVISION,
+} = require('../env');
 
 const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
+
 const blacklist = require('../hosts.json');
 
 let runningBrowsers: IBrowser[] = [];
@@ -107,7 +112,13 @@ const setupPage = async ({
   await pageHook({ page });
 
   // Don't let us intercept these as they're needed by consumers
-  client.send('Page.setInterceptFileChooserDialog', { enabled: false });
+  // Fixed in later version of chromium
+  if (USE_CHROME_STABLE || PUPPETEER_CHROMIUM_REVISION <= 706915) {
+    debug(`Patching file-chooser dialog`);
+    client
+      .send('Page.setInterceptFileChooserDialog', { enabled: false })
+      .catch(_.noop);
+  }
 
   if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
     const workspaceDir = trackingId ?
@@ -175,7 +186,10 @@ const setupBrowser = async ({
 
   await browserHook({ browser: iBrowser });
 
-  iBrowser._browserProcess.once('exit', () => closeBrowser(iBrowser));
+  iBrowser._browserProcess.once('exit', (code, signal) => {
+    debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
+    closeBrowser(iBrowser)
+  });
 
   iBrowser.on('targetcreated', async (target) => {
     try {
@@ -405,8 +419,6 @@ export const launchChromeDriver = async ({
     });
   });
 };
-
-export const getChromePath = () => CHROME_BINARY_LOCATION;
 
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));

@@ -52,6 +52,7 @@ RUN apt-get -qq update && \
   libxss1 \
   libxtst6 \
   libllvm8 \
+  libgbm-dev \
   ca-certificates \
   libappindicator1 \
   libnss3 \
