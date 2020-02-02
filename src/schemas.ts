@@ -19,6 +19,19 @@ const setJavaScriptEnabled = Joi.boolean();
 
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 
+const addScriptTag = Joi.array().items(Joi.object().keys({
+  url: Joi.string(),
+  path: Joi.string(),
+  content: Joi.string(),
+  type: Joi.string(),
+})).default([]);
+
+const addStyleTag = Joi.array().items(Joi.object().keys({
+  url: Joi.string(),
+  path: Joi.string(),
+  content: Joi.string(),
+})).default([]);
+
 const requestInterceptors = Joi.array().items(Joi.object().keys({
   pattern: Joi.string().required(),
   response: Joi.object().keys({
@@ -55,6 +68,8 @@ const viewport = Joi.object().keys({
 
 export const screenshot = Joi.object().keys({
   authenticate,
+  addScriptTag,
+  addStyleTag,
   cookies,
   gotoOptions,
   html: Joi.string(),
@@ -81,6 +96,8 @@ export const screenshot = Joi.object().keys({
 
 export const content = Joi.object().keys({
   authenticate,
+  addScriptTag,
+  addStyleTag,
   cookies,
   gotoOptions,
   rejectRequestPattern,
@@ -93,6 +110,8 @@ export const content = Joi.object().keys({
 
 export const pdf = Joi.object().keys({
   authenticate,
+  addScriptTag,
+  addStyleTag,
   cookies,
   emulateMedia: Joi.string().valid('screen', 'print'),
   gotoOptions,
@@ -134,6 +153,8 @@ export const pdf = Joi.object().keys({
 
 export const scrape = Joi.object().keys({
   authenticate,
+  addScriptTag,
+  addStyleTag,
   cookies,
   debug: Joi.object().keys({
     console: Joi.boolean().default(false),

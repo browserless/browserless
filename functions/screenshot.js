@@ -21,6 +21,8 @@
 module.exports = async function screenshot ({ page, context } = {}) {
   const {
     authenticate = null,
+    addScriptTag = [],
+    addStyleTag = [],
     url = null,
     cookies = [],
     gotoOptions,
@@ -83,6 +85,18 @@ module.exports = async function screenshot ({ page, context } = {}) {
     });
 
     await page.goto('http://localhost', gotoOptions);
+  }
+
+  if (addStyleTag.length) {
+    for (tag in addStyleTag) {
+      await page.addStyleTag(addStyleTag[tag]);
+    }
+  }
+
+  if (addScriptTag.length) {
+    for (script in addScriptTag) {
+      await page.addScriptTag(addScriptTag[script]);
+    }
   }
 
   if (waitFor) {
