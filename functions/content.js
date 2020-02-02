@@ -16,6 +16,8 @@
  */
 module.exports = async function content ({ page, context }) {
   const {
+    addScriptTag = [],
+    addStyleTag = [],
     authenticate = null,
     url = null,
     html,
@@ -73,6 +75,18 @@ module.exports = async function content ({ page, context }) {
     });
 
     await page.goto('http://localhost', gotoOptions);
+  }
+
+  if (addStyleTag.length) {
+    for (tag in addStyleTag) {
+      await page.addStyleTag(addStyleTag[tag]);
+    }
+  }
+
+  if (addScriptTag.length) {
+    for (script in addScriptTag) {
+      await page.addScriptTag(addScriptTag[script]);
+    }
   }
 
   if (waitFor) {

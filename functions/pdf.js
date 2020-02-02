@@ -57,6 +57,8 @@ const buildPages = async (page, opts = {}) => {
 module.exports = async function pdf({ page, context }) {
   const {
     authenticate = null,
+    addScriptTag = [],
+    addStyleTag = [],
     cookies = [],
     emulateMedia,
     viewport,
@@ -126,6 +128,18 @@ module.exports = async function pdf({ page, context }) {
     });
 
     await page.goto('http://localhost', gotoOptions);
+  }
+
+  if (addStyleTag.length) {
+    for (tag in addStyleTag) {
+      await page.addStyleTag(addStyleTag[tag]);
+    }
+  }
+
+  if (addScriptTag.length) {
+    for (script in addScriptTag) {
+      await page.addScriptTag(addScriptTag[script]);
+    }
   }
 
   if (waitFor) {

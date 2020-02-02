@@ -37,6 +37,8 @@ async function waitForElement(selector, timeout = 30000) {
 module.exports = async function scrape ({ page, context }) {
   const {
     authenticate = null,
+    addScriptTag = [],
+    addStyleTag = [],
     cookies = [],
     gotoOptions,
     rejectRequestPattern = [],
@@ -104,6 +106,18 @@ module.exports = async function scrape ({ page, context }) {
   }
 
   await page.goto(url, gotoOptions);
+
+  if (addStyleTag.length) {
+    for (tag in addStyleTag) {
+      await page.addStyleTag(addStyleTag[tag]);
+    }
+  }
+
+  if (addScriptTag.length) {
+    for (script in addScriptTag) {
+      await page.addScriptTag(addScriptTag[script]);
+    }
+  }
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
