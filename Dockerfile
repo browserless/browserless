@@ -41,10 +41,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
-  npm install &&\
-  if [ -n "$PUPPETEER_VERSION" ]; then \
-    npm i --save-exact puppeteer@$PUPPETEER_VERSION;\
-  fi &&\
+  npm i puppeteer@$PUPPETEER_VERSION;\
   npm run post-install &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
