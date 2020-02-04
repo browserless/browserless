@@ -60,6 +60,7 @@ const deployVersion = async (tags, pptrVersion) => {
   --quiet \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
+  --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
   --label "browser=${versionJson.Browser}" \
   --label "protocolVersion=${versionJson['Protocol-Version']}" \
   --label "v8Version=${versionJson['V8-Version']}" \
