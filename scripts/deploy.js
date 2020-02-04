@@ -3,7 +3,7 @@ const child = require('child_process');
 const util = require('util');
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
-const { map } = require('lodash');
+const { map, noop } = require('lodash');
 const path = require('path');
 const fs = require('fs-extra');
 
