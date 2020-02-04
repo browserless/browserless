@@ -78,6 +78,7 @@ const deployVersion = async (tags, pptrVersion) => {
     logExec(`docker push ${REPO}:${majorBranch}`),
   ]);
 
+  await logExec(`git add --force version.json hosts.json hints.json protocol.json`).catch(noop);
   await logExec(`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`).catch(noop);
   await logExec(`git tag --force ${patchBranch}`);
   await logExec(`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`).catch(noop);
