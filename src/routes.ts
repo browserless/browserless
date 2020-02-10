@@ -267,11 +267,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.SCREENSHOT_ENDPOINT)) {
-<<<<<<< HEAD
-    router.get('/screenshot',
-=======
     enableAPIGet && router.get('/screenshot',
->>>>>>> origin/master
       queryValidation(screenshotSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -302,11 +298,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.CONTENT_ENDPOINT)) {
-<<<<<<< HEAD
-    router.get('/content',
-=======
     enableAPIGet && router.get('/content',
->>>>>>> origin/master
       queryValidation(contentSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -337,11 +329,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.SCRAPE_ENDPOINT)) {
-<<<<<<< HEAD
-    router.get('/scrape',
-=======
     enableAPIGet && router.get('/scrape',
->>>>>>> origin/master
       queryValidation(scrapeSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -371,11 +359,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.PDF_ENDPOINT)) {
-<<<<<<< HEAD
-    router.get('/pdf',
-=======
     enableAPIGet && router.get('/pdf',
->>>>>>> origin/master
       queryValidation(pdfSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
@@ -406,11 +390,7 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Feature.STATS_ENDPOINT)) {
-<<<<<<< HEAD
-    router.get('/stats',
-=======
     enableAPIGet && router.get('/stats',
->>>>>>> origin/master
       queryValidation(statsSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
