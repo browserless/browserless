@@ -17,6 +17,7 @@ interface IBrowserlessServerConfiguration {
   exitOnHealthFailure: boolean;
   workspaceDir: string;
   disabledFeatures: Feature[];
+  enableAPIGet: boolean;
 }
 
 export interface IChromeServiceConfiguration {
@@ -33,7 +34,6 @@ export interface IChromeServiceConfiguration {
   keepAlive: boolean;
   chromeRefreshTime: number;
   enableCors: boolean;
-  enableXvfb: boolean;
   singleRun: boolean;
   token: string | null;
 }

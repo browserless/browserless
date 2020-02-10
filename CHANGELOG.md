@@ -1,3 +1,11 @@
+# [1.24.0](https://github.com/browserless/chrome/compare/v1.23.1...v1.24.0)
+- Dependency updates.
+- Bugfix on our debugger's play button being off-center.
+- Fixes driver.close() calls not cleaning the browser.
+- New `/GET` option for most our APIs. Stringify your JSON and add a ?body=YOUR-JSON with a /GET call to most of our functions! Requires `ENABLE_API_GET=true` in you docker env variables.
+- WebSocket (Socket) exception handling and logging.
+- More integration and unit tests added.
+
 # [1.23.1](https://github.com/browserless/chrome/compare/v1.23.0...v1.23.1)
 - Fixes an issue in chromedriver where commands would hang.
 - Fixes an issue in chromedriver sessions not being removed properly.

@@ -1,20 +1,23 @@
-FROM browserless/base:1.0.0
+FROM browserless/base:1.1.0
 
 # Build Args
 ARG USE_CHROME_STABLE
+ARG PUPPETEER_CHROMIUM_REVISION
+ARG PUPPETEER_VERSION
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
-ENV ENABLE_XVBF=true
 ENV HOST=0.0.0.0
 ENV IS_DOCKER=true
+ENV LANG="C.UTF-8"
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV PUPPETEER_CHROMIUM_REVISION=${PUPPETEER_CHROMIUM_REVISION}
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
 ENV WORKSPACE_DIR=$APP_DIR/workspace
-ENV LANG="C.UTF-8"
 
 RUN mkdir -p $APP_DIR $WORKSPACE_DIR
 
@@ -32,14 +35,13 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     dpkg -i google-chrome-stable_current_amd64.deb;\
   fi
 
-# Build
+# Build and install external binaries + assets
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true;\
     export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
-  npm install &&\
+  npm i puppeteer@$PUPPETEER_VERSION;\
   npm run post-install &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
@@ -49,5 +51,5 @@ USER blessuser
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
-ENTRYPOINT ["dumb-init", "--"]
-CMD [ "node", "./build/index.js" ]
+
+CMD ["./start.sh"]

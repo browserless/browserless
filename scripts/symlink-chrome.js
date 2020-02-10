@@ -3,10 +3,11 @@ const { promisify } = require('util');
 const { exec: nodeExec } = require('child_process');
 const execAsync = promisify(nodeExec);
 
-const puppeteer = require('puppeteer');
-const packageJson = require('puppeteer/package.json');
-const CHROME_BINARY_LOCATION = '/usr/bin/google-chrome';
-const IS_DOCKER = fs.existsSync('/.dockerenv');
+const {
+  IS_DOCKER,
+  CHROME_BINARY_LOCATION,
+  PUPPETEER_BINARY_LOCATION
+} = require('../env');
 
 const exec = async (command) => {
   const { stdout, stderr } = await execAsync(command);
@@ -19,17 +20,11 @@ const exec = async (command) => {
   return stdout.trim();
 };
 
-// This is used in docker to symlink the puppeteer's
-// chrome to a place where most other libraries expect it
-// (IE: WebDriver) without having to specify it
-if (!IS_DOCKER) {
-  return;
+// If we're in docker, and this isn't a chrome-stable build,
+// symlink where chrome-stable should be back to puppeteer's build
+if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
+  (async () => {
+    console.log(`Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`);
+    await exec(`ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`);
+  })();
 }
-
-const browserFetcher = puppeteer.createBrowserFetcher();
-const { executablePath } = browserFetcher.revisionInfo(packageJson.puppeteer.chromium_revision);
-
-(async () => fs.existsSync(CHROME_BINARY_LOCATION) ?
-  Promise.resolve() :
-  exec(`ln -s ${executablePath} ${CHROME_BINARY_LOCATION}`)
-)();

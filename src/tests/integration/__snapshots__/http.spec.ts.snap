@@ -6,8 +6,8 @@ Array [
   "connectionTimeout",
   "demoMode",
   "disabledFeatures",
+  "enableAPIGet",
   "enableCors",
-  "enableXvfb",
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",
@@ -41,13 +41,6 @@ Array [
   "type",
   "url",
   "webSocketDebuggerUrl",
-]
-`;
-
-exports[`Browserless Chrome HTTP allows requests to /json/protocol 1`] = `
-Array [
-  "domains",
-  "version",
 ]
 `;
 

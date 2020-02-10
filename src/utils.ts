@@ -14,9 +14,10 @@ import * as url from 'url';
 import * as util from 'util';
 
 import { IWebdriverStartHTTP } from './browserless';
-import { CHROME_BINARY_LOCATION, WORKSPACE_DIR } from './config';
+import { WORKSPACE_DIR } from './config';
 
 const dbg = require('debug');
+const { CHROME_BINARY_LOCATION } = require('../env');
 
 const mkdtemp = util.promisify(fs.mkdtemp);
 
@@ -30,6 +31,9 @@ export const writeFile = util.promisify(fs.writeFile);
 export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
+
+const webDriverPath = '/webdriver/session';
+const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
 
 const debug = getDebug('system');
 
@@ -386,4 +390,16 @@ export const getTimeoutParam = (req: IHTTPRequest | IWebdriverStartHTTP): number
   }
 
   return null;
+};
+
+export const isWebdriverStart = (req: IncomingMessage) => {
+  return req.method?.toLowerCase() === 'post' && req.url === webDriverPath
+};
+
+export const isWebdriverClose = (req: IncomingMessage) => {
+  return req.method?.toLowerCase() === 'delete' && webdriverSessionCloseReg.test(req.url || '')
+};
+
+export const isWebdriver = (req: IncomingMessage) => {
+  return req.url?.includes(webDriverPath);
 };
