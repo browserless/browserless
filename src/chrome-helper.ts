@@ -73,6 +73,11 @@ interface ISession {
   browserWSEndpoint: string;
 }
 
+interface IWindowSize {
+  width: number;
+  height: number;
+}
+
 export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
@@ -101,11 +106,13 @@ const setupPage = async ({
   pauseOnConnect,
   blockAds,
   trackingId,
+  windowSize,
 }: {
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId: string | null;
+  windowSize?: IWindowSize
 }) => {
   const client = _.get(page, '_client', _.noop);
 
@@ -148,6 +155,10 @@ const setupPage = async ({
     });
   }
 
+  if (windowSize) {
+    await page.setViewport(windowSize);
+  }
+
   page.once('close', () => page.removeAllListeners());
 };
 
@@ -160,6 +171,7 @@ const setupBrowser = async ({
   trackingId,
   keepalive,
   process,
+  windowSize,
 }: {
   browser: puppeteer.Browser;
   isUsingTempDataDir: boolean;
@@ -169,6 +181,7 @@ const setupBrowser = async ({
   process: ChildProcess;
   trackingId: string | null;
   keepalive: number | null;
+  windowSize?: IWindowSize;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
@@ -202,6 +215,7 @@ const setupBrowser = async ({
           page,
           pauseOnConnect,
           trackingId,
+          windowSize,
         });
       }
     } catch (error) {
@@ -211,7 +225,7 @@ const setupBrowser = async ({
 
   const pages = await iBrowser.pages();
 
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId }));
+  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
   runningBrowsers.push(iBrowser);
 
   return iBrowser;
@@ -359,6 +373,7 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
       pauseOnConnect: opts.pauseOnConnect,
       process: browser.process(),
       trackingId: opts.trackingId || null,
+      windowSize: undefined,
     }));
 };
 
@@ -366,10 +381,12 @@ export const launchChromeDriver = async ({
   blockAds = false,
   trackingId = null,
   pauseOnConnect = false,
+  windowSize,
 }: {
   blockAds: boolean,
   trackingId: null | string,
   pauseOnConnect: boolean,
+  windowSize?: IWindowSize
 }) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
@@ -399,6 +416,7 @@ export const launchChromeDriver = async ({
             pauseOnConnect,
             process: chromeProcess,
             trackingId,
+            windowSize,
           });
         }
 

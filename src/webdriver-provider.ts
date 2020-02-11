@@ -222,11 +222,24 @@ export class WebDriver {
     const blockAds = body.desiredCapabilities['browserless.blockAds'];
     const trackingId = body.desiredCapabilities['browserless.trackingId'];
     const pauseOnConnect = body.desiredCapabilities['browserless.pause'];
+    const launchArgs: string[] = _.get(body, 'desiredCapabilities["goog:chromeOptions"].args', []);
+    const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
+    const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
+    let windowSize;
+
+    if (Array.isArray(windowSizeParsed)) {
+      const [ width, height ] = windowSizeParsed;
+      windowSize = {
+        width: +width,
+        height: +height,
+      };
+    }
 
     return chromeHelper.launchChromeDriver({
       blockAds,
       pauseOnConnect,
       trackingId,
+      windowSize,
     })
       .catch((error) => {
         debug(`Issue launching ChromeDriver, error:`, error);
