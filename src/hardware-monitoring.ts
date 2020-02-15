@@ -1,13 +1,9 @@
 import * as _ from 'lodash';
 import si = require('systeminformation');
 import { getDebug } from './utils';
+import { IResourceLoad } from './types';
 
 const log = getDebug('hardware');
-
-interface IResourceLoad {
-  cpu: number | null;
-  memory: number | null;
-}
 
 export class ResourceMonitor {
 

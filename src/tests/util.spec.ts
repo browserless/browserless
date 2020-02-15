@@ -1,7 +1,115 @@
 import * as utils from '../utils';
 import { IncomingMessage } from 'http';
 
+const getArgs = (overrides = {}) => ({
+  args: [],
+  blockAds: false,
+  headless: true,
+  ignoreDefaultArgs: false,
+  ignoreHTTPSErrors: false,
+  pauseOnConnect: false,
+  slowMo: undefined,
+  userDataDir: undefined,
+  ...overrides,
+});
+
 describe(`Utils`, () => {
+  // These only matter insomuch as that they can change launch flags
+  describe('#canPreboot', () => {
+    describe('args', () => {
+      it('returns true when undefined', () => {
+        expect(utils.canPreboot(getArgs({ args: undefined }), getArgs())).toBe(true);
+      });
+
+      it('returns true when it matches', () => {
+        expect(utils.canPreboot(getArgs({ args: [] }), getArgs())).toBe(true);
+      });
+
+      it('returns true when args are the same', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ args: ['--headless', '--window-size=1920,1080'] }),
+            getArgs({ args: ['--window-size=1920,1080', '--headless'] })
+          )
+        ).toBe(true);
+      });
+
+      it('returns false when it does not match', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ args: ['--headless', '--user-data-dir=/my-data'] }),
+            getArgs({ args: ['--window-size=1920,1080', '--headless'] })
+          )
+        ).toBe(false);
+      });
+    });
+
+    describe('headless', () => {
+      it('returns true when undefined', () => {
+        expect(utils.canPreboot(getArgs({ headless: undefined }), getArgs())).toBe(true);
+      });
+
+      it('returns true when it matches', () => {
+        expect(utils.canPreboot(getArgs({ headless: true }), getArgs())).toBe(true);
+      });
+
+      it('returns false when it does not match', () => {
+        expect(utils.canPreboot(getArgs({ headless: false }), getArgs())).toBe(false);
+      });
+    });
+
+    describe('userDataDir', () => {
+      it('returns true when undefined', () => {
+        expect(utils.canPreboot(getArgs({ userDataDir: undefined }), getArgs())).toBe(true);
+      });
+
+      it('returns true when it matches', () => {
+        expect(utils.canPreboot(getArgs({ userDataDir: 'my-cache' }), getArgs({ userDataDir: 'my-cache' }))).toBe(true);
+      });
+
+      it('returns false when it does not match', () => {
+        expect(utils.canPreboot(getArgs({ userDataDir: 'my-cache' }), getArgs())).toBe(false);
+      });
+    });
+
+    describe('ignoreDefaultArgs', () => {
+      it('returns true when undefined', () => {
+        expect(utils.canPreboot(getArgs({ ignoreDefaultArgs: undefined }), getArgs())).toBe(true);
+      });
+
+      it('returns true when it matches', () => {
+        expect(utils.canPreboot(getArgs({ ignoreDefaultArgs: false }), getArgs())).toBe(true);
+      });
+
+      it('returns true when they are the same', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ ignoreDefaultArgs: ['--headless'] }),
+            getArgs({ ignoreDefaultArgs: ['--headless'] })
+          )
+        ).toBe(true);
+      });
+
+      it('returns true when they contain the same list', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ ignoreDefaultArgs: ['--headless', '--user-data-dir=cache-money'] }),
+            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money', '--headless'] })
+          )
+        ).toBe(true);
+      });
+
+      it('returns false when it does not match', () => {
+        expect(
+          utils.canPreboot(
+            getArgs({ ignoreDefaultArgs: ['--headless'] }),
+            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money'] })
+          )
+        ).toBe(false);
+      });
+    });
+  });
+
   describe(`#getBasicAuthToken`, () => {
     it('returns the un-encoded token', () => {
       const token = 'abc';

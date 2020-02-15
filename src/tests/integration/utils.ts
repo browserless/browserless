@@ -2,7 +2,7 @@ import { exec as execNode } from 'child_process';
 import * as _ from 'lodash';
 import * as os from 'os';
 import * as util from 'util';
-import { IBrowserlessOptions } from '../../models/options.interface';
+import { IBrowserlessOptions } from '../../types';
 
 export const exec = util.promisify(execNode);
 export const getPort = () => 3000 + (+_.uniqueId());

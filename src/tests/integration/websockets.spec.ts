@@ -1,7 +1,7 @@
 import * as puppeteer from 'puppeteer';
 
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../models/options.interface';
+import { IBrowserlessOptions } from '../../types';
 import { sleep } from '../../utils';
 
 import {

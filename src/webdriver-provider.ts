@@ -1,28 +1,22 @@
-import { ChildProcess } from 'child_process';
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
 import * as httpProxy from 'http-proxy';
 import * as _ from 'lodash';
 
-import { IWebdriverStartHTTP } from './browserless';
 import * as chromeHelper from './chrome-helper';
-import { IDone, IJob, Queue } from './queue';
+import { Queue } from './queue';
 import { getDebug } from './utils';
+
+import {
+  IChromeDriver,
+  IWebdriverStartHTTP,
+  IWebDriverSession,
+  IWebDriverSessions,
+  IDone,
+  IJob,
+} from './types';
 
 const debug = getDebug('webdriver');
 const kill = require('tree-kill');
-
-interface IWebDriverSession {
-  browser: chromeHelper.IBrowser | null;
-  chromeDriver: ChildProcess;
-  done: IDone;
-  sessionId: string;
-  proxy: any;
-  res: ServerResponse;
-}
-
-interface IWebDriverSessions {
-  [key: string]: IWebDriverSession;
-}
 
 export class WebDriver {
   private queue: Queue;
@@ -218,7 +212,7 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(body: any, retries = 1): Promise<chromeHelper.IChromeDriver> {
+  private launchChrome(body: any, retries = 1): Promise<IChromeDriver> {
     const blockAds = body.desiredCapabilities['browserless.blockAds'];
     const trackingId = body.desiredCapabilities['browserless.trackingId'];
     const pauseOnConnect = body.desiredCapabilities['browserless.pause'];

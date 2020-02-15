@@ -1,9 +1,11 @@
 import { ChildProcess, fork } from 'child_process';
 import * as EventEmitter from 'events';
 import * as path from 'path';
-
-import { IConfig, IMessage } from '../models/sandbox.interface';
 import { getDebug } from '../utils';
+import {
+  IConfig,
+  IMessage,
+} from '../types';
 
 const kill = require('tree-kill');
 const debug = getDebug('sandbox');

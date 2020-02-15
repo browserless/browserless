@@ -2,13 +2,17 @@ import * as _ from 'lodash';
 import * as puppeteer from 'puppeteer';
 import { NodeVM } from 'vm2';
 
-import { ILaunchOptions, launchChrome } from '../chrome-helper';
-import { IMessage } from '../models/sandbox.interface';
-import { ISandboxOpts } from '../models/sandbox.interface';
+import { launchChrome } from '../chrome-helper';
 import { getDebug } from '../utils';
 
+import {
+  ILaunchOptions,
+  IMessage,
+  ISandboxOpts,
+  consoleMethods,
+} from '../types';
+
 const debug = getDebug('sandbox');
-type consoleMethods = 'log' | 'warn' | 'debug' | 'table' | 'info';
 
 const send = (msg: IMessage) => {
   debug(`Sending parent message: ${JSON.stringify(msg)}`);
@@ -52,7 +56,7 @@ const start = async (
     });
   });
 
-  const browser = await launchChrome(opts);
+  const browser = await launchChrome(opts, false);
   const page = await browser.newPage();
 
   page.on('error', (error: Error) => {

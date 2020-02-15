@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../models/options.interface';
+import { IBrowserlessOptions } from '../../types';
+
 import {
   defaultParams,
   killChrome,

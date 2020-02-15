@@ -4,12 +4,22 @@ import * as chromeDriver from 'chromedriver';
 import * as _ from 'lodash';
 import * as path from 'path';
 import * as puppeteer from 'puppeteer';
+import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
 import * as url from 'url';
 
-import { Feature } from './features';
+import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, IHTTPRequest, rimraf } from './utils';
+import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
+
+import {
+  IBrowser,
+  ILaunchOptions,
+  IWindowSize,
+  ISession,
+  IChromeDriver,
+  IHTTPRequest,
+} from './types';
 
 import {
   DEFAULT_BLOCK_ADS,
@@ -24,7 +34,6 @@ import {
   PORT,
   WORKSPACE_DIR,
 } from './config';
-import { ParsedUrlQuery } from 'querystring';
 
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
@@ -40,50 +49,6 @@ const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
 let runningBrowsers: IBrowser[] = [];
-
-export interface IChromeDriver {
-  port: number;
-  chromeProcess: ChildProcess;
-  browser: IBrowser | null;
-}
-
-export interface IBrowser extends puppeteer.Browser {
-  _isOpen: boolean;
-  _isUsingTempDataDir: boolean;
-  _keepalive: number | null;
-  _keepaliveTimeout: NodeJS.Timeout | null;
-  _parsed: url.UrlWithParsedQuery;
-  _trackingId: string | null;
-  _browserlessDataDir: string | null;
-  _browserProcess: ChildProcess;
-  _startTime: number;
-  _id: string;
-}
-
-interface ISession {
-  description: string;
-  devtoolsFrontendUrl: string;
-  id: string;
-  title: string;
-  type: string;
-  url: string;
-  webSocketDebuggerUrl: string;
-  port: string;
-  trackingId: string | null;
-  browserWSEndpoint: string;
-}
-
-interface IWindowSize {
-  width: number;
-  height: number;
-}
-
-export interface ILaunchOptions extends puppeteer.LaunchOptions {
-  pauseOnConnect: boolean;
-  blockAds: boolean;
-  trackingId?: string;
-  keepalive?: number;
-}
 
 const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
   const defaultArgs = query.ignoreDefaultArgs;
@@ -138,7 +103,7 @@ const setupPage = async ({
     });
   }
 
-  if (pauseOnConnect && !DISABLED_FEATURES.includes(Feature.DEBUG_VIEWER)) {
+  if (pauseOnConnect && !DISABLED_FEATURES.includes(Features.DEBUG_VIEWER)) {
     await client.send('Debugger.enable');
     await client.send('Debugger.pause');
   }
@@ -165,6 +130,7 @@ const setupPage = async ({
 const setupBrowser = async ({
   browser,
   isUsingTempDataDir,
+  prebooted,
   browserlessDataDir,
   blockAds,
   pauseOnConnect,
@@ -182,6 +148,7 @@ const setupBrowser = async ({
   trackingId: string | null;
   keepalive: number | null;
   windowSize?: IWindowSize;
+  prebooted: boolean;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
@@ -196,6 +163,7 @@ const setupBrowser = async ({
   iBrowser._keepaliveTimeout = null;
   iBrowser._startTime = Date.now();
   iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
+  iBrowser._prebooted = prebooted;
 
   await browserHook({ browser: iBrowser });
 
@@ -240,6 +208,22 @@ export const defaultLaunchArgs = {
   pauseOnConnect: false,
   slowMo: undefined,
   userDataDir: DEFAULT_USER_DATA_DIR,
+};
+
+/* 
+ * Does a deep check to see if the prebooted chrome's arguments,
+ * and other options, match those requested by the HTTP request
+ */
+export const canUsePrebootedChrome = (launchArgs: ILaunchOptions) => {
+  if (!_.isUndefined(launchArgs.headless) && launchArgs.headless !== defaultLaunchArgs.headless) {
+    return false;
+  }
+
+  if (!_.isUndefined(launchArgs.args) && launchArgs.args.length !== defaultLaunchArgs.args.length) {
+    return false;
+  }
+
+  return true;
 };
 
 export const findSessionForPageUrl = async (pathname: string) => {
@@ -333,7 +317,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
   };
 };
 
-export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
+export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Promise<IBrowser> => {
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
 
@@ -374,6 +358,7 @@ export const launchChrome = async (opts: ILaunchOptions): Promise<IBrowser> => {
       process: browser.process(),
       trackingId: opts.trackingId || null,
       windowSize: undefined,
+      prebooted: isPreboot,
     }));
 };
 
@@ -412,6 +397,7 @@ export const launchChromeDriver = async ({
             browser,
             browserlessDataDir: null,
             isUsingTempDataDir: false,
+            prebooted: false,
             keepalive: null,
             pauseOnConnect,
             process: chromeProcess,

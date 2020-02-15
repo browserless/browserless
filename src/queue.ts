@@ -1,37 +1,11 @@
-import * as EventEmitter from 'events';
 import * as _ from 'lodash';
 import q from 'queue';
-
-import { IWebdriverStartHTTP } from './browserless';
-import { IBrowser } from './chrome-helper';
-import { BrowserlessSandbox } from './Sandbox';
 import * as util from './utils';
 
-export interface IJob {
-  (done?: IDone): any | Promise<any>;
-  id?: string;
-  browser?: IBrowser | BrowserlessSandbox | null;
-  close?: () => any;
-  onTimeout?: () => any;
-  start: number;
-  req: util.IHTTPRequest | IWebdriverStartHTTP;
-  timeout?: number | undefined;
-}
-
-export interface IQueue<IJob> extends EventEmitter, Array<IJob> {
-  readonly concurrency: number;
-  remove: (job: IJob) => any;
-  add: (job: IJob) => any;
-}
-
-export type IDone = (error?: Error) => any;
-
-interface IQueueConfig {
-  autostart: boolean;
-  concurrency: number;
-  maxQueueLength: number;
-  timeout?: number;
-}
+import {
+  IJob,
+  IQueueConfig,
+} from './types';
 
 export class Queue {
   private queue: q;

@@ -1,7 +1,7 @@
 import * as cookie from 'cookie';
 import * as express from 'express';
 import * as fs from 'fs';
-import { IncomingMessage, ServerResponse } from 'http';
+import { IncomingMessage } from 'http';
 import * as Joi from 'joi';
 import * as _ from 'lodash';
 import * as net from 'net';
@@ -13,8 +13,16 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
-import { IWebdriverStartHTTP } from './browserless';
 import { WORKSPACE_DIR } from './config';
+
+import {
+  IWebdriverStartHTTP,
+  IWorkspaceItem,
+  IUpgradeHandler,
+  IRequestHandler,
+  IHTTPRequest,
+  ILaunchOptions,
+} from './types';
 
 const dbg = require('debug');
 const { CHROME_BINARY_LOCATION } = require('../env');
@@ -37,28 +45,8 @@ const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/
 
 const debug = getDebug('system');
 
-type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
-type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
-
 const legacyChromeOptions = 'chromeOptions';
 const w3cChromeOptions = 'goog:chromeOptions';
-
-export interface IHTTPRequest extends IncomingMessage {
-  parsed: url.UrlWithParsedQuery;
-}
-
-export interface IHTTPRequestBody extends IncomingMessage {
-  body: any;
-}
-
-export interface IWorkspaceItem {
-  created: Date;
-  isDirectory: boolean;
-  name: string;
-  path: string;
-  size: number;
-  workspaceId: string | null;
-}
 
 const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) => {
   const [, parentDir] = dir.split(WORKSPACE_DIR);
@@ -402,4 +390,34 @@ export const isWebdriverClose = (req: IncomingMessage) => {
 
 export const isWebdriver = (req: IncomingMessage) => {
   return req.url?.includes(webDriverPath);
+};
+
+export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) => {
+  if (!_.isUndefined(incoming.headless) && incoming.headless !== defaults.headless) {
+    return false;
+  }
+
+  if (!_.isUndefined(incoming.args) && _.difference(incoming.args, defaults.args as string[]).length) {
+    return false;
+  }
+
+  if (!_.isUndefined(incoming.ignoreDefaultArgs)) {
+    if (typeof incoming.ignoreDefaultArgs !== typeof defaults.ignoreDefaultArgs) {
+      return false;
+    }
+
+    if (Array.isArray(incoming.ignoreDefaultArgs) && Array.isArray(defaults.ignoreDefaultArgs)) {
+      return !_.difference(incoming.ignoreDefaultArgs, defaults.ignoreDefaultArgs).length;
+    }
+
+    if (incoming.ignoreDefaultArgs !== defaults.ignoreDefaultArgs) {
+      return false;
+    }
+  }
+
+  if (!_.isUndefined(incoming.userDataDir) && incoming.userDataDir !== defaults.userDataDir) {
+    return false;
+  }
+
+  return true;
 };

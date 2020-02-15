@@ -10,17 +10,24 @@ import * as client from 'prom-client';
 import request = require('request');
 import * as url from 'url';
 
-import { Feature } from './features';
+import { Features } from './features';
 import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
-import { IBrowserlessOptions } from './models/options.interface';
 import { PuppeteerProvider } from './puppeteer-provider';
-import { IDone, IJob, Queue } from './queue';
+import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { clearTimers } from './scheduler';
 import { WebDriver } from './webdriver-provider';
+
+import {
+  IBrowserlessOptions,
+  IBrowserlessStats,
+  IDone,
+  IJob,
+  IWebdriverStartHTTP,
+} from './types';
 
 const debug = util.getDebug('server');
 
@@ -28,10 +35,6 @@ const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
-
-export interface IWebdriverStartHTTP extends util.IHTTPRequest {
-  body: any;
-}
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
@@ -198,7 +201,7 @@ export class BrowserlessServer {
         this.config.connectionTimeout + 100;
       const app = express();
 
-      if (!this.config.disabledFeatures.includes(Feature.PROMETHEUS)) {
+      if (!this.config.disabledFeatures.includes(Features.PROMETHEUS)) {
         client.register.clear();
         const metricsMiddleware = promBundle({
           includeMethod: true,
@@ -225,7 +228,7 @@ export class BrowserlessServer {
         app.use(cors());
       }
 
-      if (!this.config.disabledFeatures.includes(Feature.DEBUGGER)) {
+      if (!this.config.disabledFeatures.includes(Features.DEBUGGER)) {
         app.use('/', express.static('./debugger'));
       }
 

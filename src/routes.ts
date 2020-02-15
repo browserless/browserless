@@ -7,9 +7,13 @@ import * as path from 'path';
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
-import { Feature } from './features';
-import { IBrowserlessOptions } from './models/options.interface';
+import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
+import {
+  IBrowserlessOptions,
+  IBrowserlessStats,
+  Feature,
+} from './types';
 
 import {
   asyncWebHandler,
@@ -99,17 +103,17 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-  if (!disabledFeatures.includes(Feature.INTROSPECTION_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.INTROSPECTION_ENDPOINT)) {
     router.get('/introspection', (_req, res) => res.json(hints));
   }
-  if (!disabledFeatures.includes(Feature.METRICS_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
   }
-  if (!disabledFeatures.includes(Feature.CONFIG_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.CONFIG_ENDPOINT)) {
     router.get('/config', (_req, res) => res.json(config));
   }
 
-  if (!disabledFeatures.includes(Feature.WORKSPACES)) {
+  if (!disabledFeatures.includes(Features.WORKSPACES)) {
     router.get('/workspace', async (_req, res) => {
       const downloads = await buildWorkspaceDir(workspaceDir);
 
@@ -176,7 +180,7 @@ export const getRoutes = ({
     });
   }
 
-  if (!disabledFeatures.includes(Feature.DOWNLOAD_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.DOWNLOAD_ENDPOINT)) {
     router.post('/download', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
       const code = isJson ? req.body.code : req.body;
@@ -193,7 +197,7 @@ export const getRoutes = ({
     }));
   }
 
-  if (!disabledFeatures.includes(Feature.PRESSURE_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.PRESSURE_ENDPOINT)) {
     router.get('/pressure', (_req, res) =>
       res.json({
         pressure: getPressure(),
@@ -201,7 +205,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.FUNCTION_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.FUNCTION_ENDPOINT)) {
     router.post('/function',
       jsonParser,
       jsParser,
@@ -223,7 +227,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.KILL_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.KILL_ENDPOINT)) {
     router.get('/kill/all', async (_req, res) => {
       await chromeHelper.killAll();
 
@@ -237,7 +241,7 @@ export const getRoutes = ({
     });
   }
 
-  if (!disabledFeatures.includes(Feature.SCREENCAST_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.SCREENCAST_ENDPOINT)) {
     // Screen cast route -- we inject some fun stuff here so that it all works properly :)
     router.post('/screencast', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
       const isJson = typeof req.body === 'object';
@@ -266,7 +270,7 @@ export const getRoutes = ({
     }));
   }
 
-  if (!disabledFeatures.includes(Feature.SCREENSHOT_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.SCREENSHOT_ENDPOINT)) {
     enableAPIGet && router.get('/screenshot',
       queryValidation(screenshotSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
@@ -297,7 +301,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.CONTENT_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.CONTENT_ENDPOINT)) {
     enableAPIGet && router.get('/content',
       queryValidation(contentSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
@@ -328,7 +332,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.SCRAPE_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.SCRAPE_ENDPOINT)) {
     enableAPIGet && router.get('/scrape',
       queryValidation(scrapeSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
@@ -358,7 +362,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.PDF_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.PDF_ENDPOINT)) {
     enableAPIGet && router.get('/pdf',
       queryValidation(pdfSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
@@ -389,7 +393,7 @@ export const getRoutes = ({
     );
   }
 
-  if (!disabledFeatures.includes(Feature.STATS_ENDPOINT)) {
+  if (!disabledFeatures.includes(Features.STATS_ENDPOINT)) {
     enableAPIGet && router.get('/stats',
       queryValidation(statsSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
@@ -417,7 +421,7 @@ export const getRoutes = ({
       ));
   }
 
-  if (!disabledFeatures.includes(Feature.DEBUGGER)) {
+  if (!disabledFeatures.includes(Features.DEBUGGER)) {
     router.get('/json/protocol', (_req, res) => res.json(protocol));
 
     router.get('/json/new', asyncWebHandler(async (req: Request, res: Response) => {
@@ -463,7 +467,7 @@ export const getRoutes = ({
     }));
   }
 
-  if (!disabledFeatures.includes(Feature.DEBUG_VIEWER)) {
+  if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     router.get('/sessions', asyncWebHandler(async (_req: Request, res: Response) => {
       const pages = await chromeHelper.getDebuggingPages();
 

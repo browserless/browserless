@@ -1,33 +1,12 @@
-import { Response } from 'express';
 import * as fs from 'fs';
 import { noop } from 'lodash';
-import { Page } from 'puppeteer';
+import {
+  IAfter,
+  IBefore,
+  IPreferences,
+} from '../types';
 
 const rimraf = require('rimraf');
-
-interface IBefore {
-  page: Page;
-  code: string;
-  debug: (...args: any) => void;
-}
-
-interface IAfter {
-  page: Page;
-  res: Response;
-  done: (err?: Error) => any;
-  debug: (message: string) => any;
-  code: string;
-  stopScreencast: () => void;
-}
-
-interface IPreferences {
-  width: number;
-  height: number;
-  audio: boolean;
-  code: string;
-  type: string;
-  mimeType: string;
-}
 
 export const before = async ({ page, code, debug }: IBefore) => {
   let prefs: IPreferences;

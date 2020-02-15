@@ -1,7 +1,7 @@
 import { BrowserlessServer } from '../../browserless';
 import { sleep } from '../../utils';
 
-import { IBrowserlessOptions } from '../../models/options.interface';
+import { IBrowserlessOptions } from '../../types';
 import {
   defaultParams,
   getChromeProcesses,
