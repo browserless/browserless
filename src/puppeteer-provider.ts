@@ -523,7 +523,7 @@ export class PuppeteerProvider {
         jobdebug(`${job.id}: Pushing browser back into swarm, clearing pages`);
         const [blank, ...pages] = await browser.pages();
         pages.forEach((page) => page.close());
-        blank.goto('about:blank');
+        blank && blank.goto('about:blank');
         jobdebug(`${job.id}: Cleanup done, pushing into swarm.`);
         return this.chromeSwarm.push(Promise.resolve(browser));
       }
