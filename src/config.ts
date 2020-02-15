@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as _ from 'lodash';
 import * as os from 'os';
-import { Feature, isFeature } from './features';
+import { Features, isFeature } from './features';
+import { Feature } from './types';
 
 const debug = require('debug');
 const untildify = require('untildify');
@@ -30,14 +31,14 @@ const getDisabledFeatures = () => {
       if (isFeature(disabledFeature)) {
         return disabledFeature as Feature;
       }
-      throw new Error(`Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(Feature)
+      throw new Error(`Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(Features)
         .map(([_, v]) => v).join(',')}]`);
     });
-  if (!parseJSONParam(process.env.ENABLE_DEBUGGER, true) && !disabledFeatures.includes(Feature.DEBUGGER)) {
-    disabledFeatures.push(Feature.DEBUGGER);
+  if (!parseJSONParam(process.env.ENABLE_DEBUGGER, true) && !disabledFeatures.includes(Features.DEBUGGER)) {
+    disabledFeatures.push(Features.DEBUGGER);
   }
-  if (!parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true) && !disabledFeatures.includes(Feature.DEBUG_VIEWER)) {
-    disabledFeatures.push(Feature.DEBUG_VIEWER);
+  if (!parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true) && !disabledFeatures.includes(Features.DEBUG_VIEWER)) {
+    disabledFeatures.push(Features.DEBUG_VIEWER);
   }
   return disabledFeatures;
 };

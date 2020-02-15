@@ -1,6 +1,4 @@
-export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
-  'configEndpoint' | 'workspaces' | 'downloadEndpoint' | 'pressureEndpoint' | 'functionEndpoint' | 'killEndpoint' |
-  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint';
+import { Feature } from './types';
 
 export function isFeature(str: string): str is Feature {
   return str === 'prometheus' || str === 'debugger' || str === 'debugViewer' || str === 'introspectionEndpoint'
@@ -11,7 +9,7 @@ export function isFeature(str: string): str is Feature {
 }
 
 // tslint:disable-next-line:variable-name
-export const Feature = {
+export const Features = {
   CONFIG_ENDPOINT: 'configEndpoint' as Feature,
   CONTENT_ENDPOINT: 'contentEndpoint' as Feature,
   DEBUGGER: 'debugger' as Feature,

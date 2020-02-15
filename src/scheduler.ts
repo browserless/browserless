@@ -9,7 +9,7 @@ const DAILY = 24 * 60 * 60 * 1000;
 
 const intervalIds: NodeJS.Timeout[] = [];
 
-const getWorkspaceFiles = async (): Promise<Array<{ created: Date; location: string; name: string }>> => {
+const getWorkspaceFiles = async (): Promise<{ created: Date; location: string; name: string }[]> => {
   const files = await readdir(WORKSPACE_DIR);
 
   return Promise.all(files.map(async (file) => {
