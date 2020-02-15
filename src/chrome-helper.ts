@@ -210,7 +210,7 @@ export const defaultLaunchArgs = {
   userDataDir: DEFAULT_USER_DATA_DIR,
 };
 
-/* 
+/*
  * Does a deep check to see if the prebooted chrome's arguments,
  * and other options, match those requested by the HTTP request
  */
