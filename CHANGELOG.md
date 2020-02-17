@@ -1,3 +1,20 @@
+# [1.26.0](https://github.com/browserless/chrome/compare/v1.25.0...v1.26.0)
+- Dependency updates.
+- Dropping pre-push hooks for speed.
+- Consolidate all interfaces/types to a types.d.ts file.
+- Fixes an issue where numerous chrome instances launch when prebooting.
+- Fixes an issue where incoming requests don't use the pre-booted chrome instance.
+- Uses `page.setViewport` when `--window-size` is set in params to help with screenshots not appearing properly (chromedriver only).
+- 
+
+# [1.25.0](https://github.com/browserless/chrome/compare/v1.24.0...v1.25.0)
+- Dependency updates.
+- Stricter build-time arguments for chromium and chromedriver assets.
+- Better XVFB functionality.
+- New parameters for most API's, `addScriptTag` and `addStyleTag`, accepting an array of scripts/styles respectively.
+- Drop support for `puppeteer@1.17.0`.
+- Proper support for parsing `ignoreDefaultArgs` query-parameters.
+
 # [1.24.0](https://github.com/browserless/chrome/compare/v1.23.1...v1.24.0)
 - Dependency updates.
 - Bugfix on our debugger's play button being off-center.

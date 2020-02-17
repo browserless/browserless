@@ -112,7 +112,7 @@ async function deploy () {
     Promise.resolve()
   );
 
-  await logExec(`docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi`);
+  await logExec(`docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi -f`);
   debug(`Complete! Cleaning up file-system and exiting.`);
 }
 
