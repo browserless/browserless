@@ -8,6 +8,7 @@ RUN apt-get -qq update && \
   apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq --no-install-recommends install \
   dumb-init \
   adobe-flashplugin \
+  git \
   msttcorefonts \
   ffmpeg \
   fonts-noto-color-emoji \
