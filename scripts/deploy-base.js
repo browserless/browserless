@@ -8,7 +8,7 @@ const BASE = 'browserless/base';
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
-  throw new Error(`Expected a ${VERSION}, but none was found.`);
+  throw new Error(`Expected a $VERSION env variable to tag the browserless/base repo, but none was found.`);
 }
 
 const logExec = (cmd) => {
@@ -24,7 +24,7 @@ const logExec = (cmd) => {
 const buildBase = async () => {
   await logExec(`docker build -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`);
   await logExec(`docker push ${BASE}:latest`);
-  await logExec(`docker push ${VERSION}:latest`);
+  await logExec(`docker push ${BASE}:${VERSION}`);
 }
 
 async function deploy () {
