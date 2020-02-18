@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 _kill_procs() {
   kill -TERM $node
