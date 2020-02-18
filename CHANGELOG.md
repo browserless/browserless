@@ -2,6 +2,7 @@
 - Dependency updates.
 - Added `git` as a dependency in dockerfile for git-based npm dependencies to work.
 - Fixed an issue in `start.sh` so that errors bubble up properly and close the process.
+- Bumps `browserless/base` to `1.2.0`.
 
 # [1.26.0](https://github.com/browserless/chrome/compare/v1.25.0...v1.26.0)
 - Dependency updates.
