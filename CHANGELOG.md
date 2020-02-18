@@ -1,3 +1,8 @@
+# [1.26.1](https://github.com/browserless/chrome/compare/v1.26.0...v1.26.1)
+- Dependency updates.
+- Added `git` as a dependency in dockerfile for git-based npm dependencies to work.
+- Fixed an issue in `start.sh` so that errors bubble up properly and close the process.
+
 # [1.26.0](https://github.com/browserless/chrome/compare/v1.25.0...v1.26.0)
 - Dependency updates.
 - Dropping pre-push hooks for speed.
