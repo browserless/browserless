@@ -8,7 +8,7 @@ const BASE = 'browserless/base';
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
-  throw new Error(`Expected a ${VERSION}, but none was found.`);
+  throw new Error(`Expected a $VERSION env variable to tag the browserless/base repo, but none was found.`);
 }
 
 const logExec = (cmd) => {
