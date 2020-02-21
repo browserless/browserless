@@ -73,6 +73,8 @@ export class WebDriver {
 
                 debug('Session started, got body: ', responseBody);
 
+                chromeDriver.chromeProcess.once('exit', done);
+
                 job.id = id;
 
                 this.webDriverSessions[id] = {
@@ -95,6 +97,7 @@ export class WebDriver {
                 job.close = () => {
                   debug(`Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`);
                   kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+                  chromeDriver.chromeProcess.off('close', done);
                   chromeDriver.browser && chromeHelper.closeBrowser(chromeDriver.browser);
                   proxy.close();
                   delete this.webDriverSessions[id];
