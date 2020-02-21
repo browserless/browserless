@@ -9,7 +9,7 @@ const untildify = require('untildify');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
-const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk'];
+const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk', 'sharp'];
 
 const getDebug = () => {
   if (typeof process.env.DEBUG !== 'undefined') {

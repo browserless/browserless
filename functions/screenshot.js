@@ -27,6 +27,7 @@ module.exports = async function screenshot ({ page, context } = {}) {
     cookies = [],
     gotoOptions,
     html = '',
+    manipulate = null,
     options = {},
     rejectRequestPattern = [],
     requestInterceptors = [],
@@ -115,8 +116,34 @@ module.exports = async function screenshot ({ page, context } = {}) {
 
   const data = await page.screenshot(options);
 
+  if (manipulate) {
+    const sharp = require('sharp');
+    const chain = sharp(data);
+
+    if (manipulate.resize) {
+      chain.resize(manipulate.resize);
+    }
+
+    if (manipulate.flip) {
+      chain.flip();
+    }
+
+    if (manipulate.flop) {
+      chain.flop();
+    }
+
+    if (manipulate.rotate) {
+      chain.rotate(manipulate.rotate);
+    }
+
+    return {
+      data: await chain.toBuffer(),
+      type: options.type ? options.type : 'png',
+    };
+  }
+
   return {
     data,
-    type: options.type ? options.type : 'png'
+    type: options.type ? options.type : 'png',
   };
 };
