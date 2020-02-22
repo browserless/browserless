@@ -73,6 +73,19 @@ export const screenshot = Joi.object().keys({
   cookies,
   gotoOptions,
   html: Joi.string(),
+  manipulate: Joi.object().keys({
+    resize: Joi.object().keys({
+      width: Joi.number().integer().positive(),
+      height: Joi.number().integer().positive(),
+      fit: Joi.string()
+        .valid('cover', 'contain', 'fill', 'inside', 'outside'),
+      position: Joi.string()
+        .valid('top', 'right top', 'right', 'right bottom', 'bottom', 'left bottom', 'left', 'left top')
+    }),
+    flip: Joi.boolean(),
+    flop: Joi.boolean(),
+    rotate: Joi.number(),
+  }),
   options: Joi.object().keys({
     clip: Joi.object().keys({
       height: Joi.number().min(0),
