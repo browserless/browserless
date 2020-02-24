@@ -13,6 +13,10 @@ RUN apt-get -qq update && \
   ffmpeg \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
+  fonts-ipafont-gothic \
+  fonts-wqy-zenhei \
+  fonts-kacst \ 
+  fonts-freefont-ttf \
   fonts-liberation \
   fonts-thai-tlwg \
   fonts-indic \
