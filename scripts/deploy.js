@@ -45,7 +45,7 @@ const deployVersion = async (tags, pptrVersion) => {
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
     ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
     npm install --silent --save --save-exact puppeteer@${puppeteerVersion}
-  `);
+  `).catch(noop);
 
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
     ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
