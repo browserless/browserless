@@ -1,4 +1,4 @@
-# [1.26.1](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
+# [1.270](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
 - Dependency updates.
 - New `manipulate` params for screenshots, allowing for resizing, flipping and more.
 - Better tracking of chrome-process for cleanup of zombied sessions.
