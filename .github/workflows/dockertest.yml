@@ -15,10 +15,10 @@ jobs:
       run: docker build -t browserless/chrome:latest .
 
     - name: Test the latest image
-      run: docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:latest
+      run: docker run -e CI=true --entrypoint ./test.sh browserless/chrome:latest
 
     - name: Build the chrome-stable image
       run: docker build --build-arg "USE_CHROME_STABLE=true" --build-arg "PUPPETEER_VERSION=1.15.0" -t browserless/chrome:stable .
 
     - name: Test the chrome-stable image
-      run: docker run -it -e CI=true --entrypoint ./test.sh browserless/chrome:stable
+      run: docker run -e CI=true --entrypoint ./test.sh browserless/chrome:stable
