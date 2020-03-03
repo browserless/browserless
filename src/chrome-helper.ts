@@ -32,6 +32,9 @@ import {
   DISABLED_FEATURES,
   HOST,
   PORT,
+  PROXY_HOST,
+  PROXY_PORT,
+  PROXY_SSL,
   WORKSPACE_DIR,
 } from './config';
 
@@ -242,7 +245,12 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
   const results = await Promise.all(
     runningBrowsers.map(async (browser) => {
       const { port } = browser._parsed;
-      const host = HOST || '127.0.0.1';
+
+      const externalHost = PROXY_HOST ?
+        `${PROXY_HOST}${PROXY_PORT ? `:${PROXY_PORT}` : ''}` :
+        `${HOST || '127.0.0.1'}:${PORT}`;
+
+      const externalProtocol = PROXY_SSL ? 'wss' : 'ws';
 
       if (!port) {
         throw new Error('Error locating port in browser endpoint: ${endpoint}');
@@ -253,22 +261,38 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
       return sessions
         .filter(({ title }) => title !== 'about:blank')
         .map((session) => {
-          const browserWSEndpoint = browser.wsEndpoint();
+          const wsEndpoint = browser.wsEndpoint();
+          const proxyParams = {
+            host: externalHost,
+            protocol: externalProtocol,
+            slashes: true,
+          };
+
+          const parsedWebSocketDebuggerUrl = {
+            ...url.parse(session.webSocketDebuggerUrl),
+            ...proxyParams,
+          };
+
+          const parsedWsEndpoint = {
+            ...url.parse(wsEndpoint),
+            ...proxyParams,
+          };
+
+          const browserWSEndpoint = url.format(parsedWsEndpoint);
+          const webSocketDebuggerUrl = url.format(parsedWebSocketDebuggerUrl);
+          const devtoolsFrontendUrl = url.format({
+            pathname: url.parse(session.devtoolsFrontendUrl).pathname,
+            search: `?${externalProtocol}=${externalHost}${parsedWebSocketDebuggerUrl.path}`,
+          });
 
           return {
             ...session,
             browserId: browser._id,
-            browserWSEndpoint: browserWSEndpoint
-              .replace(port, PORT.toString())
-              .replace('127.0.0.1', host),
-            devtoolsFrontendUrl: session.devtoolsFrontendUrl
-              .replace(port, PORT.toString())
-              .replace('127.0.0.1', host),
+            browserWSEndpoint,
+            devtoolsFrontendUrl,
             port,
             trackingId: browser._trackingId,
-            webSocketDebuggerUrl: session.webSocketDebuggerUrl
-              .replace(port, PORT.toString())
-              .replace('127.0.0.1', host),
+            webSocketDebuggerUrl,
           };
         });
     }),

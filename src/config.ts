@@ -120,6 +120,14 @@ export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH ?
   null;
 
 // Server Options
+
+// Host and port to bind our server to
 export const HOST: string | undefined = process.env.HOST;
-export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';
 export const PORT: number = parseNumber(process.env.PORT, 8080);
+
+// Host and port for /session calls to build URLs to.
+// Useful for when browserless is behind a proxy
+export const PROXY_HOST: string | undefined = process.env.PROXY_HOST;
+export const PROXY_PORT: string | undefined = process.env.PROXY_PORT;
+export const PROXY_SSL: boolean = parseJSONParam(process.env.PROXY_SSL, false);
+export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';
