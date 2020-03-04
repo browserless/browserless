@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
 
+COPY fonts.conf /etc/fonts/local.conf
+
 # Dependencies + NodeJS
 RUN apt-get -qq update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
@@ -9,8 +11,9 @@ RUN apt-get -qq update && \
   dumb-init \
   adobe-flashplugin \
   git \
-  msttcorefonts \
   ffmpeg \
+  msttcorefonts \
+  fonts-ubuntu \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
   fonts-ipafont-gothic \
