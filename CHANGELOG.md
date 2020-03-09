@@ -1,4 +1,11 @@
-# [1.270](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
+# [1.28.0](https://github.com/browserless/chrome/compare/v1.27.0...v1.28.0)
+- Dependency updates.
+- Sets a system-default font of Ubuntu for most sites that use `system-ui` in their font declarations.
+- Fixes health-check failure webhooks.
+- New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://docs.browserless.io/docs/docker.html#using-a-proxy).
+- Moves over to GH actions over Travis for CI.
+
+# [1.27.0](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
 - Dependency updates.
 - New `manipulate` params for screenshots, allowing for resizing, flipping and more.
 - Better tracking of chrome-process for cleanup of zombied sessions.
