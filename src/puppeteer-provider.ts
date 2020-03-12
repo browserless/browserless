@@ -383,7 +383,7 @@ export class PuppeteerProvider {
 
         socket.once('error', (err: Error) => {
           jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-          doneOnce(error);
+          doneOnce(err);
         });
 
         launchPromise
