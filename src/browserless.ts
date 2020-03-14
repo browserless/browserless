@@ -272,7 +272,7 @@ export class BrowserlessServer {
         })
         .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
           const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeRequest({ req: reqParsed, socket });
+          const beforeResults = await beforeRequest({ req: reqParsed, socket, head });
 
           if (!beforeResults) {
             return;
