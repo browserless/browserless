@@ -244,7 +244,7 @@ export class BrowserlessServer {
           const beforeResults = await beforeRequest({ req: reqParsed, res });
 
           if (!beforeResults) {
-            return res.end();
+            return;
           }
 
           // Handle webdriver requests early, which handles it's own auth
@@ -275,7 +275,7 @@ export class BrowserlessServer {
           const beforeResults = await beforeRequest({ req: reqParsed, socket });
 
           if (!beforeResults) {
-            return socket.end();
+            return;
           }
 
           if (this.config.token && !util.isAuthorized(reqParsed, this.config.token)) {
