@@ -372,19 +372,23 @@ export class PuppeteerProvider {
         });
       } :
       (done: IDone) => {
+        const launchPromise = this.getChrome(opts);
         jobdebug(`${job.id}: Getting browser.`);
+
+        const onSocketError = (err: Error) => {
+          jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
+          doneOnce(err);
+        };
+
         const doneOnce = _.once((err) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
+            socket.removeListener('error', onSocketError);
           }
           done(err);
         });
-        const launchPromise = this.getChrome(opts);
 
-        socket.once('error', (err: Error) => {
-          jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-          doneOnce(err);
-        });
+        socket.once('error', onSocketError);
 
         launchPromise
           .then(async (browser) => {
