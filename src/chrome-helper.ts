@@ -141,6 +141,7 @@ const setupBrowser = async ({
   keepalive,
   process,
   windowSize,
+  port,
 }: {
   browser: puppeteer.Browser;
   isUsingTempDataDir: boolean;
@@ -152,12 +153,15 @@ const setupBrowser = async ({
   keepalive: number | null;
   windowSize?: IWindowSize;
   prebooted: boolean;
+  port: number | string;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
 
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`);
+
   iBrowser._isOpen = true;
-  iBrowser._parsed = url.parse(iBrowser.wsEndpoint(), true);
+  iBrowser._parsed = url.parse(webSocketDebuggerUrl, true);
   iBrowser._keepalive = keepalive;
   iBrowser._browserProcess = process;
   iBrowser._isUsingTempDataDir = isUsingTempDataDir;
@@ -167,6 +171,7 @@ const setupBrowser = async ({
   iBrowser._startTime = Date.now();
   iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
   iBrowser._prebooted = prebooted;
+  iBrowser._wsEndpoint = webSocketDebuggerUrl;
 
   await browserHook({ browser: iBrowser });
 
@@ -253,7 +258,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
       const externalProtocol = PROXY_SSL ? 'wss' : 'ws';
 
       if (!port) {
-        throw new Error('Error locating port in browser endpoint: ${endpoint}');
+        throw new Error(`Error finding port in browser endpoint: ${port}`);
       }
 
       const sessions: ISession[] = await fetchJson(`http://127.0.0.1:${port}/json/list`);
@@ -261,7 +266,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
       return sessions
         .filter(({ title }) => title !== 'about:blank')
         .map((session) => {
-          const wsEndpoint = browser.wsEndpoint();
+          const wsEndpoint = browser._wsEndpoint;
           const proxyParams = {
             host: externalHost,
             protocol: externalProtocol,
@@ -342,6 +347,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
 };
 
 export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Promise<IBrowser> => {
+  const port = await getPort();
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
 
@@ -350,6 +356,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
     args: [
       ...BROWSERLESS_ARGS,
       ...(opts.args || []),
+      `--remote-debugging-port=${port}`
     ],
     executablePath: CHROME_BINARY_LOCATION,
     handleSIGINT: false,
@@ -358,6 +365,10 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 
   // Having a user-data-dir in args is higher precedence than in opts
   const hasUserDataDir = _.some((launchArgs.args), (arg) => arg.includes('--user-data-dir='));
+  const isHeadless = launchArgs.args.some(arg => arg.startsWith('--headless')) || (
+    typeof launchArgs.headless === 'undefined' ||
+    launchArgs.headless === true
+  );
 
   if (hasUserDataDir || opts.userDataDir) {
     isUsingTempDataDir = false;
@@ -367,6 +378,11 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
   if (!hasUserDataDir) {
     browserlessDataDir = opts.userDataDir || await getUserDataDir();
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
+  }
+
+  // Only use debugging pipe when headless
+  if (isHeadless) {
+    launchArgs.args.push(`--remote-debugging-pipe`);
   }
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
@@ -383,6 +399,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
       trackingId: opts.trackingId || null,
       windowSize: undefined,
       prebooted: isPreboot,
+      port,
     }));
 };
 
@@ -415,6 +432,7 @@ export const launchChromeDriver = async ({
           debug(`Attaching to chromedriver browser on ${wsEndpoint}`);
 
           const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+          const { port } = url.parse(wsEndpoint);
 
           iBrowser = await setupBrowser({
             blockAds,
@@ -427,6 +445,7 @@ export const launchChromeDriver = async ({
             process: chromeProcess,
             trackingId,
             windowSize,
+            port: port as string,
           });
         }
 
@@ -482,7 +501,7 @@ export const closeBrowser = async (browser: IBrowser) => {
       rimraf(browser._browserlessDataDir);
     }
 
-    runningBrowsers = runningBrowsers.filter((b) => b.wsEndpoint() !== browser.wsEndpoint());
+    runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
     browser.removeAllListeners();
     browser.close().catch(_.noop);
   } catch (error) {
