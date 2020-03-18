@@ -393,7 +393,7 @@ export class PuppeteerProvider {
         launchPromise
           .then(async (browser) => {
             jobdebug(`${job.id}: Starting session.`);
-            const browserWsEndpoint = browser.wsEndpoint();
+            const browserWsEndpoint = browser._wsEndpoint;
             job.browser = browser;
 
             // Cleanup prior listener + listen for socket and browser close
