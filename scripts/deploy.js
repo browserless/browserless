@@ -19,7 +19,7 @@ const logExec = (cmd) => {
   debug(`  "${cmd}"`);
   return exec(cmd).then(({ stdout, stderr }) => {
     if (stderr.trim().length > 0) {
-      throw new Error(stderr.slice(-500));
+      console.warn(stderr.slice(-500));
     }
     return stdout.trim();
   });
