@@ -1,3 +1,11 @@
+# [1.29.0](https://github.com/browserless/chrome/compare/v1.28.0...v1.29.0)
+- Dependency updates.
+- Uses `pipe`'s for most API calls and other internal endpoints for faster/better throughput. Works only for `headless` API/puppeteer calls.
+- Allows custom lighthouse configs via POST `config` property.
+- Patches vm2.
+- Before hooks no longer end requests forcefully -- external hooks must manually end the request/sockets themselves.
+- Properly passes socket errors to the error handler/webhook
+
 # [1.28.0](https://github.com/browserless/chrome/compare/v1.27.0...v1.28.0)
 - Dependency updates.
 - Sets a system-default font of Ubuntu for most sites that use `system-ui` in their font declarations.
@@ -23,7 +31,7 @@
 - Fixes an issue where numerous chrome instances launch when prebooting.
 - Fixes an issue where incoming requests don't use the pre-booted chrome instance.
 - Uses `page.setViewport` when `--window-size` is set in params to help with screenshots not appearing properly (chromedriver only).
-- 
+-
 
 # [1.25.0](https://github.com/browserless/chrome/compare/v1.24.0...v1.25.0)
 - Dependency updates.
