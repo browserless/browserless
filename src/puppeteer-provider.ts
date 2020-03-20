@@ -138,6 +138,7 @@ export class PuppeteerProvider {
         root: './node_modules',
       },
     });
+    utils.patchDecontextify(vm);
     const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
       jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
@@ -276,10 +277,6 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
-    socket.on('error', (err: Error) => {
-      jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-    });
-
     // Catch actual running pages and route them appropriately
     if (route.includes('/devtools/page') && !route.includes(utils.jsonProtocolPrefix)) {
       const session = await chromeHelper.findSessionForPageUrl(route);
@@ -376,19 +373,28 @@ export class PuppeteerProvider {
         });
       } :
       (done: IDone) => {
+        const launchPromise = this.getChrome(opts);
         jobdebug(`${job.id}: Getting browser.`);
+
+        const onSocketError = (err: Error) => {
+          jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
+          doneOnce(err);
+        };
+
         const doneOnce = _.once((err) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
+            socket.removeListener('error', onSocketError);
           }
           done(err);
         });
-        const launchPromise = this.getChrome(opts);
+
+        socket.once('error', onSocketError);
 
         launchPromise
           .then(async (browser) => {
             jobdebug(`${job.id}: Starting session.`);
-            const browserWsEndpoint = browser.wsEndpoint();
+            const browserWsEndpoint = browser._wsEndpoint;
             job.browser = browser;
 
             // Cleanup prior listener + listen for socket and browser close

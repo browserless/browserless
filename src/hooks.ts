@@ -18,18 +18,19 @@ const pageSetupPath = path.join(__dirname, '..', 'external', 'page.js');
 const externalRoutesPath = path.join(__dirname, '..', 'external', 'routes.js');
 
 export const beforeRequest: (args: {
-  req: IHTTPRequest,
-  res?: http.ServerResponse,
-  socket?: Socket,
+  req: IHTTPRequest;
+  res?: http.ServerResponse;
+  socket?: Socket;
+  head?: Buffer;
 }) => boolean =
   fs.existsSync(beforeHookPath) ?
     require(beforeHookPath) :
     () => true;
 
 export const afterRequest: (args: {
-  req: IHTTPRequest | IWebdriverStartHTTP,
-  start: number,
-  status: string,
+  req: IHTTPRequest | IWebdriverStartHTTP;
+  start: number;
+  status: string;
 }) => boolean = fs.existsSync(afterHookPath) ?
   require(afterHookPath) :
   () => true;

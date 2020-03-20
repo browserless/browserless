@@ -1,4 +1,3 @@
-const { URL } = require('url');
 const path = require('path');
 const { fork } = require('child_process');
 const kill = require('tree-kill');
@@ -10,7 +9,7 @@ const DEFAULT_AUDIT_CONFIG = {
 module.exports = async ({ browser, context, timeout }) => {
   return new Promise((resolve, reject) => {
     const child = fork(path.join(__dirname, 'functions', 'stats-child'));
-    const port = (new URL(browser.wsEndpoint())).port;
+    const port = browser._parsed.port;
 
     let closed = false;
     let timeoutId = timeout !== -1 ?

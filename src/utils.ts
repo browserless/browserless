@@ -12,6 +12,7 @@ import rmrf = require('rimraf');
 import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
+import { NodeVM } from 'vm2';
 
 import { WORKSPACE_DIR } from './config';
 
@@ -420,4 +421,19 @@ export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) =
   }
 
   return true;
+};
+
+export const patchDecontextify = (vm: NodeVM) => {
+  // @ts-ignoreVM internals
+  const internal = vm._internal;
+  const old = internal.Decontextify.object;
+  const handler = { __proto__: null } as any;
+
+  internal.Decontextify.object = (object: any, traps: any, deepTraps: any, flags: any, mock: any) => {
+    const prev = old(object, traps, deepTraps, flags, mock);
+    const patched = new Proxy(prev, handler);
+    internal.Decontextify.proxies.set(object, patched);
+    internal.Contextify.proxies.set(patched, object);
+    return patched;
+  };
 };
