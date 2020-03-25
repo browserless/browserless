@@ -242,5 +242,18 @@ export interface IWorkspaceItem {
 
 export interface IWebdriverStartHTTP extends IHTTPRequest {
   body: any;
-  raw: string;
+}
+
+export interface IBrowserlessSessionOptions {
+  blockAds: boolean;
+  trackingId: string | null;
+  pauseOnConnect: boolean;
+  windowSize?: IWindowSize;
+  isUsingTempDataDir: boolean;
+  browserlessDataDir: string | null;
+}
+
+export interface IWebdriverStartNormalized {
+  body: any;
+  params: IBrowserlessSessionOptions;
 }

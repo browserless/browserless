@@ -375,22 +375,21 @@ export class BrowserlessServer {
 
     if (isStarting) {
       const ret = req as IWebdriverStartHTTP;
-      const { parsed, raw } = await util.normalizeWebdriverStart(req);
+      const { body, params } = await util.normalizeWebdriverStart(req);
 
-      if (!parsed) {
+      if (!body) {
         res.writeHead && res.writeHead(400, { 'Content-Type': 'text/plain' });
         return res.end('Bad Request');
       }
 
-      if (this.config.token && !util.isWebdriverAuthorized(req, parsed, this.config.token)) {
+      if (this.config.token && !util.isWebdriverAuthorized(req, body, this.config.token)) {
         res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Unauthorized');
       }
 
-      ret.body = parsed;
-      ret.raw = raw;
+      ret.body = body;
 
-      return this.webdriver.start(ret, res);
+      return this.webdriver.start(ret, res, params);
     }
 
     if (isClosing) {

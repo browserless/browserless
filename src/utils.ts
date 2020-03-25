@@ -18,6 +18,7 @@ import { WORKSPACE_DIR } from './config';
 
 import {
   IWebdriverStartHTTP,
+  IWebdriverStartNormalized,
   IWorkspaceItem,
   IUpgradeHandler,
   IRequestHandler,
@@ -46,8 +47,8 @@ const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/
 
 const debug = getDebug('system');
 
-const legacyChromeOptions = 'chromeOptions';
-const w3cChromeOptions = 'goog:chromeOptions';
+const legacyChromeOptionsKey = 'chromeOptions';
+const w3cChromeOptionsKey = 'goog:chromeOptions';
 
 const readFilesRecursive = async (dir: string, results: IWorkspaceItem[] = []) => {
   const [, parentDir] = dir.split(WORKSPACE_DIR);
@@ -235,61 +236,112 @@ const safeParse = (maybeJson: any) => {
   }
 };
 
-export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<{ raw: string; parsed: any; }> => {
+export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWebdriverStartNormalized> => {
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
+  let isUsingTempDataDir: boolean;
 
   // Make old selenium requests bw compatible
-  if (_.has(parsed, ['desiredCapabilities', legacyChromeOptions])) {
-    parsed.desiredCapabilities[w3cChromeOptions] = _.cloneDeep(parsed.desiredCapabilities[legacyChromeOptions]);
-    delete parsed.desiredCapabilities[legacyChromeOptions];
+  if (_.has(parsed, ['desiredCapabilities', legacyChromeOptionsKey])) {
+    parsed.desiredCapabilities[w3cChromeOptionsKey] = _.cloneDeep(parsed.desiredCapabilities[legacyChromeOptionsKey]);
+    delete parsed.desiredCapabilities[legacyChromeOptionsKey];
   }
 
-  if (_.has(parsed, ['capabilities', 'alwaysMatch'])) {
-    parsed.capabilities.alwaysMatch[w3cChromeOptions] = _.cloneDeep(
-      parsed.capabilities.alwaysMatch[legacyChromeOptions] ||
-      parsed.desiredCapabilities[w3cChromeOptions],
+  if (_.has(parsed, ['capabilities', 'alwaysMatch', legacyChromeOptionsKey])) {
+    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey] = _.cloneDeep(
+      parsed.capabilities.alwaysMatch[legacyChromeOptionsKey] ||
+      parsed.desiredCapabilities[w3cChromeOptionsKey],
     );
-    delete parsed.capabilities.alwaysMatch[legacyChromeOptions];
+    delete parsed.capabilities.alwaysMatch[legacyChromeOptionsKey];
   }
 
   if (
     _.has(parsed, ['capabilities', 'firstMatch']) &&
-    _.some(parsed.capabilities.firstMatch, (opt) => opt[legacyChromeOptions])
+    _.some(parsed.capabilities.firstMatch, (opt) => opt[legacyChromeOptionsKey])
   ) {
     _.each(parsed.capabilities.firstMatch, (opt) => {
-      if (opt[legacyChromeOptions]) {
-        opt[w3cChromeOptions] = _.cloneDeep(opt[legacyChromeOptions]);
-        delete opt[legacyChromeOptions];
+      if (opt[legacyChromeOptionsKey]) {
+        opt[w3cChromeOptionsKey] = _.cloneDeep(opt[legacyChromeOptionsKey]);
+        delete opt[legacyChromeOptionsKey];
       }
     });
   }
 
-  // Set binary path
-  if (_.has(parsed, ['desiredCapabilities', w3cChromeOptions])) {
-    parsed.desiredCapabilities[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
+  const launchArgs = _.uniq([
+    ..._.get(parsed, ['desiredCapabilities', w3cChromeOptionsKey, 'args'], []) as string[],
+    ..._.get(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey, 'args'], []) as string[],
+    ..._.get(parsed, ['capabilities', 'firstMatch', '0', w3cChromeOptionsKey, 'args'], []) as string[],
+  ]);
+
+  // Set a temp data dir
+  isUsingTempDataDir = !launchArgs.some((arg: string) => arg.startsWith('--user-data-dir'));
+
+  const browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
+
+  // Set binary path and user-data-dir
+  if (_.has(parsed, ['desiredCapabilities', w3cChromeOptionsKey])) {
+    if (isUsingTempDataDir) {
+      parsed.desiredCapabilities[w3cChromeOptionsKey].args = parsed.desiredCapabilities[w3cChromeOptionsKey].args || [];
+      parsed.desiredCapabilities[w3cChromeOptionsKey].args.push(`--user-data-dir=${browserlessDataDir}`);
+    }
+    parsed.desiredCapabilities[w3cChromeOptionsKey].binary = CHROME_BINARY_LOCATION;
   }
 
-  if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptions])) {
-    parsed.capabilities.alwaysMatch[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
+  if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey])) {
+    if (isUsingTempDataDir) {
+      parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args = parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args || [];
+      parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args.push(`--user-data-dir=${browserlessDataDir}`);
+    }
+    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].binary = CHROME_BINARY_LOCATION;
   }
 
   if (
     _.has(parsed, ['capabilities', 'firstMatch']) &&
-    _.some(parsed.capabilities.firstMatch, (opt) => opt[w3cChromeOptions])
+    _.some(parsed.capabilities.firstMatch, (opt) => opt[w3cChromeOptionsKey])
   ) {
     _.each(parsed.capabilities.firstMatch, (opt) => {
-      if (opt[w3cChromeOptions]) {
-        opt[w3cChromeOptions].binary = CHROME_BINARY_LOCATION;
+      if (opt[w3cChromeOptionsKey]) {
+        if (isUsingTempDataDir) {
+          opt[w3cChromeOptionsKey].args = opt[w3cChromeOptionsKey].args || [];
+          opt[w3cChromeOptionsKey].args.push(`--user-data-dir=${browserlessDataDir}`);
+        }
+        opt[w3cChromeOptionsKey].binary = CHROME_BINARY_LOCATION;
       }
     });
   }
 
   const stringifiedBody = JSON.stringify(parsed, null, '');
+
   req.headers['content-length'] = stringifiedBody.length.toString();
   attachBodyToRequest(req, stringifiedBody);
 
-  return { parsed, raw: stringifiedBody };
+  const blockAds = !!parsed.desiredCapabilities['browserless.blockAds'];
+  const trackingId = parsed.desiredCapabilities['browserless.trackingId'] || null;
+  const pauseOnConnect = !!parsed.desiredCapabilities['browserless.pause'];
+  const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
+  const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
+
+  let windowSize;
+
+  if (Array.isArray(windowSizeParsed)) {
+    const [ width, height ] = windowSizeParsed;
+    windowSize = {
+      width: +width,
+      height: +height,
+    };
+  }
+
+  return {
+    body: parsed,
+    params: {
+      blockAds,
+      trackingId,
+      pauseOnConnect,
+      windowSize,
+      isUsingTempDataDir,
+      browserlessDataDir,
+    }
+  };
 };
 
 const attachBodyToRequest = (req: IncomingMessage, body: any) => {
@@ -316,10 +368,10 @@ const readRequestBody = async (req: IncomingMessage): Promise<any> => {
     req
       .on('data', (chunk) => body.push(chunk))
       .on('end', () => {
-        if (!req.complete || hasResolved) {
-          resolveNow(null);
-        }
         const final = Buffer.concat(body).toString();
+        if (hasResolved) {
+          return;
+        }
         resolveNow(final);
       })
       .on('aborted', () => {
@@ -424,7 +476,7 @@ export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) =
 };
 
 export const patchDecontextify = (vm: NodeVM) => {
-  // @ts-ignoreVM internals
+  // @ts-ignore
   const internal = vm._internal;
   const old = internal.Decontextify.object;
   const handler = { __proto__: null } as any;
