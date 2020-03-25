@@ -46,7 +46,7 @@ export class WebDriver {
     const job: IJob = Object.assign(
       (done: IDone) => {
         req.removeListener('close', earlyClose);
-        this.launchChrome(req.body)
+        this.launchChrome(req)
           .then((chromeDriver) => {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
@@ -215,13 +215,14 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(body: any, retries = 1): Promise<IChromeDriver> {
-    const blockAds = body.desiredCapabilities['browserless.blockAds'];
-    const trackingId = body.desiredCapabilities['browserless.trackingId'];
-    const pauseOnConnect = body.desiredCapabilities['browserless.pause'];
-    const launchArgs: string[] = _.get(body, 'desiredCapabilities["goog:chromeOptions"].args', []);
+  private launchChrome(req: IWebdriverStartHTTP, retries = 1): Promise<IChromeDriver> {
+    const blockAds = req.body.desiredCapabilities['browserless.blockAds'];
+    const trackingId = req.body.desiredCapabilities['browserless.trackingId'];
+    const pauseOnConnect = req.body.desiredCapabilities['browserless.pause'];
+    const launchArgs: string[] = _.get(req.body, 'desiredCapabilities["goog:chromeOptions"].args', []);
     const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
     const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
+
     let windowSize;
 
     if (Array.isArray(windowSizeParsed)) {
@@ -243,7 +244,7 @@ export class WebDriver {
 
         if (retries) {
           debug(`Retrying launch of ChromeDriver`);
-          return this.launchChrome(body, retries - 1);
+          return this.launchChrome(req, retries - 1);
         }
 
         debug(`Retries exhausted, throwing`);

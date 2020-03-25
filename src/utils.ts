@@ -235,7 +235,7 @@ const safeParse = (maybeJson: any) => {
   }
 };
 
-export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any> => {
+export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<{ raw: string; parsed: any; }> => {
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
 
@@ -289,7 +289,7 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<any
   req.headers['content-length'] = stringifiedBody.length.toString();
   attachBodyToRequest(req, stringifiedBody);
 
-  return parsed;
+  return { parsed, raw: stringifiedBody };
 };
 
 const attachBodyToRequest = (req: IncomingMessage, body: any) => {

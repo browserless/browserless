@@ -242,4 +242,5 @@ export interface IWorkspaceItem {
 
 export interface IWebdriverStartHTTP extends IHTTPRequest {
   body: any;
+  raw: string;
 }
