@@ -1,3 +1,4 @@
+import { PassThrough } from 'stream';
 import * as utils from '../utils';
 import { IncomingMessage } from 'http';
 
@@ -12,6 +13,49 @@ const getArgs = (overrides = {}) => ({
   userDataDir: undefined,
   ...overrides,
 });
+
+const getSeleniumAlwaysMatch = () => ({
+   'capabilities': {
+      'alwaysMatch': {
+         'browserName': 'chrome',
+         'goog:chromeOptions': {
+            'args': ['--headless', '--no-sandbox'],
+         }
+      }
+   },
+   'desiredCapabilities': {
+      'browserName': 'chrome',
+      'goog:chromeOptions': {
+         'args': ['--headless', '--no-sandbox'],
+      }
+   }
+});
+
+const getSeleniumFirstMatch = () => ({
+   'capabilities': {
+      'firstMatch': [ {
+         'browserName': 'chrome',
+         'goog:chromeOptions': {
+            'args': [ '--no-sandbox', '--headless' ],
+         }
+      } ]
+   },
+   'desiredCapabilities': {
+      'browserName': 'chrome',
+      'goog:chromeOptions': {
+         'args': [ '--no-sandbox', '--headless' ],
+      }
+   }
+});
+
+const bufferify = (body: any) => {
+  const bufferStream = new PassThrough();
+  bufferStream.end(Buffer.from(JSON.stringify(body)));
+
+  return Object.assign(bufferStream, {
+    headers: {},
+  });
+};
 
 describe(`Utils`, () => {
   // These only matter insomuch as that they can change launch flags
@@ -431,11 +475,219 @@ describe(`Utils`, () => {
       '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a/session_storage/key/',
     ].forEach((url) => {
 
-      it(`does NOT match "${url}" URL`, () => {
+      it(`does NOT match '${url}' URL`, () => {
         expect(utils.isWebdriverClose({
           method: 'delete',
           url,
         } as IncomingMessage)).toBe(false);
+      });
+    });
+  });
+
+  describe('#normalizeWebdriverStart', () => {
+    describe('always-match calls', () => {
+      it('sets a binary path', async () => {
+        const req = bufferify(getSeleniumAlwaysMatch()) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.body.desiredCapabilities['goog:chromeOptions']).toHaveProperty('binary');
+        expect(results.body.capabilities.alwaysMatch['goog:chromeOptions']).toHaveProperty('binary');
+      });
+
+      it('sets block-ads', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless.blockAds'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('blockAds', true);
+      });
+
+      it('sets block-ads to false by default', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('blockAds', false);
+      });
+
+      it('sets a tracking-id', async () => {
+        const id = 'wat';
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless.trackingId'] = id;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', id);
+      });
+
+      it('sets a tracking-id to null by default', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', null);
+      });
+
+      it('sets pauseOnConnect', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless.pause'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('pauseOnConnect', true);
+      });
+
+      it('sets pauseOnConnect to false by default', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('pauseOnConnect', false);
+      });
+
+      it('sets a window size', async () => {
+        const width = 1920;
+        const height = 1080;
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['goog:chromeOptions'].args.push(`--window-size=${width},${height}`);
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.windowSize).toEqual({ width, height });
+      });
+
+      it('default sets a temporary directory for user-data', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.browserlessDataDir);
+        expect(results.params.isUsingTempDataDir).toBe(true);
+      });
+
+      it('does not set a data-dir when one is present', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['goog:chromeOptions'].args.push(`--user-data-dir=/some/path`);
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.isUsingTempDataDir).toBe(false);
+        expect(results.params.browserlessDataDir).toEqual(null);
+      });
+
+      it('does not set a data-dir when one is present in alwaysMatch', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.capabilities.alwaysMatch['goog:chromeOptions'].args.push(`--user-data-dir=/some/path`);
+
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.isUsingTempDataDir).toBe(false);
+        expect(results.params.browserlessDataDir).toEqual(null);
+      });
+    });
+
+    describe('first-match calls', () => {
+      it('sets a binary path', async () => {
+        const req = bufferify(getSeleniumFirstMatch()) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.body.desiredCapabilities['goog:chromeOptions']).toHaveProperty('binary');
+        expect(results.body.capabilities.firstMatch[0]['goog:chromeOptions']).toHaveProperty('binary');
+      });
+
+      it('sets block-ads', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless.blockAds'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('blockAds', true);
+      });
+
+      it('sets block-ads to false by default', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('blockAds', false);
+      });
+
+      it('sets a tracking-id', async () => {
+        const id = 'wat';
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless.trackingId'] = id;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', id);
+      });
+
+      it('sets a tracking-id to null by default', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', null);
+      });
+
+      it('sets pauseOnConnect', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless.pause'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('pauseOnConnect', true);
+      });
+
+      it('sets pauseOnConnect to false by default', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('pauseOnConnect', false);
+      });
+
+      it('sets a window size', async () => {
+        const width = 1920;
+        const height = 1080;
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.capabilities.firstMatch[0]['goog:chromeOptions'].args.push(`--window-size=${width},${height}`);
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.windowSize).toEqual({ width, height });
+      });
+
+      it('default sets a temporary directory for user-data', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.browserlessDataDir);
+        expect(results.params.isUsingTempDataDir).toBe(true);
+      });
+
+      it('does not set a data-dir when one is present', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['goog:chromeOptions'].args.push(`--user-data-dir=/some/path`);
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.isUsingTempDataDir).toBe(false);
+        expect(results.params.browserlessDataDir).toEqual(null);
+      });
+
+      it('does not set a data-dir when one is present in `firstMatch`', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.capabilities.firstMatch[0]['goog:chromeOptions'].args.push(`--user-data-dir=/some/path`);
+
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params.isUsingTempDataDir).toBe(false);
+        expect(results.params.browserlessDataDir).toEqual(null);
       });
     });
   });

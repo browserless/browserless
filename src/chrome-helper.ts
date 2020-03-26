@@ -14,6 +14,7 @@ import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 import {
   IBrowser,
+  IBrowserlessSessionOptions,
   ILaunchOptions,
   IWindowSize,
   ISession,
@@ -407,13 +408,10 @@ export const launchChromeDriver = async ({
   blockAds = false,
   trackingId = null,
   pauseOnConnect = false,
+  browserlessDataDir = null,
   windowSize,
-}: {
-  blockAds: boolean,
-  trackingId: null | string,
-  pauseOnConnect: boolean,
-  windowSize?: IWindowSize
-}) => {
+  isUsingTempDataDir,
+}: IBrowserlessSessionOptions) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
     let iBrowser = null;
@@ -437,8 +435,8 @@ export const launchChromeDriver = async ({
           iBrowser = await setupBrowser({
             blockAds,
             browser,
-            browserlessDataDir: null,
-            isUsingTempDataDir: false,
+            browserlessDataDir,
+            isUsingTempDataDir,
             prebooted: false,
             keepalive: null,
             pauseOnConnect,

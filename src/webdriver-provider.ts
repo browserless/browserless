@@ -9,6 +9,7 @@ import { getDebug } from './utils';
 import {
   IChromeDriver,
   IWebdriverStartHTTP,
+  IWebdriverStartNormalized,
   IWebDriverSession,
   IWebDriverSessions,
   IDone,
@@ -30,7 +31,7 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public start(req: IWebdriverStartHTTP, res: ServerResponse) {
+  public start(req: IWebdriverStartHTTP, res: ServerResponse, params: IWebdriverStartNormalized['params']) {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {
@@ -46,7 +47,7 @@ export class WebDriver {
     const job: IJob = Object.assign(
       (done: IDone) => {
         req.removeListener('close', earlyClose);
-        this.launchChrome(req.body)
+        this.launchChrome(params)
           .then((chromeDriver) => {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
@@ -215,35 +216,14 @@ export class WebDriver {
     return session;
   }
 
-  private launchChrome(body: any, retries = 1): Promise<IChromeDriver> {
-    const blockAds = body.desiredCapabilities['browserless.blockAds'];
-    const trackingId = body.desiredCapabilities['browserless.trackingId'];
-    const pauseOnConnect = body.desiredCapabilities['browserless.pause'];
-    const launchArgs: string[] = _.get(body, 'desiredCapabilities["goog:chromeOptions"].args', []);
-    const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
-    const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
-    let windowSize;
-
-    if (Array.isArray(windowSizeParsed)) {
-      const [ width, height ] = windowSizeParsed;
-      windowSize = {
-        width: +width,
-        height: +height,
-      };
-    }
-
-    return chromeHelper.launchChromeDriver({
-      blockAds,
-      pauseOnConnect,
-      trackingId,
-      windowSize,
-    })
+  private launchChrome(params: IWebdriverStartNormalized['params'], retries = 1): Promise<IChromeDriver> {
+    return chromeHelper.launchChromeDriver(params)
       .catch((error) => {
         debug(`Issue launching ChromeDriver, error:`, error);
 
         if (retries) {
           debug(`Retrying launch of ChromeDriver`);
-          return this.launchChrome(body, retries - 1);
+          return this.launchChrome(params, retries - 1);
         }
 
         debug(`Retries exhausted, throwing`);
