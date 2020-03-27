@@ -1,3 +1,8 @@
+# [1.29.1](https://github.com/browserless/chrome/compare/v1.29.0...v1.29.1)
+- Dependency Updates.
+- Fixes how deploy script determines errors when running child commands.
+- Fixes issues when many selenium sessions can potentially fill up disk space.
+
 # [1.29.0](https://github.com/browserless/chrome/compare/v1.28.0...v1.29.0)
 - Dependency updates.
 - Uses `pipe`'s for most API calls and other internal endpoints for faster/better throughput. Works only for `headless` API/puppeteer calls.
