@@ -1,5 +1,5 @@
 import { ChildProcess, fork } from 'child_process';
-import * as EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import * as path from 'path';
 import { getDebug } from '../utils';
 import {
