@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 import { NodeVM } from 'vm2';
 
 import { launchChrome } from '../chrome-helper';
-import { getDebug, patchDecontextify } from '../utils';
+import { getDebug } from '../utils';
 
 import {
   ILaunchOptions,
@@ -99,7 +99,7 @@ const start = async (
     require: sandboxOpts,
     sandbox,
   });
-  patchDecontextify(vm);
+
   const handler = vm.run(code);
 
   await handler({ page, context: {} });
