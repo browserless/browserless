@@ -52,7 +52,7 @@
     },
     "chrome-stable": {
       "puppeteer": "1.15.0",
-      "chromeRevision": "722274"
+      "chromeRevision": "989"
     }
   },
   "releaseVersions": [
