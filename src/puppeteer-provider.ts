@@ -138,7 +138,7 @@ export class PuppeteerProvider {
         root: './node_modules',
       },
     });
-    utils.patchDecontextify(vm);
+
     const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
       jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);

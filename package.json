@@ -113,7 +113,7 @@
     "tslint": "^6.0.0",
     "typescript": "^3.3.3",
     "untildify": "^4.0.0",
-    "vm2": "^3.8.1"
+    "vm2": "^3.9.1"
   },
   "devDependencies": {
     "env-cmd": "^10.0.0"
