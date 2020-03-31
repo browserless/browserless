@@ -1,6 +1,7 @@
 import * as Joi from 'joi';
 
 const waitFor = [Joi.string(), Joi.number()];
+const userAgent = Joi.string();
 
 const gotoOptions = Joi.object().keys({
   timeout: Joi.number(),
@@ -103,6 +104,7 @@ export const screenshot = Joi.object().keys({
   setExtraHTTPHeaders,
   setJavaScriptEnabled,
   url: Joi.string(),
+  userAgent,
   viewport,
   waitFor,
 }).xor('url', 'html');
@@ -118,6 +120,7 @@ export const content = Joi.object().keys({
   setExtraHTTPHeaders,
   setJavaScriptEnabled,
   url: Joi.string().required(),
+  userAgent,
   waitFor,
 });
 
@@ -160,6 +163,7 @@ export const pdf = Joi.object().keys({
   setExtraHTTPHeaders,
   setJavaScriptEnabled,
   url: Joi.string(),
+  userAgent,
   viewport,
   waitFor,
 }).xor('url', 'html');
@@ -185,6 +189,7 @@ export const scrape = Joi.object().keys({
   requestInterceptors,
   setExtraHTTPHeaders,
   url: Joi.string().required(),
+  userAgent,
   waitFor,
 });
 

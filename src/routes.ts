@@ -24,6 +24,7 @@ import {
   generateChromeTarget,
   lstat,
   queryValidation,
+  mkdir,
 } from './utils';
 
 import {
@@ -93,8 +94,20 @@ export const getRoutes = ({
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      cb(null, workspaceDir);
+    destination: async (req, _file, cb) => {
+      let trackingId = req.query.trackingId || '';
+
+      if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
+        return cb(new Error(`trackingId must not include paths`), workspaceDir);
+      }
+
+      const finalDest = path.join(workspaceDir, trackingId);
+
+      if (trackingId && !(await exists(finalDest))) {
+        await mkdir(finalDest);
+      }
+
+      cb(null, finalDest);
     },
     filename: (_req, file, cb) => {
       cb(null, file.originalname);
