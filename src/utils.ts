@@ -94,7 +94,7 @@ export const buildWorkspaceDir = async (dir: string): Promise<IWorkspaceItem[] |
     return null;
   }
 
-  return  await readFilesRecursive(dir);
+  return await readFilesRecursive(dir);
 };
 
 export const getBasicAuthToken = (req: IncomingMessage): string => {

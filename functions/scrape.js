@@ -46,6 +46,7 @@ module.exports = async function scrape ({ page, context }) {
     setExtraHTTPHeaders = null,
     url,
     elements,
+    userAgent = null,
     waitFor,
     debug = {
       cookies: false,
@@ -103,6 +104,10 @@ module.exports = async function scrape ({ page, context }) {
 
   if (cookies.length) {
     await page.setCookie(...cookies);
+  }
+
+  if (userAgent) {
+    await page.setUserAgent(userAgent);
   }
 
   await page.goto(url, gotoOptions);

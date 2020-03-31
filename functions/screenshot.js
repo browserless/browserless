@@ -27,6 +27,7 @@ module.exports = async function screenshot ({ page, context } = {}) {
     cookies = [],
     gotoOptions,
     html = '',
+    userAgent = '',
     manipulate = null,
     options = {},
     rejectRequestPattern = [],
@@ -70,6 +71,10 @@ module.exports = async function screenshot ({ page, context } = {}) {
 
   if (viewport) {
     await page.setViewport(viewport);
+  }
+
+  if (userAgent) {
+    await page.setUserAgent(userAgent);
   }
 
   if (url !== null) {

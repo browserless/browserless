@@ -72,6 +72,7 @@ module.exports = async function pdf({ page, context }) {
     requestInterceptors = [],
     setExtraHTTPHeaders,
     setJavaScriptEnabled = null,
+    userAgent = null,
     waitFor,
   } = context;
 
@@ -112,6 +113,10 @@ module.exports = async function pdf({ page, context }) {
 
   if (viewport) {
     await page.setViewport(viewport);
+  }
+
+  if (userAgent) {
+    await page.setUserAgent(userAgent);
   }
 
   if (url !== null) {

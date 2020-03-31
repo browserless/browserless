@@ -27,6 +27,7 @@ module.exports = async function content ({ page, context }) {
     cookies = [],
     setExtraHTTPHeaders = null,
     setJavaScriptEnabled = null,
+    userAgent = null,
     waitFor,
   } = context;
 
@@ -59,6 +60,10 @@ module.exports = async function content ({ page, context }) {
 
   if (cookies.length) {
     await page.setCookie(...cookies);
+  }
+
+  if (userAgent) {
+    await page.setUserAgent(userAgent);
   }
 
   if (url !== null) {
