@@ -50,6 +50,7 @@ const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
 const rimraf = require('rimraf');
+const heapdump = require('heapdump');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -81,6 +82,7 @@ interface IGetRoutes {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
 }
 
 export const getRoutes = ({
@@ -91,6 +93,7 @@ export const getRoutes = ({
   workspaceDir,
   disabledFeatures,
   enableAPIGet,
+  enableHeapdump,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -486,6 +489,19 @@ export const getRoutes = ({
 
       return res.json(pages);
     }));
+  }
+
+  if (enableHeapdump) {
+    router.get('/heapdump', (_req, res) => {
+      const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
+      heapdump.writeSnapshot(heapLocation, (err: Error) => {
+        if (err) {
+          return res.status(500).send(err.message);
+        }
+
+        return res.sendFile(heapLocation, (_err: Error) => rimraf(heapLocation, _.noop));
+      });
+    });
   }
 
   return router;

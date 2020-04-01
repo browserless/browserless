@@ -8,6 +8,7 @@ const browserless = new BrowserlessServer({
   disabledFeatures: config.DISABLED_FEATURES,
   enableAPIGet: config.ENABLE_API_GET,
   enableCors: config.ENABLE_CORS,
+  enableHeapdump: config.ENABLE_HEAP_DUMP,
   errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
