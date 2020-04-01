@@ -1,3 +1,8 @@
+# [1.30.0](https://github.com/browserless/chrome/compare/v1.29.1...v1.30.0)
+- Dependency Updates.
+- Updates to Node 13 for speed and memory improvements.
+- browserless/base@1.4.0
+
 # [1.29.1](https://github.com/browserless/chrome/compare/v1.29.0...v1.29.1)
 - Dependency Updates.
 - Fixes how deploy script determines errors when running child commands.

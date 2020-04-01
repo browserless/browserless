@@ -1,8 +1,11 @@
 {
   "name": "browserless-chrome",
-  "version": "1.29.1",
+  "version": "1.30.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
+  "engines": {
+    "node": ">=13.0.0"
+  },
   "main": "build/index.js",
   "files": [
     "build/main.css",
@@ -49,7 +52,7 @@
     },
     "chrome-stable": {
       "puppeteer": "1.15.0",
-      "chromeRevision": "722274"
+      "chromeRevision": "989"
     }
   },
   "releaseVersions": [
@@ -110,7 +113,7 @@
     "tslint": "^6.0.0",
     "typescript": "^3.3.3",
     "untildify": "^4.0.0",
-    "vm2": "^3.8.1"
+    "vm2": "^3.9.1"
   },
   "devDependencies": {
     "env-cmd": "^10.0.0"
