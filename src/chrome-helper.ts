@@ -70,6 +70,12 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     defaultArgs.split(',');
 };
 
+export const killBrowser = (browser: puppeteer.Browser | IBrowser) => {
+  debug(`Sending SIGKILL signal to browser process ${browser.process().pid}`);
+  browser.close().catch(_.noop);
+  treekill(browser.process().pid, 'SIGKILL');
+};
+
 const setupPage = async ({
   page,
   pauseOnConnect,
@@ -132,7 +138,7 @@ const setupPage = async ({
 };
 
 const setupBrowser = async ({
-  browser,
+  browser: pptrBrowser,
   isUsingTempDataDir,
   prebooted,
   browserlessDataDir,
@@ -157,31 +163,35 @@ const setupBrowser = async ({
   port: number | string;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
-  const iBrowser = browser as IBrowser;
+  const browser = pptrBrowser as IBrowser;
 
-  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`);
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
+    .catch((err) => {
+      killBrowser(browser);
+      throw err;
+    });
 
-  iBrowser._isOpen = true;
-  iBrowser._parsed = url.parse(webSocketDebuggerUrl, true);
-  iBrowser._keepalive = keepalive;
-  iBrowser._browserProcess = process;
-  iBrowser._isUsingTempDataDir = isUsingTempDataDir;
-  iBrowser._browserlessDataDir = browserlessDataDir;
-  iBrowser._trackingId = trackingId;
-  iBrowser._keepaliveTimeout = null;
-  iBrowser._startTime = Date.now();
-  iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
-  iBrowser._prebooted = prebooted;
-  iBrowser._wsEndpoint = webSocketDebuggerUrl;
+  browser._isOpen = true;
+  browser._parsed = url.parse(webSocketDebuggerUrl, true);
+  browser._keepalive = keepalive;
+  browser._browserProcess = process;
+  browser._isUsingTempDataDir = isUsingTempDataDir;
+  browser._browserlessDataDir = browserlessDataDir;
+  browser._trackingId = trackingId;
+  browser._keepaliveTimeout = null;
+  browser._startTime = Date.now();
+  browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
+  browser._prebooted = prebooted;
+  browser._wsEndpoint = webSocketDebuggerUrl;
 
-  await browserHook({ browser: iBrowser });
+  await browserHook({ browser });
 
-  iBrowser._browserProcess.once('exit', (code, signal) => {
+  browser._browserProcess.once('exit', (code, signal) => {
     debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
-    closeBrowser(iBrowser)
+    closeBrowser(browser)
   });
 
-  iBrowser.on('targetcreated', async (target) => {
+  browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
 
@@ -200,12 +210,12 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await iBrowser.pages();
+  const pages = await browser.pages();
 
   pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
-  runningBrowsers.push(iBrowser);
+  runningBrowsers.push(browser);
 
-  return iBrowser;
+  return browser;
 };
 
 export const defaultLaunchArgs = {
@@ -501,11 +511,9 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
     browser.removeAllListeners();
-    browser.close().catch(_.noop);
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
-    treekill(browser._browserProcess.pid, 'SIGKILL');
+    killBrowser(browser);
   }
 };
