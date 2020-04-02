@@ -132,7 +132,7 @@ const setupPage = async ({
 };
 
 const setupBrowser = async ({
-  browser,
+  browser: pptrBrowser,
   isUsingTempDataDir,
   prebooted,
   browserlessDataDir,
@@ -157,31 +157,36 @@ const setupBrowser = async ({
   port: number | string;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
-  const iBrowser = browser as IBrowser;
+  const browser = pptrBrowser as IBrowser;
 
-  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`);
+  browser._isOpen = true;
+  browser._keepalive = keepalive;
+  browser._browserProcess = process;
+  browser._isUsingTempDataDir = isUsingTempDataDir;
+  browser._browserlessDataDir = browserlessDataDir;
+  browser._trackingId = trackingId;
+  browser._keepaliveTimeout = null;
+  browser._startTime = Date.now();
+  browser._prebooted = prebooted;
 
-  iBrowser._isOpen = true;
-  iBrowser._parsed = url.parse(webSocketDebuggerUrl, true);
-  iBrowser._keepalive = keepalive;
-  iBrowser._browserProcess = process;
-  iBrowser._isUsingTempDataDir = isUsingTempDataDir;
-  iBrowser._browserlessDataDir = browserlessDataDir;
-  iBrowser._trackingId = trackingId;
-  iBrowser._keepaliveTimeout = null;
-  iBrowser._startTime = Date.now();
-  iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
-  iBrowser._prebooted = prebooted;
-  iBrowser._wsEndpoint = webSocketDebuggerUrl;
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
+    .catch((err) => {
+      closeBrowser(browser);
+      throw err;
+    });
 
-  await browserHook({ browser: iBrowser });
+  browser._parsed = url.parse(webSocketDebuggerUrl, true);
+  browser._wsEndpoint = webSocketDebuggerUrl;
+  browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
-  iBrowser._browserProcess.once('exit', (code, signal) => {
+  await browserHook({ browser });
+
+  browser._browserProcess.once('exit', (code, signal) => {
     debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
-    closeBrowser(iBrowser)
+    closeBrowser(browser)
   });
 
-  iBrowser.on('targetcreated', async (target) => {
+  browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
 
@@ -200,12 +205,12 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await iBrowser.pages();
+  const pages = await browser.pages();
 
   pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
-  runningBrowsers.push(iBrowser);
+  runningBrowsers.push(browser);
 
-  return iBrowser;
+  return browser;
 };
 
 export const defaultLaunchArgs = {
