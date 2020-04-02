@@ -69,13 +69,13 @@ const start = async (
 
   page.on('request', (request) => {
     if (request.url().startsWith('file://')) {
-      page.browser().close();
+      page.browser().close().catch((_.noop));
     }
   });
 
   page.on('response', (response) => {
     if (response.url().startsWith('file://')) {
-      page.browser().close();
+      page.browser().close().catch((_.noop));
     }
   });
 

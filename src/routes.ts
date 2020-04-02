@@ -8,7 +8,8 @@ import * as path from 'path';
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
-import { PuppeteerProvider } from './puppeteer-provider';
+import { PuppeteerAPI } from './puppeteer-api';
+
 import {
   IBrowserlessOptions,
   IBrowserlessStats,
@@ -74,7 +75,6 @@ const htmlParser = bodyParser.text({
 });
 
 interface IGetRoutes {
-  puppeteerProvider: PuppeteerProvider;
   getMetrics: () => IBrowserlessStats[];
   getConfig: () => IBrowserlessOptions;
   getPressure: () => any;
@@ -83,8 +83,7 @@ interface IGetRoutes {
   enableAPIGet: boolean;
 }
 
-export const getRoutes = ({
-  puppeteerProvider,
+export const router = ({
   getMetrics,
   getConfig,
   getPressure,
@@ -95,7 +94,7 @@ export const getRoutes = ({
   const router = Router();
   const storage = multer.diskStorage({
     destination: async (req, _file, cb) => {
-      let trackingId = req.query.trackingId || '';
+      const trackingId = req.query.trackingId || '';
 
       if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
         return cb(new Error(`trackingId must not include paths`), workspaceDir);
@@ -199,7 +198,7 @@ export const getRoutes = ({
       const code = isJson ? req.body.code : req.body;
       const context = isJson ? req.body.context : {};
 
-      return puppeteerProvider.runHTTP({
+      return new PuppeteerAPI({
         after: downloadAfter,
         before: downloadBefore,
         code,
@@ -229,7 +228,7 @@ export const getRoutes = ({
         const context = isJson ? req.body.context : {};
         const detached = isJson ? !!req.body.detached : false;
 
-        return puppeteerProvider.runHTTP({
+        return new PuppeteerAPI({
           code,
           context,
           detached,
@@ -261,7 +260,7 @@ export const getRoutes = ({
       const code = isJson ? req.body.code : req.body;
       const context = isJson ? req.body.context : {};
 
-      return puppeteerProvider.runHTTP({
+      return new PuppeteerAPI({
         after: screencastAfter,
         before: screenCastBefore,
         code,
@@ -287,7 +286,7 @@ export const getRoutes = ({
     enableAPIGet && router.get('/screenshot',
       queryValidation(screenshotSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           code: screenshot,
           context: req.body,
           req,
@@ -304,7 +303,7 @@ export const getRoutes = ({
         const isJson = typeof req.body === 'object';
         const context = isJson ? req.body : {html: req.body};
 
-        return puppeteerProvider.runHTTP({
+        return new PuppeteerAPI({
           code: screenshot,
           context,
           req,
@@ -318,7 +317,7 @@ export const getRoutes = ({
     enableAPIGet && router.get('/content',
       queryValidation(contentSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           code: content,
           context: req.body,
           req,
@@ -335,7 +334,7 @@ export const getRoutes = ({
         const isJson = typeof req.body === 'object';
         const context = isJson ? req.body : {html: req.body};
 
-        return puppeteerProvider.runHTTP({
+        return new PuppeteerAPI({
           code: content,
           context,
           req,
@@ -349,7 +348,7 @@ export const getRoutes = ({
     enableAPIGet && router.get('/scrape',
       queryValidation(scrapeSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           code: scrape,
           context: req.body,
           req,
@@ -365,7 +364,7 @@ export const getRoutes = ({
         const isJson = typeof req.body === 'object';
         const context = isJson ? req.body : {};
 
-        return puppeteerProvider.runHTTP({
+        return new PuppeteerAPI({
           code: scrape,
           context,
           req,
@@ -379,7 +378,7 @@ export const getRoutes = ({
     enableAPIGet && router.get('/pdf',
       queryValidation(pdfSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           code: pdf,
           context: req.body,
           req,
@@ -396,7 +395,7 @@ export const getRoutes = ({
         const isJson = typeof req.body === 'object';
         const context = isJson ? req.body : {html: req.body};
 
-        return puppeteerProvider.runHTTP({
+        return new PuppeteerAPI({
           code: pdf,
           context,
           req,
@@ -410,7 +409,7 @@ export const getRoutes = ({
     enableAPIGet && router.get('/stats',
       queryValidation(statsSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           builtin: ['url', 'child_process', 'path'],
           code: stats,
           context: req.body,
@@ -423,7 +422,7 @@ export const getRoutes = ({
 
     router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncWebHandler(
       async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
+        new PuppeteerAPI({
           builtin: ['url', 'child_process', 'path'],
           code: stats,
           context: req.body,

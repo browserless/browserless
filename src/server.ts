@@ -15,11 +15,10 @@ import * as util from './utils';
 
 import { ResourceMonitor } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
-import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
-import { getRoutes } from './routes';
+import { router } from './routes';
 import { clearTimers } from './scheduler';
-import { WebDriver } from './webdriver-provider';
+import { WebSocketAPI } from './websocket-api';
 
 import {
   IBrowserlessOptions,
@@ -36,7 +35,7 @@ const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
 const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
-export class BrowserlessServer {
+export class Server {
   public currentStat: IBrowserlessStats;
   public readonly rejectHook: () => void;
   public readonly queueHook: () => void;
@@ -50,8 +49,6 @@ export class BrowserlessServer {
   private stats: IBrowserlessStats[];
   private httpServer: http.Server;
   private readonly resourceMonitor: ResourceMonitor;
-  private puppeteerProvider: PuppeteerProvider;
-  private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
   private workspaceDir: IBrowserlessOptions['workspaceDir'];
   private singleRun: IBrowserlessOptions['singleRun'];
@@ -73,8 +70,6 @@ export class BrowserlessServer {
     });
 
     this.resourceMonitor = new ResourceMonitor();
-    this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
-    this.webdriver = new WebDriver(this.queue);
     this.enableAPIGet = opts.enableAPIGet;
     this.singleRun = opts.singleRun;
     this.workspaceDir = opts.workspaceDir;
@@ -172,10 +167,6 @@ export class BrowserlessServer {
     }];
   }
 
-  public getConfig() {
-    return this.config;
-  }
-
   public getPressure() {
     const queueLength = this.queue.length;
     const queueConcurrency = this.queue.concurrencySize;
@@ -191,15 +182,11 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    await this.puppeteerProvider.start();
-
     return new Promise(async (resolve) => {
-      // Make sure we have http server setup with some headroom
-      // for timeouts (so we can respond with appropriate http codes)
+      const app = express();
       const httpTimeout = this.config.connectionTimeout === -1 ?
         twentyFourHours :
         this.config.connectionTimeout + 100;
-      const app = express();
 
       if (!this.config.disabledFeatures.includes(Features.PROMETHEUS)) {
         client.register.clear();
@@ -214,12 +201,11 @@ export class BrowserlessServer {
         client.collectDefaultMetrics({ timeout: 5000 });
       }
 
-      const routes = getRoutes({
+      const routes = router({
         disabledFeatures: this.config.disabledFeatures,
         getConfig: this.getConfig.bind(this),
         getMetrics: this.getMetrics.bind(this),
         getPressure: this.getPressure.bind(this),
-        puppeteerProvider: this.puppeteerProvider,
         workspaceDir: this.workspaceDir,
         enableAPIGet: this.enableAPIGet,
       });
@@ -288,14 +274,14 @@ export class BrowserlessServer {
             });
           }
 
-          return this.puppeteerProvider.runWebSocket(reqParsed, socket, head);
+          return new WebSocketAPI(reqParsed, socket, head);
         }))
         .setTimeout(httpTimeout)
         .listen(this.config.port, this.config.host, resolve);
     });
   }
 
-  public async kill() {
+  public async shutdown() {
     debug(`Kill received, forcefully closing`);
 
     clearInterval(this.metricsInterval);
@@ -310,8 +296,6 @@ export class BrowserlessServer {
         this.proxy.close();
         resolve();
       }),
-      this.puppeteerProvider.kill(),
-      this.webdriver.kill(),
     ]);
 
     debug(`Successfully shutdown, exiting`);
@@ -336,37 +320,6 @@ export class BrowserlessServer {
     debug(`Successfully shutdown, exiting`);
 
     process.exit(0);
-  }
-
-  public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
-    debug(`${req.url}: ${message}`);
-    res.status(code).send(message);
-    if (recordStat) {
-      this.currentStat.rejected++;
-    }
-    this.rejectHook();
-  }
-
-  public rejectSocket(
-    { req, socket, header, message, recordStat }:
-    { req: http.IncomingMessage; socket: Socket; header: string; message: string; recordStat: boolean; },
-  ) {
-    debug(`${req.url}: ${message}`);
-
-    socket.write([
-      header,
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Encoding: UTF-8',
-      'Accept-Ranges: bytes',
-      'Connection: keep-alive',
-    ].join('\n') + '\n\n');
-    socket.write(message);
-    socket.end();
-
-    if (recordStat) {
-      this.currentStat.rejected++;
-    }
-    this.rejectHook();
   }
 
   private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {

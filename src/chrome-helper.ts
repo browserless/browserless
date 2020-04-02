@@ -8,9 +8,17 @@ import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
 import * as url from 'url';
 
+import { Cluster } from './cluster';
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
+
+import {
+  canPreboot,
+  fetchJson,
+  getDebug,
+  getUserDataDir,
+  rimraf,
+} from './utils';
 
 import {
   IBrowser,
@@ -37,6 +45,8 @@ import {
   PROXY_PORT,
   PROXY_SSL,
   WORKSPACE_DIR,
+  MAX_CONCURRENT_SESSIONS,
+  PREBOOT_CHROME,
 } from './config';
 
 const debug = getDebug('chrome-helper');
@@ -53,6 +63,22 @@ const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 const blacklist = require('../hosts.json');
 
 let runningBrowsers: IBrowser[] = [];
+
+export const defaultLaunchArgs = {
+  args: DEFAULT_LAUNCH_ARGS,
+  blockAds: DEFAULT_BLOCK_ADS,
+  headless: DEFAULT_HEADLESS,
+  ignoreDefaultArgs: DEFAULT_IGNORE_DEFAULT_ARGS,
+  ignoreHTTPSErrors: DEFAULT_IGNORE_HTTPS_ERRORS,
+  pauseOnConnect: false,
+  slowMo: undefined,
+  userDataDir: DEFAULT_USER_DATA_DIR,
+};
+
+const swarm = PREBOOT_CHROME ? new Cluster(
+  () => launchChrome(defaultLaunchArgs, true),
+  MAX_CONCURRENT_SESSIONS,
+) : null;
 
 const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
   const defaultArgs = query.ignoreDefaultArgs;
@@ -159,7 +185,11 @@ const setupBrowser = async ({
   debug(`Chrome PID: ${process.pid}`);
   const iBrowser = browser as IBrowser;
 
-  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`);
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
+    .catch((err) => {
+      debug(`Error setting up browser: ${err}`);
+      throw new Error('Error setting up the browser');
+    });
 
   iBrowser._isOpen = true;
   iBrowser._parsed = url.parse(webSocketDebuggerUrl, true);
@@ -193,7 +223,8 @@ const setupBrowser = async ({
           pauseOnConnect,
           trackingId,
           windowSize,
-        });
+        })
+        .catch((err) => debug(`Error setting up page: ${err}`));
       }
     } catch (error) {
       debug(`Error setting up new browser`, error);
@@ -202,21 +233,13 @@ const setupBrowser = async ({
 
   const pages = await iBrowser.pages();
 
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
+  pages.forEach((page) =>
+    setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize })
+      .catch((err) => debug(`Error setting up page: ${err}`)));
+
   runningBrowsers.push(iBrowser);
 
   return iBrowser;
-};
-
-export const defaultLaunchArgs = {
-  args: DEFAULT_LAUNCH_ARGS,
-  blockAds: DEFAULT_BLOCK_ADS,
-  headless: DEFAULT_HEADLESS,
-  ignoreDefaultArgs: DEFAULT_IGNORE_DEFAULT_ARGS,
-  ignoreHTTPSErrors: DEFAULT_IGNORE_HTTPS_ERRORS,
-  pauseOnConnect: false,
-  slowMo: undefined,
-  userDataDir: DEFAULT_USER_DATA_DIR,
 };
 
 /*
@@ -347,7 +370,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
   };
 };
 
-export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Promise<IBrowser> => {
+export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean, retries: number = 2): Promise<IBrowser> => {
   const port = await getPort();
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
@@ -401,7 +424,29 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
       windowSize: undefined,
       prebooted: isPreboot,
       port,
-    }));
+    }))
+    .catch((err) => {
+      debug(`Error starting the browser: ${err}`);
+      const canRetry = (retries - 1) > 0;
+
+      if (canRetry) {
+        return launchChrome(opts, isPreboot, retries - 1);
+      }
+
+      throw Error(`Couldn't launch chrome, retries exhausted`);
+    });
+};
+
+export const getChrome = async (opts: ILaunchOptions) => {
+  if (swarm) {
+    const usePreboot = canPreboot(opts, defaultLaunchArgs);
+
+    if (usePreboot) {
+      return swarm.get();
+    }
+  }
+
+  return launchChrome(opts, false);
 };
 
 export const launchChromeDriver = async ({
@@ -483,7 +528,7 @@ export const kill = (id: string) => {
   return null;
 };
 
-export const closeBrowser = async (browser: IBrowser) => {
+export const closeBrowser = (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
@@ -496,7 +541,9 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     if (browser._browserlessDataDir) {
       debug(`Removing temp data-dir ${browser._browserlessDataDir}`);
-      rimraf(browser._browserlessDataDir);
+      rimraf(browser._browserlessDataDir).catch((err) => {
+        debug(`Error deleting user-data-dir: ${err}`);
+      });
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
@@ -507,5 +554,6 @@ export const closeBrowser = async (browser: IBrowser) => {
   } finally {
     debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
+    swarm?.create();
   }
 };

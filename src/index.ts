@@ -1,7 +1,7 @@
-import { BrowserlessServer } from './browserless';
+import { Server } from './server';
 import * as config from './config';
 
-const browserless = new BrowserlessServer({
+const browserless = new Server({
   chromeRefreshTime: config.CHROME_REFRESH_TIME,
   connectionTimeout: config.CONNECTION_TIMEOUT,
   demoMode: config.DEMO_MODE,
@@ -31,7 +31,10 @@ const browserless = new BrowserlessServer({
   workspaceDir: config.WORKSPACE_DIR,
 });
 
-browserless.startServer();
+browserless.startServer().catch((err) => {
+  console.error(`Error starting browserless: ${err}`);
+  process.exit(1);
+});
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);

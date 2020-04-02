@@ -1,7 +1,7 @@
 {
     "defaultSeverity": "error",
     "extends": [
-        "tslint:recommended"
+      "tslint:recommended"
     ],
     "jsRules": {},
     "rules": {
@@ -12,7 +12,8 @@
       "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore"],
       "no-shadowed-variable": false,
       "no-unused-expression": false,
-      "no-console": [true, "log"]
+      "no-console": [true, "log"],
+      "no-floating-promises": true
     },
     "rulesDirectory": []
 }

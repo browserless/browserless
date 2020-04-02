@@ -49,8 +49,10 @@ const checkExpiredDownloads = async () => {
 // Only cleanup workspace files if this is docker, otherwise
 // might delete stuff in /tmp
 if (WORKSPACE_DELETE_EXPIRED) {
-  checkExpiredDownloads();
   intervalIds.push(setInterval(checkExpiredDownloads, DAILY));
+  checkExpiredDownloads().catch((err) => {
+    debug(`Error checking expired downloads: ${err}`);
+  });
 }
 
 export const clearTimers = () => intervalIds.forEach((intervalId) => clearInterval(intervalId));

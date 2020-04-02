@@ -211,7 +211,7 @@ export const isAuthorized = (req: IHTTPRequest, token: string) => {
   return true;
 };
 
-export const fetchJson = (url: string, opts?: any) => fetch(url, opts)
+export const fetchJson = async (url: string, opts?: any) => fetch(url, opts)
   .then((res) => {
     if (!res.ok) { throw res; }
     return res.json();

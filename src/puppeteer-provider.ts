@@ -3,16 +3,14 @@ import * as _ from 'lodash';
 import * as net from 'net';
 import { NodeVM } from 'vm2';
 
-import { BrowserlessServer } from './browserless';
+import { Server } from './server';
 import * as chromeHelper from './chrome-helper';
-import { EventArray } from './event-array';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import * as utils from './utils';
 
 import {
   IChromeServiceConfiguration,
-  ILaunchOptions,
   IBrowser,
   IRunHTTP,
   IDone,
@@ -25,45 +23,14 @@ const jobdebug = utils.getDebug('job');
 const jobdetaildebug = utils.getDebug('jobdetail');
 
 export class PuppeteerProvider {
-  private readonly server: BrowserlessServer;
+  private readonly server: Server;
   private config: IChromeServiceConfiguration;
-  private chromeSwarm: EventArray;
   private queue: Queue;
 
-  constructor(config: IChromeServiceConfiguration, server: BrowserlessServer, queue: Queue) {
+  constructor(config: IChromeServiceConfiguration, server: Server, queue: Queue) {
     this.config = config;
     this.server = server;
     this.queue = queue;
-
-    this.chromeSwarm = new EventArray();
-  }
-
-  get keepChromeInstance() {
-    return (
-      this.config.keepAlive &&
-      this.config.prebootChrome &&
-      this.chromeSwarm.length < this.queue.concurrencySize
-    );
-  }
-
-  public async start() {
-    if (this.config.prebootChrome) {
-      sysdebug(`Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`);
-
-      if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions + 3);
-      }
-
-      const launching = Array.from({ length: this.config.maxConcurrentSessions }, () => {
-        const chrome = this.launchChrome(chromeHelper.defaultLaunchArgs, true);
-        this.chromeSwarm.push(chrome);
-        return chrome;
-      });
-
-      return Promise.all(launching);
-    }
-
-    return Promise.resolve();
   }
 
   public proxyWebRequestToPort({
@@ -165,7 +132,8 @@ export class PuppeteerProvider {
           ignoreDefaultArgs,
         };
 
-        this.getChrome(launchOpts)
+        chromeHelper
+          .getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
             const page = await this.newPage(browser);
@@ -373,7 +341,7 @@ export class PuppeteerProvider {
         });
       } :
       (done: IDone) => {
-        const launchPromise = this.getChrome(opts);
+        const launchPromise = chromeHelper.getChrome(opts);
         jobdebug(`${job.id}: Getting browser.`);
 
         const onSocketError = (err: Error) => {
@@ -452,10 +420,6 @@ export class PuppeteerProvider {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job: IJob) => job.close && job.close()),
-      ...this.chromeSwarm.map(async (instance) => {
-        const browser = await instance;
-        await chromeHelper.closeBrowser(browser);
-      }),
       this.queue.removeAllListeners(),
     ]);
     sysdebug(`Kill complete.`);
@@ -474,14 +438,6 @@ export class PuppeteerProvider {
       });
     }
 
-    if (this.chromeSwarm.length) {
-      sysdebug('Instances of chrome in swarm, closing');
-      await Promise.all(this.chromeSwarm.map(async (instance) => {
-        const browser = await instance;
-        await chromeHelper.closeBrowser(browser);
-      }));
-    }
-
     return Promise.resolve();
   }
 
@@ -497,21 +453,20 @@ export class PuppeteerProvider {
   }
 
   private async cleanUpJob(job: IJob) {
-    const { browser } = job;
     jobdebug(`${job.id}: Cleaning up job`);
 
-    if (!browser) {
+    if (!job.browser) {
       jobdebug(`${job.id}: No browser to cleanup, exiting`);
       return;
     }
 
-    if (browser instanceof BrowserlessSandbox) {
-      return browser.close();
+    if (job.browser instanceof BrowserlessSandbox) {
+      return job.browser.close();
     }
 
     const closeChrome = async () => {
       jobdebug(`${job.id}: Browser not needed, closing`);
-      await chromeHelper.closeBrowser(browser);
+      await chromeHelper.closeBrowser(job.browser);
 
       jobdebug(`${job.id}: Browser cleanup complete.`);
 
@@ -544,37 +499,7 @@ export class PuppeteerProvider {
       return;
     }
 
-    closeChrome();
-  }
-
-  private async getChrome(opts: ILaunchOptions): Promise<IBrowser> {
-    return new Promise(async (resolve) => {
-      const canUseChromeSwarm = (
-        this.config.prebootChrome &&
-        utils.canPreboot(opts, chromeHelper.defaultLaunchArgs)
-      );
-
-      sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
-
-      if (!canUseChromeSwarm) {
-        resolve(this.launchChrome(opts, false));
-        return;
-      }
-
-      if (!this.chromeSwarm.length) {
-        sysdebug(`Waiting for chrome instance to be added back`);
-        this.chromeSwarm.once('push', async () => {
-          sysdebug(`Got chrome instance in swarm`);
-          const browser = this.chromeSwarm.shift();
-          resolve(browser);
-        });
-        return;
-      }
-
-      const browser = this.chromeSwarm.shift();
-      resolve(browser);
-      return;
-    });
+    closeChrome().catch(_.noop);
   }
 
   private parseUserCode(code: string, job: IJob): string {
@@ -589,26 +514,6 @@ export class PuppeteerProvider {
           console.error('Unhandled Error:', error.message, error.stack);
         }
       }`;
-  }
-
-  private async launchChrome(opts: ILaunchOptions, isPreboot = false, retries = 1): Promise<IBrowser> {
-    const start = Date.now();
-
-    return chromeHelper.launchChrome(opts, isPreboot)
-      .then((chrome) => {
-        sysdebug(`Chrome launched ${Date.now() - start}ms`);
-        return chrome;
-      })
-      .catch((error) => {
-        if (retries > 0) {
-          const nextRetries = retries - 1;
-          sysdebug(error, `Issue launching Chrome, retrying ${retries} times.`);
-          return this.launchChrome(opts, isPreboot, nextRetries);
-        }
-
-        sysdebug(error, `Issue launching Chrome, retries exhausted.`);
-        throw error;
-      });
   }
 
   private async newPage(browser: IBrowser) {

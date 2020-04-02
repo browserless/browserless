@@ -7,6 +7,8 @@ import * as puppeteer from 'puppeteer';
 import * as url from 'url';
 
 import { BrowserlessSandbox } from './Sandbox';
+import { generateChromeTarget } from './utils';
+import { number } from 'joi';
 
 export interface IChromeDriver {
   port: number;
