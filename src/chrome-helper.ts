@@ -70,12 +70,6 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     defaultArgs.split(',');
 };
 
-export const killBrowser = (browser: puppeteer.Browser | IBrowser) => {
-  debug(`Sending SIGKILL signal to browser process ${browser.process().pid}`);
-  browser.close().catch(_.noop);
-  treekill(browser.process().pid, 'SIGKILL');
-};
-
 const setupPage = async ({
   page,
   pauseOnConnect,
@@ -165,14 +159,7 @@ const setupBrowser = async ({
   debug(`Chrome PID: ${process.pid}`);
   const browser = pptrBrowser as IBrowser;
 
-  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
-    .catch((err) => {
-      killBrowser(browser);
-      throw err;
-    });
-
   browser._isOpen = true;
-  browser._parsed = url.parse(webSocketDebuggerUrl, true);
   browser._keepalive = keepalive;
   browser._browserProcess = process;
   browser._isUsingTempDataDir = isUsingTempDataDir;
@@ -180,9 +167,17 @@ const setupBrowser = async ({
   browser._trackingId = trackingId;
   browser._keepaliveTimeout = null;
   browser._startTime = Date.now();
-  browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
   browser._prebooted = prebooted;
+
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
+    .catch((err) => {
+      closeBrowser(browser);
+      throw err;
+    });
+
+  browser._parsed = url.parse(webSocketDebuggerUrl, true);
   browser._wsEndpoint = webSocketDebuggerUrl;
+  browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
   await browserHook({ browser });
 
@@ -511,9 +506,11 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
     browser.removeAllListeners();
+    browser.close().catch(_.noop);
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    killBrowser(browser);
+    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
+    treekill(browser._browserProcess.pid, 'SIGKILL');
   }
 };
