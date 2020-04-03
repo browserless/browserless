@@ -1,3 +1,9 @@
+# [1.31.0](https://github.com/browserless/chrome/compare/v1.30.0...v1.31.0)
+- Dependency Updates.
+- Allows `trackingId` on uploaded files to save in the appropriate tracking-ID folder.
+- New `userAgent` param for setting user-agent in API requests.
+- Fixes an issue where chrome wasn't being closed in rare cases.
+
 # [1.30.0](https://github.com/browserless/chrome/compare/v1.29.1...v1.30.0)
 - Dependency Updates.
 - Updates to Node 13 for speed and memory improvements.
