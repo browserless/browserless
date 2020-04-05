@@ -13,6 +13,7 @@ RUN apt-get -qq update && \
   git \
   ffmpeg \
   msttcorefonts \
+  fonts-roboto \
   fonts-ubuntu \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
