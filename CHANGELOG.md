@@ -1,3 +1,7 @@
+# [1.31.1](https://github.com/browserless/chrome/compare/v1.31.0...v1.31.1)
+- Dependency Updates.
+- Fixes a small issue where XVFB doesn't start properly during an automated restart.
+
 # [1.31.0](https://github.com/browserless/chrome/compare/v1.30.0...v1.31.0)
 - Dependency Updates.
 - Allows `trackingId` on uploaded files to save in the appropriate tracking-ID folder.
