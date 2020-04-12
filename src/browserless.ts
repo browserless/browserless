@@ -177,7 +177,14 @@ export class BrowserlessServer {
     return this.config;
   }
 
-  public getPressure() {
+  public async getPressure() {
+    const { cpu, memory } = await this.resourceMonitor
+      .getMachineStats()
+      .catch((err) => {
+        debug(`Error loading cpu/memory in pressure call ${err}`);
+        return { cpu: null, memory: null };
+      });
+
     const queueLength = this.queue.length;
     const openSessions = Math.max(this.queue.concurrencySize, getBrowsersRunning());
     const concurrencyMet = queueLength >= openSessions;
@@ -188,6 +195,8 @@ export class BrowserlessServer {
       queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
       running: concurrencyMet ? openSessions : queueLength,
+      cpu: cpu ? cpu * 100 : null,
+      memory: memory ? memory * 100 : null,
     };
   }
 
