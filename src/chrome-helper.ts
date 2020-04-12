@@ -20,6 +20,7 @@ import {
   ISession,
   IChromeDriver,
   IHTTPRequest,
+  IJSONList,
 } from './types';
 
 import {
@@ -69,6 +70,9 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     defaultArgs :
     defaultArgs.split(',');
 };
+
+const getTargets = async ({ port }: { port: string }): Promise<IJSONList[]> =>
+  fetchJson(`http://127.0.0.1:${port}/json/list`);
 
 const setupPage = async ({
   page,
@@ -267,7 +271,7 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
         throw new Error(`Error finding port in browser endpoint: ${port}`);
       }
 
-      const sessions: ISession[] = await fetchJson(`http://127.0.0.1:${port}/json/list`);
+      const sessions = await getTargets({ port });
 
       return sessions
         .filter(({ title }) => title !== 'about:blank')
@@ -311,6 +315,8 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 
   return _.flatten(results);
 };
+
+export const getBrowsersRunning = () => runningBrowsers.length;
 
 export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions => {
   const urlParts = req.parsed;
