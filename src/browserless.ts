@@ -186,7 +186,7 @@ export class BrowserlessServer {
       });
 
     const queueLength = this.queue.length;
-    const openSessions = Math.max(this.queue.concurrencySize, getBrowsersRunning());
+    const openSessions = getBrowsersRunning();
     const concurrencyMet = queueLength >= openSessions;
 
     return {
@@ -194,7 +194,7 @@ export class BrowserlessServer {
       isAvailable: queueLength < this.config.maxQueueLength,
       queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
-      running: concurrencyMet ? openSessions : queueLength,
+      running: openSessions,
       maxConcurrent: this.queue.concurrencySize,
       maxQueued: this.config.maxQueueLength -this.config.maxConcurrentSessions,
       cpu: cpu ? cpu * 100 : null,
