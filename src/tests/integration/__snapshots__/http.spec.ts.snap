@@ -63,6 +63,18 @@ Array [
 ]
 `;
 
-exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `Array []`;
+exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `
+Array [
+  "date",
+  "isAvailable",
+  "queued",
+  "recentlyRejected",
+  "running",
+  "maxConcurrent",
+  "maxQueued",
+  "cpu",
+  "memory",
+]
+`;
 
 exports[`Browserless Chrome HTTP sets a cookie when a token is present 1`] = `undefined`;

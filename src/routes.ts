@@ -95,7 +95,7 @@ export const getRoutes = ({
   const router = Router();
   const storage = multer.diskStorage({
     destination: async (req, _file, cb) => {
-      let trackingId = req.query.trackingId || '';
+      const trackingId = req.query.trackingId || '';
 
       if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
         return cb(new Error(`trackingId must not include paths`), workspaceDir);
@@ -211,9 +211,9 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.PRESSURE_ENDPOINT)) {
-    router.get('/pressure', (_req, res) =>
+    router.get('/pressure', async (_req, res) =>
       res.json({
-        pressure: getPressure(),
+        pressure: await getPressure(),
       }),
     );
   }
