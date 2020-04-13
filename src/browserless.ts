@@ -20,6 +20,7 @@ import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { clearTimers } from './scheduler';
 import { WebDriver } from './webdriver-provider';
+import { getBrowsersRunning } from './chrome-helper';
 
 import {
   IBrowserlessOptions,
@@ -176,17 +177,28 @@ export class BrowserlessServer {
     return this.config;
   }
 
-  public getPressure() {
+  public async getPressure() {
+    const { cpu, memory } = await this.resourceMonitor
+      .getMachineStats()
+      .catch((err) => {
+        debug(`Error loading cpu/memory in pressure call ${err}`);
+        return { cpu: null, memory: null };
+      });
+
     const queueLength = this.queue.length;
-    const queueConcurrency = this.queue.concurrencySize;
-    const concurrencyMet = queueLength >= queueConcurrency;
+    const openSessions = Math.max(this.queue.concurrencySize, getBrowsersRunning());
+    const concurrencyMet = queueLength >= openSessions;
 
     return {
       date: Date.now(),
       isAvailable: queueLength < this.config.maxQueueLength,
-      queued: concurrencyMet ? queueLength - queueConcurrency : 0,
+      queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
-      running: concurrencyMet ? queueConcurrency : queueLength,
+      running: concurrencyMet ? openSessions : queueLength,
+      maxConcurrent: this.queue.concurrencySize,
+      maxQueued: this.queue.length - this.queue.concurrencySize,
+      cpu: cpu ? cpu * 100 : null,
+      memory: memory ? memory * 100 : null,
     };
   }
 

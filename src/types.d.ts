@@ -257,3 +257,13 @@ export interface IWebdriverStartNormalized {
   body: any;
   params: IBrowserlessSessionOptions;
 }
+
+export interface IJSONList {
+  description: string;
+  devtoolsFrontendUrl: string;
+  id: string;
+  title: string;
+  type: string;
+  url: string;
+  webSocketDebuggerUrl: string;
+}
