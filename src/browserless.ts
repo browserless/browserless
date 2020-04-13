@@ -195,6 +195,8 @@ export class BrowserlessServer {
       queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
       running: concurrencyMet ? openSessions : queueLength,
+      maxConcurrent: this.queue.concurrencySize,
+      maxQueued: this.queue.length - this.queue.concurrencySize,
       cpu: cpu ? cpu * 100 : null,
       memory: memory ? memory * 100 : null,
     };
