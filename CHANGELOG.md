@@ -1,3 +1,9 @@
+# [1.32.0](https://github.com/browserless/chrome/compare/v1.31.1...v1.32.0)
+- Dependency Updates.
+- Adds roboto fonts.
+- Updates `pressure` API to take account of running browsers in the `running` count.
+- Adds `maxConcurrent`, `maxQueued`, `cpu` and `memory` to pressure.
+
 # [1.31.1](https://github.com/browserless/chrome/compare/v1.31.0...v1.31.1)
 - Dependency Updates.
 - Fixes a small issue where XVFB doesn't start properly during an automated restart.
