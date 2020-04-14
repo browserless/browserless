@@ -146,13 +146,13 @@ export interface IChromeServiceConfiguration {
   token: string | null;
 }
 
-interface IBefore {
+export interface IBefore {
   page: puppeteer.Page;
   code: string;
   debug: (message: string) => void;
 }
 
-interface IAfter {
+export interface IAfter {
   page: puppeteer.Page;
   res: Response;
   done: (err?: Error) => any;
@@ -266,4 +266,25 @@ export interface IJSONList {
   type: string;
   url: string;
   webSocketDebuggerUrl: string;
+}
+
+export interface IBeforeHookRequest {
+  req: IHTTPRequest;
+  res?: ServerResponse;
+  socket?: net.Socket;
+  head?: Buffer;
+}
+
+export interface IAfterHookResponse {
+  req: IHTTPRequest | IWebdriverStartHTTP;
+  start: number;
+  status: 'successful' | 'error' | 'timedout';
+}
+
+export interface IBrowserHook {
+ browser: IBrowser;
+}
+
+export interface IPageHook {
+  page: puppeteer.Page;
 }
