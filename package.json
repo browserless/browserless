@@ -81,7 +81,7 @@
     "@types/request": "^2.48.2",
     "@types/rimraf": "^3.0.0",
     "@types/shortid": "0.0.29",
-    "archiver": "^3.0.0",
+    "archiver": "^4.0.1",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
     "chromedriver": "^80.0.0",
