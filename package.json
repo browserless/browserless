@@ -26,14 +26,6 @@
     "post-install": "npm run external && npm run symlink-chrome && npm run meta"
   },
   "puppeteerVersions": {
-    "puppeteer-1.17.0": {
-      "puppeteer": "1.17.0",
-      "chromeRevision": "662092"
-    },
-    "puppeteer-1.18.1": {
-      "puppeteer": "1.18.1",
-      "chromeRevision": "672088"
-    },
     "puppeteer-1.19.0": {
       "puppeteer": "1.19.0",
       "chromeRevision": "674921"
@@ -50,17 +42,21 @@
       "puppeteer": "2.1.1",
       "chromeRevision": "737027"
     },
+    "puppeteer-3.0.0": {
+      "puppeteer": "3.0.0",
+      "chromeRevision": "737027"
+    },
     "chrome-stable": {
       "puppeteer": "1.15.0",
       "chromeRevision": "737173"
     }
   },
   "releaseVersions": [
+    "puppeteer-3.0.0",
     "puppeteer-2.1.1",
     "puppeteer-2.0.0",
     "puppeteer-1.20.0",
     "puppeteer-1.19.0",
-    "puppeteer-1.18.1",
     "chrome-stable"
   ],
   "author": "jgriffith",
