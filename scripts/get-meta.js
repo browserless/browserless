@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 /*
   This script sucks out versioning information out from Chrome
   so that we can label builds nicely in docker and facilitate
