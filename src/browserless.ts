@@ -353,10 +353,11 @@ export class BrowserlessServer {
   public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
+
     if (recordStat) {
       this.currentStat.rejected++;
+      this.rejectHook();
     }
-    this.rejectHook();
   }
 
   public rejectSocket(
@@ -377,8 +378,8 @@ export class BrowserlessServer {
 
     if (recordStat) {
       this.currentStat.rejected++;
+      this.rejectHook();
     }
-    this.rejectHook();
   }
 
   private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
