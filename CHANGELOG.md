@@ -1,3 +1,14 @@
+# [1.33.1](https://github.com/browserless/chrome/compare/v1.33.0...v1.33.1)
+- Dependency updates.
+- Fix socket errors from accidentally firing error webhooks.
+
+# [1.33.0](https://github.com/browserless/chrome/compare/v1.32.0...v1.33.0)
+- Drops support for puppeteer 1.17.x and 1.18.x
+- Support for puppeteer 3.0.x
+- Dependency updates
+- Fix reject stat firing on debugger pages not being found
+- Consolidates more types.
+
 # [1.32.0](https://github.com/browserless/chrome/compare/v1.31.1...v1.32.0)
 - Dependency Updates.
 - Adds roboto fonts.
