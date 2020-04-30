@@ -378,7 +378,6 @@ export class PuppeteerProvider {
 
         const onSocketError = (err: Error) => {
           jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-          doneOnce(err);
         };
 
         const doneOnce = _.once((err) => {
@@ -389,7 +388,7 @@ export class PuppeteerProvider {
           done(err);
         });
 
-        socket.once('error', onSocketError);
+        socket.on('error', onSocketError);
 
         launchPromise
           .then(async (browser) => {
