@@ -23,7 +23,9 @@
     "test": "DEBUG=quiet jest --runInBand",
     "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "post-install": "npm run external && npm run symlink-chrome && npm run meta"
+    "post-install": "npm run external && npm run symlink-chrome && npm run meta",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "puppeteerVersions": {
     "puppeteer-1.19.0": {
@@ -109,7 +111,8 @@
     "tslint": "^6.0.0",
     "typescript": "^3.3.3",
     "untildify": "^4.0.0",
-    "vm2": "^3.9.1"
+    "vm2": "^3.9.1",
+    "snyk": "^1.316.1"
   },
   "devDependencies": {
     "env-cmd": "^10.0.0"
@@ -125,5 +128,6 @@
       ".(ts)": "ts-jest"
     },
     "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.tsx?$"
-  }
+  },
+  "snyk": true
 }
