@@ -34,6 +34,10 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
   }
 
+  if (USE_CHROME_STABLE) {
+    return packageJson.puppeteerVersions['chrome-stable'].chromeRevision;
+  }
+
   const pinnedRevision = packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`];
 
   if (pinnedRevision) {

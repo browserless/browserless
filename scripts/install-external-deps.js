@@ -13,7 +13,6 @@ const {
   WINDOWS,
   MAC,
 } = require('../env');
-const { reject } = require('bluebird');
 
 const browserlessTmpDir = path.join(os.tmpdir(), `browserless-devtools-${Date.now()}`);
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fdevtools-frontend.zip?alt=media`;
