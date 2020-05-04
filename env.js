@@ -1,4 +1,3 @@
-const fs = require('fs');
 const os = require('os');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
