@@ -153,21 +153,13 @@ export interface IBefore {
 }
 
 export interface IAfter {
+  downloadPath: string;
   page: puppeteer.Page;
   res: Response;
   done: (err?: Error) => any;
   debug: (message: string) => any;
   code: string;
   stopScreencast: () => void;
-}
-
-interface IPreferences {
-  width: number;
-  height: number;
-  audio: boolean;
-  code: string;
-  type: string;
-  mimeType: string;
 }
 
 export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |

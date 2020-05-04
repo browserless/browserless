@@ -266,19 +266,9 @@ export const getRoutes = ({
         before: screenCastBefore,
         code,
         context,
-        flags: [
-          '--enable-usermedia-screen-capturing',
-          '--allow-http-screen-capture',
-          '--auto-select-desktop-capture-source=browserless-screencast',
-          '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-          '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-        ],
-        headless: false,
-        ignoreDefaultArgs: [
-          '--enable-automation',
-        ],
         req,
         res,
+        ignoreDefaultArgs: ['--enable-automation'],
       });
     }));
   }
