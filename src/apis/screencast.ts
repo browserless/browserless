@@ -33,10 +33,6 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
         this.canvas = document.createElement('canvas');
         this.downloadAnchor = document.createElement('a');
 
-        this.canvas.style.top = '-100000000px';
-        this.canvas.style.left = '-100000000px';
-        this.canvas.style.position = 'float';
-
         document.body.appendChild(this.canvas);
         document.body.appendChild(this.downloadAnchor);
 

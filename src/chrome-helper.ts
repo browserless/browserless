@@ -274,7 +274,6 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
       const sessions = await getTargets({ port });
 
       return sessions
-        .filter(({ title }) => title !== 'about:blank')
         .map((session) => {
           const wsEndpoint = browser._wsEndpoint;
           const proxyParams = {
