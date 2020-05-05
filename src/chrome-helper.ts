@@ -200,7 +200,7 @@ const setupBrowser = async ({
           blockAds,
           page,
           pauseOnConnect,
-          trackingId,
+          trackingId: browser._trackingId,
           windowSize,
         });
       }

@@ -547,7 +547,7 @@ export class PuppeteerProvider {
   }
 
   private async getChrome(opts: ILaunchOptions): Promise<IBrowser> {
-    return new Promise(async (resolve) => {
+    const browser: Promise<IBrowser> = new Promise(async (resolve) => {
       const canUseChromeSwarm = (
         this.config.prebootChrome &&
         utils.canPreboot(opts, chromeHelper.defaultLaunchArgs)
@@ -564,7 +564,7 @@ export class PuppeteerProvider {
         sysdebug(`Waiting for chrome instance to be added back`);
         this.chromeSwarm.once('push', async () => {
           sysdebug(`Got chrome instance in swarm`);
-          const browser = this.chromeSwarm.shift();
+          const browser = this.chromeSwarm.shift() as IBrowser;
           resolve(browser);
         });
         return;
@@ -573,6 +573,11 @@ export class PuppeteerProvider {
       const browser = this.chromeSwarm.shift();
       resolve(browser);
       return;
+    });
+
+    return browser.then((browser) => {
+      browser._trackingId = opts.trackingId || null;
+      return browser;
     });
   }
 

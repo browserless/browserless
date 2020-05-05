@@ -5,6 +5,7 @@
 ---
 - Dependency updates.
 - Fixes chrome-stable and adds 3.0.2.
+- Fixes `trackingId` on pre-booted sessions.
 - `about:blank` pages now are returned in the `/sessions` API for transparency of open sessions/browsers.
 
 # [1.33.1](https://github.com/browserless/chrome/compare/v1.33.0...v1.33.1)
