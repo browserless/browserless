@@ -1,4 +1,3 @@
-const fs = require('fs');
 const os = require('os');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
@@ -33,6 +32,10 @@ const PLATFORM = os.platform() === 'win32' ?
 const PUPPETEER_CHROMIUM_REVISION = (() => {
   if (process.env.PUPPETEER_CHROMIUM_REVISION) {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
+  }
+
+  if (USE_CHROME_STABLE) {
+    return packageJson.puppeteerVersions['chrome-stable'].chromeRevision;
   }
 
   const pinnedRevision = packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`];

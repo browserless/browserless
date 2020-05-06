@@ -31,14 +31,14 @@ const downloadUrlToDirectory = (url, dir) =>
         .on('finish', resolve)
     }));
 
-const unzip = (source, target) => new Promise((resolve, reject) => {
-  extract(source, { dir: target }, (err) => {
-    if (err) {
-      reject(err);
-    }
-    resolve(target);
-  });
-});
+const unzip = async (source, target) => await extract(source, { dir: target });
+const move = async (src, dest) => fs.move(src, dest, { overwrite: true });
+
+const assertExists = async (filePath) => {
+  if (!(await fs.exists(filePath))) {
+    throw new Error(`${filePath} doesn't exist!`);
+  }
+};
 
 const downloadChromium = () => {
   if (USE_CHROME_STABLE) {
@@ -72,8 +72,9 @@ const downloadChromedriver = () => {
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
     .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
-    .then(() => fs.move(chromedriverUnzippedPath, chromedriverFinalPath, { overwrite: true }))
-    .then(() => fs.chmodSync(chromedriverFinalPath, '755'));
+    .then(() => move(chromedriverUnzippedPath, chromedriverFinalPath))
+    .then(() => fs.chmod(chromedriverFinalPath, '755'))
+    .then(() => assertExists(chromedriverFinalPath));
 };
 
 const downloadDevTools = () => {
@@ -84,10 +85,11 @@ const downloadDevTools = () => {
 
   return downloadUrlToDirectory(devtoolsUrl, devtoolsTmpZip)
     .then(() => unzip(devtoolsTmpZip, browserlessTmpDir))
-    .then(() => fs.move(devtoolsUnzippedPath, devtoolsFinalPath, { overwrite: true }))
+    .then(() => move(devtoolsUnzippedPath, devtoolsFinalPath))
+    .then(() => assertExists(devtoolsFinalPath));
 };
 
-(async () => {
+(() => new Promise(async (resolve, reject) => {
   try {
     await fs.mkdir(browserlessTmpDir);
     await Promise.all([
@@ -95,10 +97,15 @@ const downloadDevTools = () => {
       downloadChromedriver(),
       downloadDevTools(),
     ]);
-    console.log('Done unpacking chromedriver and devtools assets');
   } catch(err) {
-    console.error(`Error unpacking chromedriver and devtools assets:\n${err.message}\n${err.stack}`);
+    console.error(`Error unpacking chromedriver or devtools assets:\n${err.message}\n${err.stack}`);
+    reject(err);
+    process.exit(1);
   } finally {
-    rimraf(browserlessTmpDir, () => {});
+    rimraf(browserlessTmpDir, (err) => {
+      console.log('Done unpacking chromedriver and devtools assets');
+      if (err) console.warn(`Error removing temporary directory ${browserlessTmpDir}`);
+      resolve();
+    });
   }
-})();
+}))();
