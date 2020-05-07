@@ -172,6 +172,8 @@ const setupBrowser = async ({
   browser._keepaliveTimeout = null;
   browser._startTime = Date.now();
   browser._prebooted = prebooted;
+  browser._blockAds = blockAds;
+  browser._pauseOnConnect = pauseOnConnect;
 
   const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
     .catch((err) => {
@@ -197,11 +199,11 @@ const setupBrowser = async ({
       if (page && !page.isClosed()) {
         // @ts-ignore
         setupPage({
-          blockAds,
           page,
-          pauseOnConnect,
-          trackingId: browser._trackingId,
           windowSize,
+          blockAds: browser._blockAds,
+          pauseOnConnect: browser._pauseOnConnect,
+          trackingId: browser._trackingId,
         });
       }
     } catch (error) {

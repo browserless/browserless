@@ -26,6 +26,8 @@ export interface IBrowser extends puppeteer.Browser {
   _startTime: number;
   _id: string;
   _prebooted: boolean;
+  _blockAds: boolean;
+  _pauseOnConnect: boolean;
   _wsEndpoint: string;
 }
 

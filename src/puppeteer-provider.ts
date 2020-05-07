@@ -577,6 +577,10 @@ export class PuppeteerProvider {
 
     return browser.then((browser) => {
       browser._trackingId = opts.trackingId || null;
+      browser._keepalive = opts.keepalive || null;
+      browser._blockAds = opts.blockAds;
+      browser._pauseOnConnect = opts.pauseOnConnect;
+
       return browser;
     });
   }
