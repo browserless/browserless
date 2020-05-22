@@ -1,0 +1,15 @@
+name: Chrome Edge CI
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the latest image
+      run: docker build -t browserless/chrome:latest .
+
+    - name: Test the latest image
+      run: docker run -e CI=true --entrypoint ./test.sh browserless/chrome:latest
