@@ -108,7 +108,7 @@ const setupPage = async ({
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
       downloadPath: workspaceDir,
-    });
+    }).catch(_.noop);
   }
 
   if (pauseOnConnect && !DISABLED_FEATURES.includes(Features.DEBUG_VIEWER)) {

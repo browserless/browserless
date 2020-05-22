@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Chrome Stable CI
 
 on: [pull_request]
 
@@ -7,12 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-
-    - name: Build the latest image
-      run: docker build -t browserless/chrome:latest .
-
-    - name: Test the latest image
-      run: docker run -e CI=true --entrypoint ./test.sh browserless/chrome:latest
 
     - name: Build the chrome-stable image
       run: docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
