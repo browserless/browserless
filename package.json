@@ -48,6 +48,10 @@
       "puppeteer": "3.0.4",
       "chromeRevision": "737027"
     },
+    "puppeteer-3.1.0": {
+      "puppeteer": "3.1.0",
+      "chromeRevision": "756035"
+    },
     "chrome-stable": {
       "puppeteer": "1.15.0",
       "chromeRevision": "756066"
@@ -99,7 +103,7 @@
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "prom-client": "^11.5.3",
-    "puppeteer": "^3.0.2",
+    "puppeteer": "^3.1.0",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
