@@ -1,10 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.33.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.34.0...master)
+- Dependency Updates
+
+# [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
 **Potentially Breaking**
 - screencast API no longer supports `audio` or the `setPreferences` function in order to offer a better video experience. In order to set the width/height, simply set a page width height to what you'd like.
-- `chrome-stable` will now use `puppeteer@3.0.2` for better compatibility.
+- `chrome-stable` will now use `puppeteer@3.1.0` for better compatibility.
 ---
 - Dependency updates.
-- Fixes chrome-stable and adds 3.0.2.
+- Drops puppeteer version `1.20.0` and below.
+- Move `browserless/base` to `v1.5.0`.
+- Puppeteer support for `3.0.4` and `3.1.0`.
 - Fixes `trackingId` on pre-booted sessions.
 - `about:blank` pages now are returned in the `/sessions` API for transparency of open sessions/browsers.
 

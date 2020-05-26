@@ -28,10 +28,6 @@
     "prepare": "npm run snyk-protect"
   },
   "puppeteerVersions": {
-    "puppeteer-1.19.0": {
-      "puppeteer": "1.19.0",
-      "chromeRevision": "674921"
-    },
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
       "chromeRevision": "686378"
@@ -53,16 +49,16 @@
       "chromeRevision": "756035"
     },
     "chrome-stable": {
-      "puppeteer": "1.15.0",
+      "puppeteer": "3.1.0",
       "chromeRevision": "756035"
     }
   },
   "releaseVersions": [
-    "puppeteer-3.0.2",
+    "puppeteer-3.1.0",
+    "puppeteer-3.0.4",
     "puppeteer-2.1.1",
     "puppeteer-2.0.0",
     "puppeteer-1.20.0",
-    "puppeteer-1.19.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
