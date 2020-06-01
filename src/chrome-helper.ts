@@ -52,6 +52,14 @@ const {
 const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
 
 const blacklist = require('../hosts.json');
+const networkBlock = (request: puppeteer.Request) => {
+  const fragments = request.url().split('/');
+  const domain = fragments.length > 2 ? fragments[2] : null;
+  if (blacklist.includes(domain)) {
+    return request.abort();
+  }
+  return request.continue();
+};
 
 let runningBrowsers: IBrowser[] = [];
 
@@ -118,21 +126,14 @@ const setupPage = async ({
 
   if (blockAds) {
     await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const fragments = request.url().split('/');
-      const domain = fragments.length > 2 ? fragments[2] : null;
-      if (blacklist.includes(domain)) {
-        return request.abort();
-      }
-      return request.continue();
-    });
+    page.on('request', networkBlock);
   }
 
   if (windowSize) {
     await page.setViewport(windowSize);
   }
 
-  page.once('close', () => page.removeAllListeners());
+  page.once('close', () => page.off('request', networkBlock));
 };
 
 const setupBrowser = async ({
@@ -512,8 +513,8 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
-    browser.removeAllListeners();
     browser.close().catch(_.noop);
+    browser.removeAllListeners();
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
