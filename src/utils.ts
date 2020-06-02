@@ -114,7 +114,7 @@ export const asyncWsHandler = (handler: IUpgradeHandler) => {
           'Accept-Ranges: bytes',
           'Connection: keep-alive',
         ].join('\n') + '\n\n');
-        socket.write('Bad Request, ', error.message);
+        socket.write(Buffer.from('Bad Request, ' + error.message));
         socket.end();
       });
   };
