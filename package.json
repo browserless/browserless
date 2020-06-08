@@ -1,6 +1,6 @@
 {
   "name": "browserless-chrome",
-  "version": "1.33.0",
+  "version": "1.34.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
