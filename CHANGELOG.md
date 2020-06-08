@@ -9,7 +9,7 @@
 - Dependency updates.
 - Drops puppeteer version `1.20.0` and below.
 - Move `browserless/base` to `v1.5.0`.
-- Puppeteer support for `3.0.4` and `3.1.0`.
+- Puppeteer support for `3.3.0` (3.2.x and 3.1.x have the same chromium revision).
 - Fixes `trackingId` on pre-booted sessions.
 - `about:blank` pages now are returned in the `/sessions` API for transparency of open sessions/browsers.
 
