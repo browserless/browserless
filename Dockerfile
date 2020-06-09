@@ -34,8 +34,11 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb;\
   fi
+
+#Download Fonts
 RUN apt-get install ttf-mscorefonts-installer
 RUN wget https://gist.githubusercontent.com/maxwelleite/913b6775e4e408daa904566eb375b090/raw/ttf-ms-tahoma-installer.sh -q -O - | bash
+
 # Build and install external binaries + assets
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
