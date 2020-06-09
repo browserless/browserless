@@ -34,6 +34,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb;\
   fi
+RUN apt-get install ttf-mscorefonts-installer
 
 # Build and install external binaries + assets
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
