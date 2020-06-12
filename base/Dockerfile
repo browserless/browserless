@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:20.10
 
 COPY fonts.conf /etc/fonts/local.conf
 
@@ -69,7 +69,7 @@ RUN apt-get -qq update && \
   wget \
   xvfb \
   curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_13.x | bash - &&\
+  curl --silent --location https://deb.nodesource.com/setup_14.x | bash - &&\
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
