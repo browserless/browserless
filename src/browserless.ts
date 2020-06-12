@@ -167,8 +167,9 @@ export class BrowserlessServer {
 
     return [...this.stats, {
       ...this.currentStat,
-      cpu,
+      ...this.calculateStats(this.currentStat),
       date: Date.now(),
+      cpu,
       memory,
     }];
   }
@@ -382,6 +383,15 @@ export class BrowserlessServer {
     }
   }
 
+  private calculateStats(stat: IBrowserlessStats) {
+    return {
+      maxTime: _.max(stat.sessionTimes) || 0,
+      minTime: _.min(stat.sessionTimes) || 0,
+      meanTime: _.mean(stat.sessionTimes) || 0,
+      totalTime: _.sum(stat.sessionTimes),
+    };
+  }
+
   private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
     const isStarting = util.isWebdriverStart(req);
     const isClosing = util.isWebdriverClose(req);
@@ -415,6 +425,7 @@ export class BrowserlessServer {
   private onSessionSuccess(_res: express.Response, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     job.close && job.close();
     afterRequest({
       req: job.req,
@@ -426,6 +437,7 @@ export class BrowserlessServer {
   private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     this.errorHook(error.message);
     job.close && job.close();
     afterRequest({
@@ -438,6 +450,7 @@ export class BrowserlessServer {
   private onTimedOut(next: IDone, job: IJob) {
     debug(`${job.id}: Recording timedout stat.`);
     this.currentStat.timedout++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     this.timeoutHook();
     job.onTimeout && job.onTimeout();
     job.close && job.close();
@@ -474,6 +487,11 @@ export class BrowserlessServer {
       rejected: 0,
       successful: 0,
       timedout: 0,
+      totalTime: 0,
+      maxTime: 0,
+      minTime: 0,
+      meanTime: 0,
+      sessionTimes: [],
     };
   }
 
@@ -482,8 +500,8 @@ export class BrowserlessServer {
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
+      ...this.calculateStats(this.currentStat),
       cpu,
-      date: Date.now(),
       memory,
     }));
 

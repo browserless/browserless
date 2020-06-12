@@ -89,6 +89,11 @@ export interface IBrowserlessStats {
   memory: number | null;
   cpu: number | null;
   timedout: number;
+  sessionTimes: number[];
+  totalTime: number;
+  meanTime: number;
+  maxTime: number;
+  minTime: number;
 }
 
 export interface ISandboxOpts {
