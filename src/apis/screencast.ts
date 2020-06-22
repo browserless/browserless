@@ -109,6 +109,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
       format: 'jpeg',
       maxWidth: viewport.width,
       maxHeight: viewport.height,
+      everyNthFrame: 1,
     });
 
     client.on('Page.screencastFrame', ({ data, sessionId }: { data: string; sessionId: string }) => {
