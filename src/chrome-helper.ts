@@ -513,7 +513,7 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
-    browser.close().catch(_.noop);
+    await browser.close().catch(_.noop);
     browser.removeAllListeners();
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
