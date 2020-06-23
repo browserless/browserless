@@ -511,8 +511,10 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    // CPU/Memory being `null` is an indicator of bad health
-    if (!cpu || (cpu * 100) >= this.config.maxCPU || !memory || (memory * 100) >= this.config.maxMemory) {
+    const badCPU = cpu && ((cpu * 100) >= this.config.maxCPU);
+    const badMem = memory && ((memory * 100) >= this.config.maxMemory);
+
+    if (badCPU || badMem) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
       this.healthFailureHook();
     }
