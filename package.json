@@ -48,12 +48,17 @@
       "puppeteer": "3.1.0",
       "chromeRevision": "756035"
     },
+    "puppeteer-4.0.0": {
+      "puppeteer": "4.0.0",
+      "chromeRevision": "756035"
+    },
     "chrome-stable": {
       "puppeteer": "3.1.0",
       "chromeRevision": "756035"
     }
   },
   "releaseVersions": [
+    "puppeteer-4.0.0",
     "puppeteer-3.3.0",
     "puppeteer-3.0.4",
     "puppeteer-2.1.1",
