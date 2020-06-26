@@ -90,7 +90,7 @@
     "chromedriver": "^83.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
-    "debug": "^1",
+    "debug": "^2.6.9",
     "express": "^4.16.2",
     "express-prom-bundle": "^5.1.5",
     "fs-extra": "^9.0.0",
