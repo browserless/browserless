@@ -1,0 +1,9 @@
+{
+  "Browser": "HeadlessChrome/83.0.4103.0",
+  "Protocol-Version": "1.3",
+  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/83.0.4103.0 Safari/537.36",
+  "V8-Version": "8.3.110",
+  "WebKit-Version": "537.36 (@a403248cd79b54ab0ee318df5d1669559a9969d0)",
+  "Debugger-Version": "a403248cd79b54ab0ee318df5d1669559a9969d0",
+  "Puppeteer-Version": "4.0.1"
+}
