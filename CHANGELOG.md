@@ -1,5 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.34.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.35.0...master)
 - Dependency Updates
+
+# [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
+- Dependency Updates
+- New `maxTime`, `minTime`, `meanTime` and `totalTime` of all sessions for a given period in /stats.
+- Bugfix on CPU/Memory triggering health failure webhooks.
+- Fix issues in websocket errors by awaiting browser.close (or 5 seconds, whichever is quickest).
 
 # [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
 **Potentially Breaking**
