@@ -53,7 +53,7 @@
       "chromeRevision": "756035"
     },
     "chrome-stable": {
-      "puppeteer": "3.1.0",
+      "puppeteer": "4.0.1",
       "chromeRevision": "756035"
     }
   },
