@@ -44,7 +44,11 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return pinnedRevision.chromeRevision
   }
 
-  return pptrPackageJSON.puppeteer.chromium_revision;
+  if (pptrPackageJSON.puppeteer) {
+    return pptrPackageJSON.puppeteer.chromium_revision;
+  }
+
+  return require('puppeteer/lib/cjs/revisions').PUPPETEER_REVISIONS.chromium;
 })();
 
 /*
