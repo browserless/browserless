@@ -49,7 +49,12 @@ const {
   PUPPETEER_CHROMIUM_REVISION,
 } = require('../env');
 
-const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
+const BROWSERLESS_ARGS = [
+  '--no-sandbox',
+  '--enable-logging',
+  '--v1=1',
+  '--disable-dev-shm-usage',
+];
 
 const blacklist = require('../hosts.json');
 const networkBlock = (request: puppeteer.Request) => {
@@ -513,12 +518,12 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
+    browser.removeAllListeners();
     await Promise.race([
       browser.close().catch(_.noop),
       // In case browser.close hangs, timeout after 5 seconds
       sleep(5000),
-    ])
-    browser.removeAllListeners();
+    ]).catch((e) => debug(`Error closing browser`, e));
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
