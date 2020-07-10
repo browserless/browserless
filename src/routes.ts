@@ -95,7 +95,7 @@ export const getRoutes = ({
   const router = Router();
   const storage = multer.diskStorage({
     destination: async (req, _file, cb) => {
-      const trackingId = req.query.trackingId || '';
+      const trackingId = (req.query.trackingId || '') as string;
 
       if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
         return cb(new Error(`trackingId must not include paths`), workspaceDir);
@@ -137,8 +137,8 @@ export const getRoutes = ({
       return res.json(downloads);
     });
 
-    router.post('/workspace', async (req: any, res) => {
-      upload(req, res, (err) => {
+    router.post('/workspace', async (req, res) => {
+      return upload(req, res, (err?: any) => {
         if (err) {
           return res.status(400).send(err.message);
         }

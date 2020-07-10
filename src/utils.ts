@@ -156,6 +156,10 @@ export const queryValidation = (schema: Joi.Schema) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     let inflated: string | null = null;
 
+    if (typeof req.query.body !== 'string') {
+      return res.status(400).send(`The query-parameter "body" is required, and must be a URL-encoded JSON object.`);
+    }
+
     try {
       inflated = JSON.parse(req.query.body);
     } catch {
