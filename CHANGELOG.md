@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.35.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.36.0...master)
 - Dependency Updates
+
+# [1.36.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.35.0)
+- Dependency Updates
+- Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
+- Adds support for puppeteer `5.0.0`.
+- Bug-fix with the server randomly closing with an uncaught error event thrown from inside underlying socket connection.
+- Adds back in `--disable-dev-shm-usage` to default arguments for better SHM performance.
 
 # [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
 - Dependency Updates
