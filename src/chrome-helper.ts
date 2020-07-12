@@ -10,7 +10,7 @@ import * as url from 'url';
 
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, rimraf, sleep } from './utils';
+import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 import {
   IBrowser,
@@ -518,12 +518,8 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
+    browser.disconnect();
     browser.removeAllListeners();
-    await Promise.race([
-      browser.close().catch(_.noop),
-      // In case browser.close hangs, timeout after 5 seconds
-      sleep(5000),
-    ]).catch((e) => debug(`Error closing browser`, e));
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
