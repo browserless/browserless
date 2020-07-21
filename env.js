@@ -48,6 +48,11 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return pptrPackageJSON.puppeteer.chromium_revision;
   }
 
+
+  if (puppeteer._preferredRevision) {
+    return puppeteer._preferredRevision;
+  }
+
   return require('puppeteer/lib/cjs/revisions').PUPPETEER_REVISIONS.chromium;
 })();
 
