@@ -221,7 +221,7 @@ export class BrowserlessServer {
           includePath: true,
           includeStatusCode: true,
           includeUp: false,
-          metricsPath: '/prometheus',
+          metricsPath: '/prometheus\(\\?\.\+\)\?',
         });
         app.use(metricsMiddleware);
         client.collectDefaultMetrics({ timeout: 5000 });
