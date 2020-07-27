@@ -1472,6 +1472,49 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
   });
+  
+  describe('/prometheus', () => {
+    it('allows requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus`)
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+
+    it('rejects requests without tokens', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        token: 'abc',
+      });
+
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus`)
+        .then((res) => {
+          expect(res.status).toBe(403);
+        });
+    });
+
+    it('allows requests with tokens', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        token: 'abc',
+      });
+
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus?token=abc`)
+        .then((res) => {
+          expect(res.status).toBe(200);
+        });
+    });
+  });
 
   describe('/stats', () => {
     jest.setTimeout(10000);
