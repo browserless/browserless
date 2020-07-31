@@ -1,6 +1,15 @@
 # [Latest](https://github.com/browserless/chrome/compare/v1.36.0...master)
 - Dependency Updates
 
+# [1.37.0](https://github.com/browserless/chrome/compare/v1.37.0...v1.36.0)
+**Potentially Breaking**
+- Due to stability issues, puppeteer version 3.x.x and 4.x.x now use chromium revision `782078`. See our `package.json` for details.
+---
+- Dependency Updates
+- README Updates
+- Fixes an issue for secured containers using prometheus (plus tests).
+- Support for puppeteer `5.2.1`
+
 # [1.36.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.35.0)
 - Dependency Updates
 - Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.

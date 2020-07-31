@@ -37,19 +37,19 @@
     },
     "puppeteer-3.3.0": {
       "puppeteer": "3.1.0",
-      "chromeRevision": "756035"
+      "chromeRevision": "782078"
     },
     "puppeteer-4.0.1": {
       "puppeteer": "4.0.1",
-      "chromeRevision": "756035"
+      "chromeRevision": "782078"
     },
-    "puppeteer-5.2.0": {
-      "puppeteer": "5.2.0",
-      "chromeRevision": "768783"
+    "puppeteer-5.2.1": {
+      "puppeteer": "5.2.1",
+      "chromeRevision": "782078"
     },
     "chrome-stable": {
-      "puppeteer": "5.0.0",
-      "chromeRevision": "756035"
+      "puppeteer": "5.2.1",
+      "chromeRevision": "782078"
     }
   },
   "releaseVersions": [
@@ -98,7 +98,7 @@
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "prom-client": "^11.5.3",
-    "puppeteer": "^5.0.0",
+    "puppeteer": "^5.2.1",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
@@ -106,6 +106,7 @@
     "sharp": "^0.25.1",
     "snyk": "^1.316.1",
     "systeminformation": "^4.14.8",
+    "table": "^5.4.6",
     "tree-kill": "^1.2.0",
     "ts-jest": "^25.3.0",
     "tslint": "^6.0.0",
