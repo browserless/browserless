@@ -1,8 +1,9 @@
+const { promisify } = require('util');
 const os = require('os');
 const path = require('path');
 const fs = require('fs-extra');
 const fetch = require('node-fetch');
-const extract = require('extract-zip');
+const extract = promisify(require('extract-zip'));
 const rimraf = require('rimraf');
 const puppeteer = require('puppeteer');
 
@@ -31,7 +32,7 @@ const downloadUrlToDirectory = (url, dir) =>
         .on('finish', resolve)
     }));
 
-const unzip = async (source, target) => await extract(source, { dir: target });
+const unzip = async (source, target) => extract(source, { dir: target });
 const move = async (src, dest) => fs.move(src, dest, { overwrite: true });
 
 const assertExists = async (filePath) => {
@@ -72,6 +73,7 @@ const downloadChromedriver = () => {
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
     .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
+    .then(() => assertExists(chromedriverUnzippedPath))
     .then(() => move(chromedriverUnzippedPath, chromedriverFinalPath))
     .then(() => fs.chmod(chromedriverFinalPath, '755'))
     .then(() => assertExists(chromedriverFinalPath));
@@ -85,6 +87,7 @@ const downloadDevTools = () => {
 
   return downloadUrlToDirectory(devtoolsUrl, devtoolsTmpZip)
     .then(() => unzip(devtoolsTmpZip, browserlessTmpDir))
+    .then(() => assertExists(devtoolsUnzippedPath))
     .then(() => move(devtoolsUnzippedPath, devtoolsFinalPath))
     .then(() => assertExists(devtoolsFinalPath));
 };
@@ -98,7 +101,7 @@ const downloadDevTools = () => {
       downloadDevTools(),
     ]);
   } catch(err) {
-    console.error(`Error unpacking chromedriver or devtools assets:\n${err.message}\n${err.stack}`);
+    console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
     reject(err);
     process.exit(1);
   } finally {
