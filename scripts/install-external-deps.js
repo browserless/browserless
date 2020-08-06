@@ -1,9 +1,8 @@
-const { promisify } = require('util');
 const os = require('os');
 const path = require('path');
 const fs = require('fs-extra');
 const fetch = require('node-fetch');
-const extract = promisify(require('extract-zip'));
+const extract = require('extract-zip');
 const rimraf = require('rimraf');
 const puppeteer = require('puppeteer');
 

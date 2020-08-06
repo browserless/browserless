@@ -1,5 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.36.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.37.1...master)
 - Dependency Updates
+
+# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.0)
+- Dependency Updates
+- Fixes an issue in webdriver not starting properly.
 
 # [1.37.0](https://github.com/browserless/chrome/compare/v1.37.0...v1.36.0)
 **Potentially Breaking**
