@@ -86,7 +86,7 @@
     "cors": "^2.8.4",
     "debug": "^4",
     "express": "^4.16.2",
-    "express-prom-bundle": "^5.1.5",
+    "express-prom-bundle": "^6.1.0",
     "fs-extra": "^9.0.0",
     "get-port": "^5.0.0",
     "http-proxy": "^1.16.2",
