@@ -376,19 +376,12 @@ export class PuppeteerProvider {
         const launchPromise = this.getChrome(opts);
         jobdebug(`${job.id}: Getting browser.`);
 
-        const onSocketError = (err: Error) => {
-          jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-        };
-
         const doneOnce = _.once((err) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
-            socket.removeListener('error', onSocketError);
           }
           done(err);
         });
-
-        socket.on('error', onSocketError);
 
         launchPromise
           .then(async (browser) => {

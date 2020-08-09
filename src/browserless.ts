@@ -287,6 +287,12 @@ export class BrowserlessServer {
           const reqParsed = util.parseRequest(req);
           const beforeResults = await beforeRequest({ req: reqParsed, socket, head });
 
+          socket.on('error', (error) => {
+            debug(`Error with inbound socket ${error}\n${error.stack}`);
+          });
+
+          socket.once('close', () => socket.removeAllListeners());
+
           if (!beforeResults) {
             return;
           }
