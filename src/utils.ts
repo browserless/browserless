@@ -478,7 +478,7 @@ export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) =
   return true;
 };
 
-export const dedent = () => (
+export const dedent = (
   strings: string | string[],
   ...values: string[]
 ) => {

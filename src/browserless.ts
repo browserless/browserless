@@ -367,7 +367,7 @@ export class BrowserlessServer {
   ) {
     debug(`${req.url}: ${message}`);
 
-    const httpResponse = utils.dedent(`${header}
+    const httpResponse = util.dedent(`${header}
       Content-Type: text/plain; charset=UTF-8
       Content-Encoding: UTF-8
       Accept-Ranges: bytes
