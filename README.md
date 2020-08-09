@@ -106,7 +106,7 @@ const browser = await puppeteer.launch();
 
 **After**
 ```js
-await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
+const browser = await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
 ```
 
 # Webdriver (selenium)
