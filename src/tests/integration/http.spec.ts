@@ -1472,7 +1472,7 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
   });
-  
+
   describe('/prometheus', () => {
     it('allows requests', async () => {
       const params = defaultParams();

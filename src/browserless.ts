@@ -287,6 +287,12 @@ export class BrowserlessServer {
           const reqParsed = util.parseRequest(req);
           const beforeResults = await beforeRequest({ req: reqParsed, socket, head });
 
+          socket.on('error', (error) => {
+            debug(`Error with inbound socket ${error}\n${error.stack}`);
+          });
+
+          socket.once('close', () => socket.removeAllListeners());
+
           if (!beforeResults) {
             return;
           }
@@ -367,14 +373,15 @@ export class BrowserlessServer {
   ) {
     debug(`${req.url}: ${message}`);
 
-    socket.write([
-      header,
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Encoding: UTF-8',
-      'Accept-Ranges: bytes',
-      'Connection: keep-alive',
-    ].join('\n') + '\n\n');
-    socket.write(message);
+    const httpResponse = util.dedent(`${header}
+      Content-Type: text/plain; charset=UTF-8
+      Content-Encoding: UTF-8
+      Accept-Ranges: bytes
+      Connection: keep-alive
+
+      ${message}`);
+
+    socket.write(httpResponse);
     socket.end();
 
     if (recordStat) {
