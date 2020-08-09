@@ -367,14 +367,15 @@ export class BrowserlessServer {
   ) {
     debug(`${req.url}: ${message}`);
 
-    socket.write([
-      header,
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Encoding: UTF-8',
-      'Accept-Ranges: bytes',
-      'Connection: keep-alive',
-    ].join('\n') + '\n\n');
-    socket.write(message);
+    const httpResponse = utils.dedent(`${header}
+      Content-Type: text/plain; charset=UTF-8
+      Content-Encoding: UTF-8
+      Accept-Ranges: bytes
+      Connection: keep-alive
+
+      ${message}`);
+
+    socket.write(httpResponse);
     socket.end();
 
     if (recordStat) {
