@@ -104,7 +104,7 @@ module.exports = async function pdf({ page, context }) {
   }
 
   if (emulateMedia) {
-    await page.emulateMedia(emulateMedia);
+    await page.emulateMediaType(emulateMedia);
   }
 
   if (cookies.length) {
