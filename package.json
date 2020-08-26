@@ -104,7 +104,7 @@
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.0.0-alpha.1",
-    "sharp": "^0.25.1",
+    "sharp": "^0.26.0",
     "snyk": "^1.316.1",
     "systeminformation": "^4.14.8",
     "table": "^5.4.6",
