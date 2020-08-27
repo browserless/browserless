@@ -2,7 +2,7 @@ import * as cookie from 'cookie';
 import * as express from 'express';
 import * as fs from 'fs';
 import { IncomingMessage } from 'http';
-import * as Joi from 'joi';
+import { Schema } from 'joi';
 import * as _ from 'lodash';
 import * as net from 'net';
 import fetch from 'node-fetch';
@@ -130,14 +130,14 @@ export const asyncWebHandler = (handler: IRequestHandler) => {
   };
 };
 
-export const bodyValidation = (schema: Joi.Schema) => {
+export const bodyValidation = (schema: Schema) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const header = req.header('content-type');
     if (header && !header.includes('json')) {
       return next();
     }
 
-    const result = Joi.validate(req.body, schema);
+    const result = schema.validate(req.body);
 
     if (result.error) {
       debug(`Malformed incoming request: ${result.error}`);
@@ -152,7 +152,7 @@ export const bodyValidation = (schema: Joi.Schema) => {
   };
 };
 
-export const queryValidation = (schema: Joi.Schema) => {
+export const queryValidation = (schema: Schema) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     let inflated: string | null = null;
 
@@ -170,7 +170,7 @@ export const queryValidation = (schema: Joi.Schema) => {
       return res.status(400).send(`The query-parameter "body" is required, and must be a URL-encoded JSON object.`);
     }
 
-    const result = Joi.validate(inflated, schema);
+    const result = schema.validate(inflated);
 
     if (result.error) {
       debug(`Malformed incoming request: ${result.error}`);
