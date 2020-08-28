@@ -31,14 +31,21 @@ const downloadUrlToDirectory = (url, dir) =>
         .on('finish', resolve)
     }));
 
-const unzip = async (source, target) => await extract(source, { dir: target });
+const unzip = async (source, target) => extract(source, { dir: target });
 const move = async (src, dest) => fs.move(src, dest, { overwrite: true });
+const waitForFile = async(filePath) => new Promise((resolve, reject) => {
+  let responded = false;
+  const done = (error) => {
+    if (responded) return;
+    responded = true;
+    clearInterval(interval);
+    clearTimeout(timeout);
+    return error ? reject(error) : resolve();
+  };
 
-const assertExists = async (filePath) => {
-  if (!(await fs.exists(filePath))) {
-    throw new Error(`${filePath} doesn't exist!`);
-  }
-};
+  const interval = setInterval(() => (fs.existsSync(filePath) && done()), 100);
+  const timeout = setTimeout(() => done(`Timeout waiting for file ${filePath}`), 5000);
+});
 
 const downloadChromium = () => {
   if (USE_CHROME_STABLE) {
@@ -71,10 +78,12 @@ const downloadChromedriver = () => {
   const chromedriverFinalPath = path.join(__dirname, '..', 'node_modules', 'chromedriver', 'lib', 'chromedriver', 'chromedriver');
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
+    .then(() => waitForFile(chromedriverTmpZip))
     .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
+    .then(() => waitForFile(chromedriverUnzippedPath))
     .then(() => move(chromedriverUnzippedPath, chromedriverFinalPath))
     .then(() => fs.chmod(chromedriverFinalPath, '755'))
-    .then(() => assertExists(chromedriverFinalPath));
+    .then(() => waitForFile(chromedriverFinalPath));
 };
 
 const downloadDevTools = () => {
@@ -84,9 +93,11 @@ const downloadDevTools = () => {
   const devtoolsFinalPath = path.join(__dirname, '..', 'debugger', 'devtools');
 
   return downloadUrlToDirectory(devtoolsUrl, devtoolsTmpZip)
+    .then(() => waitForFile(devtoolsTmpZip))
     .then(() => unzip(devtoolsTmpZip, browserlessTmpDir))
+    .then(() => waitForFile(devtoolsUnzippedPath))
     .then(() => move(devtoolsUnzippedPath, devtoolsFinalPath))
-    .then(() => assertExists(devtoolsFinalPath));
+    .then(() => waitForFile(devtoolsFinalPath));
 };
 
 (() => new Promise(async (resolve, reject) => {
@@ -98,7 +109,7 @@ const downloadDevTools = () => {
       downloadDevTools(),
     ]);
   } catch(err) {
-    console.error(`Error unpacking chromedriver or devtools assets:\n${err.message}\n${err.stack}`);
+    console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
     reject(err);
     process.exit(1);
   } finally {

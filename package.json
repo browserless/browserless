@@ -1,6 +1,6 @@
 {
   "name": "browserless-chrome",
-  "version": "1.35.0",
+  "version": "1.37.2",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
@@ -37,23 +37,23 @@
     },
     "puppeteer-3.3.0": {
       "puppeteer": "3.1.0",
-      "chromeRevision": "756035"
+      "chromeRevision": "782078"
     },
     "puppeteer-4.0.1": {
       "puppeteer": "4.0.1",
-      "chromeRevision": "756035"
+      "chromeRevision": "782078"
     },
-    "puppeteer-5.0.0": {
-      "puppeteer": "5.0.0",
-      "chromeRevision": "756035"
+    "puppeteer-5.2.1": {
+      "puppeteer": "5.2.1",
+      "chromeRevision": "782078"
     },
     "chrome-stable": {
-      "puppeteer": "5.0.0",
-      "chromeRevision": "756035"
+      "puppeteer": "5.2.1",
+      "chromeRevision": "782078"
     }
   },
   "releaseVersions": [
-    "puppeteer-5.0.0",
+    "puppeteer-5.2.1",
     "puppeteer-4.0.1",
     "puppeteer-3.3.0",
     "puppeteer-2.1.1",
@@ -78,34 +78,36 @@
     "@types/request": "^2.48.2",
     "@types/rimraf": "^3.0.0",
     "@types/shortid": "0.0.29",
-    "archiver": "^4.0.1",
+    "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
-    "chromedriver": "^83.0.0",
+    "chromedriver": "^85.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
     "debug": "^4",
     "express": "^4.16.2",
     "express-prom-bundle": "^5.1.5",
+    "extract-zip": "^2.0.1",
     "fs-extra": "^9.0.0",
     "get-port": "^5.0.0",
     "http-proxy": "^1.16.2",
     "jest": "^25.1.0",
-    "joi": "^14.1.1",
-    "lighthouse": "^6.0.0",
+    "joi": "^17.2.1",
+    "lighthouse": "^6.2.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "prom-client": "^11.5.3",
-    "puppeteer": "^5.0.0",
+    "puppeteer": "^5.2.1",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.0.0-alpha.1",
-    "sharp": "^0.25.1",
+    "sharp": "^0.26.0",
     "snyk": "^1.316.1",
     "systeminformation": "^4.14.8",
+    "table": "^5.4.6",
     "tree-kill": "^1.2.0",
     "ts-jest": "^25.3.0",
     "tslint": "^6.0.0",

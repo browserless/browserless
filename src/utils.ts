@@ -2,7 +2,7 @@ import * as cookie from 'cookie';
 import * as express from 'express';
 import * as fs from 'fs';
 import { IncomingMessage } from 'http';
-import * as Joi from 'joi';
+import { Schema } from 'joi';
 import * as _ from 'lodash';
 import * as net from 'net';
 import fetch from 'node-fetch';
@@ -130,14 +130,14 @@ export const asyncWebHandler = (handler: IRequestHandler) => {
   };
 };
 
-export const bodyValidation = (schema: Joi.Schema) => {
+export const bodyValidation = (schema: Schema) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const header = req.header('content-type');
     if (header && !header.includes('json')) {
       return next();
     }
 
-    const result = Joi.validate(req.body, schema);
+    const result = schema.validate(req.body);
 
     if (result.error) {
       debug(`Malformed incoming request: ${result.error}`);
@@ -152,9 +152,13 @@ export const bodyValidation = (schema: Joi.Schema) => {
   };
 };
 
-export const queryValidation = (schema: Joi.Schema) => {
+export const queryValidation = (schema: Schema) => {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     let inflated: string | null = null;
+
+    if (typeof req.query.body !== 'string') {
+      return res.status(400).send(`The query-parameter "body" is required, and must be a URL-encoded JSON object.`);
+    }
 
     try {
       inflated = JSON.parse(req.query.body);
@@ -166,7 +170,7 @@ export const queryValidation = (schema: Joi.Schema) => {
       return res.status(400).send(`The query-parameter "body" is required, and must be a URL-encoded JSON object.`);
     }
 
-    const result = Joi.validate(inflated, schema);
+    const result = schema.validate(inflated);
 
     if (result.error) {
       debug(`Malformed incoming request: ${result.error}`);
@@ -473,3 +477,51 @@ export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) =
 
   return true;
 };
+
+export const dedent = (
+  strings: string | string[],
+  ...values: string[]
+) => {
+  const raw = Array.isArray(strings) ? strings : [strings];
+
+  let result = '';
+
+  for (let i = 0; i < raw.length; i++) {
+    result += raw[i]
+      // join lines when there is a suppressed newline
+      .replace(/\\\n[ \t]*/g, '')
+      // handle escaped backticks
+      .replace(/\\`/g, '`');
+
+    if (i < values.length) {
+      result += values[i];
+    }
+  }
+
+  // now strip indentation
+  const lines = result.split('\n');
+  let mIndent: number | null = null;
+  lines.forEach(l => {
+    const m = l.match(/^(\s+)\S+/);
+    if (m) {
+      const indent = m[1].length;
+      if (!mIndent) {
+        // this is the first indented line
+        mIndent = indent;
+      } else {
+        mIndent = Math.min(mIndent, indent);
+      }
+    }
+  });
+
+  if (mIndent !== null) {
+    const m = mIndent;
+    result = lines.map(l => l[0] === ' ' ? l.slice(m) : l).join('\n');
+  }
+
+  return result
+    // dedent eats leading and trailing whitespace too
+    .trim()
+    // handle escaped newlines at the end to ensure they don't get stripped too
+    .replace(/\\n/g, '\n');
+}

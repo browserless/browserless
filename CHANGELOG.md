@@ -1,5 +1,30 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.35.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.37.2...master)
 - Dependency Updates
+
+# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.2...v1.37.1)
+- Dependency Updates
+- Fixes an issue where the webserver can crash after rejecting a request.
+- Fixes deployment script not waiting for zip files to be finished unzipped.
+
+# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.0)
+- Dependency Updates
+- Fixes an issue in webdriver not starting properly.
+
+# [1.37.0](https://github.com/browserless/chrome/compare/v1.37.0...v1.36.0)
+**Potentially Breaking**
+- Due to stability issues, puppeteer version 3.x.x and 4.x.x now use chromium revision `782078`. See our `package.json` for details.
+---
+- Dependency Updates
+- README Updates
+- Fixes an issue for secured containers using prometheus (plus tests).
+- Support for puppeteer `5.2.1`
+
+# [1.36.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.35.0)
+- Dependency Updates
+- Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
+- Adds support for puppeteer `5.0.0`.
+- Bug-fix with the server randomly closing with an uncaught error event thrown from inside underlying socket connection.
+- Adds back in `--disable-dev-shm-usage` to default arguments for better SHM performance.
 
 # [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
 - Dependency Updates
