@@ -107,7 +107,7 @@
     "sharp": "^0.26.0",
     "snyk": "^1.316.1",
     "systeminformation": "^4.14.8",
-    "table": "^5.4.6",
+    "table": "^6.0.1",
     "tree-kill": "^1.2.0",
     "ts-jest": "^25.3.0",
     "tslint": "^6.0.0",
