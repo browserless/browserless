@@ -13,6 +13,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,
+  enableHeapdump: false,
   errorAlertURL: null,
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
