@@ -50,7 +50,6 @@ const version = require('../version.json');
 const protocol = require('../protocol.json');
 const hints = require('../hints.json');
 const rimraf = require('rimraf');
-const heapdump = require('heapdump');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -482,6 +481,7 @@ export const getRoutes = ({
   }
 
   if (enableHeapdump) {
+    const heapdump = require('heapdump');
     router.get('/heapdump', (_req, res) => {
       const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
       heapdump.writeSnapshot(heapLocation, (err: Error) => {
