@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 COPY fonts.conf /etc/fonts/local.conf
 
@@ -7,20 +7,20 @@ RUN apt-get -qq update && \
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
-  apt-add-repository ppa:malteworld/ppa && apt-get -qq update && apt-get -y -qq --no-install-recommends install \
+  apt-get -qq update && apt-get -y -qq --no-install-recommends install \
   dumb-init \
   adobe-flashplugin \
   git \
   ffmpeg \
   msttcorefonts \
+  fonts-roboto \
   fonts-ubuntu \
   fonts-noto-color-emoji \
   fonts-noto-cjk \
   fonts-ipafont-gothic \
   fonts-wqy-zenhei \
-  fonts-kacst \ 
+  fonts-kacst \
   fonts-freefont-ttf \
-  fonts-liberation \
   fonts-thai-tlwg \
   fonts-indic \
   fontconfig \
@@ -73,20 +73,6 @@ RUN apt-get -qq update && \
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v
-
-# Pin old GL libs
-RUN wget -q https://launchpadlibrarian.net/445014413/libglapi-mesa_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  wget -q https://launchpadlibrarian.net/445014412/libgl1-mesa-dri_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  wget -q https://launchpadlibrarian.net/445014393/libgl1-mesa-glx_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  wget -q https://launchpadlibrarian.net/445014414/libglx-mesa0_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  wget -q https://launchpadlibrarian.net/445014418/mesa-va-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  wget -q https://launchpadlibrarian.net/445014419/mesa-vdpau-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i libglapi-mesa_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i libgl1-mesa-dri_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i libgl1-mesa-glx_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i libglx-mesa0_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i mesa-va-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb &&\
-  dpkg -i mesa-vdpau-drivers_19.0.8-0ubuntu0~18.04.3_amd64.deb
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \

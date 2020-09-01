@@ -98,7 +98,7 @@ export const getRoutes = ({
   const router = Router();
   const storage = multer.diskStorage({
     destination: async (req, _file, cb) => {
-      let trackingId = req.query.trackingId || '';
+      const trackingId = (req.query.trackingId || '') as string;
 
       if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
         return cb(new Error(`trackingId must not include paths`), workspaceDir);
@@ -140,8 +140,8 @@ export const getRoutes = ({
       return res.json(downloads);
     });
 
-    router.post('/workspace', async (req: any, res) => {
-      upload(req, res, (err) => {
+    router.post('/workspace', async (req, res) => {
+      return upload(req, res, (err?: any) => {
         if (err) {
           return res.status(400).send(err.message);
         }
@@ -214,9 +214,9 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.PRESSURE_ENDPOINT)) {
-    router.get('/pressure', (_req, res) =>
+    router.get('/pressure', async (_req, res) =>
       res.json({
-        pressure: getPressure(),
+        pressure: await getPressure(),
       }),
     );
   }
@@ -269,19 +269,9 @@ export const getRoutes = ({
         before: screenCastBefore,
         code,
         context,
-        flags: [
-          '--enable-usermedia-screen-capturing',
-          '--allow-http-screen-capture',
-          '--auto-select-desktop-capture-source=browserless-screencast',
-          '--load-extension=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-          '--disable-extensions-except=' + path.join(__dirname, '..', 'extensions', 'screencast'),
-        ],
-        headless: false,
-        ignoreDefaultArgs: [
-          '--enable-automation',
-        ],
         req,
         res,
+        ignoreDefaultArgs: ['--enable-automation'],
       });
     }));
   }

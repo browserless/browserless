@@ -26,6 +26,8 @@ export interface IBrowser extends puppeteer.Browser {
   _startTime: number;
   _id: string;
   _prebooted: boolean;
+  _blockAds: boolean;
+  _pauseOnConnect: boolean;
   _wsEndpoint: string;
 }
 
@@ -87,6 +89,11 @@ export interface IBrowserlessStats {
   memory: number | null;
   cpu: number | null;
   timedout: number;
+  sessionTimes: number[];
+  totalTime: number;
+  meanTime: number;
+  maxTime: number;
+  minTime: number;
 }
 
 export interface ISandboxOpts {
@@ -147,28 +154,20 @@ export interface IChromeServiceConfiguration {
   token: string | null;
 }
 
-interface IBefore {
+export interface IBefore {
   page: puppeteer.Page;
   code: string;
   debug: (message: string) => void;
 }
 
-interface IAfter {
+export interface IAfter {
+  downloadPath: string;
   page: puppeteer.Page;
   res: Response;
   done: (err?: Error) => any;
   debug: (message: string) => any;
   code: string;
   stopScreencast: () => void;
-}
-
-interface IPreferences {
-  width: number;
-  height: number;
-  audio: boolean;
-  code: string;
-  type: string;
-  mimeType: string;
 }
 
 export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
@@ -257,4 +256,35 @@ export interface IBrowserlessSessionOptions {
 export interface IWebdriverStartNormalized {
   body: any;
   params: IBrowserlessSessionOptions;
+}
+
+export interface IJSONList {
+  description: string;
+  devtoolsFrontendUrl: string;
+  id: string;
+  title: string;
+  type: string;
+  url: string;
+  webSocketDebuggerUrl: string;
+}
+
+export interface IBeforeHookRequest {
+  req: IHTTPRequest;
+  res?: ServerResponse;
+  socket?: net.Socket;
+  head?: Buffer;
+}
+
+export interface IAfterHookResponse {
+  req: IHTTPRequest | IWebdriverStartHTTP;
+  start: number;
+  status: 'successful' | 'error' | 'timedout';
+}
+
+export interface IBrowserHook {
+ browser: IBrowser;
+}
+
+export interface IPageHook {
+  page: puppeteer.Page;
 }

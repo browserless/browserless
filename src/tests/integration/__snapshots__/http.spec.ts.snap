@@ -70,6 +70,10 @@ Array [
   "queued",
   "recentlyRejected",
   "running",
+  "maxConcurrent",
+  "maxQueued",
+  "cpu",
+  "memory",
 ]
 `;
 

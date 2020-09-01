@@ -376,20 +376,12 @@ export class PuppeteerProvider {
         const launchPromise = this.getChrome(opts);
         jobdebug(`${job.id}: Getting browser.`);
 
-        const onSocketError = (err: Error) => {
-          jobdebug(`${jobId}: A socket error has occurred: ${err.stack}`);
-          doneOnce(err);
-        };
-
         const doneOnce = _.once((err) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
-            socket.removeListener('error', onSocketError);
           }
           done(err);
         });
-
-        socket.once('error', onSocketError);
 
         launchPromise
           .then(async (browser) => {
@@ -548,7 +540,7 @@ export class PuppeteerProvider {
   }
 
   private async getChrome(opts: ILaunchOptions): Promise<IBrowser> {
-    return new Promise(async (resolve) => {
+    const browser: Promise<IBrowser> = new Promise(async (resolve) => {
       const canUseChromeSwarm = (
         this.config.prebootChrome &&
         utils.canPreboot(opts, chromeHelper.defaultLaunchArgs)
@@ -565,7 +557,7 @@ export class PuppeteerProvider {
         sysdebug(`Waiting for chrome instance to be added back`);
         this.chromeSwarm.once('push', async () => {
           sysdebug(`Got chrome instance in swarm`);
-          const browser = this.chromeSwarm.shift();
+          const browser = this.chromeSwarm.shift() as IBrowser;
           resolve(browser);
         });
         return;
@@ -574,6 +566,15 @@ export class PuppeteerProvider {
       const browser = this.chromeSwarm.shift();
       resolve(browser);
       return;
+    });
+
+    return browser.then((browser) => {
+      browser._trackingId = opts.trackingId || null;
+      browser._keepalive = opts.keepalive || null;
+      browser._blockAds = opts.blockAds;
+      browser._pauseOnConnect = opts.pauseOnConnect;
+
+      return browser;
     });
   }
 

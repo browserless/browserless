@@ -20,6 +20,7 @@ import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { clearTimers } from './scheduler';
 import { WebDriver } from './webdriver-provider';
+import { getBrowsersRunning } from './chrome-helper';
 
 import {
   IBrowserlessOptions,
@@ -166,8 +167,9 @@ export class BrowserlessServer {
 
     return [...this.stats, {
       ...this.currentStat,
-      cpu,
+      ...this.calculateStats(this.currentStat),
       date: Date.now(),
+      cpu,
       memory,
     }];
   }
@@ -176,17 +178,28 @@ export class BrowserlessServer {
     return this.config;
   }
 
-  public getPressure() {
+  public async getPressure() {
+    const { cpu, memory } = await this.resourceMonitor
+      .getMachineStats()
+      .catch((err) => {
+        debug(`Error loading cpu/memory in pressure call ${err}`);
+        return { cpu: null, memory: null };
+      });
+
     const queueLength = this.queue.length;
-    const queueConcurrency = this.queue.concurrencySize;
-    const concurrencyMet = queueLength >= queueConcurrency;
+    const openSessions = getBrowsersRunning();
+    const concurrencyMet = queueLength >= openSessions;
 
     return {
       date: Date.now(),
       isAvailable: queueLength < this.config.maxQueueLength,
-      queued: concurrencyMet ? queueLength - queueConcurrency : 0,
+      queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
-      running: concurrencyMet ? queueConcurrency : queueLength,
+      running: openSessions,
+      maxConcurrent: this.queue.concurrencySize,
+      maxQueued: this.config.maxQueueLength -this.config.maxConcurrentSessions,
+      cpu: cpu ? cpu * 100 : null,
+      memory: memory ? memory * 100 : null,
     };
   }
 
@@ -208,7 +221,7 @@ export class BrowserlessServer {
           includePath: true,
           includeStatusCode: true,
           includeUp: false,
-          metricsPath: '/prometheus',
+          metricsPath: '/prometheus\(\\?\.\+\)\?',
         });
         app.use(metricsMiddleware);
         client.collectDefaultMetrics({ timeout: 5000 });
@@ -274,6 +287,12 @@ export class BrowserlessServer {
         .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
           const reqParsed = util.parseRequest(req);
           const beforeResults = await beforeRequest({ req: reqParsed, socket, head });
+
+          socket.on('error', (error) => {
+            debug(`Error with inbound socket ${error}\n${error.stack}`);
+          });
+
+          socket.once('close', () => socket.removeAllListeners());
 
           if (!beforeResults) {
             return;
@@ -342,10 +361,11 @@ export class BrowserlessServer {
   public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
+
     if (recordStat) {
       this.currentStat.rejected++;
+      this.rejectHook();
     }
-    this.rejectHook();
   }
 
   public rejectSocket(
@@ -354,20 +374,30 @@ export class BrowserlessServer {
   ) {
     debug(`${req.url}: ${message}`);
 
-    socket.write([
-      header,
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Encoding: UTF-8',
-      'Accept-Ranges: bytes',
-      'Connection: keep-alive',
-    ].join('\n') + '\n\n');
-    socket.write(message);
+    const httpResponse = util.dedent(`${header}
+      Content-Type: text/plain; charset=UTF-8
+      Content-Encoding: UTF-8
+      Accept-Ranges: bytes
+      Connection: keep-alive
+
+      ${message}`);
+
+    socket.write(httpResponse);
     socket.end();
 
     if (recordStat) {
       this.currentStat.rejected++;
+      this.rejectHook();
     }
-    this.rejectHook();
+  }
+
+  private calculateStats(stat: IBrowserlessStats) {
+    return {
+      maxTime: _.max(stat.sessionTimes) || 0,
+      minTime: _.min(stat.sessionTimes) || 0,
+      meanTime: _.mean(stat.sessionTimes) || 0,
+      totalTime: _.sum(stat.sessionTimes),
+    };
   }
 
   private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -403,6 +433,7 @@ export class BrowserlessServer {
   private onSessionSuccess(_res: express.Response, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     job.close && job.close();
     afterRequest({
       req: job.req,
@@ -414,6 +445,7 @@ export class BrowserlessServer {
   private onSessionFail(error: Error, job: IJob) {
     debug(`${job.id}: Recording failed stat, cleaning up: "${error.message}"`);
     this.currentStat.error++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     this.errorHook(error.message);
     job.close && job.close();
     afterRequest({
@@ -426,6 +458,7 @@ export class BrowserlessServer {
   private onTimedOut(next: IDone, job: IJob) {
     debug(`${job.id}: Recording timedout stat.`);
     this.currentStat.timedout++;
+    this.currentStat.sessionTimes.push(Date.now() - job.start);
     this.timeoutHook();
     job.onTimeout && job.onTimeout();
     job.close && job.close();
@@ -462,6 +495,11 @@ export class BrowserlessServer {
       rejected: 0,
       successful: 0,
       timedout: 0,
+      totalTime: 0,
+      maxTime: 0,
+      minTime: 0,
+      meanTime: 0,
+      sessionTimes: [],
     };
   }
 
@@ -470,8 +508,8 @@ export class BrowserlessServer {
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
+      ...this.calculateStats(this.currentStat),
       cpu,
-      date: Date.now(),
       memory,
     }));
 
@@ -481,8 +519,10 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    // CPU/Memory being `null` is an indicator of bad health
-    if (!cpu || (cpu * 100) >= this.config.maxCPU || !memory || (memory * 100) >= this.config.maxMemory) {
+    const badCPU = cpu && ((cpu * 100) >= this.config.maxCPU);
+    const badMem = memory && ((memory * 100) >= this.config.maxMemory);
+
+    if (badCPU || badMem) {
       debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
       this.healthFailureHook();
     }

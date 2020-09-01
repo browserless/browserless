@@ -20,6 +20,7 @@ import {
   ISession,
   IChromeDriver,
   IHTTPRequest,
+  IJSONList,
 } from './types';
 
 import {
@@ -48,9 +49,22 @@ const {
   PUPPETEER_CHROMIUM_REVISION,
 } = require('../env');
 
-const BROWSERLESS_ARGS = ['--no-sandbox', '--enable-logging', '--v1=1'];
+const BROWSERLESS_ARGS = [
+  '--no-sandbox',
+  '--enable-logging',
+  '--v1=1',
+  '--disable-dev-shm-usage',
+];
 
 const blacklist = require('../hosts.json');
+const networkBlock = (request: puppeteer.Request) => {
+  const fragments = request.url().split('/');
+  const domain = fragments.length > 2 ? fragments[2] : null;
+  if (blacklist.includes(domain)) {
+    return request.abort();
+  }
+  return request.continue();
+};
 
 let runningBrowsers: IBrowser[] = [];
 
@@ -69,6 +83,9 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     defaultArgs :
     defaultArgs.split(',');
 };
+
+const getTargets = async ({ port }: { port: string }): Promise<IJSONList[]> =>
+  fetchJson(`http://127.0.0.1:${port}/json/list`);
 
 const setupPage = async ({
   page,
@@ -104,7 +121,7 @@ const setupPage = async ({
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
       downloadPath: workspaceDir,
-    });
+    }).catch(_.noop);
   }
 
   if (pauseOnConnect && !DISABLED_FEATURES.includes(Features.DEBUG_VIEWER)) {
@@ -114,25 +131,18 @@ const setupPage = async ({
 
   if (blockAds) {
     await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const fragments = request.url().split('/');
-      const domain = fragments.length > 2 ? fragments[2] : null;
-      if (blacklist.includes(domain)) {
-        return request.abort();
-      }
-      return request.continue();
-    });
+    page.on('request', networkBlock);
   }
 
   if (windowSize) {
     await page.setViewport(windowSize);
   }
 
-  page.once('close', () => page.removeAllListeners());
+  page.once('close', () => page.off('request', networkBlock));
 };
 
 const setupBrowser = async ({
-  browser,
+  browser: pptrBrowser,
   isUsingTempDataDir,
   prebooted,
   browserlessDataDir,
@@ -157,42 +167,49 @@ const setupBrowser = async ({
   port: number | string;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
-  const iBrowser = browser as IBrowser;
+  const browser = pptrBrowser as IBrowser;
 
-  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`);
+  browser._isOpen = true;
+  browser._keepalive = keepalive;
+  browser._browserProcess = process;
+  browser._isUsingTempDataDir = isUsingTempDataDir;
+  browser._browserlessDataDir = browserlessDataDir;
+  browser._trackingId = trackingId;
+  browser._keepaliveTimeout = null;
+  browser._startTime = Date.now();
+  browser._prebooted = prebooted;
+  browser._blockAds = blockAds;
+  browser._pauseOnConnect = pauseOnConnect;
 
-  iBrowser._isOpen = true;
-  iBrowser._parsed = url.parse(webSocketDebuggerUrl, true);
-  iBrowser._keepalive = keepalive;
-  iBrowser._browserProcess = process;
-  iBrowser._isUsingTempDataDir = isUsingTempDataDir;
-  iBrowser._browserlessDataDir = browserlessDataDir;
-  iBrowser._trackingId = trackingId;
-  iBrowser._keepaliveTimeout = null;
-  iBrowser._startTime = Date.now();
-  iBrowser._id = (iBrowser._parsed.pathname as string).split('/').pop() as string;
-  iBrowser._prebooted = prebooted;
-  iBrowser._wsEndpoint = webSocketDebuggerUrl;
+  const { webSocketDebuggerUrl } = await fetchJson(`http://localhost:${port}/json/version`)
+    .catch((err) => {
+      closeBrowser(browser);
+      throw err;
+    });
 
-  await browserHook({ browser: iBrowser });
+  browser._parsed = url.parse(webSocketDebuggerUrl, true);
+  browser._wsEndpoint = webSocketDebuggerUrl;
+  browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
-  iBrowser._browserProcess.once('exit', (code, signal) => {
+  await browserHook({ browser });
+
+  browser._browserProcess.once('exit', (code, signal) => {
     debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
-    closeBrowser(iBrowser)
+    closeBrowser(browser)
   });
 
-  iBrowser.on('targetcreated', async (target) => {
+  browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
 
       if (page && !page.isClosed()) {
         // @ts-ignore
         setupPage({
-          blockAds,
           page,
-          pauseOnConnect,
-          trackingId,
           windowSize,
+          blockAds: browser._blockAds,
+          pauseOnConnect: browser._pauseOnConnect,
+          trackingId: browser._trackingId,
         });
       }
     } catch (error) {
@@ -200,12 +217,12 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await iBrowser.pages();
+  const pages = await browser.pages();
 
   pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
-  runningBrowsers.push(iBrowser);
+  runningBrowsers.push(browser);
 
-  return iBrowser;
+  return browser;
 };
 
 export const defaultLaunchArgs = {
@@ -262,10 +279,9 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
         throw new Error(`Error finding port in browser endpoint: ${port}`);
       }
 
-      const sessions: ISession[] = await fetchJson(`http://127.0.0.1:${port}/json/list`);
+      const sessions = await getTargets({ port });
 
       return sessions
-        .filter(({ title }) => title !== 'about:blank')
         .map((session) => {
           const wsEndpoint = browser._wsEndpoint;
           const proxyParams = {
@@ -306,6 +322,8 @@ export const getDebuggingPages = async (): Promise<ISession[]> => {
 
   return _.flatten(results);
 };
+
+export const getBrowsersRunning = () => runningBrowsers.length;
 
 export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions => {
   const urlParts = req.parsed;
@@ -500,8 +518,8 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
+    browser.disconnect();
     browser.removeAllListeners();
-    browser.close().catch(_.noop);
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {

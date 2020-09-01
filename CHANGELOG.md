@@ -1,3 +1,76 @@
+# [Latest](https://github.com/browserless/chrome/compare/v1.37.2...master)
+- Dependency Updates
+
+# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.2...v1.37.1)
+- Dependency Updates
+- Fixes an issue where the webserver can crash after rejecting a request.
+- Fixes deployment script not waiting for zip files to be finished unzipped.
+
+# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.0)
+- Dependency Updates
+- Fixes an issue in webdriver not starting properly.
+
+# [1.37.0](https://github.com/browserless/chrome/compare/v1.37.0...v1.36.0)
+**Potentially Breaking**
+- Due to stability issues, puppeteer version 3.x.x and 4.x.x now use chromium revision `782078`. See our `package.json` for details.
+---
+- Dependency Updates
+- README Updates
+- Fixes an issue for secured containers using prometheus (plus tests).
+- Support for puppeteer `5.2.1`
+
+# [1.36.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.35.0)
+- Dependency Updates
+- Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
+- Adds support for puppeteer `5.0.0`.
+- Bug-fix with the server randomly closing with an uncaught error event thrown from inside underlying socket connection.
+- Adds back in `--disable-dev-shm-usage` to default arguments for better SHM performance.
+
+# [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
+- Dependency Updates
+- New `maxTime`, `minTime`, `meanTime` and `totalTime` of all sessions for a given period in /stats.
+- Bugfix on CPU/Memory triggering health failure webhooks.
+- Fix issues in websocket errors by awaiting browser.close (or 5 seconds, whichever is quickest).
+
+# [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
+**Potentially Breaking**
+- screencast API no longer supports `audio` or the `setPreferences` function in order to offer a better video experience. In order to set the width/height, simply set a page width height to what you'd like.
+- `chrome-stable` will now use `puppeteer@3.1.0` for better compatibility.
+---
+- Dependency updates.
+- Drops puppeteer version `1.20.0` and below.
+- Move `browserless/base` to `v1.5.0`.
+- Puppeteer support for `3.3.0` (3.2.x and 3.1.x have the same chromium revision).
+- Fixes `trackingId` on pre-booted sessions.
+- `about:blank` pages now are returned in the `/sessions` API for transparency of open sessions/browsers.
+
+# [1.33.1](https://github.com/browserless/chrome/compare/v1.33.0...v1.33.1)
+- Dependency updates.
+- Fix socket errors from accidentally firing error webhooks.
+
+# [1.33.0](https://github.com/browserless/chrome/compare/v1.32.0...v1.33.0)
+- Drops support for puppeteer 1.17.x and 1.18.x
+- Support for puppeteer 3.0.x
+- Dependency updates
+- Fix reject stat firing on debugger pages not being found
+- Consolidates more types.
+
+# [1.32.0](https://github.com/browserless/chrome/compare/v1.31.1...v1.32.0)
+- Dependency Updates.
+- Adds roboto fonts.
+- Updates `pressure` API to take account of running browsers in the `running` count.
+- Adds `maxConcurrent`, `maxQueued`, `cpu` and `memory` to pressure.
+
+# [1.31.1](https://github.com/browserless/chrome/compare/v1.31.0...v1.31.1)
+- Dependency Updates.
+- Fixes a small issue where XVFB doesn't start properly during an automated restart.
+
+# [1.31.0](https://github.com/browserless/chrome/compare/v1.30.0...v1.31.0)
+- Dependency Updates.
+- Allows `trackingId` on uploaded files to save in the appropriate tracking-ID folder.
+- New `userAgent` param for setting user-agent in API requests.
+- Fixes an issue where chrome wasn't being closed in rare cases.
+
 # [1.30.0](https://github.com/browserless/chrome/compare/v1.29.1...v1.30.0)
 - Dependency Updates.
 - Updates to Node 13 for speed and memory improvements.

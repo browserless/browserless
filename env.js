@@ -1,4 +1,3 @@
-const fs = require('fs');
 const os = require('os');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
@@ -35,13 +34,26 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return process.env.PUPPETEER_CHROMIUM_REVISION;
   }
 
+  if (USE_CHROME_STABLE) {
+    return packageJson.puppeteerVersions['chrome-stable'].chromeRevision;
+  }
+
   const pinnedRevision = packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`];
 
   if (pinnedRevision) {
     return pinnedRevision.chromeRevision
   }
 
-  return pptrPackageJSON.puppeteer.chromium_revision;
+  if (pptrPackageJSON.puppeteer) {
+    return pptrPackageJSON.puppeteer.chromium_revision;
+  }
+
+
+  if (puppeteer._preferredRevision) {
+    return puppeteer._preferredRevision;
+  }
+
+  return require('puppeteer/lib/cjs/revisions').PUPPETEER_REVISIONS.chromium;
 })();
 
 /*
