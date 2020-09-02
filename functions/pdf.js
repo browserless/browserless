@@ -106,8 +106,8 @@ module.exports = async function pdf({ page, context }) {
   if (emulateMedia) {
     // Run the appropriate emulateMedia method, making sure it's bound properly to the page object
     // @todo remove when support drops for 3.x.x
-    const emulateMedia = (page.emulateMedia || page.emulateMediaType).bind(page);
-    await emulateMedia(emulateMedia);
+    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(page);
+    await emulateMediaFn(emulateMedia);
   }
 
   if (cookies.length) {
