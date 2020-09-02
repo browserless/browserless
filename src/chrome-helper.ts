@@ -522,6 +522,7 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     // Must send #close to force puppeteer to cleanup events
     browser.close();
+    process.removeAllListeners('exit');
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
