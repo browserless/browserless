@@ -83,6 +83,45 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
+  it('runs with no leaks', async (done) => {
+    const params = defaultParams();
+    const browserless = await start({
+      ...params,
+      connectionTimeout: -1,
+    });
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await puppeteer.connect({
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+        });
+
+        browser.once('disconnected', resolve);
+
+        browser.disconnect();
+      });
+    };
+
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(0);
+      expect(browserless.currentStat.successful).toEqual(1);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+
+      // browserless binds to these two events
+      // for graceful closing but puppeteer shouldn't
+      expect(process.listeners('SIGINT').length).toEqual(1);
+      expect(process.listeners('SIGTERM').length).toEqual(1);
+
+      expect(process.listeners('exit').length).toEqual(0);
+      expect(process.listeners('SIGHUP').length).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
   it('runs with job-based timeouts', async (done) => {
     const params = defaultParams();
     const browserless = await start({

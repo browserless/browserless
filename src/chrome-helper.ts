@@ -380,6 +380,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
     executablePath: CHROME_BINARY_LOCATION,
     handleSIGINT: false,
     handleSIGTERM: false,
+    handleSIGHUP: false,
   };
 
   // Having a user-data-dir in args is higher precedence than in opts
@@ -518,8 +519,9 @@ export const closeBrowser = async (browser: IBrowser) => {
     }
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
-    browser.disconnect();
-    browser.removeAllListeners();
+
+    // Must send #close to force puppeteer to cleanup events
+    browser.close();
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
