@@ -1,5 +1,13 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.37.2...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.38.0...master)
 - Dependency Updates
+
+# [v1.38.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.37.2)
+- Dependency Updates
+- Fixes a memory leak when browsers don't close properly.
+- Adds a `/heapdump` route for capturing heap dumps. Turn on by setting `ENABLE_HEAP_DUMP=true` in your docker env.
+- `emulateMedia` fixes on the pdf route.
+- CodeQL implemented.
+- README fixes.
 
 # [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.2...v1.37.1)
 - Dependency Updates
