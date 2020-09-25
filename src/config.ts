@@ -82,6 +82,7 @@ export const DEFAULT_HEADLESS: boolean = parseJSONParam(process.env.DEFAULT_HEAD
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_LAUNCH_ARGS, []);
 export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_DEFAULT_ARGS, false);
 export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_HTTPS_ERRORS, false);
+export const DEFAULT_DUMPIO: boolean = parseJSONParam(process.env.DEFAULT_DUMPIO, false);
 export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR ?
   untildify(process.env.DEFAULT_USER_DATA_DIR) :
   undefined;

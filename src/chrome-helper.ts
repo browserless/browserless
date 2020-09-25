@@ -25,6 +25,7 @@ import {
 
 import {
   DEFAULT_BLOCK_ADS,
+  DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
   DEFAULT_IGNORE_DEFAULT_ARGS,
   DEFAULT_IGNORE_HTTPS_ERRORS,
@@ -341,11 +342,16 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
     pause,
     trackingId,
     keepalive: keepaliveQuery,
+    dumpio: dumpioQuery,
   } = urlParts.query;
 
   const isHeadless = !_.isUndefined(headless) ?
     headless !== 'false' :
     DEFAULT_HEADLESS;
+
+  const dumpio = !_.isUndefined(dumpioQuery) ?
+    dumpioQuery !== 'false' :
+    DEFAULT_DUMPIO;
 
   const parsedKeepalive = _.parseInt(keepaliveQuery as string);
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
@@ -354,6 +360,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
+    dumpio,
     headless: isHeadless,
     ignoreDefaultArgs: parsedIgnoreDefaultArgs,
     ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
