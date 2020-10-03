@@ -1,7 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.38.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.39.0...master)
 - Dependency Updates
 
-# [v1.38.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.37.2)
+# [Latest](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
+- Dependency Updates
+- Fixes a crash due to `browser.close` streams not completing properly.
+- Adds a `dumpio` query-string parameter for launching with puppeteer.
+
+# [v1.38.0](https://github.com/browserless/chrome/compare/v1.37.2...v1.38.0)
 - Dependency Updates
 - Fixes a memory leak when browsers don't close properly.
 - Adds a `/heapdump` route for capturing heap dumps. Turn on by setting `ENABLE_HEAP_DUMP=true` in your docker env.
@@ -9,16 +14,16 @@
 - CodeQL implemented.
 - README fixes.
 
-# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.2...v1.37.1)
+# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.2)
 - Dependency Updates
 - Fixes an issue where the webserver can crash after rejecting a request.
 - Fixes deployment script not waiting for zip files to be finished unzipped.
 
-# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.0)
+# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.0...v1.37.1)
 - Dependency Updates
 - Fixes an issue in webdriver not starting properly.
 
-# [1.37.0](https://github.com/browserless/chrome/compare/v1.37.0...v1.36.0)
+# [1.37.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.37.0)
 **Potentially Breaking**
 - Due to stability issues, puppeteer version 3.x.x and 4.x.x now use chromium revision `782078`. See our `package.json` for details.
 ---
@@ -27,7 +32,7 @@
 - Fixes an issue for secured containers using prometheus (plus tests).
 - Support for puppeteer `5.2.1`
 
-# [1.36.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.35.0)
+# [1.36.0](https://github.com/browserless/chrome/compare/v1.35.0...v1.36.0)
 - Dependency Updates
 - Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
 - Adds support for puppeteer `5.0.0`.
