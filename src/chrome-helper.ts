@@ -520,13 +520,21 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
 
-    // Must send #close to force puppeteer to cleanup events
-    browser.close().catch(_.noop);
+    /*
+     * IMPORTANT
+     * You can't use close due to the possibility of a unhandled error event in
+     * a stream somewhere in puppeteer. Disconnect works, but doesn't cleanup events,
+     * so we're left with #disconnect + a manual removeAllListeners call and setting
+     * the browser object to `null` below to force it to collect
+     */
+    browser.disconnect();
     process.removeAllListeners('exit');
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
     debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
+    // @ts-ignore force any garbage collection by nulling the browser
+    browser = null;
   }
 };
