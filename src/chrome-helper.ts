@@ -11,7 +11,7 @@ import { chromium, BrowserServer } from 'playwright-core';
 
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, rimraf, sleep } from './utils';
+import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
 
 import {
   IBrowser,
@@ -46,7 +46,6 @@ import { PLAYWRIGHT_ROUTE } from './constants';
 
 const debug = getDebug('chrome-helper');
 const getPort = require('get-port');
-const treekill = require('tree-kill');
 const {
   CHROME_BINARY_LOCATION,
   USE_CHROME_STABLE,
@@ -413,15 +412,26 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 
   // If no data-dir is specified, use the default one in opts or generate one
   // except for playwright which will error doing so.
-  if (!hasUserDataDir && !isPlaywright) {
+  if (!hasUserDataDir) {
     browserlessDataDir = opts.userDataDir || await getUserDataDir();
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }
 
   // Only use debugging pipe when headless except for playwright which
   // will error in doing so.
-  if (isHeadless && !isPlaywright) {
+  if (isHeadless) {
     launchArgs.args.push(`--remote-debugging-pipe`);
+  }
+
+  // Reset playwright to a workable state since it can't run headfull or use
+  // a user-data-dir
+  if (isPlaywright) {
+    launchArgs.args = launchArgs.args.filter((arg) => (
+        !arg.startsWith('--user-data-dir') &&
+        arg !== '--remote-debugging-pipe'
+      )
+    );
+    launchArgs.headless = true;
   }
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
@@ -569,9 +579,6 @@ export const closeBrowser = async (browser: IBrowser) => {
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    await sleep(1000);
-    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
-    treekill(browser._browserProcess.pid, 'SIGKILL');
     // @ts-ignore force any garbage collection by nulling the browser
     browser = null;
   }
