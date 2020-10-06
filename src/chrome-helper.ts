@@ -564,7 +564,6 @@ export const closeBrowser = async (browser: IBrowser) => {
       rimraf(browser._browserlessDataDir);
     }
 
-    isPuppeteer(browser._browserServer) ? browser._browserServer.disconnect() : browser._browserServer.close();
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
 
     /*
@@ -574,7 +573,7 @@ export const closeBrowser = async (browser: IBrowser) => {
      * so we're left with #disconnect + a manual removeAllListeners call and setting
      * the browser object to `null` below to force it to collect
      */
-    browser.disconnect();
+    browser.close();
     process.removeAllListeners('exit');
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
