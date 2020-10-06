@@ -10,6 +10,8 @@ import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import * as utils from './utils';
 
+import { DEBUGGER_ROUTE, PLAYWRIGHT_ROUTE } from './constants';
+
 import {
   IChromeServiceConfiguration,
   ILaunchOptions,
@@ -270,7 +272,7 @@ export class PuppeteerProvider {
     const jobId = utils.id();
     const parsedUrl = req.parsed;
     const route = parsedUrl.pathname || '/';
-    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
+    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes(DEBUGGER_ROUTE);
     const debugCode = hasDebugCode ?
       cookie.parse(req.headers.cookie || '')[utils.codeCookieName] :
       '';
@@ -395,6 +397,14 @@ export class PuppeteerProvider {
             socket.once('close', doneOnce);
             browser.once('disconnected', doneOnce);
 
+            if (route.includes(PLAYWRIGHT_ROUTE) && browser._browserServer) {
+              const playwrightRoute = browser._browserServer.wsEndpoint();
+              jobdebug(`${job.id}: Proxying request to /playwright route: ${playwrightRoute}.`);
+              req.url = '';
+
+              return playwrightRoute;
+            }
+
             if (!route.includes('/devtools/page')) {
               jobdebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
               req.url = route;
@@ -409,7 +419,7 @@ export class PuppeteerProvider {
 
             return `ws://127.0.0.1:${port}`;
           })
-          .then((target) => this.server.proxy.ws(req, socket, head, { target }))
+          .then((target) => this.server.proxy.ws(req, socket, head, { target, changeOrigin: true }))
           .catch((error) => {
             jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
             doneOnce(error);

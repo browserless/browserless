@@ -121,7 +121,7 @@ export class BrowserlessServer {
         debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
         const parsed = url.parse(opts.errorAlertURL as string, true);
         parsed.query.error = message;
-        delete parsed.search;
+        parsed.search = null;
         const finalUrl = url.format(parsed);
         request(finalUrl, _.noop);
       }, thirtyMinutes, debounceOpts) :

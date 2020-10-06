@@ -1,6 +1,7 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { Response } from 'express';
+import { BrowserServer } from 'playwright-core';
 import { IncomingMessage, ServerResponse } from 'http';
 import * as net from 'net';
 import * as puppeteer from 'puppeteer';
@@ -29,6 +30,7 @@ export interface IBrowser extends puppeteer.Browser {
   _blockAds: boolean;
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
+  _browserServer: BrowserServer | puppeteer.Browser;
 }
 
 export interface ISession {
@@ -54,6 +56,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   blockAds: boolean;
   trackingId?: string;
   keepalive?: number;
+  playwright: boolean;
 }
 
 export interface IBefore {
