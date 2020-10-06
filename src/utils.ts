@@ -13,6 +13,8 @@ import { PassThrough } from 'stream';
 import * as url from 'url';
 import * as util from 'util';
 
+import { WEBDRIVER_ROUTE } from './constants';
+
 import { WORKSPACE_DIR } from './config';
 
 import {
@@ -41,7 +43,6 @@ export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 
-const webDriverPath = '/webdriver/session';
 const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
 
 const debug = getDebug('system');
@@ -437,7 +438,7 @@ export const getTimeoutParam = (req: IHTTPRequest | IWebdriverStartHTTP): number
 };
 
 export const isWebdriverStart = (req: IncomingMessage) => {
-  return req.method?.toLowerCase() === 'post' && req.url === webDriverPath
+  return req.method?.toLowerCase() === 'post' && req.url === WEBDRIVER_ROUTE
 };
 
 export const isWebdriverClose = (req: IncomingMessage) => {
@@ -445,7 +446,7 @@ export const isWebdriverClose = (req: IncomingMessage) => {
 };
 
 export const isWebdriver = (req: IncomingMessage) => {
-  return req.url?.includes(webDriverPath);
+  return req.url?.includes(WEBDRIVER_ROUTE);
 };
 
 export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) => {

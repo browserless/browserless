@@ -1,4 +1,5 @@
 import * as puppeteer from 'puppeteer';
+import { chromium } from 'playwright-core';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
@@ -255,6 +256,81 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.startServer();
 
     return puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
+      .then(throws)
+      .catch((error) => {
+        expect(browserless.currentStat.successful).toEqual(0);
+        expect(browserless.currentStat.rejected).toEqual(0);
+        expect(browserless.currentStat.queued).toEqual(0);
+        expect(error.message).toContain(`403`);
+      });
+  });
+
+  it('runs playwright', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await chromium.connect({
+          wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
+        });
+
+        browser.once('disconnected', resolve);
+
+        browser.close();
+      });
+    };
+
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(0);
+      expect(browserless.currentStat.successful).toEqual(1);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
+  it(`doesn't allow playwright to do headfull or user-data-dirs`, async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await chromium.connect({
+          wsEndpoint: `ws://127.0.0.1:${params.port}/playwright?--user-data-dir=/tmp&headless=false`,
+        });
+
+        browser.once('disconnected', resolve);
+
+        browser.close();
+      });
+    };
+
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(0);
+      expect(browserless.currentStat.successful).toEqual(1);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
+  it('rejects playwright without tokens', async () => {
+    const params = defaultParams();
+    const browserless = start({
+      ...params,
+      token: 'abc',
+    });
+
+    await browserless.startServer();
+
+    return chromium.connect({ wsEndpoint: `ws://127.0.0.1:${params.port}/playwright` })
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).toEqual(0);

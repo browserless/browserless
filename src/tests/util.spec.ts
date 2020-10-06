@@ -11,6 +11,7 @@ const getArgs = (overrides = {}) => ({
   pauseOnConnect: false,
   slowMo: undefined,
   userDataDir: undefined,
+  playwright: false,
   ...overrides,
 });
 
