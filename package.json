@@ -81,7 +81,7 @@
     "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
-    "chromedriver": "^85.0.0",
+    "chromedriver": "^86.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
     "debug": "^4",
