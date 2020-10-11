@@ -133,6 +133,11 @@ export class PuppeteerProvider {
       res.json({ id: jobId });
     }
 
+    if (await this.queue.overloaded()) {
+      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
+      return this.server.rejectReq(req, res, 503, `Server under load`);
+    }
+
     const vm = new NodeVM({
       require: {
         builtin,
@@ -332,6 +337,17 @@ export class PuppeteerProvider {
       });
     }
 
+    if (await this.queue.overloaded()) {
+      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 503 Server under load`,
+        message: `Server under heavy load, try again later`,
+        recordStat: true,
+        req,
+        socket,
+      });
+    }
+
     const opts = chromeHelper.convertUrlParamsToLaunchOpts(req);
 
     // If debug code is submitted, sandbox it in
@@ -471,7 +487,7 @@ export class PuppeteerProvider {
       await new Promise((resolve) => {
         this.queue.on('end', () => {
           sysdebug(`All jobs complete, proceeding with close`);
-          resolve();
+          resolve(null);
         });
       });
     }

@@ -114,6 +114,7 @@ export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL ||
 export const ERROR_ALERT_URL: string | null = process.env.ERROR_ALERT_URL || null;
 
 // Health
+export const PRE_REQUEST_HEALTH_CHECK: boolean = parseJSONParam(process.env.PRE_REQUEST_HEALTH_CHECK, false);
 export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
 export const MAX_CPU_PERCENT: number = parseNumber(process.env.MAX_CPU_PERCENT, 99);
 export const MAX_MEMORY_PERCENT: number = parseNumber(process.env.MAX_MEMORY_PERCENT, 99);
