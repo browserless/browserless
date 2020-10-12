@@ -1,5 +1,10 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.39.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.40.0...master)
 - Dependency Updates
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
+- Dependency Updates
+- Support for playwright 1.4.0 and greater. [See more here](https://github.com/microsoft/playwright/issues/4054).
+- New `PRE_REQUEST_HEALTH_CHECK` env variable to check CPU/Memory prior to running a session. Set `MAX_CPU_PERCENT` or `MAX_MEMORY_PERCENT` for setting these thresholds. Responds with a `503` HTTP code if CPU/Memory are high on any inbound session (API, puppeteer or webdriver).
 
 # [Latest](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
 - Dependency Updates
