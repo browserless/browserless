@@ -331,12 +331,24 @@ export class PuppeteerProvider {
     // successfully handled
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, closing socket.`);
-      return socket.destroy();
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 429 Too many requests`,
+        recordStat: true,
+        req,
+        socket,
+        message: 'Too many concurrent and queued requests',
+      });
     }
 
     if (await this.queue.overloaded()) {
       jobdebug(`${jobId}: Server under heavy load, closing socket.`);
-      return socket.destroy();
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 503 Server under heavy load`,
+        recordStat: true,
+        req,
+        socket,
+        message: 'Server under heavy load',
+      });
     }
 
     const opts = chromeHelper.convertUrlParamsToLaunchOpts(req);

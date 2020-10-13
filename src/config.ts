@@ -65,6 +65,15 @@ const parseNumber = (param: string | undefined, defaultParam: number): number =>
   return parsed;
 };
 
+const parseSocketBehavior = (behavior: string = 'http'): 'http' | 'close' => {
+  if (behavior !== 'http' && behavior !== 'close') {
+    console.warn(`Unknown socket behavior of "${behavior}" passed in, using "http"`)
+    return 'http';
+  }
+
+  return behavior;
+}
+
 const thirtyMinutes = 30 * 60 * 1000;
 const expandedDir = untildify(process.env.WORKSPACE_DIR || '');
 
@@ -127,6 +136,7 @@ export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH ?
 // Host and port to bind our server to
 export const HOST: string | undefined = process.env.HOST;
 export const PORT: number = parseNumber(process.env.PORT, 8080);
+export const SOCKET_CLOSE_METHOD = parseSocketBehavior(process.env.SOCKET_CLOSE_METHOD);
 
 // Host and port for /session calls to build URLs to.
 // Useful for when browserless is behind a proxy

@@ -30,6 +30,7 @@ const browserless = new BrowserlessServer({
   timeoutAlertURL: config.TIMEOUT_ALERT_URL,
   token: config.TOKEN,
   workspaceDir: config.WORKSPACE_DIR,
+  socketBehavior: config.SOCKET_CLOSE_METHOD,
 });
 
 browserless.startServer();
