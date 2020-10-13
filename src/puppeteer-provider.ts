@@ -326,26 +326,17 @@ export class PuppeteerProvider {
       });
     }
 
+    // Closing a socket without writing an HTTP header triggers many load-balancers
+    // to retry the request, otherwise a response has been written and they see it as
+    // successfully handled
     if (!this.queue.hasCapacity) {
-      jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectSocket({
-        header: `HTTP/1.1 429 Too Many Requests`,
-        message: `Too Many Requests`,
-        recordStat: true,
-        req,
-        socket,
-      });
+      jobdebug(`${jobId}: Too many concurrent and queued requests, closing socket.`);
+      return socket.destroy();
     }
 
     if (await this.queue.overloaded()) {
-      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
-      return this.server.rejectSocket({
-        header: `HTTP/1.1 503 Server under load`,
-        message: `Server under heavy load, try again later`,
-        recordStat: true,
-        req,
-        socket,
-      });
+      jobdebug(`${jobId}: Server under heavy load, closing socket.`);
+      return socket.destroy();
     }
 
     const opts = chromeHelper.convertUrlParamsToLaunchOpts(req);
