@@ -227,6 +227,27 @@ describe('Browserless Chrome WebSockets', () => {
       });
   });
 
+  it('fails requests with socket destroy', async () => {
+    const params = defaultParams();
+    const browserless = start({
+      ...params,
+      socketBehavior: 'close',
+      maxConcurrentSessions: 0,
+      maxQueueLength: 0,
+    });
+
+    await browserless.startServer();
+
+    return puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
+      .then(throws)
+      .catch((error) => {
+        expect(browserless.currentStat.successful).toEqual(0);
+        expect(browserless.currentStat.rejected).toEqual(1);
+        expect(browserless.currentStat.queued).toEqual(0);
+        expect(error.message).toContain(`socket hang up`);
+      });
+  });
+
   it('fails requests in demo mode', async () => {
     const params = defaultParams();
     const browserless = start({

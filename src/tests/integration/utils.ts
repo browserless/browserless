@@ -35,6 +35,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   timeoutAlertURL: null,
   token: null,
   workspaceDir: os.tmpdir(),
+  socketBehavior: 'http',
 });
 
 export const throws = () => {

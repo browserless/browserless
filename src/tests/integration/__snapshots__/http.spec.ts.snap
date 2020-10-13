@@ -30,6 +30,7 @@ Array [
   "timeoutAlertURL",
   "token",
   "workspaceDir",
+  "socketBehavior",
 ]
 `;
 

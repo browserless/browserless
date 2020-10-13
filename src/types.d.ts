@@ -137,6 +137,7 @@ interface IBrowserlessServerConfiguration {
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
   enableHeapdump: boolean;
+  socketBehavior: 'http' | 'close';
 }
 
 export interface IChromeServiceConfiguration {

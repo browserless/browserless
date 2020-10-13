@@ -369,18 +369,22 @@ export class BrowserlessServer {
     { req, socket, header, message, recordStat }:
     { req: http.IncomingMessage; socket: Socket; header: string; message: string; recordStat: boolean; },
   ) {
-    debug(`${req.url}: ${message}`);
+    if (this.config.socketBehavior === 'http') {
+      debug(`${req.url}: ${message}. Behavior of "http" set, writing response and closing.`);
+      const httpResponse = util.dedent(`${header}
+        Content-Type: text/plain; charset=UTF-8
+        Content-Encoding: UTF-8
+        Accept-Ranges: bytes
+        Connection: keep-alive
 
-    const httpResponse = util.dedent(`${header}
-      Content-Type: text/plain; charset=UTF-8
-      Content-Encoding: UTF-8
-      Accept-Ranges: bytes
-      Connection: keep-alive
+        ${message}`);
 
-      ${message}`);
-
-    socket.write(httpResponse);
-    socket.end();
+      socket.write(httpResponse);
+      socket.end();
+    } else {
+      debug(`${req.url}: ${message}. Behavior of "close" set, destroying connection without response.`);
+      socket.destroy();
+    }
 
     if (recordStat) {
       this.currentStat.rejected++;
