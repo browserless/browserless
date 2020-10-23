@@ -494,5 +494,20 @@ export const getRoutes = ({
     });
   }
 
+  if(!disabledFeatures.includes(Features.LIVENESS_ENDPOINT)) {
+    router.get('healthz/live', (_req: Request, res: Response) => {
+      return res.status(200);
+    });
+  }
+
+  if(!disabledFeatures.includes(Features.READINESS_ENDPOINT)) {
+    router.get('healthz/ready', asyncWebHandler(async (_req: Request, res: Response) => {
+      const currentPressure = await getPressure();
+      return currentPressure.isAvailable 
+        ? res.status(200) 
+        : res.status(429);
+    }));
+  }
+
   return router;
 };

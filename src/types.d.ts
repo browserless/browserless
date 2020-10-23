@@ -176,7 +176,8 @@ export interface IAfter {
 
 export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
   'configEndpoint' | 'workspaces' | 'downloadEndpoint' | 'pressureEndpoint' | 'functionEndpoint' | 'killEndpoint' |
-  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint';
+  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint'
+  | 'livenessEndpoint' | 'readinessEndpoint';
 
 export type consoleMethods = 'log' | 'warn' | 'debug' | 'table' | 'info';
 

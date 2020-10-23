@@ -5,7 +5,8 @@ export function isFeature(str: string): str is Feature {
     || str === 'metricsEndpoint' || str === 'configEndpoint' || str === 'workspaces' || str === 'downloadEndpoint'
     || str === 'pressureEndpoint' || str === 'functionEndpoint' || str === 'killEndpoint'
     || str === 'screencastEndpoint' || str === 'screenshotEndpoint' || str === 'contentEndpoint'
-    || str === 'pdfEndpoint' || str === 'statsEndpoint' || str === 'scrapeEndpoint';
+    || str === 'pdfEndpoint' || str === 'statsEndpoint' || str === 'scrapeEndpoint' || str === 'livenessEndpoint'
+    || str === 'readinessEndpoint';
 }
 
 // tslint:disable-next-line:variable-name
@@ -18,10 +19,12 @@ export const Features = {
   FUNCTION_ENDPOINT: 'functionEndpoint' as Feature,
   INTROSPECTION_ENDPOINT: 'introspectionEndpoint' as Feature,
   KILL_ENDPOINT: 'killEndpoint' as Feature,
+  LIVENESS_ENDPOINT: 'livenessEndpoint' as Feature,
   METRICS_ENDPOINT: 'metricsEndpoint' as Feature,
   PDF_ENDPOINT: 'pdfEndpoint' as Feature,
   PRESSURE_ENDPOINT: 'pressureEndpoint' as Feature,
   PROMETHEUS: 'prometheus' as Feature,
+  READINESS_ENDPOINT: 'readinessEndpoint' as Feature,
   SCRAPE_ENDPOINT: 'scrapeEndpoint' as Feature,
   SCREENCAST_ENDPOINT: 'screencastEndpoint' as Feature,
   SCREENSHOT_ENDPOINT: 'screenshotEndpoint' as Feature,
