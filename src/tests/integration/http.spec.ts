@@ -1605,4 +1605,45 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
   });
+
+  describe('/healthz/live', () => {
+    it('responds 200', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/healthz/live`, {
+        method: 'GET'
+      })
+      .then((res) => { expect(res.status).toBe(200) });
+    });
+  });
+
+  describe('/healthz/ready', () => {
+    it('responds 200 when queue is not full', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/healthz/ready`, {
+        method: 'GET'
+      })
+      .then((res) => { expect(res.status).toBe(200) });
+    });
+
+    it('responds 429 when queue is full', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        maxConcurrentSessions: 0,
+        maxQueueLength: 0
+      });
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/healthz/ready`, {
+        method: 'GET'
+      })
+      .then((res) => { expect(res.status).toBe(429) });
+    });
+  });
 });
