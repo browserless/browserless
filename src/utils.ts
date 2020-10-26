@@ -15,7 +15,7 @@ import * as util from 'util';
 
 import { WEBDRIVER_ROUTE } from './constants';
 
-import { WORKSPACE_DIR } from './config';
+import { DEFAULT_BLOCK_ADS, WORKSPACE_DIR } from './config';
 
 import {
   IWebdriverStartHTTP,
@@ -319,9 +319,15 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   req.headers['content-length'] = stringifiedBody.length.toString();
   attachBodyToRequest(req, stringifiedBody);
 
-  const blockAds = !!parsed.desiredCapabilities['browserless.blockAds'];
-  const trackingId = parsed.desiredCapabilities['browserless.trackingId'] || null;
-  const pauseOnConnect = !!parsed.desiredCapabilities['browserless.pause'];
+  const caps = parsed.desiredCapabilities || parsed.capabilities || {
+    'browserless.blockAds': DEFAULT_BLOCK_ADS,
+    'browserless.pause': false,
+    'browserless.trackingId': null,
+  };
+
+  const blockAds = !!caps['browserless.blockAds'];
+  const pauseOnConnect = !!caps['browserless.pause'];
+  const trackingId = caps['browserless.trackingId'] || null;
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
 
