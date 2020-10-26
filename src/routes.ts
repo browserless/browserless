@@ -157,8 +157,11 @@ export const getRoutes = ({
       }
 
       const filePath = path.join(workspaceDir, file);
-
       const hasFile = await exists(filePath);
+
+      if (!filePath.includes(workspaceDir)) {
+        return res.sendStatus(404);
+      }
 
       if (!hasFile) {
         return res.sendStatus(404);
@@ -184,6 +187,10 @@ export const getRoutes = ({
 
       const filePath = path.join(workspaceDir, file);
       const hasFile = await exists(filePath);
+
+      if (!filePath.includes(workspaceDir)) {
+        return res.sendStatus(404);
+      }
 
       if (!hasFile) {
         return res.sendStatus(404);
