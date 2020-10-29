@@ -58,7 +58,8 @@ describe('Browserless Chrome Webdriver', () => {
       capabilities: {
         alwaysMatch: {
           'goog:chromeOptions': {
-            w3c: true
+            w3c: true,
+            args: ['--no-sandbox'],
           },
           pageLoadStrategy: 'normal'
         },
