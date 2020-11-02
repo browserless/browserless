@@ -6,12 +6,13 @@ import * as path from 'path';
 import * as puppeteer from 'puppeteer';
 import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
+import treekill = require('tree-kill');
 import * as url from 'url';
 import { chromium, BrowserServer } from 'playwright-core';
 
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, rimraf } from './utils';
+import { fetchJson, getDebug, getUserDataDir, rimraf, sleep } from './utils';
 
 import {
   IBrowser,
@@ -564,6 +565,7 @@ export const closeBrowser = async (browser: IBrowser) => {
       rimraf(browser._browserlessDataDir);
     }
 
+    isPuppeteer(browser._browserServer) ? browser._browserServer.disconnect() : browser._browserServer.close();
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
 
     /*
@@ -573,11 +575,13 @@ export const closeBrowser = async (browser: IBrowser) => {
      * so we're left with #disconnect + a manual removeAllListeners call and setting
      * the browser object to `null` below to force it to collect
      */
-    browser.close();
     process.removeAllListeners('exit');
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
+    await sleep(1000);
+    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);	
+    treekill(browser._browserProcess.pid, 'SIGKILL');
     // @ts-ignore force any garbage collection by nulling the browser
     browser = null;
   }

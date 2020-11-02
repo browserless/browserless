@@ -1,12 +1,21 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.40.0...master)
-- Dependency Updates
+# [Latest](https://github.com/browserless/chrome/compare/v1.40.2...master)
+- Dependency Updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
+# [v1.40.2](https://github.com/browserless/chrome/compare/v1.40.1...v1.40.2)
+- Dependency Updates.
+- Fix potentially unhandled stream error events when closing chrome.
+- Bump puppeteer to 5.4.1 for major 5.
+
+# [v1.40.1](https://github.com/browserless/chrome/compare/v1.40.0...v1.40.1)
+- Dependency Updates
+- New `SOCKET_CLOSE_METHOD` for better load-balancing behavior when under load.
+
+# [v1.40.0](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
 - Dependency Updates
 - Support for playwright 1.4.0 and greater. [See more here](https://github.com/microsoft/playwright/issues/4054).
 - New `PRE_REQUEST_HEALTH_CHECK` env variable to check CPU/Memory prior to running a session. Set `MAX_CPU_PERCENT` or `MAX_MEMORY_PERCENT` for setting these thresholds. Responds with a `503` HTTP code if CPU/Memory are high on any inbound session (API, puppeteer or webdriver).
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
+# [v1.39.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
 - Dependency Updates
 - Fixes a crash due to `browser.close` streams not completing properly.
 - Adds a `dumpio` query-string parameter for launching with puppeteer.
