@@ -120,22 +120,22 @@ export class PuppeteerProvider {
 
     if (this.config.demoMode) {
       jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
-      return this.server.rejectReq(req, res, 403, 'Unauthorized', false);
+      return this.server.rejectReq(req, res, 403, 'Unauthorized');
     }
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectReq(req, res, 429, `Too Many Requests`);
+      return this.server.rejectReq(req, res, 429, `Too Many Requests`, this.server.capacityFullHook);
+    }
+
+    if (await this.queue.overloaded()) {
+      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
+      return this.server.rejectReq(req, res, 503, `Server under load`, this.server.sessionCheckFailHook);
     }
 
     if (detached) {
       jobdebug(`${jobId}: Function is detached, resolving request.`);
       res.json({ id: jobId });
-    }
-
-    if (await this.queue.overloaded()) {
-      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
-      return this.server.rejectReq(req, res, 503, `Server under load`);
     }
 
     const vm = new NodeVM({
@@ -294,7 +294,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 404 Not Found`,
         message: `Couldn't load session for ${route}`,
-        recordStat: false,
         req,
         socket,
       });
@@ -309,7 +308,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 404 Not Found`,
         message: `Couldn't load session for ${route}`,
-        recordStat: false,
         req,
         socket,
       });
@@ -320,7 +318,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 403 Forbidden`,
         message: `Forbidden`,
-        recordStat: false,
         req,
         socket,
       });
@@ -331,7 +328,7 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 429 Too Many Requests`,
         message: `Too Many Requests`,
-        recordStat: true,
+        failureHook: this.server.capacityFullHook,
         req,
         socket,
       });
@@ -342,7 +339,7 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 503 Server under load`,
         message: `Server under heavy load, try again later`,
-        recordStat: true,
+        failureHook: this.server.sessionCheckFailHook,
         req,
         socket,
       });

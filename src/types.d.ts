@@ -131,6 +131,7 @@ interface IBrowserlessServerConfiguration {
   timeoutAlertURL: string | null;
   errorAlertURL: string | null;
   healthFailureURL: string | null;
+  sessionCheckFailURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
   workspaceDir: string;
