@@ -31,6 +31,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   prebootChrome: false,
   queuedAlertURL: null,
   rejectAlertURL: null,
+  sessionCheckFailURL: null,
   singleRun: false,
   timeoutAlertURL: null,
   token: null,

@@ -15,6 +15,7 @@ const browserless = new BrowserlessServer({
   functionEnableIncognitoMode: config.FUNCTION_ENABLE_INCOGNITO_MODE,
   functionExternals: config.FUNCTION_EXTERNALS,
   healthFailureURL: config.FAILED_HEALTH_URL,
+  sessionCheckFailURL: config.SESSION_CHECK_FAIL_URL,
   host: config.HOST,
   keepAlive: config.KEEP_ALIVE,
   maxCPU: config.MAX_CPU_PERCENT,

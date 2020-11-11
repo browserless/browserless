@@ -121,6 +121,7 @@ export const QUEUE_ALERT_URL: string | null = process.env.QUEUE_ALERT_URL || nul
 export const REJECT_ALERT_URL: string | null = process.env.REJECT_ALERT_URL || null;
 export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL || null;
 export const ERROR_ALERT_URL: string | null = process.env.ERROR_ALERT_URL || null;
+export const SESSION_CHECK_FAIL_URL: string | null = process.env.SESSION_CHECK_FAIL_URL || null;
 
 // Health
 export const PRE_REQUEST_HEALTH_CHECK: boolean = parseJSONParam(process.env.PRE_REQUEST_HEALTH_CHECK, false);

@@ -26,6 +26,7 @@ Array [
   "prebootChrome",
   "queuedAlertURL",
   "rejectAlertURL",
+  "sessionCheckFailURL",
   "singleRun",
   "timeoutAlertURL",
   "token",
