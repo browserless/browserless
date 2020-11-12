@@ -1,4 +1,4 @@
-import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
+import { IncomingMessage, OutgoingMessage, ServerResponse, ClientRequest } from 'http';
 import httpProxy from 'http-proxy';
 import _ from 'lodash';
 import kill from 'tree-kill';
@@ -58,6 +58,14 @@ export class WebDriver {
             const proxy: any = httpProxy.createProxyServer({
               changeOrigin: true,
               target: `http://localhost:${chromeDriver.port}`,
+            });
+
+            // Re-add the JSON body before forwarding the request
+            proxy.once('proxyReq', (proxyReq: ClientRequest) => {
+              const bodyData = JSON.stringify(req.body);
+              proxyReq.setHeader('Content-Type','application/json');
+              proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+              proxyReq.write(bodyData);
             });
 
             proxy.once('proxyRes', (proxyRes: OutgoingMessage) => {

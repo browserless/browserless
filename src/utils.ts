@@ -10,7 +10,6 @@ import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
 import rmrf from 'rimraf';
-import { PassThrough } from 'stream';
 import url from 'url';
 import util from 'util';
 
@@ -314,11 +313,6 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     });
   }
 
-  const stringifiedBody = JSON.stringify(parsed, null, '');
-
-  req.headers['content-length'] = stringifiedBody.length.toString();
-  attachBodyToRequest(req, stringifiedBody);
-
   const caps = parsed.desiredCapabilities || parsed.capabilities || {
     'browserless.blockAds': DEFAULT_BLOCK_ADS,
     'browserless.pause': false,
@@ -354,13 +348,7 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   };
 };
 
-const attachBodyToRequest = (req: IncomingMessage, body: any) => {
-  const bufferStream = new PassThrough();
-  bufferStream.end(Buffer.from(body));
-
-  Object.assign(req, bufferStream);
-};
-
+// NOTE, if proxying request elsewhere, you must re-stream the body again
 const readRequestBody = async (req: IncomingMessage): Promise<any> => {
   return new Promise((resolve) => {
     const body: Uint8Array[] = [];
@@ -371,7 +359,6 @@ const readRequestBody = async (req: IncomingMessage): Promise<any> => {
         return;
       }
       hasResolved = true;
-      attachBodyToRequest(req, results);
       resolve(results);
     };
 
