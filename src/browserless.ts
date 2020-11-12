@@ -1,14 +1,14 @@
-import * as cookie from 'cookie';
-import * as cors from 'cors';
-import * as express from 'express';
-import * as promBundle from 'express-prom-bundle';
-import * as http from 'http';
-import * as httpProxy from 'http-proxy';
-import * as _ from 'lodash';
+import cookie from 'cookie';
+import cors from 'cors';
+import express from 'express';
+import promBundle from 'express-prom-bundle';
+import http from 'http';
+import httpProxy from 'http-proxy';
+import _ from 'lodash';
 import { Socket } from 'net';
-import * as client from 'prom-client';
-import request = require('request');
-import * as url from 'url';
+import client from 'prom-client';
+import request from 'request';
+import url from 'url';
 
 import { Features } from './features';
 import * as util from './utils';

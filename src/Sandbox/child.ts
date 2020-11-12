@@ -1,5 +1,5 @@
-import * as _ from 'lodash';
-import * as puppeteer from 'puppeteer';
+import _ from 'lodash';
+import puppeteer from 'puppeteer';
 import { NodeVM } from 'vm2';
 
 import { launchChrome } from '../chrome-helper';

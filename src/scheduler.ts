@@ -1,10 +1,10 @@
-import * as path from 'path';
+import path from 'path';
+import rimraf from 'rimraf';
 
 import { WORKSPACE_DELETE_EXPIRED, WORKSPACE_DIR, WORKSPACE_EXPIRE_DAYS } from './config';
 import { exists, getDebug, lstat, readdir } from './utils';
 
 const debug = getDebug('scheduler');
-const rimraf = require('rimraf');
 const DAILY = 24 * 60 * 60 * 1000;
 
 const intervalIds: NodeJS.Timeout[] = [];

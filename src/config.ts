@@ -1,11 +1,12 @@
-import * as fs from 'fs';
-import * as _ from 'lodash';
-import * as os from 'os';
+import fs from 'fs';
+import debug from 'debug';
+import _ from 'lodash';
+import os from 'os';
+import untildify from 'untildify';
+
 import { Features, isFeature } from './features';
 import { Feature } from './types';
 
-const debug = require('debug');
-const untildify = require('untildify');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
@@ -92,6 +93,7 @@ export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_
 export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_DEFAULT_ARGS, false);
 export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_HTTPS_ERRORS, false);
 export const DEFAULT_DUMPIO: boolean = parseJSONParam(process.env.DEFAULT_DUMPIO, false);
+export const DEFAULT_STEALTH: boolean = parseJSONParam(process.env.DEFAULT_STEALTH, false);
 export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR ?
   untildify(process.env.DEFAULT_USER_DATA_DIR) :
   undefined;

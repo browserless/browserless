@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import q from 'queue';
 
 import { overloaded } from './hardware-monitoring';

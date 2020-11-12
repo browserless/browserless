@@ -1,6 +1,6 @@
-import * as cookie from 'cookie';
-import * as _ from 'lodash';
-import * as net from 'net';
+import cookie from 'cookie';
+import _ from 'lodash';
+import net from 'net';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';

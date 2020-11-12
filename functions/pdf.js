@@ -158,9 +158,9 @@ module.exports = async function pdf({ page, context }) {
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitFor(waitFor) : page.evaluate(`(${waitFor})()`));
+      await (isSelector ? page.waitForSelector(waitFor) : page.evaluate(`(${waitFor})()`));
     } else {
-      await page.waitFor(waitFor);
+      await new Promise(r => setTimeout(r, waitFor));
     }
   }
 

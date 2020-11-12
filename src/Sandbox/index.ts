@@ -1,13 +1,14 @@
 import { ChildProcess, fork } from 'child_process';
 import { EventEmitter } from 'events';
-import * as path from 'path';
+import path from 'path';
+import kill from 'tree-kill';
+
 import { getDebug } from '../utils';
 import {
   IConfig,
   IMessage,
 } from '../types';
 
-const kill = require('tree-kill');
 const debug = getDebug('sandbox');
 
 export class BrowserlessSandbox extends EventEmitter {

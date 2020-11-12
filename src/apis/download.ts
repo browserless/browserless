@@ -1,6 +1,8 @@
 import { noop } from 'lodash';
-import * as path from 'path';
+import path from 'path';
 import { Page } from 'puppeteer';
+import rimraf from 'rimraf';
+
 import { WORKSPACE_DIR } from '../config';
 import {
   id,
@@ -8,8 +10,6 @@ import {
   readdir,
   sleep,
 } from '../utils';
-
-const rimraf = require('rimraf');
 
 export const before = async ({ page }: { page: Page }) => {
   const downloadPath = path.join(WORKSPACE_DIR, `.browserless.download.${id()}`);
