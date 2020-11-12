@@ -1,11 +1,15 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import q from 'queue';
+
+import { overloaded } from './hardware-monitoring';
 import * as util from './utils';
 
 import {
   IJob,
   IQueueConfig,
 } from './types';
+
+import { PRE_REQUEST_HEALTH_CHECK } from './config';
 
 export class Queue {
   private queue: q;
@@ -42,6 +46,10 @@ export class Queue {
     }
 
     this.queue.push(job);
+  }
+
+  public async overloaded() {
+    return PRE_REQUEST_HEALTH_CHECK && await overloaded();
   }
 
   public remove(job: IJob) {

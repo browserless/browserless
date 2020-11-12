@@ -1,19 +1,22 @@
-import * as cookie from 'cookie';
-import * as express from 'express';
-import * as fs from 'fs';
+import cookie from 'cookie';
+import dbg from 'debug';
+import express from 'express';
+import fs from 'fs';
 import { IncomingMessage } from 'http';
 import { Schema } from 'joi';
-import * as _ from 'lodash';
-import * as net from 'net';
+import _ from 'lodash';
+import net from 'net';
 import fetch from 'node-fetch';
-import * as os from 'os';
-import * as path from 'path';
-import rmrf = require('rimraf');
+import os from 'os';
+import path from 'path';
+import rmrf from 'rimraf';
 import { PassThrough } from 'stream';
-import * as url from 'url';
-import * as util from 'util';
+import url from 'url';
+import util from 'util';
 
-import { WORKSPACE_DIR } from './config';
+import { WEBDRIVER_ROUTE } from './constants';
+
+import { DEFAULT_BLOCK_ADS, WORKSPACE_DIR } from './config';
 
 import {
   IWebdriverStartHTTP,
@@ -25,7 +28,6 @@ import {
   ILaunchOptions,
 } from './types';
 
-const dbg = require('debug');
 const { CHROME_BINARY_LOCATION } = require('../env');
 
 const mkdtemp = util.promisify(fs.mkdtemp);
@@ -41,7 +43,6 @@ export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 
-const webDriverPath = '/webdriver/session';
 const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
 
 const debug = getDebug('system');
@@ -315,12 +316,17 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
 
   const stringifiedBody = JSON.stringify(parsed, null, '');
 
-  req.headers['content-length'] = stringifiedBody.length.toString();
   attachBodyToRequest(req, stringifiedBody);
 
-  const blockAds = !!parsed.desiredCapabilities['browserless.blockAds'];
-  const trackingId = parsed.desiredCapabilities['browserless.trackingId'] || null;
-  const pauseOnConnect = !!parsed.desiredCapabilities['browserless.pause'];
+  const caps = parsed.desiredCapabilities || parsed.capabilities || {
+    'browserless.blockAds': DEFAULT_BLOCK_ADS,
+    'browserless.pause': false,
+    'browserless.trackingId': null,
+  };
+
+  const blockAds = !!caps['browserless.blockAds'];
+  const pauseOnConnect = !!caps['browserless.pause'];
+  const trackingId = caps['browserless.trackingId'] || null;
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
 
@@ -347,10 +353,10 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   };
 };
 
-const attachBodyToRequest = (req: IncomingMessage, body: any) => {
+const attachBodyToRequest = (req: IncomingMessage, body: string) => {
   const bufferStream = new PassThrough();
   bufferStream.end(Buffer.from(body));
-
+  req.headers['content-length'] = body.length.toString();
   Object.assign(req, bufferStream);
 };
 
@@ -437,7 +443,7 @@ export const getTimeoutParam = (req: IHTTPRequest | IWebdriverStartHTTP): number
 };
 
 export const isWebdriverStart = (req: IncomingMessage) => {
-  return req.method?.toLowerCase() === 'post' && req.url === webDriverPath
+  return req.method?.toLowerCase() === 'post' && req.url === WEBDRIVER_ROUTE
 };
 
 export const isWebdriverClose = (req: IncomingMessage) => {
@@ -445,7 +451,7 @@ export const isWebdriverClose = (req: IncomingMessage) => {
 };
 
 export const isWebdriver = (req: IncomingMessage) => {
-  return req.url?.includes(webDriverPath);
+  return req.url?.includes(WEBDRIVER_ROUTE);
 };
 
 export const canPreboot = (incoming: ILaunchOptions, defaults: ILaunchOptions) => {

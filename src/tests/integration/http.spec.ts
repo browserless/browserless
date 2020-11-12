@@ -760,7 +760,7 @@ describe('Browserless Chrome HTTP', () => {
         code: `module.exports = async ({ page }) => {
           await page.setViewport({ width: 640, height: 480 });
           await page.goto('https://example.com/');
-          await page.waitFor(5000);
+          await new Promise(r => setTimeout(r, 5000));
         }`,
       };
 
@@ -786,7 +786,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = `module.exports = async ({ page }) => {
         await page.setViewport({ width: 640, height: 480 });
         await page.goto('https://example.com/');
-        await page.waitFor(5000);
+        await new Promise(r => setTimeout(r, 5000));
       }`;
 
       return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {

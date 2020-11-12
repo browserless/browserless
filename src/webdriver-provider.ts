@@ -1,6 +1,7 @@
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
-import * as httpProxy from 'http-proxy';
-import * as _ from 'lodash';
+import httpProxy from 'http-proxy';
+import _ from 'lodash';
+import kill from 'tree-kill';
 
 import * as chromeHelper from './chrome-helper';
 import { Queue } from './queue';
@@ -17,7 +18,6 @@ import {
 } from './types';
 
 const debug = getDebug('webdriver');
-const kill = require('tree-kill');
 
 export class WebDriver {
   private queue: Queue;
@@ -31,12 +31,18 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public start(req: IWebdriverStartHTTP, res: ServerResponse, params: IWebdriverStartNormalized['params']) {
+  public async start(req: IWebdriverStartHTTP, res: ServerResponse, params: IWebdriverStartNormalized['params']) {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {
       debug(`Too many concurrent and queued requests, rejecting.`);
       return res.end();
+    }
+
+    if (await this.queue.overloaded()) {
+      debug(`Server under heavy load, closing.`);
+      res.writeHead && res.writeHead(503);
+      return res.end(`Server under heavy load.`);
     }
 
     const earlyClose = () => {

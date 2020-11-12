@@ -1,9 +1,9 @@
-import archiver = require('archiver');
-import * as bodyParser from 'body-parser';
+import archiver from 'archiver';
+import bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
-import * as _ from 'lodash';
-import * as multer from 'multer';
-import * as path from 'path';
+import _ from 'lodash';
+import multer from 'multer';
+import path from 'path';
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
@@ -81,6 +81,7 @@ interface IGetRoutes {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
 }
 
 export const getRoutes = ({
@@ -91,6 +92,7 @@ export const getRoutes = ({
   workspaceDir,
   disabledFeatures,
   enableAPIGet,
+  enableHeapdump,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -155,8 +157,11 @@ export const getRoutes = ({
       }
 
       const filePath = path.join(workspaceDir, file);
-
       const hasFile = await exists(filePath);
+
+      if (!filePath.includes(workspaceDir)) {
+        return res.sendStatus(404);
+      }
 
       if (!hasFile) {
         return res.sendStatus(404);
@@ -182,6 +187,10 @@ export const getRoutes = ({
 
       const filePath = path.join(workspaceDir, file);
       const hasFile = await exists(filePath);
+
+      if (!filePath.includes(workspaceDir)) {
+        return res.sendStatus(404);
+      }
 
       if (!hasFile) {
         return res.sendStatus(404);
@@ -476,6 +485,20 @@ export const getRoutes = ({
 
       return res.json(pages);
     }));
+  }
+
+  if (enableHeapdump) {
+    const heapdump = require('heapdump');
+    router.get('/heapdump', (_req, res) => {
+      const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
+      heapdump.writeSnapshot(heapLocation, (err: Error) => {
+        if (err) {
+          return res.status(500).send(err.message);
+        }
+
+        return res.sendFile(heapLocation, (_err: Error) => rimraf(heapLocation, _.noop));
+      });
+    });
   }
 
   return router;

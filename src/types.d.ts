@@ -1,10 +1,11 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { Response } from 'express';
+import { BrowserServer } from 'playwright-core';
 import { IncomingMessage, ServerResponse } from 'http';
-import * as net from 'net';
-import * as puppeteer from 'puppeteer';
-import * as url from 'url';
+import net from 'net';
+import puppeteer from 'puppeteer';
+import url from 'url';
 
 import { BrowserlessSandbox } from './Sandbox';
 
@@ -29,6 +30,7 @@ export interface IBrowser extends puppeteer.Browser {
   _blockAds: boolean;
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
+  _browserServer: BrowserServer | puppeteer.Browser;
 }
 
 export interface ISession {
@@ -54,6 +56,8 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   blockAds: boolean;
   trackingId?: string;
   keepalive?: number;
+  playwright: boolean;
+  stealth: boolean;
 }
 
 export interface IBefore {
@@ -128,11 +132,14 @@ interface IBrowserlessServerConfiguration {
   timeoutAlertURL: string | null;
   errorAlertURL: string | null;
   healthFailureURL: string | null;
+  sessionCheckFailURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
+  socketBehavior: 'http' | 'close';
 }
 
 export interface IChromeServiceConfiguration {

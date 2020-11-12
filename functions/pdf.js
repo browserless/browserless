@@ -106,8 +106,8 @@ module.exports = async function pdf({ page, context }) {
   if (emulateMedia) {
     // Run the appropriate emulateMedia method, making sure it's bound properly to the page object
     // @todo remove when support drops for 3.x.x
-    const emulateMedia = (page.emulateMedia || page.emulateMediaType).bind(page);
-    await emulateMedia(emulateMedia);
+    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(page);
+    await emulateMediaFn(emulateMedia);
   }
 
   if (cookies.length) {
@@ -158,9 +158,9 @@ module.exports = async function pdf({ page, context }) {
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitFor(waitFor) : page.evaluate(`(${waitFor})()`));
+      await (isSelector ? page.waitForSelector(waitFor) : page.evaluate(`(${waitFor})()`));
     } else {
-      await page.waitFor(waitFor);
+      await new Promise(r => setTimeout(r, waitFor));
     }
   }
 

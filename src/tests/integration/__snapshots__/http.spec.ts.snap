@@ -8,6 +8,7 @@ Array [
   "disabledFeatures",
   "enableAPIGet",
   "enableCors",
+  "enableHeapdump",
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",
@@ -25,10 +26,12 @@ Array [
   "prebootChrome",
   "queuedAlertURL",
   "rejectAlertURL",
+  "sessionCheckFailURL",
   "singleRun",
   "timeoutAlertURL",
   "token",
   "workspaceDir",
+  "socketBehavior",
 ]
 `;
 

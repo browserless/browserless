@@ -1,6 +1,6 @@
-import * as cookie from 'cookie';
-import * as _ from 'lodash';
-import * as net from 'net';
+import cookie from 'cookie';
+import _ from 'lodash';
+import net from 'net';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
@@ -9,6 +9,8 @@ import { EventArray } from './event-array';
 import { Queue } from './queue';
 import { BrowserlessSandbox } from './Sandbox';
 import * as utils from './utils';
+
+import { DEBUGGER_ROUTE, PLAYWRIGHT_ROUTE } from './constants';
 
 import {
   IChromeServiceConfiguration,
@@ -118,12 +120,17 @@ export class PuppeteerProvider {
 
     if (this.config.demoMode) {
       jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
-      return this.server.rejectReq(req, res, 403, 'Unauthorized', false);
+      return this.server.rejectReq(req, res, 403, 'Unauthorized');
     }
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectReq(req, res, 429, `Too Many Requests`);
+      return this.server.rejectReq(req, res, 429, `Too Many Requests`, this.server.capacityFullHook);
+    }
+
+    if (await this.queue.overloaded()) {
+      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
+      return this.server.rejectReq(req, res, 503, `Server under load`, this.server.sessionCheckFailHook);
     }
 
     if (detached) {
@@ -270,7 +277,7 @@ export class PuppeteerProvider {
     const jobId = utils.id();
     const parsedUrl = req.parsed;
     const route = parsedUrl.pathname || '/';
-    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes('/debugger');
+    const hasDebugCode = parsedUrl.pathname && parsedUrl.pathname.includes(DEBUGGER_ROUTE);
     const debugCode = hasDebugCode ?
       cookie.parse(req.headers.cookie || '')[utils.codeCookieName] :
       '';
@@ -287,7 +294,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 404 Not Found`,
         message: `Couldn't load session for ${route}`,
-        recordStat: false,
         req,
         socket,
       });
@@ -302,7 +308,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 404 Not Found`,
         message: `Couldn't load session for ${route}`,
-        recordStat: false,
         req,
         socket,
       });
@@ -313,7 +318,6 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 403 Forbidden`,
         message: `Forbidden`,
-        recordStat: false,
         req,
         socket,
       });
@@ -324,7 +328,18 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 429 Too Many Requests`,
         message: `Too Many Requests`,
-        recordStat: true,
+        failureHook: this.server.capacityFullHook,
+        req,
+        socket,
+      });
+    }
+
+    if (await this.queue.overloaded()) {
+      jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
+      return this.server.rejectSocket({
+        header: `HTTP/1.1 503 Server under load`,
+        message: `Server under heavy load, try again later`,
+        failureHook: this.server.sessionCheckFailHook,
         req,
         socket,
       });
@@ -395,6 +410,14 @@ export class PuppeteerProvider {
             socket.once('close', doneOnce);
             browser.once('disconnected', doneOnce);
 
+            if (route.includes(PLAYWRIGHT_ROUTE) && browser._browserServer) {
+              const playwrightRoute = browser._browserServer.wsEndpoint();
+              jobdebug(`${job.id}: Proxying request to /playwright route: ${playwrightRoute}.`);
+              req.url = '';
+
+              return playwrightRoute;
+            }
+
             if (!route.includes('/devtools/page')) {
               jobdebug(`${job.id}: Proxying request to /devtools/browser route: ${browserWsEndpoint}.`);
               req.url = route;
@@ -409,7 +432,7 @@ export class PuppeteerProvider {
 
             return `ws://127.0.0.1:${port}`;
           })
-          .then((target) => this.server.proxy.ws(req, socket, head, { target }))
+          .then((target) => this.server.proxy.ws(req, socket, head, { target, changeOrigin: true }))
           .catch((error) => {
             jobdebug(error, `${job.id}: Issue launching Chrome or proxying traffic, failing request`);
             doneOnce(error);
@@ -461,7 +484,7 @@ export class PuppeteerProvider {
       await new Promise((resolve) => {
         this.queue.on('end', () => {
           sysdebug(`All jobs complete, proceeding with close`);
-          resolve();
+          resolve(null);
         });
       });
     }

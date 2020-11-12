@@ -1,11 +1,12 @@
-import * as fs from 'fs';
-import * as _ from 'lodash';
-import * as os from 'os';
+import fs from 'fs';
+import debug from 'debug';
+import _ from 'lodash';
+import os from 'os';
+import untildify from 'untildify';
+
 import { Features, isFeature } from './features';
 import { Feature } from './types';
 
-const debug = require('debug');
-const untildify = require('untildify');
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
@@ -65,6 +66,15 @@ const parseNumber = (param: string | undefined, defaultParam: number): number =>
   return parsed;
 };
 
+const parseSocketBehavior = (behavior: string = 'http'): 'http' | 'close' => {
+  if (behavior !== 'http' && behavior !== 'close') {
+    console.warn(`Unknown socket behavior of "${behavior}" passed in, using "http"`)
+    return 'http';
+  }
+
+  return behavior;
+}
+
 const thirtyMinutes = 30 * 60 * 1000;
 const expandedDir = untildify(process.env.WORKSPACE_DIR || '');
 
@@ -82,6 +92,8 @@ export const DEFAULT_HEADLESS: boolean = parseJSONParam(process.env.DEFAULT_HEAD
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(process.env.DEFAULT_LAUNCH_ARGS, []);
 export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_DEFAULT_ARGS, false);
 export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(process.env.DEFAULT_IGNORE_HTTPS_ERRORS, false);
+export const DEFAULT_DUMPIO: boolean = parseJSONParam(process.env.DEFAULT_DUMPIO, false);
+export const DEFAULT_STEALTH: boolean = parseJSONParam(process.env.DEFAULT_STEALTH, false);
 export const DEFAULT_USER_DATA_DIR: string | undefined = process.env.DEFAULT_USER_DATA_DIR ?
   untildify(process.env.DEFAULT_USER_DATA_DIR) :
   undefined;
@@ -94,6 +106,7 @@ export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
 export const ENABLE_CORS: boolean = parseJSONParam(process.env.ENABLE_CORS, false);
 export const ENABLE_API_GET: boolean = parseJSONParam(process.env.ENABLE_API_GET, false);
 export const TOKEN: string | null = process.env.TOKEN || null;
+export const ENABLE_HEAP_DUMP: boolean = parseJSONParam(process.env.ENABLE_HEAP_DUMP, false);
 
 // Puppeteer behavior
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);
@@ -110,8 +123,10 @@ export const QUEUE_ALERT_URL: string | null = process.env.QUEUE_ALERT_URL || nul
 export const REJECT_ALERT_URL: string | null = process.env.REJECT_ALERT_URL || null;
 export const TIMEOUT_ALERT_URL: string | null = process.env.TIMEOUT_ALERT_URL || null;
 export const ERROR_ALERT_URL: string | null = process.env.ERROR_ALERT_URL || null;
+export const SESSION_CHECK_FAIL_URL: string | null = process.env.SESSION_CHECK_FAIL_URL || null;
 
 // Health
+export const PRE_REQUEST_HEALTH_CHECK: boolean = parseJSONParam(process.env.PRE_REQUEST_HEALTH_CHECK, false);
 export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(process.env.EXIT_ON_HEALTH_FAILURE, false);
 export const MAX_CPU_PERCENT: number = parseNumber(process.env.MAX_CPU_PERCENT, 99);
 export const MAX_MEMORY_PERCENT: number = parseNumber(process.env.MAX_MEMORY_PERCENT, 99);
@@ -124,6 +139,7 @@ export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH ?
 // Host and port to bind our server to
 export const HOST: string | undefined = process.env.HOST;
 export const PORT: number = parseNumber(process.env.PORT, 8080);
+export const SOCKET_CLOSE_METHOD = parseSocketBehavior(process.env.SOCKET_CLOSE_METHOD);
 
 // Host and port for /session calls to build URLs to.
 // Useful for when browserless is behind a proxy

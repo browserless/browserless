@@ -16,6 +16,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "declaration": true,
+    "esModuleInterop": true,
     "outDir": "./build",
     "rootDir": "./src"
   },

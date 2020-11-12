@@ -1,4 +1,4 @@
-import * as Joi from 'joi';
+import Joi from 'joi';
 
 const waitFor = [Joi.string(), Joi.number()];
 const userAgent = Joi.string();

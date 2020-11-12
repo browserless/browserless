@@ -1,19 +1,19 @@
-import * as cookie from 'cookie';
-import * as cors from 'cors';
-import * as express from 'express';
-import * as promBundle from 'express-prom-bundle';
-import * as http from 'http';
-import * as httpProxy from 'http-proxy';
-import * as _ from 'lodash';
+import cookie from 'cookie';
+import cors from 'cors';
+import express from 'express';
+import promBundle from 'express-prom-bundle';
+import http from 'http';
+import httpProxy from 'http-proxy';
+import _ from 'lodash';
 import { Socket } from 'net';
-import * as client from 'prom-client';
-import request = require('request');
-import * as url from 'url';
+import client from 'prom-client';
+import request from 'request';
+import url from 'url';
 
 import { Features } from './features';
 import * as util from './utils';
 
-import { ResourceMonitor } from './hardware-monitoring';
+import { getMachineStats } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
@@ -39,10 +39,11 @@ const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
-  public readonly rejectHook: () => void;
+  public readonly capacityFullHook: () => void;
   public readonly queueHook: () => void;
   public readonly timeoutHook: () => void;
   public readonly healthFailureHook: () => void;
+  public readonly sessionCheckFailHook: () => void;
   public readonly errorHook: (message: string) => void;
   public readonly queue: Queue;
   public proxy: httpProxy;
@@ -50,7 +51,6 @@ export class BrowserlessServer {
   private config: IBrowserlessOptions;
   private stats: IBrowserlessStats[];
   private httpServer: http.Server;
-  private readonly resourceMonitor: ResourceMonitor;
   private puppeteerProvider: PuppeteerProvider;
   private webdriver: WebDriver;
   private metricsInterval: NodeJS.Timeout;
@@ -73,7 +73,6 @@ export class BrowserlessServer {
       },
     });
 
-    this.resourceMonitor = new ResourceMonitor();
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
     this.webdriver = new WebDriver(this.queue);
     this.enableAPIGet = opts.enableAPIGet;
@@ -102,7 +101,7 @@ export class BrowserlessServer {
       }, thirtyMinutes, debounceOpts) :
       _.noop;
 
-    this.rejectHook = opts.rejectAlertURL ?
+    this.capacityFullHook = opts.rejectAlertURL ?
       _.debounce(() => {
         debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
         request(opts.rejectAlertURL as string, _.noop);
@@ -121,7 +120,7 @@ export class BrowserlessServer {
         debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
         const parsed = url.parse(opts.errorAlertURL as string, true);
         parsed.query.error = message;
-        delete parsed.search;
+        parsed.search = null;
         const finalUrl = url.format(parsed);
         request(finalUrl, _.noop);
       }, thirtyMinutes, debounceOpts) :
@@ -133,6 +132,13 @@ export class BrowserlessServer {
         request(opts.healthFailureURL as string, restartOnFailure);
       }, thirtyMinutes, debounceOpts) :
       restartOnFailure;
+
+    this.sessionCheckFailHook = opts.sessionCheckFailURL ?
+      _.debounce(() => {
+        debug(`Calling web-hook for session-check-failure: ${opts.sessionCheckFailURL}`);
+        request(opts.sessionCheckFailURL as string, _.noop);
+      }, thirtyMinutes, debounceOpts) :
+      _.noop;
 
     this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
@@ -163,7 +169,7 @@ export class BrowserlessServer {
   }
 
   public async getMetrics() {
-    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
+    const { cpu, memory } = await getMachineStats();
 
     return [...this.stats, {
       ...this.currentStat,
@@ -179,8 +185,7 @@ export class BrowserlessServer {
   }
 
   public async getPressure() {
-    const { cpu, memory } = await this.resourceMonitor
-      .getMachineStats()
+    const { cpu, memory } = await getMachineStats()
       .catch((err) => {
         debug(`Error loading cpu/memory in pressure call ${err}`);
         return { cpu: null, memory: null };
@@ -235,6 +240,7 @@ export class BrowserlessServer {
         puppeteerProvider: this.puppeteerProvider,
         workspaceDir: this.workspaceDir,
         enableAPIGet: this.enableAPIGet,
+        enableHeapdump: this.config.enableHeapdump,
       });
 
       if (this.config.enableCors) {
@@ -301,7 +307,6 @@ export class BrowserlessServer {
             return this.rejectSocket({
               header: `HTTP/1.1 403 Forbidden`,
               message: `Forbidden`,
-              recordStat: false,
               req: reqParsed,
               socket,
             });
@@ -327,7 +332,7 @@ export class BrowserlessServer {
       new Promise((resolve) => this.httpServer.close(resolve)),
       new Promise((resolve) => {
         this.proxy.close();
-        resolve();
+        resolve(null);
       }),
       this.puppeteerProvider.kill(),
       this.webdriver.kill(),
@@ -357,36 +362,46 @@ export class BrowserlessServer {
     process.exit(0);
   }
 
-  public rejectReq(req: express.Request, res: express.Response, code: number, message: string, recordStat = true) {
+  public rejectReq(
+    req: express.Request,
+    res: express.Response,
+    code: number,
+    message: string,
+    failureHook?: () => any,
+  ) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
 
-    if (recordStat) {
+    if (failureHook) {
       this.currentStat.rejected++;
-      this.rejectHook();
+      failureHook();
     }
   }
 
   public rejectSocket(
-    { req, socket, header, message, recordStat }:
-    { req: http.IncomingMessage; socket: Socket; header: string; message: string; recordStat: boolean; },
+    { req, socket, header, message, failureHook }:
+    { req: http.IncomingMessage; socket: Socket; header: string; message: string; failureHook?: () => any; },
   ) {
-    debug(`${req.url}: ${message}`);
+    if (this.config.socketBehavior === 'http') {
+      debug(`${req.url}: ${message}. Behavior of "http" set, writing response and closing.`);
+      const httpResponse = util.dedent(`${header}
+        Content-Type: text/plain; charset=UTF-8
+        Content-Encoding: UTF-8
+        Accept-Ranges: bytes
+        Connection: keep-alive
 
-    const httpResponse = util.dedent(`${header}
-      Content-Type: text/plain; charset=UTF-8
-      Content-Encoding: UTF-8
-      Accept-Ranges: bytes
-      Connection: keep-alive
+        ${message}`);
 
-      ${message}`);
+      socket.write(httpResponse);
+      socket.end();
+    } else {
+      debug(`${req.url}: ${message}. Behavior of "close" set, destroying connection without response.`);
+      socket.destroy();
+    }
 
-    socket.write(httpResponse);
-    socket.end();
-
-    if (recordStat) {
+    if (failureHook) {
       this.currentStat.rejected++;
-      this.rejectHook();
+      failureHook();
     }
   }
 
@@ -503,7 +518,8 @@ export class BrowserlessServer {
   }
 
   private async recordMetrics() {
-    const { cpu, memory } = await this.resourceMonitor.getMachineStats();
+    const { cpu, memory } = await getMachineStats();
+    const priorMetrics = this.stats[this.stats.length - 1];
 
     this.stats.push(Object.assign({}, {
       ...this.currentStat,
@@ -518,11 +534,19 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    const badCPU = cpu && ((cpu * 100) >= this.config.maxCPU);
-    const badMem = memory && ((memory * 100) >= this.config.maxMemory);
+    const mapToInt = (v?: number | null) => !!v ? Math.round(v * 100) : v;
+    const mapToDisplay = (v?: number | null) => !!v ? `${v}%` : v;
+
+    const cpuStats = [cpu, priorMetrics?.cpu].map(mapToInt);
+    const memStats = [memory, priorMetrics?.memory].map(mapToInt);
+
+    debug(`Health check stats: CPU ${cpuStats.map(mapToDisplay)} MEM: ${memStats.map(mapToDisplay)}`);
+
+    const badCPU = cpuStats.every((c) => c && (c >= this.config.maxCPU));
+    const badMem = memStats.every((m) => m && (m >= this.config.maxMemory));
 
     if (badCPU || badMem) {
-      debug(`Health checks have failed, calling failure webhook: CPU: ${cpu}% Memory: ${memory}%`);
+      debug(`Health checks have failed, calling failure webhook`);
       this.healthFailureHook();
     }
 

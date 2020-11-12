@@ -8,12 +8,14 @@ const browserless = new BrowserlessServer({
   disabledFeatures: config.DISABLED_FEATURES,
   enableAPIGet: config.ENABLE_API_GET,
   enableCors: config.ENABLE_CORS,
+  enableHeapdump: config.ENABLE_HEAP_DUMP,
   errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
   functionEnableIncognitoMode: config.FUNCTION_ENABLE_INCOGNITO_MODE,
   functionExternals: config.FUNCTION_EXTERNALS,
   healthFailureURL: config.FAILED_HEALTH_URL,
+  sessionCheckFailURL: config.SESSION_CHECK_FAIL_URL,
   host: config.HOST,
   keepAlive: config.KEEP_ALIVE,
   maxCPU: config.MAX_CPU_PERCENT,
@@ -29,6 +31,7 @@ const browserless = new BrowserlessServer({
   timeoutAlertURL: config.TIMEOUT_ALERT_URL,
   token: config.TOKEN,
   workspaceDir: config.WORKSPACE_DIR,
+  socketBehavior: config.SOCKET_CLOSE_METHOD,
 });
 
 browserless.startServer();
