@@ -316,7 +316,6 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
 
   const stringifiedBody = JSON.stringify(parsed, null, '');
 
-  req.headers['content-length'] = stringifiedBody.length.toString();
   attachBodyToRequest(req, stringifiedBody);
 
   const caps = parsed.desiredCapabilities || parsed.capabilities || {
@@ -354,10 +353,10 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   };
 };
 
-const attachBodyToRequest = (req: IncomingMessage, body: any) => {
+const attachBodyToRequest = (req: IncomingMessage, body: string) => {
   const bufferStream = new PassThrough();
   bufferStream.end(Buffer.from(body));
-
+  req.headers['content-length'] = body.length.toString();
   Object.assign(req, bufferStream);
 };
 
