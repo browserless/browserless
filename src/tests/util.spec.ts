@@ -13,6 +13,7 @@ const getArgs = (overrides = {}) => ({
   slowMo: undefined,
   userDataDir: undefined,
   playwright: false,
+  stealth: false,
   ...overrides,
 });
 
