@@ -12,6 +12,7 @@ RUN apt-get -qq update && \
   adobe-flashplugin \
   git \
   ffmpeg \
+  fonts-liberation \
   msttcorefonts \
   fonts-roboto \
   fonts-ubuntu \
