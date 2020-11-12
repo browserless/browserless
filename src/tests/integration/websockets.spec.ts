@@ -1,4 +1,4 @@
-import * as puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer';
 import { chromium } from 'playwright-core';
 
 import { BrowserlessServer } from '../../browserless';

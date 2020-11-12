@@ -1,5 +1,5 @@
 import { PassThrough } from 'stream';
-import * as utils from '../utils';
+import utils from '../utils';
 import { IncomingMessage } from 'http';
 
 const getArgs = (overrides = {}) => ({

@@ -1,13 +1,16 @@
 import { ChildProcess } from 'child_process';
 // @ts-ignore no types
-import * as chromeDriver from 'chromedriver';
-import * as _ from 'lodash';
-import * as path from 'path';
-import * as puppeteer from 'puppeteer';
+import chromeDriver from 'chromedriver';
+import getPort from 'get-port';
+import _ from 'lodash';
+import path from 'path';
+import puppeteer from 'puppeteer';
+import pptrExtra from 'puppeteer-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
-import treekill = require('tree-kill');
-import * as url from 'url';
+import treekill from 'tree-kill';
+import url from 'url';
 import { chromium, BrowserServer } from 'playwright-core';
 
 import { Features } from './features';
@@ -29,6 +32,7 @@ import {
   DEFAULT_BLOCK_ADS,
   DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
+  DEFAULT_STEALTH,
   DEFAULT_IGNORE_DEFAULT_ARGS,
   DEFAULT_IGNORE_HTTPS_ERRORS,
   DEFAULT_LAUNCH_ARGS,
@@ -46,7 +50,6 @@ import {
 import { PLAYWRIGHT_ROUTE } from './constants';
 
 const debug = getDebug('chrome-helper');
-const getPort = require('get-port');
 const {
   CHROME_BINARY_LOCATION,
   USE_CHROME_STABLE,
@@ -71,6 +74,8 @@ const networkBlock = (request: puppeteer.Request) => {
 };
 
 let runningBrowsers: IBrowser[] = [];
+
+pptrExtra.use(StealthPlugin());
 
 const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
   const defaultArgs = query.ignoreDefaultArgs;
@@ -240,6 +245,7 @@ export const defaultLaunchArgs = {
   slowMo: undefined,
   userDataDir: DEFAULT_USER_DATA_DIR,
   playwright: false,
+  stealth: false,
 };
 
 /*
@@ -343,6 +349,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
     headless,
     ignoreHTTPSErrors,
     slowMo,
+    stealth,
     userDataDir,
     pause,
     trackingId,
@@ -355,6 +362,10 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
   const isHeadless = !_.isUndefined(headless) ?
     headless !== 'false' :
     DEFAULT_HEADLESS;
+
+  const isStealth = !_.isUndefined(stealth) ?
+    stealth !== 'false' :
+    DEFAULT_STEALTH;
 
   const dumpio = !_.isUndefined(dumpioQuery) ?
     dumpioQuery !== 'false' :
@@ -369,6 +380,7 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
     dumpio,
     headless: isHeadless,
+    stealth: isStealth,
     ignoreDefaultArgs: parsedIgnoreDefaultArgs,
     ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
     keepalive,
@@ -442,7 +454,9 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
       ...launchArgs,
       headless: true,
     }) :
-    await puppeteer.launch(launchArgs);
+      launchArgs.stealth ?
+      await pptrExtra.launch(launchArgs):
+      await puppeteer.launch(launchArgs);
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(`http://127.0.0.1:${port}/json/version`)
     .catch((e) => {

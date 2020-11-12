@@ -1,9 +1,9 @@
-import archiver = require('archiver');
-import * as bodyParser from 'body-parser';
+import archiver from 'archiver';
+import bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
-import * as _ from 'lodash';
-import * as multer from 'multer';
-import * as path from 'path';
+import _ from 'lodash';
+import multer from 'multer';
+import path from 'path';
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';

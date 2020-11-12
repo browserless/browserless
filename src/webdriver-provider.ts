@@ -1,6 +1,7 @@
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http';
-import * as httpProxy from 'http-proxy';
-import * as _ from 'lodash';
+import httpProxy from 'http-proxy';
+import _ from 'lodash';
+import kill from 'tree-kill';
 
 import * as chromeHelper from './chrome-helper';
 import { Queue } from './queue';
@@ -17,7 +18,6 @@ import {
 } from './types';
 
 const debug = getDebug('webdriver');
-const kill = require('tree-kill');
 
 export class WebDriver {
   private queue: Queue;

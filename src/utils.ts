@@ -1,17 +1,18 @@
-import * as cookie from 'cookie';
-import * as express from 'express';
-import * as fs from 'fs';
+import cookie from 'cookie';
+import dbg from 'debug';
+import express from 'express';
+import fs from 'fs';
 import { IncomingMessage } from 'http';
 import { Schema } from 'joi';
-import * as _ from 'lodash';
-import * as net from 'net';
+import _ from 'lodash';
+import net from 'net';
 import fetch from 'node-fetch';
-import * as os from 'os';
-import * as path from 'path';
-import rmrf = require('rimraf');
+import os from 'os';
+import path from 'path';
+import rmrf from 'rimraf';
 import { PassThrough } from 'stream';
-import * as url from 'url';
-import * as util from 'util';
+import url from 'url';
+import util from 'util';
 
 import { WEBDRIVER_ROUTE } from './constants';
 
@@ -27,7 +28,6 @@ import {
   ILaunchOptions,
 } from './types';
 
-const dbg = require('debug');
 const { CHROME_BINARY_LOCATION } = require('../env');
 
 const mkdtemp = util.promisify(fs.mkdtemp);

@@ -1,4 +1,4 @@
-import * as path from 'path';
+import path from 'path';
 import { after as downloadAfter } from './download';
 import { id, mkdir } from '../utils';
 import { WORKSPACE_DIR } from '../config';

@@ -1,7 +1,7 @@
 import { exec as execNode } from 'child_process';
-import * as _ from 'lodash';
-import * as os from 'os';
-import * as util from 'util';
+import _ from 'lodash';
+import os from 'os';
+import util from 'util';
 import { IBrowserlessOptions } from '../../types';
 
 export const exec = util.promisify(execNode);

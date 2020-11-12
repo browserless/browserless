@@ -1,5 +1,5 @@
-import * as _ from 'lodash';
-import si = require('systeminformation');
+import _ from 'lodash';
+import si from 'systeminformation';
 import { getDebug } from './utils';
 import { IResourceLoad } from './types';
 import { MAX_CPU_PERCENT, MAX_MEMORY_PERCENT } from './config';

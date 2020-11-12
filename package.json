@@ -102,6 +102,8 @@
     "playwright-core": "^1.4.2",
     "prom-client": "^11.5.3",
     "puppeteer": "^5.4.1",
+    "puppeteer-extra": "^3.1.15",
+    "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
