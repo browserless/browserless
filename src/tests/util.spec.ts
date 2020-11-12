@@ -1,6 +1,7 @@
 import { PassThrough } from 'stream';
-import utils from '../utils';
 import { IncomingMessage } from 'http';
+
+import * as utils from '../utils';
 
 const getArgs = (overrides = {}) => ({
   args: [],
