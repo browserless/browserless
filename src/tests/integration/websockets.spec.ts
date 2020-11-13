@@ -84,6 +84,34 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
+  it('runs with ignored default args', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await puppeteer.connect({
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}?ignoreDefaultArgs`,
+        });
+
+        browser.once('disconnected', resolve);
+
+        browser.disconnect();
+      });
+    };
+
+    browserless.queue.on('end', () => {
+      expect(browserless.currentStat.timedout).toEqual(0);
+      expect(browserless.currentStat.successful).toEqual(1);
+      expect(browserless.currentStat.rejected).toEqual(0);
+      expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
   it('runs with no leaks', async (done) => {
     const params = defaultParams();
     const browserless = await start({
