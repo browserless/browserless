@@ -61,6 +61,7 @@ const BROWSERLESS_ARGS = [
   '--enable-logging',
   '--v1=1',
   '--disable-dev-shm-usage',
+  '--no-first-run',
 ];
 
 const blacklist = require('../hosts.json');
@@ -432,7 +433,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 
   // Only use debugging pipe when headless except for playwright which
   // will error in doing so.
-  if (isHeadless) {
+  if (isHeadless && !launchArgs.ignoreDefaultArgs) {
     launchArgs.args.push(`--remote-debugging-pipe`);
   }
 
