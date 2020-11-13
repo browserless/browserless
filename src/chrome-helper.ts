@@ -455,7 +455,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
       ...launchArgs,
       headless: true,
     }) :
-      launchArgs.stealth ?
+    launchArgs.stealth ?
       await pptrExtra.launch(launchArgs):
       await puppeteer.launch(launchArgs);
 
@@ -595,7 +595,7 @@ export const closeBrowser = async (browser: IBrowser) => {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
     await sleep(1000);
-    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);	
+    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
     treekill(browser._browserProcess.pid, 'SIGKILL');
     // @ts-ignore force any garbage collection by nulling the browser
     browser = null;
