@@ -1,6 +1,20 @@
 # [Latest](https://github.com/browserless/chrome/compare/v1.40.2...master)
 - Dependency Updates.
 
+# [v1.42.0](https://github.com/browserless/chrome/compare/v1.41.0...v1.42.0)
+- Dependency Updates.
+- Move to Node 14!
+- Use `esModuleInterop` for imports.
+- Remove `page.waitFor` in favor of downstream methods.
+- Adds new `?stealth` parameter for API calls (see puppeteer-extra-stealth-plugin).
+- New `DEFAULT_STEALTH` param for making stealth calls by default.
+- Fixes `ignoreDefaultArgs` in chrome stable.
+
+# [v1.41.0](https://github.com/browserless/chrome/compare/v1.40.2...v1.41.0)
+- Dependency Updates.
+- New `SESSION_CHECK_FAIL_URL` webhook for when pre-session checks fail.
+- Health checks now take the last two CPU/Memory samples to determine if a failure (5 minutes).
+
 # [v1.40.2](https://github.com/browserless/chrome/compare/v1.40.1...v1.40.2)
 - Dependency Updates.
 - Fix potentially unhandled stream error events when closing chrome.
