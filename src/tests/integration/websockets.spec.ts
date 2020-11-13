@@ -92,7 +92,7 @@ describe('Browserless Chrome WebSockets', () => {
     const job = async () => {
       return new Promise(async (resolve) => {
         const browser: any = await puppeteer.connect({
-          browserWSEndpoint: `ws://127.0.0.1:${params.port}&ignoreDefaultArgs`,
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}?ignoreDefaultArgs`,
         });
 
         browser.once('disconnected', resolve);
