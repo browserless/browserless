@@ -9,6 +9,7 @@
 - Adds new `?stealth` parameter for API calls (see puppeteer-extra-stealth-plugin).
 - New `DEFAULT_STEALTH` param for making stealth calls by default.
 - Fixes `ignoreDefaultArgs` in chrome stable.
+- Ensure temp user-data-dirs are always cleaned up.
 
 # [v1.41.0](https://github.com/browserless/chrome/compare/v1.40.2...v1.41.0)
 - Dependency Updates.
