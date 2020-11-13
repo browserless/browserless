@@ -577,7 +577,9 @@ export const closeBrowser = async (browser: IBrowser) => {
 
     if (browser._browserlessDataDir) {
       debug(`Removing temp data-dir ${browser._browserlessDataDir}`);
-      rimraf(browser._browserlessDataDir);
+      rimraf(browser._browserlessDataDir)
+        .then(() => debug(`Temp dir ${browser._browserlessDataDir} removed successfully`))
+        .catch((e) => debug(`Error deleting ${browser._browserlessDataDir}: ${e}`));
     }
 
     isPuppeteer(browser._browserServer) ? browser._browserServer.disconnect() : browser._browserServer.close();

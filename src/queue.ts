@@ -20,7 +20,7 @@ export class Queue {
     this.queue = q(opts);
   }
 
-  public on(event: string, cb: () => any) {
+  public on(event: string, cb: (...args: any[]) => any) {
     this.queue.on(event, cb);
   }
 

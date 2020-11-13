@@ -3,7 +3,7 @@ import { chromium } from 'playwright-core';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
-import { sleep } from '../../utils';
+import { sleep, exists } from '../../utils';
 
 import {
   defaultParams,
@@ -106,6 +106,32 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(1);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
+      done();
+    });
+
+    job();
+  });
+
+  it('deletes tmp user-data-dirs', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await puppeteer.connect({
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+        });
+
+        browser.once('disconnected', resolve);
+        browser.disconnect();
+      });
+    };
+
+    browserless.queue.on('success', async (_r, j) => {
+      const tmpDir = j.browser._browserlessDataDir;
+      await sleep(200);
+      expect(await exists(tmpDir)).toBe(false);
       done();
     });
 
