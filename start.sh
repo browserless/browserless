@@ -3,7 +3,7 @@ set -e
 
 # When docker restarts, this file is still there,
 # so we need to kill it just in case
-[ -f /tmp/.X99-lock ] && rm /tmp/.X99-lock
+[ -f /tmp/.X99-lock ] && rm -f /tmp/.X99-lock
 
 _kill_procs() {
   kill -TERM $node
