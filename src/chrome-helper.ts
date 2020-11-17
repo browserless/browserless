@@ -65,6 +65,14 @@ const BROWSERLESS_ARGS = [
 ];
 
 const blacklist = require('../hosts.json');
+
+const removeDataDir = (dir: string) => {
+  debug(`Removing temp data-dir ${dir}`);
+  rimraf(dir)
+    .then(() => debug(`Temp dir ${dir} removed successfully`))
+    .catch((e) => debug(`Error deleting ${dir}: ${e}`));
+};
+
 const networkBlock = (request: puppeteer.Request) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
@@ -450,14 +458,25 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
 
-  const browserServer = launchArgs.playwright ?
-    await chromium.launchServer({
+  const browserServerPromise = launchArgs.playwright ?
+    chromium.launchServer({
       ...launchArgs,
       headless: true,
     }) :
     launchArgs.stealth ?
-      await pptrExtra.launch(launchArgs):
-      await puppeteer.launch(launchArgs);
+      pptrExtra.launch(launchArgs):
+      puppeteer.launch(launchArgs);
+
+  // @ts-ignore "expression is not callable"
+  browserServerPromise.catch((e: Error) => {
+    debug(`Error launching Chrome ${e}`);
+    if (browserlessDataDir) {
+      removeDataDir(browserlessDataDir);
+    }
+    throw e;
+  });
+
+  const browserServer = await browserServerPromise;
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(`http://127.0.0.1:${port}/json/version`)
     .catch((e) => {
@@ -575,13 +594,6 @@ export const closeBrowser = async (browser: IBrowser) => {
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
 
-    if (browser._browserlessDataDir) {
-      debug(`Removing temp data-dir ${browser._browserlessDataDir}`);
-      rimraf(browser._browserlessDataDir)
-        .then(() => debug(`Temp dir ${browser._browserlessDataDir} removed successfully`))
-        .catch((e) => debug(`Error deleting ${browser._browserlessDataDir}: ${e}`));
-    }
-
     isPuppeteer(browser._browserServer) ? browser._browserServer.disconnect() : browser._browserServer.close();
     runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
 
@@ -598,7 +610,13 @@ export const closeBrowser = async (browser: IBrowser) => {
   } finally {
     await sleep(1000);
     debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
+
     treekill(browser._browserProcess.pid, 'SIGKILL');
+
+    if (browser._browserlessDataDir) {
+      removeDataDir(browser._browserlessDataDir);
+    }
+
     // @ts-ignore force any garbage collection by nulling the browser
     browser = null;
   }
