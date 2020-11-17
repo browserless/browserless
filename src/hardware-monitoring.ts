@@ -18,7 +18,7 @@ export const getMachineStats = async (): Promise<IResourceLoad> => {
     return [null, null];
   });
 
-  const cpu = cpuLoad ? cpuLoad.currentload / 100 : null;
+  const cpu = cpuLoad ? cpuLoad.currentload_user / 100 : null;
   const memory = memLoad ? memLoad.active / memLoad.total : null;
 
   return {
