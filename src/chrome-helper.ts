@@ -608,7 +608,7 @@ export const closeBrowser = async (browser: IBrowser) => {
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    await sleep(1000);
+    await sleep(200);
     debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
 
     treekill(browser._browserProcess.pid, 'SIGKILL');
