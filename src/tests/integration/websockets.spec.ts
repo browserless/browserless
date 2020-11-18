@@ -130,7 +130,7 @@ describe('Browserless Chrome WebSockets', () => {
 
     browserless.queue.on('success', async (_r, j) => {
       const tmpDir = j.browser._browserlessDataDir;
-      await sleep(250);
+      await sleep(500);
       expect(await exists(tmpDir)).toBe(false);
       done();
     });
