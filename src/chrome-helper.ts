@@ -65,12 +65,15 @@ const BROWSERLESS_ARGS = [
 ];
 
 const blacklist = require('../hosts.json');
+const thirtySeconds = 30 * 1000;
 
-const removeDataDir = (dir: string) => {
-  debug(`Removing temp data-dir ${dir}`);
-  rimraf(dir)
-    .then(() => debug(`Temp dir ${dir} removed successfully`))
-    .catch((e) => debug(`Error deleting ${dir}: ${e}`));
+const removeDataDir = (dir: string | null) => {
+  if (dir) {
+    debug(`Removing temp data-dir ${dir}`);
+    rimraf(dir)
+      .then(() => debug(`Temp dir ${dir} removed successfully`))
+      .catch((e) => debug(`Error deleting ${dir}: ${e}`));
+  }
 };
 
 const networkBlock = (request: puppeteer.Request) => {
@@ -458,25 +461,19 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
 
-  const browserServerPromise = launchArgs.playwright ?
-    chromium.launchServer({
+  // Kill any user data-dir if 30 seconds go by without us launching
+  const rmUserDataDir = setTimeout(removeDataDir, thirtySeconds, browserlessDataDir);
+
+  const browserServer = launchArgs.playwright ?
+    await chromium.launchServer({
       ...launchArgs,
       headless: true,
     }) :
     launchArgs.stealth ?
-      pptrExtra.launch(launchArgs):
-      puppeteer.launch(launchArgs);
+      await pptrExtra.launch(launchArgs):
+      await puppeteer.launch(launchArgs);
 
-  // @ts-ignore "expression is not callable"
-  browserServerPromise.catch((e: Error) => {
-    debug(`Error launching Chrome ${e}`);
-    if (browserlessDataDir) {
-      removeDataDir(browserlessDataDir);
-    }
-    throw e;
-  });
-
-  const browserServer = await browserServerPromise;
+  clearTimeout(rmUserDataDir);
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(`http://127.0.0.1:${port}/json/version`)
     .catch((e) => {
