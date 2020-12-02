@@ -1,5 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.40.2...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.43.0...master)
 - Dependency Updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
+- Dependency Updates.
+- Fixes an issue where --user-data-dirs aren't deleted properly, potentially filling disks.
+- Changes CPU/Memory checks to be user-based and not the entire OS.
+- Adds tests for the user-data-dir issue.
 
 # [v1.42.0](https://github.com/browserless/chrome/compare/v1.41.0...v1.42.0)
 - Dependency Updates.
