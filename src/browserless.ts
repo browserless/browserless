@@ -195,9 +195,24 @@ export class BrowserlessServer {
     const openSessions = getBrowsersRunning();
     const concurrencyMet = queueLength >= openSessions;
 
+    const hasQueueLength = queueLength < this.config.maxQueueLength;
+    const hasCPU = (cpu ?? 0) * 100 < this.config.maxCPU;
+    const hasMemory = (memory ?? 0) * 100 < this.config.maxMemory;
+
+    const isAvailable = (
+      hasQueueLength &&
+      hasCPU &&
+      hasMemory
+    );
+
+    const reason = !hasQueueLength ? 'Concurrency and queue are full' :
+      !hasCPU ? 'CPU is over configured maximum CPU' :
+      !hasMemory ? 'Memory is over configured maximum Memory' : '';
+
     return {
       date: Date.now(),
-      isAvailable: queueLength < this.config.maxQueueLength,
+      isAvailable,
+      reason,
       queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
       running: openSessions,
