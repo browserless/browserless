@@ -69,6 +69,7 @@ module.exports = async function pdf({ page, context }) {
     safeMode,
     gotoOptions,
     rejectRequestPattern = [],
+    rejectResourceTypes = [],
     requestInterceptors = [],
     setExtraHTTPHeaders,
     setJavaScriptEnabled = null,
@@ -88,10 +89,14 @@ module.exports = async function pdf({ page, context }) {
     await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
-  if (rejectRequestPattern.length || requestInterceptors.length) {
+  if (rejectRequestPattern.length || requestInterceptors.length || rejectResourceTypes.length) {
     await page.setRequestInterception(true);
+
     page.on('request', (req) => {
-      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+      if (
+        !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
+        rejectResourceTypes.includes(req.resourceType())
+      ) {
         return req.abort();
       }
       const interceptor = requestInterceptors
