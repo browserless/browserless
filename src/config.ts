@@ -107,6 +107,7 @@ export const ENABLE_CORS: boolean = parseJSONParam(process.env.ENABLE_CORS, fals
 export const ENABLE_API_GET: boolean = parseJSONParam(process.env.ENABLE_API_GET, false);
 export const TOKEN: string | null = process.env.TOKEN || null;
 export const ENABLE_HEAP_DUMP: boolean = parseJSONParam(process.env.ENABLE_HEAP_DUMP, false);
+export const ALLOW_FILE_PROTOCOL: boolean = parseJSONParam(process.env.ALLOW_FILE_PROTOCOL, false);
 
 // Puppeteer behavior
 export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR, false);

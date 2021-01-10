@@ -7,6 +7,7 @@ import { IBrowserlessOptions } from '../../types';
 export const exec = util.promisify(execNode);
 export const getPort = () => 3000 + (+_.uniqueId());
 export const defaultParams = (): IBrowserlessOptions => ({
+  allowFileProtocol: false,
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
   demoMode: false,

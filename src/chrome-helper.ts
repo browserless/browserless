@@ -29,6 +29,7 @@ import {
 } from './types';
 
 import {
+  ALLOW_FILE_PROTOCOL,
   DEFAULT_BLOCK_ADS,
   DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
@@ -154,9 +155,22 @@ const setupPage = async ({
     await client.send('Debugger.pause');
   }
 
-  if (blockAds) {
+  if (blockAds || !ALLOW_FILE_PROTOCOL) {
     await page.setRequestInterception(true);
-    page.on('request', networkBlock);
+
+    if (!ALLOW_FILE_PROTOCOL) {
+      page.on('request', (request) => {
+        if (request.url().startsWith('file://')) {
+          page.browser().close();
+        }
+      });
+    
+      page.on('response', (response) => {
+        if (response.url().startsWith('file://')) {
+          page.browser().close();
+        }
+      });
+    }
   }
 
   if (windowSize) {
