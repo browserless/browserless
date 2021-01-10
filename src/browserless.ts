@@ -248,7 +248,7 @@ export class BrowserlessServer {
           metricsPath: '/prometheus\(\\?\.\+\)\?',
         });
         app.use(metricsMiddleware);
-        client.collectDefaultMetrics({ timeout: 5000 });
+        client.collectDefaultMetrics();
       }
 
       const routes = getRoutes({
