@@ -18,7 +18,25 @@ const setExtraHTTPHeaders = Joi.object().unknown();
 
 const setJavaScriptEnabled = Joi.boolean();
 
+// Pattern's can match any part of the URL
 const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
+
+// Resource types are the type of asset being returned by the network request
+const rejectResourceTypes = Joi.array().items(Joi.string().valid(
+  'document',
+  'stylesheet',
+  'image',
+  'media',
+  'font',
+  'script',
+  'texttrack',
+  'xhr',
+  'fetch',
+  'eventsource',
+  'websocket',
+  'manifest',
+  'other'
+)).default([]);
 
 const addScriptTag = Joi.array().items(Joi.object().keys({
   url: Joi.string(),
@@ -100,6 +118,7 @@ export const screenshot = Joi.object().keys({
     type: Joi.string().valid('jpeg', 'png'),
   }),
   rejectRequestPattern,
+  rejectResourceTypes,
   requestInterceptors,
   setExtraHTTPHeaders,
   setJavaScriptEnabled,
@@ -116,6 +135,7 @@ export const content = Joi.object().keys({
   cookies,
   gotoOptions,
   rejectRequestPattern,
+  rejectResourceTypes,
   requestInterceptors,
   setExtraHTTPHeaders,
   setJavaScriptEnabled,
@@ -153,6 +173,7 @@ export const pdf = Joi.object().keys({
     width: Joi.any().optional(),
   }),
   rejectRequestPattern,
+  rejectResourceTypes,
   requestInterceptors,
   rotate: Joi.number().valid(90, -90, 180),
   safeMode: Joi.boolean().default(false),
@@ -182,6 +203,7 @@ export const scrape = Joi.object().keys({
   })).required(),
   gotoOptions,
   rejectRequestPattern,
+  rejectResourceTypes,
   requestInterceptors,
   setExtraHTTPHeaders,
   url: Joi.string().required(),

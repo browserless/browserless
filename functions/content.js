@@ -23,6 +23,7 @@ module.exports = async function content ({ page, context }) {
     html,
     gotoOptions,
     rejectRequestPattern = [],
+    rejectResourceTypes = [],
     requestInterceptors = [],
     cookies = [],
     setExtraHTTPHeaders = null,
@@ -43,10 +44,14 @@ module.exports = async function content ({ page, context }) {
     await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
-  if (rejectRequestPattern.length || requestInterceptors.length) {
+  if (rejectRequestPattern.length || requestInterceptors.length || rejectResourceTypes.length) {
     await page.setRequestInterception(true);
+
     page.on('request', (req) => {
-      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+      if (
+        !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
+        rejectResourceTypes.includes(req.resourceType())
+      ) {
         return req.abort();
       }
       const interceptor = requestInterceptors
