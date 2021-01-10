@@ -111,6 +111,24 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
+  it('rejects file requests by default', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    try {
+      const browser: any = await puppeteer.connect({
+        browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+      });
+      const [page] = await browser.pages();
+      await page.goto('file:///etc/passwd');
+      done('Browser should have forcefully closed');
+    } catch (e) {
+      expect(e.message).toContain('browser has disconnected!');
+      done();
+    }
+  });
+
   it('filters sessions', async (done) => {
     const params = defaultParams();
     const browserless = await start({
