@@ -29,6 +29,7 @@ import {
 } from './types';
 
 import {
+  ALLOW_FILE_PROTOCOL,
   DEFAULT_BLOCK_ADS,
   DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
@@ -113,12 +114,14 @@ const isPuppeteer = (browserServer: puppeteer.Browser | BrowserServer): browserS
 }
 
 const setupPage = async ({
+  browser,
   page,
   pauseOnConnect,
   blockAds,
   trackingId,
   windowSize,
 }: {
+  browser: IBrowser,
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
@@ -152,6 +155,22 @@ const setupPage = async ({
   if (pauseOnConnect && !DISABLED_FEATURES.includes(Features.DEBUG_VIEWER)) {
     await client.send('Debugger.enable');
     await client.send('Debugger.pause');
+  }
+
+  if (!ALLOW_FILE_PROTOCOL) {
+    page.on('request', async(request) => {
+      if (request.url().startsWith('file://')) {
+        page.close().catch(_.noop);
+        closeBrowser(browser);
+      }
+    });
+  
+    page.on('response', async(response) => {
+      if (response.url().startsWith('file://')) {
+        page.close().catch(_.noop);
+        closeBrowser(browser);
+      }
+    });
   }
 
   if (blockAds) {
@@ -227,6 +246,7 @@ const setupBrowser = async ({
       if (page && !page.isClosed()) {
         // @ts-ignore
         setupPage({
+          browser,
           page,
           windowSize,
           blockAds: browser._blockAds,
@@ -241,7 +261,14 @@ const setupBrowser = async ({
 
   const pages = await browser.pages();
 
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
+  pages.forEach((page) => setupPage({
+    browser,
+    blockAds,
+    page,
+    pauseOnConnect,
+    trackingId,
+    windowSize,
+  }));
   runningBrowsers.push(browser);
 
   return browser;

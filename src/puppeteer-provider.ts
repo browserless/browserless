@@ -366,6 +366,7 @@ export class PuppeteerProvider {
           sandboxOpts: {
             builtin: this.config.functionBuiltIns,
             external: this.config.functionExternals,
+            allowFileProtocol: this.config.allowFileProtocol,
             root: './node_modules',
           },
           timeout,

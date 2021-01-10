@@ -67,17 +67,19 @@ const start = async (
     });
   });
 
-  page.on('request', (request) => {
-    if (request.url().startsWith('file://')) {
-      page.browser().close();
-    }
-  });
-
-  page.on('response', (response) => {
-    if (response.url().startsWith('file://')) {
-      page.browser().close();
-    }
-  });
+  if (!sandboxOpts.allowFileProtocol) {
+    page.on('request', (request) => {
+      if (request.url().startsWith('file://')) {
+        page.browser().close();
+      }
+    });
+  
+    page.on('response', (response) => {
+      if (response.url().startsWith('file://')) {
+        page.browser().close();
+      }
+    });
+  }
 
   // @ts-ignore
   const pageLocation = `/devtools/page/${page._target._targetId}`;

@@ -2,6 +2,7 @@ import { BrowserlessServer } from './browserless';
 import * as config from './config';
 
 const browserless = new BrowserlessServer({
+  allowFileProtocol: config.ALLOW_FILE_PROTOCOL,
   chromeRefreshTime: config.CHROME_REFRESH_TIME,
   connectionTimeout: config.CONNECTION_TIMEOUT,
   demoMode: config.DEMO_MODE,

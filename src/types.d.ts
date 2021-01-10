@@ -104,6 +104,7 @@ export interface ISandboxOpts {
   builtin: string[];
   external: boolean | string[];
   root: string;
+  allowFileProtocol: boolean;
 }
 
 export interface IConfig {
@@ -143,6 +144,7 @@ interface IBrowserlessServerConfiguration {
 }
 
 export interface IChromeServiceConfiguration {
+  allowFileProtocol: boolean;
   connectionTimeout: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
