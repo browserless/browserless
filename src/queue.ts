@@ -49,7 +49,10 @@ export class Queue {
   }
 
   public async overloaded() {
-    return PRE_REQUEST_HEALTH_CHECK && await overloaded();
+    const { cpuOverloaded, memoryOverloaded } = await overloaded();
+    const underLoad = cpuOverloaded || memoryOverloaded;
+
+    return PRE_REQUEST_HEALTH_CHECK && underLoad;
   }
 
   public remove(job: IJob) {

@@ -13,7 +13,7 @@ import url from 'url';
 import { Features } from './features';
 import * as util from './utils';
 
-import { getMachineStats } from './hardware-monitoring';
+import { getMachineStats, overloaded } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
 import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
@@ -185,41 +185,45 @@ export class BrowserlessServer {
   }
 
   public async getPressure() {
-    const { cpu, memory } = await getMachineStats()
-      .catch((err) => {
-        debug(`Error loading cpu/memory in pressure call ${err}`);
-        return { cpu: null, memory: null };
-      });
+    const {
+      memoryOverloaded,
+      cpuOverloaded,
+      cpuInt: cpu,
+      memoryInt: memory,
+    } = await overloaded();
 
     const queueLength = this.queue.length;
     const openSessions = getBrowsersRunning();
     const concurrencyMet = queueLength >= openSessions;
 
-    const hasQueueLength = queueLength < this.config.maxQueueLength;
-    const hasCPU = (cpu ?? 0) * 100 < this.config.maxCPU;
-    const hasMemory = (memory ?? 0) * 100 < this.config.maxMemory;
+    const queueFull = !(queueLength < this.config.maxQueueLength);
 
     const isAvailable = (
-      hasQueueLength &&
-      hasCPU &&
-      hasMemory
+      !queueFull &&
+      !cpuOverloaded &&
+      !memoryOverloaded
     );
 
-    const reason = !hasQueueLength ? 'Concurrency and queue are full' :
-      !hasCPU ? 'CPU is over configured maximum CPU' :
-      !hasMemory ? 'Memory is over configured maximum Memory' : '';
+    const reason = queueFull ? 'full' :
+      cpuOverloaded ? 'cpu' :
+      memoryOverloaded ? 'memory' : '';
+
+    const message = queueFull ? 'Concurrency and queue are full' :
+      cpuOverloaded ? 'CPU is over the configured maximum for cpu percent' :
+      memoryOverloaded ? 'Memory is over the configured maximum for memory percent' : '';
 
     return {
       date: Date.now(),
-      isAvailable,
       reason,
+      message,
+      isAvailable,
       queued: concurrencyMet ? queueLength - openSessions : 0,
       recentlyRejected: this.currentStat.rejected,
       running: openSessions,
       maxConcurrent: this.queue.concurrencySize,
       maxQueued: this.config.maxQueueLength -this.config.maxConcurrentSessions,
-      cpu: cpu ? cpu * 100 : null,
-      memory: memory ? memory * 100 : null,
+      cpu,
+      memory,
     };
   }
 
