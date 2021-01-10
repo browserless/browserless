@@ -69,6 +69,8 @@ Array [
 exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `
 Array [
   "date",
+  "reason",
+  "message",
   "isAvailable",
   "queued",
   "recentlyRejected",
