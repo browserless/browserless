@@ -152,14 +152,21 @@ module.exports = async function scrape ({ page, context }) {
       const $els = [...document.querySelectorAll(selector)];
       return {
         selector,
-        results: $els.map(($el) => ({
-          html: $el.innerHTML,
-          text: $el.innerText,
-          attributes: [...$el.attributes].map((attr) => ({
-            name: attr.name,
-            value: attr.value,
-          })),
-        })),
+        results: $els.map(($el) => {
+          const rect = $el.getBoundingClientRect();
+          return {
+            html: $el.innerHTML,
+            text: $el.innerText,
+            width: $el.offsetWidth,
+            height: $el.offsetHeight,
+            top: rect.top,
+            left: rect.left,
+            attributes: [...$el.attributes].map((attr) => ({
+              name: attr.name,
+              value: attr.value,
+            })),
+          };
+        }),
       }
     });
   }, elements, waitForElement.toString());
