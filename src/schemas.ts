@@ -24,18 +24,18 @@ const rejectRequestPattern = Joi.array().items(Joi.string()).default([]);
 // Resource types are the type of asset being returned by the network request
 const rejectResourceTypes = Joi.array().items(Joi.string().valid(
   'document',
-  ' stylesheet',
-  ' image',
-  ' media',
-  ' font',
-  ' script',
-  ' texttrack',
-  ' xhr',
-  ' fetch',
-  ' eventsource',
-  ' websocket',
-  ' manifest',
-  ' other'
+  'stylesheet',
+  'image',
+  'media',
+  'font',
+  'script',
+  'texttrack',
+  'xhr',
+  'fetch',
+  'eventsource',
+  'websocket',
+  'manifest',
+  'other'
 )).default([]);
 
 const addScriptTag = Joi.array().items(Joi.object().keys({
