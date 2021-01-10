@@ -2,6 +2,7 @@
 
 exports[`Browserless Chrome HTTP allows requests to /config 1`] = `
 Array [
+  "allowFileProtocol",
   "chromeRefreshTime",
   "connectionTimeout",
   "demoMode",
