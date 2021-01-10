@@ -158,16 +158,16 @@ const setupPage = async ({
   }
 
   if (!ALLOW_FILE_PROTOCOL) {
-    page.on('request', (request) => {
+    page.on('request', async(request) => {
       if (request.url().startsWith('file://')) {
-        page.close();
+        await page.close();
         closeBrowser(browser);
       }
     });
   
-    page.on('response', (response) => {
+    page.on('response', async(response) => {
       if (response.url().startsWith('file://')) {
-        page.close();
+        await page.close();
         closeBrowser(browser);
       }
     });
