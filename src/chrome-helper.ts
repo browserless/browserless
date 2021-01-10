@@ -288,60 +288,62 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
   return pages.find((session) => session.browserWSEndpoint.includes(pathname));
 };
 
-export const getDebuggingPages = async (): Promise<ISession[]> => {
+export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]> => {
   const results = await Promise.all(
-    runningBrowsers.map(async (browser) => {
-      const { port } = browser._parsed;
+    runningBrowsers
+      .filter((browser) => typeof trackingId === 'undefined' || browser._trackingId === trackingId)
+      .map(async (browser) => {
+        const { port } = browser._parsed;
 
-      const externalHost = PROXY_HOST ?
-        `${PROXY_HOST}${PROXY_PORT ? `:${PROXY_PORT}` : ''}` :
-        `${HOST || '127.0.0.1'}:${PORT}`;
+        const externalHost = PROXY_HOST ?
+          `${PROXY_HOST}${PROXY_PORT ? `:${PROXY_PORT}` : ''}` :
+          `${HOST || '127.0.0.1'}:${PORT}`;
 
-      const externalProtocol = PROXY_SSL ? 'wss' : 'ws';
+        const externalProtocol = PROXY_SSL ? 'wss' : 'ws';
 
-      if (!port) {
-        throw new Error(`Error finding port in browser endpoint: ${port}`);
-      }
+        if (!port) {
+          throw new Error(`Error finding port in browser endpoint: ${port}`);
+        }
 
-      const sessions = await getTargets({ port });
+        const sessions = await getTargets({ port });
 
-      return sessions
-        .map((session) => {
-          const wsEndpoint = browser._wsEndpoint;
-          const proxyParams = {
-            host: externalHost,
-            protocol: externalProtocol,
-            slashes: true,
-          };
+        return sessions
+          .map((session) => {
+            const wsEndpoint = browser._wsEndpoint;
+            const proxyParams = {
+              host: externalHost,
+              protocol: externalProtocol,
+              slashes: true,
+            };
 
-          const parsedWebSocketDebuggerUrl = {
-            ...url.parse(session.webSocketDebuggerUrl),
-            ...proxyParams,
-          };
+            const parsedWebSocketDebuggerUrl = {
+              ...url.parse(session.webSocketDebuggerUrl),
+              ...proxyParams,
+            };
 
-          const parsedWsEndpoint = {
-            ...url.parse(wsEndpoint),
-            ...proxyParams,
-          };
+            const parsedWsEndpoint = {
+              ...url.parse(wsEndpoint),
+              ...proxyParams,
+            };
 
-          const browserWSEndpoint = url.format(parsedWsEndpoint);
-          const webSocketDebuggerUrl = url.format(parsedWebSocketDebuggerUrl);
-          const devtoolsFrontendUrl = url.format({
-            pathname: url.parse(session.devtoolsFrontendUrl).pathname,
-            search: `?${externalProtocol}=${externalHost}${parsedWebSocketDebuggerUrl.path}`,
+            const browserWSEndpoint = url.format(parsedWsEndpoint);
+            const webSocketDebuggerUrl = url.format(parsedWebSocketDebuggerUrl);
+            const devtoolsFrontendUrl = url.format({
+              pathname: url.parse(session.devtoolsFrontendUrl).pathname,
+              search: `?${externalProtocol}=${externalHost}${parsedWebSocketDebuggerUrl.path}`,
+            });
+
+            return {
+              ...session,
+              browserId: browser._id,
+              browserWSEndpoint,
+              devtoolsFrontendUrl,
+              port,
+              trackingId: browser._trackingId,
+              webSocketDebuggerUrl,
+            };
           });
-
-          return {
-            ...session,
-            browserId: browser._id,
-            browserWSEndpoint,
-            devtoolsFrontendUrl,
-            port,
-            trackingId: browser._trackingId,
-            webSocketDebuggerUrl,
-          };
-        });
-    }),
+      }),
   );
 
   return _.flatten(results);

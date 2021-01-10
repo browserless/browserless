@@ -480,8 +480,9 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
-    router.get('/sessions', asyncWebHandler(async (_req: Request, res: Response) => {
-      const pages = await chromeHelper.getDebuggingPages();
+    router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
+      const trackingId = req.query.trackingId as string | undefined;
+      const pages = await chromeHelper.getDebuggingPages(trackingId);
 
       return res.json(pages);
     }));

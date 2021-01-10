@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import puppeteer from 'puppeteer';
 import { chromium } from 'playwright-core';
 
@@ -80,6 +81,64 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.queued).toEqual(0);
       done();
     });
+
+    job();
+  });
+
+  it('exposes sessions', async (done) => {
+    const params = defaultParams();
+    const browserless = await start(params);
+    await browserless.startServer();
+
+    const job = async () => {
+      return new Promise(async (resolve) => {
+        const browser: any = await puppeteer.connect({
+          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+        });
+        const results = await fetch(`http://127.0.0.1:${params.port}/sessions`)
+        const [body] = await results.json();
+
+        expect(Object.keys(body)).toMatchSnapshot();
+
+        browser.once('disconnected', resolve);
+
+        browser.disconnect();
+      });
+    };
+
+    browserless.queue.on('end', done);
+
+    job();
+  });
+
+  it('filters sessions', async (done) => {
+    const params = defaultParams();
+    const browserless = await start({
+      ...params,
+      maxConcurrentSessions: 2,
+    });
+    await browserless.startServer();
+
+    const trackingId = 'abc';
+
+    const job = async () => {
+      return new Promise(async () => {
+        const [one, two] = await Promise.all([
+          puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}?trackingId=${trackingId}` }),
+          puppeteer.connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` }),
+        ]);
+
+        const results = await fetch(`http://127.0.0.1:${params.port}/sessions?trackingId=${trackingId}`)
+        const body = await results.json();
+
+        expect(body.length).toEqual(1);
+
+        one.disconnect();
+        two.disconnect();
+      });
+    };
+
+    browserless.queue.on('end', done);
 
     job();
   });
