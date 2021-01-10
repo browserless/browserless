@@ -114,12 +114,14 @@ const isPuppeteer = (browserServer: puppeteer.Browser | BrowserServer): browserS
 }
 
 const setupPage = async ({
+  browser,
   page,
   pauseOnConnect,
   blockAds,
   trackingId,
   windowSize,
 }: {
+  browser: IBrowser,
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
@@ -158,13 +160,13 @@ const setupPage = async ({
   if (!ALLOW_FILE_PROTOCOL) {
     page.on('request', (request) => {
       if (request.url().startsWith('file://')) {
-        page.browser().close();
+        closeBrowser(browser);
       }
     });
   
     page.on('response', (response) => {
       if (response.url().startsWith('file://')) {
-        page.browser().close();
+        closeBrowser(browser);
       }
     });
   }
@@ -242,6 +244,7 @@ const setupBrowser = async ({
       if (page && !page.isClosed()) {
         // @ts-ignore
         setupPage({
+          browser,
           page,
           windowSize,
           blockAds: browser._blockAds,
@@ -256,7 +259,14 @@ const setupBrowser = async ({
 
   const pages = await browser.pages();
 
-  pages.forEach((page) => setupPage({ blockAds, page, pauseOnConnect, trackingId, windowSize }));
+  pages.forEach((page) => setupPage({
+    browser,
+    blockAds,
+    page,
+    pauseOnConnect,
+    trackingId,
+    windowSize,
+  }));
   runningBrowsers.push(browser);
 
   return browser;

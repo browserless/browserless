@@ -124,7 +124,7 @@ describe('Browserless Chrome WebSockets', () => {
       await page.goto('file:///etc/passwd');
       done('Browser should have forcefully closed');
     } catch (e) {
-      expect(e.message).toContain('browser has disconnected!');
+      expect(e.message).toBeDefined();
       done();
     }
   });
