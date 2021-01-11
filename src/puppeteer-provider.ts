@@ -115,6 +115,7 @@ export class PuppeteerProvider {
     external = this.config.functionExternals,
   }: IRunHTTP) {
     const jobId = utils.id();
+    const trackingId = req.query.trackingId;
 
     jobdebug(`${jobId}: ${req.url}: Inbound HTTP request. Context: ${JSON.stringify(context)}`);
 
@@ -135,7 +136,7 @@ export class PuppeteerProvider {
 
     if (detached) {
       jobdebug(`${jobId}: Function is detached, resolving request.`);
-      res.json({ id: jobId });
+      res.json({ id: jobId, trackingId });
     }
 
     const vm = new NodeVM({
