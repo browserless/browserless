@@ -9,9 +9,9 @@ Array [
   "type",
   "url",
   "webSocketDebuggerUrl",
-  "browserId",
-  "browserWSEndpoint",
   "port",
+  "browserId",
   "trackingId",
+  "browserWSEndpoint",
 ]
 `;
