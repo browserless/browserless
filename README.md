@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/browserless-logo-gradient.svg" width="600" height="400">
+  <img src="/assets/browserless-logo-gradient.svg" width="600" height="400">
 </div>
 
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
