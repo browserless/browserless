@@ -2,6 +2,7 @@ import { PassThrough } from 'stream';
 import { IncomingMessage } from 'http';
 
 import * as utils from '../utils';
+import { IBrowser } from '../types';
 
 const getArgs = (overrides = {}) => ({
   args: [],
@@ -692,6 +693,166 @@ describe(`Utils`, () => {
         expect(results.params.isUsingTempDataDir).toBe(false);
         expect(results.params.browserlessDataDir).toEqual(null);
       });
+    });
+  });
+
+  describe('#injectHostIntoSession', () => {
+    it('injects host/port into the session responses', () => {
+      const host = new URL('http://localhost:3000');
+
+      const browser = {
+        _wsEndpoint: 'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
+        _id: '685638c2-f214-494b-b679-1efbe2f824ba',
+        _trackingId: 'abc',
+        _parsed: {
+          port: 1377,
+        },
+      } as unknown as IBrowser;
+
+      const session = {
+        description: 'Example Site',
+        devtoolsFrontendUrl: '/devtools/inspector.html?ws=127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
+        id: '4F7E8BE0AA50EEABDE92330A2CFD8674',
+        title: 'Example Domain',
+        type: 'page',
+        url: 'https://www.example.com/',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+      };
+
+      const result = utils.injectHostIntoSession(host, browser, session);
+
+      expect(result.browserId).toEqual(browser._id);
+      expect(result.description).toEqual(session.description);
+      expect(result.id).toEqual(session.id);
+      expect(result.title).toEqual(session.title);
+      expect(result.type).toEqual(session.type);
+      expect(result.url).toEqual(session.url);
+      expect(result.trackingId).toEqual(browser._trackingId);
+      expect(result.port).toEqual(browser._parsed.port);
+
+      expect(result.browserWSEndpoint).toEqual('ws://localhost:3000/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba');
+      expect(result.webSocketDebuggerUrl).toEqual('ws://localhost:3000/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+
+      // http://localhost:3000/devtools/inspector.html?ws=127.0.0.1:3000/devtools/page/C2A1CDF7419E198A608F3E5A0ECEFA1E
+      expect(result.devtoolsFrontendUrl).toEqual('/devtools/inspector.html?ws=localhost:3000/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+    });
+
+    it('handles URLs no ports (80)', () => {
+      const host = new URL('http://localhost');
+
+      const browser = {
+        _wsEndpoint: 'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
+        _id: '685638c2-f214-494b-b679-1efbe2f824ba',
+        _trackingId: 'abc',
+        _parsed: {
+          port: 1377,
+        },
+      } as unknown as IBrowser;
+
+      const session = {
+        description: 'Example Site',
+        devtoolsFrontendUrl: '/devtools/inspector.html?ws=127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
+        id: '4F7E8BE0AA50EEABDE92330A2CFD8674',
+        title: 'Example Domain',
+        type: 'page',
+        url: 'https://www.example.com/',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+      };
+
+      const result = utils.injectHostIntoSession(host, browser, session);
+
+      expect(result.port).toEqual(browser._parsed.port);
+      expect(result.browserWSEndpoint).toEqual('ws://localhost/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba');
+      expect(result.webSocketDebuggerUrl).toEqual('ws://localhost/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+      expect(result.devtoolsFrontendUrl).toEqual('/devtools/inspector.html?ws=localhost/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+    });
+
+    it('handles URLs with SSL', () => {
+      const host = new URL('https://browserless.com');
+
+      const browser = {
+        _wsEndpoint: 'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
+        _id: '685638c2-f214-494b-b679-1efbe2f824ba',
+        _trackingId: 'abc',
+        _parsed: {
+          port: 1377,
+        },
+      } as unknown as IBrowser;
+
+      const session = {
+        description: 'Example Site',
+        devtoolsFrontendUrl: '/devtools/inspector.html?ws=127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
+        id: '4F7E8BE0AA50EEABDE92330A2CFD8674',
+        title: 'Example Domain',
+        type: 'page',
+        url: 'https://www.example.com/',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+      };
+
+      const result = utils.injectHostIntoSession(host, browser, session);
+
+      expect(result.browserWSEndpoint).toEqual('wss://browserless.com/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba');
+      expect(result.webSocketDebuggerUrl).toEqual('wss://browserless.com/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+      expect(result.devtoolsFrontendUrl).toEqual('/devtools/inspector.html?wss=browserless.com/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+    });
+
+    it('handles URLs with base-paths', () => {
+      const host = new URL('http://localhost/browserless');
+
+      const browser = {
+        _wsEndpoint: 'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
+        _id: '685638c2-f214-494b-b679-1efbe2f824ba',
+        _trackingId: 'abc',
+        _parsed: {
+          port: 1377,
+        },
+      } as unknown as IBrowser;
+
+      const session = {
+        description: 'Example Site',
+        devtoolsFrontendUrl: '/devtools/inspector.html?ws=127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
+        id: '4F7E8BE0AA50EEABDE92330A2CFD8674',
+        title: 'Example Domain',
+        type: 'page',
+        url: 'https://www.example.com/',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+      };
+
+      const result = utils.injectHostIntoSession(host, browser, session);
+
+      expect(result.browserWSEndpoint).toEqual('ws://localhost/browserless/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba');
+      expect(result.webSocketDebuggerUrl).toEqual('ws://localhost/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+      expect(result.devtoolsFrontendUrl).toEqual('/browserless/devtools/inspector.html?ws=localhost/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+    });
+
+    it('handles URLs with base-paths, SSL and custom ports', () => {
+      const host = new URL('https://my.cool.domain:500/proxy/browserless');
+
+      const browser = {
+        _wsEndpoint: 'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
+        _id: '685638c2-f214-494b-b679-1efbe2f824ba',
+        _trackingId: 'abc',
+        _parsed: {
+          port: 1377,
+        },
+      } as unknown as IBrowser;
+
+      const session = {
+        description: 'Example Site',
+        devtoolsFrontendUrl: '/devtools/inspector.html?ws=127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
+        id: '4F7E8BE0AA50EEABDE92330A2CFD8674',
+        title: 'Example Domain',
+        type: 'page',
+        url: 'https://www.example.com/',
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+      };
+
+      const result = utils.injectHostIntoSession(host, browser, session);
+
+      expect(result.port).toEqual(browser._parsed.port);
+      expect(result.browserWSEndpoint).toEqual('wss://my.cool.domain:500/proxy/browserless/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba');
+      expect(result.webSocketDebuggerUrl).toEqual('wss://my.cool.domain:500/proxy/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
+      expect(result.devtoolsFrontendUrl).toEqual('/proxy/browserless/devtools/inspector.html?wss=my.cool.domain:500/proxy/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674');
     });
   });
 });

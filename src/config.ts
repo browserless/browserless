@@ -142,9 +142,7 @@ export const HOST: string | undefined = process.env.HOST;
 export const PORT: number = parseNumber(process.env.PORT, 8080);
 export const SOCKET_CLOSE_METHOD = parseSocketBehavior(process.env.SOCKET_CLOSE_METHOD);
 
-// Host and port for /session calls to build URLs to.
-// Useful for when browserless is behind a proxy
-export const PROXY_HOST: string | undefined = process.env.PROXY_HOST;
-export const PROXY_PORT: string | undefined = process.env.PROXY_PORT;
-export const PROXY_SSL: boolean = parseJSONParam(process.env.PROXY_SSL, false);
+// PROXY URL is used for browserless to build appropriate URLs when it's behind a proxy
+// (must be a fully-qualified URL)
+export const PROXY_URL: string | undefined = process.env.PROXY_URL;
 export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';

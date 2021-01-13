@@ -44,6 +44,7 @@ export interface ISession {
   port: string;
   trackingId: string | null;
   browserWSEndpoint: string;
+  browserId: string;
 }
 
 export interface IWindowSize {
@@ -266,7 +267,7 @@ export interface IWebdriverStartNormalized {
   params: IBrowserlessSessionOptions;
 }
 
-export interface IJSONList {
+export interface IDevtoolsJSON {
   description: string;
   devtoolsFrontendUrl: string;
   id: string;

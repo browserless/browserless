@@ -15,7 +15,7 @@ import { chromium, BrowserServer } from 'playwright-core';
 
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, rimraf, sleep } from './utils';
+import { fetchJson, getDebug, getUserDataDir, injectHostIntoSession ,rimraf, sleep } from './utils';
 
 import {
   IBrowser,
@@ -25,7 +25,7 @@ import {
   ISession,
   IChromeDriver,
   IHTTPRequest,
-  IJSONList,
+  IDevtoolsJSON,
 } from './types';
 
 import {
@@ -42,9 +42,7 @@ import {
   DISABLED_FEATURES,
   HOST,
   PORT,
-  PROXY_HOST,
-  PROXY_PORT,
-  PROXY_SSL,
+  PROXY_URL,
   WORKSPACE_DIR,
 } from './config';
 
@@ -67,6 +65,10 @@ const BROWSERLESS_ARGS = [
 
 const blacklist = require('../hosts.json');
 const thirtySeconds = 30 * 1000;
+
+const externalURL = PROXY_URL ?
+  new URL(PROXY_URL) :
+  new URL(`http://${HOST || `127.0.0.1`}:${PORT}`);
 
 const removeDataDir = (dir: string | null) => {
   if (dir) {
@@ -106,7 +108,7 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     defaultArgs.split(',');
 };
 
-const getTargets = async ({ port }: { port: string }): Promise<IJSONList[]> =>
+const getTargets = async ({ port }: { port: string }): Promise<IDevtoolsJSON[]> =>
   fetchJson(`http://127.0.0.1:${port}/json/list`);
 
 const isPuppeteer = (browserServer: puppeteer.Browser | BrowserServer): browserServer is puppeteer.Browser => {
@@ -322,12 +324,6 @@ export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]
       .map(async (browser) => {
         const { port } = browser._parsed;
 
-        const externalHost = PROXY_HOST ?
-          `${PROXY_HOST}${PROXY_PORT ? `:${PROXY_PORT}` : ''}` :
-          `${HOST || '127.0.0.1'}:${PORT}`;
-
-        const externalProtocol = PROXY_SSL ? 'wss' : 'ws';
-
         if (!port) {
           throw new Error(`Error finding port in browser endpoint: ${port}`);
         }
@@ -335,41 +331,7 @@ export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]
         const sessions = await getTargets({ port });
 
         return sessions
-          .map((session) => {
-            const wsEndpoint = browser._wsEndpoint;
-            const proxyParams = {
-              host: externalHost,
-              protocol: externalProtocol,
-              slashes: true,
-            };
-
-            const parsedWebSocketDebuggerUrl = {
-              ...url.parse(session.webSocketDebuggerUrl),
-              ...proxyParams,
-            };
-
-            const parsedWsEndpoint = {
-              ...url.parse(wsEndpoint),
-              ...proxyParams,
-            };
-
-            const browserWSEndpoint = url.format(parsedWsEndpoint);
-            const webSocketDebuggerUrl = url.format(parsedWebSocketDebuggerUrl);
-            const devtoolsFrontendUrl = url.format({
-              pathname: url.parse(session.devtoolsFrontendUrl).pathname,
-              search: `?${externalProtocol}=${externalHost}${parsedWebSocketDebuggerUrl.path}`,
-            });
-
-            return {
-              ...session,
-              browserId: browser._id,
-              browserWSEndpoint,
-              devtoolsFrontendUrl,
-              port,
-              trackingId: browser._trackingId,
-              webSocketDebuggerUrl,
-            };
-          });
+          .map((session) => injectHostIntoSession(externalURL, browser, session));
       }),
   );
 
