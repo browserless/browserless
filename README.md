@@ -1,4 +1,6 @@
-![browserless splash logo](https://raw.githubusercontent.com/browserless/chrome/master/assets/splash.png)
+<div align="center">
+  <img src="/assets/browserless-logo-gradient.svg" width="600" height="400">
+</div>
 
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
 ![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
