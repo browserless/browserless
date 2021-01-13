@@ -25,6 +25,9 @@ import {
   IRequestHandler,
   IHTTPRequest,
   ILaunchOptions,
+  IBrowser,
+  IDevtoolsJSON,
+  ISession,
 } from './types';
 
 const { CHROME_BINARY_LOCATION } = require('../env');
@@ -519,3 +522,52 @@ export const dedent = (
     // handle escaped newlines at the end to ensure they don't get stripped too
     .replace(/\\n/g, '\n');
 }
+
+export const urlJoinPaths = (...paths: string[]) =>
+  paths.map((s) => _.trim(s, '/')).join('/');
+
+export const injectHostIntoSession = (host: URL, browser: IBrowser, session: IDevtoolsJSON): ISession => {
+  const { port } = browser._parsed;
+  const wsEndpoint = browser._wsEndpoint;
+  const isSSL = host.protocol === 'https:';
+
+  if (!port) {
+    throw new Error(`No port found for browser devtools!`);
+  }
+
+  const parsedWebSocketDebuggerUrl = new URL(session.webSocketDebuggerUrl);
+  const parsedWsEndpoint = new URL(wsEndpoint);
+  const parsedDevtoolsFrontendURL = new URL(session.devtoolsFrontendUrl, host.href);
+
+  // Override the URL primitives to the base host or proxy
+  parsedWebSocketDebuggerUrl.hostname = host.hostname;
+  parsedWebSocketDebuggerUrl.port = host.port;
+  parsedWebSocketDebuggerUrl.protocol = isSSL ? 'wss:' : 'ws:';
+
+  parsedWsEndpoint.hostname = host.hostname;
+  parsedWsEndpoint.port = host.port;
+  parsedWsEndpoint.protocol = isSSL ? 'wss:' : 'ws:';
+
+  // Prepend any base-path of the external URL's
+  if (host.pathname !== '/') {
+    parsedWebSocketDebuggerUrl.pathname = urlJoinPaths(host.pathname, parsedWebSocketDebuggerUrl.pathname);
+    parsedWsEndpoint.pathname = urlJoinPaths(host.pathname, parsedWsEndpoint.pathname);
+    parsedDevtoolsFrontendURL.pathname = urlJoinPaths(host.pathname, parsedDevtoolsFrontendURL.pathname);
+  }
+
+  parsedDevtoolsFrontendURL.search = `?${isSSL ? 'wss' : 'ws'}=${host.host}${parsedWebSocketDebuggerUrl.pathname}`;
+
+  const browserWSEndpoint = parsedWsEndpoint.href;
+  const webSocketDebuggerUrl = parsedWebSocketDebuggerUrl.href;
+  const devtoolsFrontendUrl = parsedDevtoolsFrontendURL.pathname + parsedDevtoolsFrontendURL.search;
+
+  return {
+    ...session,
+    port,
+    browserId: browser._id,
+    trackingId: browser._trackingId,
+    browserWSEndpoint,
+    devtoolsFrontendUrl,
+    webSocketDebuggerUrl,
+  };
+};
