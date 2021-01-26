@@ -73,7 +73,7 @@ const start = async (
         page.browser().close();
       }
     });
-  
+
     page.on('response', (response) => {
       if (response.url().startsWith('file://')) {
         page.browser().close();
