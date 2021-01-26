@@ -143,10 +143,13 @@ const setupPage = async ({
       .catch(_.noop);
   }
 
-  if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR) {
+  // Only inject download behaviors for puppeteer when it's enabled
+  if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR && isPuppeteer(browser._browserServer)) {
     const workspaceDir = trackingId ?
       path.join(WORKSPACE_DIR, trackingId) :
       WORKSPACE_DIR;
+
+    debug(`Injecting download dir "${workspaceDir}"`);
 
     await client.send('Page.setDownloadBehavior', {
       behavior: 'allow',
@@ -166,7 +169,7 @@ const setupPage = async ({
         closeBrowser(browser);
       }
     });
-  
+
     page.on('response', async(response) => {
       if (response.url().startsWith('file://')) {
         page.close().catch(_.noop);
@@ -477,19 +480,19 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
     puppeteer.connect({ browserWSEndpoint })
 
   return iBrowser.then((browser) => setupBrowser({
-      blockAds: opts.blockAds,
-      browser,
-      browserlessDataDir,
-      browserWSEndpoint,
-      isUsingTempDataDir,
-      keepalive: opts.keepalive || null,
-      pauseOnConnect: opts.pauseOnConnect,
-      process: browserServer.process(),
-      trackingId: opts.trackingId || null,
-      windowSize: undefined,
-      prebooted: isPreboot,
-      browserServer,
-    }));
+    blockAds: opts.blockAds,
+    browser,
+    browserlessDataDir,
+    browserWSEndpoint,
+    isUsingTempDataDir,
+    keepalive: opts.keepalive || null,
+    pauseOnConnect: opts.pauseOnConnect,
+    process: browserServer.process(),
+    trackingId: opts.trackingId || null,
+    windowSize: undefined,
+    prebooted: isPreboot,
+    browserServer,
+  }));
 };
 
 export const launchChromeDriver = async ({
