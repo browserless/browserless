@@ -8,8 +8,14 @@
   },
   "main": "build/index.js",
   "files": [
-    "build/main.css",
-    "build/main.js"
+    "build/*",
+    "debugger/*",
+    "functions/*",
+    "env.js",
+    "hosts.json",
+    "hints.json",
+    "protocol.json",
+    "version.json"
   ],
   "scripts": {
     "build": "npm run clean && tsc",
