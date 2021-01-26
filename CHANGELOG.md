@@ -1,7 +1,21 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.43.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.44.0...master)
 - Dependency Updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
+# [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
+**Potentially Breaking**
+- `PROXY_HOST` and `PROXY_PORT` are now replaced with a single `PROXY_URL` param, eg: `https://www.mybrowserless.com/optional/paths`. When set, browserless uses this fully-qualified URL to build out links _back_ to its internal debugger and sessions. Useful when you're instance is behind a proxy or load-balancer of some kind.
+---
+- Dependency Updates.
+- Use recent Node 14 (browserless-base 1.7.0).
+- New `rejectResourceTypes` property on most APIs (content, screenshot, pdf, etc.).
+- Allow serving of `file://` protocols when explicitly enabled (default is off due to security concerns). Set `ALLOW_FILE_PROTOCOL=true` in your env params.
+- The `/pressure` API now takes into account CPU/Memory consumption, and adds a "reason" property for why the machine might be not available.
+- Fixes an issue where playwright couldn't download files.
+- You can now filter /sessions calls with a `trackingId` parameter.
+- `detached` functions now return a `trackingId` when present.
+- More types, tests, and utility consolidation.
+
+# [v1.43.0](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
 - Dependency Updates.
 - Fixes an issue where --user-data-dirs aren't deleted properly, potentially filling disks.
 - Changes CPU/Memory checks to be user-based and not the entire OS.
