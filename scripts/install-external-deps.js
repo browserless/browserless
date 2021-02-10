@@ -90,7 +90,7 @@ const downloadDevTools = () => {
   console.log(`Downloading devtools assets for revision ${PUPPETEER_CHROMIUM_REVISION}`);
   const devtoolsTmpZip = path.join(browserlessTmpDir, 'devtools');
   const devtoolsUnzippedPath = path.join(browserlessTmpDir, 'devtools-frontend', 'resources', 'inspector');
-  const devtoolsFinalPath = path.join(__dirname, '..', 'debugger', 'devtools');
+  const devtoolsFinalPath = path.join(__dirname, '..', 'dist', 'devtools');
 
   return downloadUrlToDirectory(devtoolsUrl, devtoolsTmpZip)
     .then(() => waitForFile(devtoolsTmpZip))

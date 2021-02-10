@@ -267,7 +267,7 @@ export class BrowserlessServer {
       }
 
       if (!this.config.disabledFeatures.includes(Features.DEBUGGER)) {
-        app.use('/', express.static('./debugger'));
+        app.use('/', express.static('./dist'));
       }
 
       if (externalRoutes) {
