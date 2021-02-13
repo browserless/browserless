@@ -127,7 +127,7 @@ export const asyncWebHandler = (handler: IRequestHandler) => {
   return (req: express.Request, res: express.Response) => {
     Promise.resolve(handler(req, res))
       .catch((error) => {
-        debug(`Error in route handler: ${error}`);
+        debug(`Error in route handler: ${error}, ${error.stack}`);
         res.status(400).send(error.message);
       });
   };
@@ -534,7 +534,7 @@ export const injectHostIntoSession = (host: URL, browser: IBrowser, session: IDe
   if (!port) {
     throw new Error(`No port found for browser devtools!`);
   }
-
+  console.log(session);
   const parsedWebSocketDebuggerUrl = new URL(session.webSocketDebuggerUrl);
   const parsedWsEndpoint = new URL(wsEndpoint);
   const parsedDevtoolsFrontendURL = new URL(session.devtoolsFrontendUrl, host.href);
@@ -555,16 +555,19 @@ export const injectHostIntoSession = (host: URL, browser: IBrowser, session: IDe
     parsedDevtoolsFrontendURL.pathname = urlJoinPaths(host.pathname, parsedDevtoolsFrontendURL.pathname);
   }
 
-  parsedDevtoolsFrontendURL.search = `?${isSSL ? 'wss' : 'ws'}=${host.host}${parsedWebSocketDebuggerUrl.pathname}`;
+  const devtoolsSearch = `?${isSSL ? 'wss' : 'ws'}=${host.host}${parsedWebSocketDebuggerUrl.pathname}`;
+  parsedDevtoolsFrontendURL.search = devtoolsSearch;
 
   const browserWSEndpoint = parsedWsEndpoint.href;
   const webSocketDebuggerUrl = parsedWebSocketDebuggerUrl.href;
+  const devtoolsOnlyUrl = `${host.href}/devtools/devtools_app.html${devtoolsSearch}`;
   const devtoolsFrontendUrl = parsedDevtoolsFrontendURL.pathname + parsedDevtoolsFrontendURL.search;
 
   return {
     ...session,
     port,
     browserId: browser._id,
+    devtoolsOnlyUrl,
     trackingId: browser._trackingId,
     browserWSEndpoint,
     devtoolsFrontendUrl,

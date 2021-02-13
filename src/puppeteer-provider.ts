@@ -134,11 +134,6 @@ export class PuppeteerProvider {
       return this.server.rejectReq(req, res, 503, `Server under load`, this.server.sessionCheckFailHook);
     }
 
-    if (detached) {
-      jobdebug(`${jobId}: Function is detached, resolving request.`);
-      res.json({ id: jobId, trackingId });
-    }
-
     const vm = new NodeVM({
       require: {
         builtin,
@@ -149,6 +144,9 @@ export class PuppeteerProvider {
 
     const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
+      if (detached) {
+        return;
+      }
       jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
       this.removeJob(job);
     };
@@ -159,6 +157,7 @@ export class PuppeteerProvider {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
           }
+          console.log(typeof req.headersSent);
           done(err);
         });
         const debug = (message: string) => jobdebug(`${job.id}: ${message}`);
@@ -176,6 +175,11 @@ export class PuppeteerProvider {
         this.getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
+
+            if (detached) {
+              jobdebug(`${jobId}: Function is detached, resolving request.`);
+              res.json({ id: jobId, trackingId });
+            }
             const page = await this.newPage(browser);
             let beforeArgs = {};
 
@@ -198,6 +202,9 @@ export class PuppeteerProvider {
             req.removeListener('close', earlyClose);
             browser.once('disconnected', doneOnce);
             req.once('close', () => {
+              if (detached) {
+                return;
+              }
               debug(`Request terminated during execution, closing`);
               doneOnce();
             });

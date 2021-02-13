@@ -45,6 +45,7 @@ export interface ISession {
   trackingId: string | null;
   browserWSEndpoint: string;
   browserId: string;
+  devtoolsOnlyUrl: string;
 }
 
 export interface IWindowSize {
