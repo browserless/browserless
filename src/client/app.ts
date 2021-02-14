@@ -1,4 +1,5 @@
 import { Editor } from './editor';
+const puppeteer = require('puppeteer');
 
 const devtoolsMarkup = `
 <div id="viewer">
@@ -11,8 +12,6 @@ const devtoolsMarkup = `
 </div>
 `;
 
-// @ts-ignore
-const puppeteer = window.puppeteer;
 
 export class App {
   private editor: Editor;
@@ -196,12 +195,14 @@ export class App {
     const $canvas = document.querySelector('#screencast') as HTMLCanvasElement;
 
     const { width, height } = $viewer.getBoundingClientRect();
+
     const browser = await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
     const [page] = await browser.pages();
     const ctx = $canvas.getContext('2d') as CanvasRenderingContext2D;
 
     this.addListeners($canvas);
     this.client = page._client;
+
     $inject.src = `http://localhost:3000/devtools/devtools_app.html?ws=localhost:3000/devtools/page/${page._target._targetId}`;
     $canvas.width = width;
     $canvas.height = height;

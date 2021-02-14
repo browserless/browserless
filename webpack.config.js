@@ -1,5 +1,7 @@
 const path = require('path');
 const HtmlWebPackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
+
 
 const srcDir = path.resolve(__dirname, 'src', 'client');
 const outputDir = path.resolve(__dirname, 'dist');
@@ -19,6 +21,9 @@ module.exports = {
     globalObject: 'self',
     filename: '[name].bundle.js',
     path: outputDir,
+  },
+  externals: {
+    puppeteer: 'puppeteer'
   },
   module: {
     rules: [
@@ -45,6 +50,12 @@ module.exports = {
     new HtmlWebPackPlugin({
       title: 'browserless debugger',
       template: path.join(srcDir, 'index.html'),
+    }),
+    new CopyPlugin({
+      patterns: [{
+        from: path.join(srcDir, 'puppeteer.js'),
+        to: path.join(outputDir, 'puppeteer.js'),
+      }],
     }),
   ],
 };

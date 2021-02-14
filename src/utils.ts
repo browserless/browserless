@@ -534,7 +534,7 @@ export const injectHostIntoSession = (host: URL, browser: IBrowser, session: IDe
   if (!port) {
     throw new Error(`No port found for browser devtools!`);
   }
-  console.log(session);
+
   const parsedWebSocketDebuggerUrl = new URL(session.webSocketDebuggerUrl);
   const parsedWsEndpoint = new URL(wsEndpoint);
   const parsedDevtoolsFrontendURL = new URL(session.devtoolsFrontendUrl, host.href);
