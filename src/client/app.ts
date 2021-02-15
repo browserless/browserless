@@ -1,3 +1,5 @@
+import { Page } from 'puppeteer';
+import { debounce } from './util';
 import { Editor } from './editor';
 const puppeteer = require('puppeteer');
 
@@ -20,6 +22,11 @@ export class App {
   private $runner = document.querySelector('#runner') as HTMLElement;
   private $verticalResizer = document.querySelector('#resize-main') as HTMLElement;
   private $codePanel = document.querySelector('#code') as HTMLElement;
+
+  private $canvas?: HTMLCanvasElement;
+  private $viewer?: HTMLElement;
+  private page: Page;
+
   private client: any;
   private img = new Image();
 
@@ -27,7 +34,7 @@ export class App {
     this.editor = editor;
 
     this.$runButton.addEventListener('click', this.run);
-    this.$verticalResizer.addEventListener('mousedown', this.onMainResize);
+    this.$verticalResizer.addEventListener('mousedown', this.onVerticalResize);
   }
 
   static getModifiersForEvent(event: any) {
@@ -35,21 +42,41 @@ export class App {
     return (event.altKey ? 1 : 0) | (event.ctrlKey ? 2 : 0) | (event.metaKey ? 4 : 0) | (event.shiftKey ? 8 : 0);
   }
 
-  onMainResize = (evt: MouseEvent) => {
+  resizePage = debounce(() => {
+    if (!this.$viewer || !this.$canvas) {
+      return;
+    }
+    const { width, height } = this.$viewer.getBoundingClientRect();
+
+    this.$canvas.width = width - 5;
+    this.$canvas.height = height;
+
+    this.page.setViewport({
+      width: Math.floor(width),
+      height: Math.floor(height),
+      deviceScaleFactor: 1,
+    });
+  }, 500);
+
+  onVerticalResize = (evt: MouseEvent) => {
     evt.preventDefault();
 
     this.$runner.style.pointerEvents = 'none';
 
     let onMouseMove: any = (moveEvent: MouseEvent) => {
       if (moveEvent.buttons === 0) {
-        return onMouseUp();
+        return;
       }
-
-      (this.$codePanel as any).style.width = `${moveEvent.clientX}px`;
+      const posX = moveEvent.clientX;
+      const fromRight = window.innerWidth - posX - 5;
+      this.$codePanel.style.width = `${moveEvent.clientX}px`;
+      this.$runner.style.width= `${fromRight}px`;
+      this.$canvas && (this.$canvas.width = fromRight);
     };
 
     let onMouseUp: any = () => {
       this.$runner.style.pointerEvents = 'initial';
+      this.resizePage();
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
       onMouseMove = null;
@@ -185,40 +212,29 @@ export class App {
 
     $el.addEventListener('mouseenter', this.bindKeyEvents, false);
     $el.addEventListener('mouseleave', this.unbindKeyEvents, false);
+    window.addEventListener('resize', this.resizePage);
   };
 
   run = async () => {
     const code = await this.editor.getCompiledCode();
     const $inject = this.insertDevtools();
 
-    const $viewer = document.querySelector('#viewer') as Element;
+    const browser = await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
     const $canvas = document.querySelector('#screencast') as HTMLCanvasElement;
 
-    const { width, height } = $viewer.getBoundingClientRect();
+    this.page = (await browser.pages())[0];
+    this.$viewer = document.querySelector('#viewer') as HTMLElement;
+    this.$canvas = $canvas;
+    this.client = (this.page as any)._client;
+    this.addListeners($canvas);
 
-    const browser = await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
-    const [page] = await browser.pages();
     const ctx = $canvas.getContext('2d') as CanvasRenderingContext2D;
 
-    this.addListeners($canvas);
-    this.client = page._client;
+    $inject.src = `http://localhost:3000/devtools/devtools_app.html?ws=localhost:3000/devtools/page/${(this.page as any)._target._targetId}`;
 
-    $inject.src = `http://localhost:3000/devtools/devtools_app.html?ws=localhost:3000/devtools/page/${page._target._targetId}`;
-    $canvas.width = width;
-    $canvas.height = height;
+    this.resizePage();
 
-    await page.setViewport({
-      width: Math.floor(width),
-      height: Math.floor(height),
-      deviceScaleFactor: 0.5,
-    });
-
-    await this.client.send('Page.startScreencast', {
-      format: 'jpeg',
-      quality: 100,
-      maxWidth: Math.floor(width),
-      maxHeight: Math.floor(height),
-    });
+    await this.client.send('Page.startScreencast', { format: 'jpeg', quality: 100 });
 
     this.client.on('Page.screencastFrame', ({ data, sessionId }: { data: string; sessionId: string }) => {
       this.client.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
@@ -226,6 +242,6 @@ export class App {
     });
 
     // tslint:disable-next-line: no-eval
-    eval(code)({ page });
+    eval(code)({ page: this.page });
   };
 }
