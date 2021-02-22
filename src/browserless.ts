@@ -326,6 +326,7 @@ export class BrowserlessServer {
             return this.rejectSocket({
               header: `HTTP/1.1 403 Forbidden`,
               message: `Forbidden`,
+              metricType: 'rejected',
               req: reqParsed,
               socket,
             });
@@ -381,26 +382,48 @@ export class BrowserlessServer {
     process.exit(0);
   }
 
-  public rejectReq(
-    req: express.Request,
-    res: express.Response,
-    code: number,
-    message: string,
-    failureHook?: () => any,
-  ) {
+  public rejectReq({
+    req,
+    res,
+    code,
+    message,
+    metricType,
+    hook,
+  }:{
+    req: express.Request;
+    res: express.Response;
+    code: number;
+    message: string;
+    metricType?: keyof IBrowserlessStats;
+    hook?: () => any;
+  }) {
     debug(`${req.url}: ${message}`);
     res.status(code).send(message);
 
-    if (failureHook) {
-      this.currentStat.rejected++;
-      failureHook();
+    if (metricType) {
+      this.currentStat[metricType]++;
+    }
+
+    if (hook) {
+      hook();
     }
   }
 
-  public rejectSocket(
-    { req, socket, header, message, failureHook }:
-    { req: http.IncomingMessage; socket: Socket; header: string; message: string; failureHook?: () => any; },
-  ) {
+  public rejectSocket({
+    req,
+    socket,
+    header,
+    message,
+    metricType,
+    hook,
+  }: {
+    req: http.IncomingMessage;
+    socket: Socket;
+    header: string;
+    message: string;
+    metricType?: keyof IBrowserlessStats;
+    hook?: () => any;
+  }) {
     if (this.config.socketBehavior === 'http') {
       debug(`${req.url}: ${message}. Behavior of "http" set, writing response and closing.`);
       const httpResponse = util.dedent(`${header}
@@ -418,9 +441,12 @@ export class BrowserlessServer {
       socket.destroy();
     }
 
-    if (failureHook) {
-      this.currentStat.rejected++;
-      failureHook();
+    if (hook) {
+      hook();
+    }
+
+    if (metricType) {
+      this.currentStat[metricType]++;
     }
   }
 
@@ -453,7 +479,7 @@ export class BrowserlessServer {
 
       ret.body = body;
 
-      return this.webdriver.start(ret, res, params);
+      return this.webdriver.start(ret, res, params, this.currentStat);
     }
 
     if (isClosing) {
@@ -526,6 +552,7 @@ export class BrowserlessServer {
       memory: 0,
       queued: 0,
       rejected: 0,
+      unhealthy: 0,
       successful: 0,
       timedout: 0,
       totalTime: 0,
