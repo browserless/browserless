@@ -91,6 +91,7 @@ export interface IBrowserlessStats {
   error: number;
   queued: number;
   rejected: number;
+  unhealthy: number;
   memory: number | null;
   cpu: number | null;
   timedout: number;

@@ -9,6 +9,7 @@ import { getDebug } from './utils';
 
 import {
   IChromeDriver,
+  IBrowserlessStats,
   IWebdriverStartHTTP,
   IWebdriverStartNormalized,
   IWebDriverSession,
@@ -31,16 +32,18 @@ export class WebDriver {
   // Since Webdriver commands happen over HTTP, and aren't
   // maintained, we treat with the initial session request
   // with some special circumstances and use it inside our queue
-  public async start(req: IWebdriverStartHTTP, res: ServerResponse, params: IWebdriverStartNormalized['params']) {
+  public async start(req: IWebdriverStartHTTP, res: ServerResponse, params: IWebdriverStartNormalized['params'], currentStat: IBrowserlessStats) {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {
       debug(`Too many concurrent and queued requests, rejecting.`);
+      currentStat.rejected++;
       return res.end();
     }
 
     if (await this.queue.overloaded()) {
       debug(`Server under heavy load, closing.`);
+      currentStat.unhealthy++;
       res.writeHead && res.writeHead(503);
       return res.end(`Server under heavy load.`);
     }
