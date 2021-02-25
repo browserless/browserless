@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    // Hack to get @types working for newer version of puppeteer
+    "paths": {
+      "puppeteer": ["node_modules/@types/puppeteer"]
+    },
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2017",
