@@ -456,7 +456,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
   debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
 
   // Kill any user data-dir if 30 seconds go by without us launching
-  const rmUserDataDir = setTimeout(removeDataDir, thirtySeconds, browserlessDataDir);
+  const rmUserDataDir = global.setTimeout(removeDataDir, thirtySeconds, browserlessDataDir);
 
   const browserServer = launchArgs.playwright ?
     await chromium.launchServer({
