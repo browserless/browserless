@@ -109,7 +109,7 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "playwright-core": "^1.4.2",
+    "playwright-core": "^1.9.1",
     "prom-client": "^13.0.0",
     "puppeteer": "^7.1.0",
     "puppeteer-extra": "^3.1.15",

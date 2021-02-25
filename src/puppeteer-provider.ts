@@ -121,22 +121,36 @@ export class PuppeteerProvider {
 
     if (this.config.demoMode) {
       jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
-      return this.server.rejectReq(req, res, 403, 'Unauthorized');
+      return this.server.rejectReq({
+        req,
+        res,
+        code: 403,
+        message: 'Unauthorized',
+      });
     }
 
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
-      return this.server.rejectReq(req, res, 429, `Too Many Requests`, this.server.capacityFullHook);
+      return this.server.rejectReq({
+        req,
+        res,
+        code: 429,
+        message: `Too Many Requests`,
+        metricType: 'rejected',
+        hook: this.server.capacityFullHook,
+      });
     }
 
     if (await this.queue.overloaded()) {
       jobdebug(`${jobId}: Server under heavy load, rejecting with 503.`);
-      return this.server.rejectReq(req, res, 503, `Server under load`, this.server.sessionCheckFailHook);
-    }
-
-    if (detached) {
-      jobdebug(`${jobId}: Function is detached, resolving request.`);
-      res.json({ id: jobId, trackingId });
+      return this.server.rejectReq({
+        req,
+        res,
+        code: 503,
+        message: `Server under load`,
+        metricType: 'unhealthy',
+        hook: this.server.sessionCheckFailHook,
+      });
     }
 
     const vm = new NodeVM({
@@ -149,6 +163,9 @@ export class PuppeteerProvider {
 
     const handler: (args: any) => Promise<any> = vm.run(code, `browserless-function-${jobId}.js`);
     const earlyClose = () => {
+      if (detached) {
+        return;
+      }
       jobdebug(`${job.id}: Function terminated prior to execution removing from queue`);
       this.removeJob(job);
     };
@@ -176,6 +193,11 @@ export class PuppeteerProvider {
         this.getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
+
+            if (detached) {
+              jobdebug(`${jobId}: Function is detached, resolving request.`);
+              res.json({ id: jobId, trackingId });
+            }
             const page = await this.newPage(browser);
             let beforeArgs = {};
 
@@ -198,6 +220,9 @@ export class PuppeteerProvider {
             req.removeListener('close', earlyClose);
             browser.once('disconnected', doneOnce);
             req.once('close', () => {
+              if (detached) {
+                return;
+              }
               debug(`Request terminated during execution, closing`);
               doneOnce();
             });
@@ -329,7 +354,8 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 429 Too Many Requests`,
         message: `Too Many Requests`,
-        failureHook: this.server.capacityFullHook,
+        metricType: 'rejected',
+        hook: this.server.capacityFullHook,
         req,
         socket,
       });
@@ -340,7 +366,8 @@ export class PuppeteerProvider {
       return this.server.rejectSocket({
         header: `HTTP/1.1 503 Server under load`,
         message: `Server under heavy load, try again later`,
-        failureHook: this.server.sessionCheckFailHook,
+        hook: this.server.sessionCheckFailHook,
+        metricType: 'unhealthy',
         req,
         socket,
       });
