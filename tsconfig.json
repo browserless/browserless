@@ -17,6 +17,7 @@
     "noUnusedParameters": true,
     "declaration": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "outDir": "./build",
     "rootDir": "./src"
   },
