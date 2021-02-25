@@ -50,7 +50,7 @@ const checkExpiredDownloads = async () => {
 // might delete stuff in /tmp
 if (WORKSPACE_DELETE_EXPIRED) {
   checkExpiredDownloads();
-  intervalIds.push(setInterval(checkExpiredDownloads, DAILY));
+  intervalIds.push(global.setInterval(checkExpiredDownloads, DAILY));
 }
 
 export const clearTimers = () => intervalIds.forEach((intervalId) => clearInterval(intervalId));
