@@ -158,7 +158,7 @@ export class BrowserlessServer {
       }
     }
 
-    this.metricsInterval = setInterval(this.recordMetrics.bind(this), fiveMinutes);
+    this.metricsInterval = global.setInterval(this.recordMetrics.bind(this), fiveMinutes);
 
     const boundClose = this.close.bind(this);
 
@@ -539,7 +539,7 @@ export class BrowserlessServer {
 
     if (this.singleRun) {
       debug(`Running in single-run mode, exiting in 1 second`);
-      setTimeout(process.exit, 1000);
+      global.setTimeout(process.exit, 1000);
     }
   }
 

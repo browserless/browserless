@@ -127,7 +127,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
   page.on('load', async () => {
     if (!code.includes('startScreencast')) {
       debug(`Starting to record`);
-      setTimeout(startScreencast, 0);
+      global.setTimeout(startScreencast, 0);
     }
   });
 
