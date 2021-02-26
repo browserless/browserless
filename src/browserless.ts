@@ -230,7 +230,7 @@ export class BrowserlessServer {
   public async startServer(): Promise<any> {
     await this.puppeteerProvider.start();
 
-    return new Promise(async (resolve) => {
+    return new Promise(async (r) => {
       // Make sure we have http server setup with some headroom
       // for timeouts (so we can respond with appropriate http codes)
       const httpTimeout = this.config.connectionTimeout === -1 ?
@@ -334,7 +334,7 @@ export class BrowserlessServer {
           return this.puppeteerProvider.runWebSocket(reqParsed, socket, head);
         }))
         .setTimeout(httpTimeout)
-        .listen(this.config.port, this.config.host, resolve);
+        .listen(this.config.port, this.config.host, undefined, () => r(null));
     });
   }
 
