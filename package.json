@@ -29,7 +29,7 @@
     "test": "DEBUG=quiet jest --runInBand --detectOpenHandles",
     "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "post-install": "npm run external && npm run symlink-chrome && npm run meta",
+    "postinstall": "npm run external && npm run symlink-chrome && npm run meta",
     "snyk-protect": "snyk protect"
   },
   "puppeteerVersions": {
