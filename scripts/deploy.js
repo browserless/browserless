@@ -48,7 +48,8 @@ const deployVersion = async (tags, pptrVersion) => {
   `);
 
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
-    ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} npm i
+    ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
+    npm run postinstall
   `);
 
   const versionJson = fs.readJSONSync(path.join(__dirname, '..', 'version.json'));
