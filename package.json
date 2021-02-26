@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "build": "npm run clean && tsc",
-    "clean": "rimraf build hosts.json hints.json version.json dist",
+    "clean": "rimraf build",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
