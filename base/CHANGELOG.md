@@ -1,3 +1,7 @@
+# 1.8.0
+- Better layers and compressions
+- Bump Node
+
 # 1.6.0
 - Move to node 14
 

@@ -96,7 +96,8 @@ export class PuppeteerProvider {
     port: string;
   }) {
     const target = `ws://127.0.0.1:${port}`;
-
+    // Strip tokens/query-params since they break chrome
+    req.url = req.parsed.pathname || '';
     this.server.proxy.ws(req, socket, head, { target });
   }
 
