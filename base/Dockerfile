@@ -73,7 +73,8 @@ RUN apt-get -qq update && \
   curl --silent --location https://deb.nodesource.com/setup_14.x | bash - &&\
   apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
-  fc-cache -f -v
+  fc-cache -f -v &&\
+  apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
@@ -82,6 +83,3 @@ RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
 
 # Install deps necessary to build
 RUN npm install -g typescript @types/node
-
-# Cleanup
-RUN apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
