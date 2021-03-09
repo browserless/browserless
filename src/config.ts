@@ -35,9 +35,6 @@ const getDisabledFeatures = () => {
       throw new Error(`Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(Features)
         .map(([_, v]) => v).join(',')}]`);
     });
-  if (!parseJSONParam(process.env.ENABLE_DEBUGGER, true) && !disabledFeatures.includes(Features.DEBUGGER)) {
-    disabledFeatures.push(Features.DEBUGGER);
-  }
   if (!parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true) && !disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     disabledFeatures.push(Features.DEBUG_VIEWER);
   }

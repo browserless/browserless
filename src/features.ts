@@ -12,7 +12,6 @@ export function isFeature(str: string): str is Feature {
 export const Features = {
   CONFIG_ENDPOINT: 'configEndpoint' as Feature,
   CONTENT_ENDPOINT: 'contentEndpoint' as Feature,
-  DEBUGGER: 'debugger' as Feature,
   DEBUG_VIEWER: 'debugViewer' as Feature,
   DOWNLOAD_ENDPOINT: 'downloadEndpoint' as Feature,
   FUNCTION_ENDPOINT: 'functionEndpoint' as Feature,
