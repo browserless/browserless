@@ -266,8 +266,9 @@ export class BrowserlessServer {
         app.use(cors());
       }
 
-      if (!this.config.disabledFeatures.includes(Features.DEBUGGER)) {
-        app.use('/', express.static('./debugger'));
+      if (!this.config.disabledFeatures.includes(Features.DEBUG_VIEWER)) {
+        app.use('/devtools', express.static('./devtools'));
+        app.use('/', express.static('./node_modules/browserless-debugger/static'));
       }
 
       if (externalRoutes) {

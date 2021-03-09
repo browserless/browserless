@@ -10,7 +10,6 @@ export const defaultParams = (): IBrowserlessOptions => ({
   allowFileProtocol: false,
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
-  demoMode: false,
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,

@@ -5,7 +5,6 @@ Array [
   "allowFileProtocol",
   "chromeRefreshTime",
   "connectionTimeout",
-  "demoMode",
   "disabledFeatures",
   "enableAPIGet",
   "enableCors",
