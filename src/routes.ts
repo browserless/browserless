@@ -433,7 +433,7 @@ export const getRoutes = ({
       ));
   }
 
-  if (!disabledFeatures.includes(Features.DEBUGGER)) {
+  if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     router.get('/json/protocol', (_req, res) => res.json(protocol));
 
     router.get('/json/new', asyncWebHandler(async (req: Request, res: Response) => {
