@@ -98,7 +98,6 @@ export const PREBOOT_CHROME: boolean = parseJSONParam(process.env.PREBOOT_CHROME
 
 // Security and accessibility
 export const DEBUG: string | undefined = getDebug();
-export const DEMO_MODE: boolean = parseJSONParam(process.env.DEMO_MODE, false);
 export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
 export const ENABLE_CORS: boolean = parseJSONParam(process.env.ENABLE_CORS, false);
 export const ENABLE_API_GET: boolean = parseJSONParam(process.env.ENABLE_API_GET, false);

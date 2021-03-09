@@ -5,7 +5,6 @@ const browserless = new BrowserlessServer({
   allowFileProtocol: config.ALLOW_FILE_PROTOCOL,
   chromeRefreshTime: config.CHROME_REFRESH_TIME,
   connectionTimeout: config.CONNECTION_TIMEOUT,
-  demoMode: config.DEMO_MODE,
   disabledFeatures: config.DISABLED_FEATURES,
   enableAPIGet: config.ENABLE_API_GET,
   enableCors: config.ENABLE_CORS,

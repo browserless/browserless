@@ -118,16 +118,6 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound HTTP request. Context: ${JSON.stringify(context)}`);
 
-    if (this.config.demoMode) {
-      jobdebug(`${jobId}: Running in demo-mode, closing with 403.`);
-      return this.server.rejectReq({
-        req,
-        res,
-        code: 403,
-        message: 'Unauthorized',
-      });
-    }
-
     if (!this.queue.hasCapacity) {
       jobdebug(`${jobId}: Too many concurrent and queued requests, rejecting with 429.`);
       return this.server.rejectReq({
