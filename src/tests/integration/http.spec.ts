@@ -444,6 +444,11 @@ describe('Browserless Chrome HTTP', () => {
         method: 'POST',
       })
         .then((res) => {
+          expect(res.headers.get('x-response-code')).toBeDefined();
+          expect(res.headers.get('x-response-url')).toBeDefined();
+          expect(res.headers.get('x-response-ip')).toBeDefined();
+          expect(res.headers.get('x-response-por')).toBeDefined();
+          expect(res.headers.get('content-type')).toEqual('image/png');
           expect(res.headers.get('content-type')).toEqual('image/png');
           expect(res.status).toBe(200);
         });
@@ -879,6 +884,10 @@ describe('Browserless Chrome HTTP', () => {
         method: 'POST',
       })
         .then((res) => {
+          expect(res.headers.get('x-response-code')).toBeDefined();
+          expect(res.headers.get('x-response-url')).toBeDefined();
+          expect(res.headers.get('x-response-ip')).toBeDefined();
+          expect(res.headers.get('x-response-por')).toBeDefined();
           expect(res.headers.get('content-type')).toEqual('application/pdf');
           expect(res.status).toBe(200);
         });
@@ -1192,6 +1201,10 @@ describe('Browserless Chrome HTTP', () => {
         method: 'POST',
       })
         .then((res) => {
+          expect(res.headers.get('x-response-code')).toBeDefined();
+          expect(res.headers.get('x-response-url')).toBeDefined();
+          expect(res.headers.get('x-response-ip')).toBeDefined();
+          expect(res.headers.get('x-response-por')).toBeDefined();
           expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
           expect(res.status).toBe(200);
         });

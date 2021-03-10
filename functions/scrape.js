@@ -115,7 +115,7 @@ module.exports = async function scrape ({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
-  await page.goto(url, gotoOptions);
+  const response = await page.goto(url, gotoOptions);
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
@@ -181,8 +181,17 @@ module.exports = async function scrape ({ page, context }) {
     debug.cookies ? page.cookies() : Promise.resolve(null),
   ]);
 
+  const headers = {
+    'x-response-code': response.status(),
+    'x-response-status': response.statusText(),
+    'x-response-url': response.url(),
+    'x-response-ip': response.remoteAddress().ip,
+    'x-response-port': response.remoteAddress().port,
+  };
+
   return {
     type: 'application/json',
+    headers,
     data: {
       data,
       debug: {

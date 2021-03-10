@@ -223,7 +223,7 @@ export class PuppeteerProvider {
               page,
               timeout: this.config.connectionTimeout,
             }))
-              .then(async ({ data, type = 'text/plain' } = {}) => {
+              .then(async ({ data, type = 'text/plain', headers = {} } = {}) => {
 
                 // If there's a specified "after" hook allow that to run
                 if (after) {
@@ -248,6 +248,20 @@ export class PuppeteerProvider {
                 }
 
                 res.type(type);
+
+                if (headers) {
+                  Object.keys(headers).forEach((key) => {
+                    const hasValue = (
+                      headers.hasOwnProperty(key) &&
+                      headers[key] !== null &&
+                      headers[key] !== undefined &&
+                      headers[key] !== ''
+                    );
+                    if (hasValue) {
+                      res.setHeader(key, headers[key]);
+                    }
+                  });
+                }
 
                 if (Buffer.isBuffer(data)) {
                   res.end(data, 'binary');
