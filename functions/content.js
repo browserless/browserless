@@ -71,8 +71,10 @@ module.exports = async function content ({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
+  let response = null;
+
   if (url !== null) {
-    await page.goto(url, gotoOptions);
+    response = await page.goto(url, gotoOptions);
   } else {
     // Whilst there is no way of waiting for all requests to finish with setContent,
     // you can simulate a webrequest this way
@@ -84,7 +86,7 @@ module.exports = async function content ({ page, context }) {
       page.on('request', request => request.continue());
     });
 
-    await page.goto('http://localhost', gotoOptions);
+    response = await page.goto('http://localhost', gotoOptions);
   }
 
   if (addStyleTag.length) {
@@ -115,8 +117,17 @@ module.exports = async function content ({ page, context }) {
 
   const data = await page.content();
 
+  const headers = {
+    'x-response-code': response.status(),
+    'x-response-status': response.statusText(),
+    'x-response-url': response.url(),
+    'x-response-ip': response.remoteAddress().ip,
+    'x-response-port': response.remoteAddress().port,
+  };
+
   return {
     data,
+    headers,
     type: 'html'
   };
 };
