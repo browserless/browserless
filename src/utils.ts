@@ -194,6 +194,7 @@ export const codeCookieName = 'browserless_code';
 export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: string) => {
   const authToken = (
     getBasicAuthToken(req) ||
+    _.get(body, ['desiredCapabilities', 'browserless:token'], null) ||
     _.get(body, ['desiredCapabilities', 'browserless.token'], null)
   );
 

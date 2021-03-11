@@ -243,20 +243,17 @@ describe('Browserless Chrome Webdriver', () => {
 
   it('authorizes with webdriver-backed tokens', async () => {
     const params = defaultParams();
-    const chromeCapabilities = webdriver.Capabilities.chrome();
     const browserless = start({
       ...params,
       token: 'abcd',
     });
 
     await browserless.startServer();
-    chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
-    chromeCapabilities.set('browserless.token', 'abcd');
 
-    async function run() {
+    async function run(capabilities: any) {
       const driver = new webdriver.Builder()
         .forBrowser('chrome')
-        .withCapabilities(chromeCapabilities)
+        .withCapabilities(capabilities)
         .usingServer(`http://127.0.0.1:${params.port}/webdriver`)
         .build();
 
@@ -264,10 +261,23 @@ describe('Browserless Chrome Webdriver', () => {
       await driver.quit();
     }
 
-    await run();
+    {
+      const chromeCapabilities = webdriver.Capabilities.chrome();
+      chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
+      chromeCapabilities.set('browserless.token', 'abcd');
+      await run(chromeCapabilities);
+    }
+
+    {
+      const chromeCapabilities = webdriver.Capabilities.chrome();
+      chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
+      chromeCapabilities.set('browserless:token', 'abcd');
+      await run(chromeCapabilities);
+    }
+
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(1);
+    expect(browserless.currentStat.successful).toEqual(2);
     expect(browserless.currentStat.rejected).toEqual(0);
     expect(browserless.currentStat.queued).toEqual(0);
   });
