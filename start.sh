@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+
+set +e # explicitly don't return on non-zero exit code for any line
 
 # When docker restarts, this file is still there,
 # so we need to kill it just in case
@@ -10,7 +11,6 @@ _kill_procs() {
   kill -TERM $xvfb
 }
 
-# Relay quit commands to processes
 trap _kill_procs SIGTERM SIGINT
 
 Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix &
@@ -21,5 +21,4 @@ export DISPLAY=:99
 dumb-init -- node ./build/index.js $@ &
 node=$!
 
-wait $node
-wait $xvfb
+wait
