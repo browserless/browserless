@@ -19,37 +19,37 @@ const getArgs = (overrides = {}) => ({
 });
 
 const getSeleniumAlwaysMatch = () => ({
-   'capabilities': {
-      'alwaysMatch': {
-         'browserName': 'chrome',
+   capabilities: {
+      alwaysMatch: {
+         browserName: 'chrome',
          'goog:chromeOptions': {
-            'args': ['--headless', '--no-sandbox'],
-         }
-      }
+            args: ['--headless', '--no-sandbox'],
+         },
+      },
    },
-   'desiredCapabilities': {
-      'browserName': 'chrome',
+   desiredCapabilities: {
+      browserName: 'chrome',
       'goog:chromeOptions': {
-         'args': ['--headless', '--no-sandbox'],
-      }
-   }
+         args: ['--headless', '--no-sandbox'],
+      },
+   },
 });
 
 const getSeleniumFirstMatch = () => ({
-   'capabilities': {
-      'firstMatch': [ {
-         'browserName': 'chrome',
+   capabilities: {
+      firstMatch: [ {
+         browserName: 'chrome',
          'goog:chromeOptions': {
-            'args': [ '--no-sandbox', '--headless' ],
-         }
-      } ]
+            args: [ '--no-sandbox', '--headless' ],
+         },
+      } ],
    },
-   'desiredCapabilities': {
-      'browserName': 'chrome',
+   desiredCapabilities: {
+      browserName: 'chrome',
       'goog:chromeOptions': {
-         'args': [ '--no-sandbox', '--headless' ],
-      }
-   }
+         args: [ '--no-sandbox', '--headless' ],
+      },
+   },
 });
 
 const bufferify = (body: any) => {
@@ -77,8 +77,8 @@ describe(`Utils`, () => {
         expect(
           utils.canPreboot(
             getArgs({ args: ['--headless', '--window-size=1920,1080'] }),
-            getArgs({ args: ['--window-size=1920,1080', '--headless'] })
-          )
+            getArgs({ args: ['--window-size=1920,1080', '--headless'] }),
+          ),
         ).toBe(true);
       });
 
@@ -86,8 +86,8 @@ describe(`Utils`, () => {
         expect(
           utils.canPreboot(
             getArgs({ args: ['--headless', '--user-data-dir=/my-data'] }),
-            getArgs({ args: ['--window-size=1920,1080', '--headless'] })
-          )
+            getArgs({ args: ['--window-size=1920,1080', '--headless'] }),
+          ),
         ).toBe(false);
       });
     });
@@ -133,8 +133,8 @@ describe(`Utils`, () => {
         expect(
           utils.canPreboot(
             getArgs({ ignoreDefaultArgs: ['--headless'] }),
-            getArgs({ ignoreDefaultArgs: ['--headless'] })
-          )
+            getArgs({ ignoreDefaultArgs: ['--headless'] }),
+          ),
         ).toBe(true);
       });
 
@@ -142,8 +142,8 @@ describe(`Utils`, () => {
         expect(
           utils.canPreboot(
             getArgs({ ignoreDefaultArgs: ['--headless', '--user-data-dir=cache-money'] }),
-            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money', '--headless'] })
-          )
+            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money', '--headless'] }),
+          ),
         ).toBe(true);
       });
 
@@ -151,8 +151,8 @@ describe(`Utils`, () => {
         expect(
           utils.canPreboot(
             getArgs({ ignoreDefaultArgs: ['--headless'] }),
-            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money'] })
-          )
+            getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money'] }),
+          ),
         ).toBe(false);
       });
     });
@@ -716,7 +716,7 @@ describe(`Utils`, () => {
         title: 'Example Domain',
         type: 'page',
         url: 'https://www.example.com/',
-        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       };
 
       const result = utils.injectHostIntoSession(host, browser, session);
@@ -756,7 +756,7 @@ describe(`Utils`, () => {
         title: 'Example Domain',
         type: 'page',
         url: 'https://www.example.com/',
-        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       };
 
       const result = utils.injectHostIntoSession(host, browser, session);
@@ -786,7 +786,7 @@ describe(`Utils`, () => {
         title: 'Example Domain',
         type: 'page',
         url: 'https://www.example.com/',
-        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       };
 
       const result = utils.injectHostIntoSession(host, browser, session);
@@ -815,7 +815,7 @@ describe(`Utils`, () => {
         title: 'Example Domain',
         type: 'page',
         url: 'https://www.example.com/',
-        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       };
 
       const result = utils.injectHostIntoSession(host, browser, session);
@@ -844,7 +844,7 @@ describe(`Utils`, () => {
         title: 'Example Domain',
         type: 'page',
         url: 'https://www.example.com/',
-        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674'
+        webSocketDebuggerUrl: 'ws://127.0.0.1:50489/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       };
 
       const result = utils.injectHostIntoSession(host, browser, session);

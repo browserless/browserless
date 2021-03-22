@@ -182,11 +182,11 @@ module.exports = async function scrape ({ page, context }) {
   ]);
 
   const headers = {
-    'x-response-code': response.status(),
-    'x-response-status': response.statusText(),
-    'x-response-url': response.url(),
-    'x-response-ip': response.remoteAddress().ip,
-    'x-response-port': response.remoteAddress().port,
+    'x-response-code': response?.status(),
+    'x-response-status': response?.statusText(),
+    'x-response-url': response?.url(),
+    'x-response-ip': response?.remoteAddress().ip,
+    'x-response-port': response?.remoteAddress().port,
   };
 
   return {

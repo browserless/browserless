@@ -348,7 +348,7 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
       windowSize,
       isUsingTempDataDir,
       browserlessDataDir,
-    }
+    },
   };
 };
 

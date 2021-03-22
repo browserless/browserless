@@ -408,7 +408,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
     args: [
       ...BROWSERLESS_ARGS,
       ...(opts.args || []),
-      `--remote-debugging-port=${port}`
+      `--remote-debugging-port=${port}`,
     ],
     executablePath: CHROME_BINARY_LOCATION,
     handleSIGINT: false,
@@ -448,7 +448,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
     launchArgs.args = launchArgs.args.filter((arg) => (
         !arg.startsWith('--user-data-dir') &&
         arg !== '--remote-debugging-pipe'
-      )
+      ),
     );
     launchArgs.headless = true;
   }

@@ -4,11 +4,13 @@ import { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
 import path from 'path';
+const swagger = require('swagger-ui-express');
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
+import swaggerDef from './swagger';
 import {
   IBrowserlessOptions,
   IBrowserlessStats,
@@ -118,12 +120,16 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
+  router.use('/docs', swagger.serve, swagger.setup(swaggerDef));
+
   if (!disabledFeatures.includes(Features.INTROSPECTION_ENDPOINT)) {
     router.get('/introspection', (_req, res) => res.json(hints));
   }
+
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
   }
+
   if (!disabledFeatures.includes(Features.CONFIG_ENDPOINT)) {
     router.get('/config', (_req, res) => res.json(config));
   }

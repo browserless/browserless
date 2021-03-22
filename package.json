@@ -22,7 +22,7 @@
     "clean": "rimraf build",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
-    "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
+    "dev": "nodemon --watch 'src/**' --watch 'functions/**' --ext 'ts,json,js' --ignore 'src/**/*.spec.ts' --exec 'env-cmd -f ./.env.dev ts-node src/index.ts'",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "lint": "tslint -c tslint.json 'src/**/*.ts'",
@@ -105,6 +105,7 @@
     "http-proxy": "^1.16.2",
     "jest": "^26.0.0",
     "joi": "^17.2.1",
+    "joi-to-swagger": "^5.2.0",
     "lighthouse": "^7.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
@@ -121,6 +122,7 @@
     "selenium-webdriver": "^4.0.0-alpha.1",
     "sharp": "^0.27.0",
     "snyk": "^1.316.1",
+    "swagger-ui-express": "^4.1.6",
     "systeminformation": "^5.0.5",
     "table": "^6.0.1",
     "tree-kill": "^1.2.0",
@@ -131,7 +133,9 @@
     "vm2": "^3.9.1"
   },
   "devDependencies": {
-    "env-cmd": "^10.0.0"
+    "env-cmd": "^10.0.0",
+    "nodemon": "^2.0.7",
+    "ts-node": "^9.1.1"
   },
   "jest": {
     "testEnvironment": "node",
