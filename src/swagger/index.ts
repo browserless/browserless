@@ -5,7 +5,7 @@ import { liveQueryParams } from './query-params';
 import { liveHeaders } from './headers';
 import { httpCodes } from './http-codes';
 
-const { version } = require('../package.json');
+const { version } = require('../../package.json');
 
 import {
   pdf,
