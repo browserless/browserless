@@ -1,4 +1,10 @@
 const j2s = require('joi-to-swagger');
+
+import { dedent } from '../utils';
+import { liveQueryParams } from './query-params';
+import { liveHeaders } from './headers';
+import { httpCodes } from './http-codes';
+
 const { version } = require('../package.json');
 
 import {
@@ -8,150 +14,7 @@ import {
   screenshot,
   fn,
   stats,
-} from './schemas';
-
-const liveQueryParams = [{
-  in: 'query',
-  name: 'blockAds',
-  required: false,
-  description: 'Whether or not the browser should block advertisement network traffic.',
-  schema: {
-    type: 'boolean',
-  },
-}, {
-  in: 'query',
-  name: 'headless',
-  required: false,
-  description: 'Whether or not the browser should run in headless mode or not.',
-  schema: {
-    type: 'boolean',
-  },
-}, {
-  in: 'query',
-  name: 'ignoreHTTPSErrors',
-  required: false,
-  description: 'Whether or not the browser should ignore HTTPS errors in pages and network calls.',
-  schema: {
-    type: 'boolean',
-  },
-}, {
-  in: 'query',
-  name: 'slowMo',
-  required: false,
-  description: 'The number, in milliseconds, by which puppeteer will slow-down calls (IE: clicks and typing). Helpful when debugging or mimicking user-like actions.',
-  schema: {
-    type: 'number',
-  },
-}, {
-  in: 'query',
-  name: 'stealth',
-  required: false,
-  description: 'Whether or not to run in stealth mode. Helpful in avoiding bot detection.',
-  schema: {
-    type: 'boolean',
-  },
-}, {
-  in: 'query',
-  name: 'userDataDir',
-  required: false,
-  description: 'A path to get/set a previous sessions cookies, local-storage and more. Use with caution.',
-  schema: {
-    type: 'string',
-  },
-}, {
-  in: 'query',
-  name: 'pause',
-  required: false,
-  description: 'Flag to pause chrome\'s runtime execution of the page. Useful for watching requests and loading devtools to find issues.',
-  schema: {
-    type: 'boolean',
-  },
-}, {
-  in: 'query',
-  name: 'trackingId',
-  required: false,
-  description: 'An arbitrary tracking-ID to use for other APIs like /session and more.',
-  schema: {
-    type: 'string',
-  },
-}, {
-  in: 'query',
-  name: 'keepalive',
-  required: false,
-  description: 'A value, in milliseconds, in which to keep the browser running after the session. Useful for re-connecting later or allowing the browser to run without keeping an open connection.',
-  schema: {
-    type: 'number',
-  },
-}, {
-  in: 'query',
-  name: 'token',
-  required: false,
-  description: 'A string-based token that authorizes the session for the hosted service, as well as self-managed instances that have been started with a TOKEN parameter.',
-  schema: {
-    type: 'string',
-  },
-}, {
-  in: 'query',
-  name: 'flag(s)',
-  style: 'form',
-  explode: 'true',
-  required: false,
-  description: 'Any parameter that starts with "--" is treated as a command-line flag and is passed directly to chrome when it starts. See https://peter.sh/experiments/chromium-command-line-switches/ for a list of possible parameters.',
-}];
-
-const liveHeaders = {
-  'x-response-code': {
-    schema: {
-      type: 'number',
-    },
-    description: 'The underlying page\'s response code.',
-  },
-  'x-response-status': {
-    schema: {
-        type: 'string',
-    },
-    description: 'The underlying page\'s response status "ok"',
-  },
-  'x-response-url': {
-    schema: {
-      type: 'string',
-    },
-    description: 'The underlying page\'s response URL. Might be different if the page was redirected.',
-  },
-  'x-response-ip': {
-    schema: {
-      type: 'string',
-    },
-    description: 'The IP Address of the server that served the underlying page.',
-  },
-  'x-response-port': {
-    schema: {
-      type: 'number',
-    },
-    description: 'The port of the server that served the underlying page.',
-  },
-};
-
-const standardResponses = {
-  400: {
-    description: 'A bad request. See the response for details on addressing the issue.',
-  },
-  403: {
-    description: 'Forbidden: the authorization token is missing or invalid.',
-  },
-  404: {
-    description: 'The resource you are trying to access was not found.',
-  },
-  429: {
-    description: 'Too many concurrent requests are happening, and your session was terminated.',
-  },
-  503: {
-    description: 'The worker or machine is under heavy load and cannot handle your request. Try again later.',
-  },
-  500: {
-    description: 'Unexpected error, either in when starting chrome or internally.',
-  },
-};
+} from '../schemas';
 
 export default {
   openapi: '3.0.0',
@@ -178,7 +41,7 @@ export default {
           },
         },
         responses: {
-          ...standardResponses,
+          ...httpCodes,
           200: {
             description: 'A PDF success response with the attached PDF file.',
             headers: liveHeaders,
@@ -207,7 +70,7 @@ export default {
           },
         },
         responses: {
-          ...standardResponses,
+          ...httpCodes,
           200: {
             description: 'A screenshot success response with the attached screenshot file. Depending on the "options.type" payload, this will respond with either a image/png or image/jpeg content type. Defaults to image/png.',
             headers: liveHeaders,
@@ -242,7 +105,7 @@ export default {
           },
         },
         responses: {
-          ...standardResponses,
+          ...httpCodes,
           200: {
             description: 'A successful response will return the plain HTML of the page after JavaScript parsing and execution.',
             headers: liveHeaders,
@@ -270,7 +133,7 @@ export default {
           },
         },
         responses: {
-          ...standardResponses,
+          ...httpCodes,
           200: {
             description: 'A successful response will return a JSON payload.',
             headers: liveHeaders,
@@ -437,6 +300,21 @@ export default {
             },
           },
         },
+        responses: {
+          ...httpCodes,
+          200: {
+            description: 'A successful response will return a JSON payload.',
+            headers: liveHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  description: 'The stats response returns a JSON-based payload, with many details about the performance of the site',
+                  type: 'object',
+                },
+              },
+            },
+          },
+        },
       },
     },
     '/function': {
@@ -448,6 +326,54 @@ export default {
           content: {
             'application/json': {
               schema: j2s(fn).swagger,
+            },
+            'application/javascript': {
+              schema: {
+                type: 'string',
+                example: dedent(`module.exports = async ({ page }) => {
+                  await page.goto("https://example.com");
+                  return {
+                    type: "json",
+                    data: await page.title()
+                  };
+                };`),
+              },
+            },
+          },
+        },
+        responses: {
+          ...httpCodes,
+          200: {
+            description: 'A successful response will return a type based upon the supplied functions return. This is determined by the "type" parameter when your code returns.',
+            headers: liveHeaders,
+            content: {
+              'application/json': {
+                schema: {
+                  description: 'Returning with a type: "json" will trigger a JSON response with the "data" parameter passing through the functions return.',
+                  type: 'object',
+                },
+              },
+              'application/pdf': {
+                schema: {
+                  description: 'Returning with a type: "pdf" will trigger a PDF content response.',
+                  type: 'string',
+                  format: 'binary',
+                },
+              },
+              'image/png': {
+                schema: {
+                  description: 'Returning with a type: "png" will trigger a PNG content response.',
+                  type: 'string',
+                  format: 'binary',
+                },
+              },
+              'image/jpeg': {
+                schema: {
+                  description: 'Returning with a type: "jpeg" will trigger a JPEG content response.',
+                  type: 'string',
+                  format: 'binary',
+                },
+              },
             },
           },
         },
