@@ -195,7 +195,9 @@ export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: st
   const authToken = (
     getBasicAuthToken(req) ||
     _.get(body, ['desiredCapabilities', 'browserless:token'], null) ||
-    _.get(body, ['desiredCapabilities', 'browserless.token'], null)
+    _.get(body, ['desiredCapabilities', 'browserless.token'], null) ||
+    _.get(body, ['capabilities', 'firstMatch', '0', 'browserless:token'], null) ||
+    _.get(body, ['capabilities', 'firstMatch', '0', 'browserless.token'], null)
   );
 
   if (authToken !== token) {
