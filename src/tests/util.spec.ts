@@ -19,37 +19,37 @@ const getArgs = (overrides = {}) => ({
 });
 
 const getSeleniumAlwaysMatch = () => ({
-   'capabilities': {
-      'alwaysMatch': {
-         'browserName': 'chrome',
-         'goog:chromeOptions': {
-            'args': ['--headless', '--no-sandbox'],
-         }
-      }
-   },
-   'desiredCapabilities': {
+  'capabilities': {
+    'alwaysMatch': {
       'browserName': 'chrome',
       'goog:chromeOptions': {
-         'args': ['--headless', '--no-sandbox'],
-      }
-   }
+        'args': ['--headless', '--no-sandbox'],
+      },
+    },
+  },
+  'desiredCapabilities': {
+    'browserName': 'chrome',
+    'goog:chromeOptions': {
+      'args': ['--headless', '--no-sandbox'],
+    },
+  }
 });
 
 const getSeleniumFirstMatch = () => ({
    'capabilities': {
-      'firstMatch': [ {
+      'firstMatch': [{
          'browserName': 'chrome',
          'goog:chromeOptions': {
             'args': [ '--no-sandbox', '--headless' ],
-         }
-      } ]
+          },
+      }],
    },
    'desiredCapabilities': {
       'browserName': 'chrome',
       'goog:chromeOptions': {
          'args': [ '--no-sandbox', '--headless' ],
-      }
-   }
+      },
+    },
 });
 
 const bufferify = (body: any) => {
@@ -498,7 +498,16 @@ describe(`Utils`, () => {
         expect(results.body.capabilities.alwaysMatch['goog:chromeOptions']).toHaveProperty('binary');
       });
 
-      it('sets block-ads', async () => {
+      it('sets block-ads in the W3C format', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless:blockAds'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('blockAds', true);
+      });
+
+      it('sets block-ads in the legacy format', async () => {
         const reqBody = getSeleniumAlwaysMatch() as any;
         reqBody.desiredCapabilities['browserless.blockAds'] = true;
         const req = bufferify(reqBody) as unknown;
@@ -515,7 +524,45 @@ describe(`Utils`, () => {
         expect(results.params).toHaveProperty('blockAds', false);
       });
 
-      it('sets a tracking-id', async () => {
+      it('gets the browserless token in the W3C format', async () => {
+        const token = 'wat';
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless:token'] = token;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', token);
+      });
+
+      it('gets the browserless token in the legacy format', async () => {
+        const token = 'wat';
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless.token'] = token;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', token);
+      });
+
+      it('gets no browserless tokens when not present', async () => {
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', undefined);
+      });
+
+      it('sets a tracking-id in the W3C format', async () => {
+        const id = 'wat';
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['browserless:trackingId'] = id;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', id);
+      });
+
+      it('sets a tracking-id in the legacy format', async () => {
         const id = 'wat';
         const reqBody = getSeleniumAlwaysMatch() as any;
         reqBody.desiredCapabilities['browserless.trackingId'] = id;
@@ -592,7 +639,7 @@ describe(`Utils`, () => {
       });
     });
 
-    describe('first-match calls', () => {
+    describe('first-match style calls', () => {
       it('sets a binary path', async () => {
         const req = bufferify(getSeleniumFirstMatch()) as unknown;
         const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
@@ -610,6 +657,62 @@ describe(`Utils`, () => {
         expect(results.params).toHaveProperty('blockAds', true);
       });
 
+      it('gets tokens in W3C format', async() => {
+        const token = 'abcd';
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless:token'] = token;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', token);
+      });
+
+      it('gets tokens in legacy format', async() => {
+        const token = 'abcd';
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless.token'] = token;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', token);
+      });
+
+      it('gets no tokens when not present', async() => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('token', undefined);
+      });
+
+      it('gets stealth in W3C format', async() => {
+        const stealth = true;
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless:stealth'] = stealth;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('stealth', stealth);
+      });
+
+      it('gets stealth in legacy format', async() => {
+        const stealth = true;
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless.stealth'] = stealth;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('stealth', stealth);
+      });
+
+      it('sets stealth in false by default', async() => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('stealth', false);
+      });
+
       it('sets block-ads to false by default', async () => {
         const reqBody = getSeleniumFirstMatch() as any;
         const req = bufferify(reqBody) as unknown;
@@ -618,7 +721,17 @@ describe(`Utils`, () => {
         expect(results.params).toHaveProperty('blockAds', false);
       });
 
-      it('sets a tracking-id', async () => {
+      it('sets a tracking-id in the W3C format', async () => {
+        const id = 'wat';
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless:trackingId'] = id;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('trackingId', id);
+      });
+
+      it('sets a tracking-id in the legacy format', async () => {
         const id = 'wat';
         const reqBody = getSeleniumFirstMatch() as any;
         reqBody.desiredCapabilities['browserless.trackingId'] = id;
@@ -636,7 +749,16 @@ describe(`Utils`, () => {
         expect(results.params).toHaveProperty('trackingId', null);
       });
 
-      it('sets pauseOnConnect', async () => {
+      it('sets pauseOnConnect on the W3C format', async () => {
+        const reqBody = getSeleniumFirstMatch() as any;
+        reqBody.desiredCapabilities['browserless:pause'] = true;
+        const req = bufferify(reqBody) as unknown;
+        const results = (await utils.normalizeWebdriverStart(req as IncomingMessage));
+
+        expect(results.params).toHaveProperty('pauseOnConnect', true);
+      });
+
+      it('sets pauseOnConnect on the legacy format', async () => {
         const reqBody = getSeleniumFirstMatch() as any;
         reqBody.desiredCapabilities['browserless.pause'] = true;
         const req = bufferify(reqBody) as unknown;

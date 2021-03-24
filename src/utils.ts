@@ -15,7 +15,11 @@ import util from 'util';
 
 import { WEBDRIVER_ROUTE } from './constants';
 
-import { DEFAULT_BLOCK_ADS, WORKSPACE_DIR } from './config';
+import {
+  DEFAULT_BLOCK_ADS,
+  DEFAULT_STEALTH,
+  WORKSPACE_DIR,
+} from './config';
 
 import {
   IWebdriverStartHTTP,
@@ -248,9 +252,11 @@ const safeParse = (maybeJson: any) => {
 export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWebdriverStartNormalized> => {
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
-  let isUsingTempDataDir: boolean;
 
-  // Make old selenium requests bw compatible
+  let isUsingTempDataDir: boolean;
+  let browserlessDataDir: string | null = null;
+
+  // First, convert legacy chrome options to W3C spec
   if (_.has(parsed, ['desiredCapabilities', legacyChromeOptionsKey])) {
     parsed.desiredCapabilities[w3cChromeOptionsKey] = _.cloneDeep(parsed.desiredCapabilities[legacyChromeOptionsKey]);
     delete parsed.desiredCapabilities[legacyChromeOptionsKey];
@@ -276,16 +282,17 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     });
   }
 
-  const launchArgs = _.uniq([
-    ..._.get(parsed, ['desiredCapabilities', w3cChromeOptionsKey, 'args'], []) as string[],
-    ..._.get(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey, 'args'], []) as string[],
-    ..._.get(parsed, ['capabilities', 'firstMatch', '0', w3cChromeOptionsKey, 'args'], []) as string[],
-  ]);
+  const capabilities = _.merge(
+    parsed?.capabilities?.firstMatch?.['0'],
+    parsed?.capabilities?.alwaysMatch,
+    parsed?.desiredCapabilities,
+  );
+
+  const launchArgs = _.get(capabilities, [w3cChromeOptionsKey, 'args'], []) as string[];
 
   // Set a temp data dir
   isUsingTempDataDir = !launchArgs.some((arg: string) => arg.startsWith('--user-data-dir'));
-
-  const browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
+  browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
 
   // Set binary path and user-data-dir
   if (_.has(parsed, ['desiredCapabilities', w3cChromeOptionsKey])) {
@@ -319,18 +326,24 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     });
   }
 
-  const caps = parsed.desiredCapabilities || parsed.capabilities || {
-    'browserless.blockAds': DEFAULT_BLOCK_ADS,
-    'browserless.pause': false,
-    'browserless.trackingId': null,
-  };
+  const blockAds = !!(
+    capabilities['browserless.blockAds'] ??
+    capabilities['browserless:blockAds'] ??
+    DEFAULT_BLOCK_ADS
+  );
 
-  const blockAds = !!caps['browserless.blockAds'];
-  const pauseOnConnect = !!caps['browserless.pause'];
-  const trackingId = caps['browserless.trackingId'] || null;
+  const stealth = !!(
+    capabilities['browserless.stealth'] ??
+    capabilities['browserless:stealth'] ??
+    DEFAULT_STEALTH
+  );
+
+  const pauseOnConnect = !!(capabilities['browserless.pause'] ?? capabilities['browserless:pause']);
+  const token = capabilities['browserless.token'] ?? capabilities['browserless:token'];
+  const trackingId = capabilities['browserless.trackingId'] ?? capabilities['browserless:trackingId'] ?? null;
+
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
-
   let windowSize;
 
   if (Array.isArray(windowSizeParsed)) {
@@ -344,6 +357,8 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   return {
     body: parsed,
     params: {
+      token,
+      stealth,
       blockAds,
       trackingId,
       pauseOnConnect,

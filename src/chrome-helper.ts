@@ -496,6 +496,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
 };
 
 export const launchChromeDriver = async ({
+  stealth = false,
   blockAds = false,
   trackingId = null,
   pauseOnConnect = false,
@@ -520,7 +521,9 @@ export const launchChromeDriver = async ({
           const [, browserWSEndpoint] = match;
           debug(`Attaching to chromedriver browser on ${browserWSEndpoint}`);
 
-          const browser: puppeteer.Browser = await puppeteer.connect({ browserWSEndpoint });
+          const browser: puppeteer.Browser = stealth ?
+            await pptrExtra.connect({ browserWSEndpoint }) :
+            await puppeteer.connect({ browserWSEndpoint });
 
           iBrowser = await setupBrowser({
             blockAds,
