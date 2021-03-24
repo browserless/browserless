@@ -269,6 +269,7 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   }
 
   const capabilities = _.merge(
+    {},
     parsed?.capabilities?.firstMatch?.['0'],
     parsed?.capabilities?.alwaysMatch,
     parsed?.desiredCapabilities,
