@@ -195,22 +195,6 @@ export const queryValidation = (schema: Schema) => {
 export const tokenCookieName = 'browserless_token';
 export const codeCookieName = 'browserless_code';
 
-export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: string) => {
-  const authToken = (
-    getBasicAuthToken(req) ||
-    _.get(body, ['desiredCapabilities', 'browserless:token'], null) ||
-    _.get(body, ['desiredCapabilities', 'browserless.token'], null) ||
-    _.get(body, ['capabilities', 'firstMatch', '0', 'browserless:token'], null) ||
-    _.get(body, ['capabilities', 'firstMatch', '0', 'browserless.token'], null)
-  );
-
-  if (authToken !== token) {
-    return false;
-  }
-
-  return true;
-};
-
 export const isAuthorized = (req: IHTTPRequest, token: string) => {
   const cookies = cookie.parse(req.headers.cookie || '');
   const parsedUrl = req.parsed;
