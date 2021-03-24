@@ -3,7 +3,7 @@ const j2s = require('joi-to-swagger');
 import { dedent } from '../utils';
 import { liveQueryParams } from './query-params';
 import { liveHeaders } from './headers';
-import { httpCodes } from './http-codes';
+import { httpCodes, liveAPICodes } from './http-codes';
 
 const { version } = require('../../package.json');
 
@@ -15,6 +15,9 @@ import {
   fn,
   stats,
 } from '../schemas';
+
+const liveTags = ['Browser API'];
+const managementTags = ['Management API'];
 
 export default {
   openapi: '3.0.0',
@@ -28,9 +31,75 @@ export default {
     description: 'Demo server',
   }],
   paths: {
+    '/metrics': {
+      get: {
+        tags: managementTags,
+        summary: `Returns metrics about worker in 5-minute increments.`,
+        responses: {
+          ...httpCodes,
+          200: {
+            description: 'A JSON payload with an array of stats.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      date: {
+                        type: 'integer',
+                      },
+                      successful: {
+                        type: 'integer',
+                      },
+                      queued: {
+                        type: 'integer',
+                      },
+                      rejected: {
+                        type: 'integer',
+                      },
+                      unhealthy: {
+                        type: 'integer',
+                      },
+                      memory: {
+                        type: 'number',
+                      },
+                      cpu: {
+                        type: 'number',
+                      },
+                      timedout: {
+                        type: 'integer',
+                      },
+                      totalTime: {
+                        type: 'integer',
+                      },
+                      meanTime: {
+                        type: 'number',
+                      },
+                      maxTime: {
+                        type: 'number',
+                      },
+                      minTime: {
+                        type: 'number',
+                      },
+                      sessionTimes: {
+                        type: 'array',
+                        items: {
+                          type: 'integer',
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/pdf': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'Creates a new PDF document using the supplied JSON body for parameters, and returns the PDF document.',
         requestBody: {
@@ -41,7 +110,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A PDF success response with the attached PDF file.',
             headers: liveHeaders,
@@ -59,7 +128,7 @@ export default {
     },
     '/screenshot': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'Creates a new PNG or JPEG image using the supplied JSON body for parameters, and returns the screenshot.',
         requestBody: {
@@ -70,7 +139,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A screenshot success response with the attached screenshot file. Depending on the "options.type" payload, this will respond with either a image/png or image/jpeg content type. Defaults to image/png.',
             headers: liveHeaders,
@@ -94,7 +163,7 @@ export default {
     },
     '/content': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'Returns the raw HTML of the requested page after processing and executing the browser JavaScript.',
         requestBody: {
@@ -105,7 +174,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A successful response will return the plain HTML of the page after JavaScript parsing and execution.',
             headers: liveHeaders,
@@ -122,7 +191,7 @@ export default {
     },
     '/scrape': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'A JSON-based API to get text, attributes, and more from a page.',
         requestBody: {
@@ -133,7 +202,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A successful response will return a JSON payload.',
             headers: liveHeaders,
@@ -272,13 +341,13 @@ export default {
                                   type: 'array',
                                   items: {
                                     type: 'object',
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
                     },
                   },
                 },
@@ -290,7 +359,7 @@ export default {
     },
     '/stats': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'Get useful performance stats and other benchmarks a site or page.',
         requestBody: {
@@ -301,7 +370,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A successful response will return a JSON payload.',
             headers: liveHeaders,
@@ -319,7 +388,7 @@ export default {
     },
     '/function': {
       post: {
-        tags: ['Browser API'],
+        tags: liveTags,
         parameters: liveQueryParams,
         summary: 'Run arbitrary NodeJS code with access to a browser page, returning the result.',
         requestBody: {
@@ -342,7 +411,7 @@ export default {
           },
         },
         responses: {
-          ...httpCodes,
+          ...liveAPICodes,
           200: {
             description: 'A successful response will return a type based upon the supplied functions return. This is determined by the "type" parameter when your code returns.',
             headers: liveHeaders,

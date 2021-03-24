@@ -50,7 +50,6 @@ import {
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
-const hints = require('../hints.json');
 const rimraf = require('rimraf');
 
 // Browserless fn's
@@ -121,10 +120,6 @@ export const getRoutes = ({
   const config = getConfig();
 
   router.use('/docs', swagger.serve, swagger.setup(swaggerDef));
-
-  if (!disabledFeatures.includes(Features.INTROSPECTION_ENDPOINT)) {
-    router.get('/introspection', (_req, res) => res.json(hints));
-  }
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
