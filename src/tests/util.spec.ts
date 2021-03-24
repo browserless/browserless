@@ -211,13 +211,13 @@ describe(`Utils`, () => {
       expect(utils.getBasicAuthToken(req as any)).toEqual('abc');
     });
 
-    it('returns empty if nothing is there', () => {
+    it('returns undefined if nothing is there', () => {
       const req = {
         headers: {
         },
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual('');
+      expect(utils.getBasicAuthToken(req as any)).toEqual(undefined);
     });
   });
 
