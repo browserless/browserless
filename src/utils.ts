@@ -323,9 +323,9 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   );
 
   const token = (
-    getBasicAuthToken(req) ??
     capabilities['browserless.token'] ??
-    capabilities['browserless:token']
+    capabilities['browserless:token'] ??
+    getBasicAuthToken(req)
   );
 
   const pauseOnConnect = !!(capabilities['browserless.pause'] ?? capabilities['browserless:pause']);
