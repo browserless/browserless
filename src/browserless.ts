@@ -472,7 +472,7 @@ export class BrowserlessServer {
         return res.end('Bad Request');
       }
 
-      if (this.config.token && !util.isWebdriverAuthorized(req, body, this.config.token)) {
+      if (this.config.token && this.config.token !== params.token) {
         res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Unauthorized');
       }

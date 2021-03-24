@@ -252,6 +252,8 @@ export interface IWebdriverStartHTTP extends IHTTPRequest {
 }
 
 export interface IBrowserlessSessionOptions {
+  token?: string;
+  stealth: boolean;
   blockAds: boolean;
   trackingId: string | null;
   pauseOnConnect: boolean;
