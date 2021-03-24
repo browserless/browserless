@@ -322,8 +322,13 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     DEFAULT_STEALTH
   );
 
+  const token = (
+    getBasicAuthToken(req) ??
+    capabilities['browserless.token'] ??
+    capabilities['browserless:token']
+  );
+
   const pauseOnConnect = !!(capabilities['browserless.pause'] ?? capabilities['browserless:pause']);
-  const token = capabilities['browserless.token'] ?? capabilities['browserless:token'];
   const trackingId = capabilities['browserless.trackingId'] ?? capabilities['browserless:trackingId'] ?? null;
 
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
