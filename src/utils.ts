@@ -103,10 +103,12 @@ export const buildWorkspaceDir = async (dir: string): Promise<IWorkspaceItem[] |
   return await readFilesRecursive(dir);
 };
 
-export const getBasicAuthToken = (req: IncomingMessage): string => {
+export const getBasicAuthToken = (req: IncomingMessage): string | undefined => {
   const header = req.headers.authorization || '';
-  const token = header.split(/\s+/).pop() || '';
-  return Buffer.from(token, 'base64').toString().replace(':', '');
+  const username = header.split(/\s+/).pop() || '';
+  const token = Buffer.from(username, 'base64').toString().replace(':', '');
+
+  return token.length ? token : undefined;
 };
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
