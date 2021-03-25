@@ -119,7 +119,9 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-  router.use('/docs', swagger.serve, swagger.setup(swaggerDef));
+  router.use('/docs', swagger.serve, swagger.setup(swaggerDef, {
+    customCss: '.swagger-ui .topbar { display: none }'
+  }));
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
