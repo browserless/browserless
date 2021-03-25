@@ -13,7 +13,6 @@
     "functions/*",
     "env.js",
     "hosts.json",
-    "hints.json",
     "protocol.json",
     "version.json"
   ],
@@ -22,15 +21,15 @@
     "clean": "rimraf build",
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
-    "dev": "nodemon --watch 'src/**' --watch 'functions/**' --ext 'ts,json,js' --ignore 'src/**/*.spec.ts' --exec 'env-cmd -f ./.env.dev ts-node src/index.ts'",
+    "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
-    "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "DEBUG=quiet jest --runInBand --detectOpenHandles",
     "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "npm run external && npm run symlink-chrome && npm run meta",
-    "snyk-protect": "snyk protect"
+    "snyk-protect": "snyk protect",
+    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'"
   },
   "puppeteerVersions": {
     "puppeteer-1.20.0": {
@@ -105,7 +104,6 @@
     "http-proxy": "^1.16.2",
     "jest": "^26.0.0",
     "joi": "^17.2.1",
-    "joi-to-swagger": "^5.2.0",
     "lighthouse": "^7.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
@@ -122,20 +120,18 @@
     "selenium-webdriver": "^4.0.0-alpha.1",
     "sharp": "^0.27.0",
     "snyk": "^1.316.1",
-    "swagger-ui-express": "^4.1.6",
     "systeminformation": "^5.0.5",
     "table": "^6.0.1",
     "tree-kill": "^1.2.0",
     "ts-jest": "^26.5.2",
-    "tslint": "^6.0.0",
     "typescript": "^4.2.2",
     "untildify": "^4.0.0",
     "vm2": "^3.9.1"
   },
   "devDependencies": {
     "env-cmd": "^10.0.0",
-    "nodemon": "^2.0.7",
-    "ts-node": "^9.1.1"
+    "prettier": "^2.2.1",
+    "simple-git-hooks": "^2.2.0"
   },
   "jest": {
     "testEnvironment": "node",

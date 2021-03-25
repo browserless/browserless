@@ -11,11 +11,7 @@ import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
 import swaggerDef from './swagger';
-import {
-  IBrowserlessOptions,
-  IBrowserlessStats,
-  Feature,
-} from './types';
+import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types';
 
 import {
   asyncWebHandler,
@@ -100,7 +96,9 @@ export const getRoutes = ({
     destination: async (req, _file, cb) => {
       const trackingId = (req.query.trackingId || '') as string;
 
-      if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
+      if (
+        ['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))
+      ) {
         return cb(new Error(`trackingId must not include paths`), workspaceDir);
       }
 
@@ -119,9 +117,13 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-  router.use('/docs', swagger.serve, swagger.setup(swaggerDef, {
-    customCss: '.swagger-ui .topbar { display: none }'
-  }));
+  router.use(
+    '/docs',
+    swagger.serve,
+    swagger.setup(swaggerDef, {
+      customCss: '.swagger-ui .topbar { display: none }',
+    }),
+  );
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
@@ -178,7 +180,7 @@ export const getRoutes = ({
         return zipStream.directory(filePath, false).finalize();
       }
 
-      return res.sendFile(filePath, {dotfiles: 'allow'});
+      return res.sendFile(filePath, { dotfiles: 'allow' });
     });
 
     router.delete(/^\/workspace\/(.*)/, async (req, res) => {
@@ -206,20 +208,25 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.DOWNLOAD_ENDPOINT)) {
-    router.post('/download', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
-      const isJson = typeof req.body === 'object';
-      const code = isJson ? req.body.code : req.body;
-      const context = isJson ? req.body.context : {};
+    router.post(
+      '/download',
+      jsonParser,
+      jsParser,
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const isJson = typeof req.body === 'object';
+        const code = isJson ? req.body.code : req.body;
+        const context = isJson ? req.body.context : {};
 
-      return puppeteerProvider.runHTTP({
-        after: downloadAfter,
-        before: downloadBefore,
-        code,
-        context,
-        req,
-        res,
-      });
-    }));
+        return puppeteerProvider.runHTTP({
+          after: downloadAfter,
+          before: downloadBefore,
+          code,
+          context,
+          req,
+          res,
+        });
+      }),
+    );
   }
 
   if (!disabledFeatures.includes(Features.PRESSURE_ENDPOINT)) {
@@ -231,7 +238,8 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.FUNCTION_ENDPOINT)) {
-    router.post('/function',
+    router.post(
+      '/function',
       jsonParser,
       jsParser,
       bodyValidation(fnSchema),
@@ -268,43 +276,51 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.SCREENCAST_ENDPOINT)) {
     // Screen cast route -- we inject some fun stuff here so that it all works properly :)
-    router.post('/screencast', jsonParser, jsParser, asyncWebHandler(async (req: Request, res: Response) => {
-      const isJson = typeof req.body === 'object';
-      const code = isJson ? req.body.code : req.body;
-      const context = isJson ? req.body.context : {};
+    router.post(
+      '/screencast',
+      jsonParser,
+      jsParser,
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const isJson = typeof req.body === 'object';
+        const code = isJson ? req.body.code : req.body;
+        const context = isJson ? req.body.context : {};
 
-      return puppeteerProvider.runHTTP({
-        after: screencastAfter,
-        before: screenCastBefore,
-        code,
-        context,
-        req,
-        res,
-        ignoreDefaultArgs: ['--enable-automation'],
-      });
-    }));
+        return puppeteerProvider.runHTTP({
+          after: screencastAfter,
+          before: screenCastBefore,
+          code,
+          context,
+          req,
+          res,
+          ignoreDefaultArgs: ['--enable-automation'],
+        });
+      }),
+    );
   }
 
   if (!disabledFeatures.includes(Features.SCREENSHOT_ENDPOINT)) {
-    enableAPIGet && router.get('/screenshot',
-      queryValidation(screenshotSchema),
-      asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
-          code: screenshot,
-          context: req.body,
-          req,
-          res,
-        }),
-      ),
-    );
+    enableAPIGet &&
+      router.get(
+        '/screenshot',
+        queryValidation(screenshotSchema),
+        asyncWebHandler(async (req: Request, res: Response) =>
+          puppeteerProvider.runHTTP({
+            code: screenshot,
+            context: req.body,
+            req,
+            res,
+          }),
+        ),
+      );
 
-    router.post('/screenshot',
+    router.post(
+      '/screenshot',
       jsonParser,
       htmlParser,
       bodyValidation(screenshotSchema),
       asyncWebHandler(async (req: Request, res: Response) => {
         const isJson = typeof req.body === 'object';
-        const context = isJson ? req.body : {html: req.body};
+        const context = isJson ? req.body : { html: req.body };
 
         return puppeteerProvider.runHTTP({
           code: screenshot,
@@ -317,25 +333,28 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.CONTENT_ENDPOINT)) {
-    enableAPIGet && router.get('/content',
-      queryValidation(contentSchema),
-      asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
-          code: content,
-          context: req.body,
-          req,
-          res,
-        }),
-      ),
-    );
+    enableAPIGet &&
+      router.get(
+        '/content',
+        queryValidation(contentSchema),
+        asyncWebHandler(async (req: Request, res: Response) =>
+          puppeteerProvider.runHTTP({
+            code: content,
+            context: req.body,
+            req,
+            res,
+          }),
+        ),
+      );
 
-    router.post('/content',
+    router.post(
+      '/content',
       jsonParser,
       htmlParser,
       bodyValidation(contentSchema),
       asyncWebHandler(async (req: Request, res: Response) => {
         const isJson = typeof req.body === 'object';
-        const context = isJson ? req.body : {html: req.body};
+        const context = isJson ? req.body : { html: req.body };
 
         return puppeteerProvider.runHTTP({
           code: content,
@@ -348,19 +367,22 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.SCRAPE_ENDPOINT)) {
-    enableAPIGet && router.get('/scrape',
-      queryValidation(scrapeSchema),
-      asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
-          code: scrape,
-          context: req.body,
-          req,
-          res,
-        }),
-      ),
-    );
+    enableAPIGet &&
+      router.get(
+        '/scrape',
+        queryValidation(scrapeSchema),
+        asyncWebHandler(async (req: Request, res: Response) =>
+          puppeteerProvider.runHTTP({
+            code: scrape,
+            context: req.body,
+            req,
+            res,
+          }),
+        ),
+      );
 
-    router.post('/scrape',
+    router.post(
+      '/scrape',
       jsonParser,
       bodyValidation(scrapeSchema),
       asyncWebHandler(async (req: Request, res: Response) => {
@@ -378,25 +400,28 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.PDF_ENDPOINT)) {
-    enableAPIGet && router.get('/pdf',
-      queryValidation(pdfSchema),
-      asyncWebHandler(async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
-          code: pdf,
-          context: req.body,
-          req,
-          res,
-        }),
-      ),
-    );
+    enableAPIGet &&
+      router.get(
+        '/pdf',
+        queryValidation(pdfSchema),
+        asyncWebHandler(async (req: Request, res: Response) =>
+          puppeteerProvider.runHTTP({
+            code: pdf,
+            context: req.body,
+            req,
+            res,
+          }),
+        ),
+      );
 
-    router.post('/pdf',
+    router.post(
+      '/pdf',
       jsonParser,
       htmlParser,
       bodyValidation(pdfSchema),
       asyncWebHandler(async (req: Request, res: Response) => {
         const isJson = typeof req.body === 'object';
-        const context = isJson ? req.body : {html: req.body};
+        const context = isJson ? req.body : { html: req.body };
 
         return puppeteerProvider.runHTTP({
           code: pdf,
@@ -409,8 +434,26 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.STATS_ENDPOINT)) {
-    enableAPIGet && router.get('/stats',
-      queryValidation(statsSchema),
+    enableAPIGet &&
+      router.get(
+        '/stats',
+        queryValidation(statsSchema),
+        asyncWebHandler(async (req: Request, res: Response) =>
+          puppeteerProvider.runHTTP({
+            builtin: ['url', 'child_process', 'path'],
+            code: stats,
+            context: req.body,
+            external: ['tree-kill'],
+            req,
+            res,
+          }),
+        ),
+      );
+
+    router.post(
+      '/stats',
+      jsonParser,
+      bodyValidation(statsSchema),
       asyncWebHandler(async (req: Request, res: Response) =>
         puppeteerProvider.runHTTP({
           builtin: ['url', 'child_process', 'path'],
@@ -422,38 +465,29 @@ export const getRoutes = ({
         }),
       ),
     );
-
-    router.post('/stats', jsonParser, bodyValidation(statsSchema), asyncWebHandler(
-      async (req: Request, res: Response) =>
-        puppeteerProvider.runHTTP({
-          builtin: ['url', 'child_process', 'path'],
-          code: stats,
-          context: req.body,
-          external: ['tree-kill'],
-          req,
-          res,
-        }),
-      ));
   }
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     router.get('/json/protocol', (_req, res) => res.json(protocol));
 
-    router.get('/json/new', asyncWebHandler(async (req: Request, res: Response) => {
-      const targetId = generateChromeTarget();
-      const baseUrl = req.get('host');
-      const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+    router.get(
+      '/json/new',
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const targetId = generateChromeTarget();
+        const baseUrl = req.get('host');
+        const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
 
-      res.json({
-        description: '',
-        devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
-        targetId,
-        title: 'about:blank',
-        type: 'page',
-        url: 'about:blank',
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
-      });
-    }));
+        res.json({
+          description: '',
+          devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
+          targetId,
+          title: 'about:blank',
+          type: 'page',
+          url: 'about:blank',
+          webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
+        });
+      }),
+    );
 
     router.get('/json/version', (req, res) => {
       const baseUrl = req.get('host');
@@ -465,30 +499,38 @@ export const getRoutes = ({
       });
     });
 
-    router.get('/json*', asyncWebHandler(async (req: Request, res: Response) => {
-      const targetId = generateChromeTarget();
-      const baseUrl = req.get('host');
-      const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+    router.get(
+      '/json*',
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const targetId = generateChromeTarget();
+        const baseUrl = req.get('host');
+        const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
 
-      res.json([{
-        description: '',
-        devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
-        targetId,
-        title: 'about:blank',
-        type: 'page',
-        url: 'about:blank',
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
-      }]);
-    }));
+        res.json([
+          {
+            description: '',
+            devtoolsFrontendUrl: `/devtools/inspector.html?${protocol}=${baseUrl}${targetId}`,
+            targetId,
+            title: 'about:blank',
+            type: 'page',
+            url: 'about:blank',
+            webSocketDebuggerUrl: `${protocol}://${baseUrl}${targetId}`,
+          },
+        ]);
+      }),
+    );
   }
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
-    router.get('/sessions', asyncWebHandler(async (req: Request, res: Response) => {
-      const trackingId = req.query.trackingId as string | undefined;
-      const pages = await chromeHelper.getDebuggingPages(trackingId);
+    router.get(
+      '/sessions',
+      asyncWebHandler(async (req: Request, res: Response) => {
+        const trackingId = req.query.trackingId as string | undefined;
+        const pages = await chromeHelper.getDebuggingPages(trackingId);
 
-      return res.json(pages);
-    }));
+        return res.json(pages);
+      }),
+    );
   }
 
   if (enableHeapdump) {
@@ -500,7 +542,9 @@ export const getRoutes = ({
           return res.status(500).send(err.message);
         }
 
-        return res.sendFile(heapLocation, (_err: Error) => rimraf(heapLocation, _.noop));
+        return res.sendFile(heapLocation, (_err: Error) =>
+          rimraf(heapLocation, _.noop),
+        );
       });
     });
   }

@@ -8,7 +8,9 @@ const BASE = 'browserless/base';
 const VERSION = process.env.VERSION;
 
 if (!VERSION) {
-  throw new Error(`Expected a $VERSION env variable to tag the browserless/base repo, but none was found.`);
+  throw new Error(
+    `Expected a $VERSION env variable to tag the browserless/base repo, but none was found.`,
+  );
 }
 
 const logExec = (cmd) => {
@@ -25,14 +27,16 @@ const buildBase = async () => {
   await logExec(`docker build -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`);
   await logExec(`docker push ${BASE}:latest`);
   await logExec(`docker push ${BASE}:${VERSION}`);
-}
+};
 
-async function deploy () {
+async function deploy() {
   // Build a fresh base image first, then subsequent
   // docker builds are super fast.
   await buildBase();
 
-  await logExec(`docker images -a | grep "${BASE}" | awk '{print $3}' | xargs docker rmi`);
+  await logExec(
+    `docker images -a | grep "${BASE}" | awk '{print $3}' | xargs docker rmi`,
+  );
   debug(`Complete! Cleaning up file-system and exiting.`);
 }
 

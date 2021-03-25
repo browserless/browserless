@@ -5,8 +5,8 @@ import getPort from 'get-port';
 import _ from 'lodash';
 import path from 'path';
 import puppeteer from 'puppeteer';
-import pptrExtra from 'puppeteer-extra'
-import StealthPlugin from 'puppeteer-extra-plugin-stealth'
+import pptrExtra from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
 import treekill from 'tree-kill';
@@ -15,7 +15,14 @@ import { chromium, BrowserServer } from 'playwright-core';
 
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
-import { fetchJson, getDebug, getUserDataDir, injectHostIntoSession ,rimraf, sleep } from './utils';
+import {
+  fetchJson,
+  getDebug,
+  getUserDataDir,
+  injectHostIntoSession,
+  rimraf,
+  sleep,
+} from './utils';
 
 import {
   IBrowser,
@@ -66,9 +73,9 @@ const BROWSERLESS_ARGS = [
 const blacklist = require('../hosts.json');
 const thirtySeconds = 30 * 1000;
 
-const externalURL = PROXY_URL ?
-  new URL(PROXY_URL) :
-  new URL(`http://${HOST || `127.0.0.1`}:${PORT}`);
+const externalURL = PROXY_URL
+  ? new URL(PROXY_URL)
+  : new URL(`http://${HOST || `127.0.0.1`}:${PORT}`);
 
 const removeDataDir = (dir: string | null) => {
   if (dir) {
@@ -103,17 +110,20 @@ const parseIgnoreDefaultArgs = (query: ParsedUrlQuery): string[] | boolean => {
     return true;
   }
 
-  return Array.isArray(defaultArgs) ?
-    defaultArgs :
-    defaultArgs.split(',');
+  return Array.isArray(defaultArgs) ? defaultArgs : defaultArgs.split(',');
 };
 
-const getTargets = async ({ port }: { port: string }): Promise<IDevtoolsJSON[]> =>
-  fetchJson(`http://127.0.0.1:${port}/json/list`);
+const getTargets = async ({
+  port,
+}: {
+  port: string;
+}): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
 
-const isPuppeteer = (browserServer: puppeteer.Browser | BrowserServer): browserServer is puppeteer.Browser => {
+const isPuppeteer = (
+  browserServer: puppeteer.Browser | BrowserServer,
+): browserServer is puppeteer.Browser => {
   return (browserServer as puppeteer.Browser).disconnect !== undefined;
-}
+};
 
 const setupPage = async ({
   browser,
@@ -123,12 +133,12 @@ const setupPage = async ({
   trackingId,
   windowSize,
 }: {
-  browser: IBrowser,
+  browser: IBrowser;
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId: string | null;
-  windowSize?: IWindowSize
+  windowSize?: IWindowSize;
 }) => {
   const client = _.get(page, '_client', _.noop);
 
@@ -144,17 +154,22 @@ const setupPage = async ({
   }
 
   // Only inject download behaviors for puppeteer when it's enabled
-  if (!DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR && isPuppeteer(browser._browserServer)) {
-    const workspaceDir = trackingId ?
-      path.join(WORKSPACE_DIR, trackingId) :
-      WORKSPACE_DIR;
+  if (
+    !DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR &&
+    isPuppeteer(browser._browserServer)
+  ) {
+    const workspaceDir = trackingId
+      ? path.join(WORKSPACE_DIR, trackingId)
+      : WORKSPACE_DIR;
 
     debug(`Injecting download dir "${workspaceDir}"`);
 
-    await client.send('Page.setDownloadBehavior', {
-      behavior: 'allow',
-      downloadPath: workspaceDir,
-    }).catch(_.noop);
+    await client
+      .send('Page.setDownloadBehavior', {
+        behavior: 'allow',
+        downloadPath: workspaceDir,
+      })
+      .catch(_.noop);
   }
 
   if (pauseOnConnect && !DISABLED_FEATURES.includes(Features.DEBUG_VIEWER)) {
@@ -163,14 +178,14 @@ const setupPage = async ({
   }
 
   if (!ALLOW_FILE_PROTOCOL) {
-    page.on('request', async(request) => {
+    page.on('request', async (request) => {
       if (request.url().startsWith('file://')) {
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
     });
 
-    page.on('response', async(response) => {
+    page.on('response', async (response) => {
       if (response.url().startsWith('file://')) {
         page.close().catch(_.noop);
         closeBrowser(browser);
@@ -240,8 +255,10 @@ const setupBrowser = async ({
   await browserHook({ browser });
 
   browser._browserProcess.once('exit', (code, signal) => {
-    debug(`Browser process exited with code ${code} and signal ${signal}, cleaning up`);
-    closeBrowser(browser)
+    debug(
+      `Browser process exited with code ${code} and signal ${signal}, cleaning up`,
+    );
+    closeBrowser(browser);
   });
 
   browser.on('targetcreated', async (target) => {
@@ -266,14 +283,16 @@ const setupBrowser = async ({
 
   const pages = await browser.pages();
 
-  pages.forEach((page) => setupPage({
-    browser,
-    blockAds,
-    page,
-    pauseOnConnect,
-    trackingId,
-    windowSize,
-  }));
+  pages.forEach((page) =>
+    setupPage({
+      browser,
+      blockAds,
+      page,
+      pauseOnConnect,
+      trackingId,
+      windowSize,
+    }),
+  );
   runningBrowsers.push(browser);
 
   return browser;
@@ -297,11 +316,17 @@ export const defaultLaunchArgs = {
  * and other options, match those requested by the HTTP request
  */
 export const canUsePrebootedChrome = (launchArgs: ILaunchOptions) => {
-  if (!_.isUndefined(launchArgs.headless) && launchArgs.headless !== defaultLaunchArgs.headless) {
+  if (
+    !_.isUndefined(launchArgs.headless) &&
+    launchArgs.headless !== defaultLaunchArgs.headless
+  ) {
     return false;
   }
 
-  if (!_.isUndefined(launchArgs.args) && launchArgs.args.length !== defaultLaunchArgs.args.length) {
+  if (
+    !_.isUndefined(launchArgs.args) &&
+    launchArgs.args.length !== defaultLaunchArgs.args.length
+  ) {
     return false;
   }
 
@@ -311,7 +336,9 @@ export const canUsePrebootedChrome = (launchArgs: ILaunchOptions) => {
 export const findSessionForPageUrl = async (pathname: string) => {
   const pages = await getDebuggingPages();
 
-  return pages.find((session) => session.devtoolsFrontendUrl.includes(pathname));
+  return pages.find((session) =>
+    session.devtoolsFrontendUrl.includes(pathname),
+  );
 };
 
 export const findSessionForBrowserUrl = async (pathname: string) => {
@@ -320,10 +347,16 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
   return pages.find((session) => session.browserWSEndpoint.includes(pathname));
 };
 
-export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]> => {
+export const getDebuggingPages = async (
+  trackingId?: string,
+): Promise<ISession[]> => {
   const results = await Promise.all(
     runningBrowsers
-      .filter((browser) => typeof trackingId === 'undefined' || browser._trackingId === trackingId)
+      .filter(
+        (browser) =>
+          typeof trackingId === 'undefined' ||
+          browser._trackingId === trackingId,
+      )
       .map(async (browser) => {
         const { port } = browser._parsed;
 
@@ -333,8 +366,9 @@ export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]
 
         const sessions = await getTargets({ port });
 
-        return sessions
-          .map((session) => injectHostIntoSession(externalURL, browser, session));
+        return sessions.map((session) =>
+          injectHostIntoSession(externalURL, browser, session),
+        );
       }),
   );
 
@@ -343,7 +377,9 @@ export const getDebuggingPages = async (trackingId?: string): Promise<ISession[]
 
 export const getBrowsersRunning = () => runningBrowsers.length;
 
-export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions => {
+export const convertUrlParamsToLaunchOpts = (
+  req: IHTTPRequest,
+): ILaunchOptions => {
   const urlParts = req.parsed;
   const args = _.chain(urlParts.query)
     .pickBy((_value, param) => _.startsWith(param, '--'))
@@ -365,17 +401,17 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
 
-  const isHeadless = !_.isUndefined(headless) ?
-    headless !== 'false' :
-    DEFAULT_HEADLESS;
+  const isHeadless = !_.isUndefined(headless)
+    ? headless !== 'false'
+    : DEFAULT_HEADLESS;
 
-  const isStealth = !_.isUndefined(stealth) ?
-    stealth !== 'false' :
-    DEFAULT_STEALTH;
+  const isStealth = !_.isUndefined(stealth)
+    ? stealth !== 'false'
+    : DEFAULT_STEALTH;
 
-  const dumpio = !_.isUndefined(dumpioQuery) ?
-    dumpioQuery !== 'false' :
-    DEFAULT_DUMPIO;
+  const dumpio = !_.isUndefined(dumpioQuery)
+    ? dumpioQuery !== 'false'
+    : DEFAULT_DUMPIO;
 
   const parsedKeepalive = _.parseInt(keepaliveQuery as string);
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
@@ -388,17 +424,21 @@ export const convertUrlParamsToLaunchOpts = (req: IHTTPRequest): ILaunchOptions 
     headless: isHeadless,
     stealth: isStealth,
     ignoreDefaultArgs: parsedIgnoreDefaultArgs,
-    ignoreHTTPSErrors: !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
+    ignoreHTTPSErrors:
+      !_.isUndefined(ignoreHTTPSErrors) || DEFAULT_IGNORE_HTTPS_ERRORS,
     keepalive,
     pauseOnConnect: !_.isUndefined(pause),
     playwright,
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
-    userDataDir: userDataDir as string || DEFAULT_USER_DATA_DIR,
+    userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
   };
 };
 
-export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Promise<IBrowser> => {
+export const launchChrome = async (
+  opts: ILaunchOptions,
+  isPreboot: boolean,
+): Promise<IBrowser> => {
   const port = await getPort();
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
@@ -419,11 +459,13 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
   const isPlaywright = launchArgs.playwright;
 
   // Having a user-data-dir in args is higher precedence than in opts
-  const hasUserDataDir = _.some((launchArgs.args), (arg) => arg.includes('--user-data-dir='));
-  const isHeadless = launchArgs.args.some(arg => arg.startsWith('--headless')) || (
-    typeof launchArgs.headless === 'undefined' ||
-    launchArgs.headless === true
+  const hasUserDataDir = _.some(launchArgs.args, (arg) =>
+    arg.includes('--user-data-dir='),
   );
+  const isHeadless =
+    launchArgs.args.some((arg) => arg.startsWith('--headless')) ||
+    typeof launchArgs.headless === 'undefined' ||
+    launchArgs.headless === true;
 
   if (hasUserDataDir || opts.userDataDir) {
     isUsingTempDataDir = false;
@@ -432,7 +474,7 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
   // If no data-dir is specified, use the default one in opts or generate one
   // except for playwright which will error doing so.
   if (!hasUserDataDir) {
-    browserlessDataDir = opts.userDataDir || await getUserDataDir();
+    browserlessDataDir = opts.userDataDir || (await getUserDataDir());
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }
 
@@ -445,54 +487,62 @@ export const launchChrome = async (opts: ILaunchOptions, isPreboot: boolean): Pr
   // Reset playwright to a workable state since it can't run headfull or use
   // a user-data-dir
   if (isPlaywright) {
-    launchArgs.args = launchArgs.args.filter((arg) => (
-        !arg.startsWith('--user-data-dir') &&
-        arg !== '--remote-debugging-pipe'
-      ),
+    launchArgs.args = launchArgs.args.filter(
+      (arg) =>
+        !arg.startsWith('--user-data-dir') && arg !== '--remote-debugging-pipe',
     );
     launchArgs.headless = true;
   }
 
-  debug(`Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`);
+  debug(
+    `Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`,
+  );
 
   // Kill any user data-dir if 30 seconds go by without us launching
-  const rmUserDataDir = global.setTimeout(removeDataDir, thirtySeconds, browserlessDataDir);
+  const rmUserDataDir = global.setTimeout(
+    removeDataDir,
+    thirtySeconds,
+    browserlessDataDir,
+  );
 
-  const browserServer = launchArgs.playwright ?
-    await chromium.launchServer({
-      ...launchArgs,
-      headless: true,
-    }) :
-    launchArgs.stealth ?
-      await pptrExtra.launch(launchArgs):
-      await puppeteer.launch(launchArgs);
+  const browserServer = launchArgs.playwright
+    ? await chromium.launchServer({
+        ...launchArgs,
+        headless: true,
+      })
+    : launchArgs.stealth
+    ? await pptrExtra.launch(launchArgs)
+    : await puppeteer.launch(launchArgs);
 
   clearTimeout(rmUserDataDir);
 
-  const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(`http://127.0.0.1:${port}/json/version`)
-    .catch((e) => {
-      browserServer.close();
-      throw e;
-    });
+  const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
+    `http://127.0.0.1:${port}/json/version`,
+  ).catch((e) => {
+    browserServer.close();
+    throw e;
+  });
 
-  const iBrowser = isPuppeteer(browserServer) ?
-    Promise.resolve(browserServer) :
-    puppeteer.connect({ browserWSEndpoint })
+  const iBrowser = isPuppeteer(browserServer)
+    ? Promise.resolve(browserServer)
+    : puppeteer.connect({ browserWSEndpoint });
 
-  return iBrowser.then((browser) => setupBrowser({
-    blockAds: opts.blockAds,
-    browser,
-    browserlessDataDir,
-    browserWSEndpoint,
-    isUsingTempDataDir,
-    keepalive: opts.keepalive || null,
-    pauseOnConnect: opts.pauseOnConnect,
-    process: browserServer.process(),
-    trackingId: opts.trackingId || null,
-    windowSize: undefined,
-    prebooted: isPreboot,
-    browserServer,
-  }));
+  return iBrowser.then((browser) =>
+    setupBrowser({
+      blockAds: opts.blockAds,
+      browser,
+      browserlessDataDir,
+      browserWSEndpoint,
+      isUsingTempDataDir,
+      keepalive: opts.keepalive || null,
+      pauseOnConnect: opts.pauseOnConnect,
+      process: browserServer.process(),
+      trackingId: opts.trackingId || null,
+      windowSize: undefined,
+      prebooted: isPreboot,
+      browserServer,
+    }),
+  );
 };
 
 export const launchChromeDriver = async ({
@@ -507,7 +557,12 @@ export const launchChromeDriver = async ({
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
     let iBrowser = null;
-    const flags = ['--url-base=webdriver', '--verbose', `--port=${port}`, '--whitelisted-ips'];
+    const flags = [
+      '--url-base=webdriver',
+      '--verbose',
+      `--port=${port}`,
+      '--whitelisted-ips',
+    ];
     debug(`Launching ChromeDriver with args: ${JSON.stringify(flags)}`);
 
     const chromeProcess: ChildProcess = await chromeDriver.start(flags, true);
@@ -521,9 +576,9 @@ export const launchChromeDriver = async ({
           const [, browserWSEndpoint] = match;
           debug(`Attaching to chromedriver browser on ${browserWSEndpoint}`);
 
-          const browser: puppeteer.Browser = stealth ?
-            await pptrExtra.connect({ browserWSEndpoint }) :
-            await puppeteer.connect({ browserWSEndpoint });
+          const browser: puppeteer.Browser = stealth
+            ? await pptrExtra.connect({ browserWSEndpoint })
+            : await puppeteer.connect({ browserWSEndpoint });
 
           iBrowser = await setupBrowser({
             blockAds,
@@ -588,8 +643,12 @@ export const closeBrowser = async (browser: IBrowser) => {
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
 
-    isPuppeteer(browser._browserServer) ? browser._browserServer.disconnect() : browser._browserServer.close();
-    runningBrowsers = runningBrowsers.filter((b) => b._wsEndpoint !== browser._wsEndpoint);
+    isPuppeteer(browser._browserServer)
+      ? browser._browserServer.disconnect()
+      : browser._browserServer.close();
+    runningBrowsers = runningBrowsers.filter(
+      (b) => b._wsEndpoint !== browser._wsEndpoint,
+    );
 
     /*
      * IMPORTANT
@@ -603,7 +662,9 @@ export const closeBrowser = async (browser: IBrowser) => {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
     await sleep(200);
-    debug(`Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`);
+    debug(
+      `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
+    );
 
     treekill(browser._browserProcess.pid, 'SIGKILL');
 
