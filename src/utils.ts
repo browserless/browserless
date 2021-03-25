@@ -15,7 +15,11 @@ import util from 'util';
 
 import { WEBDRIVER_ROUTE } from './constants';
 
-import { DEFAULT_BLOCK_ADS, WORKSPACE_DIR } from './config';
+import {
+  DEFAULT_BLOCK_ADS,
+  DEFAULT_STEALTH,
+  WORKSPACE_DIR,
+} from './config';
 
 import {
   IWebdriverStartHTTP,
@@ -99,10 +103,12 @@ export const buildWorkspaceDir = async (dir: string): Promise<IWorkspaceItem[] |
   return await readFilesRecursive(dir);
 };
 
-export const getBasicAuthToken = (req: IncomingMessage): string => {
+export const getBasicAuthToken = (req: IncomingMessage): string | undefined => {
   const header = req.headers.authorization || '';
-  const token = header.split(/\s+/).pop() || '';
-  return Buffer.from(token, 'base64').toString().replace(':', '');
+  const username = header.split(/\s+/).pop() || '';
+  const token = Buffer.from(username, 'base64').toString().replace(':', '');
+
+  return token.length ? token : undefined;
 };
 
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
@@ -191,20 +197,6 @@ export const queryValidation = (schema: Schema) => {
 export const tokenCookieName = 'browserless_token';
 export const codeCookieName = 'browserless_code';
 
-export const isWebdriverAuthorized = (req: IncomingMessage, body: any, token: string) => {
-  const authToken = (
-    getBasicAuthToken(req) ||
-    _.get(body, ['desiredCapabilities', 'browserless:token'], null) ||
-    _.get(body, ['desiredCapabilities', 'browserless.token'], null)
-  );
-
-  if (authToken !== token) {
-    return false;
-  }
-
-  return true;
-};
-
 export const isAuthorized = (req: IHTTPRequest, token: string) => {
   const cookies = cookie.parse(req.headers.cookie || '');
   const parsedUrl = req.parsed;
@@ -246,9 +238,11 @@ const safeParse = (maybeJson: any) => {
 export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWebdriverStartNormalized> => {
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
-  let isUsingTempDataDir: boolean;
 
-  // Make old selenium requests bw compatible
+  let isUsingTempDataDir: boolean;
+  let browserlessDataDir: string | null = null;
+
+  // First, convert legacy chrome options to W3C spec
   if (_.has(parsed, ['desiredCapabilities', legacyChromeOptionsKey])) {
     parsed.desiredCapabilities[w3cChromeOptionsKey] = _.cloneDeep(parsed.desiredCapabilities[legacyChromeOptionsKey]);
     delete parsed.desiredCapabilities[legacyChromeOptionsKey];
@@ -274,16 +268,18 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     });
   }
 
-  const launchArgs = _.uniq([
-    ..._.get(parsed, ['desiredCapabilities', w3cChromeOptionsKey, 'args'], []) as string[],
-    ..._.get(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey, 'args'], []) as string[],
-    ..._.get(parsed, ['capabilities', 'firstMatch', '0', w3cChromeOptionsKey, 'args'], []) as string[],
-  ]);
+  const capabilities = _.merge(
+    {},
+    parsed?.capabilities?.firstMatch?.['0'],
+    parsed?.capabilities?.alwaysMatch,
+    parsed?.desiredCapabilities,
+  );
+
+  const launchArgs = _.get(capabilities, [w3cChromeOptionsKey, 'args'], []) as string[];
 
   // Set a temp data dir
   isUsingTempDataDir = !launchArgs.some((arg: string) => arg.startsWith('--user-data-dir'));
-
-  const browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
+  browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
 
   // Set binary path and user-data-dir
   if (_.has(parsed, ['desiredCapabilities', w3cChromeOptionsKey])) {
@@ -317,18 +313,29 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
     });
   }
 
-  const caps = parsed.desiredCapabilities || parsed.capabilities || {
-    'browserless.blockAds': DEFAULT_BLOCK_ADS,
-    'browserless.pause': false,
-    'browserless.trackingId': null,
-  };
+  const blockAds = !!(
+    capabilities['browserless.blockAds'] ??
+    capabilities['browserless:blockAds'] ??
+    DEFAULT_BLOCK_ADS
+  );
 
-  const blockAds = !!caps['browserless.blockAds'];
-  const pauseOnConnect = !!caps['browserless.pause'];
-  const trackingId = caps['browserless.trackingId'] || null;
+  const stealth = !!(
+    capabilities['browserless.stealth'] ??
+    capabilities['browserless:stealth'] ??
+    DEFAULT_STEALTH
+  );
+
+  const token = (
+    capabilities['browserless.token'] ??
+    capabilities['browserless:token'] ??
+    getBasicAuthToken(req)
+  );
+
+  const pauseOnConnect = !!(capabilities['browserless.pause'] ?? capabilities['browserless:pause']);
+  const trackingId = capabilities['browserless.trackingId'] ?? capabilities['browserless:trackingId'] ?? null;
+
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed = windowSizeArg && windowSizeArg.split('=')[1].split(',');
-
   let windowSize;
 
   if (Array.isArray(windowSizeParsed)) {
@@ -342,6 +349,8 @@ export const normalizeWebdriverStart = async (req: IncomingMessage): Promise<IWe
   return {
     body: parsed,
     params: {
+      token,
+      stealth,
       blockAds,
       trackingId,
       pauseOnConnect,
