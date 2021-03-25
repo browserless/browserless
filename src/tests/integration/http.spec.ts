@@ -40,18 +40,6 @@ describe('Browserless Chrome HTTP', () => {
       });
   });
 
-  it('allows requests to /introspection', async () => {
-    const params = defaultParams();
-    const browserless = start(params);
-    await browserless.startServer();
-
-    return fetch(`http://127.0.0.1:${params.port}/introspection`)
-      .then((res) => res.json())
-      .then((introspection) => {
-        expect(introspection);
-      });
-  });
-
   it('allows requests to /json/protocol', async () => {
     const params = defaultParams();
     const browserless = start(params);

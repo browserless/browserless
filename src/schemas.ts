@@ -35,7 +35,7 @@ const rejectResourceTypes = Joi.array().items(Joi.string().valid(
   'eventsource',
   'websocket',
   'manifest',
-  'other'
+  'other',
 )).default([]);
 
 const addScriptTag = Joi.array().items(Joi.object().keys({
@@ -99,7 +99,7 @@ export const screenshot = Joi.object().keys({
       fit: Joi.string()
         .valid('cover', 'contain', 'fill', 'inside', 'outside'),
       position: Joi.string()
-        .valid('top', 'right top', 'right', 'right bottom', 'bottom', 'left bottom', 'left', 'left top')
+        .valid('top', 'right top', 'right', 'right bottom', 'bottom', 'left bottom', 'left', 'left top'),
     }),
     flip: Joi.boolean(),
     flop: Joi.boolean(),

@@ -23,7 +23,8 @@
     "declaration": true,
     "esModuleInterop": true,
     "outDir": "./build",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "resolveJsonModule": true
   },
   "exclude": [
     "./src/tests/*"

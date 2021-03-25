@@ -102,7 +102,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await renderer.evaluateHandle(
       (screencastAPI, width, height) => screencastAPI.start({ width, height }),
       screencastAPI,
-      viewport.width, viewport.height
+      viewport.width, viewport.height,
     );
 
     await client.send('Page.startScreencast', {

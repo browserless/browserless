@@ -61,7 +61,7 @@ describe('Browserless Chrome Webdriver', () => {
             w3c: true,
             args: ['--no-sandbox'],
           },
-          pageLoadStrategy: 'normal'
+          pageLoadStrategy: 'normal',
         },
         firstMatch: [{}],
       },

@@ -4,11 +4,13 @@ import { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
 import path from 'path';
+const swagger = require('swagger-ui-express');
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
+import swaggerDef from './swagger';
 import {
   IBrowserlessOptions,
   IBrowserlessStats,
@@ -48,7 +50,6 @@ import {
 
 const version = require('../version.json');
 const protocol = require('../protocol.json');
-const hints = require('../hints.json');
 const rimraf = require('rimraf');
 
 // Browserless fn's
@@ -118,12 +119,14 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-  if (!disabledFeatures.includes(Features.INTROSPECTION_ENDPOINT)) {
-    router.get('/introspection', (_req, res) => res.json(hints));
-  }
+  router.use('/docs', swagger.serve, swagger.setup(swaggerDef, {
+    customCss: '.swagger-ui .topbar { display: none }'
+  }));
+
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
   }
+
   if (!disabledFeatures.includes(Features.CONFIG_ENDPOINT)) {
     router.get('/config', (_req, res) => res.json(config));
   }
