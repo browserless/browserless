@@ -38,8 +38,11 @@ const buildPages = async (page, opts = {}) => {
       });
       pageBuffers.push(buffer);
       pageCount = pageCount + 1;
-    } catch(error) {
-      if (error.message && error.message.includes('Page range exceeds page count')) {
+    } catch (error) {
+      if (
+        error.message &&
+        error.message.includes('Page range exceeds page count')
+      ) {
         complete = true;
       } else {
         throw error;
@@ -47,11 +50,7 @@ const buildPages = async (page, opts = {}) => {
     }
   }
 
-  return pdftk
-    .input(pageBuffers)
-    .cat()
-    .compress()
-    .output();
+  return pdftk.input(pageBuffers).cat().compress().output();
 };
 
 module.exports = async function pdf({ page, context }) {
@@ -89,7 +88,11 @@ module.exports = async function pdf({ page, context }) {
     await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
-  if (rejectRequestPattern.length || requestInterceptors.length || rejectResourceTypes.length) {
+  if (
+    rejectRequestPattern.length ||
+    requestInterceptors.length ||
+    rejectResourceTypes.length
+  ) {
     await page.setRequestInterception(true);
 
     page.on('request', (req) => {
@@ -99,8 +102,9 @@ module.exports = async function pdf({ page, context }) {
       ) {
         return req.abort();
       }
-      const interceptor = requestInterceptors
-        .find(r => req.url().match(r.pattern));
+      const interceptor = requestInterceptors.find((r) =>
+        req.url().match(r.pattern),
+      );
       if (interceptor) {
         return req.respond(interceptor.response);
       }
@@ -111,7 +115,9 @@ module.exports = async function pdf({ page, context }) {
   if (emulateMedia) {
     // Run the appropriate emulateMedia method, making sure it's bound properly to the page object
     // @todo remove when support drops for 3.x.x
-    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(page);
+    const emulateMediaFn = (page.emulateMedia || page.emulateMediaType).bind(
+      page,
+    );
     await emulateMediaFn(emulateMedia);
   }
 
@@ -137,9 +143,9 @@ module.exports = async function pdf({ page, context }) {
     // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
 
     await page.setRequestInterception(true);
-    page.once('request', request => {
+    page.once('request', (request) => {
       request.respond({ body: html });
-      page.on('request', request => request.continue());
+      page.on('request', (request) => request.continue());
     });
 
     response = await page.goto('http://localhost', gotoOptions);
@@ -160,35 +166,38 @@ module.exports = async function pdf({ page, context }) {
   if (waitFor) {
     if (typeof waitFor === 'string') {
       const isSelector = await page.evaluate((s) => {
-        try { document.createDocumentFragment().querySelector(s); }
-        catch (e) { return false; }
+        try {
+          document.createDocumentFragment().querySelector(s);
+        } catch (e) {
+          return false;
+        }
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitForSelector(waitFor) : page.evaluate(`(${waitFor})()`));
+      await (isSelector
+        ? page.waitForSelector(waitFor)
+        : page.evaluate(`(${waitFor})()`));
     } else {
-      await new Promise(r => setTimeout(r, waitFor));
+      await new Promise((r) => setTimeout(r, waitFor));
     }
   }
 
-  let data = safeMode ?
-    await buildPages(page, options) :
-    await page.pdf(options);
+  let data = safeMode
+    ? await buildPages(page, options)
+    : await page.pdf(options);
 
   if (rotate) {
     const pdftk = require('node-pdftk');
-    const rotateValue = rotate === 90 ?
-      '1-endright' :
-      rotate === -90 ?
-      '1-endleft' :
-      rotate === 180 ?
-      '1-enddown' :
-      '';
+    const rotateValue =
+      rotate === 90
+        ? '1-endright'
+        : rotate === -90
+        ? '1-endleft'
+        : rotate === 180
+        ? '1-enddown'
+        : '';
 
-    data = await pdftk
-      .input(data)
-      .rotate(rotateValue)
-      .output();
+    data = await pdftk.input(data).rotate(rotateValue).output();
   }
 
   const headers = {

@@ -68,9 +68,9 @@ export class BrowserlessServer {
       autostart: true,
       concurrency: this.config.maxConcurrentSessions,
       maxQueueLength: this.config.maxQueueLength,
-      ...this.config.connectionTimeout !== -1 && {
+      ...(this.config.connectionTimeout !== -1 && {
         timeout: this.config.connectionTimeout,
-      },
+      }),
     });
 
     this.puppeteerProvider = new PuppeteerProvider(opts, this, this.queue);
@@ -94,51 +94,85 @@ export class BrowserlessServer {
       }
     }
 
-    this.queueHook = opts.queuedAlertURL ?
-      _.debounce(() => {
-        debug(`Calling web-hook for queued session(s): ${opts.queuedAlertURL}`);
-        request(opts.queuedAlertURL as string, _.noop);
-      }, thirtyMinutes, debounceOpts) :
-      _.noop;
+    this.queueHook = opts.queuedAlertURL
+      ? _.debounce(
+          () => {
+            debug(
+              `Calling web-hook for queued session(s): ${opts.queuedAlertURL}`,
+            );
+            request(opts.queuedAlertURL as string, _.noop);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : _.noop;
 
-    this.capacityFullHook = opts.rejectAlertURL ?
-      _.debounce(() => {
-        debug(`Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL as string, _.noop);
-      }, thirtyMinutes, debounceOpts) :
-      _.noop;
+    this.capacityFullHook = opts.rejectAlertURL
+      ? _.debounce(
+          () => {
+            debug(
+              `Calling web-hook for rejected session(s): ${opts.rejectAlertURL}`,
+            );
+            request(opts.rejectAlertURL as string, _.noop);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : _.noop;
 
-    this.timeoutHook = opts.timeoutAlertURL ?
-      _.debounce(() => {
-        debug(`Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`);
-        request(opts.rejectAlertURL as string, _.noop);
-      }, thirtyMinutes, debounceOpts) :
-      _.noop;
+    this.timeoutHook = opts.timeoutAlertURL
+      ? _.debounce(
+          () => {
+            debug(
+              `Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`,
+            );
+            request(opts.rejectAlertURL as string, _.noop);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : _.noop;
 
-    this.errorHook = opts.errorAlertURL ?
-      _.debounce((message) => {
-        debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
-        const parsed = url.parse(opts.errorAlertURL as string, true);
-        parsed.query.error = message;
-        parsed.search = null;
-        const finalUrl = url.format(parsed);
-        request(finalUrl, _.noop);
-      }, thirtyMinutes, debounceOpts) :
-      _.noop;
+    this.errorHook = opts.errorAlertURL
+      ? _.debounce(
+          (message) => {
+            debug(`Calling web-hook for errors(s): ${opts.errorAlertURL}`);
+            const parsed = url.parse(opts.errorAlertURL as string, true);
+            parsed.query.error = message;
+            parsed.search = null;
+            const finalUrl = url.format(parsed);
+            request(finalUrl, _.noop);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : _.noop;
 
-    this.healthFailureHook = opts.healthFailureURL ?
-      _.debounce(() => {
-        debug(`Calling web-hook for health-failure: ${opts.healthFailureURL}`);
-        request(opts.healthFailureURL as string, restartOnFailure);
-      }, thirtyMinutes, debounceOpts) :
-      restartOnFailure;
+    this.healthFailureHook = opts.healthFailureURL
+      ? _.debounce(
+          () => {
+            debug(
+              `Calling web-hook for health-failure: ${opts.healthFailureURL}`,
+            );
+            request(opts.healthFailureURL as string, restartOnFailure);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : restartOnFailure;
 
-    this.sessionCheckFailHook = opts.sessionCheckFailURL ?
-      _.debounce(() => {
-        debug(`Calling web-hook for session-check-failure: ${opts.sessionCheckFailURL}`);
-        request(opts.sessionCheckFailURL as string, _.noop);
-      }, thirtyMinutes, debounceOpts) :
-      _.noop;
+    this.sessionCheckFailHook = opts.sessionCheckFailURL
+      ? _.debounce(
+          () => {
+            debug(
+              `Calling web-hook for session-check-failure: ${opts.sessionCheckFailURL}`,
+            );
+            request(opts.sessionCheckFailURL as string, _.noop);
+          },
+          thirtyMinutes,
+          debounceOpts,
+        )
+      : _.noop;
 
     this.queue.on('success', this.onSessionSuccess.bind(this));
     this.queue.on('error', this.onSessionFail.bind(this));
@@ -154,11 +188,16 @@ export class BrowserlessServer {
         const priorMetrics = require(opts.metricsJSONPath);
         this.stats = priorMetrics;
       } catch (err) {
-        debug(`Couldn't load metrics at path ${opts.metricsJSONPath}, setting to empty.`);
+        debug(
+          `Couldn't load metrics at path ${opts.metricsJSONPath}, setting to empty.`,
+        );
       }
     }
 
-    this.metricsInterval = global.setInterval(this.recordMetrics.bind(this), fiveMinutes);
+    this.metricsInterval = global.setInterval(
+      this.recordMetrics.bind(this),
+      fiveMinutes,
+    );
 
     const boundClose = this.close.bind(this);
 
@@ -171,13 +210,16 @@ export class BrowserlessServer {
   public async getMetrics() {
     const { cpu, memory } = await getMachineStats();
 
-    return [...this.stats, {
-      ...this.currentStat,
-      ...this.calculateStats(this.currentStat),
-      date: Date.now(),
-      cpu,
-      memory,
-    }];
+    return [
+      ...this.stats,
+      {
+        ...this.currentStat,
+        ...this.calculateStats(this.currentStat),
+        date: Date.now(),
+        cpu,
+        memory,
+      },
+    ];
   }
 
   public getConfig() {
@@ -198,19 +240,23 @@ export class BrowserlessServer {
 
     const queueFull = !(queueLength < this.config.maxQueueLength);
 
-    const isAvailable = (
-      !queueFull &&
-      !cpuOverloaded &&
-      !memoryOverloaded
-    );
+    const isAvailable = !queueFull && !cpuOverloaded && !memoryOverloaded;
 
-    const reason = queueFull ? 'full' :
-      cpuOverloaded ? 'cpu' :
-      memoryOverloaded ? 'memory' : '';
+    const reason = queueFull
+      ? 'full'
+      : cpuOverloaded
+      ? 'cpu'
+      : memoryOverloaded
+      ? 'memory'
+      : '';
 
-    const message = queueFull ? 'Concurrency and queue are full' :
-      cpuOverloaded ? 'CPU is over the configured maximum for cpu percent' :
-      memoryOverloaded ? 'Memory is over the configured maximum for memory percent' : '';
+    const message = queueFull
+      ? 'Concurrency and queue are full'
+      : cpuOverloaded
+      ? 'CPU is over the configured maximum for cpu percent'
+      : memoryOverloaded
+      ? 'Memory is over the configured maximum for memory percent'
+      : '';
 
     return {
       date: Date.now(),
@@ -221,7 +267,7 @@ export class BrowserlessServer {
       recentlyRejected: this.currentStat.rejected,
       running: openSessions,
       maxConcurrent: this.queue.concurrencySize,
-      maxQueued: this.config.maxQueueLength -this.config.maxConcurrentSessions,
+      maxQueued: this.config.maxQueueLength - this.config.maxConcurrentSessions,
       cpu,
       memory,
     };
@@ -233,9 +279,10 @@ export class BrowserlessServer {
     return new Promise(async (r) => {
       // Make sure we have http server setup with some headroom
       // for timeouts (so we can respond with appropriate http codes)
-      const httpTimeout = this.config.connectionTimeout === -1 ?
-        twentyFourHours :
-        this.config.connectionTimeout + 100;
+      const httpTimeout =
+        this.config.connectionTimeout === -1
+          ? twentyFourHours
+          : this.config.connectionTimeout + 100;
       const app = express();
 
       if (!this.config.disabledFeatures.includes(Features.PROMETHEUS)) {
@@ -245,7 +292,7 @@ export class BrowserlessServer {
           includePath: true,
           includeStatusCode: true,
           includeUp: false,
-          metricsPath: '/prometheus\(\\?\.\+\)\?',
+          metricsPath: '/prometheus(\\?.+)?',
         });
         app.use(metricsMiddleware);
         client.collectDefaultMetrics();
@@ -268,7 +315,10 @@ export class BrowserlessServer {
 
       if (!this.config.disabledFeatures.includes(Features.DEBUG_VIEWER)) {
         app.use('/devtools', express.static('./devtools'));
-        app.use('/', express.static('./node_modules/browserless-debugger/static'));
+        app.use(
+          '/',
+          express.static('./node_modules/browserless-debugger/static'),
+        );
       }
 
       if (externalRoutes) {
@@ -277,7 +327,7 @@ export class BrowserlessServer {
 
       app.use(routes);
 
-      return this.httpServer = http
+      return (this.httpServer = http
         .createServer(async (req, res) => {
           const reqParsed = util.parseRequest(req);
           const beforeResults = await beforeRequest({ req: reqParsed, res });
@@ -291,8 +341,12 @@ export class BrowserlessServer {
             return this.handleWebDriver(reqParsed, res);
           }
 
-          if (this.config.token && !util.isAuthorized(reqParsed, this.config.token)) {
-            res.writeHead && res.writeHead(403, { 'Content-Type': 'text/plain' });
+          if (
+            this.config.token &&
+            !util.isAuthorized(reqParsed, this.config.token)
+          ) {
+            res.writeHead &&
+              res.writeHead(403, { 'Content-Type': 'text/plain' });
             return res.end('Unauthorized');
           }
 
@@ -300,42 +354,62 @@ export class BrowserlessServer {
           const cookies = cookie.parse(reqParsed.headers.cookie || '');
 
           if (!cookies[util.tokenCookieName] && this.config.token) {
-            const cookieToken = cookie.serialize(util.tokenCookieName, this.config.token, {
-              httpOnly: true,
-              maxAge: twentyFourHours / 1000,
-            });
+            const cookieToken = cookie.serialize(
+              util.tokenCookieName,
+              this.config.token,
+              {
+                httpOnly: true,
+                maxAge: twentyFourHours / 1000,
+              },
+            );
             res.setHeader('Set-Cookie', cookieToken);
           }
 
           return app(req, res);
         })
-        .on('upgrade', util.asyncWsHandler(async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-          const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeRequest({ req: reqParsed, socket, head });
+        .on(
+          'upgrade',
+          util.asyncWsHandler(
+            async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
+              const reqParsed = util.parseRequest(req);
+              const beforeResults = await beforeRequest({
+                req: reqParsed,
+                socket,
+                head,
+              });
 
-          socket.on('error', (error) => {
-            debug(`Error with inbound socket ${error}\n${error.stack}`);
-          });
+              socket.on('error', (error) => {
+                debug(`Error with inbound socket ${error}\n${error.stack}`);
+              });
 
-          socket.once('close', () => socket.removeAllListeners());
+              socket.once('close', () => socket.removeAllListeners());
 
-          if (!beforeResults) {
-            return;
-          }
+              if (!beforeResults) {
+                return;
+              }
 
-          if (this.config.token && !util.isAuthorized(reqParsed, this.config.token)) {
-            return this.rejectSocket({
-              header: `HTTP/1.1 403 Forbidden`,
-              message: `Forbidden`,
-              req: reqParsed,
-              socket,
-            });
-          }
+              if (
+                this.config.token &&
+                !util.isAuthorized(reqParsed, this.config.token)
+              ) {
+                return this.rejectSocket({
+                  header: `HTTP/1.1 403 Forbidden`,
+                  message: `Forbidden`,
+                  req: reqParsed,
+                  socket,
+                });
+              }
 
-          return this.puppeteerProvider.runWebSocket(reqParsed, socket, head);
-        }))
+              return this.puppeteerProvider.runWebSocket(
+                reqParsed,
+                socket,
+                head,
+              );
+            },
+          ),
+        )
         .setTimeout(httpTimeout)
-        .listen(this.config.port, this.config.host, undefined, () => r(null));
+        .listen(this.config.port, this.config.host, undefined, () => r(null)));
     });
   }
 
@@ -389,7 +463,7 @@ export class BrowserlessServer {
     message,
     metricType,
     hook,
-  }:{
+  }: {
     req: express.Request;
     res: express.Response;
     code: number;
@@ -425,7 +499,9 @@ export class BrowserlessServer {
     hook?: () => any;
   }) {
     if (this.config.socketBehavior === 'http') {
-      debug(`${req.url}: ${message}. Behavior of "http" set, writing response and closing.`);
+      debug(
+        `${req.url}: ${message}. Behavior of "http" set, writing response and closing.`,
+      );
       const httpResponse = util.dedent(`${header}
         Content-Type: text/plain; charset=UTF-8
         Content-Encoding: UTF-8
@@ -437,7 +513,9 @@ export class BrowserlessServer {
       socket.write(httpResponse);
       socket.end();
     } else {
-      debug(`${req.url}: ${message}. Behavior of "close" set, destroying connection without response.`);
+      debug(
+        `${req.url}: ${message}. Behavior of "close" set, destroying connection without response.`,
+      );
       socket.destroy();
     }
 
@@ -459,7 +537,10 @@ export class BrowserlessServer {
     };
   }
 
-  private async handleWebDriver(req: http.IncomingMessage, res: http.ServerResponse) {
+  private async handleWebDriver(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ) {
     const isStarting = util.isWebdriverStart(req);
     const isClosing = util.isWebdriverClose(req);
 
@@ -567,12 +648,17 @@ export class BrowserlessServer {
     const { cpu, memory } = await getMachineStats();
     const priorMetrics = this.stats[this.stats.length - 1];
 
-    this.stats.push(Object.assign({}, {
-      ...this.currentStat,
-      ...this.calculateStats(this.currentStat),
-      cpu,
-      memory,
-    }));
+    this.stats.push(
+      Object.assign(
+        {},
+        {
+          ...this.currentStat,
+          ...this.calculateStats(this.currentStat),
+          cpu,
+          memory,
+        },
+      ),
+    );
 
     this.resetCurrentStat();
 
@@ -580,16 +666,20 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    const mapToInt = (v?: number | null) => !!v ? Math.round(v * 100) : v;
-    const mapToDisplay = (v?: number | null) => !!v ? `${v}%` : v;
+    const mapToInt = (v?: number | null) => (!!v ? Math.round(v * 100) : v);
+    const mapToDisplay = (v?: number | null) => (!!v ? `${v}%` : v);
 
     const cpuStats = [cpu, priorMetrics?.cpu].map(mapToInt);
     const memStats = [memory, priorMetrics?.memory].map(mapToInt);
 
-    debug(`Health check stats: CPU ${cpuStats.map(mapToDisplay)} MEM: ${memStats.map(mapToDisplay)}`);
+    debug(
+      `Health check stats: CPU ${cpuStats.map(
+        mapToDisplay,
+      )} MEM: ${memStats.map(mapToDisplay)}`,
+    );
 
-    const badCPU = cpuStats.every((c) => c && (c >= this.config.maxCPU));
-    const badMem = memStats.every((m) => m && (m >= this.config.maxMemory));
+    const badCPU = cpuStats.every((c) => c && c >= this.config.maxCPU);
+    const badMem = memStats.every((m) => m && m >= this.config.maxMemory);
 
     if (badCPU || badMem) {
       debug(`Health checks have failed, calling failure webhook`);
@@ -597,9 +687,16 @@ export class BrowserlessServer {
     }
 
     if (this.config.metricsJSONPath) {
-      util.writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
-        .then(() => debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`))
-        .catch((error) => debug(`Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`));
+      util
+        .writeFile(this.config.metricsJSONPath, JSON.stringify(this.stats))
+        .then(() =>
+          debug(`Successfully wrote metrics to ${this.config.metricsJSONPath}`),
+        )
+        .catch((error) =>
+          debug(
+            `Couldn't save metrics to ${this.config.metricsJSONPath}. Error: "${error.message}"`,
+          ),
+        );
     }
   }
 }

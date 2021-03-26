@@ -3,7 +3,7 @@ const { fork } = require('child_process');
 const kill = require('tree-kill');
 
 const DEFAULT_AUDIT_CONFIG = {
-  extends: 'lighthouse:default'
+  extends: 'lighthouse:default',
 };
 
 module.exports = async ({ browser, context, timeout }) => {
@@ -12,11 +12,12 @@ module.exports = async ({ browser, context, timeout }) => {
     const port = browser._parsed.port;
 
     let closed = false;
-    let timeoutId = timeout !== -1 ?
-      setTimeout(() => {
-        close(child.pid);
-      }, timeout) :
-      null;
+    let timeoutId =
+      timeout !== -1
+        ? setTimeout(() => {
+            close(child.pid);
+          }, timeout)
+        : null;
 
     const close = (pid) => {
       if (closed) return;
@@ -26,11 +27,7 @@ module.exports = async ({ browser, context, timeout }) => {
       timeoutId = null;
     };
 
-    const {
-      url,
-      config = DEFAULT_AUDIT_CONFIG,
-      budgets
-    } = context;
+    const { url, config = DEFAULT_AUDIT_CONFIG, budgets } = context;
 
     const options = {
       port,

@@ -3,11 +3,11 @@ export const liveHeaders = {
     schema: {
       type: 'number',
     },
-    description: 'The underlying page\'s response code.',
+    description: "The underlying page's response code.",
   },
   'x-response-status': {
     schema: {
-        type: 'string',
+      type: 'string',
     },
     description: 'The underlying page\'s response status "ok"',
   },
@@ -15,13 +15,15 @@ export const liveHeaders = {
     schema: {
       type: 'string',
     },
-    description: 'The underlying page\'s response URL. Might be different if the page was redirected.',
+    description:
+      "The underlying page's response URL. Might be different if the page was redirected.",
   },
   'x-response-ip': {
     schema: {
       type: 'string',
     },
-    description: 'The IP Address of the server that served the underlying page.',
+    description:
+      'The IP Address of the server that served the underlying page.',
   },
   'x-response-port': {
     schema: {

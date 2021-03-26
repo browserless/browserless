@@ -15,7 +15,8 @@ const webdriver = require('selenium-webdriver');
 
 describe('Browserless Chrome Webdriver', () => {
   let browserless: BrowserlessServer;
-  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) =>
+    (browserless = new BrowserlessServer(args));
 
   afterEach(async () => {
     await browserless.kill();
@@ -45,7 +46,7 @@ describe('Browserless Chrome Webdriver', () => {
       await driver.quit();
     }
 
-    await Promise.all([ run(), run() ]);
+    await Promise.all([run(), run()]);
     await sleep(50);
 
     expect(browserless.currentStat.successful).toEqual(2);
@@ -53,7 +54,7 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
-  it('runs with a minimal start POST body', async() => {
+  it('runs with a minimal start POST body', async () => {
     const minBody = {
       capabilities: {
         alwaysMatch: {
@@ -72,13 +73,16 @@ describe('Browserless Chrome Webdriver', () => {
     await browserless.startServer();
 
     async function run() {
-      const res = await fetch(`http://127.0.0.1:${params.port}/webdriver/session`, {
-        body: JSON.stringify(minBody),
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
+      const res = await fetch(
+        `http://127.0.0.1:${params.port}/webdriver/session`,
+        {
+          body: JSON.stringify(minBody),
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
         },
-      });
+      );
       expect(res.status).toEqual(200);
     }
 
@@ -140,7 +144,7 @@ describe('Browserless Chrome Webdriver', () => {
       await driver.quit();
     }
 
-    await Promise.all([ run() ]);
+    await Promise.all([run()]);
     await sleep(50);
 
     expect(browserless.currentStat.successful).toEqual(1);
@@ -301,7 +305,7 @@ describe('Browserless Chrome Webdriver', () => {
       await driver.quit();
     }
 
-    await Promise.all([ run(), run() ]);
+    await Promise.all([run(), run()]);
     await sleep();
 
     expect(browserless.currentStat.successful).toEqual(2);

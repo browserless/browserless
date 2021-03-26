@@ -4,10 +4,7 @@ import q from 'queue';
 import { overloaded } from './hardware-monitoring';
 import * as util from './utils';
 
-import {
-  IJob,
-  IQueueConfig,
-} from './types';
+import { IJob, IQueueConfig } from './types';
 
 import { PRE_REQUEST_HEALTH_CHECK } from './config';
 

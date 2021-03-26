@@ -4,15 +4,13 @@ import { Page } from 'puppeteer';
 import rimraf from 'rimraf';
 
 import { WORKSPACE_DIR } from '../config';
-import {
-  id,
-  mkdir,
-  readdir,
-  sleep,
-} from '../utils';
+import { id, mkdir, readdir, sleep } from '../utils';
 
 export const before = async ({ page }: { page: Page }) => {
-  const downloadPath = path.join(WORKSPACE_DIR, `.browserless.download.${id()}`);
+  const downloadPath = path.join(
+    WORKSPACE_DIR,
+    `.browserless.download.${id()}`,
+  );
   await mkdir(downloadPath);
 
   // @ts-ignore
@@ -24,17 +22,24 @@ export const before = async ({ page }: { page: Page }) => {
   return { downloadPath };
 };
 
-export const after = async (
-  { downloadPath, debug, res, done }:
-  { downloadPath: string, debug: (...args: string[]) => {}, res: any, done: (errBack?: Error | null) => {} },
-) => {
+export const after = async ({
+  downloadPath,
+  debug,
+  res,
+  done,
+}: {
+  downloadPath: string;
+  debug: (...args: string[]) => {};
+  res: any;
+  done: (errBack?: Error | null) => {};
+}) => {
   debug(`Waiting for download to finish in ${downloadPath}`);
 
   async function checkIfDownloadComplete(): Promise<string | null> {
     if (res.headersSent) {
       return null;
     }
-    const [ fileName ] = await readdir(downloadPath);
+    const [fileName] = await readdir(downloadPath);
     if (!fileName || fileName.endsWith('.crdownload')) {
       await sleep(500);
       return checkIfDownloadComplete();
@@ -53,9 +58,9 @@ export const after = async (
   }
 
   return res.sendFile(filePath, (err: Error) => {
-    const message = err ?
-      `Error streaming file back ${err}` :
-      `File sent successfully`;
+    const message = err
+      ? `Error streaming file back ${err}`
+      : `File sent successfully`;
 
     debug(message);
     rimraf(filePath, noop);

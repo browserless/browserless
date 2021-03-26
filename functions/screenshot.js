@@ -18,7 +18,7 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-module.exports = async function screenshot ({ page, context } = {}) {
+module.exports = async function screenshot({ page, context } = {}) {
   const {
     authenticate = null,
     addScriptTag = [],
@@ -51,7 +51,11 @@ module.exports = async function screenshot ({ page, context } = {}) {
     await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
-  if (rejectRequestPattern.length || requestInterceptors.length || rejectResourceTypes.length) {
+  if (
+    rejectRequestPattern.length ||
+    requestInterceptors.length ||
+    rejectResourceTypes.length
+  ) {
     await page.setRequestInterception(true);
 
     page.on('request', (req) => {
@@ -61,8 +65,9 @@ module.exports = async function screenshot ({ page, context } = {}) {
       ) {
         return req.abort();
       }
-      const interceptor = requestInterceptors
-        .find(r => req.url().match(r.pattern));
+      const interceptor = requestInterceptors.find((r) =>
+        req.url().match(r.pattern),
+      );
       if (interceptor) {
         return req.respond(interceptor.response);
       }
@@ -92,9 +97,9 @@ module.exports = async function screenshot ({ page, context } = {}) {
     // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
 
     await page.setRequestInterception(true);
-    page.once('request', request => {
+    page.once('request', (request) => {
       request.respond({ body: html });
-      page.on('request', request => request.continue());
+      page.on('request', (request) => request.continue());
     });
 
     response = await page.goto('http://localhost', gotoOptions);
@@ -115,14 +120,19 @@ module.exports = async function screenshot ({ page, context } = {}) {
   if (waitFor) {
     if (typeof waitFor === 'string') {
       const isSelector = await page.evaluate((s) => {
-        try { document.createDocumentFragment().querySelector(s); }
-        catch (e) { return false; }
+        try {
+          document.createDocumentFragment().querySelector(s);
+        } catch (e) {
+          return false;
+        }
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitForSelector(waitFor) : page.evaluate(`(${waitFor})()`));
+      await (isSelector
+        ? page.waitForSelector(waitFor)
+        : page.evaluate(`(${waitFor})()`));
     } else {
-      await new Promise(r => setTimeout(r, waitFor));
+      await new Promise((r) => setTimeout(r, waitFor));
     }
   }
 

@@ -5,7 +5,7 @@ import util from 'util';
 import { IBrowserlessOptions } from '../../types';
 
 export const exec = util.promisify(execNode);
-export const getPort = () => 3000 + (+_.uniqueId());
+export const getPort = () => 3000 + +_.uniqueId();
 export const defaultParams = (): IBrowserlessOptions => ({
   allowFileProtocol: false,
   chromeRefreshTime: 0,
@@ -48,13 +48,9 @@ export const getChromeProcesses = () => {
 };
 
 export const killChrome = () => {
-  return exec(`pkill -f local-chromium`)
-    .catch(() => {});
+  return exec(`pkill -f local-chromium`).catch(() => {});
 };
 
 export const webdriverOpts = {
-  args: [
-    '--headless',
-    '--no-sandbox',
-  ],
+  args: ['--headless', '--no-sandbox'],
 };

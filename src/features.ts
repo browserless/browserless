@@ -1,11 +1,25 @@
 import { Feature } from './types';
 
 export function isFeature(str: string): str is Feature {
-  return str === 'prometheus' || str === 'debugger' || str === 'debugViewer' || str === 'introspectionEndpoint'
-    || str === 'metricsEndpoint' || str === 'configEndpoint' || str === 'workspaces' || str === 'downloadEndpoint'
-    || str === 'pressureEndpoint' || str === 'functionEndpoint' || str === 'killEndpoint'
-    || str === 'screencastEndpoint' || str === 'screenshotEndpoint' || str === 'contentEndpoint'
-    || str === 'pdfEndpoint' || str === 'statsEndpoint' || str === 'scrapeEndpoint';
+  return (
+    str === 'prometheus' ||
+    str === 'debugger' ||
+    str === 'debugViewer' ||
+    str === 'introspectionEndpoint' ||
+    str === 'metricsEndpoint' ||
+    str === 'configEndpoint' ||
+    str === 'workspaces' ||
+    str === 'downloadEndpoint' ||
+    str === 'pressureEndpoint' ||
+    str === 'functionEndpoint' ||
+    str === 'killEndpoint' ||
+    str === 'screencastEndpoint' ||
+    str === 'screenshotEndpoint' ||
+    str === 'contentEndpoint' ||
+    str === 'pdfEndpoint' ||
+    str === 'statsEndpoint' ||
+    str === 'scrapeEndpoint'
+  );
 }
 
 // tslint:disable-next-line:variable-name

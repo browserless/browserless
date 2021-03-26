@@ -177,9 +177,24 @@ export interface IAfter {
   stopScreencast: () => void;
 }
 
-export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
-  'configEndpoint' | 'workspaces' | 'downloadEndpoint' | 'pressureEndpoint' | 'functionEndpoint' | 'killEndpoint' |
-  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint';
+export type Feature =
+  | 'prometheus'
+  | 'debugger'
+  | 'debugViewer'
+  | 'introspectionEndpoint'
+  | 'metricsEndpoint'
+  | 'configEndpoint'
+  | 'workspaces'
+  | 'downloadEndpoint'
+  | 'pressureEndpoint'
+  | 'functionEndpoint'
+  | 'killEndpoint'
+  | 'screencastEndpoint'
+  | 'screenshotEndpoint'
+  | 'contentEndpoint'
+  | 'pdfEndpoint'
+  | 'statsEndpoint'
+  | 'scrapeEndpoint';
 
 export type consoleMethods = 'log' | 'warn' | 'debug' | 'table' | 'info';
 
@@ -214,8 +229,15 @@ export interface IQueueConfig {
   timeout?: number;
 }
 
-export type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
-export type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
+export type IUpgradeHandler = (
+  req: IncomingMessage,
+  socket: net.Socket,
+  head: Buffer,
+) => Promise<any>;
+export type IRequestHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+) => Promise<any>;
 
 export interface IWebDriverSession {
   browser: IBrowser | null;
@@ -291,7 +313,7 @@ export interface IAfterHookResponse {
 }
 
 export interface IBrowserHook {
- browser: IBrowser;
+  browser: IBrowser;
 }
 
 export interface IPageHook {
