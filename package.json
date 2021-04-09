@@ -56,6 +56,10 @@
       "puppeteer": "7.1.0",
       "chromeRevision": "848005"
     },
+    "puppeteer-8.0.0": {
+      "puppeteer": "8.0.0",
+      "chromeRevision": "856583"
+    },
     "chrome-stable": {
       "puppeteer": "5.4.1",
       "chromeRevision": "809590"
@@ -112,7 +116,7 @@
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.9.1",
     "prom-client": "^13.0.0",
-    "puppeteer": "^7.1.0",
+    "puppeteer": "^8.0.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",
