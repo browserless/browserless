@@ -18,7 +18,8 @@ const browserlessTmpDir = path.join(
   os.tmpdir(),
   `browserless-devtools-${Date.now()}`,
 );
-const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fdevtools-frontend.zip?alt=media`;
+// @TODO: Fix this revision once devtools app works again
+const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
 const chromedriverUrl =
   PLATFORM === MAC
     ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`
