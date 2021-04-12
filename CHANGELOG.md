@@ -1,5 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.45.1...master)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...v1.45.1)
+- Dependency updates.
+- Fix missing (404) debugger assets.
 
 # [Latest](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
 - Dependency Updates.
