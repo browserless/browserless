@@ -58,10 +58,10 @@
     }
   },
   "releaseVersions": [
+    "puppeteer-8.0.0",
+    "puppeteer-7.1.0",
     "puppeteer-5.4.1",
     "puppeteer-4.0.1",
-    "puppeteer-3.3.0",
-    "puppeteer-2.1.1",
     "puppeteer-1.20.0",
     "chrome-stable"
   ],
