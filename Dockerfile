@@ -44,10 +44,10 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run postinstall &&\
   npm run build
 
-# Expose the web-socket and HTTP ports
-EXPOSE 3000
-
 # Run everything after as non-privileged user.
 USER node
+
+# Expose the web-socket and HTTP ports
+EXPOSE 3000
 
 CMD ["./start.sh"]
