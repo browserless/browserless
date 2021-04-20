@@ -21,6 +21,8 @@ ENV WORKSPACE_DIR=$APP_DIR/workspace
 
 RUN mkdir -p $APP_DIR $WORKSPACE_DIR
 
+# Run everything after as non-privileged user.
+USER node
 WORKDIR $APP_DIR
 
 # Install app dependencies
@@ -43,11 +45,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi &&\
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
-  npm run build &&\
-  chown -R blessuser:blessuser $APP_DIR
-
-# Run everything after as non-privileged user.
-USER blessuser
+  npm run build
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
