@@ -20,9 +20,6 @@ ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
 ENV WORKSPACE_DIR=$APP_DIR/workspace
 
 RUN mkdir -p $APP_DIR $WORKSPACE_DIR
-
-# Run everything after as non-privileged user.
-USER node
 WORKDIR $APP_DIR
 
 # Install app dependencies
@@ -49,5 +46,8 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
+
+# Run everything after as non-privileged user.
+USER node
 
 CMD ["./start.sh"]
