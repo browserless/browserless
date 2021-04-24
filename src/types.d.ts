@@ -1,7 +1,7 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { Response } from 'express';
-import { BrowserServer } from 'playwright-core';
+import { BrowserServer, LaunchOptions } from 'playwright-core';
 import { IncomingMessage, ServerResponse } from 'http';
 import net from 'net';
 import puppeteer from 'puppeteer';
@@ -55,6 +55,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   blockAds: boolean;
   trackingId?: string;
   keepalive?: number;
+  playwrightProxy?: LaunchOptions['proxy'];
   playwright: boolean;
   stealth: boolean;
 }
