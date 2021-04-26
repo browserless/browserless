@@ -397,6 +397,7 @@ export const convertUrlParamsToLaunchOpts = (
     trackingId,
     keepalive: keepaliveQuery,
     dumpio: dumpioQuery,
+    playwrightProxy: playwrightProxyQuery,
   } = urlParts.query;
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
@@ -412,6 +413,20 @@ export const convertUrlParamsToLaunchOpts = (
   const dumpio = !_.isUndefined(dumpioQuery)
     ? dumpioQuery !== 'false'
     : DEFAULT_DUMPIO;
+
+  const playwrightProxy = (() => {
+    let res = undefined;
+
+    if (!_.isUndefined(playwrightProxyQuery)) {
+      try {
+        res = JSON.parse(decodeURIComponent(playwrightProxyQuery as string));
+      } catch(err) {
+        debug(`Error parsing playwright-proxy param to JSON: ${playwrightProxyQuery} isn't properly URL-encoded or JSON.stringified.`)
+      }
+    }
+
+    return res;
+  })();
 
   const parsedKeepalive = _.parseInt(keepaliveQuery as string);
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
@@ -429,6 +444,7 @@ export const convertUrlParamsToLaunchOpts = (
     keepalive,
     pauseOnConnect: !_.isUndefined(pause),
     playwright,
+    playwrightProxy,
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
@@ -509,6 +525,7 @@ export const launchChrome = async (
     ? await chromium.launchServer({
         ...launchArgs,
         headless: true,
+        proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
     ? await pptrExtra.launch(launchArgs)
