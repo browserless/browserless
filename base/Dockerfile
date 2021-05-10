@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM node:14-slim
 
 COPY fonts.conf /etc/fonts/local.conf
 
@@ -69,17 +69,9 @@ RUN apt-get -qq update && \
   xdg-utils \
   wget \
   xvfb \
-  curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_14.x | bash - &&\
-  apt-get -y -qq install nodejs &&\
   apt-get -y -qq install build-essential &&\
   fc-cache -f -v &&\
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Add the browserless user (blessuser)
-RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
-  && mkdir -p /home/blessuser/Downloads \
-  && chown -R blessuser:blessuser /home/blessuser
 
 # Install deps necessary to build
 RUN npm install -g typescript @types/node
