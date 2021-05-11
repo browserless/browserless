@@ -1,4 +1,4 @@
-FROM browserless/base:1.9.0
+FROM browserless/slim:latest
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -6,7 +6,7 @@ ARG PUPPETEER_CHROMIUM_REVISION
 ARG PUPPETEER_VERSION
 
 # Application parameters and variables
-ENV APP_DIR=/usr/src/app
+ENV APP_DIR=/home/node/app
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
 ENV HOST=0.0.0.0
@@ -44,10 +44,10 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
   npm run build &&\
-  chown -R blessuser:blessuser $APP_DIR
+  chown -R node:node $APP_DIR
 
 # Run everything after as non-privileged user.
-USER blessuser
+USER node
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
