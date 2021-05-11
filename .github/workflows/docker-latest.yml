@@ -12,4 +12,4 @@ jobs:
       run: docker build -t browserless/chrome:latest .
 
     - name: Test the latest image
-      run: docker run --ipc=host -e CI=true --disable-dev-shm-usage --entrypoint ./test.sh browserless/chrome:latest
+      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:latest
