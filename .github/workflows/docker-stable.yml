@@ -12,4 +12,4 @@ jobs:
       run: docker build --build-arg "USE_CHROME_STABLE=true" -t browserless/chrome:stable .
 
     - name: Test the chrome-stable image
-      run: docker run -e CI=true --entrypoint ./test.sh browserless/chrome:stable
+      run: docker run --ipc=host --disable-dev-shm-usage -e CI=true --entrypoint ./test.sh browserless/chrome:stable
