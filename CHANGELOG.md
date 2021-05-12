@@ -1,19 +1,10 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.46.0...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
+# [1.45.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
 - Dependency Updates.
-**Potentially Breaking**
-- Entirely new debugger (all client-side).
-- Drop embedded hints.json file in favor of new debugger hints.
-- No more debugger sandbox since debugger runs purely client-side.
-- Drop support for `DEMO_MODE` flag.
---
-- Prettier-ified code.
-- Bumps browserless/base to 1.8.0.
-- Some better docker-layers tweaks.
-- Basic swagger docs now in /docs.
-- Return some page meta-data inside of HTTP headers.
+- Support for [playwright proxies](https://github.com/browserless/chrome/commit/0903795e936b93a511ec04f7ae35c03397682905).
+- Fixes an issue with larger headers potentially causing load-balancers to crash and fail.
 
 # [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
 **Potentially Breaking**
