@@ -139,9 +139,9 @@ module.exports = async function screenshot({ page, context } = {}) {
   const data = await page.screenshot(options);
 
   const headers = {
+    'x-response-url': response?.url().substring(0, 1000),
     'x-response-code': response?.status(),
     'x-response-status': response?.statusText(),
-    'x-response-url': response?.url(),
     'x-response-ip': response?.remoteAddress().ip,
     'x-response-port': response?.remoteAddress().port,
   };
