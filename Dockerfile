@@ -6,7 +6,7 @@ ARG PUPPETEER_CHROMIUM_REVISION
 ARG PUPPETEER_VERSION
 
 # Application parameters and variables
-ENV APP_DIR=/home/node/app
+ENV APP_DIR=/usr/src/app
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
 ENV HOST=0.0.0.0
@@ -20,6 +20,7 @@ ENV USE_CHROME_STABLE=${USE_CHROME_STABLE}
 ENV WORKSPACE_DIR=$APP_DIR/workspace
 
 RUN mkdir -p $APP_DIR $WORKSPACE_DIR
+
 WORKDIR $APP_DIR
 
 # Install app dependencies
@@ -42,10 +43,11 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi &&\
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
-  npm run build
+  npm run build &&\
+  chown -R blessuser:blessuser $APP_DIR
 
 # Run everything after as non-privileged user.
-USER node
+USER blessuser
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000
