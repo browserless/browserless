@@ -4,7 +4,6 @@ import { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
 import path from 'path';
-const swagger = require('swagger-ui-express');
 
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
@@ -117,13 +116,16 @@ export const getRoutes = ({
   const upload = multer({ storage }).any();
   const config = getConfig();
 
-  router.use(
-    '/docs',
-    swagger.serve,
-    swagger.setup(swaggerDef, {
-      customCss: '.swagger-ui .topbar { display: none }',
-    }),
-  );
+  if (!disabledFeatures.includes(Features.API_DOCS_ENDPOINT)) {
+    const swagger = require('swagger-ui-express');
+    router.use(
+      '/docs',
+      swagger.serve,
+      swagger.setup(swaggerDef, {
+        customCss: '.swagger-ui .topbar { display: none }',
+      }),
+    );
+  }
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
