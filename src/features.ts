@@ -18,7 +18,8 @@ export function isFeature(str: string): str is Feature {
     str === 'contentEndpoint' ||
     str === 'pdfEndpoint' ||
     str === 'statsEndpoint' ||
-    str === 'scrapeEndpoint'
+    str === 'scrapeEndpoint' ||
+    str === 'apiDocsEndpoint'
   );
 }
 
@@ -40,4 +41,5 @@ export const Features = {
   SCREENSHOT_ENDPOINT: 'screenshotEndpoint' as Feature,
   STATS_ENDPOINT: 'statsEndpoint' as Feature,
   WORKSPACES: 'workspaces' as Feature,
+  API_DOCS_ENDPOINT: 'apiDocsEndpoint' as Feature,
 };
