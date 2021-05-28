@@ -71,7 +71,6 @@ const BROWSERLESS_ARGS = [
 ];
 
 const blacklist = require('../hosts.json');
-const thirtySeconds = 30 * 1000;
 
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
@@ -514,24 +513,20 @@ export const launchChrome = async (
     `Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`,
   );
 
-  // Kill any user data-dir if 30 seconds go by without us launching
-  const rmUserDataDir = global.setTimeout(
-    removeDataDir,
-    thirtySeconds,
-    browserlessDataDir,
-  );
-
-  const browserServer = launchArgs.playwright
-    ? await chromium.launchServer({
+  const browserServerPromise = launchArgs.playwright
+    ? chromium.launchServer({
         ...launchArgs,
         headless: true,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? await pptrExtra.launch(launchArgs)
-    : await puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(launchArgs)
+    : puppeteer.launch(launchArgs);
 
-  clearTimeout(rmUserDataDir);
+  const browserServer = await browserServerPromise.catch((e) => {
+    removeDataDir(browserlessDataDir);
+    throw e;
+  });
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
