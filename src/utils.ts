@@ -45,7 +45,8 @@ export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
 
-const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
+const webdriverSessionCloseReg =
+  /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
 
 const debug = getDebug('system');
 
@@ -244,9 +245,9 @@ export const generateChromeTarget = () => {
   return `/devtools/page/${id(jsonProtocolPrefix)}`;
 };
 
-export const sleep = (time = 0) => {
-  return new Promise((resolve) => {
-    global.setTimeout(resolve, time);
+export const sleep = function sleep(time = 0) {
+  return new Promise((r) => {
+    global.setTimeout(r, time);
   });
 };
 
@@ -323,9 +324,8 @@ export const normalizeWebdriverStart = async (
         `--user-data-dir=${browserlessDataDir}`,
       );
     }
-    parsed.desiredCapabilities[
-      w3cChromeOptionsKey
-    ].binary = CHROME_BINARY_LOCATION;
+    parsed.desiredCapabilities[w3cChromeOptionsKey].binary =
+      CHROME_BINARY_LOCATION;
   }
 
   if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey])) {
@@ -336,9 +336,8 @@ export const normalizeWebdriverStart = async (
         `--user-data-dir=${browserlessDataDir}`,
       );
     }
-    parsed.capabilities.alwaysMatch[
-      w3cChromeOptionsKey
-    ].binary = CHROME_BINARY_LOCATION;
+    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].binary =
+      CHROME_BINARY_LOCATION;
   }
 
   if (

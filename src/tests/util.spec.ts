@@ -974,7 +974,7 @@ describe(`Utils`, () => {
     it('injects host/port into the session responses', () => {
       const host = new URL('http://localhost:3000');
 
-      const browser = ({
+      const browser = {
         _wsEndpoint:
           'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
         _id: '685638c2-f214-494b-b679-1efbe2f824ba',
@@ -982,7 +982,7 @@ describe(`Utils`, () => {
         _parsed: {
           port: 1377,
         },
-      } as unknown) as IBrowser;
+      } as unknown as IBrowser;
 
       const session = {
         description: 'Example Site',
@@ -1023,7 +1023,7 @@ describe(`Utils`, () => {
     it('handles URLs no ports (80)', () => {
       const host = new URL('http://localhost');
 
-      const browser = ({
+      const browser = {
         _wsEndpoint:
           'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
         _id: '685638c2-f214-494b-b679-1efbe2f824ba',
@@ -1031,7 +1031,7 @@ describe(`Utils`, () => {
         _parsed: {
           port: 1377,
         },
-      } as unknown) as IBrowser;
+      } as unknown as IBrowser;
 
       const session = {
         description: 'Example Site',
@@ -1062,7 +1062,7 @@ describe(`Utils`, () => {
     it('handles URLs with SSL', () => {
       const host = new URL('https://browserless.com');
 
-      const browser = ({
+      const browser = {
         _wsEndpoint:
           'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
         _id: '685638c2-f214-494b-b679-1efbe2f824ba',
@@ -1070,7 +1070,7 @@ describe(`Utils`, () => {
         _parsed: {
           port: 1377,
         },
-      } as unknown) as IBrowser;
+      } as unknown as IBrowser;
 
       const session = {
         description: 'Example Site',
@@ -1100,7 +1100,7 @@ describe(`Utils`, () => {
     it('handles URLs with base-paths', () => {
       const host = new URL('http://localhost/browserless');
 
-      const browser = ({
+      const browser = {
         _wsEndpoint:
           'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
         _id: '685638c2-f214-494b-b679-1efbe2f824ba',
@@ -1108,7 +1108,7 @@ describe(`Utils`, () => {
         _parsed: {
           port: 1377,
         },
-      } as unknown) as IBrowser;
+      } as unknown as IBrowser;
 
       const session = {
         description: 'Example Site',
@@ -1138,7 +1138,7 @@ describe(`Utils`, () => {
     it('handles URLs with base-paths, SSL and custom ports', () => {
       const host = new URL('https://my.cool.domain:500/proxy/browserless');
 
-      const browser = ({
+      const browser = {
         _wsEndpoint:
           'ws://127.0.0.1:50791/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
         _id: '685638c2-f214-494b-b679-1efbe2f824ba',
@@ -1146,7 +1146,7 @@ describe(`Utils`, () => {
         _parsed: {
           port: 1377,
         },
-      } as unknown) as IBrowser;
+      } as unknown as IBrowser;
 
       const session = {
         description: 'Example Site',
