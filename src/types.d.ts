@@ -29,6 +29,7 @@ export interface IBrowser extends puppeteer.Browser {
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
   _browserServer: BrowserServer | puppeteer.Browser;
+  _pages: puppeteer.Page[];
 }
 
 export interface ISession {

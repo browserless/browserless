@@ -9,7 +9,7 @@ import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { ParsedUrlQuery } from 'querystring';
 import { Transform } from 'stream';
-import treekill from 'tree-kill';
+import treeKill from 'tree-kill';
 import url from 'url';
 import { chromium, BrowserServer } from 'playwright-core';
 
@@ -21,7 +21,6 @@ import {
   getUserDataDir,
   injectHostIntoSession,
   rimraf,
-  sleep,
 } from './utils';
 
 import {
@@ -202,6 +201,7 @@ const setupPage = async ({
   }
 
   page.once('close', () => page.off('request', networkBlock));
+  browser._pages.push(page);
 };
 
 const setupBrowser = async ({
@@ -246,6 +246,7 @@ const setupBrowser = async ({
   browser._blockAds = blockAds;
   browser._pauseOnConnect = pauseOnConnect;
   browser._browserServer = browserServer;
+  browser._pages = [];
 
   browser._parsed = url.parse(browserWSEndpoint, true);
   browser._wsEndpoint = browserWSEndpoint;
@@ -419,8 +420,10 @@ export const convertUrlParamsToLaunchOpts = (
     if (!_.isUndefined(playwrightProxyQuery)) {
       try {
         res = JSON.parse(decodeURIComponent(playwrightProxyQuery as string));
-      } catch(err) {
-        debug(`Error parsing playwright-proxy param to JSON: ${playwrightProxyQuery} isn't properly URL-encoded or JSON.stringified.`)
+      } catch (err) {
+        debug(
+          `Error parsing playwright-proxy param to JSON: ${playwrightProxyQuery} isn't properly URL-encoded or JSON.stringified.`,
+        );
       }
     }
 
@@ -644,7 +647,7 @@ export const kill = (id: string) => {
   return null;
 };
 
-export const closeBrowser = async (browser: IBrowser) => {
+export const closeBrowser = (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
@@ -673,18 +676,24 @@ export const closeBrowser = async (browser: IBrowser) => {
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    await sleep(200);
-    debug(
-      `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
-    );
+    process.nextTick(() => {
+      debug(
+        `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
+      );
+      treeKill(browser._browserProcess.pid, 'SIGKILL');
 
-    treekill(browser._browserProcess.pid, 'SIGKILL');
+      if (browser._browserlessDataDir) {
+        removeDataDir(browser._browserlessDataDir);
+      }
 
-    if (browser._browserlessDataDir) {
-      removeDataDir(browser._browserlessDataDir);
-    }
-
-    // @ts-ignore force any garbage collection by nulling the browser
-    browser = null;
+      browser._pages.forEach((page) => {
+        page.removeAllListeners();
+        // @ts-ignore force any garbage collection by nulling the page(s)
+        page = null;
+      });
+      browser.removeAllListeners();
+      // @ts-ignore force any garbage collection by nulling the browser
+      browser = null;
+    });
   }
 };
