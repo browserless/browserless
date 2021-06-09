@@ -8,7 +8,6 @@ Array [
   "disabledFeatures",
   "enableAPIGet",
   "enableCors",
-  "enableHeapdump",
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",

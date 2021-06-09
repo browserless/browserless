@@ -424,9 +424,6 @@ export default {
                     enableCors: {
                       type: 'boolean',
                     },
-                    enableHeapdump: {
-                      type: 'boolean',
-                    },
                     errorAlertURL: {
                       type: 'string',
                     },
