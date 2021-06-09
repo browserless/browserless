@@ -1,5 +1,7 @@
 import { BrowserlessServer } from './browserless';
 import * as config from './config';
+// @ts-ignore
+import memwatch from '@airbnb/node-memwatch';
 
 const browserless = new BrowserlessServer({
   allowFileProtocol: config.ALLOW_FILE_PROTOCOL,
@@ -38,6 +40,10 @@ browserless.startServer();
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+memwatch.on('leak', function(d: any) {
+  console.log('Memory Leak Detected:', d);
 });
 
 if (module.parent) {

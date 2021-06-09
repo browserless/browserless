@@ -68,6 +68,7 @@
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
+    "@airbnb/node-memwatch": "^2.0.0",
     "@types/archiver": "^5.1.0",
     "@types/cookie": "^0.4.0",
     "@types/cors": "^2.8.4",
