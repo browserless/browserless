@@ -1,7 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.46.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...master)
 - Dependency updates.
 
-# [1.45.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+- Dependency updates.
+- Move to Node 16.x.x.
+- Bump browserless/base to 1.10.0.
+- Limit `x-response-url` to 100 characters.
+- Add support for puppeteer@10.x.x.
+- Add `maxConcurrent` stat for metrics API + log stats every 5 minutes to stdout.
+- Some performance improvements to how pages/browsers are setup and torn down.
+- Add `API_DOCS_ENDPOINT` as a filterable API to deny access to.
+- Minor code reformatting from prettier.
+
+# [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
 - Dependency Updates.
 - Support for [playwright proxies](https://github.com/browserless/chrome/commit/0903795e936b93a511ec04f7ae35c03397682905).
 - Fixes an issue with larger headers potentially causing load-balancers to crash and fail.
