@@ -179,6 +179,7 @@ export class BrowserlessServer {
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
     this.queue.on('end', this.onQueueDrained.bind(this));
+    this.queue.on('start', this.onStart.bind(this));
 
     this.resetCurrentStat();
 
@@ -570,6 +571,19 @@ export class BrowserlessServer {
     return this.webdriver.proxySession(req, res);
   }
 
+  private onStart() {
+    debug(`Starting new job`);
+    const currentlyRunning =
+      this.queue.length >= this.queue.concurrencySize
+        ? this.queue.concurrencySize
+        : this.queue.length;
+
+    this.currentStat.maxConcurrent =
+      currentlyRunning > this.currentStat.maxConcurrent
+        ? currentlyRunning
+        : this.currentStat.maxConcurrent;
+  }
+
   private onSessionSuccess(_res: express.Response, job: IJob) {
     debug(`${job.id}: Recording successful stat and cleaning up.`);
     this.currentStat.successful++;
@@ -640,6 +654,7 @@ export class BrowserlessServer {
       maxTime: 0,
       minTime: 0,
       meanTime: 0,
+      maxConcurrent: 0,
       sessionTimes: [],
     };
   }
@@ -647,18 +662,14 @@ export class BrowserlessServer {
   private async recordMetrics() {
     const { cpu, memory } = await getMachineStats();
     const priorMetrics = this.stats[this.stats.length - 1];
+    const aggregatedStats = {
+      ...this.currentStat,
+      ...this.calculateStats(this.currentStat),
+      cpu,
+      memory,
+    };
 
-    this.stats.push(
-      Object.assign(
-        {},
-        {
-          ...this.currentStat,
-          ...this.calculateStats(this.currentStat),
-          cpu,
-          memory,
-        },
-      ),
-    );
+    this.stats.push(Object.assign({}, aggregatedStats));
 
     this.resetCurrentStat();
 
@@ -676,6 +687,21 @@ export class BrowserlessServer {
       `Health check stats: CPU ${cpuStats.map(
         mapToDisplay,
       )} MEM: ${memStats.map(mapToDisplay)}`,
+    );
+
+    debug(
+      `Current period usage: ${JSON.stringify({
+        date: aggregatedStats.date,
+        error: aggregatedStats.error,
+        rejected: aggregatedStats.rejected,
+        successful: aggregatedStats.successful,
+        timedout: aggregatedStats.timedout,
+        totalTime: aggregatedStats.totalTime,
+        maxTime: aggregatedStats.maxTime,
+        minTime: aggregatedStats.minTime,
+        meanTime: aggregatedStats.meanTime,
+        maxConcurrent: aggregatedStats.maxConcurrent,
+      })}`,
     );
 
     const badCPU = cpuStats.every((c) => c && c >= this.config.maxCPU);
