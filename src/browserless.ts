@@ -691,6 +691,7 @@ export class BrowserlessServer {
 
     debug(
       `Current period usage: ${JSON.stringify({
+        date: aggregatedStats.date,
         error: aggregatedStats.error,
         rejected: aggregatedStats.rejected,
         successful: aggregatedStats.successful,
