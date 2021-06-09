@@ -193,6 +193,9 @@ export default {
                       minTime: {
                         type: 'number',
                       },
+                      maxConcurrent: {
+                        type: 'number',
+                      },
                       sessionTimes: {
                         type: 'array',
                         items: {
