@@ -194,13 +194,13 @@ const setupPage = async ({
   if (blockAds) {
     await page.setRequestInterception(true);
     page.on('request', networkBlock);
+    page.once('close', () => page.off('request', networkBlock));
   }
 
   if (windowSize) {
     await page.setViewport(windowSize);
   }
 
-  page.once('close', () => page.off('request', networkBlock));
   browser._pages.push(page);
 };
 
