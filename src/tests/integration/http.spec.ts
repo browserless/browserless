@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
-import { defaultParams, killChrome } from './utils';
+import { defaultParams } from './utils';
 
 describe('Browserless Chrome HTTP', () => {
   let browserless: BrowserlessServer;
@@ -10,8 +10,6 @@ describe('Browserless Chrome HTTP', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('allows requests to /json/version', async () => {

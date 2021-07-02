@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
 
-import { defaultParams, killChrome } from './utils';
+import { defaultParams } from './utils';
 
 describe('Browserless Debugger', () => {
   let browserless: BrowserlessServer;
@@ -11,8 +11,6 @@ describe('Browserless Debugger', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('serves the debugger page', async () => {

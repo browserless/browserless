@@ -6,7 +6,6 @@ import { IBrowserlessOptions } from '../../types';
 import {
   defaultParams,
   getChromeProcesses,
-  killChrome,
   throws,
   webdriverOpts,
 } from './utils';
@@ -20,8 +19,6 @@ describe('Browserless Chrome Webdriver', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('runs concurrently', async () => {
