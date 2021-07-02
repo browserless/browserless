@@ -6,7 +6,7 @@ import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
 import { sleep, exists } from '../../utils';
 
-import { defaultParams, getChromeProcesses, killChrome, throws } from './utils';
+import { defaultParams, getChromeProcesses, throws } from './utils';
 
 describe('Browserless Chrome WebSockets', () => {
   let browserless: BrowserlessServer;
@@ -15,8 +15,6 @@ describe('Browserless Chrome WebSockets', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it.skip('runs concurrently', async (done) => {

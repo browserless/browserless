@@ -47,10 +47,6 @@ export const getChromeProcesses = () => {
   return exec(`ps -ef | grep local-chromium`);
 };
 
-export const killChrome = () => {
-  return exec(`pkill -f local-chromium`).catch(() => {});
-};
-
 export const webdriverOpts = {
   args: ['--headless', '--no-sandbox'],
 };

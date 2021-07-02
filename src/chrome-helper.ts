@@ -657,10 +657,6 @@ export const closeBrowser = (browser: IBrowser) => {
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
-
-    isPuppeteer(browser._browserServer)
-      ? browser._browserServer.disconnect()
-      : browser._browserServer.close();
     runningBrowsers = runningBrowsers.filter(
       (b) => b._wsEndpoint !== browser._wsEndpoint,
     );
@@ -680,6 +676,7 @@ export const closeBrowser = (browser: IBrowser) => {
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
+      browser._browserServer.close();
       treeKill(browser._browserProcess.pid, 'SIGKILL');
 
       if (browser._browserlessDataDir) {
