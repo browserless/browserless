@@ -36,9 +36,14 @@ const browserless = new BrowserlessServer({
 
 browserless.startServer();
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+process
+  .on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  })
+  .on('uncaughtException', err => {
+    console.error(err, 'Uncaught Exception thrown, exiting...');
+    process.exit(1);
+  });
 
 if (module.parent) {
   module.exports.browserless = browserless;
