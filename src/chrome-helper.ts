@@ -67,6 +67,8 @@ const BROWSERLESS_ARGS = [
   '--v1=1',
   '--disable-dev-shm-usage',
   '--no-first-run',
+  '--password-store=basic',
+  '--use-mock-keychain',
 ];
 
 const blacklist = require('../hosts.json');
