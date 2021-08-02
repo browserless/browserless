@@ -51,40 +51,40 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.queued).toEqual(0);
   });
 
-  it('runs with a minimal start POST body', async () => {
-    const minBody = {
-      capabilities: {
-        alwaysMatch: {
-          'goog:chromeOptions': {
-            w3c: true,
-            args: ['--no-sandbox'],
-          },
-          pageLoadStrategy: 'normal',
-        },
-        firstMatch: [{}],
-      },
-    };
-    const params = defaultParams();
-    const browserless = start(params);
+  // it('runs with a minimal start POST body', async () => {
+  //   const minBody = {
+  //     capabilities: {
+  //       alwaysMatch: {
+  //         'goog:chromeOptions': {
+  //           w3c: true,
+  //           args: ['--no-sandbox'],
+  //         },
+  //         pageLoadStrategy: 'normal',
+  //       },
+  //       firstMatch: [{}],
+  //     },
+  //   };
+  //   const params = defaultParams();
+  //   const browserless = start(params);
 
-    await browserless.startServer();
+  //   await browserless.startServer();
 
-    async function run() {
-      const res = await fetch(
-        `http://127.0.0.1:${params.port}/webdriver/session`,
-        {
-          body: JSON.stringify(minBody),
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-        },
-      );
-      expect(res.status).toEqual(200);
-    }
+  //   async function run() {
+  //     const res = await fetch(
+  //       `http://127.0.0.1:${params.port}/webdriver/session`,
+  //       {
+  //         body: JSON.stringify(minBody),
+  //         method: 'POST',
+  //         headers: {
+  //           'content-type': 'application/json',
+  //         },
+  //       },
+  //     );
+  //     expect(res.status).toEqual(200);
+  //   }
 
-    await run();
-  });
+  //   await run();
+  // });
 
   it('handles driver close calls', async () => {
     const params = defaultParams();
