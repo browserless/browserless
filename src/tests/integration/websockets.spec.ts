@@ -114,7 +114,7 @@ describe('Browserless Chrome WebSockets', () => {
       const browser: any = await puppeteer.connect({
         browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
       });
-      const [page] = await browser.pages();
+      const page = await browser.newPage();
       await page.goto('file:///etc/passwd');
       done('Browser should have forcefully closed');
     } catch (e) {
