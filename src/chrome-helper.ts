@@ -68,8 +68,6 @@ const BROWSERLESS_ARGS = [
   '--v1=1',
   '--disable-dev-shm-usage',
   '--no-first-run',
-  '--password-store=basic',
-  '--use-mock-keychain',
 ];
 
 const blacklist = require('../hosts.json');
@@ -284,12 +282,7 @@ const setupBrowser = async ({
     }
   });
 
-  const pages: puppeteer.Page[] | undefined = await Promise.race([
-    browser.pages(),
-    sleep(200),
-  ]) as any;
-
-  if (pages && pages.length) {
+  browser.pages().then((pages) => {
     debug(`Setting up initial pages.`);
     pages.forEach((page) =>
       setupPage({
@@ -301,7 +294,7 @@ const setupBrowser = async ({
         windowSize,
       }),
     );
-  }
+  });
 
   runningBrowsers.push(browser);
 
