@@ -21,6 +21,7 @@ import {
   getUserDataDir,
   injectHostIntoSession,
   rimraf,
+  sleep,
 } from './utils';
 
 import {
@@ -32,6 +33,7 @@ import {
   IChromeDriver,
   IHTTPRequest,
   IDevtoolsJSON,
+  IPage,
 } from './types';
 
 import {
@@ -125,7 +127,7 @@ const isPuppeteer = (
 
 const setupPage = async ({
   browser,
-  page,
+  page: pptrPage,
   pauseOnConnect,
   blockAds,
   trackingId,
@@ -138,9 +140,19 @@ const setupPage = async ({
   trackingId: string | null;
   windowSize?: IWindowSize;
 }) => {
+  const page = pptrPage as IPage;
+
+  if (page._browserless_setup) {
+    return;
+  }
+
   const client = _.get(page, '_client', _.noop);
+  const id = _.get(page, '_target._targetId', 'Unknown');
 
   await pageHook({ page });
+
+  // @ts-ignore private page id
+  debug(`Setting up page ${id}`);
 
   // Don't let us intercept these as they're needed by consumers
   // Fixed in later version of chromium
@@ -176,6 +188,7 @@ const setupPage = async ({
   }
 
   if (!ALLOW_FILE_PROTOCOL) {
+    debug(`Setting up file:// protocol request rejection`);
     page.on('request', async (request) => {
       if (request.url().startsWith('file://')) {
         page.close().catch(_.noop);
@@ -192,15 +205,18 @@ const setupPage = async ({
   }
 
   if (blockAds) {
+    debug(`Setting up page for ad-blocking`);
     await page.setRequestInterception(true);
     page.on('request', networkBlock);
     page.once('close', () => page.off('request', networkBlock));
   }
 
   if (windowSize) {
+    debug(`Setting viewport dimensions`);
     await page.setViewport(windowSize);
   }
 
+  page._browserless_setup = true;
   browser._pages.push(page);
 };
 
@@ -281,18 +297,26 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await browser.pages();
+  debug('Finding prior pages');
 
-  pages.forEach((page) =>
-    setupPage({
-      browser,
-      blockAds,
-      page,
-      pauseOnConnect,
-      trackingId,
-      windowSize,
-    }),
-  );
+  const pages = (await Promise.race([browser.pages(), sleep(2500)])) as
+    | puppeteer.Page[]
+    | undefined;
+
+  if (pages && pages.length) {
+    debug(`Found ${pages.length} pages`);
+    pages.forEach((page) =>
+      setupPage({
+        browser,
+        blockAds,
+        page,
+        pauseOnConnect,
+        trackingId,
+        windowSize,
+      }),
+    );
+  }
+
   runningBrowsers.push(browser);
 
   return browser;

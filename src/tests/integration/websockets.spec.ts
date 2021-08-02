@@ -162,6 +162,7 @@ describe('Browserless Chrome WebSockets', () => {
   });
 
   it('runs with ignored default args', async (done) => {
+    jest.setTimeout(10000);
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
