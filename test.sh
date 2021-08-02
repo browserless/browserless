@@ -6,4 +6,4 @@ xvfb=$!
 
 export DISPLAY=:1
 
-./node_modules/.bin/jest --runInBand --bail --forceExit $@ && kill -TERM $xvfb
+./node_modules/.bin/jest --runInBand --forceExit $@ && kill -TERM $xvfb
