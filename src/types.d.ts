@@ -32,6 +32,10 @@ export interface IBrowser extends puppeteer.Browser {
   _pages: puppeteer.Page[];
 }
 
+export interface IPage extends puppeteer.Page {
+  _browserless_setup: boolean;
+}
+
 export interface ISession {
   description: string;
   devtoolsFrontendUrl: string;
