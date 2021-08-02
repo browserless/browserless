@@ -281,7 +281,11 @@ const setupBrowser = async ({
     }
   });
 
+  debug('Finding prior pages');
+
   const pages = await browser.pages();
+
+  debug(`Found ${pages.length} pages`);
 
   pages.forEach((page) =>
     setupPage({
