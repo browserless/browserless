@@ -281,20 +281,6 @@ const setupBrowser = async ({
     }
   });
 
-  browser.pages().then((pages) => {
-    debug(`Setting up initial pages.`);
-    pages.forEach((page) =>
-      setupPage({
-        browser,
-        blockAds,
-        page,
-        pauseOnConnect,
-        trackingId,
-        windowSize,
-      }),
-    );
-  });
-
   runningBrowsers.push(browser);
 
   return browser;
