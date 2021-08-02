@@ -21,7 +21,6 @@ import {
   getUserDataDir,
   injectHostIntoSession,
   rimraf,
-  sleep,
 } from './utils';
 
 import {
