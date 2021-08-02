@@ -21,6 +21,7 @@ import {
   getUserDataDir,
   injectHostIntoSession,
   rimraf,
+  sleep,
 } from './utils';
 
 import {
@@ -283,18 +284,25 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await browser.pages();
+  const pages: puppeteer.Page[] | undefined = await Promise.race([
+    browser.pages(),
+    sleep(200),
+  ]) as any;
 
-  pages.forEach((page) =>
-    setupPage({
-      browser,
-      blockAds,
-      page,
-      pauseOnConnect,
-      trackingId,
-      windowSize,
-    }),
-  );
+  if (pages && pages.length) {
+    debug(`Setting up initial pages.`);
+    pages.forEach((page) =>
+      setupPage({
+        browser,
+        blockAds,
+        page,
+        pauseOnConnect,
+        trackingId,
+        windowSize,
+      }),
+    );
+  }
+
   runningBrowsers.push(browser);
 
   return browser;
