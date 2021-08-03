@@ -1,4 +1,4 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.46.0...master)
 - Dependency updates.
 
 # [Latest](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
@@ -11,6 +11,9 @@
 - Some performance improvements to how pages/browsers are setup and torn down.
 - Add `API_DOCS_ENDPOINT` as a filterable API to deny access to.
 - Minor code reformatting from prettier.
+- Better page setup and logging.
+- Fixes `DEFAULT_STEALTH` for self-hosted deployments.
+- Improvements on how chrome is closed.
 
 # [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
 - Dependency Updates.

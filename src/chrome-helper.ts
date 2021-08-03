@@ -151,7 +151,6 @@ const setupPage = async ({
 
   await pageHook({ page });
 
-  // @ts-ignore private page id
   debug(`Setting up page ${id}`);
 
   // Don't let us intercept these as they're needed by consumers
