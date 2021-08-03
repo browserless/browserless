@@ -136,7 +136,11 @@ export class WebDriver {
                   debug(
                     `Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`,
                   );
-                  kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+
+                  if (chromeDriver.chromeProcess.pid) {
+                    kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+                  }
+
                   chromeDriver.chromeProcess.off('close', done);
                   chromeDriver.browser &&
                     chromeHelper.closeBrowser(chromeDriver.browser);
@@ -230,7 +234,9 @@ export class WebDriver {
     for (const sessionId in this.webDriverSessions) {
       if (sessionId) {
         const session = this.webDriverSessions[sessionId];
-        kill(session.chromeDriver.pid, 'SIGKILL');
+        if (session.chromeDriver.pid) {
+          kill(session.chromeDriver.pid, 'SIGKILL');
+        }
         if (session.browser) {
           debug(
             `Killing chromedriver and proxy ${session.browser._browserProcess.pid}`,

@@ -701,7 +701,10 @@ export const closeBrowser = (browser: IBrowser) => {
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
       browser._browserServer.close();
-      treeKill(browser._browserProcess.pid, 'SIGKILL');
+
+      if (browser._browserProcess.pid) {
+        treeKill(browser._browserProcess.pid, 'SIGKILL');
+      }
 
       if (browser._browserlessDataDir) {
         removeDataDir(browser._browserlessDataDir);
