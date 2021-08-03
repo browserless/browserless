@@ -62,7 +62,7 @@
     }
   },
   "releaseVersions": [
-    "puppeteer-10.0.0",
+    "puppeteer-10.1.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
     "puppeteer-5.4.1",
