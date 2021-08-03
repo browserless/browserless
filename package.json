@@ -4,7 +4,7 @@
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
-    "node": ">=13.0.0"
+    "node": ">=16.0.0"
   },
   "main": "build/index.js",
   "files": [
