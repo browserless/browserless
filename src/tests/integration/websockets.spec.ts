@@ -48,7 +48,7 @@ describe('Browserless Chrome WebSockets', () => {
     job();
   });
 
-  it('runs with no timeouts', async (done) => {
+  it('runs with no timeouts', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -56,30 +56,22 @@ describe('Browserless Chrome WebSockets', () => {
     });
     await browserless.startServer();
 
-    const job = async () => {
-      return new Promise(async (resolve) => {
-        const browser: any = await puppeteer.connect({
-          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
-        });
-
-        browser.once('disconnected', resolve);
-
-        browser.disconnect();
-      });
-    };
-
     browserless.queue.on('end', () => {
       expect(browserless.currentStat.timedout).toEqual(0);
       expect(browserless.currentStat.successful).toEqual(1);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      done(null);
     });
 
-    job();
-  });
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+    });
 
-  it('exposes sessions', async (done) => {
+    browser.disconnect();
+  }));
+
+  it('exposes sessions', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -103,9 +95,9 @@ describe('Browserless Chrome WebSockets', () => {
     browserless.queue.on('end', done);
 
     job();
-  });
+  }));
 
-  it('rejects file requests by default', async (done) => {
+  it('rejects file requests by default', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -119,11 +111,11 @@ describe('Browserless Chrome WebSockets', () => {
       done('Browser should have forcefully closed');
     } catch (e) {
       expect(e.message).toBeDefined();
-      done();
+      done(null);
     }
-  });
+  }));
 
-  it('filters sessions', async (done) => {
+  it('filters sessions', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -159,9 +151,9 @@ describe('Browserless Chrome WebSockets', () => {
     browserless.queue.on('end', done);
 
     job();
-  });
+  }));
 
-  it('runs with ignored default args', async (done) => {
+  it('runs with ignored default args', async () => new Promise(async (done) => {
     jest.setTimeout(10000);
     const params = defaultParams();
     const browserless = await start(params);
@@ -184,13 +176,13 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(1);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
-  it('deletes tmp user-data-dirs', async (done) => {
+  it('deletes tmp user-data-dirs', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -210,13 +202,13 @@ describe('Browserless Chrome WebSockets', () => {
       const tmpDir = j.browser._browserlessDataDir;
       await sleep(1000);
       expect(await exists(tmpDir)).toBe(false);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
-  it('runs with no leaks', async (done) => {
+  it('runs with no leaks', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -249,13 +241,13 @@ describe('Browserless Chrome WebSockets', () => {
 
       expect(process.listeners('exit').length).toEqual(0);
       expect(process.listeners('SIGHUP').length).toEqual(0);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
-  it('runs with job-based timeouts', async (done) => {
+  it('runs with job-based timeouts', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -278,13 +270,13 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(0);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
-  it('allows the file-chooser', async (done) => {
+  it('allows the file-chooser', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -307,13 +299,13 @@ describe('Browserless Chrome WebSockets', () => {
         expect(fileChooser).toEqual(expect.anything());
       }
       browser.disconnect();
-      done();
+      done(null);
     };
 
     job();
-  });
+  }));
 
-  it('queues requests', async (done) => {
+  it('queues requests', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = start({
       ...params,
@@ -334,12 +326,12 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(2);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(1);
-      done();
+      done(null);
     });
 
     job();
     job();
-  });
+  }));
 
   it('fails requests', async () => {
     const params = defaultParams();
@@ -404,7 +396,7 @@ describe('Browserless Chrome WebSockets', () => {
       });
   });
 
-  it('runs playwright', async (done) => {
+  it('runs playwright', async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -426,13 +418,13 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(1);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
-  it(`doesn't allow playwright to do headfull or user-data-dirs`, async (done) => {
+  it(`doesn't allow playwright to do "headfull" or user-data-dirs`, async () => new Promise(async (done) => {
     const params = defaultParams();
     const browserless = await start(params);
     await browserless.startServer();
@@ -454,11 +446,11 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(1);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      done(null);
     });
 
     job();
-  });
+  }));
 
   it('rejects playwright without tokens', async () => {
     const params = defaultParams();
