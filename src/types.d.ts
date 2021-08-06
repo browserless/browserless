@@ -1,12 +1,11 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { Response } from 'express';
+import { BrowserServer, LaunchOptions } from 'playwright-core';
 import { IncomingMessage, ServerResponse } from 'http';
-import * as net from 'net';
-import * as puppeteer from 'puppeteer';
-import * as url from 'url';
-
-import { BrowserlessSandbox } from './Sandbox';
+import net from 'net';
+import puppeteer from 'puppeteer';
+import url from 'url';
 
 export interface IChromeDriver {
   port: number;
@@ -29,6 +28,12 @@ export interface IBrowser extends puppeteer.Browser {
   _blockAds: boolean;
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
+  _browserServer: BrowserServer | puppeteer.Browser;
+  _pages: puppeteer.Page[];
+}
+
+export interface IPage extends puppeteer.Page {
+  _browserless_setup: boolean;
 }
 
 export interface ISession {
@@ -42,6 +47,7 @@ export interface ISession {
   port: string;
   trackingId: string | null;
   browserWSEndpoint: string;
+  browserId: string;
 }
 
 export interface IWindowSize {
@@ -54,6 +60,9 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   blockAds: boolean;
   trackingId?: string;
   keepalive?: number;
+  playwrightProxy?: LaunchOptions['proxy'];
+  playwright: boolean;
+  stealth: boolean;
 }
 
 export interface IBefore {
@@ -86,15 +95,23 @@ export interface IBrowserlessStats {
   error: number;
   queued: number;
   rejected: number;
+  unhealthy: number;
   memory: number | null;
   cpu: number | null;
   timedout: number;
+  sessionTimes: number[];
+  totalTime: number;
+  meanTime: number;
+  maxTime: number;
+  minTime: number;
+  maxConcurrent: number;
 }
 
 export interface ISandboxOpts {
   builtin: string[];
   external: boolean | string[];
   root: string;
+  allowFileProtocol: boolean;
 }
 
 export interface IConfig {
@@ -123,19 +140,22 @@ interface IBrowserlessServerConfiguration {
   timeoutAlertURL: string | null;
   errorAlertURL: string | null;
   healthFailureURL: string | null;
+  sessionCheckFailURL: string | null;
   metricsJSONPath: string | null;
   exitOnHealthFailure: boolean;
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
+  socketBehavior: 'http' | 'close';
 }
 
 export interface IChromeServiceConfiguration {
+  allowFileProtocol: boolean;
   connectionTimeout: number;
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
-  demoMode: boolean;
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
@@ -164,9 +184,24 @@ export interface IAfter {
   stopScreencast: () => void;
 }
 
-export type Feature = 'prometheus' | 'debugger' | 'debugViewer' | 'introspectionEndpoint' | 'metricsEndpoint' |
-  'configEndpoint' | 'workspaces' | 'downloadEndpoint' | 'pressureEndpoint' | 'functionEndpoint' | 'killEndpoint' |
-  'screencastEndpoint' | 'screenshotEndpoint' | 'contentEndpoint' | 'pdfEndpoint' | 'statsEndpoint' | 'scrapeEndpoint';
+export type Feature =
+  | 'prometheus'
+  | 'debugger'
+  | 'debugViewer'
+  | 'introspectionEndpoint'
+  | 'metricsEndpoint'
+  | 'configEndpoint'
+  | 'workspaces'
+  | 'downloadEndpoint'
+  | 'pressureEndpoint'
+  | 'functionEndpoint'
+  | 'killEndpoint'
+  | 'screencastEndpoint'
+  | 'screenshotEndpoint'
+  | 'contentEndpoint'
+  | 'pdfEndpoint'
+  | 'statsEndpoint'
+  | 'scrapeEndpoint';
 
 export type consoleMethods = 'log' | 'warn' | 'debug' | 'table' | 'info';
 
@@ -178,7 +213,7 @@ export interface IResourceLoad {
 export interface IJob {
   (done?: IDone): any | Promise<any>;
   id?: string;
-  browser?: IBrowser | BrowserlessSandbox | null;
+  browser?: IBrowser | null;
   close?: () => any;
   onTimeout?: () => any;
   start: number;
@@ -201,8 +236,15 @@ export interface IQueueConfig {
   timeout?: number;
 }
 
-export type IUpgradeHandler = (req: IncomingMessage, socket: net.Socket, head: Buffer) => Promise<any>;
-export type IRequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<any>;
+export type IUpgradeHandler = (
+  req: IncomingMessage,
+  socket: net.Socket,
+  head: Buffer,
+) => Promise<any>;
+export type IRequestHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+) => Promise<any>;
 
 export interface IWebDriverSession {
   browser: IBrowser | null;
@@ -239,6 +281,8 @@ export interface IWebdriverStartHTTP extends IHTTPRequest {
 }
 
 export interface IBrowserlessSessionOptions {
+  token?: string;
+  stealth: boolean;
   blockAds: boolean;
   trackingId: string | null;
   pauseOnConnect: boolean;
@@ -252,7 +296,7 @@ export interface IWebdriverStartNormalized {
   params: IBrowserlessSessionOptions;
 }
 
-export interface IJSONList {
+export interface IDevtoolsJSON {
   description: string;
   devtoolsFrontendUrl: string;
   id: string;
@@ -276,7 +320,7 @@ export interface IAfterHookResponse {
 }
 
 export interface IBrowserHook {
- browser: IBrowser;
+  browser: IBrowser;
 }
 
 export interface IPageHook {

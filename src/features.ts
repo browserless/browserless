@@ -1,18 +1,32 @@
 import { Feature } from './types';
 
 export function isFeature(str: string): str is Feature {
-  return str === 'prometheus' || str === 'debugger' || str === 'debugViewer' || str === 'introspectionEndpoint'
-    || str === 'metricsEndpoint' || str === 'configEndpoint' || str === 'workspaces' || str === 'downloadEndpoint'
-    || str === 'pressureEndpoint' || str === 'functionEndpoint' || str === 'killEndpoint'
-    || str === 'screencastEndpoint' || str === 'screenshotEndpoint' || str === 'contentEndpoint'
-    || str === 'pdfEndpoint' || str === 'statsEndpoint' || str === 'scrapeEndpoint';
+  return (
+    str === 'prometheus' ||
+    str === 'debugger' ||
+    str === 'debugViewer' ||
+    str === 'introspectionEndpoint' ||
+    str === 'metricsEndpoint' ||
+    str === 'configEndpoint' ||
+    str === 'workspaces' ||
+    str === 'downloadEndpoint' ||
+    str === 'pressureEndpoint' ||
+    str === 'functionEndpoint' ||
+    str === 'killEndpoint' ||
+    str === 'screencastEndpoint' ||
+    str === 'screenshotEndpoint' ||
+    str === 'contentEndpoint' ||
+    str === 'pdfEndpoint' ||
+    str === 'statsEndpoint' ||
+    str === 'scrapeEndpoint' ||
+    str === 'apiDocsEndpoint'
+  );
 }
 
 // tslint:disable-next-line:variable-name
 export const Features = {
   CONFIG_ENDPOINT: 'configEndpoint' as Feature,
   CONTENT_ENDPOINT: 'contentEndpoint' as Feature,
-  DEBUGGER: 'debugger' as Feature,
   DEBUG_VIEWER: 'debugViewer' as Feature,
   DOWNLOAD_ENDPOINT: 'downloadEndpoint' as Feature,
   FUNCTION_ENDPOINT: 'functionEndpoint' as Feature,
@@ -27,4 +41,5 @@ export const Features = {
   SCREENSHOT_ENDPOINT: 'screenshotEndpoint' as Feature,
   STATS_ENDPOINT: 'statsEndpoint' as Feature,
   WORKSPACES: 'workspaces' as Feature,
+  API_DOCS_ENDPOINT: 'apiDocsEndpoint' as Feature,
 };

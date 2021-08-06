@@ -1,19 +1,15 @@
 import fetch from 'node-fetch';
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types';
-import {
-  defaultParams,
-  killChrome,
-} from './utils';
+import { defaultParams } from './utils';
 
 describe('Browserless Chrome HTTP', () => {
   let browserless: BrowserlessServer;
-  const start = (args: IBrowserlessOptions) => browserless = new BrowserlessServer(args);
+  const start = (args: IBrowserlessOptions) =>
+    (browserless = new BrowserlessServer(args));
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('allows requests to /json/version', async () => {
@@ -37,18 +33,6 @@ describe('Browserless Chrome HTTP', () => {
       .then((res) => res.json())
       .then((version) => {
         expect(Object.keys(version)).toMatchSnapshot();
-      });
-  });
-
-  it('allows requests to /introspection', async () => {
-    const params = defaultParams();
-    const browserless = start(params);
-    await browserless.startServer();
-
-    return fetch(`http://127.0.0.1:${params.port}/introspection`)
-      .then((res) => res.json())
-      .then((introspection) => {
-        expect(introspection);
       });
   });
 
@@ -109,10 +93,11 @@ describe('Browserless Chrome HTTP', () => {
     });
     await browserless.startServer();
 
-    return fetch(`http://abc@127.0.0.1:${params.port}/json`)
-      .then((res: any) => {
+    return fetch(`http://abc@127.0.0.1:${params.port}/json`).then(
+      (res: any) => {
         expect(res.headers['set-cookie']).toMatchSnapshot();
-      });
+      },
+    );
   });
 
   it('does NOT set a cookie when no token is present', async () => {
@@ -120,10 +105,9 @@ describe('Browserless Chrome HTTP', () => {
     const browserless = start(params);
     await browserless.startServer();
 
-    return fetch(`http://127.0.0.1:${params.port}/json`)
-      .then((res) => {
-        expect(res.headers).not.toHaveProperty('set-cookie');
-      });
+    return fetch(`http://127.0.0.1:${params.port}/json`).then((res) => {
+      expect(res.headers).not.toHaveProperty('set-cookie');
+    });
   });
 
   describe('/function', () => {
@@ -301,7 +285,9 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(`The module 'request' is not whitelisted in VM.`);
+          expect(res).toContain(
+            `The module 'request' is not whitelisted in VM.`,
+          );
         });
     });
 
@@ -334,7 +320,9 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(`The module 'node-fetch' is not whitelisted in VM`);
+          expect(res).toContain(
+            `The module 'node-fetch' is not whitelisted in VM`,
+          );
         });
     });
 
@@ -389,10 +377,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toEqual(408);
-        });
+      }).then((res) => {
+        expect(res.status).toEqual(408);
+      });
     });
 
     it('catches errors', async () => {
@@ -442,11 +429,15 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('x-response-code')).toBeDefined();
+        expect(res.headers.get('x-response-url')).toBeDefined();
+        expect(res.headers.get('x-response-ip')).toBeDefined();
+        expect(res.headers.get('x-response-por')).toBeDefined();
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows /GET requests', async () => {
@@ -458,11 +449,14 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(query)}`)
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      return fetch(
+        `http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(
+          query,
+        )}`,
+      ).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows selector "waitFor"s', async () => {
@@ -481,11 +475,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows function "waitFor"s', async () => {
@@ -504,11 +497,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows number "waitFor"s', async () => {
@@ -527,11 +519,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows requests with "application/html" types', async () => {
@@ -547,11 +538,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'text/html',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows cookies', async () => {
@@ -570,11 +560,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then(async (res) => {
-          expect(res.headers.get('content-type')).toEqual('image/png');
-          expect(res.status).toBe(200);
-        });
+      }).then(async (res) => {
+        expect(res.headers.get('content-type')).toEqual('image/png');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('rejects bad /GET requests', async () => {
@@ -586,11 +575,14 @@ describe('Browserless Chrome HTTP', () => {
         wat: 'https://example.com',
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(query)}`)
-        .then((res) => {
-          expect(res.status).toBe(400);
-          expect(res.headers.get('content-type')).toContain('application/json');
-        });
+      return fetch(
+        `http://127.0.0.1:${params.port}/screenshot?body=${JSON.stringify(
+          query,
+        )}`,
+      ).then((res) => {
+        expect(res.status).toBe(400);
+        expect(res.headers.get('content-type')).toContain('application/json');
+      });
     });
 
     it('times out requests', async () => {
@@ -611,10 +603,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(408);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(408);
+      });
     });
 
     it('rejects requests', async () => {
@@ -637,10 +628,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(429);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(429);
+      });
     });
 
     it('allows custom goto options', async () => {
@@ -662,10 +652,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows custom viewport options', async () => {
@@ -689,10 +678,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows for providing http response payloads', async () => {
@@ -704,7 +692,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         requestInterceptors: [
           {
-            pattern: '.*data\.json',
+            pattern: '.*data.json',
             response: {
               body: '{"data": 123}',
               contentType: 'application/json',
@@ -721,10 +709,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows for injecting HTML', async () => {
@@ -743,10 +730,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
   });
 
@@ -760,22 +746,24 @@ describe('Browserless Chrome HTTP', () => {
         code: `module.exports = async ({ page }) => {
           await page.setViewport({ width: 640, height: 480 });
           await page.goto('https://example.com/');
-          await page.waitFor(5000);
+          await new Promise(r => global.setTimeout(r, 5000));
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
+      return fetch(
+        `http://127.0.0.1:${params.port}/screencast?--window-size=640,480`,
+        {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
         },
-        method: 'POST',
-      })
-        .then((res) => {
-          expect(res.statusText ).toEqual('OK');
-          expect(res.status).toBe(200);
-          expect(res.headers.get('content-type')).toEqual('video/webm');
-        });
+      ).then((res) => {
+        expect(res.statusText).toEqual('OK');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toEqual('video/webm');
+      });
     });
 
     it('allows "application/javascript" requests', async () => {
@@ -786,21 +774,23 @@ describe('Browserless Chrome HTTP', () => {
       const body = `module.exports = async ({ page }) => {
         await page.setViewport({ width: 640, height: 480 });
         await page.goto('https://example.com/');
-        await page.waitFor(5000);
+        await new Promise(r => global.setTimeout(r, 5000));
       }`;
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
-        body,
-        headers: {
-          'content-type': 'application/javascript',
+      return fetch(
+        `http://127.0.0.1:${params.port}/screencast?--window-size=640,480`,
+        {
+          body,
+          headers: {
+            'content-type': 'application/javascript',
+          },
+          method: 'POST',
         },
-        method: 'POST',
-      })
-        .then((res) => {
-          expect(res.statusText ).toEqual('OK');
-          expect(res.status).toBe(200);
-          expect(res.headers.get('content-type')).toEqual('video/webm');
-        });
+      ).then((res) => {
+        expect(res.statusText).toEqual('OK');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toEqual('video/webm');
+      });
     });
 
     it('times out requests', async () => {
@@ -819,16 +809,18 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
+      return fetch(
+        `http://127.0.0.1:${params.port}/screencast?--window-size=640,480`,
+        {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
         },
-        method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(408);
-        });
+      ).then((res) => {
+        expect(res.status).toBe(408);
+      });
     });
 
     it('rejects requests', async () => {
@@ -848,16 +840,18 @@ describe('Browserless Chrome HTTP', () => {
         }`,
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/screencast?--window-size=640,480`, {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
+      return fetch(
+        `http://127.0.0.1:${params.port}/screencast?--window-size=640,480`,
+        {
+          body: JSON.stringify(body),
+          headers: {
+            'content-type': 'application/json',
+          },
+          method: 'POST',
         },
-        method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(429);
-        });
+      ).then((res) => {
+        expect(res.status).toBe(429);
+      });
     });
   });
 
@@ -877,11 +871,14 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('x-response-code')).toBeDefined();
+        expect(res.headers.get('x-response-url')).toBeDefined();
+        expect(res.headers.get('x-response-ip')).toBeDefined();
+        expect(res.headers.get('x-response-por')).toBeDefined();
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows /GET requests', async () => {
@@ -893,11 +890,12 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/pdf?body=${JSON.stringify(query)}`)
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      return fetch(
+        `http://127.0.0.1:${params.port}/pdf?body=${JSON.stringify(query)}`,
+      ).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows selector "waitFor"s', async () => {
@@ -916,11 +914,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows function "waitFor"s', async () => {
@@ -939,11 +936,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows number "waitFor"s', async () => {
@@ -962,11 +958,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows cookies', async () => {
@@ -985,11 +980,10 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('application/pdf');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual('application/pdf');
+        expect(res.status).toBe(200);
+      });
     });
 
     it('times out requests', async () => {
@@ -1010,10 +1004,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(408);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(408);
+      });
     });
 
     it('rejects requests', async () => {
@@ -1036,10 +1029,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(429);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(429);
+      });
     });
 
     it('allows for providing http response payloads', async () => {
@@ -1051,7 +1043,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         requestInterceptors: [
           {
-            pattern: '.*data\.json',
+            pattern: '.*data.json',
             response: {
               body: '{"data": 123}',
               contentType: 'application/json',
@@ -1068,10 +1060,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows custom goto options', async () => {
@@ -1093,10 +1084,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows for injecting HTML', async () => {
@@ -1115,10 +1105,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows for PDF options', async () => {
@@ -1140,10 +1129,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows custom viewport options', async () => {
@@ -1167,10 +1155,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
   });
 
@@ -1190,11 +1177,16 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('x-response-code')).toBeDefined();
+        expect(res.headers.get('x-response-url')).toBeDefined();
+        expect(res.headers.get('x-response-ip')).toBeDefined();
+        expect(res.headers.get('x-response-por')).toBeDefined();
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows /GET requests', async () => {
@@ -1206,11 +1198,14 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/content?body=${JSON.stringify(query)}`)
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      return fetch(
+        `http://127.0.0.1:${params.port}/content?body=${JSON.stringify(query)}`,
+      ).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows selector "waitFor"s', async () => {
@@ -1229,11 +1224,12 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows function "waitFor"s', async () => {
@@ -1252,11 +1248,12 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows number "waitFor"s', async () => {
@@ -1275,11 +1272,12 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows requests with text/html content-types', async () => {
@@ -1295,11 +1293,12 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'text/html',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows cookies', async () => {
@@ -1318,11 +1317,12 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.headers.get('content-type')).toEqual(
+          'text/html; charset=utf-8',
+        );
+        expect(res.status).toBe(200);
+      });
     });
 
     it('times out requests', async () => {
@@ -1343,10 +1343,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(408);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(408);
+      });
     });
 
     it('rejects requests', async () => {
@@ -1369,10 +1368,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(429);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(429);
+      });
     });
 
     it('allows for providing http response payloads', async () => {
@@ -1384,7 +1382,7 @@ describe('Browserless Chrome HTTP', () => {
       const body = {
         requestInterceptors: [
           {
-            pattern: '.*data\.json',
+            pattern: '.*data.json',
             response: {
               body: '{"data": 123}',
               contentType: 'application/json',
@@ -1401,10 +1399,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows custom goto options', async () => {
@@ -1426,10 +1423,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
   });
 
@@ -1466,10 +1462,51 @@ describe('Browserless Chrome HTTP', () => {
           'Content-Type': 'application/javascript',
         },
         method: 'POST',
-      })
-        .then((res) => {
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
+    });
+  });
+
+  describe('/prometheus', () => {
+    it('allows requests', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus`).then((res) => {
+        expect(res.status).toBe(200);
+      });
+    });
+
+    it('rejects requests without tokens', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        token: 'abc',
+      });
+
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus`).then((res) => {
+        expect(res.status).toBe(403);
+      });
+    });
+
+    it('allows requests with tokens', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        token: 'abc',
+      });
+
+      await browserless.startServer();
+
+      return fetch(`http://127.0.0.1:${params.port}/prometheus?token=abc`).then(
+        (res) => {
           expect(res.status).toBe(200);
-        });
+        },
+      );
     });
   });
 
@@ -1491,10 +1528,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('allows /GET requests', async () => {
@@ -1506,10 +1542,11 @@ describe('Browserless Chrome HTTP', () => {
         url: 'https://example.com',
       };
 
-      return fetch(`http://127.0.0.1:${params.port}/stats?body=${JSON.stringify(query)}`)
-        .then((res) => {
-          expect(res.status).toBe(200);
-        });
+      return fetch(
+        `http://127.0.0.1:${params.port}/stats?body=${JSON.stringify(query)}`,
+      ).then((res) => {
+        expect(res.status).toBe(200);
+      });
     });
 
     it('times out requests', async () => {
@@ -1530,10 +1567,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(408);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(408);
+      });
     });
 
     it('rejects requests', async () => {
@@ -1556,10 +1592,9 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      })
-        .then((res) => {
-          expect(res.status).toBe(429);
-        });
+      }).then((res) => {
+        expect(res.status).toBe(429);
+      });
     });
   });
 });

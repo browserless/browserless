@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Browserless Chrome WebSockets exposes sessions 1`] = `
+Array [
+  "description",
+  "devtoolsFrontendUrl",
+  "id",
+  "title",
+  "type",
+  "url",
+  "webSocketDebuggerUrl",
+  "port",
+  "browserId",
+  "trackingId",
+  "browserWSEndpoint",
+]
+`;

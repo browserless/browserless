@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    // Hack to get @types working for newer version of puppeteer
+    "paths": {
+      "puppeteer": ["node_modules/@types/puppeteer"]
+    },
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2017",
@@ -16,8 +21,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "declaration": true,
+    "esModuleInterop": true,
     "outDir": "./build",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "resolveJsonModule": true
   },
   "exclude": [
     "./src/tests/*"

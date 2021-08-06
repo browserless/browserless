@@ -1,15 +1,20 @@
 {
   "name": "browserless-chrome",
-  "version": "1.34.0",
+  "version": "1.46.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
-    "node": ">=13.0.0"
+    "node": ">=16.0.0"
   },
   "main": "build/index.js",
   "files": [
-    "build/main.css",
-    "build/main.js"
+    "build/*",
+    "debugger/*",
+    "functions/*",
+    "env.js",
+    "hosts.json",
+    "protocol.json",
+    "version.json"
   ],
   "scripts": {
     "build": "npm run clean && tsc",
@@ -19,103 +24,117 @@
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "meta": "./scripts/get-meta.js",
     "start": "node ./build",
-    "lint": "tslint -c tslint.json 'src/**/*.ts'",
     "test": "DEBUG=quiet jest --runInBand --detectOpenHandles",
     "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "post-install": "npm run external && npm run symlink-chrome && npm run meta",
+    "postinstall": "npm run external && npm run symlink-chrome && npm run meta",
     "snyk-protect": "snyk protect",
-    "prepare": "npm run snyk-protect"
+    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'"
   },
   "puppeteerVersions": {
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
       "chromeRevision": "686378"
     },
-    "puppeteer-2.0.0": {
-      "puppeteer": "2.0.0",
-      "chromeRevision": "706915"
+    "puppeteer-4.0.1": {
+      "puppeteer": "4.0.1",
+      "chromeRevision": "782078"
     },
-    "puppeteer-2.1.1": {
-      "puppeteer": "2.1.1",
-      "chromeRevision": "737027"
+    "puppeteer-5.4.1": {
+      "puppeteer": "5.4.1",
+      "chromeRevision": "809590"
     },
-    "puppeteer-3.0.4": {
-      "puppeteer": "3.0.4",
-      "chromeRevision": "737027"
+    "puppeteer-7.1.0": {
+      "puppeteer": "7.1.0",
+      "chromeRevision": "848005"
     },
-    "puppeteer-3.3.0": {
-      "puppeteer": "3.1.0",
-      "chromeRevision": "756035"
+    "puppeteer-9.1.1": {
+      "puppeteer": "9.1.1",
+      "chromeRevision": "869685"
+    },
+    "puppeteer-10.1.0": {
+      "puppeteer": "10.1.0",
+      "chromeRevision": "884014"
     },
     "chrome-stable": {
-      "puppeteer": "3.1.0",
-      "chromeRevision": "756035"
+      "puppeteer": "10.1.0",
+      "chromeRevision": "884014"
     }
   },
   "releaseVersions": [
-    "puppeteer-3.3.0",
-    "puppeteer-3.0.4",
-    "puppeteer-2.1.1",
-    "puppeteer-2.0.0",
+    "puppeteer-10.1.0",
+    "puppeteer-9.1.1",
+    "puppeteer-7.1.0",
+    "puppeteer-5.4.1",
+    "puppeteer-4.0.1",
     "puppeteer-1.20.0",
     "chrome-stable"
   ],
   "author": "jgriffith",
   "license": "GPL-3.0",
   "dependencies": {
-    "@types/archiver": "^3.0.0",
+    "@types/archiver": "^5.1.0",
     "@types/cookie": "^0.4.0",
     "@types/cors": "^2.8.4",
     "@types/express": "^4.16.1",
     "@types/http-proxy": "^1.17.0",
-    "@types/jest": "^25.1.0",
-    "@types/joi": "^14.3.2",
+    "@types/jest": "^26.0.0",
+    "@types/joi": "^17.2.3",
     "@types/lodash": "^4.14.123",
     "@types/multer": "^1.3.7",
-    "@types/node": "^14.0.9",
+    "@types/node": "^16.4.10",
     "@types/node-fetch": "^2.3.2",
-    "@types/puppeteer": "^3.0.0",
+    "@types/puppeteer": "^5.4.0",
     "@types/request": "^2.48.2",
     "@types/rimraf": "^3.0.0",
     "@types/shortid": "0.0.29",
-    "archiver": "^4.0.1",
+    "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
-    "chromedriver": "^83.0.0",
+    "browserless-debugger": "^1.0.1",
+    "chromedriver": "^92.0.1",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
-    "debug": "^4.0.0",
+    "debug": "^4",
     "express": "^4.16.2",
-    "express-prom-bundle": "^5.1.5",
-    "fs-extra": "^9.0.0",
+    "express-prom-bundle": "^6.3.1",
+    "extract-zip": "^2.0.1",
+    "fs-extra": "^10.0.0",
     "get-port": "^5.0.0",
+    "heapdump": "^0.3.15",
     "http-proxy": "^1.16.2",
-    "jest": "^25.1.0",
-    "joi": "^14.1.1",
-    "lighthouse": "^6.0.0",
+    "jest": "^27.0.6",
+    "joi": "^17.2.1",
+    "joi-to-swagger": "^6.0.1",
+    "lighthouse": "^8.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
-    "prom-client": "^11.5.3",
-    "puppeteer": "^3.1.0",
+    "playwright-core": "^1.9.1",
+    "prom-client": "^13.0.0",
+    "puppeteer": "^10.0.0",
+    "puppeteer-extra": "^3.1.15",
+    "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.0.0-alpha.1",
-    "sharp": "^0.25.1",
+    "sharp": "^0.28.0",
     "snyk": "^1.316.1",
-    "systeminformation": "^4.14.8",
+    "swagger-ui-express": "^4.1.6",
+    "systeminformation": "^5.0.5",
+    "table": "^6.0.1",
     "tree-kill": "^1.2.0",
-    "ts-jest": "^25.3.0",
-    "tslint": "^6.0.0",
-    "typescript": "^3.3.3",
+    "ts-jest": "^27.0.4",
+    "typescript": "^4.2.2",
     "untildify": "^4.0.0",
     "vm2": "^3.9.1"
   },
   "devDependencies": {
-    "env-cmd": "^10.0.0"
+    "env-cmd": "^10.0.0",
+    "prettier": "^2.2.1",
+    "simple-git-hooks": "^2.2.0"
   },
   "jest": {
     "testEnvironment": "node",

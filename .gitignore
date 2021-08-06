@@ -2,7 +2,7 @@
 node_modules/
 build/
 external/
-debugger/devtools
+devtools/
 hints.json
 hosts.json
 protocol.json

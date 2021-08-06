@@ -12,7 +12,8 @@
       "variable-name": [true, "ban-keywords", "check-format", "allow-leading-underscore"],
       "no-shadowed-variable": false,
       "no-unused-expression": false,
-      "no-console": [true, "log"]
+      "no-console": [true, "log"],
+      "object-literal-key-quotes": [true, "as-needed"]
     },
     "rulesDirectory": []
 }

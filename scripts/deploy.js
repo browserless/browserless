@@ -25,7 +25,7 @@ const logExec = (cmd) => {
   });
 };
 
-async function cleanup () {
+async function cleanup() {
   await logExec(`git reset origin/master --hard`);
   await logExec(`rm -rf node_modules`);
 }
@@ -37,22 +37,34 @@ const deployVersion = async (tags, pptrVersion) => {
   const puppeteerVersion = versionInfo.puppeteer;
   const puppeteerChromiumRevision = versionInfo.chromeRevision;
 
-  const [ patchBranch, minorBranch, majorBranch ] = tags;
+  const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 
-  debug(`Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`);
+  debug(
+    `Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`,
+  );
 
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
-    ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
+    ${
+      isChromeStable
+        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
+        : ''
+    } \
     npm install --silent --save --save-exact puppeteer@${puppeteerVersion}
   `);
 
   await logExec(`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision} \
-    ${isChromeStable ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true' : ''} \
-    npm run post-install
+    ${
+      isChromeStable
+        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
+        : ''
+    } \
+    npm run postinstall
   `);
 
-  const versionJson = fs.readJSONSync(path.join(__dirname, '..', 'version.json'));
+  const versionJson = fs.readJSONSync(
+    path.join(__dirname, '..', 'version.json'),
+  );
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
@@ -78,25 +90,31 @@ const deployVersion = async (tags, pptrVersion) => {
     logExec(`docker push ${REPO}:${majorBranch}`),
   ]);
 
-  await logExec(`git add --force version.json hosts.json hints.json protocol.json`).catch(noop);
-  await logExec(`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`).catch(noop);
+  await logExec(
+    `git add --force version.json hosts.json hints.json protocol.json`,
+  ).catch(noop);
+  await logExec(
+    `git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`,
+  ).catch(noop);
   await logExec(`git tag --force ${patchBranch}`);
-  await logExec(`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`).catch(noop);
+  await logExec(
+    `git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`,
+  ).catch(noop);
 
   // git reset for next update
   await cleanup();
-}
+};
 
-async function deploy () {
+async function deploy() {
   const versions = map(releaseVersions, (pptrVersion) => {
-    const [ major, minor, patch ] = version.split('.');
+    const [major, minor, patch] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${pptrVersion}`;
     const minorBranch = `${major}.${minor}-${pptrVersion}`;
     const majorBranch = `${major}-${pptrVersion}`;
 
     return {
-      tags: [ patchBranch, minorBranch, majorBranch ],
+      tags: [patchBranch, minorBranch, majorBranch],
       pptrVersion,
     };
   });
@@ -109,10 +127,12 @@ async function deploy () {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
         }),
-    Promise.resolve()
+    Promise.resolve(),
   );
 
-  await logExec(`docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi -f`);
+  await logExec(
+    `docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi -f`,
+  );
   debug(`Complete! Cleaning up file-system and exiting.`);
 }
 

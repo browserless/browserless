@@ -1,18 +1,19 @@
 import { exec as execNode } from 'child_process';
-import * as _ from 'lodash';
-import * as os from 'os';
-import * as util from 'util';
+import _ from 'lodash';
+import os from 'os';
+import util from 'util';
 import { IBrowserlessOptions } from '../../types';
 
 export const exec = util.promisify(execNode);
-export const getPort = () => 3000 + (+_.uniqueId());
+export const getPort = () => 3000 + +_.uniqueId();
 export const defaultParams = (): IBrowserlessOptions => ({
+  allowFileProtocol: false,
   chromeRefreshTime: 0,
   connectionTimeout: 10000,
-  demoMode: false,
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,
+  enableHeapdump: false,
   errorAlertURL: null,
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
@@ -30,10 +31,12 @@ export const defaultParams = (): IBrowserlessOptions => ({
   prebootChrome: false,
   queuedAlertURL: null,
   rejectAlertURL: null,
+  sessionCheckFailURL: null,
   singleRun: false,
   timeoutAlertURL: null,
   token: null,
   workspaceDir: os.tmpdir(),
+  socketBehavior: 'http',
 });
 
 export const throws = () => {
@@ -44,14 +47,6 @@ export const getChromeProcesses = () => {
   return exec(`ps -ef | grep local-chromium`);
 };
 
-export const killChrome = () => {
-  return exec(`pkill -f local-chromium`)
-    .catch(() => {});
-};
-
 export const webdriverOpts = {
-  args: [
-    '--headless',
-    '--no-sandbox',
-  ],
+  args: ['--headless', '--no-sandbox'],
 };

@@ -14,7 +14,7 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
-module.exports = async function content ({ page, context }) {
+module.exports = async function content({ page, context }) {
   const {
     addScriptTag = [],
     addStyleTag = [],
@@ -23,6 +23,7 @@ module.exports = async function content ({ page, context }) {
     html,
     gotoOptions,
     rejectRequestPattern = [],
+    rejectResourceTypes = [],
     requestInterceptors = [],
     cookies = [],
     setExtraHTTPHeaders = null,
@@ -43,14 +44,23 @@ module.exports = async function content ({ page, context }) {
     await page.setJavaScriptEnabled(setJavaScriptEnabled);
   }
 
-  if (rejectRequestPattern.length || requestInterceptors.length) {
+  if (
+    rejectRequestPattern.length ||
+    requestInterceptors.length ||
+    rejectResourceTypes.length
+  ) {
     await page.setRequestInterception(true);
+
     page.on('request', (req) => {
-      if (rejectRequestPattern.find((pattern) => req.url().match(pattern))) {
+      if (
+        !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
+        rejectResourceTypes.includes(req.resourceType())
+      ) {
         return req.abort();
       }
-      const interceptor = requestInterceptors
-        .find(r => req.url().match(r.pattern));
+      const interceptor = requestInterceptors.find((r) =>
+        req.url().match(r.pattern),
+      );
       if (interceptor) {
         return req.respond(interceptor.response);
       }
@@ -66,20 +76,22 @@ module.exports = async function content ({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
+  let response = null;
+
   if (url !== null) {
-    await page.goto(url, gotoOptions);
+    response = await page.goto(url, gotoOptions);
   } else {
     // Whilst there is no way of waiting for all requests to finish with setContent,
     // you can simulate a webrequest this way
     // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
 
     await page.setRequestInterception(true);
-    page.once('request', request => {
+    page.once('request', (request) => {
       request.respond({ body: html });
-      page.on('request', request => request.continue());
+      page.on('request', (request) => request.continue());
     });
 
-    await page.goto('http://localhost', gotoOptions);
+    response = await page.goto('http://localhost', gotoOptions);
   }
 
   if (addStyleTag.length) {
@@ -97,21 +109,35 @@ module.exports = async function content ({ page, context }) {
   if (waitFor) {
     if (typeof waitFor === 'string') {
       const isSelector = await page.evaluate((s) => {
-        try { document.createDocumentFragment().querySelector(s); }
-        catch (e) { return false; }
+        try {
+          document.createDocumentFragment().querySelector(s);
+        } catch (e) {
+          return false;
+        }
         return true;
       }, waitFor);
 
-      await (isSelector ? page.waitFor(waitFor) : page.evaluate(`(${waitFor})()`));
+      await (isSelector
+        ? page.waitForSelector(waitFor)
+        : page.evaluate(`(${waitFor})()`));
     } else {
-      await page.waitFor(waitFor);
+      await new Promise((r) => setTimeout(r, waitFor));
     }
   }
 
   const data = await page.content();
 
+  const headers = {
+    'x-response-url': response?.url().substring(0, 1000),
+    'x-response-code': response?.status(),
+    'x-response-status': response?.statusText(),
+    'x-response-ip': response?.remoteAddress().ip,
+    'x-response-port': response?.remoteAddress().port,
+  };
+
   return {
     data,
-    type: 'html'
+    headers,
+    type: 'html',
   };
 };

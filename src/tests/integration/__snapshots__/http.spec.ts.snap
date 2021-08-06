@@ -2,12 +2,13 @@
 
 exports[`Browserless Chrome HTTP allows requests to /config 1`] = `
 Array [
+  "allowFileProtocol",
   "chromeRefreshTime",
   "connectionTimeout",
-  "demoMode",
   "disabledFeatures",
   "enableAPIGet",
   "enableCors",
+  "enableHeapdump",
   "errorAlertURL",
   "exitOnHealthFailure",
   "functionBuiltIns",
@@ -25,10 +26,12 @@ Array [
   "prebootChrome",
   "queuedAlertURL",
   "rejectAlertURL",
+  "sessionCheckFailURL",
   "singleRun",
   "timeoutAlertURL",
   "token",
   "workspaceDir",
+  "socketBehavior",
 ]
 `;
 
@@ -66,6 +69,8 @@ Array [
 exports[`Browserless Chrome HTTP allows requests to /pressure 1`] = `
 Array [
   "date",
+  "reason",
+  "message",
   "isAvailable",
   "queued",
   "recentlyRejected",

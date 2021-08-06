@@ -25,7 +25,10 @@ export class EventArray extends EventEmitter {
     return el;
   }
 
-  public map(cb: (value: any, index: number, array: any[]) => unknown, thisArg?: any) {
+  public map(
+    cb: (value: any, index: number, array: any[]) => unknown,
+    thisArg?: any,
+  ) {
     return this.arr.map(cb, thisArg);
   }
 }

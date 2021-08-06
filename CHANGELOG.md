@@ -1,5 +1,117 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.34.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.46.0...master)
+- Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+- Dependency updates.
+- Move to Node 16.x.x.
+- Bump browserless/base to 1.10.0.
+- Limit `x-response-url` to 100 characters.
+- Add support for puppeteer@10.x.x.
+- Add `maxConcurrent` stat for metrics API + log stats every 5 minutes to stdout.
+- Some performance improvements to how pages/browsers are setup and torn down.
+- Add `API_DOCS_ENDPOINT` as a filterable API to deny access to.
+- Minor code reformatting from prettier.
+- Better page setup and logging.
+- Fixes `DEFAULT_STEALTH` for self-hosted deployments.
+- Improvements on how chrome is closed.
+
+# [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
+- Dependency Updates.
+- Support for [playwright proxies](https://github.com/browserless/chrome/commit/0903795e936b93a511ec04f7ae35c03397682905).
+- Fixes an issue with larger headers potentially causing load-balancers to crash and fail.
+
+# [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
+**Potentially Breaking**
+- `PROXY_HOST` and `PROXY_PORT` are now replaced with a single `PROXY_URL` param, eg: `https://www.mybrowserless.com/optional/paths`. When set, browserless uses this fully-qualified URL to build out links _back_ to its internal debugger and sessions. Useful when you're instance is behind a proxy or load-balancer of some kind.
+---
+- Dependency Updates.
+- Use recent Node 14 (browserless-base 1.7.0).
+- New `rejectResourceTypes` property on most APIs (content, screenshot, pdf, etc.).
+- Allow serving of `file://` protocols when explicitly enabled (default is off due to security concerns). Set `ALLOW_FILE_PROTOCOL=true` in your env params.
+- The `/pressure` API now takes into account CPU/Memory consumption, and adds a "reason" property for why the machine might be not available.
+- Fixes an issue where playwright couldn't download files.
+- You can now filter /sessions calls with a `trackingId` parameter.
+- `detached` functions now return a `trackingId` when present.
+- More types, tests, and utility consolidation.
+
+# [v1.43.0](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
+- Dependency Updates.
+- Fixes an issue where --user-data-dirs aren't deleted properly, potentially filling disks.
+- Changes CPU/Memory checks to be user-based and not the entire OS.
+- Adds tests for the user-data-dir issue.
+
+# [v1.42.0](https://github.com/browserless/chrome/compare/v1.41.0...v1.42.0)
+- Dependency Updates.
+- Move to Node 14!
+- Use `esModuleInterop` for imports.
+- Remove `page.waitFor` in favor of downstream methods.
+- Adds new `?stealth` parameter for API calls (see puppeteer-extra-stealth-plugin).
+- New `DEFAULT_STEALTH` param for making stealth calls by default.
+- Fixes `ignoreDefaultArgs` in chrome stable.
+- Ensure temp user-data-dirs are always cleaned up.
+
+# [v1.41.0](https://github.com/browserless/chrome/compare/v1.40.2...v1.41.0)
+- Dependency Updates.
+- New `SESSION_CHECK_FAIL_URL` webhook for when pre-session checks fail.
+- Health checks now take the last two CPU/Memory samples to determine if a failure (5 minutes).
+
+# [v1.40.2](https://github.com/browserless/chrome/compare/v1.40.1...v1.40.2)
+- Dependency Updates.
+- Fix potentially unhandled stream error events when closing chrome.
+- Bump puppeteer to 5.4.1 for major 5.
+
+# [v1.40.1](https://github.com/browserless/chrome/compare/v1.40.0...v1.40.1)
 - Dependency Updates
+- New `SOCKET_CLOSE_METHOD` for better load-balancing behavior when under load.
+
+# [v1.40.0](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
+- Dependency Updates
+- Support for playwright 1.4.0 and greater. [See more here](https://github.com/microsoft/playwright/issues/4054).
+- New `PRE_REQUEST_HEALTH_CHECK` env variable to check CPU/Memory prior to running a session. Set `MAX_CPU_PERCENT` or `MAX_MEMORY_PERCENT` for setting these thresholds. Responds with a `503` HTTP code if CPU/Memory are high on any inbound session (API, puppeteer or webdriver).
+
+# [v1.39.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
+- Dependency Updates
+- Fixes a crash due to `browser.close` streams not completing properly.
+- Adds a `dumpio` query-string parameter for launching with puppeteer.
+
+# [v1.38.0](https://github.com/browserless/chrome/compare/v1.37.2...v1.38.0)
+- Dependency Updates
+- Fixes a memory leak when browsers don't close properly.
+- Adds a `/heapdump` route for capturing heap dumps. Turn on by setting `ENABLE_HEAP_DUMP=true` in your docker env.
+- `emulateMedia` fixes on the pdf route.
+- CodeQL implemented.
+- README fixes.
+
+# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.2)
+- Dependency Updates
+- Fixes an issue where the webserver can crash after rejecting a request.
+- Fixes deployment script not waiting for zip files to be finished unzipped.
+
+# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.0...v1.37.1)
+- Dependency Updates
+- Fixes an issue in webdriver not starting properly.
+
+# [1.37.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.37.0)
+**Potentially Breaking**
+- Due to stability issues, puppeteer version 3.x.x and 4.x.x now use chromium revision `782078`. See our `package.json` for details.
+---
+- Dependency Updates
+- README Updates
+- Fixes an issue for secured containers using prometheus (plus tests).
+- Support for puppeteer `5.2.1`
+
+# [1.36.0](https://github.com/browserless/chrome/compare/v1.35.0...v1.36.0)
+- Dependency Updates
+- Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
+- Adds support for puppeteer `5.0.0`.
+- Bug-fix with the server randomly closing with an uncaught error event thrown from inside underlying socket connection.
+- Adds back in `--disable-dev-shm-usage` to default arguments for better SHM performance.
+
+# [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
+- Dependency Updates
+- New `maxTime`, `minTime`, `meanTime` and `totalTime` of all sessions for a given period in /stats.
+- Bugfix on CPU/Memory triggering health failure webhooks.
+- Fix issues in websocket errors by awaiting browser.close (or 5 seconds, whichever is quickest).
 
 # [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
 **Potentially Breaking**

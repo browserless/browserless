@@ -1,4 +1,6 @@
-![browserless splash logo](https://raw.githubusercontent.com/browserless/chrome/master/assets/splash.png)
+<div align="center">
+  <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless-logo-gradient.svg" width="600" height="400">
+</div>
 
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
 ![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
@@ -106,7 +108,7 @@ const browser = await puppeteer.launch();
 
 **After**
 ```js
-await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
+const browser = await puppeteer.connect({ browserWSEndpoint: 'ws://localhost:3000' });
 ```
 
 # Webdriver (selenium)
@@ -190,11 +192,10 @@ All of these issues prompted me to build a first-class image and workflow for in
 
 # Licensing
 
-If you want to use browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/commercial-license). A commercial license grants you:
+If you want to use browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/sign-up?type=commercial). A commercial license grants you:
 
 - Priority support on issues and features.
-- Re-packaging and on-premise installations.
-- No limits on concurrency or instances running.
+- On-premise running as well as running on public cloud providers for commercial/CI purposes for proprietary systems.
 - Ability to modify the source (forking) for your own purposes.
 
 Not only does it grant you a license to run such a critical piece of infrastructure, but you are also supporting further innovation in this space and our ability to contribute to it!
