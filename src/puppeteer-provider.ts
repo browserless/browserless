@@ -124,6 +124,7 @@ export class PuppeteerProvider {
     ignoreDefaultArgs = false,
     builtin = this.config.functionBuiltIns,
     external = this.config.functionExternals,
+    envVars = this.config.functionEnvVars,
   }: IRunHTTP) {
     const jobId = utils.id();
     const trackingId = req.query.trackingId;
@@ -159,13 +160,13 @@ export class PuppeteerProvider {
         hook: this.server.sessionCheckFailHook,
       });
     }
-
     const vm = new NodeVM({
       require: {
         builtin,
         external,
         root: './node_modules',
       },
+      env: _.pick(process.env, envVars)
     });
 
     const handler: (args: any) => Promise<any> = vm.run(

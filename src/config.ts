@@ -186,6 +186,10 @@ export const FUNCTION_BUILT_INS: string[] = parseJSONParam(
   process.env.FUNCTION_BUILT_INS,
   REQUIRED_INTERNALS,
 );
+export const FUNCTION_ENV_VARS: string[] = parseJSONParam(
+  process.env.FUNCTION_ENV_VARS,
+  [],
+);
 export const FUNCTION_ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(
   process.env.FUNCTION_ENABLE_INCOGNITO_MODE,
   false,

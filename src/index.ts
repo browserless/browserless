@@ -12,6 +12,7 @@ const browserless = new BrowserlessServer({
   errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
+  functionEnvVars: config.FUNCTION_ENV_VARS,
   functionEnableIncognitoMode: config.FUNCTION_ENABLE_INCOGNITO_MODE,
   functionExternals: config.FUNCTION_EXTERNALS,
   healthFailureURL: config.FAILED_HEALTH_URL,

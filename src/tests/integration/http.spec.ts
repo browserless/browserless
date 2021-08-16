@@ -226,6 +226,38 @@ describe('Browserless Chrome HTTP', () => {
         });
     });
 
+    it('allows functions that use ENV variables from the main process', async () => {
+      const params = defaultParams();
+      const browserless = start({
+        ...params,
+        functionEnvVars: ['SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS'],
+      });
+      await browserless.startServer();
+
+      const body = {
+        code: `
+        module.exports = ({ page }) => {
+          return Promise.resolve({
+            data: process.env.SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS,
+            type: 'application/text',
+          });
+        }`,
+        context: {},
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/function`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      })
+        .then((res) => res.text())
+        .then((res) => {
+          expect(res).toBe('bar');
+        });
+    });
+
     it('allows functions that require external modules', async () => {
       const params = defaultParams();
       const browserless = start({
