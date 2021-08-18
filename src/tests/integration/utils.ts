@@ -17,6 +17,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   errorAlertURL: null,
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
+  functionEnvVars: [],
   functionEnableIncognitoMode: false,
   functionExternals: ['lighthouse'],
   healthFailureURL: null,

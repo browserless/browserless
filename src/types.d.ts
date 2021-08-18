@@ -86,6 +86,7 @@ export interface IRunHTTP {
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
+  envVars?: string[];
   external?: string[];
 }
 
@@ -159,6 +160,7 @@ export interface IChromeServiceConfiguration {
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
+  functionEnvVars: string[];
   maxMemory: number;
   maxCPU: number;
   keepAlive: boolean;

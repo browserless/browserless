@@ -146,7 +146,10 @@
     "transform": {
       ".(ts)": "ts-jest"
     },
-    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.tsx?$"
+    "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.tsx?$",
+    "setupFiles": [
+      "<rootDir>/tests/jest/setEnvVars.js"
+    ]
   },
   "snyk": true
 }
