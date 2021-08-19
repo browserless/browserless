@@ -1,12 +1,9 @@
-import _ from 'lodash';
 import q from 'queue';
 
-import { overloaded } from './hardware-monitoring';
-import * as util from './utils';
-
-import { IJob, IQueueConfig } from './types';
-
 import { PRE_REQUEST_HEALTH_CHECK } from './config';
+import { overloaded } from './hardware-monitoring';
+import { IJob, IQueueConfig } from './types';
+import * as util from './utils';
 
 export class Queue {
   private queue: q;
@@ -34,7 +31,7 @@ export class Queue {
       this.queue.emit('queued');
     }
 
-    if (!job.hasOwnProperty('timeout')) {
+    if (!Object.prototype.hasOwnProperty.call(job, 'timeout')) {
       const timeout = util.getTimeoutParam(job.req);
 
       if (timeout !== null) {

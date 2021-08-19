@@ -1,14 +1,31 @@
+import path from 'path';
+
 import archiver from 'archiver';
 import bodyParser from 'body-parser';
 import { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
-import path from 'path';
 
+import {
+  after as downloadAfter,
+  before as downloadBefore,
+} from './apis/download';
+import {
+  after as screencastAfter,
+  before as screenCastBefore,
+} from './apis/screencast';
 import * as chromeHelper from './chrome-helper';
 import { MAX_PAYLOAD_SIZE } from './config';
 import { Features } from './features';
 import { PuppeteerProvider } from './puppeteer-provider';
+import {
+  content as contentSchema,
+  fn as fnSchema,
+  pdf as pdfSchema,
+  scrape as scrapeSchema,
+  screenshot as screenshotSchema,
+  stats as statsSchema,
+} from './schemas';
 import swaggerDef from './swagger';
 import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types';
 
@@ -24,28 +41,10 @@ import {
   mkdir,
 } from './utils';
 
-import {
-  content as contentSchema,
-  fn as fnSchema,
-  pdf as pdfSchema,
-  scrape as scrapeSchema,
-  screenshot as screenshotSchema,
-  stats as statsSchema,
-} from './schemas';
-
-import {
-  after as downloadAfter,
-  before as downloadBefore,
-} from './apis/download';
-
-import {
-  after as screencastAfter,
-  before as screenCastBefore,
-} from './apis/screencast';
-
-const version = require('../version.json');
-const protocol = require('../protocol.json');
 const rimraf = require('rimraf');
+
+const protocol = require('../protocol.json');
+const version = require('../version.json');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -544,9 +543,7 @@ export const getRoutes = ({
           return res.status(500).send(err.message);
         }
 
-        return res.sendFile(heapLocation, (_err: Error) =>
-          rimraf(heapLocation, _.noop),
-        );
+        return res.sendFile(heapLocation, () => rimraf(heapLocation, _.noop));
       });
     });
   }

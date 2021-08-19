@@ -1,26 +1,28 @@
+import http from 'http';
+
+import { Socket } from 'net';
+
+import url from 'url';
+
 import cookie from 'cookie';
 import cors from 'cors';
 import express from 'express';
 import promBundle from 'express-prom-bundle';
-import http from 'http';
 import httpProxy from 'http-proxy';
 import _ from 'lodash';
-import { Socket } from 'net';
+
 import client from 'prom-client';
 import request from 'request';
-import url from 'url';
 
+import { getBrowsersRunning } from './chrome-helper';
 import { Features } from './features';
-import * as util from './utils';
-
 import { getMachineStats, overloaded } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
+
 import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { clearTimers } from './scheduler';
-import { WebDriver } from './webdriver-provider';
-import { getBrowsersRunning } from './chrome-helper';
 
 import {
   IBrowserlessOptions,
@@ -29,6 +31,8 @@ import {
   IJob,
   IWebdriverStartHTTP,
 } from './types';
+import * as util from './utils';
+import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
 
@@ -330,12 +334,13 @@ export class BrowserlessServer {
 
       return (this.httpServer = http
         .createServer(async (req, res) => {
-          const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeRequest({ req: reqParsed, res });
+          const beforeResults = await beforeRequest({ req, res });
 
           if (!beforeResults) {
             return;
           }
+
+          const reqParsed = util.parseRequest(req);
 
           // Handle webdriver requests early, which handles it's own auth
           if (util.isWebdriver(req)) {
@@ -372,9 +377,8 @@ export class BrowserlessServer {
           'upgrade',
           util.asyncWsHandler(
             async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-              const reqParsed = util.parseRequest(req);
               const beforeResults = await beforeRequest({
-                req: reqParsed,
+                req,
                 socket,
                 head,
               });
@@ -388,6 +392,8 @@ export class BrowserlessServer {
               if (!beforeResults) {
                 return;
               }
+
+              const reqParsed = util.parseRequest(req);
 
               if (
                 this.config.token &&
@@ -677,8 +683,8 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    const mapToInt = (v?: number | null) => (!!v ? Math.round(v * 100) : v);
-    const mapToDisplay = (v?: number | null) => (!!v ? `${v}%` : v);
+    const mapToInt = (v?: number | null) => (v ? Math.round(v * 100) : v);
+    const mapToDisplay = (v?: number | null) => (v ? `${v}%` : v);
 
     const cpuStats = [cpu, priorMetrics?.cpu].map(mapToInt);
     const memStats = [memory, priorMetrics?.memory].map(mapToInt);

@@ -1,21 +1,30 @@
+import fs from 'fs';
+
+import { IncomingMessage } from 'http';
+
+import net from 'net';
+
+import os from 'os';
+
+import path from 'path';
+
+import url from 'url';
+
+import util from 'util';
+
 import cookie from 'cookie';
 import dbg from 'debug';
 import express from 'express';
-import fs from 'fs';
-import { IncomingMessage } from 'http';
+
 import { Schema } from 'joi';
 import _ from 'lodash';
-import net from 'net';
-import fetch from 'node-fetch';
-import os from 'os';
-import path from 'path';
-import rmrf from 'rimraf';
-import url from 'url';
-import util from 'util';
 
-import { WEBDRIVER_ROUTE } from './constants';
+import fetch from 'node-fetch';
+
+import rmrf from 'rimraf';
 
 import { DEFAULT_BLOCK_ADS, DEFAULT_STEALTH, WORKSPACE_DIR } from './config';
+import { WEBDRIVER_ROUTE } from './constants';
 
 import {
   IWebdriverStartHTTP,
@@ -90,7 +99,7 @@ const readFilesRecursive = async (
   return results;
 };
 
-export const id = (prepend: string = '') =>
+export const id = (prepend = '') =>
   prepend +
   Array.from({ length: prepend ? 32 - prepend.length : 32 }, () =>
     characters.charAt(Math.floor(Math.random() * characters.length)),
@@ -265,7 +274,6 @@ export const normalizeWebdriverStart = async (
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
 
-  let isUsingTempDataDir: boolean;
   let browserlessDataDir: string | null = null;
 
   // First, convert legacy chrome options to W3C spec
@@ -310,7 +318,7 @@ export const normalizeWebdriverStart = async (
   ) as string[];
 
   // Set a temp data dir
-  isUsingTempDataDir = !launchArgs.some((arg: string) =>
+  const isUsingTempDataDir = !launchArgs.some((arg: string) =>
     arg.startsWith('--user-data-dir'),
   );
   browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
@@ -377,6 +385,7 @@ export const normalizeWebdriverStart = async (
   const pauseOnConnect = !!(
     capabilities['browserless.pause'] ?? capabilities['browserless:pause']
   );
+
   const trackingId =
     capabilities['browserless.trackingId'] ??
     capabilities['browserless:trackingId'] ??
@@ -473,7 +482,7 @@ export const getTimeoutParam = (
     req.method === 'POST' &&
     req.url &&
     req.url.includes('webdriver') &&
-    req.hasOwnProperty('body')
+    Object.prototype.hasOwnProperty.call(req, 'body')
       ? _.get(req, ['body', 'desiredCapabilities', 'browserless.timeout'], null)
       : _.get(req, 'parsed.query.timeout', null);
 

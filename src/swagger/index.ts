@@ -1,13 +1,13 @@
-const j2s = require('joi-to-swagger');
-
+import { pdf, content, scrape, screenshot, fn, stats } from '../schemas';
 import { dedent } from '../utils';
-import { liveQueryParams } from './query-params';
+
 import { liveHeaders } from './headers';
 import { httpCodes, liveAPICodes } from './http-codes';
+import { liveQueryParams } from './query-params';
+
+const j2s = require('joi-to-swagger');
 
 const { version } = require('../../package.json');
-
-import { pdf, content, scrape, screenshot, fn, stats } from '../schemas';
 
 const liveTags = ['Browser API'];
 const managementTags = ['Management API'];

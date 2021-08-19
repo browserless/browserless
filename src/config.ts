@@ -1,7 +1,9 @@
 import fs from 'fs';
+
+import os from 'os';
+
 import debug from 'debug';
 import _ from 'lodash';
-import os from 'os';
 import untildify from 'untildify';
 
 import { Features, isFeature } from './features';
@@ -37,7 +39,7 @@ const getDisabledFeatures = () => {
       `Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(
         Features,
       )
-        .map(([_, v]) => v)
+        .map(([, v]) => v)
         .join(',')}]`,
     );
   });
@@ -78,7 +80,7 @@ const parseNumber = (
   return parsed;
 };
 
-const parseSocketBehavior = (behavior: string = 'http'): 'http' | 'close' => {
+const parseSocketBehavior = (behavior = 'http'): 'http' | 'close' => {
   if (behavior !== 'http' && behavior !== 'close') {
     console.warn(
       `Unknown socket behavior of "${behavior}" passed in, using "http"`,

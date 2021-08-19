@@ -1,11 +1,16 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+
+import { IncomingMessage, ServerResponse } from 'http';
+
+import net from 'net';
+
+import url from 'url';
+
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
-import { IncomingMessage, ServerResponse } from 'http';
-import net from 'net';
+
 import puppeteer from 'puppeteer';
-import url from 'url';
 
 export interface IChromeDriver {
   port: number;
@@ -63,6 +68,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   playwrightProxy?: LaunchOptions['proxy'];
   playwright: boolean;
   stealth: boolean;
+  meta: unknown;
 }
 
 export interface IBefore {
@@ -168,12 +174,6 @@ export interface IChromeServiceConfiguration {
   enableCors: boolean;
   singleRun: boolean;
   token: string | null;
-}
-
-export interface IBefore {
-  page: puppeteer.Page;
-  code: string;
-  debug: (message: string) => void;
 }
 
 export interface IAfter {
@@ -309,22 +309,24 @@ export interface IDevtoolsJSON {
 }
 
 export interface IBeforeHookRequest {
-  req: IHTTPRequest;
+  req: IncomingMessage;
   res?: ServerResponse;
   socket?: net.Socket;
   head?: Buffer;
 }
 
 export interface IAfterHookResponse {
-  req: IHTTPRequest | IWebdriverStartHTTP;
+  req: IncomingMessage | IWebdriverStartHTTP;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }
 
 export interface IBrowserHook {
   browser: IBrowser;
+  meta: unknown;
 }
 
 export interface IPageHook {
   page: puppeteer.Page;
+  meta: unknown;
 }

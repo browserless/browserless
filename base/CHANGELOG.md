@@ -1,6 +1,7 @@
+# 1.11.0
+- Dependency updates
 # 1.9.0
 - Node version update
-
 # 1.8.0
 - Better layers and compressions
 - Bump Node

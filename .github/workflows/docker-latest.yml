@@ -1,4 +1,4 @@
-name: Chrome Edge CI
+name: Chromium CI
 
 on: [pull_request]
 

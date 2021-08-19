@@ -29,7 +29,8 @@
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "npm run external && npm run symlink-chrome && npm run meta",
     "snyk-protect": "snyk protect",
-    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'"
+    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'",
+    "lint": "eslint src --ext .ts --fix"
   },
   "puppeteerVersions": {
     "puppeteer-1.20.0": {
@@ -134,7 +135,11 @@
   "devDependencies": {
     "env-cmd": "^10.0.0",
     "prettier": "^2.2.1",
-    "simple-git-hooks": "^2.2.0"
+    "simple-git-hooks": "^2.2.0",
+    "@typescript-eslint/eslint-plugin": "^4.29.0",
+    "@typescript-eslint/parser": "^4.29.0",
+    "eslint": "^7.32.0",
+    "eslint-plugin-import": "^2.24.0"
   },
   "jest": {
     "testEnvironment": "node",
