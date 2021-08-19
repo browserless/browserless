@@ -309,14 +309,14 @@ export interface IDevtoolsJSON {
 }
 
 export interface IBeforeHookRequest {
-  req: IHTTPRequest;
+  req: IncomingMessage;
   res?: ServerResponse;
   socket?: net.Socket;
   head?: Buffer;
 }
 
 export interface IAfterHookResponse {
-  req: IHTTPRequest | IWebdriverStartHTTP;
+  req: IncomingMessage | IWebdriverStartHTTP;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }

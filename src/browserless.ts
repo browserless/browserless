@@ -330,12 +330,13 @@ export class BrowserlessServer {
 
       return (this.httpServer = http
         .createServer(async (req, res) => {
-          const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeRequest({ req: reqParsed, res });
+          const beforeResults = await beforeRequest({ req, res });
 
           if (!beforeResults) {
             return;
           }
+
+          const reqParsed = util.parseRequest(req);
 
           // Handle webdriver requests early, which handles it's own auth
           if (util.isWebdriver(req)) {
@@ -372,9 +373,8 @@ export class BrowserlessServer {
           'upgrade',
           util.asyncWsHandler(
             async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-              const reqParsed = util.parseRequest(req);
               const beforeResults = await beforeRequest({
-                req: reqParsed,
+                req,
                 socket,
                 head,
               });
@@ -388,6 +388,8 @@ export class BrowserlessServer {
               if (!beforeResults) {
                 return;
               }
+
+              const reqParsed = util.parseRequest(req);
 
               if (
                 this.config.token &&
