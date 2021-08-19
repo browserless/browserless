@@ -15,6 +15,7 @@ const getArgs = (overrides = {}) => ({
   userDataDir: undefined,
   playwright: false,
   stealth: false,
+  meta: null,
   ...overrides,
 });
 
