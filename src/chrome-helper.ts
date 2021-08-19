@@ -136,6 +136,7 @@ const setupPage = async ({
   blockAds,
   trackingId,
   windowSize,
+  meta,
 }: {
   browser: IBrowser;
   page: puppeteer.Page;
@@ -143,6 +144,7 @@ const setupPage = async ({
   blockAds: boolean;
   trackingId: string | null;
   windowSize?: IWindowSize;
+  meta: unknown;
 }) => {
   const page = pptrPage as IPage;
 
@@ -153,7 +155,7 @@ const setupPage = async ({
   const client = _.get(page, '_client', _.noop);
   const id = _.get(page, '_target._targetId', 'Unknown');
 
-  await pageHook({ page });
+  await pageHook({ page, meta });
 
   debug(`Setting up page ${id}`);
 
@@ -236,6 +238,7 @@ const setupBrowser = async ({
   process,
   windowSize,
   browserServer,
+  meta,
 }: {
   browser: puppeteer.Browser;
   browserWSEndpoint: string;
@@ -249,6 +252,7 @@ const setupBrowser = async ({
   windowSize?: IWindowSize;
   prebooted: boolean;
   browserServer: BrowserServer | puppeteer.Browser;
+  meta: unknown;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
   const browser = pptrBrowser as IBrowser;
@@ -271,7 +275,7 @@ const setupBrowser = async ({
   browser._wsEndpoint = browserWSEndpoint;
   browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
-  await browserHook({ browser });
+  await browserHook({ browser, meta });
 
   browser._browserProcess.once('exit', (code, signal) => {
     debug(
@@ -293,6 +297,7 @@ const setupBrowser = async ({
           blockAds: browser._blockAds,
           pauseOnConnect: browser._pauseOnConnect,
           trackingId: browser._trackingId,
+          meta,
         });
       }
     } catch (error) {
@@ -316,6 +321,7 @@ const setupBrowser = async ({
         pauseOnConnect,
         trackingId,
         windowSize,
+        meta,
       }),
     );
   }
@@ -336,6 +342,7 @@ export const defaultLaunchArgs = {
   userDataDir: DEFAULT_USER_DATA_DIR,
   playwright: false,
   stealth: DEFAULT_STEALTH,
+  meta: null,
 };
 
 /*
@@ -477,6 +484,7 @@ export const convertUrlParamsToLaunchOpts = (
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
+    meta: urlParts,
   };
 };
 
@@ -583,6 +591,7 @@ export const launchChrome = async (
       windowSize: undefined,
       prebooted: isPreboot,
       browserServer,
+      meta: opts.meta,
     }),
   );
 };
@@ -635,6 +644,7 @@ export const launchChromeDriver = async ({
             trackingId,
             windowSize,
             browserServer: browser,
+            meta: null,
           });
         }
 

@@ -68,6 +68,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   playwrightProxy?: LaunchOptions['proxy'];
   playwright: boolean;
   stealth: boolean;
+  meta: unknown;
 }
 
 export interface IBefore {
@@ -322,8 +323,10 @@ export interface IAfterHookResponse {
 
 export interface IBrowserHook {
   browser: IBrowser;
+  meta: unknown;
 }
 
 export interface IPageHook {
   page: puppeteer.Page;
+  meta: unknown;
 }

@@ -385,6 +385,7 @@ export const normalizeWebdriverStart = async (
   const pauseOnConnect = !!(
     capabilities['browserless.pause'] ?? capabilities['browserless:pause']
   );
+
   const trackingId =
     capabilities['browserless.trackingId'] ??
     capabilities['browserless:trackingId'] ??
