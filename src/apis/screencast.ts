@@ -1,8 +1,10 @@
 import path from 'path';
-import { after as downloadAfter } from './download';
-import { id, mkdir } from '../utils';
+
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types';
+import { id, mkdir } from '../utils';
+
+import { after as downloadAfter } from './download';
 
 export const before = async ({ page, code, debug, browser }: IBefore) => {
   // @ts-ignore reaching into private methods
@@ -130,7 +132,9 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
           screencastAPI,
           data,
         );
-        client.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+        client
+          .send('Page.screencastFrameAck', { sessionId })
+          .catch(() => undefined);
       },
     );
   };
@@ -169,9 +173,9 @@ export const after = async ({
   code: string;
   stopScreencast: () => Promise<void>;
   downloadPath: string;
-  debug: (...args: string[]) => {};
+  debug: (...args: string[]) => any;
   res: any;
-  done: (errBack?: Error | null) => {};
+  done: (errBack?: Error | null) => any;
 }) => {
   if (!code.includes('stopScreencast')) {
     await stopScreencast();

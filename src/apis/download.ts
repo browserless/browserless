@@ -1,5 +1,6 @@
-import { noop } from 'lodash';
 import path from 'path';
+
+import { noop } from 'lodash';
 import { Page } from 'puppeteer';
 import rimraf from 'rimraf';
 
@@ -29,9 +30,9 @@ export const after = async ({
   done,
 }: {
   downloadPath: string;
-  debug: (...args: string[]) => {};
+  debug: (...args: string[]) => any;
   res: any;
-  done: (errBack?: Error | null) => {};
+  done: (errBack?: Error | null) => any;
 }) => {
   debug(`Waiting for download to finish in ${downloadPath}`);
 

@@ -1,15 +1,13 @@
-import _ from 'lodash';
 import net from 'net';
+
+import _ from 'lodash';
 import { NodeVM } from 'vm2';
 
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
+import { PLAYWRIGHT_ROUTE } from './constants';
 import { EventArray } from './event-array';
 import { Queue } from './queue';
-import * as utils from './utils';
-
-import { PLAYWRIGHT_ROUTE } from './constants';
-
 import {
   IChromeServiceConfiguration,
   ILaunchOptions,
@@ -19,6 +17,7 @@ import {
   IJob,
   IHTTPRequest,
 } from './types';
+import * as utils from './utils';
 
 const sysdebug = utils.getDebug('system');
 const jobdebug = utils.getDebug('job');
@@ -166,7 +165,7 @@ export class PuppeteerProvider {
         external,
         root: './node_modules',
       },
-      env: _.pick(process.env, envVars)
+      env: _.pick(process.env, envVars),
     });
 
     const handler: (args: any) => Promise<any> = vm.run(
@@ -277,7 +276,7 @@ export class PuppeteerProvider {
               if (headers) {
                 Object.keys(headers).forEach((key) => {
                   const hasValue =
-                    headers.hasOwnProperty(key) &&
+                    Object.prototype.hasOwnProperty.call(headers, key) &&
                     headers[key] !== null &&
                     headers[key] !== undefined &&
                     headers[key] !== '';

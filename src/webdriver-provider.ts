@@ -4,14 +4,13 @@ import {
   ServerResponse,
   ClientRequest,
 } from 'http';
+
 import httpProxy from 'http-proxy';
 import _ from 'lodash';
 import kill from 'tree-kill';
 
 import * as chromeHelper from './chrome-helper';
 import { Queue } from './queue';
-import { getDebug } from './utils';
-
 import {
   IChromeDriver,
   IBrowserlessStats,
@@ -22,6 +21,7 @@ import {
   IDone,
   IJob,
 } from './types';
+import { getDebug } from './utils';
 
 const debug = getDebug('webdriver');
 
@@ -165,7 +165,7 @@ export class WebDriver {
       },
       {
         browser: null,
-        close: () => {},
+        close: () => undefined,
         id: '',
         req,
         start: Date.now(),

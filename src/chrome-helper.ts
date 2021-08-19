@@ -1,40 +1,24 @@
 import { ChildProcess } from 'child_process';
+
+// @ts-ignore no types
+import path from 'path';
+
+import { ParsedUrlQuery } from 'querystring';
+
+import { Transform } from 'stream';
+
+import url from 'url';
+
 // @ts-ignore no types
 import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
-import path from 'path';
+import { chromium, BrowserServer } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { ParsedUrlQuery } from 'querystring';
-import { Transform } from 'stream';
+
 import treeKill from 'tree-kill';
-import url from 'url';
-import { chromium, BrowserServer } from 'playwright-core';
-
-import { Features } from './features';
-import { browserHook, pageHook } from './hooks';
-import {
-  fetchJson,
-  getDebug,
-  getUserDataDir,
-  injectHostIntoSession,
-  rimraf,
-  sleep,
-} from './utils';
-
-import {
-  IBrowser,
-  IBrowserlessSessionOptions,
-  ILaunchOptions,
-  IWindowSize,
-  ISession,
-  IChromeDriver,
-  IHTTPRequest,
-  IDevtoolsJSON,
-  IPage,
-} from './types';
 
 import {
   ALLOW_FILE_PROTOCOL,
@@ -53,8 +37,28 @@ import {
   PROXY_URL,
   WORKSPACE_DIR,
 } from './config';
-
 import { PLAYWRIGHT_ROUTE } from './constants';
+import { Features } from './features';
+import { browserHook, pageHook } from './hooks';
+import {
+  IBrowser,
+  IBrowserlessSessionOptions,
+  ILaunchOptions,
+  IWindowSize,
+  ISession,
+  IChromeDriver,
+  IHTTPRequest,
+  IDevtoolsJSON,
+  IPage,
+} from './types';
+import {
+  fetchJson,
+  getDebug,
+  getUserDataDir,
+  injectHostIntoSession,
+  rimraf,
+  sleep,
+} from './utils';
 
 const debug = getDebug('chrome-helper');
 const {

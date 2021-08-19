@@ -1,4 +1,5 @@
 import path from 'path';
+
 import rimraf from 'rimraf';
 
 import {

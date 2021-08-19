@@ -1,8 +1,8 @@
-import _ from 'lodash';
 import si from 'systeminformation';
-import { getDebug } from './utils';
-import { IResourceLoad } from './types';
+
 import { MAX_CPU_PERCENT, MAX_MEMORY_PERCENT } from './config';
+import { IResourceLoad } from './types';
+import { getDebug } from './utils';
 
 const log = getDebug('hardware');
 

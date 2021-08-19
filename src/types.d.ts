@@ -1,11 +1,16 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+
+import { IncomingMessage, ServerResponse } from 'http';
+
+import net from 'net';
+
+import url from 'url';
+
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
-import { IncomingMessage, ServerResponse } from 'http';
-import net from 'net';
+
 import puppeteer from 'puppeteer';
-import url from 'url';
 
 export interface IChromeDriver {
   port: number;
@@ -168,12 +173,6 @@ export interface IChromeServiceConfiguration {
   enableCors: boolean;
   singleRun: boolean;
   token: string | null;
-}
-
-export interface IBefore {
-  page: puppeteer.Page;
-  code: string;
-  debug: (message: string) => void;
 }
 
 export interface IAfter {
