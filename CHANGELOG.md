@@ -1,7 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.46.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.47.0...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+# [v1.47.0](https://github.com/browserless/chrome/compare/v1.46.0...v1.47.0)
+- Dependency updates.
+- Bump `browserless/base` to `1.11.0`.
+- Add new lint task and rename GitHub actions tasks, remove `tslint`.
+- Lint and prettier fixes.
+- Delay url parsing until after `before` hook runs.
+- New `meta` object param for page hooks (passing through arbitrary meta data set by prior hooks).
+- New `FUNCTION_ENV_VARS` environment variable pass through an allow-list of environment variables for functions to access.
+- Fix `someObject.hasOwnProperty` to `Object.prototype.hasOwnProperty.call`.
+-
+
+# [v1.46.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
 - Dependency updates.
 - Move to Node 16.x.x.
 - Bump browserless/base to 1.10.0.
