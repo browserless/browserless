@@ -17,7 +17,7 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.kill();
   });
 
-  it.skip('runs concurrently', async (done) => {
+  it.skip('runs concurrently', async () => new Promise(async (r) => {
     const params = defaultParams();
     const browserless = await start({
       ...params,
@@ -41,12 +41,12 @@ describe('Browserless Chrome WebSockets', () => {
       expect(browserless.currentStat.successful).toEqual(2);
       expect(browserless.currentStat.rejected).toEqual(0);
       expect(browserless.currentStat.queued).toEqual(0);
-      done();
+      r(null);
     });
 
     job();
     job();
-  });
+  }));
 
   it('runs with no timeouts', async () =>
     new Promise(async (done) => {
