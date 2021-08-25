@@ -1,5 +1,7 @@
 FROM ubuntu:20.04
 
+ARG BLESS_USER_ID=999
+
 COPY fonts.conf /etc/fonts/local.conf
 
 # Dependencies + NodeJS
@@ -77,7 +79,7 @@ RUN apt-get -qq update && \
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Add the browserless user (blessuser)
-RUN groupadd -r blessuser && useradd -r -g blessuser -G audio,video blessuser \
+RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser \
   && mkdir -p /home/blessuser/Downloads \
   && chown -R blessuser:blessuser /home/blessuser
 
