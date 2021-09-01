@@ -17,36 +17,37 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.kill();
   });
 
-  it.skip('runs concurrently', async () => new Promise(async (r) => {
-    const params = defaultParams();
-    const browserless = await start({
-      ...params,
-      maxConcurrentSessions: 2,
-    });
-
-    await browserless.startServer();
-
-    const job = async () => {
-      return new Promise(async (resolve) => {
-        const browser = await puppeteer.connect({
-          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
-        });
-
-        browser.on('disconnected', resolve);
-        browser.close();
+  it.skip('runs concurrently', async () =>
+    new Promise(async (r) => {
+      const params = defaultParams();
+      const browserless = await start({
+        ...params,
+        maxConcurrentSessions: 2,
       });
-    };
 
-    browserless.queue.on('end', () => {
-      expect(browserless.currentStat.successful).toEqual(2);
-      expect(browserless.currentStat.rejected).toEqual(0);
-      expect(browserless.currentStat.queued).toEqual(0);
-      r(null);
-    });
+      await browserless.startServer();
 
-    job();
-    job();
-  }));
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser = await puppeteer.connect({
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+          });
+
+          browser.on('disconnected', resolve);
+          browser.close();
+        });
+      };
+
+      browserless.queue.on('end', () => {
+        expect(browserless.currentStat.successful).toEqual(2);
+        expect(browserless.currentStat.rejected).toEqual(0);
+        expect(browserless.currentStat.queued).toEqual(0);
+        r(null);
+      });
+
+      job();
+      job();
+    }));
 
   it('runs with no timeouts', async () =>
     new Promise(async (done) => {
