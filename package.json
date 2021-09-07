@@ -84,7 +84,6 @@
     "@types/lodash": "^4.14.123",
     "@types/multer": "^1.3.7",
     "@types/node": "^16.4.10",
-    "@types/node-fetch": "^3.0.3",
     "@types/puppeteer": "^5.4.0",
     "@types/request": "^2.48.2",
     "@types/rimraf": "^3.0.0",
@@ -133,13 +132,13 @@
     "vm2": "^3.9.1"
   },
   "devDependencies": {
-    "env-cmd": "^10.0.0",
-    "prettier": "^2.2.1",
-    "simple-git-hooks": "^2.2.0",
     "@typescript-eslint/eslint-plugin": "^4.29.0",
     "@typescript-eslint/parser": "^4.29.0",
+    "env-cmd": "^10.0.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-import": "^2.24.0"
+    "eslint-plugin-import": "^2.24.0",
+    "prettier": "^2.2.1",
+    "simple-git-hooks": "^2.2.0"
   },
   "jest": {
     "testEnvironment": "node",

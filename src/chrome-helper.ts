@@ -568,7 +568,7 @@ export const launchChrome = async (
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
-  ).catch((e) => {
+  ).catch((e: Error) => {
     browserServer.close();
     throw e;
   });

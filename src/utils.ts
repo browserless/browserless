@@ -5,20 +5,16 @@ import { IncomingMessage } from 'http';
 import net from 'net';
 
 import os from 'os';
-
 import path from 'path';
-
 import url from 'url';
-
 import util from 'util';
 
 import cookie from 'cookie';
 import dbg from 'debug';
 import express from 'express';
-
 import { Schema } from 'joi';
 import _ from 'lodash';
-
+// @ts-ignore no types anymore :/
 import fetch from 'node-fetch';
 
 import rmrf from 'rimraf';
@@ -243,7 +239,7 @@ export const isAuthorized = (req: IHTTPRequest, token: string) => {
 };
 
 export const fetchJson = (url: string, opts?: any) =>
-  fetch(url, opts).then((res) => {
+  fetch(url, opts).then((res: any) => {
     if (!res.ok) {
       throw res;
     }
