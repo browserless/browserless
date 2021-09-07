@@ -1,5 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.47.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.48.0...master)
 - Dependency updates.
+
+# [v1.48.0](https://github.com/browserless/chrome/compare/v1.47.0...v1.48.0)
+**Potentially Breaking**
+- API calls with `html` in their payloads now use the `page.setContent` API versus a prior hack using one-time network-request interception ([example here](https://github.com/browserless/chrome/compare/v1.47.0...master#diff-67b699af1b24472604e21081d0509620d4ab3d986fcd4f8aa0b04d5ee5e4c63fL88)). Old versions of puppeteer might not work properly with this (<= 5.x.x). This effects the following APIS: `/content`, `/pdf` and `/screenshot`.
+---
+- Dependency updates.
+- Bump `browserless/base` to `1.12.0` (add user-id to `blessuser` of `BLESS_USER_ID=999`).
+- Bumps puppeteer @10.x.x to `10.2.0` with revision `901912`.
+- Makes API calls use `setContent` properly now (no more one-time network interception). This fixes certain issues with images not loading in PDFs and screenshots.
+- Fix some typings in tests.
 
 # [v1.47.0](https://github.com/browserless/chrome/compare/v1.46.0...v1.47.0)
 - Dependency updates.
