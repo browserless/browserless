@@ -2,18 +2,26 @@ import fs from 'fs';
 import path from 'path';
 
 import { Router } from 'express';
+import puppeteer from 'puppeteer';
 
 import {
   IBrowserHook,
   IPageHook,
   IBeforeHookRequest,
   IAfterHookResponse,
+  ILaunchOptions,
 } from './types';
 
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
 const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
 const browserSetupPath = path.join(__dirname, '..', 'external', 'browser.js');
 const pageSetupPath = path.join(__dirname, '..', 'external', 'page.js');
+const puppeteerSetupPath = path.join(
+  __dirname,
+  '..',
+  'external',
+  'puppeteer.js',
+);
 const externalRoutesPath = path.join(__dirname, '..', 'external', 'routes.js');
 
 export const beforeRequest: (args: IBeforeHookRequest) => boolean =
@@ -36,3 +44,9 @@ export const pageHook: (opts: IPageHook) => Promise<boolean> = fs.existsSync(
 export const externalRoutes: Router | null = fs.existsSync(externalRoutesPath)
   ? require(externalRoutesPath)
   : null;
+
+export const puppeteerHook: (
+  args: ILaunchOptions,
+) => Promise<typeof puppeteer | null> = fs.existsSync(pageSetupPath)
+  ? require(puppeteerSetupPath)
+  : () => Promise.resolve(null);

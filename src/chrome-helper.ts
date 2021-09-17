@@ -39,7 +39,7 @@ import {
 } from './config';
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
-import { browserHook, pageHook } from './hooks';
+import { browserHook, pageHook, puppeteerHook } from './hooks';
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -551,7 +551,11 @@ export const launchChrome = async (
     `Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`,
   );
 
-  const browserServerPromise = launchArgs.playwright
+  const injectedPuppeteer = await puppeteerHook(opts);
+
+  const browserServerPromise = injectedPuppeteer
+    ? injectedPuppeteer.launch(launchArgs)
+    : launchArgs.playwright
     ? chromium.launchServer({
         ...launchArgs,
         headless: true,
