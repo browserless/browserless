@@ -113,7 +113,7 @@
     "node-fetch": "^2.2.0",
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.9.1",
-    "prom-client": "^13.0.0",
+    "prom-client": "^14.0.0",
     "puppeteer": "^10.0.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.6.5",
