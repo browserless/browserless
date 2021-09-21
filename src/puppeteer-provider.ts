@@ -6,7 +6,6 @@ import { NodeVM } from 'vm2';
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
 import { PLAYWRIGHT_ROUTE } from './constants';
-import { EventArray } from './event-array';
 import { Queue } from './queue';
 import {
   IChromeServiceConfiguration,
@@ -26,7 +25,6 @@ const jobdetaildebug = utils.getDebug('jobdetail');
 export class PuppeteerProvider {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
-  private chromeSwarm: EventArray;
   private queue: Queue;
 
   constructor(
@@ -37,44 +35,10 @@ export class PuppeteerProvider {
     this.config = config;
     this.server = server;
     this.queue = queue;
-
-    this.chromeSwarm = new EventArray();
   }
 
   get keepChromeInstance() {
-    return (
-      this.config.keepAlive &&
-      this.config.prebootChrome &&
-      this.chromeSwarm.length < this.queue.concurrencySize
-    );
-  }
-
-  public async start() {
-    if (this.config.prebootChrome) {
-      sysdebug(
-        `Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`,
-      );
-
-      if (this.config.maxConcurrentSessions > 10) {
-        process.setMaxListeners(this.config.maxConcurrentSessions + 3);
-      }
-
-      const launching = Array.from(
-        { length: this.config.maxConcurrentSessions },
-        () => {
-          const chrome = this.launchChrome(
-            chromeHelper.defaultLaunchArgs,
-            true,
-          );
-          this.chromeSwarm.push(chrome);
-          return chrome;
-        },
-      );
-
-      return Promise.all(launching);
-    }
-
-    return Promise.resolve();
+    return this.config.keepAlive && this.config.prebootChrome;
   }
 
   public proxyWebRequestToPort({
@@ -203,7 +167,8 @@ export class PuppeteerProvider {
           ignoreDefaultArgs,
         };
 
-        this.getChrome(launchOpts)
+        chromeHelper
+          .getChrome(launchOpts)
           .then(async (browser) => {
             jobdetaildebug(`${job.id}: Executing function.`);
 
@@ -401,7 +366,7 @@ export class PuppeteerProvider {
     // If debug code is submitted, sandbox it in
     // its own process to prevent infinite/runaway scripts
     const handler = (done: IDone) => {
-      const launchPromise = this.getChrome(opts);
+      const launchPromise = chromeHelper.getChrome(opts);
       jobdebug(`${job.id}: Getting browser.`);
 
       const doneOnce = _.once((err) => {
@@ -494,10 +459,6 @@ export class PuppeteerProvider {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job: IJob) => job.close && job.close()),
-      ...this.chromeSwarm.map(async (instance) => {
-        const browser = await instance;
-        await chromeHelper.closeBrowser(browser);
-      }),
       this.queue.removeAllListeners(),
     ]);
     sysdebug(`Kill complete.`);
@@ -514,16 +475,6 @@ export class PuppeteerProvider {
           resolve(null);
         });
       });
-    }
-
-    if (this.chromeSwarm.length) {
-      sysdebug('Instances of chrome in swarm, closing');
-      await Promise.all(
-        this.chromeSwarm.map(async (instance) => {
-          const browser = await instance;
-          await chromeHelper.closeBrowser(browser);
-        }),
-      );
     }
 
     return Promise.resolve();
@@ -554,28 +505,7 @@ export class PuppeteerProvider {
       await chromeHelper.closeBrowser(browser);
 
       jobdebug(`${job.id}: Browser cleanup complete.`);
-
-      if (this.config.prebootChrome && browser._prebooted) {
-        sysdebug(`Adding to Chrome swarm`);
-        return this.chromeSwarm.push(
-          this.launchChrome(chromeHelper.defaultLaunchArgs, true),
-        );
-      }
     };
-
-    if (this.keepChromeInstance) {
-      const timeAlive = Date.now() - browser._startTime;
-      jobdebug(`${job.id}: Browser has been alive for ${timeAlive}ms`);
-
-      if (timeAlive <= this.config.chromeRefreshTime) {
-        jobdebug(`${job.id}: Pushing browser back into swarm, clearing pages`);
-        const [blank, ...pages] = await browser.pages();
-        pages.forEach((page) => page.close());
-        blank && blank.goto('about:blank');
-        jobdebug(`${job.id}: Cleanup done, pushing into swarm.`);
-        return this.chromeSwarm.push(Promise.resolve(browser));
-      }
-    }
 
     // If it's marked as "keepalive", set a timer to kill it, and if we
     // see it again reset that timer, otherwise proceed with closing.
@@ -592,44 +522,6 @@ export class PuppeteerProvider {
     }
 
     closeChrome();
-  }
-
-  private async getChrome(opts: ILaunchOptions): Promise<IBrowser> {
-    const browser: Promise<IBrowser> = new Promise(async (resolve) => {
-      const canUseChromeSwarm =
-        this.config.prebootChrome &&
-        utils.canPreboot(opts, chromeHelper.defaultLaunchArgs);
-
-      sysdebug(`Using pre-booted chrome: ${canUseChromeSwarm}`);
-
-      if (!canUseChromeSwarm) {
-        resolve(this.launchChrome(opts, false));
-        return;
-      }
-
-      if (!this.chromeSwarm.length) {
-        sysdebug(`Waiting for chrome instance to be added back`);
-        this.chromeSwarm.once('push', async () => {
-          sysdebug(`Got chrome instance in swarm`);
-          const browser = this.chromeSwarm.shift() as IBrowser;
-          resolve(browser);
-        });
-        return;
-      }
-
-      const browser = this.chromeSwarm.shift();
-      resolve(browser);
-      return;
-    });
-
-    return browser.then((browser) => {
-      browser._trackingId = opts.trackingId || null;
-      browser._keepalive = opts.keepalive || null;
-      browser._blockAds = opts.blockAds;
-      browser._pauseOnConnect = opts.pauseOnConnect;
-
-      return browser;
-    });
   }
 
   private async launchChrome(

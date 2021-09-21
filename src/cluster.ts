@@ -1,15 +1,13 @@
-type Unwrapped<T> =
-  T extends Promise<infer U> ? U :
-  T;
+type Unwrapped<T> = T extends Promise<infer U> ? U : T;
 
-export class Cluster <
+export class Cluster<
   T extends () => Promise<any>,
   V = Unwrapped<ReturnType<T>>,
 > {
   private generator: T;
   private quantity: number;
   private items: V[];
-  private addListeners: (((items: V) => void))[]
+  private addListeners: ((items: V) => void)[];
 
   constructor(generator: T, quantity: number) {
     this.generator = generator;
@@ -32,8 +30,9 @@ export class Cluster <
   };
 
   public start = async () => {
-    await Promise.all([...new Array(this.quantity)].map(() => this.generator()))
-      .then((items) => this.items = items);
+    await Promise.all(
+      [...new Array(this.quantity)].map(() => this.generator()),
+    ).then((items) => (this.items = items));
 
     if (this.addListeners.length) {
       const runQuantity = Math.min(this.items.length, this.addListeners.length);
@@ -65,9 +64,9 @@ export class Cluster <
     const item = await this.generator();
 
     this.addNewItem(item);
-  }
+  };
 
   public add = (item: Unwrapped<ReturnType<T>>) => {
     this.addNewItem(item);
-  }
+  };
 }

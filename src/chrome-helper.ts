@@ -20,6 +20,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 import treeKill from 'tree-kill';
 
+import { Cluster } from './cluster';
 import {
   ALLOW_FILE_PROTOCOL,
   DEFAULT_BLOCK_ADS,
@@ -33,8 +34,10 @@ import {
   DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
   DISABLED_FEATURES,
   HOST,
+  MAX_CONCURRENT_SESSIONS,
   PORT,
   PROXY_URL,
+  PREBOOT_CHROME,
   WORKSPACE_DIR,
 } from './config';
 import { PLAYWRIGHT_ROUTE } from './constants';
@@ -51,7 +54,9 @@ import {
   IDevtoolsJSON,
   IPage,
 } from './types';
+
 import {
+  canPreboot,
   fetchJson,
   getDebug,
   getUserDataDir,
@@ -76,6 +81,25 @@ const BROWSERLESS_ARGS = [
 ];
 
 const blacklist = require('../hosts.json');
+
+const swarm = PREBOOT_CHROME
+  ? new Cluster(
+      () => launchChrome(defaultLaunchArgs, true),
+      MAX_CONCURRENT_SESSIONS,
+    )
+  : null;
+
+export const getChrome = async (opts: ILaunchOptions) => {
+  if (swarm) {
+    const usePreboot = canPreboot(opts, defaultLaunchArgs);
+
+    if (usePreboot) {
+      return swarm.get();
+    }
+  }
+
+  return launchChrome(opts, false);
+};
 
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
