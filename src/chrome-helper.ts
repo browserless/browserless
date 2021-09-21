@@ -34,6 +34,7 @@ import {
   DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
   DISABLED_FEATURES,
   HOST,
+  KEEP_ALIVE,
   MAX_CONCURRENT_SESSIONS,
   PORT,
   PROXY_URL,
@@ -713,14 +714,14 @@ export const closeBrowser = (browser: IBrowser) => {
     return;
   }
 
-  browser._isOpen = false;
   debug(`Shutting down browser with close command`);
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
-    runningBrowsers = runningBrowsers.filter(
-      (b) => b._wsEndpoint !== browser._wsEndpoint,
-    );
+
+    if (KEEP_ALIVE && browser._prebooted) {
+      return swarm?.add(browser);
+    }
 
     /*
      * IMPORTANT
@@ -737,6 +738,7 @@ export const closeBrowser = (browser: IBrowser) => {
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
+      browser._isOpen = false;
       browser._browserServer.close();
 
       if (browser._browserProcess.pid) {
@@ -747,6 +749,10 @@ export const closeBrowser = (browser: IBrowser) => {
         removeDataDir(browser._browserlessDataDir);
       }
 
+      runningBrowsers = runningBrowsers.filter(
+        (b) => b._wsEndpoint !== browser._wsEndpoint,
+      );
+
       browser._pages.forEach((page) => {
         page.removeAllListeners();
         // @ts-ignore force any garbage collection by nulling the page(s)
@@ -755,6 +761,8 @@ export const closeBrowser = (browser: IBrowser) => {
       browser.removeAllListeners();
       // @ts-ignore force any garbage collection by nulling the browser
       browser = null;
+
+      swarm?.create();
     });
   }
 };
