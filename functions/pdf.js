@@ -133,9 +133,10 @@ module.exports = async function pdf({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
-  const response = url !== null ?
-    await page.goto(url, gotoOptions) :
-    await page.setContent(html, gotoOptions);
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
