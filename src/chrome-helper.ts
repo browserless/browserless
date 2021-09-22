@@ -20,9 +20,9 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 import treeKill from 'tree-kill';
 
-import { Cluster } from './cluster';
 import {
   ALLOW_FILE_PROTOCOL,
+  CHROME_REFRESH_TIME,
   DEFAULT_BLOCK_ADS,
   DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
@@ -44,6 +44,7 @@ import {
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook } from './hooks';
+import { Swarm } from './swarm';
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -82,25 +83,6 @@ const BROWSERLESS_ARGS = [
 ];
 
 const blacklist = require('../hosts.json');
-
-const swarm = PREBOOT_CHROME
-  ? new Cluster(
-      () => launchChrome(defaultLaunchArgs, true),
-      MAX_CONCURRENT_SESSIONS,
-    )
-  : null;
-
-export const getChrome = async (opts: ILaunchOptions) => {
-  if (swarm) {
-    const usePreboot = canPreboot(opts, defaultLaunchArgs);
-
-    if (usePreboot) {
-      return swarm.get();
-    }
-  }
-
-  return launchChrome(opts, false);
-};
 
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
@@ -709,7 +691,26 @@ export const kill = (id: string) => {
   return null;
 };
 
-export const closeBrowser = (browser: IBrowser) => {
+const swarm = PREBOOT_CHROME
+  ? new Swarm(
+      () => launchChrome(defaultLaunchArgs, true),
+      MAX_CONCURRENT_SESSIONS,
+    )
+  : null;
+
+export const getChrome = async (opts: ILaunchOptions) => {
+  if (swarm) {
+    const usePreboot = canPreboot(opts, defaultLaunchArgs);
+
+    if (usePreboot) {
+      return swarm.get();
+    }
+  }
+
+  return launchChrome(opts, false);
+};
+
+export const closeBrowser = async (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
@@ -718,10 +719,6 @@ export const closeBrowser = (browser: IBrowser) => {
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
-
-    if (KEEP_ALIVE && browser._prebooted) {
-      return swarm?.add(browser);
-    }
 
     /*
      * IMPORTANT
@@ -732,12 +729,28 @@ export const closeBrowser = (browser: IBrowser) => {
      */
     process.removeAllListeners('exit');
   } catch (error) {
-    debug(`Browser close emitted an error ${error.message}`);
+    debug(`Browser cleanup emitted an error ${error.message}`);
   } finally {
-    process.nextTick(() => {
+    process.nextTick(async () => {
+      if (KEEP_ALIVE && browser._prebooted) {
+        const timeAlive = Date.now() - browser._startTime;
+        debug(`Browser has been alive for ${timeAlive}ms`);
+
+        if (timeAlive <= CHROME_REFRESH_TIME) {
+          debug(`Pushing browser back into swarm, clearing pages`);
+          const [blank, ...pages] = await browser.pages();
+          pages.forEach((page) => page.close());
+          blank && blank.goto('about:blank');
+          debug(`Cleanup done, pushing into swarm.`);
+          swarm?.add(browser);
+          return;
+        }
+      }
+
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
+
       browser._isOpen = false;
       browser._browserServer.close();
 
@@ -766,3 +779,5 @@ export const closeBrowser = (browser: IBrowser) => {
     });
   }
 };
+
+swarm?.start();

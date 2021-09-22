@@ -1,6 +1,6 @@
 type Unwrapped<T> = T extends Promise<infer U> ? U : T;
 
-export class Cluster<
+export class Swarm<
   T extends () => Promise<any>,
   V = Unwrapped<ReturnType<T>>,
 > {
@@ -16,6 +16,8 @@ export class Cluster<
     this.items = [];
     this.addListeners = [];
   }
+
+  static waitForPropagation = () => new Promise(r => setImmediate(r));
 
   private addNewItem = (item: V): void => {
     if (this.addListeners.length) {
@@ -64,9 +66,13 @@ export class Cluster<
     const item = await this.generator();
 
     this.addNewItem(item);
+
+    return Swarm.waitForPropagation();
   };
 
   public add = (item: Unwrapped<ReturnType<T>>) => {
     this.addNewItem(item);
+
+    return Swarm.waitForPropagation();
   };
 }
