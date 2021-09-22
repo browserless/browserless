@@ -37,10 +37,6 @@ export class PuppeteerProvider {
     this.queue = queue;
   }
 
-  get keepChromeInstance() {
-    return this.config.keepAlive && this.config.prebootChrome;
-  }
-
   public proxyWebRequestToPort({
     req,
     res,
