@@ -1,9 +1,6 @@
 type Unwrapped<T> = T extends Promise<infer U> ? U : T;
 
-export class Swarm<
-  T extends () => Promise<any>,
-  V = Unwrapped<ReturnType<T>>,
-> {
+export class Swarm<T extends () => Promise<any>, V = Unwrapped<ReturnType<T>>> {
   private generator: T;
   private quantity: number;
   private items: V[];
@@ -17,7 +14,7 @@ export class Swarm<
     this.addListeners = [];
   }
 
-  static waitForPropagation = () => new Promise(r => setImmediate(r));
+  static waitForPropagation = () => new Promise((r) => setImmediate(r));
 
   private addNewItem = (item: V): void => {
     if (this.addListeners.length) {
