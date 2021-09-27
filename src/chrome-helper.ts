@@ -719,7 +719,17 @@ export const closeBrowser = async (browser: IBrowser) => {
     return;
   }
 
-  debug(`Shutting down browser with close command`);
+  const timeAlive = Date.now() - browser._startTime;
+  const keepOpen =
+    KEEP_ALIVE && browser._prebooted && timeAlive <= CHROME_REFRESH_TIME;
+
+  browser._isOpen = keepOpen;
+
+  if (!keepOpen) {
+    runningBrowsers = runningBrowsers.filter(
+      (b) => b._wsEndpoint !== browser._wsEndpoint,
+    );
+  }
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
@@ -736,26 +746,23 @@ export const closeBrowser = async (browser: IBrowser) => {
     debug(`Browser cleanup emitted an error ${error.message}`);
   } finally {
     process.nextTick(async () => {
-      if (KEEP_ALIVE && browser._prebooted) {
-        const timeAlive = Date.now() - browser._startTime;
-        debug(`Browser has been alive for ${timeAlive}ms`);
+      if (keepOpen) {
+        debug(
+          `Browser has been alive for ${timeAlive}ms, pushing back into swarm`,
+        );
 
-        if (timeAlive <= CHROME_REFRESH_TIME) {
-          debug(`Pushing browser back into swarm, clearing pages`);
-          const [blank, ...pages] = await browser.pages();
-          pages.forEach((page) => page.close());
-          blank && blank.goto('about:blank');
-          debug(`Cleanup done, pushing into swarm.`);
-          swarm?.add(browser);
-          return;
-        }
+        const [blank, ...pages] = await browser.pages();
+        pages.forEach((page) => page.close());
+        blank && blank.goto('about:blank');
+        debug(`Cleanup done, pushing into swarm.`);
+        swarm?.add(browser);
+        return;
       }
 
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
 
-      browser._isOpen = false;
       browser._browserServer.close();
 
       if (browser._browserProcess.pid) {
@@ -765,10 +772,6 @@ export const closeBrowser = async (browser: IBrowser) => {
       if (browser._browserlessDataDir) {
         removeDataDir(browser._browserlessDataDir);
       }
-
-      runningBrowsers = runningBrowsers.filter(
-        (b) => b._wsEndpoint !== browser._wsEndpoint,
-      );
 
       browser._pages.forEach((page) => {
         page.removeAllListeners();
