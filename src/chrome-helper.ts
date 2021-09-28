@@ -22,6 +22,7 @@ import treeKill from 'tree-kill';
 
 import {
   ALLOW_FILE_PROTOCOL,
+  CHROME_REFRESH_TIME,
   DEFAULT_BLOCK_ADS,
   DEFAULT_DUMPIO,
   DEFAULT_HEADLESS,
@@ -33,13 +34,17 @@ import {
   DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
   DISABLED_FEATURES,
   HOST,
+  KEEP_ALIVE,
+  MAX_CONCURRENT_SESSIONS,
   PORT,
   PROXY_URL,
+  PREBOOT_CHROME,
   WORKSPACE_DIR,
 } from './config';
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
+import { Swarm } from './swarm';
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -51,7 +56,9 @@ import {
   IDevtoolsJSON,
   IPage,
 } from './types';
+
 import {
+  canPreboot,
   fetchJson,
   getDebug,
   getUserDataDir,
@@ -688,19 +695,44 @@ export const kill = (id: string) => {
   return null;
 };
 
-export const closeBrowser = (browser: IBrowser) => {
+const swarm = PREBOOT_CHROME
+  ? new Swarm(
+      () => launchChrome(defaultLaunchArgs, true),
+      MAX_CONCURRENT_SESSIONS,
+    )
+  : null;
+
+export const getChrome = async (opts: ILaunchOptions) => {
+  if (swarm) {
+    const usePreboot = canPreboot(opts, defaultLaunchArgs);
+
+    if (usePreboot) {
+      return swarm.get();
+    }
+  }
+
+  return launchChrome(opts, false);
+};
+
+export const closeBrowser = async (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
 
-  browser._isOpen = false;
-  debug(`Shutting down browser with close command`);
+  const timeAlive = Date.now() - browser._startTime;
+  const keepOpen =
+    KEEP_ALIVE && browser._prebooted && timeAlive <= CHROME_REFRESH_TIME;
 
-  try {
-    browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
+  browser._isOpen = keepOpen;
+
+  if (!keepOpen) {
     runningBrowsers = runningBrowsers.filter(
       (b) => b._wsEndpoint !== browser._wsEndpoint,
     );
+  }
+
+  try {
+    browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
 
     /*
      * IMPORTANT
@@ -711,12 +743,26 @@ export const closeBrowser = (browser: IBrowser) => {
      */
     process.removeAllListeners('exit');
   } catch (error) {
-    debug(`Browser close emitted an error ${error.message}`);
+    debug(`Browser cleanup emitted an error ${error.message}`);
   } finally {
-    process.nextTick(() => {
+    process.nextTick(async () => {
+      if (keepOpen) {
+        debug(
+          `Browser has been alive for ${timeAlive}ms, pushing back into swarm`,
+        );
+
+        const [blank, ...pages] = await browser.pages();
+        pages.forEach((page) => page.close());
+        blank && blank.goto('about:blank');
+        debug(`Cleanup done, pushing into swarm.`);
+        swarm?.add(browser);
+        return;
+      }
+
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
+
       browser._browserServer.close();
 
       if (browser._browserProcess.pid) {
@@ -735,6 +781,10 @@ export const closeBrowser = (browser: IBrowser) => {
       browser.removeAllListeners();
       // @ts-ignore force any garbage collection by nulling the browser
       browser = null;
+
+      swarm?.create();
     });
   }
 };
+
+swarm?.start();
