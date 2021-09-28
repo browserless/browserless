@@ -47,6 +47,6 @@ export const externalRoutes: Router | null = fs.existsSync(externalRoutesPath)
 
 export const puppeteerHook: (
   args: ILaunchOptions,
-) => Promise<typeof puppeteer | null> = fs.existsSync(pageSetupPath)
+) => Promise<typeof puppeteer | null> = fs.existsSync(puppeteerSetupPath)
   ? require(puppeteerSetupPath)
   : () => Promise.resolve(null);
