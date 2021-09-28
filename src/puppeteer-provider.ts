@@ -498,7 +498,7 @@ export class PuppeteerProvider {
 
     const closeChrome = async () => {
       jobdebug(`${job.id}: Browser not needed, closing`);
-      await chromeHelper.closeBrowser(browser);
+      chromeHelper.closeBrowser(browser);
 
       jobdebug(`${job.id}: Browser cleanup complete.`);
     };

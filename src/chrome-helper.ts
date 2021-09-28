@@ -714,7 +714,7 @@ export const getChrome = async (opts: ILaunchOptions) => {
   return launchChrome(opts, false);
 };
 
-export const closeBrowser = async (browser: IBrowser) => {
+export const closeBrowser = (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
