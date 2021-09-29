@@ -53,17 +53,17 @@
       "puppeteer": "9.1.1",
       "chromeRevision": "869685"
     },
-    "puppeteer-10.2.0": {
-      "puppeteer": "10.2.0",
+    "puppeteer-10.4.0": {
+      "puppeteer": "10.4.0",
       "chromeRevision": "901912"
     },
     "chrome-stable": {
-      "puppeteer": "10.2.0",
+      "puppeteer": "10.4.0",
       "chromeRevision": "901912"
     }
   },
   "releaseVersions": [
-    "puppeteer-10.2.0",
+    "puppeteer-10.4.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
     "puppeteer-5.4.1",
@@ -114,7 +114,7 @@
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.9.1",
     "prom-client": "^14.0.0",
-    "puppeteer": "^10.0.0",
+    "puppeteer": "^10.4.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",
@@ -133,13 +133,13 @@
     "vm2": "^3.9.1"
   },
   "devDependencies": {
-    "env-cmd": "^10.0.0",
-    "prettier": "^2.2.1",
-    "simple-git-hooks": "^2.2.0",
     "@typescript-eslint/eslint-plugin": "^4.29.0",
     "@typescript-eslint/parser": "^4.29.0",
+    "env-cmd": "^10.0.0",
     "eslint": "^7.32.0",
-    "eslint-plugin-import": "^2.24.0"
+    "eslint-plugin-import": "^2.24.0",
+    "prettier": "^2.2.1",
+    "simple-git-hooks": "^2.2.0"
   },
   "jest": {
     "testEnvironment": "node",
