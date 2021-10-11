@@ -136,7 +136,7 @@
     "@typescript-eslint/eslint-plugin": "^4.29.0",
     "@typescript-eslint/parser": "^4.29.0",
     "env-cmd": "^10.0.0",
-    "eslint": "^7.32.0",
+    "eslint": "^8.0.0",
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.2.1",
     "simple-git-hooks": "^2.2.0"
