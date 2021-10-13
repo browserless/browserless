@@ -30,7 +30,7 @@ import {
   IDone,
   IJob,
   IWebdriverStartHTTP,
-} from './types';
+} from './types.d';
 import * as util from './utils';
 import { WebDriver } from './webdriver-provider';
 

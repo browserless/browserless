@@ -27,7 +27,7 @@ import {
   stats as statsSchema,
 } from './schemas';
 import swaggerDef from './swagger';
-import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types';
+import { IBrowserlessOptions, IBrowserlessStats, Feature } from './types.d';
 
 import {
   asyncWebHandler,

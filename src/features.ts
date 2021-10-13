@@ -1,4 +1,4 @@
-import { Feature } from './types';
+import { Feature } from './types.d';
 
 export function isFeature(str: string): str is Feature {
   return (

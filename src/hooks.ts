@@ -10,7 +10,7 @@ import {
   IBeforeHookRequest,
   IAfterHookResponse,
   ILaunchOptions,
-} from './types';
+} from './types.d';
 
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
 const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');

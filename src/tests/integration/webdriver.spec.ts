@@ -1,5 +1,5 @@
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../types';
+import { IBrowserlessOptions } from '../../types.d';
 import { sleep } from '../../utils';
 
 import {

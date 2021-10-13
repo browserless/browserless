@@ -20,7 +20,7 @@ import {
   IWebDriverSessions,
   IDone,
   IJob,
-} from './types';
+} from './types.d';
 import { getDebug } from './utils';
 
 const debug = getDebug('webdriver');

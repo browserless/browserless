@@ -5,7 +5,7 @@ import util from 'util';
 
 import _ from 'lodash';
 
-import { IBrowserlessOptions } from '../../types';
+import { IBrowserlessOptions } from '../../types.d';
 
 export const exec = util.promisify(execNode);
 export const getPort = () => 3000 + +_.uniqueId();

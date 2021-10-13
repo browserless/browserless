@@ -16,7 +16,7 @@ import {
   IDone,
   IJob,
   IHTTPRequest,
-} from './types';
+} from './types.d';
 import * as utils from './utils';
 
 const sysdebug = utils.getDebug('system');
