@@ -92,7 +92,7 @@
     "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
-    "browserless-debugger": "^1.0.1",
+    "browserless-debugger": "^1.0.2",
     "chromedriver": "^94.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
