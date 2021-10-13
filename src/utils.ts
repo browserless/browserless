@@ -37,7 +37,7 @@ import {
   IBrowser,
   IDevtoolsJSON,
   ISession,
-} from './types';
+} from './types.d';
 
 const { CHROME_BINARY_LOCATION } = require('../env');
 

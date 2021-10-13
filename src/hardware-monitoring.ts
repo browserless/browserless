@@ -1,7 +1,7 @@
 import si from 'systeminformation';
 
 import { MAX_CPU_PERCENT, MAX_MEMORY_PERCENT } from './config';
-import { IResourceLoad } from './types';
+import { IResourceLoad } from './types.d';
 import { getDebug } from './utils';
 
 const log = getDebug('hardware');

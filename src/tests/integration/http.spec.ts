@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../types';
+import { IBrowserlessOptions } from '../../types.d';
 
 import { defaultParams } from './utils';
 

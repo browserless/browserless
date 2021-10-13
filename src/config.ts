@@ -7,7 +7,7 @@ import _ from 'lodash';
 import untildify from 'untildify';
 
 import { Features, isFeature } from './features';
-import { Feature } from './types';
+import { Feature } from './types.d';
 
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];

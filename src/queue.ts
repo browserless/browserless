@@ -2,7 +2,7 @@ import q from 'queue';
 
 import { PRE_REQUEST_HEALTH_CHECK } from './config';
 import { overloaded } from './hardware-monitoring';
-import { IJob, IQueueConfig } from './types';
+import { IJob, IQueueConfig } from './types.d';
 import * as util from './utils';
 
 export class Queue {

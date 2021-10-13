@@ -1,7 +1,7 @@
 import path from 'path';
 
 import { WORKSPACE_DIR } from '../config';
-import { IBefore } from '../types';
+import { IBefore } from '../types.d';
 import { id, mkdir } from '../utils';
 
 import { after as downloadAfter } from './download';

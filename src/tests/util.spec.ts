@@ -1,7 +1,7 @@
 import { IncomingMessage } from 'http';
 import { PassThrough } from 'stream';
 
-import { IBrowser } from '../types';
+import { IBrowser } from '../types.d';
 import * as utils from '../utils';
 
 const getArgs = (overrides = {}) => ({

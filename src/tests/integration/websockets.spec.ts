@@ -3,7 +3,7 @@ import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer';
 
 import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../types';
+import { IBrowserlessOptions } from '../../types.d';
 import { sleep, exists } from '../../utils';
 
 import { defaultParams, getChromeProcesses, throws } from './utils';

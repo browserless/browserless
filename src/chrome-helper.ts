@@ -50,7 +50,7 @@ import {
   IHTTPRequest,
   IDevtoolsJSON,
   IPage,
-} from './types';
+} from './types.d';
 import {
   fetchJson,
   getDebug,
