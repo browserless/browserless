@@ -11,7 +11,6 @@ RUN apt-get -qq update && \
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-get -qq update && apt-get -y -qq --no-install-recommends install \
   dumb-init \
-  adobe-flashplugin \
   git \
   ffmpeg \
   fonts-liberation \
@@ -71,10 +70,15 @@ RUN apt-get -qq update && \
   xdg-utils \
   wget \
   xvfb \
-  curl &&\
-  curl --silent --location https://deb.nodesource.com/setup_16.x | bash - &&\
-  apt-get -y -qq install nodejs &&\
-  apt-get -y -qq install build-essential &&\
+  curl
+
+# Only install Adobe Flash  on amd64 (not available for other architectures)
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
+
+# More dependencies + NodeJS + cleanup
+RUN  curl --silent --location https://deb.nodesource.com/setup_16.x | bash - &&\
+  apt-get -qq install nodejs &&\
+  apt-get -qq install build-essential &&\
   fc-cache -f -v &&\
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
