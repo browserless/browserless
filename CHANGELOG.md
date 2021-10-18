@@ -1,5 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.48.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.49.0...master)
 - Dependency updates.
+
+# [v1.49.0](https://github.com/browserless/chrome/compare/v1.48.0...v1.49.0)
+- Dependency updates.
+- Support for ARM64 builds by dropping flash for it.
+- Bump puppeteer 10.2.0 for 10.4.0.
+- New puppeteer-hook for injecting a puppeteer-compatible library, eg. puppeteer-extra.
 
 # [v1.48.0](https://github.com/browserless/chrome/compare/v1.47.0...v1.48.0)
 **Potentially Breaking**
