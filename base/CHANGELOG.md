@@ -1,3 +1,6 @@
+# 1.13.0
+- Dependency updates for v1.49.0
+
 # 1.12.0
 - Add a user-id param to the base image (999).
 # 1.11.0
