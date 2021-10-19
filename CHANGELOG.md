@@ -1,5 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.49.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.49.1...master)
 - Dependency updates.
+
+# [v1.49.1](https://github.com/browserless/chrome/compare/v1.49.0...v1.49.1)
+- Dependency updates.
+- Fix webhook not using timeout URL.
 
 # [v1.49.0](https://github.com/browserless/chrome/compare/v1.48.0...v1.49.0)
 - Dependency updates.
