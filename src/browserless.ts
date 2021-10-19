@@ -128,9 +128,9 @@ export class BrowserlessServer {
       ? _.debounce(
           () => {
             debug(
-              `Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`,
+              `Calling web-hook for timed-out session(s): ${opts.timeoutAlertURL}`,
             );
-            request(opts.rejectAlertURL as string, _.noop);
+            request(opts.timeoutAlertURL as string, _.noop);
           },
           thirtyMinutes,
           debounceOpts,
