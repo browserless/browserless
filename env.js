@@ -18,6 +18,10 @@ const CHROME_BINARY_PATHS = {
   WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
 };
 
+const CHROMIUM_BINARY_PATHS = {
+  LINUX: '/usr/bin/chromium',
+};
+
 const PLATFORM = os.platform() === 'win32' ?
   WINDOWS :
     os.platform() === 'darwin' ?
@@ -79,7 +83,11 @@ const CHROME_BINARY_LOCATION = (() => {
   // In docker we symlink any chrome installs to the default install location
   // so that chromedriver can do its thing
   if (IS_DOCKER) {
-    return CHROME_BINARY_PATHS.LINUX;
+    if (os.arch() === 'x64') {
+      return CHROME_BINARY_PATHS.LINUX;
+    } else {
+      return CHROMIUM_BINARY_PATHS.LINUX;
+    }
   }
 
   // If using chrome-stable, default to it's natural habitat

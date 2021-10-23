@@ -37,16 +37,33 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     dpkg -i google-chrome-stable_current_$CPU_ARCH.deb;\
   fi
 
+# Install Chromium if on non-amd64 architecture
+# From https://askubuntu.com/a/1206153
+RUN if [ "$CPU_ARCH" != "amd64" ]; then \
+    cp docker/debian.list /etc/apt/sources.list.d/ && \
+    cp docker/chromium.pref /etc/apt/preferences.d/ && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys AA8E81B4331F7F50 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 112695A0E562B32A && \
+    apt-get -qq update && apt-get -qq install chromium; \
+  fi
+
 # Build and install external binaries + assets
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
-  fi &&\
+  fi && \
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
+
+# Cleanup
+RUN fc-cache -f -v && \
+  apt-get -qq clean && \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Run everything after as non-privileged user.
 USER blessuser
