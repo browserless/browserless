@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ARG BLESS_USER_ID=999
 
-COPY fonts.conf /etc/fonts/local.conf
+COPY base/fonts.conf /etc/fonts/local.conf
 
 # Update base image
 RUN apt-get -qq update && \
@@ -39,6 +39,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   locales \
   gconf-service \
   libasound2 \
+  libatk-bridge2.0-0 \
   libatk1.0-0 \
   libc6 \
   libcairo2 \
@@ -46,6 +47,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   libdbus-1-3 \
   libexpat1 \
   libfontconfig1 \
+  libgbm1 \
   libgcc1 \
   libgconf-2-4 \
   libgdk-pixbuf2.0-0 \
@@ -79,13 +81,12 @@ RUN apt-get -y -qq --no-install-recommends install \
   xvfb \
   curl \
   build-essential
-# libllvm8 could be libllvm10 ?
 
-# Only install Adobe Flash  on amd64 (not available for other architectures)
+# Only install Adobe Flash on amd64 (not available for other architectures)
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
 
 # Install NodeJS
-RUN  curl --silent --location https://deb.nodesource.com/setup_16.x | bash - &&\
+RUN curl --silent --location https://deb.nodesource.com/setup_16.x | bash - &&\
   apt-get -qq install nodejs
 
 # Cleanup

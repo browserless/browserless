@@ -1,4 +1,5 @@
-FROM browserless/base:1.13.0
+# syntax=edrevo/dockerfile-plus
+INCLUDE+ base/Dockerfile
 
 # Build Args
 ARG USE_CHROME_STABLE
