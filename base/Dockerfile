@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ARG BLESS_USER_ID=999
 
-COPY base/fonts.conf /etc/fonts/local.conf
+COPY fonts.conf /etc/fonts/local.conf
 
 # Update base image
 RUN apt-get -qq update && \
