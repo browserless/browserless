@@ -30,10 +30,11 @@ COPY . .
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    if [ "$(dpkg --print-architecture)" != "amd64" ]; then echo "Chrome Stable is only available for amd64" && exit 1; fi && \
+    export CPU_ARCH="$(dpkg --print-architecture)"; \
+    if [ "$CPU_ARCH" != "amd64" ]; then echo "Chrome Stable is only available for amd64" && exit 1; fi && \
     cd /tmp &&\
-    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
-    dpkg -i google-chrome-stable_current_amd64.deb;\
+    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_$CPU_ARCH.deb &&\
+    dpkg -i google-chrome-stable_current_$CPU_ARCH.deb;\
   fi
 
 # Build and install external binaries + assets
