@@ -25,8 +25,9 @@ const hintsFile = path.join(__dirname, '..', 'hints.json');
 const rejectList = path.join(__dirname, '..', 'hosts.json');
 
 let launchArgs = {
+  headless: true,
   executablePath: CHROME_BINARY_LOCATION,
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
 };
 
 const getDocs = (docsPage) =>

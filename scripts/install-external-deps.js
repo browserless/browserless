@@ -79,6 +79,13 @@ const downloadChromedriver = () => {
     return Promise.resolve();
   }
 
+  if (os.arch() !== 'x64') {
+    console.log(
+      'Assuming chromedriver binary is already installed, not proceeding with chromedriver download',
+    );
+    return Promise.resolve();
+  }
+
   console.log(
     `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
