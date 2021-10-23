@@ -24,23 +24,20 @@ RUN mkdir -p $APP_DIR $WORKSPACE_DIR
 
 WORKDIR $APP_DIR
 
-# Install app dependencies
-COPY package.json .
-COPY tsconfig.json .
+# Bundle code
 COPY . .
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    export CPU_ARCH="$(dpkg --print-architecture)"; \
-    if [ "$CPU_ARCH" != "amd64" ]; then echo "Chrome Stable is only available for amd64" && exit 1; fi && \
+    if [ "$(dpkg --print-architecture)" != "amd64" ]; then echo "Chrome Stable is only available for amd64" && exit 1; fi && \
     cd /tmp &&\
-    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_$CPU_ARCH.deb &&\
-    dpkg -i google-chrome-stable_current_$CPU_ARCH.deb;\
+    wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
+    dpkg -i google-chrome-stable_current_amd64.deb;\
   fi
 
-# Install Chromium if on non-amd64 architecture
+# Install Chromium on non-amd64 architectures
 # From https://askubuntu.com/a/1206153
-RUN if [ "$CPU_ARCH" != "amd64" ]; then \
+RUN if [ "$(dpkg --print-architecture)" != "amd64" ]; then \
     cp docker/debian.list /etc/apt/sources.list.d/ && \
     cp docker/chromium.pref /etc/apt/preferences.d/ && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517 && \
@@ -52,13 +49,14 @@ RUN if [ "$CPU_ARCH" != "amd64" ]; then \
 
 # Build and install external binaries + assets
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
-    export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
+    export CHROMEDRIVER_SKIP_DOWNLOAD=false; \
   else \
-    export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
-  fi && \
-  npm i puppeteer@$PUPPETEER_VERSION;\
-  npm run postinstall &&\
-  npm run build &&\
+    export CHROMEDRIVER_SKIP_DOWNLOAD=true; \
+  fi; \
+  npm ci && \
+  npm i puppeteer@$PUPPETEER_VERSION && \
+  npm run postinstall && \
+  npm run build && \
   chown -R blessuser:blessuser $APP_DIR
 
 # Cleanup

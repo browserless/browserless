@@ -70,7 +70,6 @@ RUN apt-get -y -qq --no-install-recommends install \
   libxrender1 \
   libxss1 \
   libxtst6 \
-  libllvm8 \
   libgbm-dev \
   ca-certificates \
   libappindicator1 \
@@ -86,8 +85,9 @@ RUN apt-get -y -qq --no-install-recommends install \
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
 
 # Install NodeJS
-RUN curl --silent --location https://deb.nodesource.com/setup_16.x | bash - &&\
-  apt-get -qq install nodejs
+RUN curl --silent --location https://deb.nodesource.com/setup_16.x | bash - && \
+  apt-get -qq install nodejs && \
+  npm install -g npm@latest
 
 # Cleanup
 RUN fc-cache -f -v && \
@@ -98,6 +98,3 @@ RUN fc-cache -f -v && \
 RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
   mkdir -p /home/blessuser/Downloads && \
   chown -R blessuser:blessuser /home/blessuser
-
-# Install deps necessary to build
-RUN npm install -g typescript @types/node
