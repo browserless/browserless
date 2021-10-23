@@ -14,6 +14,7 @@ const {
 } = require('../package.json');
 
 const REPO = 'browserless/chrome';
+const TARGET_ARCH = ['linux/amd64', 'linux/arm64/v8'];
 
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
@@ -67,9 +68,11 @@ const deployVersion = async (tags, pptrVersion) => {
   );
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
-  // docker build
-  await logExec(`docker build \
+  // buildx build and push
+  await logExec(`docker buildx build \
   --quiet \
+  --push \
+  --platform ${TARGET_ARCH.join(',')} \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
@@ -82,13 +85,6 @@ const deployVersion = async (tags, pptrVersion) => {
   -t ${REPO}:${patchBranch} \
   -t ${REPO}:${minorBranch} \
   -t ${REPO}:${majorBranch} .`);
-
-  // docker push
-  await Promise.all([
-    logExec(`docker push ${REPO}:${patchBranch}`),
-    logExec(`docker push ${REPO}:${minorBranch}`),
-    logExec(`docker push ${REPO}:${majorBranch}`),
-  ]);
 
   await logExec(
     `git add --force version.json hosts.json hints.json protocol.json`,
