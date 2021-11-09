@@ -37,10 +37,6 @@
       "puppeteer": "1.20.0",
       "chromeRevision": "686378"
     },
-    "puppeteer-4.0.1": {
-      "puppeteer": "4.0.1",
-      "chromeRevision": "782078"
-    },
     "puppeteer-5.4.1": {
       "puppeteer": "5.4.1",
       "chromeRevision": "809590"
@@ -57,17 +53,21 @@
       "puppeteer": "10.4.0",
       "chromeRevision": "901912"
     },
+    "puppeteer-11.0.0": {
+      "puppeteer": "11.0.0",
+      "chromeRevision": "901912"
+    },
     "chrome-stable": {
-      "puppeteer": "10.4.0",
+      "puppeteer": "11.0.0",
       "chromeRevision": "901912"
     }
   },
   "releaseVersions": [
+    "puppeteer-11.0.0",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
     "puppeteer-5.4.1",
-    "puppeteer-4.0.1",
     "puppeteer-1.20.0",
     "chrome-stable"
   ],
