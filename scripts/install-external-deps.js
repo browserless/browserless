@@ -1,7 +1,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs-extra');
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const extract = require('extract-zip');
 const rimraf = require('rimraf');
 const puppeteer = require('puppeteer');
@@ -33,8 +33,12 @@ const downloadUrlToDirectory = (url, dir) =>
       new Promise((resolve, reject) => {
         response.body
           .pipe(fs.createWriteStream(dir))
-          .on('error', reject)
-          .on('finish', resolve);
+          .on('error', (err) => {
+            return reject;
+          })
+          .on('finish', (err) => {
+            return resolve;
+          });
       }),
   );
 
@@ -106,12 +110,24 @@ const downloadChromedriver = () => {
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
-    .then(() => waitForFile(chromedriverTmpZip))
-    .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
-    .then(() => waitForFile(chromedriverUnzippedPath))
-    .then(() => move(chromedriverUnzippedPath, chromedriverFinalPath))
-    .then(() => fs.chmod(chromedriverFinalPath, '755'))
-    .then(() => waitForFile(chromedriverFinalPath));
+    .then(() => {
+      waitForFile(chromedriverTmpZip);
+    })
+    .then(() => {
+      unzip(chromedriverTmpZip, browserlessTmpDir);
+    })
+    .then(() => {
+      waitForFile(chromedriverUnzippedPath);
+    })
+    .then(() => {
+      move(chromedriverUnzippedPath, chromedriverFinalPath);
+    })
+    .then(() => {
+      fs.chmod(chromedriverFinalPath, '755');
+    })
+    .then(() => {
+      waitForFile(chromedriverFinalPath);
+    });
 };
 
 const downloadDevTools = () => {

@@ -19,7 +19,11 @@ import express from 'express';
 import { Schema } from 'joi';
 import _ from 'lodash';
 
-import fetch from 'node-fetch';
+/*
+This is done so tsc transpiles this line as eval('import("node-fetch")'), since
+node-fetch v3 is purely ESM
+*/
+eval('import("node-fetch")') as Promise<typeof import("node-fetch")>;
 
 import rmrf from 'rimraf';
 
@@ -242,7 +246,7 @@ export const isAuthorized = (req: IHTTPRequest, token: string) => {
   return true;
 };
 
-export const fetchJson = (url: string, opts?: any) =>
+export const fetchJson = (url: string, opts?: any): any =>
   fetch(url, opts).then((res) => {
     if (!res.ok) {
       throw res;

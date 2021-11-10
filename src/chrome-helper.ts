@@ -121,7 +121,10 @@ const getTargets = async ({
   port,
 }: {
   port: string;
-}): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
+}): Promise<IDevtoolsJSON[]> => {
+  const jsonResponse = fetchJson(`http://127.0.0.1:${port}/json/list`);
+  return jsonResponse.then((data: any[]) => data as IDevtoolsJSON[]);
+};
 
 const isPuppeteer = (
   browserServer: puppeteer.Browser | BrowserServer,
@@ -572,7 +575,7 @@ export const launchChrome = async (
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
-  ).catch((e) => {
+  ).catch((e: any) => {
     browserServer.close();
     throw e;
   });

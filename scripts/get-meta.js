@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+//#!/usr/bin/env node
 /*
   This script sucks out versioning information out from Chrome
   so that we can label builds nicely in docker and facilitate
@@ -7,7 +7,7 @@
 const _ = require('lodash');
 const puppeteer = require('puppeteer');
 const url = require('url');
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const fs = require('fs');
 const path = require('path');
 const { CHROME_BINARY_LOCATION } = require('../env');

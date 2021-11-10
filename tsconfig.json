@@ -5,7 +5,7 @@
     "paths": {
       "puppeteer": ["node_modules/@types/puppeteer"]
     },
-    "module": "commonjs",
+    "module": "nodenext",
     "moduleResolution": "node",
     "target": "es2017",
     "lib": [
@@ -23,8 +23,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "outDir": "./build",
-    "rootDir": "./src",
-    "resolveJsonModule": true
+    "rootDir": "./src"
   },
   "exclude": [
     "./src/tests/*"
