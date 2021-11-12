@@ -125,6 +125,10 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
   process.env.DEFAULT_BLOCK_ADS,
   false,
 );
+export const DEFAULT_BLOCK_MODALS: boolean = parseJSONParam(
+  process.env.DEFAULT_BLOCK_MODALS,
+  false,
+);
 export const DEFAULT_HEADLESS: boolean = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
   true,

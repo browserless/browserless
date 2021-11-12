@@ -23,7 +23,7 @@ import fetch from 'node-fetch';
 
 import rmrf from 'rimraf';
 
-import { DEFAULT_BLOCK_ADS, DEFAULT_STEALTH, WORKSPACE_DIR } from './config';
+import { DEFAULT_BLOCK_ADS, DEFAULT_BLOCK_MODALS, DEFAULT_STEALTH, WORKSPACE_DIR } from './config';
 import { WEBDRIVER_ROUTE } from './constants';
 
 import {
@@ -371,6 +371,12 @@ export const normalizeWebdriverStart = async (
     DEFAULT_BLOCK_ADS
   );
 
+  const blockModals = !!(
+    capabilities['browserless.blockModals'] ??
+    capabilities['browserless:blockModals'] ??
+    DEFAULT_BLOCK_MODALS
+  );
+
   const stealth = !!(
     capabilities['browserless.stealth'] ??
     capabilities['browserless:stealth'] ??
@@ -410,6 +416,7 @@ export const normalizeWebdriverStart = async (
       token,
       stealth,
       blockAds,
+      blockModals,
       trackingId,
       pauseOnConnect,
       windowSize,
