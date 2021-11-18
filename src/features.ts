@@ -34,7 +34,6 @@ export const Features = {
   KILL_ENDPOINT: 'killEndpoint' as Feature,
   METRICS_ENDPOINT: 'metricsEndpoint' as Feature,
   PDF_ENDPOINT: 'pdfEndpoint' as Feature,
-  BLOCK_MODALS_ENDPOINT: 'blockModalsEndpoint' as Feature,
   PRESSURE_ENDPOINT: 'pressureEndpoint' as Feature,
   PROMETHEUS: 'prometheus' as Feature,
   SCRAPE_ENDPOINT: 'scrapeEndpoint' as Feature,

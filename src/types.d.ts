@@ -31,7 +31,6 @@ export interface IBrowser extends puppeteer.Browser {
   _id: string;
   _prebooted: boolean;
   _blockAds: boolean;
-  _blockModals: boolean;
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
   _browserServer: BrowserServer | puppeteer.Browser;
@@ -64,7 +63,6 @@ export interface IWindowSize {
 export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
-  blockModals: boolean;
   trackingId?: string;
   keepalive?: number;
   playwrightProxy?: LaunchOptions['proxy'];
@@ -156,7 +154,6 @@ interface IBrowserlessServerConfiguration {
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
   enableHeapdump: boolean;
-  enableModalBlockEndpoints: boolean;
   socketBehavior: 'http' | 'close';
 }
 
@@ -289,7 +286,6 @@ export interface IBrowserlessSessionOptions {
   token?: string;
   stealth: boolean;
   blockAds: boolean;
-  blockModals: boolean;
   trackingId: string | null;
   pauseOnConnect: boolean;
   windowSize?: IWindowSize;

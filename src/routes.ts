@@ -45,7 +45,6 @@ const rimraf = require('rimraf');
 
 const protocol = require('../protocol.json');
 const version = require('../version.json');
-const dataPath = path.join(__dirname, '..', 'data');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
@@ -433,16 +432,6 @@ export const getRoutes = ({
         });
       }),
     );
-  }
-
-  if (config.enableModalBlockEndpoints) {
-    router.get('/modaless/selectors', (_req, res) => {
-      res.sendFile(`${dataPath}/selectors.txt`);
-    });
-
-    router.get('/modaless/classes', (_req, res) => {
-      res.sendFile(`${dataPath}/classes.txt`);
-    });
   }
 
   if (!disabledFeatures.includes(Features.STATS_ENDPOINT)) {
