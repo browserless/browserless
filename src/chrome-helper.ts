@@ -36,6 +36,7 @@ import {
   PORT,
   PROXY_URL,
   WORKSPACE_DIR,
+  DEFAULT_BLOCK_MODALS,
 } from './config';
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
@@ -58,7 +59,10 @@ import {
   injectHostIntoSession,
   rimraf,
   sleep,
+  fnLoader
 } from './utils';
+
+const fnRemoveModals = fnLoader('remove-modals');
 
 const debug = getDebug('chrome-helper');
 const {
@@ -137,6 +141,7 @@ const setupPage = async ({
   page: pptrPage,
   pauseOnConnect,
   blockAds,
+  blockModals,
   trackingId,
   windowSize,
   meta,
@@ -145,6 +150,7 @@ const setupPage = async ({
   page: puppeteer.Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
+  blockModals: boolean;
   trackingId: string | null;
   windowSize?: IWindowSize;
   meta: unknown;
@@ -219,6 +225,14 @@ const setupPage = async ({
     page.once('close', () => page.off('request', networkBlock));
   }
 
+  if (blockModals) {
+    debug(`Setting up page for modal-blocking`);
+    page.on('load', async () => {
+      const js = `${fnRemoveModals}(${PORT})`;
+      await page.evaluate(js);
+    });
+  }
+
   if (windowSize) {
     debug(`Setting viewport dimensions`);
     await page.setViewport(windowSize);
@@ -235,6 +249,7 @@ const setupBrowser = async ({
   prebooted,
   browserlessDataDir,
   blockAds,
+  blockModals,
   pauseOnConnect,
   trackingId,
   keepalive,
@@ -248,6 +263,7 @@ const setupBrowser = async ({
   isUsingTempDataDir: boolean;
   browserlessDataDir: string | null;
   blockAds: boolean;
+  blockModals: boolean;
   pauseOnConnect: boolean;
   process: ChildProcess;
   trackingId: string | null;
@@ -270,6 +286,7 @@ const setupBrowser = async ({
   browser._startTime = Date.now();
   browser._prebooted = prebooted;
   browser._blockAds = blockAds;
+  browser._blockModals = blockModals;
   browser._pauseOnConnect = pauseOnConnect;
   browser._browserServer = browserServer;
   browser._pages = [];
@@ -298,6 +315,7 @@ const setupBrowser = async ({
           page,
           windowSize,
           blockAds: browser._blockAds,
+          blockModals: browser._blockModals,
           pauseOnConnect: browser._pauseOnConnect,
           trackingId: browser._trackingId,
           meta,
@@ -320,6 +338,7 @@ const setupBrowser = async ({
       setupPage({
         browser,
         blockAds,
+        blockModals,
         page,
         pauseOnConnect,
         trackingId,
@@ -337,6 +356,7 @@ const setupBrowser = async ({
 export const defaultLaunchArgs = {
   args: DEFAULT_LAUNCH_ARGS,
   blockAds: DEFAULT_BLOCK_ADS,
+  blockModals: DEFAULT_BLOCK_MODALS,
   headless: DEFAULT_HEADLESS,
   ignoreDefaultArgs: DEFAULT_IGNORE_DEFAULT_ARGS,
   ignoreHTTPSErrors: DEFAULT_IGNORE_HTTPS_ERRORS,
@@ -425,6 +445,7 @@ export const convertUrlParamsToLaunchOpts = (
 
   const {
     blockAds,
+    blockModals,
     headless,
     ignoreHTTPSErrors,
     slowMo,
@@ -474,6 +495,7 @@ export const convertUrlParamsToLaunchOpts = (
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
+    blockModals: !_.isUndefined(blockModals) || DEFAULT_BLOCK_MODALS,
     dumpio,
     headless: isHeadless,
     stealth: isStealth,
@@ -559,14 +581,14 @@ export const launchChrome = async (
   const browserServerPromise = injectedPuppeteer
     ? injectedPuppeteer.launch(launchArgs)
     : launchArgs.playwright
-    ? chromium.launchServer({
+      ? chromium.launchServer({
         ...launchArgs,
         headless: true,
         proxy: launchArgs.playwrightProxy,
       })
-    : launchArgs.stealth
-    ? pptrExtra.launch(launchArgs)
-    : puppeteer.launch(launchArgs);
+      : launchArgs.stealth
+        ? pptrExtra.launch(launchArgs)
+        : puppeteer.launch(launchArgs);
 
   const browserServer = await browserServerPromise.catch((e) => {
     removeDataDir(browserlessDataDir);
@@ -587,6 +609,7 @@ export const launchChrome = async (
   return iBrowser.then((browser) =>
     setupBrowser({
       blockAds: opts.blockAds,
+      blockModals: opts.blockModals,
       browser,
       browserlessDataDir,
       browserWSEndpoint,
@@ -606,6 +629,7 @@ export const launchChrome = async (
 export const launchChromeDriver = async ({
   stealth = false,
   blockAds = false,
+  blockModals = false,
   trackingId = null,
   pauseOnConnect = false,
   browserlessDataDir = null,
@@ -640,6 +664,7 @@ export const launchChromeDriver = async ({
 
           iBrowser = await setupBrowser({
             blockAds,
+            blockModals,
             browser,
             browserlessDataDir,
             browserWSEndpoint,
