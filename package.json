@@ -109,7 +109,7 @@
     "lighthouse": "^9.0.0",
     "lodash": "^4.17.11",
     "multer": "^1.4.1",
-    "node-fetch": "^2.2.0",
+    "node-fetch": "^2.6.6",
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.16.1",
     "prom-client": "^14.0.0",
