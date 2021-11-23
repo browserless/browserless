@@ -211,6 +211,73 @@ export default {
         },
       },
     },
+    '/metrics/total': {
+      get: {
+        tags: managementTags,
+        summary: `Returns metrics about worker in 5-minute increments.`,
+        responses: {
+          ...httpCodes,
+          200: {
+            description:
+              'A JSON payload with totals (either summed or averaged, depending) of all session statistics.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    date: {
+                      type: 'integer',
+                    },
+                    successful: {
+                      type: 'integer',
+                    },
+                    queued: {
+                      type: 'integer',
+                    },
+                    rejected: {
+                      type: 'integer',
+                    },
+                    unhealthy: {
+                      type: 'integer',
+                    },
+                    memory: {
+                      type: 'number',
+                    },
+                    cpu: {
+                      type: 'number',
+                    },
+                    timedout: {
+                      type: 'integer',
+                    },
+                    totalTime: {
+                      type: 'integer',
+                    },
+                    meanTime: {
+                      type: 'number',
+                    },
+                    maxTime: {
+                      type: 'number',
+                    },
+                    minTime: {
+                      type: 'number',
+                    },
+                    maxConcurrent: {
+                      type: 'number',
+                    },
+                    sessionTimes: {
+                      type: 'array',
+                      items: {
+                        type: 'integer',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/workspace': {
       get: {
         tags: managementTags,
