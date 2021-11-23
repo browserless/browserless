@@ -128,6 +128,38 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.METRICS_ENDPOINT)) {
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
+    router.get('/metrics/total', async (_req, res) => {
+      const metrics = await getMetrics();
+      const totals = metrics.reduce((accum, metric) => ({
+        successful: accum.successful + metric.successful,
+        error: accum.error + metric.error,
+        queued: accum.queued + metric.queued,
+        rejected: accum.rejected + metric.rejected,
+        unhealthy: accum.unhealthy + metric.unhealthy,
+        timedout: accum.timedout + metric.timedout,
+        totalTime: accum.totalTime + metric.totalTime,
+        meanTime: accum.meanTime + metric.meanTime,
+        maxTime: Math.max(accum.maxTime, metric.maxTime),
+        minTime: Math.min(accum.minTime, metric.minTime),
+        maxConcurrent: Math.max(accum.maxConcurrent, metric.maxConcurrent),
+        sessionTimes: [...accum.sessionTimes, ...metric.sessionTimes],
+      }), {
+        successful: 0,
+        error: 0,
+        queued: 0,
+        rejected: 0,
+        unhealthy: 0,
+        totalTime: 0,
+        meanTime: 0,
+        maxTime: 0,
+        minTime: 0,
+        maxConcurrent: 0,
+        timedout: 0,
+        sessionTimes: [],
+      });
+      totals.meanTime = totals.meanTime / metrics.length;
+      return res.json(totals);
+    });
   }
 
   if (!disabledFeatures.includes(Features.CONFIG_ENDPOINT)) {
