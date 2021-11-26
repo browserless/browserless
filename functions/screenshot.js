@@ -126,11 +126,11 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   const data =
     selector !== null
-      ? (() => {
+      ? await (async() => {
           const elementHandle = await page.$(selector);
-          return elementHandle.screenshot(options);
-        })();
-      : page.screenshot(options);
+          return await elementHandle.screenshot(options);
+        })()
+      : await page.screenshot(options);
 
   const headers = {
     'x-response-url': response?.url().substring(0, 1000),
