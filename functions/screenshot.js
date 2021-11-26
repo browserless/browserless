@@ -30,6 +30,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     userAgent = '',
     manipulate = null,
     options = {},
+    selector = null,
     rejectRequestPattern = [],
     rejectResourceTypes = [],
     requestInterceptors = [],
@@ -123,7 +124,13 @@ module.exports = async function screenshot({ page, context } = {}) {
     }
   }
 
-  const data = await page.screenshot(options);
+  const data =
+    selector !== null
+      ? (() => {
+          const elementHandle = await page.$(selector);
+          return elementHandle.screenshot(options);
+        })();
+      : page.screenshot(options);
 
   const headers = {
     'x-response-url': response?.url().substring(0, 1000),

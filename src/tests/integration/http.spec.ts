@@ -717,6 +717,28 @@ describe('Browserless Chrome HTTP', () => {
       });
     });
 
+    it('allows to specify selector', async () => {
+      const params = defaultParams();
+      const browserless = start(params);
+
+      await browserless.startServer();
+
+      const body = {
+        url: 'https://example.com',
+        selector: 'h1'
+      };
+
+      return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      }).then((res) => {
+        expect(res.status).toBe(200);
+      });
+    });
+
     it('allows for providing http response payloads', async () => {
       const params = defaultParams();
       const browserless = start(params);
