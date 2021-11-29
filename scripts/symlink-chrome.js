@@ -1,6 +1,8 @@
+/* eslint-disable no-undef */
+const { exec: nodeExec } = require('child_process');
 const fs = require('fs');
 const { promisify } = require('util');
-const { exec: nodeExec } = require('child_process');
+
 const execAsync = promisify(nodeExec);
 
 const {

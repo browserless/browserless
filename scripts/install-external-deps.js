@@ -1,10 +1,13 @@
+/* eslint-disable no-undef */
 const os = require('os');
 const path = require('path');
+
+const extract = require('extract-zip');
 const fs = require('fs-extra');
 const fetch = require('node-fetch');
-const extract = require('extract-zip');
-const rimraf = require('rimraf');
+const { installBrowsersForNpmInstall } = require('playwright-core/lib/utils/registry');
 const puppeteer = require('puppeteer');
+const rimraf = require('rimraf');
 
 const {
   USE_CHROME_STABLE,
@@ -12,12 +15,16 @@ const {
   PLATFORM,
   WINDOWS,
   MAC,
+  LINUX_ARM64,
 } = require('../env');
 
 const browserlessTmpDir = path.join(
   os.tmpdir(),
   `browserless-devtools-${Date.now()}`,
 );
+
+const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
+
 // @TODO: Fix this revision once devtools app works again
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
 const chromedriverUrl =
@@ -59,6 +66,14 @@ const waitForFile = async (filePath) =>
   });
 
 const downloadChromium = () => {
+  if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
+    throw new Error(`Chrome stable isn't supported for linux-arm64`);
+  }
+
+  if (IS_LINUX_ARM64) {
+    return installBrowsersForNpmInstall(['chromium']);
+  }
+
   if (USE_CHROME_STABLE) {
     console.log('Using chrome stable, not proceeding with chromium download');
     return Promise.resolve();

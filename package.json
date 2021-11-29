@@ -32,30 +32,41 @@
     "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'",
     "lint": "eslint src --ext .ts --fix"
   },
-  "puppeteerVersions": {
+  "chromeVersions": {
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
-      "chromeRevision": "686378"
+      "chromeRevision": "686378",
+      "platform": "linux/amd64"
     },
     "puppeteer-5.4.1": {
       "puppeteer": "5.4.1",
-      "chromeRevision": "809590"
+      "chromeRevision": "809590",
+      "platform": "linux/amd64"
     },
     "puppeteer-7.1.0": {
       "puppeteer": "7.1.0",
-      "chromeRevision": "848005"
+      "chromeRevision": "848005",
+      "platform": "linux/amd64"
     },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
-      "chromeRevision": "869685"
+      "chromeRevision": "869685",
+      "platform": "linux/amd64"
     },
     "puppeteer-10.4.0": {
       "puppeteer": "10.4.0",
-      "chromeRevision": "901912"
+      "chromeRevision": "901912",
+      "platform": "linux/amd64"
     },
     "puppeteer-11.0.0": {
       "puppeteer": "11.0.0",
-      "chromeRevision": "901912"
+      "chromeRevision": "901912",
+      "platform": "linux/amd64"
+    },
+    "linux-arm64": {
+      "puppeteer": "11.0.0",
+      "chromeRevision": "943346",
+      "platform": "linux/arm64/v8"
     },
     "chrome-stable": {
       "puppeteer": "11.0.0",
@@ -101,7 +112,6 @@
     "extract-zip": "^2.0.1",
     "fs-extra": "^10.0.0",
     "get-port": "^5.0.0",
-    "heapdump": "^0.3.15",
     "http-proxy": "^1.16.2",
     "jest": "^27.0.6",
     "joi": "^17.2.1",
@@ -111,7 +121,7 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.6.6",
     "node-pdftk": "^2.0.0",
-    "playwright-core": "^1.16.1",
+    "playwright-core": "^1.18.0-alpha-nov-23-2021",
     "prom-client": "^14.0.0",
     "puppeteer": "^11.0.0",
     "puppeteer-extra": "^3.1.15",

@@ -1,15 +1,18 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 /*
   This script sucks out versioning information out from Chrome
   so that we can label builds nicely in docker and facilitate
   portions of the chrome-remote-protocol API (/json/version and so on)
 */
-const _ = require('lodash');
-const puppeteer = require('puppeteer');
-const url = require('url');
-const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
+
+const _ = require('lodash');
+const fetch = require('node-fetch');
+const puppeteer = require('puppeteer');
+
 const { CHROME_BINARY_LOCATION } = require('../env');
 
 const {

@@ -1,15 +1,18 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 const child = require('child_process');
-const util = require('util');
-const debug = require('debug')('browserless-docker-deploy');
-const exec = util.promisify(child.exec);
-const { map, noop } = require('lodash');
 const path = require('path');
+const util = require('util');
+
+const debug = require('debug')('browserless-docker-deploy');
 const fs = require('fs-extra');
+const { map, noop } = require('lodash');
+
+const exec = util.promisify(child.exec);
 
 const {
   releaseVersions,
-  puppeteerVersions,
+  chromeVersions,
   version,
 } = require('../package.json');
 
@@ -33,7 +36,7 @@ async function cleanup() {
 // version is the full tag (1.2.3-puppeteer-1.11.1)
 // pptrVersion is one of the versions in packageJson.releaseVersions
 const deployVersion = async (tags, pptrVersion) => {
-  const versionInfo = puppeteerVersions[pptrVersion];
+  const versionInfo = chromeVersions[pptrVersion];
   const puppeteerVersion = versionInfo.puppeteer;
   const puppeteerChromiumRevision = versionInfo.chromeRevision;
 
