@@ -18,6 +18,36 @@
  * @param args.page - object - Puppeteer's page object (from await browser.newPage)
  * @param args.context - object - An object of parameters that the function is called with. See src/schemas.ts
  */
+const scrollThroughPage = async (page) => {
+  // Scroll to page end to trigger lazy loading elements
+  await page.evaluate(() => {
+    const scrollInterval = 100;
+    const scrollStep = Math.floor(window.innerHeight / 2);
+    const bottomThreshold = 400;
+
+    function bottomPos() {
+      return window.pageYOffset + window.innerHeight;
+    }
+
+    return new Promise((resolve, reject) => {
+      function scrollDown() {
+        window.scrollBy(0, scrollStep);
+
+        if (document.body.scrollHeight - bottomPos() < bottomThreshold) {
+          window.scrollTo(0, 0);
+          setTimeout(resolve, 500);
+          return;
+        }
+
+        setTimeout(scrollDown, scrollInterval);
+      }
+
+      setTimeout(reject, 30000);
+      scrollDown();
+    });
+  });
+};
+
 module.exports = async function screenshot({ page, context } = {}) {
   const {
     authenticate = null,
@@ -30,6 +60,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     userAgent = '',
     manipulate = null,
     options = {},
+    scrollPage = null,
     selector = null,
     rejectRequestPattern = [],
     rejectResourceTypes = [],
@@ -122,6 +153,10 @@ module.exports = async function screenshot({ page, context } = {}) {
     } else {
       await new Promise((r) => setTimeout(r, waitFor));
     }
+  }
+
+  if (scrollPage) {
+    await scrollThroughPage(page);
   }
 
   const data =
