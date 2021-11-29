@@ -155,6 +155,7 @@ export const screenshot = Joi.object()
     rejectRequestPattern,
     rejectResourceTypes,
     requestInterceptors,
+    selector: Joi.string(),
     setExtraHTTPHeaders,
     setJavaScriptEnabled,
     url: Joi.string(),
