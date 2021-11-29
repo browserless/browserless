@@ -8,7 +8,9 @@ const { promisify } = require('util');
 const extract = require('extract-zip');
 const fs = require('fs-extra');
 const fetch = require('node-fetch');
-const { installBrowsersForNpmInstall } = require('playwright-core/lib/utils/registry');
+const {
+  installBrowsersForNpmInstall,
+} = require('playwright-core/lib/utils/registry');
 const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
@@ -187,10 +189,11 @@ const downloadDevTools = () => {
           console.log(
             `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`,
           );
-          await exec(`ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`);
+          await exec(
+            `ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`,
+          );
         })();
       }
-
     } catch (err) {
       console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
       reject(err);

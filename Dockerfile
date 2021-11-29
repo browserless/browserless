@@ -36,11 +36,14 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi
 
 # Build and install external binaries + assets
+# NOTE: The `PUPPETEER_VERSION` is needed for production versions
+# listed in package.json
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
+  npm ci && \
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
   npm run build &&\

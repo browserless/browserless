@@ -126,7 +126,7 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   const data =
     selector !== null
-      ? await (async() => {
+      ? await (async () => {
           const elementHandle = await page.$(selector);
           return await elementHandle.screenshot(options);
         })()
