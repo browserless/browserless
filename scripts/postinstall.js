@@ -26,6 +26,7 @@ const exec = async (command) => {
 };
 
 const {
+  CHROME_BINARY_LOCATION,
   IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,

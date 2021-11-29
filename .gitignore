@@ -3,7 +3,6 @@ node_modules/
 build/
 external/
 devtools/
-hints.json
 hosts.json
 protocol.json
 version.json
