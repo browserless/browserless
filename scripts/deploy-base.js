@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 const child = require('child_process');
 const util = require('util');
+
 const debug = require('debug')('browserless-docker-deploy');
 const exec = util.promisify(child.exec);
 

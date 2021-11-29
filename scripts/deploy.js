@@ -94,7 +94,7 @@ const deployVersion = async (tags, pptrVersion) => {
   ]);
 
   await logExec(
-    `git add --force version.json hosts.json hints.json protocol.json`,
+    `git add --force version.json hosts.json protocol.json`,
   ).catch(noop);
   await logExec(
     `git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`,

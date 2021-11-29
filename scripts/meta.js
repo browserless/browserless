@@ -21,10 +21,8 @@ const {
   },
 } = require('../package-lock.json');
 
-const docsPage = `https://github.com/GoogleChrome/puppeteer/blob/v${puppeteerVersion}/docs/api.md`;
 const versionFile = path.join(__dirname, '..', 'version.json');
 const protocolFile = path.join(__dirname, '..', 'protocol.json');
-const hintsFile = path.join(__dirname, '..', 'hints.json');
 const rejectList = path.join(__dirname, '..', 'hosts.json');
 
 let launchArgs = {
@@ -32,55 +30,17 @@ let launchArgs = {
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 };
 
-const getDocs = (docsPage) =>
-  [].map.call(
-    $('h4')
-      .has('a[href^="#page"]')
-      .map((i, ele) => {
-        const $ele = $(ele);
-        const method = ele.innerText.includes('(')
-          ? ele.innerText.match(/page\..*(?=\()/g)[0]
-          : ele.innerText;
-        return {
-          text: method.replace('page.', ''),
-          description: $ele
-            .nextAll('p')
-            .text()
-            .substring(0, 350)
-            .replace(/(?:\r\n|\r|\n)/g, ' '),
-          href: docsPage + $ele.find('a').attr('href'),
-          args: $ele.next('ul').html(),
-        };
-      }),
-    (_) => _,
-  );
-
 const getMeta = () =>
   puppeteer
     .launch(launchArgs)
     .then((browser) => {
       console.log(
-        `Chrome launched at path "${CHROME_BINARY_LOCATION}", compiling hints, protocol and version info...`,
+        `Chrome launched at path "${CHROME_BINARY_LOCATION}", compiling protocol and version info...`,
       );
       const wsEndpoint = browser.wsEndpoint();
       const { port } = url.parse(wsEndpoint);
 
       return Promise.all([
-        (async () => {
-          const page = await browser.newPage();
-          const jquery = await page.evaluate(() =>
-            window
-              .fetch(
-                'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js',
-              )
-              .then((res) => res.text()),
-          );
-          await page.goto(docsPage);
-          await page.evaluate(jquery);
-          const hints = await page.evaluate(getDocs, docsPage);
-
-          fs.writeFileSync(hintsFile, JSON.stringify(hints));
-        })(),
         fetch(`http://127.0.0.1:${port}/json/version`)
           .then((res) => res.json())
           .then((meta) => {

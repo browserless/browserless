@@ -1,6 +1,9 @@
+#!/usr/bin/env node
 /* eslint-disable no-undef */
+const { exec: nodeExec } = require('child_process');
 const os = require('os');
 const path = require('path');
+const { promisify } = require('util');
 
 const extract = require('extract-zip');
 const fs = require('fs-extra');
@@ -9,7 +12,21 @@ const { installBrowsersForNpmInstall } = require('playwright-core/lib/utils/regi
 const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
+const execAsync = promisify(nodeExec);
+
+const exec = async (command) => {
+  const { stdout, stderr } = await execAsync(command);
+
+  if (stderr.trim().length) {
+    console.error(stderr);
+    return process.exit(1);
+  }
+
+  return stdout.trim();
+};
+
 const {
+  IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
   PLATFORM,
@@ -154,11 +171,24 @@ const downloadDevTools = () => {
   new Promise(async (resolve, reject) => {
     try {
       await fs.mkdir(browserlessTmpDir);
+
       await Promise.all([
         downloadChromium(),
         downloadChromedriver(),
         downloadDevTools(),
       ]);
+
+      // If we're in docker, and this isn't a chrome-stable build,
+      // symlink where chrome-stable should be back to puppeteer's build
+      if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
+        (async () => {
+          console.log(
+            `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`,
+          );
+          await exec(`ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`);
+        })();
+      }
+
     } catch (err) {
       console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
       reject(err);
