@@ -7,6 +7,7 @@ const { promisify } = require('util');
 
 const extract = require('extract-zip');
 const fs = require('fs-extra');
+const _ = require('lodash');
 const fetch = require('node-fetch');
 const {
   installBrowsersForNpmInstall,
@@ -15,6 +16,7 @@ const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
 const execAsync = promisify(nodeExec);
+const hostsJson = path.join(__dirname, '..', 'hosts.json');
 
 const exec = async (command) => {
   const { stdout, stderr } = await execAsync(command);
@@ -84,6 +86,27 @@ const waitForFile = async (filePath) =>
       () => done(`Timeout waiting for file ${filePath}`),
       5000,
     );
+  });
+
+const downloadAdBlockList = () => fetch(
+  'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+)
+  .then((res) => res.text())
+  .then((raw) =>
+    _.chain(raw)
+      .split('\n')
+      .map((line) => {
+        const fragments = line.split(' ');
+        if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
+          return fragments[1].trim();
+        }
+        return null;
+      })
+      .reject(_.isNil)
+      .value(),
+  )
+  .then((hostsArr) => {
+    fs.writeFileSync(hostsJson, JSON.stringify(hostsArr, null, '  '));
   });
 
 const downloadChromium = () => {
@@ -180,6 +203,7 @@ const downloadDevTools = () => {
         downloadChromium(),
         downloadChromedriver(),
         downloadDevTools(),
+        downloadAdBlockList(),
       ]);
 
       // If we're in docker, and this isn't a chrome-stable build,

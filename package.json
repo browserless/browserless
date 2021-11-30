@@ -22,7 +22,6 @@
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
-    "meta": "./scripts/meta.js",
     "start": "node ./build",
     "test": "DEBUG=quiet jest --runInBand --detectOpenHandles",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",

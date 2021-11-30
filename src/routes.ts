@@ -43,9 +43,6 @@ import {
 
 const rimraf = require('rimraf');
 
-const protocol = require('../protocol.json');
-const version = require('../version.json');
-
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
 const content = fnLoader('content');
@@ -502,7 +499,13 @@ export const getRoutes = ({
   }
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
-    router.get('/json/protocol', (_req, res) => res.json(protocol));
+    router.get('/json/protocol', async (_req, res) => {
+      const protocol = await chromeHelper.getProtocolJSON().catch((err) =>
+        res.status(400).send(err.message)
+      );
+
+      return res.json(protocol);
+    });
 
     router.get(
       '/json/new',
@@ -523,9 +526,12 @@ export const getRoutes = ({
       }),
     );
 
-    router.get('/json/version', (req, res) => {
+    router.get('/json/version', async (req, res) => {
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
+      const version = await chromeHelper.getVersionJSON().catch((err) =>
+        res.status(400).send(err.message)
+      );
 
       return res.json({
         ...version,
