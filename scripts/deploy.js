@@ -13,6 +13,13 @@ const exec = util.promisify(child.exec);
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
+const BASE_VERSION = process.env.BASE_VERSION;
+
+if (!BASE_VERSION) {
+  throw new Error(
+    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`,
+  );
+}
 
 const logExec = (cmd) => {
   debug(`  "${cmd}"`);
@@ -77,6 +84,7 @@ const deployVersion = async (tags, pptrVersion) => {
   --push \
   --quiet \
   --platform ${platform} \
+  --build-arg "BASE_VERSION=${BASE_VERSION}" \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \

@@ -34,7 +34,7 @@ const buildBase = async () => {
   );
 };
 
-async function deploy() {
+(async function deploy() {
   // Build a fresh base image first, then subsequent
   // docker builds are super fast.
   await buildBase();
@@ -43,6 +43,4 @@ async function deploy() {
     `docker images -a | grep "${BASE}" | awk '{print $3}' | xargs docker rmi`,
   );
   debug(`Complete! Cleaning up file-system and exiting.`);
-}
-
-deploy();
+})();
