@@ -90,19 +90,33 @@ location / {
 
 # Building for ARM64 (Apple M1 Machines)
 
-Fist, if you're on a amd64 (non-M1 Mac), you'll need to setup the linux box to build. Ensure you're on the latest docker with experimental features enabled.
+**TL;DR**
+You can simply pull our M1 specific builds:
 
 ```sh
+docker pull browserless/chrome:1-arm64
+```
+
+Fist, if you're on a amd64 machine (non-M1 Mac) you'll need to setup multi-platform builds. There's a lot of good resources out there to read about this, however you'll need to ensure you're on the latest docker with experimental features enabled.
+
+```sh
+# Setup the machine to build arm64
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+# Create a builder to handle arm64 builds
 docker buildx create --name builder --driver docker-container --use
+
+# Setup the builder to get started
 docker buildx inspect --bootstrap
 ```
 
-Once complete, you can specify a platform target and build against it. In our production environments, we build a special `arm64` tag, which is what we'll use in the example below.
+Once complete, you can specify a platform target and build against it. In our production tags, we build a special `1-arm64` tag, which is what we'll use in the example below.
 
 ```sh
 docker buildx build --platform linux/arm64 -t browserless/chrome:arm64 .
 ```
+
+In order to support arm64 inside of docker, we utilize some functionality inside of playwright to download an arm64 linux build. Since most distributions out there don't have an arm64-specific build Chromium, this means that puppeteer's chromium doesn't exist for arm64 (as far as we're aware). This, in short, means that the chromium version inside of the arm builds isn't matched _exactly_ for the version of puppeteer that it comes bundled with. Most of the time this will go unnoticed, however if you have an issue it's possible that it's because the version of chromium in the arm64-builds isn't an exact match.
 
 # Hosting Providers
 
