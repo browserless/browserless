@@ -13,6 +13,7 @@ import url from 'url';
 import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
+import fetch from 'node-fetch';
 import { chromium, BrowserServer } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
@@ -60,12 +61,24 @@ import {
   sleep,
 } from './utils';
 
-const debug = getDebug('chrome-helper');
 const {
   CHROME_BINARY_LOCATION,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
 } = require('../env');
+
+const blacklist = require('../hosts.json');
+
+const {
+  dependencies: {
+    puppeteer: { version: puppeteerVersion },
+  },
+} = require('../package-lock.json');
+
+let versionCache: object;
+let protocolCache: object;
+
+const debug = getDebug('chrome-helper');
 
 const BROWSERLESS_ARGS = [
   '--no-sandbox',
@@ -74,8 +87,6 @@ const BROWSERLESS_ARGS = [
   '--disable-dev-shm-usage',
   '--no-first-run',
 ];
-
-const blacklist = require('../hosts.json');
 
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
@@ -668,6 +679,52 @@ export const launchChromeDriver = async ({
       port,
     });
   });
+};
+
+export const getVersionJSON = async () => {
+  if (!versionCache) {
+    const port = await getPort();
+    const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
+    });
+
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+    const meta = await res.json();
+
+    browser.close();
+
+    const { 'WebKit-Version': webkitVersion } = meta;
+
+    delete meta.webSocketDebuggerUrl;
+
+    const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+
+    versionCache = {
+      ...meta,
+      'Debugger-Version': debuggerVersion,
+      'Puppeteer-Version': puppeteerVersion,
+    };
+  }
+
+  return versionCache;
+};
+
+export const getProtocolJSON = async () => {
+  if (!protocolCache) {
+    const port = await getPort();
+    const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
+    });
+
+    const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
+    protocolCache = await res.json();
+
+    browser.close();
+  }
+
+  return protocolCache;
 };
 
 export const killAll = async () => {

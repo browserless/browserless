@@ -1,17 +1,16 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 const child = require('child_process');
-const util = require('util');
-const debug = require('debug')('browserless-docker-deploy');
-const exec = util.promisify(child.exec);
-const { map, noop } = require('lodash');
 const path = require('path');
-const fs = require('fs-extra');
+const util = require('util');
 
-const {
-  releaseVersions,
-  puppeteerVersions,
-  version,
-} = require('../package.json');
+const debug = require('debug')('browserless-docker-deploy');
+const fs = require('fs-extra');
+const { map, noop } = require('lodash');
+
+const exec = util.promisify(child.exec);
+
+const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
 
@@ -30,12 +29,18 @@ async function cleanup() {
   await logExec(`rm -rf node_modules`);
 }
 
-// version is the full tag (1.2.3-puppeteer-1.11.1)
-// pptrVersion is one of the versions in packageJson.releaseVersions
 const deployVersion = async (tags, pptrVersion) => {
-  const versionInfo = puppeteerVersions[pptrVersion];
+  const versionInfo = chromeVersions[pptrVersion];
+
+  if (!versionInfo) {
+    throw new Error(
+      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`,
+    );
+  }
+
   const puppeteerVersion = versionInfo.puppeteer;
   const puppeteerChromiumRevision = versionInfo.chromeRevision;
+  const platform = versionInfo.platform || 'linux/amd64';
 
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
@@ -68,8 +73,10 @@ const deployVersion = async (tags, pptrVersion) => {
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
-  await logExec(`docker build \
+  await logExec(`docker buildx build \
+  --push \
   --quiet \
+  --platform ${platform} \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
@@ -83,20 +90,16 @@ const deployVersion = async (tags, pptrVersion) => {
   -t ${REPO}:${minorBranch} \
   -t ${REPO}:${majorBranch} .`);
 
-  // docker push
-  await Promise.all([
-    logExec(`docker push ${REPO}:${patchBranch}`),
-    logExec(`docker push ${REPO}:${minorBranch}`),
-    logExec(`docker push ${REPO}:${majorBranch}`),
-  ]);
+  await logExec(`git add --force version.json hosts.json protocol.json`).catch(
+    noop,
+  );
 
-  await logExec(
-    `git add --force version.json hosts.json hints.json protocol.json`,
-  ).catch(noop);
   await logExec(
     `git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`,
   ).catch(noop);
+
   await logExec(`git tag --force ${patchBranch}`);
+
   await logExec(
     `git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`,
   ).catch(noop);
@@ -105,7 +108,7 @@ const deployVersion = async (tags, pptrVersion) => {
   await cleanup();
 };
 
-async function deploy() {
+(async function deploy() {
   const versions = map(releaseVersions, (pptrVersion) => {
     const [major, minor, patch] = version.split('.');
 
@@ -115,7 +118,7 @@ async function deploy() {
 
     return {
       tags: [patchBranch, minorBranch, majorBranch],
-      pptrVersion,
+      arch: pptrVersion,
     };
   });
 
@@ -133,7 +136,6 @@ async function deploy() {
   await logExec(
     `docker images -a | grep "${REPO}" | awk '{print $3}' | xargs docker rmi -f`,
   );
-  debug(`Complete! Cleaning up file-system and exiting.`);
-}
 
-deploy();
+  debug(`Complete! Cleaning up file-system and exiting.`);
+})();

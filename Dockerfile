@@ -1,4 +1,4 @@
-FROM browserless/base:1.13.0
+FROM browserless/base:1.14.0
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -7,6 +7,7 @@ ARG PUPPETEER_VERSION
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
+ENV PLAYWRIGHT_BROWSERS_PATH=${APP_DIR}
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
 ENV HOST=0.0.0.0
@@ -24,8 +25,6 @@ RUN mkdir -p $APP_DIR $WORKSPACE_DIR
 WORKDIR $APP_DIR
 
 # Install app dependencies
-COPY package.json .
-COPY tsconfig.json .
 COPY . .
 
 # Install Chrome Stable when specified
@@ -36,13 +35,15 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   fi
 
 # Build and install external binaries + assets
+# NOTE: The `PUPPETEER_VERSION` is needed for production versions
+# listed in package.json
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
     export CHROMEDRIVER_SKIP_DOWNLOAD=false;\
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
+  npm ci && \
   npm i puppeteer@$PUPPETEER_VERSION;\
-  npm run postinstall &&\
   npm run build &&\
   chown -R blessuser:blessuser $APP_DIR
 

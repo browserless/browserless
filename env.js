@@ -1,4 +1,8 @@
+/* eslint-disable no-undef */
+/* eslint-disable no-useless-escape */
 const os = require('os');
+
+const playwright = require('playwright-core');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
 const pptrVersion = pptrPackageJSON.version;
@@ -11,6 +15,7 @@ const USE_CHROME_STABLE = process.env.USE_CHROME_STABLE && process.env.USE_CHROM
 const MAC = 'MAC';
 const WINDOWS = 'WINDOWS';
 const LINUX = 'LINUX';
+const LINUX_ARM64 = 'LINUX_ARM64';
 
 const CHROME_BINARY_PATHS = {
   LINUX: '/usr/bin/google-chrome',
@@ -22,7 +27,9 @@ const PLATFORM = os.platform() === 'win32' ?
   WINDOWS :
     os.platform() === 'darwin' ?
       MAC :
-      LINUX;
+      os.arch() === 'arm64' ?
+        LINUX_ARM64 :
+        LINUX;
 
 /*
  * Assess which chromium revision to install.
@@ -35,13 +42,13 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   }
 
   if (USE_CHROME_STABLE) {
-    return packageJson.puppeteerVersions['chrome-stable'].chromeRevision;
+    return packageJson.chromeVersions['chrome-stable'].chromeRevision;
   }
 
-  const pinnedRevision = packageJson.puppeteerVersions[`puppeteer-${pptrVersion}`];
+  const pinnedRevision = packageJson.chromeVersions[`puppeteer-${pptrVersion}`];
 
   if (pinnedRevision) {
-    return pinnedRevision.chromeRevision
+    return pinnedRevision.chromeRevision;
   }
 
   if (pptrPackageJSON.puppeteer) {
@@ -61,7 +68,10 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
  * for compatibility reasons
  */
 const PUPPETEER_BINARY_LOCATION = (() => {
-  // Use the copy that comes with puppeteer otherwise
+  if (PLATFORM === LINUX_ARM64) {
+    return playwright.chromium.executablePath();
+  }
+
   const browserFetcher = puppeteer.createBrowserFetcher();
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION).executablePath;
 })();
@@ -136,4 +146,5 @@ module.exports = {
   WINDOWS,
   MAC,
   LINUX,
+  LINUX_ARM64,
 };

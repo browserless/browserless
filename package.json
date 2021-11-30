@@ -22,40 +22,49 @@
     "deploy": "DEBUG=browserless* ./scripts/deploy.js",
     "deploy-base": "DEBUG=browserless* ./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
-    "meta": "./scripts/get-meta.js",
     "start": "node ./build",
     "test": "DEBUG=quiet jest --runInBand --detectOpenHandles",
-    "symlink-chrome": "node ./scripts/symlink-chrome",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "postinstall": "npm run external && npm run symlink-chrome && npm run meta",
+    "postinstall": "./scripts/postinstall.js",
     "snyk-protect": "snyk protect",
     "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'",
     "lint": "eslint src --ext .ts --fix"
   },
-  "puppeteerVersions": {
+  "chromeVersions": {
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
-      "chromeRevision": "686378"
+      "chromeRevision": "686378",
+      "platform": "linux/amd64"
     },
     "puppeteer-5.4.1": {
       "puppeteer": "5.4.1",
-      "chromeRevision": "809590"
+      "chromeRevision": "809590",
+      "platform": "linux/amd64"
     },
     "puppeteer-7.1.0": {
       "puppeteer": "7.1.0",
-      "chromeRevision": "848005"
+      "chromeRevision": "848005",
+      "platform": "linux/amd64"
     },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
-      "chromeRevision": "869685"
+      "chromeRevision": "869685",
+      "platform": "linux/amd64"
     },
     "puppeteer-10.4.0": {
       "puppeteer": "10.4.0",
-      "chromeRevision": "901912"
+      "chromeRevision": "901912",
+      "platform": "linux/amd64"
     },
     "puppeteer-12.0.1": {
       "puppeteer": "12.0.1",
-      "chromeRevision": "938248"
+      "chromeRevision": "938248",
+      "platform": "linux/amd64"
+    },
+    "arm64": {
+      "puppeteer": "12.0.1",
+      "chromeRevision": "938248",
+      "platform": "linux/arm64"
     },
     "chrome-stable": {
       "puppeteer": "12.0.1",
@@ -110,7 +119,7 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.6.6",
     "node-pdftk": "^2.0.0",
-    "playwright-core": "^1.16.1",
+    "playwright-core": "^1.18.0-alpha-nov-23-2021",
     "prom-client": "^14.0.0",
     "puppeteer": "^12.0.1",
     "puppeteer-extra": "^3.1.15",

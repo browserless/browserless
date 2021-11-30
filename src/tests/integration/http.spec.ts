@@ -725,7 +725,7 @@ describe('Browserless Chrome HTTP', () => {
 
       const body = {
         url: 'https://example.com',
-        selector: 'h1'
+        selector: 'h1',
       };
 
       return fetch(`http://127.0.0.1:${params.port}/screenshot`, {
