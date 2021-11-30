@@ -1,4 +1,5 @@
-FROM browserless/base:1.14.0
+ARG BASE_VERSION=latest
+FROM browserless/base:${BASE_VERSION}
 
 # Build Args
 ARG USE_CHROME_STABLE
