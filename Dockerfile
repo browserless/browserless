@@ -26,7 +26,6 @@ WORKDIR $APP_DIR
 
 # Install app dependencies
 COPY . .
-COPY hosts.json version.json ./
 
 # Install Chrome Stable when specified
 RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
