@@ -4,8 +4,6 @@ build/
 external/
 devtools/
 hosts.json
-protocol.json
-version.json
 
 # MAC
 .DS_Store
