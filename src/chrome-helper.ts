@@ -685,6 +685,7 @@ export const getVersionJSON = async () => {
   if (!versionCache) {
     const port = await getPort();
     const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
       args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
     });
 
@@ -713,6 +714,7 @@ export const getProtocolJSON = async () => {
   if (!protocolCache) {
     const port = await getPort();
     const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
       args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
     });
 
