@@ -33,7 +33,9 @@ const deployVersion = async (tags, pptrVersion) => {
   const versionInfo = chromeVersions[pptrVersion];
 
   if (!versionInfo) {
-    throw new Error(`Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`);
+    throw new Error(
+      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`,
+    );
   }
 
   const puppeteerVersion = versionInfo.puppeteer;

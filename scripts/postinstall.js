@@ -88,26 +88,30 @@ const waitForFile = async (filePath) =>
     );
   });
 
-const downloadAdBlockList = () => fetch(
-  'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
-)
-  .then((res) => res.text())
-  .then((raw) =>
-    _.chain(raw)
-      .split('\n')
-      .map((line) => {
-        const fragments = line.split(' ');
-        if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
-          return fragments[1].trim();
-        }
-        return null;
-      })
-      .reject(_.isNil)
-      .value(),
+const downloadAdBlockList = () => {
+  console.log(`Downloading ad-blocking list`);
+
+  return fetch(
+    'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
   )
-  .then((hostsArr) => {
-    fs.writeFileSync(hostsJson, JSON.stringify(hostsArr, null, '  '));
-  });
+    .then((res) => res.text())
+    .then((raw) =>
+      _.chain(raw)
+        .split('\n')
+        .map((line) => {
+          const fragments = line.split(' ');
+          if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
+            return fragments[1].trim();
+          }
+          return null;
+        })
+        .reject(_.isNil)
+        .value(),
+    )
+    .then((hostsArr) => {
+      fs.writeFileSync(hostsJson, JSON.stringify(hostsArr, null, '  '));
+    });
+};
 
 const downloadChromium = () => {
   if (USE_CHROME_STABLE && IS_LINUX_ARM64) {

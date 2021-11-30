@@ -88,7 +88,6 @@ const BROWSERLESS_ARGS = [
   '--no-first-run',
 ];
 
-
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
   : new URL(`http://${HOST || `127.0.0.1`}:${PORT}`);
@@ -686,10 +685,7 @@ export const getVersionJSON = async () => {
   if (!versionCache) {
     const port = await getPort();
     const browser = await puppeteer.launch({
-      args: [
-        ...BROWSERLESS_ARGS,
-        `--remote-debugging-port=${port}`,
-      ],
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
     });
 
     const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -701,9 +697,7 @@ export const getVersionJSON = async () => {
 
     delete meta.webSocketDebuggerUrl;
 
-    const debuggerVersion = webkitVersion.match(
-      /\s\(@(\b[0-9a-f]{5,40}\b)/,
-    )[1];
+    const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
 
     versionCache = {
       ...meta,
@@ -719,10 +713,7 @@ export const getProtocolJSON = async () => {
   if (!protocolCache) {
     const port = await getPort();
     const browser = await puppeteer.launch({
-      args: [
-        ...BROWSERLESS_ARGS,
-        `--remote-debugging-port=${port}`,
-      ],
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
     });
 
     const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
