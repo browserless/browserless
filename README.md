@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless-logo-gradient.svg" width="600" height="400">
+  <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless_logo_screen_gradient.png" width="600" height="400">
 </div>
 
 [![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
@@ -40,6 +40,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 - Works with most headless libraries.
 - Configurable session timers and health-checks to keep things running smoothly.
 - Error tolerant: if Chrome dies it won't.
+- [Support for running and development on Apple's M1 machines](#building-for-arm64-apple-m1-machines)
 
 # How it works
 
@@ -85,6 +86,22 @@ location / {
     proxy_set_header Host $host;
     proxy_cache_bypass $http_upgrade;
   }
+```
+
+# Building for ARM64 (Apple M1 Machines)
+
+Fist, if you're on a amd64 (non-M1 Mac), you'll need to setup the linux box to build. Ensure you're on the latest docker with experimental features enabled.
+
+```sh
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker buildx create --name builder --driver docker-container --use
+docker buildx inspect --bootstrap
+```
+
+Once complete, you can specify a platform target and build against it. In our production environments, we build a special `arm64` tag, which is what we'll use in the example below.
+
+```sh
+docker buildx build --platform linux/arm64 -t browserless/chrome:arm64 .
 ```
 
 # Hosting Providers
