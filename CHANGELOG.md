@@ -1,5 +1,19 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.49.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.50.0...master)
 - Dependency updates.
+
+# [v1.50.0](https://github.com/browserless/chrome/compare/v1.49.1...v1.50.0)
+- Dependency updates.
+- Drops support for `puppeteer-4.0.1` in favor of `puppeteer-12.0.1`.
+- Chrome-stable now utilizes puppeteer @ `12.0.1`.
+- Support for `arm64` via production tags (`1-arm64`) as well as in `latest`.
+- Static JSON files (`protocol.json`, `version.json`) are built at runtime on their first request and then cached in memory.
+- Bumps `browserless/base` to `1.14.0`.
+- New `selector` property for screenshot-ing a single DOM node in the screenshot API.
+- `puppeteerVersions` in the package.json file has been rename do `chromeVersions`.
+- Internal changes for deploying production tag scripts.
+- Consolidate scripts for `postinstall`.
+- Drop support for `heapdump` due to its age and lack of platform varieties.
+- New `/metrics/total` route for summing up all statistics in a single JSON payload.
 
 # [v1.49.1](https://github.com/browserless/chrome/compare/v1.49.0...v1.49.1)
 - Dependency updates.
