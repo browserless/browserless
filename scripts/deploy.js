@@ -53,18 +53,6 @@ const deployVersion = async (tags, pptrVersion) => {
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 
-  const port = await getPort();
-  const browser = await puppeteer.launch({
-    executablePath: isChromeStable ? '/usr/bin/google-chrome' : undefined,
-    args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
-  });
-
-  const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-  const versionJson = await res.json();
-  const debuggerVersion = versionJson['WebKit-Version'].match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
-
-  await browser.close();
-
   debug(
     `Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`,
   );
@@ -86,6 +74,19 @@ const deployVersion = async (tags, pptrVersion) => {
     } \
     npm run postinstall
   `);
+
+  await logExec(`Fetching protocol JSON versioning for docker labels`);
+  const port = await getPort();
+  const browser = await puppeteer.launch({
+    executablePath: isChromeStable ? '/usr/bin/google-chrome' : undefined,
+    args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
+  });
+
+  const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+  const versionJson = await res.json();
+  const debuggerVersion = versionJson['WebKit-Version'].match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+
+  await browser.close();
 
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
