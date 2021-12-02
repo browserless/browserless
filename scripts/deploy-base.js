@@ -39,8 +39,5 @@ const buildBase = async () => {
   // docker builds are super fast.
   await buildBase();
 
-  await logExec(
-    `docker images -a | grep "${BASE}" | awk '{print $3}' | xargs docker rmi`,
-  );
   debug(`Complete! Cleaning up file-system and exiting.`);
 })();
