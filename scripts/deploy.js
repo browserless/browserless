@@ -7,7 +7,6 @@ const debug = require('debug')('browserless-docker-deploy');
 const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
-const puppeteer = require('puppeteer');
 
 const exec = util.promisify(child.exec);
 
@@ -15,6 +14,17 @@ const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
 const BASE_VERSION = process.env.BASE_VERSION;
+
+const reloadPuppeteer = () => {
+  // Force node to reload puppeteer so it can re-determine where
+  // the chrome binary when puppeteer versions change.
+  Object.keys(require.cache).forEach((moduleKey) => {
+    if (moduleKey.includes('node_modules/puppeteer')) {
+      delete require.cache[moduleKey];
+    }
+  });
+  return require('puppeteer');
+};
 
 if (!BASE_VERSION) {
   throw new Error(
@@ -76,9 +86,10 @@ const deployVersion = async (tags, pptrVersion) => {
   `);
 
   debug(`Fetching protocol JSON versioning for docker labels`);
+  const puppeteer = reloadPuppeteer();
   const port = await getPort();
   const browser = await puppeteer.launch({
-    executablePath: isChromeStable ? '/usr/bin/google-chrome' : undefined,
+    executablePath: isChromeStable ? '/usr/bin/google-chrome' : puppeteer.executablePath(),
     args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
   });
 
