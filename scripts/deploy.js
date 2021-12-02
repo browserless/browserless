@@ -75,7 +75,7 @@ const deployVersion = async (tags, pptrVersion) => {
     npm run postinstall
   `);
 
-  await logExec(`Fetching protocol JSON versioning for docker labels`);
+  debug(`Fetching protocol JSON versioning for docker labels`);
   const port = await getPort();
   const browser = await puppeteer.launch({
     executablePath: isChromeStable ? '/usr/bin/google-chrome' : undefined,
