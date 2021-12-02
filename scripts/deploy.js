@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 const child = require('child_process');
-const path = require('path');
 const util = require('util');
 
 const debug = require('debug')('browserless-docker-deploy');
-const fs = require('fs-extra');
+const getPort = require('get-port');
 const { map, noop } = require('lodash');
+const fetch = require('node-fetch');
+const puppeteer = require('puppeteer');
 
 const exec = util.promisify(child.exec);
 
@@ -52,6 +53,18 @@ const deployVersion = async (tags, pptrVersion) => {
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 
+  const port = await getPort();
+  const browser = await puppeteer.launch({
+    executablePath: isChromeStable ? '/usr/bin/google-chrome' : undefined,
+    args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
+  });
+
+  const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+  const versionJson = await res.json();
+  const debuggerVersion = versionJson['WebKit-Version'].match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+
+  await browser.close();
+
   debug(
     `Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`,
   );
@@ -74,9 +87,6 @@ const deployVersion = async (tags, pptrVersion) => {
     npm run postinstall
   `);
 
-  const versionJson = fs.readJSONSync(
-    path.join(__dirname, '..', 'version.json'),
-  );
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
@@ -92,8 +102,8 @@ const deployVersion = async (tags, pptrVersion) => {
   --label "protocolVersion=${versionJson['Protocol-Version']}" \
   --label "v8Version=${versionJson['V8-Version']}" \
   --label "webkitVersion=${versionJson['WebKit-Version']}" \
-  --label "debuggerVersion=${versionJson['Debugger-Version']}" \
-  --label "puppeteerVersion=${versionJson['Puppeteer-Version']}" \
+  --label "debuggerVersion=${debuggerVersion}" \
+  --label "puppeteerVersion=${puppeteerVersion}" \
   -t ${REPO}:${patchBranch} \
   -t ${REPO}:${minorBranch} \
   -t ${REPO}:${majorBranch} .`);
@@ -126,6 +136,7 @@ const deployVersion = async (tags, pptrVersion) => {
 
     return {
       tags: [patchBranch, minorBranch, majorBranch],
+      pptrVersion,
       arch: pptrVersion,
     };
   });
@@ -147,3 +158,4 @@ const deployVersion = async (tags, pptrVersion) => {
 
   debug(`Complete! Cleaning up file-system and exiting.`);
 })();
+
