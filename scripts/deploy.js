@@ -34,6 +34,7 @@ const logExec = (cmd) => {
 
 async function cleanup() {
   await logExec(`git reset origin/master --hard`);
+  await logExec(`git clean -fd`);
   await logExec(`rm -rf node_modules`);
 }
 
