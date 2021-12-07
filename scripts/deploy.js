@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 const child = require('child_process');
+const fs = require('fs');
 const util = require('util');
 
 const debug = require('debug')('browserless-docker-deploy');
@@ -10,6 +11,7 @@ const fetch = require('node-fetch');
 const puppeteer = require('puppeteer');
 
 const exec = util.promisify(child.exec);
+const writeFile = util.promisify(fs.writeFile);
 
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
@@ -93,7 +95,11 @@ const deployVersion = async (tags, pptrVersion) => {
     /\s\(@(\b[0-9a-f]{5,40}\b)/,
   )[1];
 
-  await browser.close();
+  // Keep a copy of version.json in git since it's tracked elsewhere
+  await Promise.all([
+    writeFile('version.json', JSON.stringify(versionJson)),
+    browser.close(),
+  ]);
 
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
@@ -116,7 +122,7 @@ const deployVersion = async (tags, pptrVersion) => {
   -t ${REPO}:${minorBranch} \
   -t ${REPO}:${majorBranch} .`);
 
-  await logExec(`git add --force hosts.json`).catch(noop);
+  await logExec(`git add --force hosts.json version.json`).catch(noop);
 
   await logExec(
     `git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`,
@@ -160,4 +166,3 @@ const deployVersion = async (tags, pptrVersion) => {
 
   debug(`Complete! Cleaning up file-system and exiting.`);
 })();
-
