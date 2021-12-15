@@ -1,4 +1,4 @@
-import http from 'http';
+import http, { ServerResponse } from 'http';
 
 import { Socket } from 'net';
 
@@ -86,10 +86,12 @@ export class BrowserlessServer {
 
     this.proxy = httpProxy.createProxyServer();
     this.proxy.on('error', (err: Error, _req, res) => {
-      res.writeHead && res.writeHead(500, { 'Content-Type': 'text/plain' });
+      if (res instanceof ServerResponse) {
+        res.writeHead && res.writeHead(500, { 'Content-Type': 'text/plain' });
 
-      debug(`Issue communicating with Chrome: "${err.message}"`);
-      res.end(`Issue communicating with Chrome`);
+        debug(`Issue communicating with Chrome: "${err.message}"`);
+        res.end(`Issue communicating with Chrome`);
+      }
     });
 
     function restartOnFailure() {
