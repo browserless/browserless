@@ -220,6 +220,8 @@ export const pdf = Joi.object()
       printBackground: Joi.boolean(),
       scale: Joi.number().min(0),
       width: Joi.any().optional(),
+      omitBackground: Joi.boolean(),
+      timeout: Joi.number(),
     }),
     rejectRequestPattern,
     rejectResourceTypes,
