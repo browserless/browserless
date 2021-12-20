@@ -29,6 +29,7 @@ module.exports = async function content({ page, context }) {
     setExtraHTTPHeaders = null,
     setJavaScriptEnabled = null,
     userAgent = null,
+    viewport = null,
     waitFor,
   } = context;
 
@@ -74,6 +75,10 @@ module.exports = async function content({ page, context }) {
 
   if (userAgent) {
     await page.setUserAgent(userAgent);
+  }
+
+  if (viewport) {
+    await page.setViewport(viewport);
   }
 
   const response =

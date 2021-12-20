@@ -178,6 +178,7 @@ export const content = Joi.object().keys({
   setJavaScriptEnabled,
   url: Joi.string().required(),
   userAgent,
+  viewport,
   waitFor,
 });
 
