@@ -526,6 +526,10 @@ export const canPreboot = (
   incoming: ILaunchOptions,
   defaults: ILaunchOptions,
 ) => {
+  if (incoming.playwright) {
+    return false;
+  }
+
   if (
     !_.isUndefined(incoming.headless) &&
     incoming.headless !== defaults.headless
