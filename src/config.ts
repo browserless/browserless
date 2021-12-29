@@ -149,6 +149,10 @@ export const DEFAULT_STEALTH: boolean = parseJSONParam(
   process.env.DEFAULT_STEALTH,
   false,
 );
+export const DEFAULT_PLAYWRIGHT: boolean = parseJSONParam(
+  process.env.DEFAULT_PLAYWRIGHT,
+  false,
+);
 export const DEFAULT_USER_DATA_DIR: string | undefined = process.env
   .DEFAULT_USER_DATA_DIR
   ? untildify(process.env.DEFAULT_USER_DATA_DIR)

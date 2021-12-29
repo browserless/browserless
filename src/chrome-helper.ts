@@ -37,6 +37,7 @@ import {
   PORT,
   PROXY_URL,
   WORKSPACE_DIR,
+  DEFAULT_PLAYWRIGHT,
 } from './config';
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
@@ -351,7 +352,7 @@ export const defaultLaunchArgs = {
   pauseOnConnect: false,
   slowMo: undefined,
   userDataDir: DEFAULT_USER_DATA_DIR,
-  playwright: false,
+  playwright: DEFAULT_PLAYWRIGHT,
   stealth: DEFAULT_STEALTH,
   meta: null,
 };
