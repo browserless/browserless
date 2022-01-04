@@ -42,7 +42,7 @@ export class WebDriver {
     res: ServerResponse,
     params: IWebdriverStartNormalized['params'],
     currentStat: IBrowserlessStats,
-  ) {
+  ): Promise<ServerResponse | void> {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {
@@ -124,7 +124,7 @@ export class WebDriver {
                   sessionId: id,
                 };
 
-                job.onTimeout = () => {
+                job.onTimeout = (): ServerResponse | void => {
                   const res = this.webDriverSessions[id].res;
                   if (res && !res.headersSent) {
                     res.writeHead && res.writeHead(408);
