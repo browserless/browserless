@@ -643,6 +643,12 @@ export default {
                   format: 'binary',
                 },
               },
+              'text/plain': {
+                schema: {
+                  type: 'string',
+                  format: 'base64',
+                },
+              },
             },
           },
         },

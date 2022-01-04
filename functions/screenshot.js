@@ -140,6 +140,12 @@ module.exports = async function screenshot({ page, context } = {}) {
     'x-response-port': response?.remoteAddress().port,
   };
 
+  let contentType = options.type ? options.type : 'png';
+
+  if (options.encoding && options.encoding === 'base64') {
+    contentType = 'text';
+  }
+
   if (manipulate) {
     const sharp = require('sharp');
     const chain = sharp(data);
@@ -163,13 +169,13 @@ module.exports = async function screenshot({ page, context } = {}) {
     return {
       data: await chain.toBuffer(),
       headers,
-      type: options.type ? options.type : 'png',
+      type: contentType,
     };
   }
 
   return {
     data,
     headers,
-    type: options.type ? options.type : 'png',
+    type: contentType,
   };
 };
