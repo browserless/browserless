@@ -27,7 +27,7 @@
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "node ./scripts/postinstall.js",
     "snyk-protect": "snyk protect",
-    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'",
+    "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
     "lint": "eslint src --ext .ts --fix"
   },
   "chromeVersions": {
