@@ -56,23 +56,23 @@
       "chromeRevision": "901912",
       "platform": "linux/amd64"
     },
-    "puppeteer-12.0.1": {
-      "puppeteer": "12.0.1",
+    "puppeteer-13.0.1": {
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248",
       "platform": "linux/amd64"
     },
     "arm64": {
-      "puppeteer": "12.0.1",
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248",
       "platform": "linux/arm64"
     },
     "chrome-stable": {
-      "puppeteer": "12.0.1",
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248"
     }
   },
   "releaseVersions": [
-    "puppeteer-12.0.1",
+    "puppeteer-13.0.1",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
