@@ -11,6 +11,15 @@
       "port": 9229
     },
     {
+      "name": "Launch debug",
+      "request": "launch",
+      "runtimeArgs": ["run-script", "dev"],
+      "runtimeExecutable": "npm",
+      "skipFiles": ["<node_internals>/**"],
+      "type": "pwa-node",
+      "outputCapture": "std"
+  },
+    {
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
