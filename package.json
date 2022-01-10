@@ -27,7 +27,7 @@
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "node ./scripts/postinstall.js",
     "snyk-protect": "snyk protect",
-    "prettier": "prettier --config .prettierrc --write --loglevel error '{src,functions,scripts}/**/*.{js,ts}'",
+    "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
     "lint": "eslint src --ext .ts --fix"
   },
   "chromeVersions": {
@@ -56,23 +56,23 @@
       "chromeRevision": "901912",
       "platform": "linux/amd64"
     },
-    "puppeteer-12.0.1": {
-      "puppeteer": "12.0.1",
+    "puppeteer-13.0.1": {
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248",
       "platform": "linux/amd64"
     },
     "arm64": {
-      "puppeteer": "12.0.1",
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248",
       "platform": "linux/arm64"
     },
     "chrome-stable": {
-      "puppeteer": "12.0.1",
+      "puppeteer": "13.0.1",
       "chromeRevision": "938248"
     }
   },
   "releaseVersions": [
-    "puppeteer-12.0.1",
+    "puppeteer-13.0.1",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
@@ -101,7 +101,7 @@
     "bluebird": "^3.5.5",
     "body-parser": "^1.18.2",
     "browserless-debugger": "^1.0.2",
-    "chromedriver": "^96.0.0",
+    "chromedriver": "^97.0.0",
     "cookie": "^0.4.0",
     "cors": "^2.8.4",
     "debug": "^4",

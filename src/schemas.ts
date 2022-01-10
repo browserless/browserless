@@ -151,6 +151,7 @@ export const screenshot = Joi.object()
       omitBackground: Joi.boolean(),
       quality: Joi.number().min(0).max(100),
       type: Joi.string().valid('jpeg', 'png'),
+      encoding: Joi.string().valid('binary', 'base64'),
     }),
     rejectRequestPattern,
     rejectResourceTypes,
