@@ -50,12 +50,15 @@ const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
 
 // @TODO: Fix this revision once devtools app works again
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
-const chromedriverUrl =
-  PLATFORM === MAC
-    ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`
-    : PLATFORM === WINDOWS
-    ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`
-    : `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+const chromedriverUrl = (() => {
+  if (PLATFORM === MAC)
+    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
+  if (PLATFORM === WINDOWS)
+    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`;
+  
+  // Linux
+  return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+})();
 
 const downloadUrlToDirectory = (url, dir) =>
   fetch(url).then(
@@ -146,17 +149,18 @@ const downloadChromedriver = () => {
     `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  const chromedriverZipFolder =
-    PLATFORM === MAC
-      ? `chromedriver_mac64`
-      : PLATFORM === WINDOWS
-      ? `chromedriver_win32`
-      : `chromedriver_linux64`;
+  const chromedriverZipFolder = (() => {
+    if (PLATFORM === MAC) return 'chromedriver_mac64';
+    if (PLATFORM === WINDOWS) return 'chromedriver_win32';
+    return 'chromedriver_linux64'; // Linux
+  })();
+
   const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver`);
+  const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
     chromedriverZipFolder,
-    'chromedriver',
+    chromedriverBin,
   );
   const chromedriverFinalPath = path.join(
     __dirname,
