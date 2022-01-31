@@ -1,5 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.50.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.51.0...master)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
+- Dependency updates.
+- New `viewport` option inside of the content API.
+- New `encoding` option in the screenshot API.
+- Drop puppeteer@12.x.x in favor of 13.x.x.
+- Fixes in our deploy scripts.
+- Fixes for windows binaries in our postinstall hook.
+- Fixes an issue where playwright tries to use a pre-booted chrome instance.
+- Small type updates.
 
 # [v1.50.0](https://github.com/browserless/chrome/compare/v1.49.1...v1.50.0)
 - Dependency updates.
