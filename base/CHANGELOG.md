@@ -1,3 +1,5 @@
+# 1.15.0
+- Dependency updates
 # 1.14.0
 - Dependency updates
 - Support for linux arm64 via the `--platform linux/arm64` flag during run

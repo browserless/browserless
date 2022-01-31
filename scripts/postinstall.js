@@ -55,7 +55,7 @@ const chromedriverUrl = (() => {
     return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
   if (PLATFORM === WINDOWS)
     return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`;
-  
+
   // Linux
   return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
 })();
@@ -217,6 +217,10 @@ const downloadDevTools = () => {
       // If we're in docker, and this isn't a chrome-stable build,
       // symlink where chrome-stable should be back to puppeteer's build
       if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
+        if (!USE_CHROME_STABLE && !fs.existsSync(PUPPETEER_BINARY_LOCATION)) {
+          throw new Error(`Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`);
+        }
+
         (async () => {
           console.log(
             `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`,
