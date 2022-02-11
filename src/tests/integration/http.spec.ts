@@ -355,7 +355,7 @@ describe('Browserless Chrome HTTP', () => {
         .then((res) => res.text())
         .then((res) => {
           expect(res).toContain(
-            `The module 'node-fetch' is not whitelisted in VM`,
+            `Cannot find module 'node-fetch'`,
           );
         });
     });
