@@ -1,7 +1,10 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.51.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.51.1...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
+# [v1.51.1](https://github.com/browserless/chrome/compare/v1.51.0...v1.51.1)
+- Dependency updates.
+- Updates the `vm2` module to `3.9.7`.
+# [v1.51.0](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
 - Dependency updates.
 - New `viewport` option inside of the content API.
 - New `encoding` option in the screenshot API.
