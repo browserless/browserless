@@ -320,7 +320,7 @@ describe('Browserless Chrome HTTP', () => {
         .then((res) => res.text())
         .then((res) => {
           expect(res).toContain(
-            `Cannot find module ‘request’`,
+            `Cannot find module 'request'`,
           );
         });
     });
