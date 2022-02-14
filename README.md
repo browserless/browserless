@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless_logo_screen_gradient.png">
 </div>
 
-[![Build Status](https://travis-ci.org/browserless/chrome.svg?branch=master)](https://travis-ci.org/browserless/chrome)
+![Docker pulls](https://img.shields.io/docker/pulls/browserless/chrome)
 ![Dependabot](https://flat.badgen.net/badge/-/dependabot?icon=dependabot&label&color=green)
 
 browserless is a web-service that allows for remote clients to connect, drive, and execute headless work; all inside of docker. It offers first-class integrations for puppeteer, playwright, selenium's webdriver, and a slew of handy REST APIs for doing more common work. On top of all that it takes care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edge-cases like downloading files, managing sessions, and have a fully-fledged documentation site.
