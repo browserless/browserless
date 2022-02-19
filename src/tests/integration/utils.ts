@@ -12,7 +12,7 @@ export const getPort = () => 3000 + +_.uniqueId();
 export const defaultParams = (): IBrowserlessOptions => ({
   allowFileProtocol: false,
   chromeRefreshTime: 0,
-  connectionTimeout: 10000,
+  connectionTimeout: 15000,
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,

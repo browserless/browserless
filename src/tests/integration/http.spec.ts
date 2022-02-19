@@ -1567,7 +1567,7 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
-    jest.setTimeout(10000);
+    jest.setTimeout(15000);
 
     it('allows requests', async () => {
       const params = defaultParams();
