@@ -191,7 +191,7 @@ export const queryValidation = (schema: Schema) => {
       return res
         .status(400)
         .send(
-          `The query-parameter "body" is required, and must be a URL-encoded JSON object.`,
+          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
         );
     }
 
@@ -205,7 +205,7 @@ export const queryValidation = (schema: Schema) => {
       return res
         .status(400)
         .send(
-          `The query-parameter "body" is required, and must be a URL-encoded JSON object.`,
+          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
         );
     }
 
