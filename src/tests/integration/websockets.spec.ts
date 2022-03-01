@@ -242,29 +242,29 @@ describe('Browserless Chrome WebSockets', () => {
       job();
     }));
 
-    it('creates user-data-dirs with named flags', async () =>
-      new Promise(async (done) => {
-        const params = defaultParams();
-        const browserless = await start(params);
-        await browserless.startServer();
-        const userDataDir = '/tmp/browserless-123';
-  
-        expect(await exists(userDataDir)).toBe(false);
-  
-        const job = async () => {
-          return new Promise(async (resolve) => {
-            const browser: any = await puppeteer.connect({
-              browserWSEndpoint: `ws://127.0.0.1:${params.port}?userDataDir=${userDataDir}`,
-            });
-            expect(await exists(userDataDir)).toBeTruthy();
-            browser.once('disconnected', resolve);
-            browser.disconnect();
-            await rimraf(userDataDir, done);
+  it('creates user-data-dirs with named flags', async () =>
+    new Promise(async (done) => {
+      const params = defaultParams();
+      const browserless = await start(params);
+      await browserless.startServer();
+      const userDataDir = '/tmp/browserless-123';
+
+      expect(await exists(userDataDir)).toBe(false);
+
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser: any = await puppeteer.connect({
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}?userDataDir=${userDataDir}`,
           });
-        };
-  
-        job();
-      }));
+          expect(await exists(userDataDir)).toBeTruthy();
+          browser.once('disconnected', resolve);
+          browser.disconnect();
+          await rimraf(userDataDir, done);
+        });
+      };
+
+      job();
+    }));
 
   it('runs with no leaks', async () =>
     new Promise(async (done) => {
