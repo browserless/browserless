@@ -319,9 +319,7 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(
-            `Cannot find module 'request'`,
-          );
+          expect(res).toContain(`Cannot find module 'request'`);
         });
     });
 
@@ -354,9 +352,7 @@ describe('Browserless Chrome HTTP', () => {
       })
         .then((res) => res.text())
         .then((res) => {
-          expect(res).toContain(
-            `Cannot find module 'node-fetch'`,
-          );
+          expect(res).toContain(`Cannot find module 'node-fetch'`);
         });
     });
 

@@ -1,8 +1,9 @@
+import { mkdir } from 'fs/promises';
 import path from 'path';
 
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
-import { id, mkdir } from '../utils';
+import { id } from '../utils';
 
 import { after as downloadAfter } from './download';
 

@@ -217,6 +217,34 @@ describe('Browserless Chrome WebSockets', () => {
       job();
     }));
 
+  it('creates user-data-dirs', async () =>
+    new Promise(async (done) => {
+      const params = defaultParams();
+      const browserless = await start(params);
+      await browserless.startServer();
+      const userDataDir = '~/browserless';
+
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser: any = await puppeteer.connect({
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}?--user-data-dir=${userDataDir}`,
+          });
+          expect(await exists(userDataDir)).toBeTruthy();
+          browser.once('disconnected', resolve);
+          browser.disconnect();
+        });
+      };
+
+      browserless.queue.on('success', async (_r, j) => {
+        const tmpDir = j.browser._browserlessDataDir;
+        await sleep(1000);
+        expect(await exists(tmpDir)).toBe(false);
+        done(null);
+      });
+
+      job();
+    }));
+
   it('runs with no leaks', async () =>
     new Promise(async (done) => {
       const params = defaultParams();

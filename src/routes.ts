@@ -1,3 +1,4 @@
+import { mkdir } from 'fs/promises';
 import path from 'path';
 
 import archiver from 'archiver';
@@ -38,7 +39,6 @@ import {
   generateChromeTarget,
   lstat,
   queryValidation,
-  mkdir,
 } from './utils';
 
 const rimraf = require('rimraf');

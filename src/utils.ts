@@ -1,15 +1,10 @@
 import fs from 'fs';
-
+import { stat, mkdir } from 'fs/promises';
 import { IncomingMessage } from 'http';
-
 import net from 'net';
-
 import os from 'os';
-
 import path from 'path';
-
 import url from 'url';
-
 import util from 'util';
 
 import cookie from 'cookie';
@@ -46,13 +41,15 @@ const mkdtemp = util.promisify(fs.mkdtemp);
 const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export const jsonProtocolPrefix = 'BROWSERLESS';
-export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
-export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
+export const exists = (path: string) =>
+  stat(path)
+    .then(() => true)
+    .catch(() => false);
 
 const webdriverSessionCloseReg =
   /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
@@ -464,6 +461,13 @@ export const getUserDataDir = () =>
 
 export const clearBrowserlessDataDirs = () =>
   rimraf(path.join(os.tmpdir(), `${browserlessDataDirPrefix}*`));
+
+export const mkDataDir = async (path: string) => {
+  if (await exists(path)) {
+    return;
+  }
+  await mkdir(path, { recursive: true });
+};
 
 export const parseRequest = (req: IncomingMessage): IHTTPRequest => {
   const ret: IHTTPRequest = req as IHTTPRequest;

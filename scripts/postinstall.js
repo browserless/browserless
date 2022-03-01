@@ -218,7 +218,9 @@ const downloadDevTools = () => {
       // symlink where chrome-stable should be back to puppeteer's build
       if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
         if (!USE_CHROME_STABLE && !fs.existsSync(PUPPETEER_BINARY_LOCATION)) {
-          throw new Error(`Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`);
+          throw new Error(
+            `Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`,
+          );
         }
 
         (async () => {

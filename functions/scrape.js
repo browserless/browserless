@@ -138,7 +138,10 @@ module.exports = async function scrape({ page, context }) {
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate(`document.createDocumentFragment().querySelector("${waitFor}")`)
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
         .then(() => true)
         .catch(() => false);
 

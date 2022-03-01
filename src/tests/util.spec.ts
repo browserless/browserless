@@ -99,14 +99,17 @@ describe(`Utils`, () => {
 
     describe('playwright', () => {
       it('returns false when playwright connects', () => {
-        expect(
-          utils.canPreboot(getArgs({ playwright: true }), getArgs()),
-        ).toBe(false);
+        expect(utils.canPreboot(getArgs({ playwright: true }), getArgs())).toBe(
+          false,
+        );
       });
 
       it('returns false when default args says playwright: true', () => {
         expect(
-          utils.canPreboot(getArgs({ playwright: true }), getArgs({ playwright: true })),
+          utils.canPreboot(
+            getArgs({ playwright: true }),
+            getArgs({ playwright: true }),
+          ),
         ).toBe(false);
       });
     });

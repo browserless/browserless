@@ -18,8 +18,8 @@ import { chromium, BrowserServer } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-
 import treeKill from 'tree-kill';
+import untildify from 'untildify';
 
 import {
   ALLOW_FILE_PROTOCOL,
@@ -57,6 +57,7 @@ import {
   getDebug,
   getUserDataDir,
   injectHostIntoSession,
+  mkDataDir,
   rimraf,
   sleep,
 } from './utils';
@@ -523,21 +524,28 @@ export const launchChrome = async (
   const isPlaywright = launchArgs.playwright;
 
   // Having a user-data-dir in args is higher precedence than in opts
-  const hasUserDataDir = _.some(launchArgs.args, (arg) =>
-    arg.includes('--user-data-dir='),
-  );
+  const manualUserDataDir =
+    launchArgs.args
+      .find((arg) => arg.includes('--user-data-dir='))
+      ?.split('=')[1] || opts.userDataDir;
+
   const isHeadless =
     launchArgs.args.some((arg) => arg.startsWith('--headless')) ||
     typeof launchArgs.headless === 'undefined' ||
     launchArgs.headless === true;
 
-  if (hasUserDataDir || opts.userDataDir) {
+  if (!!manualUserDataDir || opts.userDataDir) {
     isUsingTempDataDir = false;
   }
 
   // If no data-dir is specified, use the default one in opts or generate one
   // except for playwright which will error doing so.
-  if (!hasUserDataDir) {
+  if (manualUserDataDir) {
+    const explodedPath = untildify(manualUserDataDir);
+    await mkDataDir(explodedPath);
+    opts.userDataDir = explodedPath;
+    launchArgs.args.push(`--user-data-dir=${explodedPath}`);
+  } else {
     browserlessDataDir = opts.userDataDir || (await getUserDataDir());
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
   }
