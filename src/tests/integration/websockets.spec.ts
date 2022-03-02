@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer';
+import rimraf from 'rimraf';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types.d';
@@ -213,6 +214,54 @@ describe('Browserless Chrome WebSockets', () => {
         expect(await exists(tmpDir)).toBe(false);
         done(null);
       });
+
+      job();
+    }));
+
+  it('creates user-data-dirs with CLI flags', async () =>
+    new Promise(async (done) => {
+      const params = defaultParams();
+      const browserless = await start(params);
+      await browserless.startServer();
+      const userDataDir = '/tmp/browserless-123';
+
+      expect(await exists(userDataDir)).toBe(false);
+
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser: any = await puppeteer.connect({
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}?--user-data-dir=${userDataDir}`,
+          });
+          expect(await exists(userDataDir)).toBeTruthy();
+          browser.once('disconnected', resolve);
+          browser.disconnect();
+          await rimraf(userDataDir, done);
+        });
+      };
+
+      job();
+    }));
+
+  it('creates user-data-dirs with named flags', async () =>
+    new Promise(async (done) => {
+      const params = defaultParams();
+      const browserless = await start(params);
+      await browserless.startServer();
+      const userDataDir = '/tmp/browserless-123';
+
+      expect(await exists(userDataDir)).toBe(false);
+
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser: any = await puppeteer.connect({
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}?userDataDir=${userDataDir}`,
+          });
+          expect(await exists(userDataDir)).toBeTruthy();
+          browser.once('disconnected', resolve);
+          browser.disconnect();
+          await rimraf(userDataDir, done);
+        });
+      };
 
       job();
     }));
