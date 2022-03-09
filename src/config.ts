@@ -170,6 +170,10 @@ export const ENABLE_API_GET: boolean = parseJSONParam(
   false,
 );
 export const TOKEN: string | null = process.env.TOKEN || null;
+export const ENABLE_HEAP_DUMP: boolean = parseJSONParam(
+  process.env.ENABLE_HEAP_DUMP,
+  false,
+);
 export const ALLOW_FILE_PROTOCOL: boolean = parseJSONParam(
   process.env.ALLOW_FILE_PROTOCOL,
   false,

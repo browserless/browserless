@@ -313,6 +313,7 @@ export class BrowserlessServer {
         puppeteerProvider: this.puppeteerProvider,
         workspaceDir: this.workspaceDir,
         enableAPIGet: this.enableAPIGet,
+        enableHeapdump: this.config.enableHeapdump,
       });
 
       if (this.config.enableCors) {

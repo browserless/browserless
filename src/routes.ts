@@ -73,6 +73,7 @@ interface IGetRoutes {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
 }
 
 export const getRoutes = ({
@@ -83,6 +84,7 @@ export const getRoutes = ({
   workspaceDir,
   disabledFeatures,
   enableAPIGet,
+  enableHeapdump,
 }: IGetRoutes): Router => {
   const router = Router();
   const storage = multer.diskStorage({
@@ -571,6 +573,20 @@ export const getRoutes = ({
         return res.json(pages);
       }),
     );
+  }
+  
+  if (enableHeapdump) {
+    const heapdump = require('heapdump');
+    router.get('/heapdump', (_req, res) => {
+      const heapLocation = path.join(workspaceDir, `heap-${Date.now()}`);
+      heapdump.writeSnapshot(heapLocation, (err: Error) => {
+        if (err) {
+          return res.status(500).send(err.message);
+        }
+
+        return res.sendFile(heapLocation, () => rimraf(heapLocation, _.noop));
+      });
+    });
   }
 
   return router;

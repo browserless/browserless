@@ -153,6 +153,7 @@ interface IBrowserlessServerConfiguration {
   workspaceDir: string;
   disabledFeatures: Feature[];
   enableAPIGet: boolean;
+  enableHeapdump: boolean;
   socketBehavior: 'http' | 'close';
 }
 
