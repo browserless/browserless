@@ -17,27 +17,28 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
 
 # Install dependencies for Chrome / Chromium
 RUN apt-get -y -qq --no-install-recommends install \
+  build-essential \
+  ca-certificates \
+  curl \
   dumb-init \
-  git \
   ffmpeg \
-  fonts-liberation \
-  msttcorefonts \
-  fonts-roboto \
-  fonts-ubuntu \
-  fonts-noto-color-emoji \
-  fonts-noto-cjk \
-  fonts-ipafont-gothic \
-  fonts-wqy-zenhei \
-  fonts-kacst \
-  fonts-freefont-ttf \
-  fonts-thai-tlwg \
-  fonts-indic \
   fontconfig \
-  libappindicator3-1 \
-  pdftk \
-  unzip \
-  locales \
+  fonts-freefont-ttf \
+  fonts-gfs-neohellenic \
+  fonts-indic \
+  fonts-ipafont-gothic \
+  fonts-kacst \
+  fonts-liberation \
+  fonts-noto-cjk \
+  fonts-noto-color-emoji \
+  fonts-roboto \
+  fonts-thai-tlwg \
+  fonts-ubuntu \
+  fonts-wqy-zenhei \
   gconf-service \
+  git \
+  libappindicator1 \
+  libappindicator3-1 \
   libasound2 \
   libatk-bridge2.0-0 \
   libatk1.0-0 \
@@ -47,6 +48,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   libdbus-1-3 \
   libexpat1 \
   libfontconfig1 \
+  libgbm-dev \
   libgbm1 \
   libgcc1 \
   libgconf-2-4 \
@@ -54,6 +56,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   libglib2.0-0 \
   libgtk-3-0 \
   libnspr4 \
+  libnss3 \
   libpango-1.0-0 \
   libpangocairo-1.0-0 \
   libstdc++6 \
@@ -70,16 +73,14 @@ RUN apt-get -y -qq --no-install-recommends install \
   libxrender1 \
   libxss1 \
   libxtst6 \
-  libgbm-dev \
-  ca-certificates \
-  libappindicator1 \
-  libnss3 \
+  locales \
   lsb-release \
-  xdg-utils \
+  msttcorefonts \
+  pdftk \
+  unzip \
   wget \
-  xvfb \
-  curl \
-  build-essential
+  xdg-utils \
+  xvfb
 
 # Only install Adobe Flash on amd64 (not available for other architectures)
 RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
