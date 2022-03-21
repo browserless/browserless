@@ -1,16 +1,12 @@
-type ListenerFn<TArgs extends unknown[]> = (
-  ...args: TArgs
-) => unknown | Promise<unknown>;
-
-export class AsyncArray {
-  private arr: any[] = [];
-  private waiting: ListenerFn<unknown[]>[] = [];
+export class AsyncArray<ItemType> {
+  private arr: ItemType[] = [];
+  private waiting: Array<(item: ItemType) => unknown> = [];
 
   get length() {
     return this.arr.length;
   }
 
-  public get = () => {
+  public get = (): Promise<ItemType> => {
     const item = this.arr.shift();
     if (item) {
       return Promise.resolve(item);
@@ -21,7 +17,7 @@ export class AsyncArray {
     });
   };
 
-  public push(item: unknown) {
+  public push(item: ItemType) {
     const next = this.waiting.shift();
 
     if (next) {
@@ -34,7 +30,7 @@ export class AsyncArray {
   }
 
   public map(
-    cb: (value: any, index: number, array: any[]) => unknown,
+    cb: (value: ItemType, index: number, array: ItemType[]) => unknown,
     thisArg?: any,
   ) {
     return this.arr.map(cb, thisArg);

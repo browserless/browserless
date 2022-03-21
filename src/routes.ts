@@ -574,7 +574,7 @@ export const getRoutes = ({
       }),
     );
   }
-  
+
   if (enableHeapdump) {
     const heapdump = require('heapdump');
     router.get('/heapdump', (_req, res) => {
