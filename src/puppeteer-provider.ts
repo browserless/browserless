@@ -3,10 +3,10 @@ import net from 'net';
 import _ from 'lodash';
 import { NodeVM } from 'vm2';
 
+import { AsyncArray } from './async-array';
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
 import { PLAYWRIGHT_ROUTE } from './constants';
-import { EventArray } from './event-array';
 import { Queue } from './queue';
 import {
   IChromeServiceConfiguration,
@@ -26,7 +26,7 @@ const jobdetaildebug = utils.getDebug('jobdetail');
 export class PuppeteerProvider {
   private readonly server: BrowserlessServer;
   private config: IChromeServiceConfiguration;
-  private chromeSwarm: EventArray;
+  private chromeSwarm: AsyncArray;
   private queue: Queue;
 
   constructor(
@@ -38,7 +38,7 @@ export class PuppeteerProvider {
     this.server = server;
     this.queue = queue;
 
-    this.chromeSwarm = new EventArray();
+    this.chromeSwarm = new AsyncArray();
   }
 
   get keepChromeInstance() {
@@ -494,7 +494,7 @@ export class PuppeteerProvider {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job: IJob) => job.close && job.close()),
-      ...this.chromeSwarm.map(async (instance) => {
+      ...this.chromeSwarm.map(async (instance: IBrowser) => {
         const browser = await instance;
         await chromeHelper.closeBrowser(browser);
       }),
@@ -607,18 +607,11 @@ export class PuppeteerProvider {
         return;
       }
 
-      if (!this.chromeSwarm.length) {
-        sysdebug(`Waiting for chrome instance to be added back`);
-        this.chromeSwarm.once('push', async () => {
-          sysdebug(`Got chrome instance in swarm`);
-          const browser = this.chromeSwarm.shift() as IBrowser;
-          resolve(browser);
-        });
-        return;
-      }
+      sysdebug(`Fetching chrome instance from swarm`);
+      const browser = await this.chromeSwarm.get();
+      sysdebug(`Got chrome instance in swarm`);
 
-      const browser = this.chromeSwarm.shift();
-      resolve(browser);
+      resolve(browser as IBrowser);
       return;
     });
 
