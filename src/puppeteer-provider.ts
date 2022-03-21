@@ -570,9 +570,8 @@ export class PuppeteerProvider {
       if (timeAlive <= this.config.chromeRefreshTime) {
         jobdebug(`${job.id}: Pushing browser back into swarm, clearing pages`);
         const pages = await browser.pages();
-        const blank = await browser.newPage();
+        await browser.newPage();
         pages.forEach((page) => page.close());
-        blank.goto('about:blank');
         jobdebug(`${job.id}: Cleanup done, pushing into swarm.`);
         return this.chromeSwarm.push(browser);
       }
