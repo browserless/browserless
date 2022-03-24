@@ -556,14 +556,13 @@ export const launchChrome = async (
     launchArgs.args.push(`--remote-debugging-pipe`);
   }
 
-  // Reset playwright to a workable state since it can't run headfull or use
+  // Reset playwright to a workable state since it can't run head-full or use
   // a user-data-dir
   if (isPlaywright) {
     launchArgs.args = launchArgs.args.filter(
       (arg) =>
         !arg.startsWith('--user-data-dir') && arg !== '--remote-debugging-pipe',
     );
-    launchArgs.headless = true;
   }
 
   debug(
@@ -577,7 +576,6 @@ export const launchChrome = async (
     : launchArgs.playwright
     ? chromium.launchServer({
         ...launchArgs,
-        headless: true,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
