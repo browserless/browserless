@@ -14,10 +14,10 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 2. [How it works](#how-it-works)
 3. [Docker](#docker)
 4. [Using the debuggers](#live-debugger)
-5. [Recommended NGINX Config](#Recommended-NGINX-Config)
+5. [Recommended NGINX Config](#recommended-nginx-config)
 6. [Hosting](#hosting-providers)
 7. [Using with puppeteer](#puppeteer)
-8. [Using with selenium](#webdriver)
+8. [Using with selenium](#webdriver-selenium)
 9. [Using with playwright](#playwright)
 10. [Licensing](#licensing)
 12. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
@@ -97,7 +97,7 @@ You can simply pull our M1 specific builds:
 docker pull browserless/chrome:1-arm64
 ```
 
-Fist, if you're on a amd64 machine (non-M1 Mac) you'll need to setup multi-platform builds. There's a lot of good resources out there to read about this, however you'll need to ensure you're on the latest docker with experimental features enabled.
+First, if you're on a amd64 machine (non-M1 Mac) you'll need to setup multi-platform builds. There's a lot of good resources out there to read about this, however you'll need to ensure you're on the latest docker with experimental features enabled.
 
 ```sh
 # Setup the machine to build arm64
