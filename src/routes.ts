@@ -2,8 +2,7 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 
 import archiver from 'archiver';
-import bodyParser from 'body-parser';
-import { Request, Response, Router } from 'express';
+import express, { Request, Response, Router } from 'express';
 import _ from 'lodash';
 import multer from 'multer';
 
@@ -50,17 +49,17 @@ const scrape = fnLoader('scrape');
 const pdf = fnLoader('pdf');
 const stats = fnLoader('stats');
 
-const jsonParser = bodyParser.json({
+const jsonParser = express.json({
   limit: MAX_PAYLOAD_SIZE,
   type: ['application/json'],
 });
 
-const jsParser = bodyParser.text({
+const jsParser = express.text({
   limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'application/javascript'],
 });
 
-const htmlParser = bodyParser.text({
+const htmlParser = express.text({
   limit: MAX_PAYLOAD_SIZE,
   type: ['text/plain', 'text/html'],
 });
