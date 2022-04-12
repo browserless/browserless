@@ -20,10 +20,11 @@
  */
 const scrollThroughPage = async (page) => {
   // Scroll to page end to trigger lazy loading elements
+  const { height: bottomThreshold } = await page.viewport();
+
   await page.evaluate(() => {
     const scrollInterval = 100;
     const scrollStep = Math.floor(window.innerHeight / 2);
-    const bottomThreshold = 400;
 
     function bottomPos() {
       return window.pageYOffset + window.innerHeight;
@@ -42,7 +43,6 @@ const scrollThroughPage = async (page) => {
         setTimeout(scrollDown, scrollInterval);
       }
 
-      setTimeout(reject, 30000);
       scrollDown();
     });
   });
