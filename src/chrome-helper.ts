@@ -208,6 +208,7 @@ const setupPage = async ({
     debug(`Setting up file:// protocol request rejection`);
     page.on('request', async (request) => {
       if (request.url().startsWith('file://')) {
+        debug(`File protocol request found in request, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -215,6 +216,7 @@ const setupPage = async ({
 
     page.on('response', async (response) => {
       if (response.url().startsWith('file://')) {
+        debug(`File protocol request found in response, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -288,13 +290,6 @@ const setupBrowser = async ({
   browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
   await browserHook({ browser, meta });
-
-  browser._browserProcess.once('exit', (code, signal) => {
-    debug(
-      `Browser process exited with code ${code} and signal ${signal}, cleaning up`,
-    );
-    closeBrowser(browser);
-  });
 
   browser.on('targetcreated', async (target) => {
     try {

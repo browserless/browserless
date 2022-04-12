@@ -187,6 +187,7 @@ export class PuppeteerProvider {
         const doneOnce = _.once((err?: Error) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
+            job.browser._browserProcess.removeListener('close', doneOnce);
           }
           done(err);
         });
@@ -232,6 +233,7 @@ export class PuppeteerProvider {
 
             req.removeListener('close', earlyClose);
             browser.once('disconnected', doneOnce);
+            browser._browserProcess.once('close', doneOnce);
             req.once('close', () => {
               if (detached) {
                 return;
@@ -407,6 +409,7 @@ export class PuppeteerProvider {
       const doneOnce = _.once((err) => {
         if (job.browser) {
           job.browser.removeListener('disconnected', doneOnce);
+          job.browser._browserProcess.removeListener('close', doneOnce);
         }
         done(err);
       });
@@ -420,8 +423,10 @@ export class PuppeteerProvider {
           // Cleanup prior listener + listen for socket and browser close
           // events just in case something doesn't trigger
           socket.removeListener('close', earlyClose);
+
           socket.once('close', doneOnce);
           browser.once('disconnected', doneOnce);
+          browser._browserProcess.once('close', doneOnce);
 
           if (route.includes(PLAYWRIGHT_ROUTE) && browser._browserServer) {
             const playwrightRoute = browser._browserServer.wsEndpoint();
@@ -494,9 +499,9 @@ export class PuppeteerProvider {
     sysdebug(`Kill received, forcing queue and swarm to shutdown`);
     await Promise.all([
       ...this.queue.map(async (job: IJob) => job.close && job.close()),
-      ...this.chromeSwarm.map(async (browser) => {
-        await chromeHelper.closeBrowser(browser);
-      }),
+      ...this.chromeSwarm.map(async (browser) =>
+        chromeHelper.closeBrowser(browser),
+      ),
       this.queue.removeAllListeners(),
     ]);
     sysdebug(`Kill complete.`);
@@ -518,9 +523,9 @@ export class PuppeteerProvider {
     if (this.chromeSwarm.length) {
       sysdebug('Instances of chrome in swarm, closing');
       await Promise.all(
-        this.chromeSwarm.map(async (browser) => {
-          await chromeHelper.closeBrowser(browser);
-        }),
+        this.chromeSwarm.map(async (browser) =>
+          chromeHelper.closeBrowser(browser),
+        ),
       );
     }
 
@@ -549,7 +554,7 @@ export class PuppeteerProvider {
 
     const closeChrome = async () => {
       jobdebug(`${job.id}: Browser not needed, closing`);
-      await chromeHelper.closeBrowser(browser);
+      chromeHelper.closeBrowser(browser);
 
       jobdebug(`${job.id}: Browser cleanup complete.`);
 
