@@ -187,7 +187,7 @@ export class PuppeteerProvider {
         const doneOnce = _.once((err?: Error) => {
           if (job.browser) {
             job.browser.removeListener('disconnected', doneOnce);
-            job.browser._browserProcess.removeListener('close', doneOnce);
+            job.browser._browserProcess.removeListener('exit', doneOnce);
           }
           done(err);
         });
@@ -233,7 +233,7 @@ export class PuppeteerProvider {
 
             req.removeListener('close', earlyClose);
             browser.once('disconnected', doneOnce);
-            browser._browserProcess.once('close', doneOnce);
+            browser._browserProcess.once('exit', doneOnce);
             req.once('close', () => {
               if (detached) {
                 return;
@@ -409,7 +409,7 @@ export class PuppeteerProvider {
       const doneOnce = _.once((err) => {
         if (job.browser) {
           job.browser.removeListener('disconnected', doneOnce);
-          job.browser._browserProcess.removeListener('close', doneOnce);
+          job.browser._browserProcess.removeListener('exit', doneOnce);
         }
         done(err);
       });
@@ -426,7 +426,7 @@ export class PuppeteerProvider {
 
           socket.once('close', doneOnce);
           browser.once('disconnected', doneOnce);
-          browser._browserProcess.once('close', doneOnce);
+          browser._browserProcess.once('exit', doneOnce);
 
           if (route.includes(PLAYWRIGHT_ROUTE) && browser._browserServer) {
             const playwrightRoute = browser._browserServer.wsEndpoint();
