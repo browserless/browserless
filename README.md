@@ -200,9 +200,7 @@ const browser = await pw.chromium.launch();
 
 **After**
 ```js
-const browser = await pw.chromium.connect({
-  browserWSEndpoint: 'wss://chrome.browserless.io?token=YOUR-API-TOKEN',
-});
+const browser = await pw.chromium.connect('ws://localhost:3000/playwright');
 ```
 
 After that, the rest of your code remains the same with no other changes required.
