@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.52.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.52.1...master)
 - Dependency updates.
+
+# [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
+- Dependency updates.
+- Playwright example correction in README.md.
+- Use revision `970485` for puppeteer 13.x.x, `latest`, chrome-stable and `arm64`.
+- When using `KEEPALIVE` and `PREBOOT`, don't create new blank pages, and use the existing one instead.
+
 # [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
 - Dependency updates.
 - Added in new fonts: `fonts-gfs-neohellenic`.
