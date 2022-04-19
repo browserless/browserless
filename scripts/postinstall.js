@@ -11,7 +11,7 @@ const _ = require('lodash');
 const fetch = require('node-fetch');
 const {
   installBrowsersForNpmInstall,
-} = require('playwright-core/lib/utils/registry');
+} = require('playwright-core/lib/server');
 const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
