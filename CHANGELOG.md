@@ -1,5 +1,13 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.52.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.53.0...master)
 - Dependency updates.
+
+# [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
+- Dependency updates.
+- Bump `browserless:base` to `1.16.0`.
+- Drop `--quiet` from deploy scripts.
+- `arm64` support for latest as well as puppeteer at versions 9,10 and 13.
+- Update puppeteer 13 from `13.5.2` to `13.6.0` (revision `982053`).
+- README updates.
 
 # [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
 - Dependency updates.

@@ -28,7 +28,7 @@ const logExec = (cmd) => {
 
 const buildBase = async () => {
   await logExec(
-    `docker buildx build --quiet --push --platform ${TARGET_ARCH.join(
+    `docker buildx build --push --platform ${TARGET_ARCH.join(
       ',',
     )} -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`,
   );
