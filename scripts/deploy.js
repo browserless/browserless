@@ -99,7 +99,6 @@ const deployVersion = async (tags, pptrVersion) => {
   // docker build
   await logExec(`docker buildx build \
   --push \
-  --quiet \
   --platform ${platform} \
   --build-arg "BASE_VERSION=${BASE_VERSION}" \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \

@@ -1,3 +1,6 @@
+# 1.16.0
+- Dependency updates
+
 # 1.15.0
 - Dependency updates
 # 1.14.0
