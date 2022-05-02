@@ -88,36 +88,6 @@ location / {
   }
 ```
 
-# Building for ARM64 (Apple M1 Machines)
-
-**TL;DR**
-You can pull `latest` or more recent puppeteer versions for the arm64 platform (M1 Macs):
-
-```sh
-docker pull --platform=linux/arm64 browserless/chrome:latest
-```
-
-For those still here trying to build this: first if you're on a amd64 machine (non-M1 Mac) you'll need to setup multi-platform builds. There's a lot of good resources out there to read about this, however you'll need to ensure you're on the latest docker with experimental features enabled.
-
-```sh
-# Setup the machine to build arm64
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-
-# Create a builder to handle arm64 builds
-docker buildx create --name builder --driver docker-container --use
-
-# Setup the builder to get started
-docker buildx inspect --bootstrap
-```
-
-Once complete, you can specify a platform target and build against it. In our production tags, we build the `latest` tag as well as a few production tags (like `1-puppeteer-13.6.0`) with `arm64` support, which is what we'll use in the example below.
-
-```sh
-docker buildx build --platform linux/arm64 -t browserless/chrome:latest .
-```
-
-> Disclaimer about arm64: In order to support arm64 inside of docker, we utilize some functionality inside of playwright to download a arm64-compatible linux build. Since most distributions out there don't have an arm64-specific build of Chromium, this means that puppeteer's chromium doesn't exist for arm64 (as far as we're aware). This, in short, means that the chromium version inside of the arm builds isn't matched _exactly_ for the version of puppeteer that it comes bundled with. Most of the time this will go unnoticed, however if you have an issue it's possible that it's because the version of chromium in the arm64-builds isn't an exact match.
-
 # Hosting Providers
 
 We offer a first-class hosted product located [here](https://browserless.io). Alternatively you can host this image on just about any major platform that offers hosting for docker. The hosted service takes care of all the machine provisioning, notifications, dashboards and monitoring plus more:
