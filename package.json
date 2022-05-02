@@ -99,7 +99,7 @@
     "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "browserless-debugger": "^1.0.2",
-    "chromedriver": "^100.0.0",
+    "chromedriver": "^101.0.0",
     "cookie": "^0.5.0",
     "cors": "^2.8.4",
     "debug": "^4",
