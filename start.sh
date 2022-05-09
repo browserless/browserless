@@ -7,7 +7,9 @@ set -e
 
 _kill_procs() {
   kill -TERM $node
+  wait $node
   kill -TERM $xvfb
+  wait $xvfb
 }
 
 # Relay quit commands to processes
