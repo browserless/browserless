@@ -23,13 +23,12 @@
     "deploy-base": "cross-env DEBUG=browserless* ./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "start": "node ./build",
-    "test": "cross-env DEBUG=quiet jest --runInBand --detectOpenHandles",
+    "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "node ./scripts/postinstall.js",
     "snyk-protect": "snyk protect",
     "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
-    "lint": "eslint src --ext .ts --fix",
-    "test-mocha": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000"
+    "lint": "eslint src --ext .ts --fix"
   },
   "chromeVersions": {
     "puppeteer-1.20.0": {

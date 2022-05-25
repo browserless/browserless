@@ -855,7 +855,7 @@ describe('Browserless Chrome HTTP', () => {
       const params = defaultParams();
       const browserless = start({
         ...params,
-        connectionTimeout: 5000,
+        connectionTimeout: 2500,
       });
 
       await browserless.startServer();
