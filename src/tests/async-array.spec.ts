@@ -1,6 +1,6 @@
 import util from 'util';
 
-import {expect} from 'chai';
+import { expect } from 'chai';
 
 import { AsyncArray } from '../async-array';
 

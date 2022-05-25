@@ -1,4 +1,4 @@
-import {expect} from 'chai';
+import { expect } from 'chai';
 import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';

@@ -411,7 +411,7 @@ describe('Browserless Chrome HTTP', () => {
           'content-type': 'application/json',
         },
         method: 'POST',
-      }).catch(err => {
+      }).catch((err) => {
         expect(err).to.have.property('errno');
         expect(err.errno).to.equal('ECONNRESET');
       });
