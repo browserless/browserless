@@ -84,3 +84,16 @@ Array [
 `;
 
 exports[`Browserless Chrome HTTP sets a cookie when a token is present 1`] = `undefined`;
+
+exports[`Browserless Chrome Webdriver allows requests to /json/version 1`] = `
+Array [
+  "Browser",
+  "Protocol-Version",
+  "User-Agent",
+  "V8-Version",
+  "WebKit-Version",
+  "Debugger-Version",
+  "Puppeteer-Version",
+  "webSocketDebuggerUrl",
+]
+`;

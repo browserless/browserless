@@ -1,3 +1,5 @@
+import chai, { expect } from 'chai';
+import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot';
 import fetch from 'node-fetch';
 import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer';
@@ -8,6 +10,8 @@ import { IBrowserlessOptions } from '../../types.d';
 import { sleep, exists } from '../../utils';
 
 import { defaultParams, getChromeProcesses, throws } from './utils';
+
+chai.use(jestSnapshotPlugin());
 
 describe('Browserless Chrome WebSockets', () => {
   let browserless: BrowserlessServer;
@@ -40,10 +44,10 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.successful).toEqual(2);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        r(null);
+        expect(browserless.currentStat.successful).to.equal(2);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        r();
       });
 
       job();
@@ -60,11 +64,11 @@ describe('Browserless Chrome WebSockets', () => {
       await browserless.startServer();
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(0);
-        expect(browserless.currentStat.successful).toEqual(1);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        done(null);
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
       });
 
       const browser = await puppeteer.connect({
@@ -115,10 +119,11 @@ describe('Browserless Chrome WebSockets', () => {
         });
         const [page] = await browser.pages();
         await page.goto('file:///etc/passwd');
+        // @ts-ignore
         done('Browser should have forcefully closed');
       } catch (e) {
-        expect(e.message).toBeDefined();
-        done(null);
+        expect(e.message).to.not.be.undefined;
+        done();
       }
     }));
 
@@ -149,7 +154,7 @@ describe('Browserless Chrome WebSockets', () => {
           );
           const body = await results.json();
 
-          expect(body.length).toEqual(1);
+          expect(body.length).to.equal(1);
 
           one.disconnect();
           two.disconnect();
@@ -163,7 +168,6 @@ describe('Browserless Chrome WebSockets', () => {
 
   it('runs with ignored default args', async () =>
     new Promise(async (done) => {
-      jest.setTimeout(10000);
       const params = defaultParams();
       const browserless = await start(params);
       await browserless.startServer();
@@ -181,11 +185,11 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(0);
-        expect(browserless.currentStat.successful).toEqual(1);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        done(null);
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
       });
 
       job();
@@ -211,8 +215,8 @@ describe('Browserless Chrome WebSockets', () => {
       browserless.queue.on('success', async (_r, j) => {
         const tmpDir = j.browser._browserlessDataDir;
         await sleep(1000);
-        expect(await exists(tmpDir)).toBe(false);
-        done(null);
+        expect(await exists(tmpDir)).to.be.false;
+        done();
       });
 
       job();
@@ -225,16 +229,18 @@ describe('Browserless Chrome WebSockets', () => {
       await browserless.startServer();
       const userDataDir = '/tmp/browserless-123';
 
-      expect(await exists(userDataDir)).toBe(false);
+      expect(await exists(userDataDir)).to.be.false;
 
       const job = async () => {
         return new Promise(async (resolve) => {
           const browser: any = await puppeteer.connect({
             browserWSEndpoint: `ws://127.0.0.1:${params.port}?--user-data-dir=${userDataDir}`,
           });
-          expect(await exists(userDataDir)).toBeTruthy();
+
+          expect(await exists(userDataDir)).to.be.true;
           browser.once('disconnected', resolve);
           browser.disconnect();
+          // @ts-ignore
           await rimraf(userDataDir, done);
         });
       };
@@ -249,16 +255,17 @@ describe('Browserless Chrome WebSockets', () => {
       await browserless.startServer();
       const userDataDir = '/tmp/browserless-123';
 
-      expect(await exists(userDataDir)).toBe(false);
+      expect(await exists(userDataDir)).to.be.false;
 
       const job = async () => {
         return new Promise(async (resolve) => {
           const browser: any = await puppeteer.connect({
             browserWSEndpoint: `ws://127.0.0.1:${params.port}?userDataDir=${userDataDir}`,
           });
-          expect(await exists(userDataDir)).toBeTruthy();
+          expect(await exists(userDataDir)).to.be.true;
           browser.once('disconnected', resolve);
           browser.disconnect();
+          // @ts-ignore
           await rimraf(userDataDir, done);
         });
       };
@@ -288,19 +295,19 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(0);
-        expect(browserless.currentStat.successful).toEqual(1);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
 
         // browserless binds to these two events
         // for graceful closing but puppeteer shouldn't
-        expect(process.listeners('SIGINT').length).toEqual(1);
-        expect(process.listeners('SIGTERM').length).toEqual(1);
+        expect(process.listeners('SIGINT').length).to.equal(1);
+        expect(process.listeners('SIGTERM').length).to.equal(1);
 
-        expect(process.listeners('exit').length).toEqual(0);
-        expect(process.listeners('SIGHUP').length).toEqual(0);
-        done(null);
+        expect(process.listeners('exit').length).to.equal(0);
+        expect(process.listeners('SIGHUP').length).to.equal(0);
+        done();
       });
 
       job();
@@ -318,19 +325,19 @@ describe('Browserless Chrome WebSockets', () => {
       const job = async () => {
         await puppeteer
           .connect({
-            browserWSEndpoint: `ws://127.0.0.1:${params.port}?timeout=100`,
+            browserWSEndpoint: `ws://127.0.0.1:${params.port}?timeout=5000`,
           })
           .catch((error) => {
-            expect(error.message).toContain('socket hang up');
+            expect(error.message).to.contain('socket hang up');
           });
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(1);
-        expect(browserless.currentStat.successful).toEqual(0);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        done(null);
+        expect(browserless.currentStat.timedout).to.equal(1);
+        expect(browserless.currentStat.successful).to.equal(0);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
       });
 
       job();
@@ -349,18 +356,19 @@ describe('Browserless Chrome WebSockets', () => {
         const [page] = await browser.pages();
 
         await page.setContent(`<div class="output" style="height: 62%;"><label for="avatar">Choose a profile picture:</label>
-        <input type="file" id="avatar" name="avatar" accept="image/png, image/jpeg">
-      </div>`);
+      <input type="file" id="avatar" name="avatar" accept="image/png, image/jpeg">
+    </div>`);
 
         if (page.waitForFileChooser) {
           const [fileChooser] = await Promise.all([
             page.waitForFileChooser(),
             page.click('#avatar'),
           ]);
-          expect(fileChooser).toEqual(expect.anything());
+          expect(fileChooser).to.not.be.undefined;
+          expect(fileChooser).to.not.be.null;
         }
         browser.disconnect();
-        done(null);
+        done();
       };
 
       job();
@@ -385,10 +393,10 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.successful).toEqual(2);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(1);
-        done(null);
+        expect(browserless.currentStat.successful).to.equal(2);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(1);
+        done();
       });
 
       job();
@@ -409,10 +417,10 @@ describe('Browserless Chrome WebSockets', () => {
       .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
-        expect(browserless.currentStat.successful).toEqual(0);
-        expect(browserless.currentStat.rejected).toEqual(1);
-        expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toContain(`429`);
+        expect(browserless.currentStat.successful).to.equal(0);
+        expect(browserless.currentStat.rejected).to.equal(1);
+        expect(browserless.currentStat.queued).to.equal(0);
+        expect(error.message).to.contain(`429`);
       });
   });
 
@@ -431,10 +439,10 @@ describe('Browserless Chrome WebSockets', () => {
       .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
-        expect(browserless.currentStat.successful).toEqual(0);
-        expect(browserless.currentStat.rejected).toEqual(1);
-        expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toContain(`socket hang up`);
+        expect(browserless.currentStat.successful).to.equal(0);
+        expect(browserless.currentStat.rejected).to.equal(1);
+        expect(browserless.currentStat.queued).to.equal(0);
+        expect(error.message).to.contain(`socket hang up`);
       });
   });
 
@@ -451,10 +459,10 @@ describe('Browserless Chrome WebSockets', () => {
       .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
       .then(throws)
       .catch((error) => {
-        expect(browserless.currentStat.successful).toEqual(0);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toContain(`403`);
+        expect(browserless.currentStat.successful).to.equal(0);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        expect(error.message).to.contain(`403`);
       });
   });
 
@@ -477,11 +485,11 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(0);
-        expect(browserless.currentStat.successful).toEqual(1);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        done(null);
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
       });
 
       job();
@@ -506,11 +514,11 @@ describe('Browserless Chrome WebSockets', () => {
       };
 
       browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).toEqual(0);
-        expect(browserless.currentStat.successful).toEqual(1);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        done(null);
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
       });
 
       job();
@@ -529,10 +537,10 @@ describe('Browserless Chrome WebSockets', () => {
       .connect({ wsEndpoint: `ws://127.0.0.1:${params.port}/playwright` })
       .then(throws)
       .catch((error) => {
-        expect(browserless.currentStat.successful).toEqual(0);
-        expect(browserless.currentStat.rejected).toEqual(0);
-        expect(browserless.currentStat.queued).toEqual(0);
-        expect(error.message).toContain(`403`);
+        expect(browserless.currentStat.successful).to.equal(0);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        expect(error.message).to.contain(`403`);
       });
   });
 
@@ -553,6 +561,6 @@ describe('Browserless Chrome WebSockets', () => {
 
     await sleep(100);
 
-    expect(processes.stdout).not.toContain('.local-chromium');
+    expect(processes.stdout).not.to.contain('.local-chromium');
   });
 });

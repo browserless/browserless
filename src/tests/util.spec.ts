@@ -1,6 +1,8 @@
 import { IncomingMessage } from 'http';
 import { PassThrough } from 'stream';
 
+import { expect } from 'chai';
+
 import { IBrowser } from '../types.d';
 import * as utils from '../utils';
 
@@ -36,7 +38,7 @@ const getSeleniumAlwaysMatch = () => ({
   },
 });
 
-const getSeleniumFirstMatch = () => ({
+export const getSeleniumFirstMatch = () => ({
   capabilities: {
     firstMatch: [
       {
@@ -69,13 +71,15 @@ describe(`Utils`, () => {
   describe('#canPreboot', () => {
     describe('args', () => {
       it('returns true when undefined', () => {
-        expect(utils.canPreboot(getArgs({ args: undefined }), getArgs())).toBe(
-          true,
-        );
+        expect(
+          utils.canPreboot(getArgs({ args: undefined }), getArgs()),
+        ).to.equal(true);
       });
 
       it('returns true when it matches', () => {
-        expect(utils.canPreboot(getArgs({ args: [] }), getArgs())).toBe(true);
+        expect(utils.canPreboot(getArgs({ args: [] }), getArgs())).to.equal(
+          true,
+        );
       });
 
       it('returns true when args are the same', () => {
@@ -84,7 +88,7 @@ describe(`Utils`, () => {
             getArgs({ args: ['--headless', '--window-size=1920,1080'] }),
             getArgs({ args: ['--window-size=1920,1080', '--headless'] }),
           ),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns false when it does not match', () => {
@@ -93,15 +97,15 @@ describe(`Utils`, () => {
             getArgs({ args: ['--headless', '--user-data-dir=/my-data'] }),
             getArgs({ args: ['--window-size=1920,1080', '--headless'] }),
           ),
-        ).toBe(false);
+        ).to.equal(false);
       });
     });
 
     describe('playwright', () => {
       it('returns false when playwright connects', () => {
-        expect(utils.canPreboot(getArgs({ playwright: true }), getArgs())).toBe(
-          false,
-        );
+        expect(
+          utils.canPreboot(getArgs({ playwright: true }), getArgs()),
+        ).to.equal(false);
       });
 
       it('returns false when default args says playwright: true', () => {
@@ -110,7 +114,7 @@ describe(`Utils`, () => {
             getArgs({ playwright: true }),
             getArgs({ playwright: true }),
           ),
-        ).toBe(false);
+        ).to.equal(false);
       });
     });
 
@@ -118,19 +122,19 @@ describe(`Utils`, () => {
       it('returns true when undefined', () => {
         expect(
           utils.canPreboot(getArgs({ headless: undefined }), getArgs()),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns true when it matches', () => {
-        expect(utils.canPreboot(getArgs({ headless: true }), getArgs())).toBe(
-          true,
-        );
+        expect(
+          utils.canPreboot(getArgs({ headless: true }), getArgs()),
+        ).to.equal(true);
       });
 
       it('returns false when it does not match', () => {
-        expect(utils.canPreboot(getArgs({ headless: false }), getArgs())).toBe(
-          false,
-        );
+        expect(
+          utils.canPreboot(getArgs({ headless: false }), getArgs()),
+        ).to.equal(false);
       });
     });
 
@@ -138,7 +142,7 @@ describe(`Utils`, () => {
       it('returns true when undefined', () => {
         expect(
           utils.canPreboot(getArgs({ userDataDir: undefined }), getArgs()),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns true when it matches', () => {
@@ -147,13 +151,13 @@ describe(`Utils`, () => {
             getArgs({ userDataDir: 'my-cache' }),
             getArgs({ userDataDir: 'my-cache' }),
           ),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns false when it does not match', () => {
         expect(
           utils.canPreboot(getArgs({ userDataDir: 'my-cache' }), getArgs()),
-        ).toBe(false);
+        ).to.equal(false);
       });
     });
 
@@ -164,13 +168,13 @@ describe(`Utils`, () => {
             getArgs({ ignoreDefaultArgs: undefined }),
             getArgs(),
           ),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns true when it matches', () => {
         expect(
           utils.canPreboot(getArgs({ ignoreDefaultArgs: false }), getArgs()),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns true when they are the same', () => {
@@ -179,7 +183,7 @@ describe(`Utils`, () => {
             getArgs({ ignoreDefaultArgs: ['--headless'] }),
             getArgs({ ignoreDefaultArgs: ['--headless'] }),
           ),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns true when they contain the same list', () => {
@@ -192,7 +196,7 @@ describe(`Utils`, () => {
               ignoreDefaultArgs: ['--user-data-dir=cache-money', '--headless'],
             }),
           ),
-        ).toBe(true);
+        ).to.equal(true);
       });
 
       it('returns false when it does not match', () => {
@@ -201,7 +205,7 @@ describe(`Utils`, () => {
             getArgs({ ignoreDefaultArgs: ['--headless'] }),
             getArgs({ ignoreDefaultArgs: ['--user-data-dir=cache-money'] }),
           ),
-        ).toBe(false);
+        ).to.equal(false);
       });
     });
   });
@@ -217,7 +221,7 @@ describe(`Utils`, () => {
         },
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual(token);
+      expect(utils.getBasicAuthToken(req as any)).to.equal(token);
     });
 
     it('handles `username:password` formats', () => {
@@ -230,7 +234,7 @@ describe(`Utils`, () => {
         },
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual('abc');
+      expect(utils.getBasicAuthToken(req as any)).to.equal('abc');
     });
 
     it('handles spaces', () => {
@@ -243,7 +247,7 @@ describe(`Utils`, () => {
         },
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual('abc');
+      expect(utils.getBasicAuthToken(req as any)).to.equal('abc');
     });
 
     it('handles bare tokens', () => {
@@ -256,7 +260,7 @@ describe(`Utils`, () => {
         },
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual('abc');
+      expect(utils.getBasicAuthToken(req as any)).to.equal('abc');
     });
 
     it('returns undefined if nothing is there', () => {
@@ -264,7 +268,7 @@ describe(`Utils`, () => {
         headers: {},
       };
 
-      expect(utils.getBasicAuthToken(req as any)).toEqual(undefined);
+      expect(utils.getBasicAuthToken(req as any)).to.equal(undefined);
     });
   });
 
@@ -279,7 +283,7 @@ describe(`Utils`, () => {
           },
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(undefined);
+        expect(utils.getTimeoutParam(req as any)).to.equal(undefined);
       });
 
       it('returns the timer in ms for numbers', () => {
@@ -291,7 +295,7 @@ describe(`Utils`, () => {
           },
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(2000);
+        expect(utils.getTimeoutParam(req as any)).to.equal(2000);
       });
 
       it('returns null for non-numbers', () => {
@@ -303,7 +307,7 @@ describe(`Utils`, () => {
           },
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
 
       it('returns null missing params', () => {
@@ -313,7 +317,7 @@ describe(`Utils`, () => {
           },
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
 
       it('returns null if multiple are specified', () => {
@@ -325,7 +329,7 @@ describe(`Utils`, () => {
           },
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
     });
 
@@ -341,7 +345,7 @@ describe(`Utils`, () => {
           url: '/webdriver',
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(undefined);
+        expect(utils.getTimeoutParam(req as any)).to.equal(undefined);
       });
 
       it('returns the timer in ms for numbers', () => {
@@ -355,7 +359,7 @@ describe(`Utils`, () => {
           url: '/webdriver',
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(1000);
+        expect(utils.getTimeoutParam(req as any)).to.equal(1000);
       });
 
       it('returns null for non-numbers', () => {
@@ -369,7 +373,7 @@ describe(`Utils`, () => {
           url: '/webdriver',
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
 
       it('returns null missing params', () => {
@@ -381,7 +385,7 @@ describe(`Utils`, () => {
           url: '/webdriver',
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
 
       it('returns null if multiple are specified', () => {
@@ -395,7 +399,7 @@ describe(`Utils`, () => {
           url: '/webdriver',
         };
 
-        expect(utils.getTimeoutParam(req as any)).toEqual(null);
+        expect(utils.getTimeoutParam(req as any)).to.equal(null);
       });
     });
   });
@@ -407,7 +411,7 @@ describe(`Utils`, () => {
           method: 'post',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('matches GET webdriver requests', () => {
@@ -416,7 +420,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('matches DELETE webdriver requests', () => {
@@ -425,7 +429,7 @@ describe(`Utils`, () => {
           method: 'delete',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('matches PUT webdriver requests', () => {
@@ -434,7 +438,7 @@ describe(`Utils`, () => {
           method: 'put',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('does NOT match puppeteer calls', () => {
@@ -443,7 +447,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does NOT match puppeteer calls', () => {
@@ -452,7 +456,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does NOT match API calls', () => {
@@ -461,7 +465,7 @@ describe(`Utils`, () => {
           method: 'post',
           url: '/function',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
   });
 
@@ -472,7 +476,7 @@ describe(`Utils`, () => {
           method: 'post',
           url: '/webdriver/session',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('does not match existing webdriver calls', () => {
@@ -481,7 +485,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does not matches DELETE webdriver requests', () => {
@@ -490,7 +494,7 @@ describe(`Utils`, () => {
           method: 'delete',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does not matches PUT webdriver requests', () => {
@@ -499,7 +503,7 @@ describe(`Utils`, () => {
           method: 'PUT',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does NOT match puppeteer calls', () => {
@@ -508,7 +512,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does NOT match puppeteer calls', () => {
@@ -517,7 +521,7 @@ describe(`Utils`, () => {
           method: 'get',
           url: '/',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
 
     it('does NOT match API calls', () => {
@@ -526,7 +530,7 @@ describe(`Utils`, () => {
           method: 'post',
           url: '/function',
         } as IncomingMessage),
-      ).toBe(false);
+      ).to.equal(false);
     });
   });
 
@@ -537,7 +541,7 @@ describe(`Utils`, () => {
           method: 'delete',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     it('matches window close calls', () => {
@@ -546,7 +550,7 @@ describe(`Utils`, () => {
           method: 'delete',
           url: '/webdriver/session/3844eb32f13d2335724b5e3cdb4fa10a/window',
         } as IncomingMessage),
-      ).toBe(true);
+      ).to.equal(true);
     });
 
     [
@@ -563,7 +567,7 @@ describe(`Utils`, () => {
             method: 'delete',
             url,
           } as IncomingMessage),
-        ).toBe(false);
+        ).to.equal(false);
       });
     });
   });
@@ -578,10 +582,10 @@ describe(`Utils`, () => {
 
         expect(
           results.body.desiredCapabilities['goog:chromeOptions'],
-        ).toHaveProperty('binary');
+        ).to.have.property('binary');
         expect(
           results.body.capabilities.alwaysMatch['goog:chromeOptions'],
-        ).toHaveProperty('binary');
+        ).to.have.property('binary');
       });
 
       it('sets block-ads in the W3C format', async () => {
@@ -592,7 +596,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('blockAds', true);
+        expect(results.params).to.have.property('blockAds');
+        expect(results.params.blockAds).to.equal(true);
       });
 
       it('sets block-ads in the legacy format', async () => {
@@ -603,7 +608,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('blockAds', true);
+        expect(results.params).to.have.property('blockAds');
+        expect(results.params.blockAds).to.equal(true);
       });
 
       it('sets block-ads to false by default', async () => {
@@ -613,7 +619,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('blockAds', false);
+        expect(results.params).to.have.property('blockAds');
+        expect(results.params.blockAds).to.equal(false);
       });
 
       it('gets the browserless token in the W3C format', async () => {
@@ -625,7 +632,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('token', token);
+        expect(results.params).to.have.property('token');
+        expect(results.params.token).to.equal(token);
       });
 
       it('gets the browserless token in the legacy format', async () => {
@@ -637,7 +645,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('token', token);
+        expect(results.params).to.have.property('token');
+        expect(results.params.token).to.equal(token);
       });
 
       it('gets no browserless tokens when not present', async () => {
@@ -647,7 +656,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('token', undefined);
+        expect(results.params).to.have.property('token');
+        expect(results.params.token).to.equal(undefined);
       });
 
       it('sets a tracking-id in the W3C format', async () => {
@@ -659,7 +669,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('trackingId', id);
+        expect(results.params).to.have.property('trackingId');
+        expect(results.params.trackingId).to.equal(id);
       });
 
       it('sets a tracking-id in the legacy format', async () => {
@@ -671,7 +682,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('trackingId', id);
+        expect(results.params).to.have.property('trackingId');
+        expect(results.params.trackingId).to.equal(id);
       });
 
       it('sets a tracking-id to null by default', async () => {
@@ -681,7 +693,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('trackingId', null);
+        expect(results.params).to.have.property('trackingId');
+        expect(results.params.trackingId).to.equal(null);
       });
 
       it('sets pauseOnConnect', async () => {
@@ -692,7 +705,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('pauseOnConnect', true);
+        expect(results.params).to.have.property('pauseOnConnect');
+        expect(results.params.pauseOnConnect).to.equal(true);
       });
 
       it('sets pauseOnConnect to false by default', async () => {
@@ -702,7 +716,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params).toHaveProperty('pauseOnConnect', false);
+        expect(results.params).to.have.property('pauseOnConnect');
+        expect(results.params.pauseOnConnect).to.equal(false);
       });
 
       it('sets a window size', async () => {
@@ -717,7 +732,7 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params.windowSize).toEqual({ width, height });
+        expect(results.params.windowSize).to.eql({ width, height });
       });
 
       it('default sets a temporary directory for user-data', async () => {
@@ -728,7 +743,7 @@ describe(`Utils`, () => {
         );
 
         expect(results.params.browserlessDataDir);
-        expect(results.params.isUsingTempDataDir).toBe(true);
+        expect(results.params.isUsingTempDataDir).to.equal(true);
       });
 
       it('does not set a data-dir when one is present', async () => {
@@ -741,8 +756,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params.isUsingTempDataDir).toBe(false);
-        expect(results.params.browserlessDataDir).toEqual(null);
+        expect(results.params.isUsingTempDataDir).to.equal(false);
+        expect(results.params.browserlessDataDir).to.equal(null);
       });
 
       it('does not set a data-dir when one is present in alwaysMatch', async () => {
@@ -756,234 +771,8 @@ describe(`Utils`, () => {
           req as IncomingMessage,
         );
 
-        expect(results.params.isUsingTempDataDir).toBe(false);
-        expect(results.params.browserlessDataDir).toEqual(null);
-      });
-    });
-
-    describe('first-match style calls', () => {
-      it('sets a binary path', async () => {
-        const req = bufferify(getSeleniumFirstMatch()) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(
-          results.body.desiredCapabilities['goog:chromeOptions'],
-        ).toHaveProperty('binary');
-        expect(
-          results.body.capabilities.firstMatch[0]['goog:chromeOptions'],
-        ).toHaveProperty('binary');
-      });
-
-      it('sets block-ads', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless.blockAds'] = true;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('blockAds', true);
-      });
-
-      it('gets tokens in W3C format', async () => {
-        const token = 'abcd';
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless:token'] = token;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('token', token);
-      });
-
-      it('gets tokens in legacy format', async () => {
-        const token = 'abcd';
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless.token'] = token;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('token', token);
-      });
-
-      it('gets no tokens when not present', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('token', undefined);
-      });
-
-      it('gets stealth in W3C format', async () => {
-        const stealth = true;
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless:stealth'] = stealth;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('stealth', stealth);
-      });
-
-      it('gets stealth in legacy format', async () => {
-        const stealth = true;
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless.stealth'] = stealth;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('stealth', stealth);
-      });
-
-      it('sets stealth in false by default', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('stealth', false);
-      });
-
-      it('sets block-ads to false by default', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('blockAds', false);
-      });
-
-      it('sets a tracking-id in the W3C format', async () => {
-        const id = 'wat';
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless:trackingId'] = id;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('trackingId', id);
-      });
-
-      it('sets a tracking-id in the legacy format', async () => {
-        const id = 'wat';
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless.trackingId'] = id;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('trackingId', id);
-      });
-
-      it('sets a tracking-id to null by default', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('trackingId', null);
-      });
-
-      it('sets pauseOnConnect on the W3C format', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless:pause'] = true;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('pauseOnConnect', true);
-      });
-
-      it('sets pauseOnConnect on the legacy format', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['browserless.pause'] = true;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('pauseOnConnect', true);
-      });
-
-      it('sets pauseOnConnect to false by default', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params).toHaveProperty('pauseOnConnect', false);
-      });
-
-      it('sets a window size', async () => {
-        const width = 1920;
-        const height = 1080;
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.capabilities.firstMatch[0]['goog:chromeOptions'].args.push(
-          `--window-size=${width},${height}`,
-        );
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params.windowSize).toEqual({ width, height });
-      });
-
-      it('default sets a temporary directory for user-data', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params.browserlessDataDir);
-        expect(results.params.isUsingTempDataDir).toBe(true);
-      });
-
-      it('does not set a data-dir when one is present', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.desiredCapabilities['goog:chromeOptions'].args.push(
-          `--user-data-dir=/some/path`,
-        );
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params.isUsingTempDataDir).toBe(false);
-        expect(results.params.browserlessDataDir).toEqual(null);
-      });
-
-      it('does not set a data-dir when one is present in `firstMatch`', async () => {
-        const reqBody = getSeleniumFirstMatch() as any;
-        reqBody.capabilities.firstMatch[0]['goog:chromeOptions'].args.push(
-          `--user-data-dir=/some/path`,
-        );
-
-        const req = bufferify(reqBody) as unknown;
-        const results = await utils.normalizeWebdriverStart(
-          req as IncomingMessage,
-        );
-
-        expect(results.params.isUsingTempDataDir).toBe(false);
-        expect(results.params.browserlessDataDir).toEqual(null);
+        expect(results.params.isUsingTempDataDir).to.equal(false);
+        expect(results.params.browserlessDataDir).to.equal(null);
       });
     });
   });
@@ -1016,24 +805,24 @@ describe(`Utils`, () => {
 
       const result = utils.injectHostIntoSession(host, browser, session);
 
-      expect(result.browserId).toEqual(browser._id);
-      expect(result.description).toEqual(session.description);
-      expect(result.id).toEqual(session.id);
-      expect(result.title).toEqual(session.title);
-      expect(result.type).toEqual(session.type);
-      expect(result.url).toEqual(session.url);
-      expect(result.trackingId).toEqual(browser._trackingId);
-      expect(result.port).toEqual(browser._parsed.port);
+      expect(result.browserId).to.equal(browser._id);
+      expect(result.description).to.equal(session.description);
+      expect(result.id).to.equal(session.id);
+      expect(result.title).to.equal(session.title);
+      expect(result.type).to.equal(session.type);
+      expect(result.url).to.equal(session.url);
+      expect(result.trackingId).to.equal(browser._trackingId);
+      expect(result.port).to.equal(browser._parsed.port);
 
-      expect(result.browserWSEndpoint).toEqual(
+      expect(result.browserWSEndpoint).to.equal(
         'ws://localhost:3000/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
       );
-      expect(result.webSocketDebuggerUrl).toEqual(
+      expect(result.webSocketDebuggerUrl).to.equal(
         'ws://localhost:3000/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
 
       // http://localhost:3000/devtools/inspector.html?ws=127.0.0.1:3000/devtools/page/C2A1CDF7419E198A608F3E5A0ECEFA1E
-      expect(result.devtoolsFrontendUrl).toEqual(
+      expect(result.devtoolsFrontendUrl).to.equal(
         '/devtools/inspector.html?ws=localhost:3000/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
     });
@@ -1065,14 +854,14 @@ describe(`Utils`, () => {
 
       const result = utils.injectHostIntoSession(host, browser, session);
 
-      expect(result.port).toEqual(browser._parsed.port);
-      expect(result.browserWSEndpoint).toEqual(
+      expect(result.port).to.equal(browser._parsed.port);
+      expect(result.browserWSEndpoint).to.equal(
         'ws://localhost/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
       );
-      expect(result.webSocketDebuggerUrl).toEqual(
+      expect(result.webSocketDebuggerUrl).to.equal(
         'ws://localhost/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
-      expect(result.devtoolsFrontendUrl).toEqual(
+      expect(result.devtoolsFrontendUrl).to.equal(
         '/devtools/inspector.html?ws=localhost/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
     });
@@ -1104,13 +893,13 @@ describe(`Utils`, () => {
 
       const result = utils.injectHostIntoSession(host, browser, session);
 
-      expect(result.browserWSEndpoint).toEqual(
+      expect(result.browserWSEndpoint).to.equal(
         'wss://browserless.com/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
       );
-      expect(result.webSocketDebuggerUrl).toEqual(
+      expect(result.webSocketDebuggerUrl).to.equal(
         'wss://browserless.com/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
-      expect(result.devtoolsFrontendUrl).toEqual(
+      expect(result.devtoolsFrontendUrl).to.equal(
         '/devtools/inspector.html?wss=browserless.com/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
     });
@@ -1142,13 +931,13 @@ describe(`Utils`, () => {
 
       const result = utils.injectHostIntoSession(host, browser, session);
 
-      expect(result.browserWSEndpoint).toEqual(
+      expect(result.browserWSEndpoint).to.equal(
         'ws://localhost/browserless/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
       );
-      expect(result.webSocketDebuggerUrl).toEqual(
+      expect(result.webSocketDebuggerUrl).to.equal(
         'ws://localhost/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
-      expect(result.devtoolsFrontendUrl).toEqual(
+      expect(result.devtoolsFrontendUrl).to.equal(
         '/browserless/devtools/inspector.html?ws=localhost/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
     });
@@ -1180,14 +969,14 @@ describe(`Utils`, () => {
 
       const result = utils.injectHostIntoSession(host, browser, session);
 
-      expect(result.port).toEqual(browser._parsed.port);
-      expect(result.browserWSEndpoint).toEqual(
+      expect(result.port).to.equal(browser._parsed.port);
+      expect(result.browserWSEndpoint).to.equal(
         'wss://my.cool.domain:500/proxy/browserless/devtools/browser/685638c2-f214-494b-b679-1efbe2f824ba',
       );
-      expect(result.webSocketDebuggerUrl).toEqual(
+      expect(result.webSocketDebuggerUrl).to.equal(
         'wss://my.cool.domain:500/proxy/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
-      expect(result.devtoolsFrontendUrl).toEqual(
+      expect(result.devtoolsFrontendUrl).to.equal(
         '/proxy/browserless/devtools/inspector.html?wss=my.cool.domain:500/proxy/browserless/devtools/page/4F7E8BE0AA50EEABDE92330A2CFD8674',
       );
     });
