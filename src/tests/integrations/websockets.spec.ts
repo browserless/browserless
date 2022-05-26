@@ -78,7 +78,7 @@ describe('Browserless Chrome WebSockets', () => {
       browser.disconnect();
     }));
 
-  it('exposes sessions', async () =>
+  it.skip('exposes sessions', async () =>
     new Promise(async (done) => {
       const params = defaultParams();
       const browserless = await start(params);
