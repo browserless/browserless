@@ -52,5 +52,5 @@ export const getChromeProcesses = () => {
 };
 
 export const webdriverOpts = {
-  args: ['--headless', '--no-sandbox'],
+  args: ['--headless', '--no-sandbox', '--log-level=OFF'],
 };

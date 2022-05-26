@@ -8,4 +8,4 @@ export DISPLAY=:1
 
 export SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS=true
 
-./node_modules/.bin/jest --runInBand --forceExit $@ && kill -TERM $xvfb
+DEBUG=-* SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS=bar ./node_modules/.bin/mocha --timeout 15000 --exit $@ && kill -TERM $xvfb

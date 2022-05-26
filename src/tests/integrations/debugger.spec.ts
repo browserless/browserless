@@ -1,3 +1,4 @@
+import { expect } from 'chai';
 import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
@@ -20,7 +21,7 @@ describe('Browserless Debugger', () => {
     await browserless.startServer();
 
     return fetch(`http://127.0.0.1:${params.port}/`).then((res) =>
-      expect(res.headers.get('content-type')).toContain('text/html'),
+      expect(res.headers.get('content-type')).to.contain('text/html'),
     );
   });
 });
