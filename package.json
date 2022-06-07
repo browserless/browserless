@@ -119,7 +119,7 @@
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.20.1",
     "prom-client": "^14.0.0",
-    "puppeteer": "^13.6.0",
+    "puppeteer": "^14.3.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",
