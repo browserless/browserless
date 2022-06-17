@@ -59,8 +59,9 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   if (puppeteer._preferredRevision) {
     return puppeteer._preferredRevision;
   }
-
-  return require('puppeteer/lib/cjs/revisions').PUPPETEER_REVISIONS.chromium;
+  
+  const pptr = require('./node_modules/puppeteer/lib/cjs/puppeteer/revisions');
+  return pptr.PUPPETEER_REVISIONS.chromium;
 })();
 
 /*

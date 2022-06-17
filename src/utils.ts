@@ -15,6 +15,7 @@ import { Schema } from 'joi';
 import _ from 'lodash';
 
 import fetch from 'node-fetch';
+import { CDPSession, Page } from 'puppeteer';
 
 import rmrf from 'rimraf';
 
@@ -693,4 +694,13 @@ export const injectHostIntoSession = (
     devtoolsFrontendUrl,
     webSocketDebuggerUrl,
   };
+};
+
+export const getCDPClient = (page: Page): CDPSession => {
+  // @ts-ignore using internal CDP client
+  const c = page._client;
+
+  return typeof c === 'function' ?
+    c.call(page) :
+    c;
 };

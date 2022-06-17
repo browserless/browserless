@@ -56,19 +56,19 @@
       "chromeRevision": "901912",
       "platform": "linux/amd64,linux/arm64"
     },
-    "puppeteer-13.6.0": {
-      "puppeteer": "13.6.0",
-      "chromeRevision": "982053",
+    "puppeteer-14.4.1": {
+      "puppeteer": "14.4.1",
+      "chromeRevision": "991974",
       "platform": "linux/amd64,linux/arm64"
     },
     "chrome-stable": {
-      "puppeteer": "13.6.0",
-      "chromeRevision": "982053",
+      "puppeteer": "14.4.1",
+      "chromeRevision": "991974",
       "platform": "linux/amd64"
     }
   },
   "releaseVersions": [
-    "puppeteer-13.6.0",
+    "puppeteer-14.4.1",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
     "puppeteer-7.1.0",
@@ -122,7 +122,7 @@
     "node-pdftk": "^2.0.0",
     "playwright-core": "^1.20.1",
     "prom-client": "^14.0.0",
-    "puppeteer": "^14.3.0",
+    "puppeteer": "^14.4.1",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.6.5",
     "queue": "^6.0.0",

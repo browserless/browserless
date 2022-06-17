@@ -56,6 +56,7 @@ import {
   fetchJson,
   getDebug,
   getUserDataDir,
+  getCDPClient,
   injectHostIntoSession,
   mkDataDir,
   rimraf,
@@ -164,7 +165,12 @@ const setupPage = async ({
     return;
   }
 
-  const client = _.get(page, '_client', _.noop);
+  const client = getCDPClient(pptrPage);
+
+  if (!client) {
+    throw new Error(`Error setting up page, CDP client doesn't exist!`);
+  }
+
   const id = _.get(page, '_target._targetId', 'Unknown');
 
   await pageHook({ page, meta });
