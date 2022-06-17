@@ -3,13 +3,12 @@ import path from 'path';
 
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
-import { id } from '../utils';
+import { id, getCDPClient } from '../utils';
 
 import { after as downloadAfter } from './download';
 
 export const before = async ({ page, code, debug, browser }: IBefore) => {
-  // @ts-ignore reaching into private methods
-  const client = page._client;
+  const client = getCDPClient(page);
   const renderer = await browser.newPage();
   const downloadPath = path.join(
     WORKSPACE_DIR,
@@ -19,8 +18,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
   const downloadName = id() + '.webm';
   let screencastAPI: any;
 
-  // @ts-ignore
-  await renderer._client.send('Page.setDownloadBehavior', {
+  await client.send('Page.setDownloadBehavior', {
     behavior: 'allow',
     downloadPath,
   });
@@ -127,7 +125,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
 
     client.on(
       'Page.screencastFrame',
-      ({ data, sessionId }: { data: string; sessionId: string }) => {
+      ({ data, sessionId }: { data: string; sessionId: number }) => {
         renderer.evaluateHandle(
           (screencastAPI, data) => screencastAPI.draw(data),
           screencastAPI,

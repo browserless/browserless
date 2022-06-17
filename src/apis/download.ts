@@ -6,7 +6,7 @@ import { Page } from 'puppeteer';
 import rimraf from 'rimraf';
 
 import { WORKSPACE_DIR } from '../config';
-import { id, readdir, sleep } from '../utils';
+import { id, getCDPClient, readdir, sleep } from '../utils';
 
 export const before = async ({ page }: { page: Page }) => {
   const downloadPath = path.join(
@@ -14,9 +14,8 @@ export const before = async ({ page }: { page: Page }) => {
     `.browserless.download.${id()}`,
   );
   await mkdir(downloadPath);
-
-  // @ts-ignore
-  await page._client.send('Page.setDownloadBehavior', {
+  const client = getCDPClient(page);
+  await client.send('Page.setDownloadBehavior', {
     behavior: 'allow',
     downloadPath,
   });

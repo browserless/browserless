@@ -56,6 +56,7 @@ import {
   fetchJson,
   getDebug,
   getUserDataDir,
+  getCDPClient,
   injectHostIntoSession,
   mkDataDir,
   rimraf,
@@ -164,8 +165,7 @@ const setupPage = async ({
     return;
   }
 
-  // @ts-ignore forcing functionality via page._client
-  const client = page._client;
+  const client = getCDPClient(pptrPage);
 
   if (!client) {
     throw new Error(`Error setting up page, CDP client doesn't exist!`);
