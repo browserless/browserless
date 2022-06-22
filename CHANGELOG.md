@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.53.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.54.0...master)
 - Dependency updates.
+
+# [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
+- Dependency updates.
+- Move to using `mocha` for better esm support.
+- Drop puppeteer `13.6.0` in favor of `14.4.1`.
+- Utilize puppeteer `14.4.1` for `chrome-stable`.
+- New internal `getCDPClient` for loading a page's CPD connection.
 
 # [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
 - Dependency updates.
