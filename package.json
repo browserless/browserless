@@ -19,8 +19,8 @@
   "scripts": {
     "build": "npm run clean && tsc",
     "clean": "rimraf build",
-    "deploy": "cross-env DEBUG=browserless* ./scripts/deploy.js",
-    "deploy-base": "cross-env DEBUG=browserless* ./scripts/deploy-base.js",
+    "deploy": "./scripts/deploy.js",
+    "deploy-base": "./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "start": "node ./build",
     "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
@@ -100,8 +100,8 @@
     "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
     "browserless-debugger": "^1.0.2",
-    "chromedriver": "^102.0.0",
     "chai": "^4.3.6",
+    "chromedriver": "^102.0.0",
     "cookie": "^0.5.0",
     "cors": "^2.8.4",
     "debug": "^4",
@@ -148,10 +148,13 @@
     "eslint": "^8.0.1",
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.2.1",
-    "simple-git-hooks": "^2.2.0"
+    "simple-git-hooks": "^2.2.0",
+    "zx": "^7.0.2"
   },
   "mocha": {
-    "extension": ["ts"],
+    "extension": [
+      "ts"
+    ],
     "spec": "src/tests/**/*.spec.ts",
     "require": "ts-node/register"
   },
