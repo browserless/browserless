@@ -1,7 +1,6 @@
 #!/usr/bin/env zx
 
 /* eslint-disable no-undef */
-const debug = require('debug')('browserless-docker-deploy');
 const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
@@ -39,10 +38,6 @@ const deployVersion = async (tags, pptrVersion) => {
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
 
-  debug(
-    `Beginning docker build and publish of tag ${patchBranch} ${minorBranch} ${majorBranch}`
-  );
-
   await $`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}\
     ${
       isChromeStable
@@ -61,7 +56,6 @@ const deployVersion = async (tags, pptrVersion) => {
     npm run postinstall
   `;
 
-  debug(`Fetching protocol JSON versioning for docker labels`);
   const port = await getPort();
   const browser = await puppeteer.launch({
     executablePath: isChromeStable
@@ -138,6 +132,4 @@ const deployVersion = async (tags, pptrVersion) => {
         }),
     Promise.resolve()
   );
-
-  debug(`Complete! Cleaning up file-system and exiting.`);
 })();

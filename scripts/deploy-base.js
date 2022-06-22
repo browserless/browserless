@@ -1,7 +1,5 @@
 #!/usr/bin/env zx
 /* eslint-disable no-undef */
-const debug = require('debug')('browserless-docker-deploy');
-
 const BASE = 'browserless/base';
 const TARGET_ARCH = ['linux/amd64', 'linux/arm64/v8'];
 const VERSION = process.env.VERSION;
@@ -19,9 +17,5 @@ const buildBase = async () => {
 };
 
 (async function deploy() {
-  // Build a fresh base image first, then subsequent
-  // docker builds are super fast.
   await buildBase();
-
-  debug(`Complete! Cleaning up file-system and exiting.`);
 })();
