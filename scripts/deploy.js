@@ -37,24 +37,17 @@ const deployVersion = async (tags, pptrVersion) => {
 
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
+  const envArgs = [`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}`];
 
-  await $`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}\
-    ${
-      isChromeStable
-        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
-        : ''
-    } \
-    npm install --silent --save --save-exact puppeteer@${puppeteerVersion}
-  `;
+  if (isChromeStable) {
+    envArgs.push('USE_CHROME_STABLE=true', 'CHROMEDRIVER_SKIP_DOWNLOAD=false', 'PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
+  }
 
-  await $`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}\
-    ${
-      isChromeStable
-        ? 'USE_CHROME_STABLE=true CHROMEDRIVER_SKIP_DOWNLOAD=false PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true'
-        : ''
-    } \
-    npm run postinstall
-  `;
+  const installCmd = envArgs.join(' ') + ` npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
+  const postInstall = envArgs.join(' ') + ` npm run postinstall`;
+
+  await $`${installCmd}`;
+  await $`${postInstall}`;
 
   const port = await getPort();
   const browser = await puppeteer.launch({
