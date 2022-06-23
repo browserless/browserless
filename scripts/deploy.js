@@ -1,6 +1,7 @@
 #!/usr/bin/env zx
 
 /* eslint-disable no-undef */
+const fs = require('fs/promises');
 const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
@@ -18,6 +19,7 @@ if (!BASE_VERSION) {
 }
 
 async function cleanup() {
+  await $`rm -rf browser.json`;
   await $`git reset origin/master --hard`;
   await $`rm -rf node_modules`;
 }
@@ -37,17 +39,19 @@ const deployVersion = async (tags, pptrVersion) => {
 
   const [patchBranch, minorBranch, majorBranch] = tags;
   const isChromeStable = majorBranch.includes('chrome-stable');
-  const envArgs = [`PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}`];
+
+  process.env.PUPPETEER_CHROMIUM_REVISION = puppeteerChromiumRevision;
+  process.env.USE_CHROME_STABLE = false;
+  process.env.CHROMEDRIVER_SKIP_DOWNLOAD = true;
+  process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = true;
 
   if (isChromeStable) {
-    envArgs.push('USE_CHROME_STABLE=true', 'CHROMEDRIVER_SKIP_DOWNLOAD=false', 'PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true');
+    process.env.USE_CHROME_STABLE = true;
+    process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
   }
 
-  const installCmd = envArgs.join(' ') + ` npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
-  const postInstall = envArgs.join(' ') + ` npm run postinstall`;
-
-  await $`${installCmd}`;
-  await $`${postInstall}`;
+  await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
+  await $`npm run postinstall`;
 
   const port = await getPort();
   const browser = await puppeteer.launch({
@@ -65,7 +69,10 @@ const deployVersion = async (tags, pptrVersion) => {
     /\s\(@(\b[0-9a-f]{5,40}\b)/
   )[1];
 
-  await browser.close();
+  await Promise.all([
+    fs.writeFile('browser.json', JSON.stringify(versionJson)),
+    browser.close(),
+  ]);
 
   const chromeStableArg = isChromeStable ? 'true' : 'false';
 
@@ -87,7 +94,7 @@ const deployVersion = async (tags, pptrVersion) => {
   -t ${REPO}:${minorBranch} \
   -t ${REPO}:${majorBranch} .`;
 
-  await $`git add --force hosts.json`.catch(noop);
+  await $`git add --force hosts.json browser.json`.catch(noop);
   await $`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`.catch(
     noop
   );

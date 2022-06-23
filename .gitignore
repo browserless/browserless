@@ -3,7 +3,10 @@ node_modules/
 build/
 external/
 devtools/
+
+# Deployment assets
 hosts.json
+browser.json
 
 # MAC
 .DS_Store
