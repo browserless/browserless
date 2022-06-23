@@ -2,6 +2,7 @@
 
 /* eslint-disable no-undef */
 const fs = require('fs/promises');
+
 const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
@@ -70,7 +71,11 @@ const deployVersion = async (tags, pptrVersion) => {
   )[1];
 
   await Promise.all([
-    fs.writeFile('browser.json', JSON.stringify(versionJson)),
+    fs.writeFile('browser.json', JSON.stringify({
+      ...versionJson,
+      puppeteerVersion,
+      debuggerVersion,
+    })),
     browser.close(),
   ]);
 
