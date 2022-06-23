@@ -101,7 +101,7 @@
     "bluebird": "^3.5.5",
     "browserless-debugger": "^1.0.2",
     "chai": "^4.3.6",
-    "chromedriver": "^102.0.0",
+    "chromedriver": "^103.0.0",
     "cookie": "^0.5.0",
     "cors": "^2.8.4",
     "debug": "^4",
