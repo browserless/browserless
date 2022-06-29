@@ -6,13 +6,13 @@ const VERSION = process.env.VERSION;
 
 if (!VERSION) {
   throw new Error(
-    `Expected a $VERSION env variable to tag the ${BASE} repo, but none was found.`
+    `Expected a $VERSION env variable to tag the ${BASE} repo, but none was found.`,
   );
 }
 
 const buildBase = async () => {
   await $`docker buildx build --push --platform ${TARGET_ARCH.join(
-    ','
+    ',',
   )} -t ${BASE}:latest -t ${BASE}:${VERSION} ./base`;
 };
 
