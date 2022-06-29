@@ -776,23 +776,6 @@ export const closeBrowser = (browser: IBrowser) => {
      * the browser object to `null` below to force it to collect
      */
     process.removeAllListeners('exit');
-
-    // Allow listeners to close before we garbage collect, which
-    // puppeteer-extra packages need
-    Promise.race([
-      new Promise((r) => browser.process().once('close', r)),
-      sleep(1000),
-    ]).then(() => {
-      debug(`Garbage collecting and removing listeners`);
-      browser._pages.forEach((page) => {
-        page.removeAllListeners();
-        // @ts-ignore force any garbage collection by nulling the page(s)
-        page = null;
-      });
-      browser.removeAllListeners();
-      // @ts-ignore force any garbage collection by nulling the browser
-      browser = null;
-    });
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
@@ -800,8 +783,26 @@ export const closeBrowser = (browser: IBrowser) => {
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
+      const races = [sleep(1000), browser._browserServer.close()];
+      const proc = browser.process();
 
-      browser._browserServer.close();
+      if (proc) {
+        races.push(new Promise((r) => proc.once('close', r)));
+      }
+
+      // Allow listeners to close before we garbage collect, which
+      // puppeteer-extra packages need
+      Promise.race(races).then(() => {
+        debug(`Garbage collecting and removing listeners`);
+        browser._pages.forEach((page) => {
+          page.removeAllListeners();
+          // @ts-ignore force any garbage collection by nulling the page(s)
+          page = null;
+        });
+        browser.removeAllListeners();
+        // @ts-ignore force any garbage collection by nulling the browser
+        browser = null;
+      });
 
       if (browser._browserProcess.pid) {
         treeKill(browser._browserProcess.pid, 'SIGKILL');
