@@ -788,8 +788,7 @@ export const closeBrowser = (browser: IBrowser) => {
       // puppeteer-extra packages need
       Promise.race([
         new Promise((r) => browser.process().once('close', r)),
-        browser._browserServer.close(),
-        sleep(1000).then(() => debug('sleep-1000')),
+        sleep(1000),
       ]).then(() => {
         debug(`Garbage collecting and removing listeners`);
         browser._pages.forEach((page) => {
