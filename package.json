@@ -99,7 +99,7 @@
     "@types/shortid": "0.0.29",
     "archiver": "^5.0.0",
     "bluebird": "^3.5.5",
-    "browserless-debugger": "^1.0.2",
+    "browserless-debugger": "^1.0.3",
     "chai": "^4.3.6",
     "chromedriver": "^103.0.0",
     "cookie": "^0.5.0",
