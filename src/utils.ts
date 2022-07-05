@@ -700,7 +700,5 @@ export const getCDPClient = (page: Page): CDPSession => {
   // @ts-ignore using internal CDP client
   const c = page._client;
 
-  return typeof c === 'function' ?
-    c.call(page) :
-    c;
+  return typeof c === 'function' ? c.call(page) : c;
 };

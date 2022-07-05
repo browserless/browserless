@@ -546,9 +546,11 @@ export const launchChrome = async (
     await mkDataDir(explodedPath);
     opts.userDataDir = explodedPath;
     launchArgs.args.push(`--user-data-dir=${explodedPath}`);
+    launchArgs.userDataDir = explodedPath;
   } else {
     browserlessDataDir = opts.userDataDir || (await getUserDataDir());
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
+    launchArgs.userDataDir = browserlessDataDir;
   }
 
   // Only use debugging pipe when headless except for playwright which
@@ -781,7 +783,26 @@ export const closeBrowser = (browser: IBrowser) => {
       debug(
         `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
       );
-      browser._browserServer.close();
+      const races = [sleep(1000), browser._browserServer.close()];
+      const proc = browser.process();
+
+      if (proc) {
+        races.push(new Promise((r) => proc.once('close', r)));
+      }
+
+      // Allow listeners to close before we garbage collect, which
+      // puppeteer-extra packages need
+      Promise.race(races).then(() => {
+        debug(`Garbage collecting and removing listeners`);
+        browser._pages.forEach((page) => {
+          page.removeAllListeners();
+          // @ts-ignore force any garbage collection by nulling the page(s)
+          page = null;
+        });
+        browser.removeAllListeners();
+        // @ts-ignore force any garbage collection by nulling the browser
+        browser = null;
+      });
 
       if (browser._browserProcess.pid) {
         treeKill(browser._browserProcess.pid, 'SIGKILL');
@@ -790,15 +811,6 @@ export const closeBrowser = (browser: IBrowser) => {
       if (browser._browserlessDataDir) {
         removeDataDir(browser._browserlessDataDir);
       }
-
-      browser._pages.forEach((page) => {
-        page.removeAllListeners();
-        // @ts-ignore force any garbage collection by nulling the page(s)
-        page = null;
-      });
-      browser.removeAllListeners();
-      // @ts-ignore force any garbage collection by nulling the browser
-      browser = null;
     });
   }
 };

@@ -15,7 +15,7 @@ const BASE_VERSION = process.env.BASE_VERSION;
 
 if (!BASE_VERSION) {
   throw new Error(
-    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`
+    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`,
   );
 }
 
@@ -30,7 +30,7 @@ const deployVersion = async (tags, pptrVersion) => {
 
   if (!versionInfo) {
     throw new Error(
-      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`
+      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`,
     );
   }
 
@@ -67,15 +67,18 @@ const deployVersion = async (tags, pptrVersion) => {
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
   const versionJson = await res.json();
   const debuggerVersion = versionJson['WebKit-Version'].match(
-    /\s\(@(\b[0-9a-f]{5,40}\b)/
+    /\s\(@(\b[0-9a-f]{5,40}\b)/,
   )[1];
 
   await Promise.all([
-    fs.writeFile('browser.json', JSON.stringify({
-      ...versionJson,
-      puppeteerVersion,
-      debuggerVersion,
-    })),
+    fs.writeFile(
+      'browser.json',
+      JSON.stringify({
+        ...versionJson,
+        puppeteerVersion,
+        debuggerVersion,
+      }),
+    ),
     browser.close(),
   ]);
 
@@ -101,11 +104,11 @@ const deployVersion = async (tags, pptrVersion) => {
 
   await $`git add --force hosts.json browser.json`.catch(noop);
   await $`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`.catch(
-    noop
+    noop,
   );
   await $`git tag --force ${patchBranch}`;
   await $`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`.catch(
-    noop
+    noop,
   );
 
   // git reset for next update
@@ -135,6 +138,6 @@ const deployVersion = async (tags, pptrVersion) => {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
         }),
-    Promise.resolve()
+    Promise.resolve(),
   );
 })();
