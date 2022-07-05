@@ -1,5 +1,13 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.54.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.54.1...master)
 - Dependency updates.
+
+# [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
+- Dependency updates.
+- Add `browser.json` file to git tags.
+- Prettier fixes on source.
+- deploy.js file fixes for creating production tags.
+- Fix: add the `userDataDir` option so that we don't fill disks when using `stealth`.
+- Fix: allow `disconnect` listeners to fire before closing.
 
 # [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
 - Dependency updates.
