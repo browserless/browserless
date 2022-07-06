@@ -1,6 +1,8 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
+import { Viewport } from 'puppeteer-core';
+
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
 import { id, getCDPClient } from '../utils';
@@ -105,7 +107,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     }, downloadName);
 
   const startScreencast = async () => {
-    const viewport = page.viewport();
+    const viewport = page.viewport() as Viewport;
     screencastAPI = await setup();
     await page.bringToFront();
 

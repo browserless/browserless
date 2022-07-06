@@ -15,7 +15,8 @@ import getPort from 'get-port';
 import _ from 'lodash';
 import fetch from 'node-fetch';
 import { chromium, BrowserServer } from 'playwright-core';
-import puppeteer from 'puppeteer';
+
+import puppeteer, { HTTPRequest } from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import treeKill from 'tree-kill';
@@ -103,7 +104,7 @@ const removeDataDir = (dir: string | null) => {
   }
 };
 
-const networkBlock = (request: puppeteer.Request) => {
+const networkBlock = async (request: HTTPRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
   if (blacklist.includes(domain)) {
@@ -159,13 +160,13 @@ const setupPage = async ({
   windowSize?: IWindowSize;
   meta: unknown;
 }) => {
-  const page = pptrPage as IPage;
+  const page = pptrPage as unknown as IPage;
 
   if (page._browserless_setup) {
     return;
   }
 
-  const client = getCDPClient(pptrPage);
+  const client = getCDPClient(page);
 
   if (!client) {
     throw new Error(`Error setting up page, CDP client doesn't exist!`);
@@ -275,7 +276,7 @@ const setupBrowser = async ({
   meta: unknown;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
-  const browser = pptrBrowser as IBrowser;
+  const browser = pptrBrowser as unknown as IBrowser;
 
   browser._isOpen = true;
   browser._keepalive = keepalive;
@@ -578,9 +579,9 @@ export const launchChrome = async (
     ? injectedPuppeteer.launch(launchArgs)
     : launchArgs.playwright
     ? chromium.launchServer({
-        ...launchArgs,
-        proxy: launchArgs.playwrightProxy,
-      })
+      ...launchArgs,
+      proxy: launchArgs.playwrightProxy,
+    } as Parameters<typeof chromium['launchServer']>[0])
     : launchArgs.stealth
     ? pptrExtra.launch(launchArgs)
     : puppeteer.launch(launchArgs);
@@ -610,7 +611,7 @@ export const launchChrome = async (
       isUsingTempDataDir,
       keepalive: opts.keepalive || null,
       pauseOnConnect: opts.pauseOnConnect,
-      process: browserServer.process(),
+      process: browserServer.process() as ChildProcess,
       trackingId: opts.trackingId || null,
       windowSize: undefined,
       prebooted: isPreboot,
