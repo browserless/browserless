@@ -585,7 +585,7 @@ export const launchChrome = async (
     ? pptrExtra.launch(launchArgs)
     : puppeteer.launch(launchArgs);
 
-  const browserServer = await browserServerPromise.catch((e) => {
+  const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
     throw e;
   });

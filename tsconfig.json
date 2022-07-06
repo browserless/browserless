@@ -5,6 +5,7 @@
     "paths": {
       "puppeteer": ["node_modules/@types/puppeteer"]
     },
+    "skipLibCheck": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2017",
