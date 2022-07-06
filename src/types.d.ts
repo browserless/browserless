@@ -60,7 +60,7 @@ export interface IWindowSize {
   height: number;
 }
 
-export interface ILaunchOptions extends puppeteer.PuppeteerLaunchOptions {
+export interface ILaunchOptions extends puppeteer.LaunchOptions {
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId?: string;
