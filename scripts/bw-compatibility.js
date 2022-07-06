@@ -4,17 +4,13 @@
 const { releaseVersions } = require('../package.json');
 
 (async () => {
-  await Promise.all(
-    releaseVersions
-      .filter((v) => v.includes('puppeteer'))
-      .map(
-        (version) =>
-          $`npm install --silent --save --save-exact puppeteer@${version} && npm run build`,
-      ),
-  )
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error(err);
-      process.exit(1);
-    });
+  const versions = releaseVersions
+    .filter((v) => v.includes('puppeteer'))
+    .map((v) => v.replace('puppeteer-', ''));
+
+  console.log(`Checking versions ${versions.join(', ')} of puppeteer`);
+
+  for (version of versions) {
+    await $`npm install --silent --save --save-exact puppeteer@${version} && npm run build`;
+  }
 })();

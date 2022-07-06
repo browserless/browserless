@@ -1,4 +1,4 @@
-name: Lint
+name: Backwards Compatibility
 
 on: [pull_request]
 
@@ -9,5 +9,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install modules
       run: npm i
-    - name: Run ESLint
+    - name: Run Backwards Compatibility
       run: npm run bw-compatibility
