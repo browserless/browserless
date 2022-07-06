@@ -51,6 +51,7 @@ import {
   IHTTPRequest,
   IDevtoolsJSON,
   IPage,
+  PuppeteerRequest,
 } from './types.d';
 import {
   fetchJson,
@@ -103,7 +104,7 @@ const removeDataDir = (dir: string | null) => {
   }
 };
 
-const networkBlock = (request: puppeteer.Request) => {
+const networkBlock = (request: PuppeteerRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
   if (blacklist.includes(domain)) {
@@ -610,7 +611,7 @@ export const launchChrome = async (
       isUsingTempDataDir,
       keepalive: opts.keepalive || null,
       pauseOnConnect: opts.pauseOnConnect,
-      process: browserServer.process(),
+      process: browserServer.process() as ChildProcess,
       trackingId: opts.trackingId || null,
       windowSize: undefined,
       prebooted: isPreboot,
