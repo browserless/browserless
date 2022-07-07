@@ -60,7 +60,22 @@ export interface IWindowSize {
   height: number;
 }
 
-export interface ILaunchOptions extends puppeteer.LaunchOptions {
+export interface PuppeteerRequest {
+  url: () => string;
+  abort: () => void;
+  continue: () => void;
+}
+
+export type PuppeteerLaunchOptions = Parameters<puppeteer.launch>[0];
+
+export interface ILaunchOptions {
+  ignoreHTTPSErrors?: boolean;
+  slowMo?: number;
+  userDataDir?: string;
+  dumpio?: boolean;
+  headless?: boolean;
+  args?: string[];
+  ignoreDefaultArgs?: boolean | string[];
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId?: string;
