@@ -10,6 +10,7 @@
  *  },
  * });
  */
+const noop = () => {};
 
 async function waitForElement(selector, timeout = 30000) {
   return new Promise((resolve) => {
@@ -122,7 +123,7 @@ module.exports = async function scrape({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
-  const response = await page.goto(url, gotoOptions);
+  const response = await page.goto(url, gotoOptions).catch(() => null);
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
