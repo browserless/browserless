@@ -511,13 +511,15 @@ export class BrowserlessServer {
       debug(
         `${req.url}: ${message}. Behavior of "http" set, writing response and closing.`,
       );
-      const httpResponse = util.dedent(`${header}
-        Content-Type: text/plain; charset=UTF-8
-        Content-Encoding: UTF-8
-        Accept-Ranges: bytes
-        Connection: keep-alive
-
-        ${message}`);
+      const httpResponse = [
+        header,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Encoding: UTF-8',
+        'Accept-Ranges: bytes',
+        'Connection: keep-alive',
+        '\r\n',
+        message,
+      ].join('\r\n');
 
       socket.write(httpResponse);
       socket.end();
