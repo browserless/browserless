@@ -1,4 +1,4 @@
-name: Chromium CI
+name: Chromium Stable
 
 on: [pull_request]
 
