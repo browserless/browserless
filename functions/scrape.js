@@ -1,3 +1,4 @@
+/* global setTimeout, document, MutationObserver, clearTimeout, module */
 /*
  * scrape function
  *
@@ -10,7 +11,6 @@
  *  },
  * });
  */
-const noop = () => {};
 
 async function waitForElement(selector, timeout = 30000) {
   return new Promise((resolve) => {
@@ -126,13 +126,13 @@ module.exports = async function scrape({ page, context }) {
   const response = await page.goto(url, gotoOptions).catch(() => null);
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }

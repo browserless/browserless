@@ -1,5 +1,8 @@
-const path = require('path');
+/* global require, module, __dirname, setTimeout, clearTimeout */
+
 const { fork } = require('child_process');
+const path = require('path');
+
 const kill = require('tree-kill');
 
 const DEFAULT_AUDIT_CONFIG = {

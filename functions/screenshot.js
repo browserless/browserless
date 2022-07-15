@@ -1,3 +1,4 @@
+/* global setTimeout, module, require */
 /*
  * screenshot function
  *
@@ -11,7 +12,9 @@
  *    quality: 50,
  *    fullPage: false,
  *    omitBackground: true,
- * },
+ *    ...
+ *    see https://github.com/puppeteer/puppeteer/blob/main/docs/api/puppeteer.screenshotoptions.md for available options
+ *   },
  * });
  *
  * @param args - object - An object with a puppeteer page object, and context.
@@ -94,13 +97,13 @@ module.exports = async function screenshot({ page, context } = {}) {
       : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }

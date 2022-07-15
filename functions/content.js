@@ -1,3 +1,4 @@
+/* global setTimeout, module */
 /*
  * content function
  *
