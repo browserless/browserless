@@ -24,7 +24,7 @@ If you've been struggling to get Chrome up and running docker, or scaling out yo
 
 ## External links
 
-1. [Full documentation site](https://docs.browserless.io/)
+1. [Full documentation site](https://www.browserless.io/docs/start)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
 3. [Docker](https://hub.docker.com/r/browserless/chrome/)
 4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
@@ -50,7 +50,7 @@ Your application still runs the script itself (much like a database interaction)
 
 # Docker
 
-> See more options on our [full documentation site](https://docs.browserless.io/docs/docker.html).
+> See more options on our [full documentation site](https://www.browserless.io/docs/docker-quickstart).
 
 1. `docker run -p 3000:3000 browserless/chrome`
 2. Visit `http://localhost:3000/` to use the interactive debugger.
@@ -209,7 +209,7 @@ After that, the rest of your code remains the same with no other changes require
 
 Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless.
 
-You can find a much larger list of supported libraries [on our documentation site](https://docs.browserless.io/docs/puppeteer-library.html).
+You can find a much larger list of supported libraries [on our documentation site](https://www.browserless.io/docs/puppeteer-library).
 
 # Motivations
 
