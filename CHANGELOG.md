@@ -1,19 +1,143 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.45.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.54.1...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
-- Dependency Updates.
+# [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
+- Dependency updates.
+- Add `browser.json` file to git tags.
+- Prettier fixes on source.
+- deploy.js file fixes for creating production tags.
+- Fix: add the `userDataDir` option so that we don't fill disks when using `stealth`.
+- Fix: allow `disconnect` listeners to fire before closing.
+
+# [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
+- Dependency updates.
+- Move to using `mocha` for better esm support.
+- Drop puppeteer `13.6.0` in favor of `14.4.1`.
+- Utilize puppeteer `14.4.1` for `chrome-stable`.
+- New internal `getCDPClient` for loading a page's CPD connection.
+
+# [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
+- Dependency updates.
+- Bump `browserless:base` to `1.16.0`.
+- Drop `--quiet` from deploy scripts.
+- `arm64` support for latest as well as puppeteer at versions 9,10 and 13.
+- Update puppeteer 13 from `13.5.2` to `13.6.0` (revision `982053`).
+- README updates.
+
+# [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
+- Dependency updates.
+- Playwright example correction in README.md.
+- Use revision `970485` for puppeteer 13.x.x, `latest`, chrome-stable and `arm64`.
+- When using `KEEPALIVE` and `PREBOOT`, don't create new blank pages, and use the existing one instead.
+
+# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+- Dependency updates.
+- Added in new fonts: `fonts-gfs-neohellenic`.
+- Minor code formatting changes.
+- Drop puppeteer@13.1.3 in favor of 13.5.2.
+- Make `heapdump` an optional dependency as it's not always used, and add it back in.
+- Utilize `fs/promise` vs home-rolled promisified utils.
+- Fix an issue where PREBOOT and KEEPALIVE might return an `undefined` browser.
+- Logging when file-protocol requests happen and terminate a session.
+- Move the browser process exit listener into the puppeteer-provider for better session cleanup.
+- Allow "headfull" playwright sessions.
+- Don't `await` chrome-helper's closing of the browser as it's not truly async.
+- Remove `body-parser` in favor of `express`'s JSON and other parsers.
+- Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
+- Add in more unit and integration tests.
+
+# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+- Dependency updates.
+- Added in new fonts: `fonts-gfs-neohellenic`.
+- Minor code formatting changes.
+- Drop puppeteer@13.1.3 in favor of 13.5.2.
+- Make `heapdump` an optional dependency as it's not always used, and add it back in.
+- Utilize `fs/promise` vs home-rolled promisified utils.
+- Fix an issue where PREBOOT and KEEPALIVE might return an `undefined` browser.
+- Logging when file-protocol requests happen and terminate a session.
+- Move the browser process exit listener into the puppeteer-provider for better session cleanup.
+- Allow "headfull" playwright sessions.
+- Don't `await` chrome-helper's closing of the browser as it's not truly async.
+- Remove `body-parser` in favor of `express`'s JSON and other parsers.
+- Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
+- Add in more unit and integration tests.
+
+# [v1.51.1](https://github.com/browserless/chrome/compare/v1.51.0...v1.51.1)
+- Dependency updates.
+- Updates the `vm2` module to `3.9.7`.
+# [v1.51.0](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
+- Dependency updates.
+- New `viewport` option inside of the content API.
+- New `encoding` option in the screenshot API.
+- Drop puppeteer@12.x.x in favor of 13.x.x.
+- Fixes in our deploy scripts.
+- Fixes for windows binaries in our postinstall hook.
+- Fixes an issue where playwright tries to use a pre-booted chrome instance.
+- Small type updates.
+
+# [v1.50.0](https://github.com/browserless/chrome/compare/v1.49.1...v1.50.0)
+- Dependency updates.
+- Drops support for `puppeteer-4.0.1` in favor of `puppeteer-12.0.1`.
+- Chrome-stable now utilizes puppeteer @ `12.0.1`.
+- Support for `arm64` via production tags (`1-arm64`) as well as in `latest`.
+- Static JSON files (`protocol.json`, `version.json`) are built at runtime on their first request and then cached in memory.
+- Bumps `browserless/base` to `1.14.0`.
+- New `selector` property for screenshot-ing a single DOM node in the screenshot API.
+- `puppeteerVersions` in the package.json file has been rename do `chromeVersions`.
+- Internal changes for deploying production tag scripts.
+- Consolidate scripts for `postinstall`.
+- Drop support for `heapdump` due to its age and lack of platform varieties.
+- New `/metrics/total` route for summing up all statistics in a single JSON payload.
+
+# [v1.49.1](https://github.com/browserless/chrome/compare/v1.49.0...v1.49.1)
+- Dependency updates.
+- Fix webhook not using timeout URL.
+
+# [v1.49.0](https://github.com/browserless/chrome/compare/v1.48.0...v1.49.0)
+- Dependency updates.
+- Support for ARM64 builds by dropping flash for it.
+- Bump puppeteer 10.2.0 for 10.4.0.
+- New puppeteer-hook for injecting a puppeteer-compatible library, eg. puppeteer-extra.
+
+# [v1.48.0](https://github.com/browserless/chrome/compare/v1.47.0...v1.48.0)
 **Potentially Breaking**
-- Entirely new debugger (all client-side).
-- Drop embedded hints.json file in favor of new debugger hints.
-- No more debugger sandbox since debugger runs purely client-side.
-- Drop support for `DEMO_MODE` flag.
---
-- Prettier-ified code.
-- Bumps browserless/base to 1.8.0.
-- Some better docker-layers tweaks.
-- Basic swagger docs now in /docs.
-- Return some page meta-data inside of HTTP headers.
+- API calls with `html` in their payloads now use the `page.setContent` API versus a prior hack using one-time network-request interception ([example here](https://github.com/browserless/chrome/compare/v1.47.0...master#diff-67b699af1b24472604e21081d0509620d4ab3d986fcd4f8aa0b04d5ee5e4c63fL88)). Old versions of puppeteer might not work properly with this (<= 5.x.x). This effects the following APIS: `/content`, `/pdf` and `/screenshot`.
+---
+- Dependency updates.
+- Bump `browserless/base` to `1.12.0` (add user-id to `blessuser` of `BLESS_USER_ID=999`).
+- Bumps puppeteer @10.x.x to `10.2.0` with revision `901912`.
+- Makes API calls use `setContent` properly now (no more one-time network interception). This fixes certain issues with images not loading in PDFs and screenshots.
+- Fix some typings in tests.
+
+# [v1.47.0](https://github.com/browserless/chrome/compare/v1.46.0...v1.47.0)
+- Dependency updates.
+- Bump `browserless/base` to `1.11.0`.
+- Add new lint task and rename GitHub actions tasks, remove `tslint`.
+- Lint and prettier fixes.
+- Delay url parsing until after `before` hook runs.
+- New `meta` object param for page hooks (passing through arbitrary meta data set by prior hooks).
+- New `FUNCTION_ENV_VARS` environment variable pass through an allow-list of environment variables for functions to access.
+- Fix `someObject.hasOwnProperty` to `Object.prototype.hasOwnProperty.call`.
+-
+
+# [v1.46.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+- Dependency updates.
+- Move to Node 16.x.x.
+- Bump browserless/base to 1.10.0.
+- Limit `x-response-url` to 100 characters.
+- Add support for puppeteer@10.x.x.
+- Add `maxConcurrent` stat for metrics API + log stats every 5 minutes to stdout.
+- Some performance improvements to how pages/browsers are setup and torn down.
+- Add `API_DOCS_ENDPOINT` as a filterable API to deny access to.
+- Minor code reformatting from prettier.
+- Better page setup and logging.
+- Fixes `DEFAULT_STEALTH` for self-hosted deployments.
+- Improvements on how chrome is closed.
+
+# [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
+- Dependency Updates.
+- Support for [playwright proxies](https://github.com/browserless/chrome/commit/0903795e936b93a511ec04f7ae35c03397682905).
+- Fixes an issue with larger headers potentially causing load-balancers to crash and fail.
 
 # [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
 **Potentially Breaking**

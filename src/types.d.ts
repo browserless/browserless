@@ -1,11 +1,16 @@
 import { ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+
+import { IncomingMessage, ServerResponse } from 'http';
+
+import net from 'net';
+
+import url from 'url';
+
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
-import { IncomingMessage, ServerResponse } from 'http';
-import net from 'net';
+
 import puppeteer from 'puppeteer';
-import url from 'url';
 
 export interface IChromeDriver {
   port: number;
@@ -29,6 +34,11 @@ export interface IBrowser extends puppeteer.Browser {
   _pauseOnConnect: boolean;
   _wsEndpoint: string;
   _browserServer: BrowserServer | puppeteer.Browser;
+  _pages: puppeteer.Page[];
+}
+
+export interface IPage extends puppeteer.Page {
+  _browserless_setup: boolean;
 }
 
 export interface ISession {
@@ -50,7 +60,22 @@ export interface IWindowSize {
   height: number;
 }
 
-export interface ILaunchOptions extends puppeteer.LaunchOptions {
+export interface PuppeteerRequest {
+  url: () => string;
+  abort: () => void;
+  continue: () => void;
+}
+
+export type PuppeteerLaunchOptions = Parameters<puppeteer.launch>[0];
+
+export interface ILaunchOptions {
+  ignoreHTTPSErrors?: boolean;
+  slowMo?: number;
+  userDataDir?: string;
+  dumpio?: boolean;
+  headless?: boolean;
+  args?: string[];
+  ignoreDefaultArgs?: boolean | string[];
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId?: string;
@@ -58,6 +83,7 @@ export interface ILaunchOptions extends puppeteer.LaunchOptions {
   playwrightProxy?: LaunchOptions['proxy'];
   playwright: boolean;
   stealth: boolean;
+  meta: unknown;
 }
 
 export interface IBefore {
@@ -81,6 +107,7 @@ export interface IRunHTTP {
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
+  envVars?: string[];
   external?: string[];
 }
 
@@ -99,6 +126,7 @@ export interface IBrowserlessStats {
   meanTime: number;
   maxTime: number;
   minTime: number;
+  maxConcurrent: number;
 }
 
 export interface ISandboxOpts {
@@ -153,6 +181,7 @@ export interface IChromeServiceConfiguration {
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];
+  functionEnvVars: string[];
   maxMemory: number;
   maxCPU: number;
   keepAlive: boolean;
@@ -160,12 +189,6 @@ export interface IChromeServiceConfiguration {
   enableCors: boolean;
   singleRun: boolean;
   token: string | null;
-}
-
-export interface IBefore {
-  page: puppeteer.Page;
-  code: string;
-  debug: (message: string) => void;
 }
 
 export interface IAfter {
@@ -301,22 +324,24 @@ export interface IDevtoolsJSON {
 }
 
 export interface IBeforeHookRequest {
-  req: IHTTPRequest;
+  req: IncomingMessage;
   res?: ServerResponse;
   socket?: net.Socket;
   head?: Buffer;
 }
 
 export interface IAfterHookResponse {
-  req: IHTTPRequest | IWebdriverStartHTTP;
+  req: IncomingMessage | IWebdriverStartHTTP;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }
 
 export interface IBrowserHook {
   browser: IBrowser;
+  meta: unknown;
 }
 
 export interface IPageHook {
   page: puppeteer.Page;
+  meta: unknown;
 }

@@ -6,4 +6,6 @@ xvfb=$!
 
 export DISPLAY=:1
 
-./node_modules/.bin/jest --runInBand --bail --forceExit $@ && kill -TERM $xvfb
+export SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS=true
+
+DEBUG=-* SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS=bar ./node_modules/.bin/mocha --timeout 15000 --exit $@ && kill -TERM $xvfb

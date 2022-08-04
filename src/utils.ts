@@ -1,21 +1,26 @@
-import cookie from 'cookie';
-import dbg from 'debug';
-import express from 'express';
 import fs from 'fs';
+import { stat, mkdir } from 'fs/promises';
 import { IncomingMessage } from 'http';
-import { Schema } from 'joi';
-import _ from 'lodash';
 import net from 'net';
-import fetch from 'node-fetch';
 import os from 'os';
 import path from 'path';
-import rmrf from 'rimraf';
 import url from 'url';
 import util from 'util';
 
-import { WEBDRIVER_ROUTE } from './constants';
+import cookie from 'cookie';
+import dbg from 'debug';
+import express from 'express';
+
+import { Schema } from 'joi';
+import _ from 'lodash';
+
+import fetch from 'node-fetch';
+import { CDPSession, Page } from 'puppeteer';
+
+import rmrf from 'rimraf';
 
 import { DEFAULT_BLOCK_ADS, DEFAULT_STEALTH, WORKSPACE_DIR } from './config';
+import { WEBDRIVER_ROUTE } from './constants';
 
 import {
   IWebdriverStartHTTP,
@@ -28,7 +33,7 @@ import {
   IBrowser,
   IDevtoolsJSON,
   ISession,
-} from './types';
+} from './types.d';
 
 const { CHROME_BINARY_LOCATION } = require('../env');
 
@@ -37,15 +42,18 @@ const mkdtemp = util.promisify(fs.mkdtemp);
 const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export const jsonProtocolPrefix = 'BROWSERLESS';
-export const exists = util.promisify(fs.exists);
 export const lstat = util.promisify(fs.lstat);
 export const readdir = util.promisify(fs.readdir);
 export const writeFile = util.promisify(fs.writeFile);
-export const mkdir = util.promisify(fs.mkdir);
 export const rimraf = util.promisify(rmrf);
 export const getDebug = (level: string) => dbg(`browserless:${level}`);
+export const exists = (path: string) =>
+  stat(path)
+    .then(() => true)
+    .catch(() => false);
 
-const webdriverSessionCloseReg = /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
+const webdriverSessionCloseReg =
+  /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
 
 const debug = getDebug('system');
 
@@ -89,7 +97,7 @@ const readFilesRecursive = async (
   return results;
 };
 
-export const id = (prepend: string = '') =>
+export const id = (prepend = '') =>
   prepend +
   Array.from({ length: prepend ? 32 - prepend.length : 32 }, () =>
     characters.charAt(Math.floor(Math.random() * characters.length)),
@@ -181,7 +189,7 @@ export const queryValidation = (schema: Schema) => {
       return res
         .status(400)
         .send(
-          `The query-parameter "body" is required, and must be a URL-encoded JSON object.`,
+          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
         );
     }
 
@@ -195,7 +203,7 @@ export const queryValidation = (schema: Schema) => {
       return res
         .status(400)
         .send(
-          `The query-parameter "body" is required, and must be a URL-encoded JSON object.`,
+          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
         );
     }
 
@@ -244,9 +252,9 @@ export const generateChromeTarget = () => {
   return `/devtools/page/${id(jsonProtocolPrefix)}`;
 };
 
-export const sleep = (time = 0) => {
-  return new Promise((resolve) => {
-    global.setTimeout(resolve, time);
+export const sleep = function sleep(time = 0) {
+  return new Promise((r) => {
+    global.setTimeout(r, time);
   });
 };
 
@@ -264,7 +272,6 @@ export const normalizeWebdriverStart = async (
   const body = await readRequestBody(req);
   const parsed = safeParse(body);
 
-  let isUsingTempDataDir: boolean;
   let browserlessDataDir: string | null = null;
 
   // First, convert legacy chrome options to W3C spec
@@ -309,7 +316,7 @@ export const normalizeWebdriverStart = async (
   ) as string[];
 
   // Set a temp data dir
-  isUsingTempDataDir = !launchArgs.some((arg: string) =>
+  const isUsingTempDataDir = !launchArgs.some((arg: string) =>
     arg.startsWith('--user-data-dir'),
   );
   browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
@@ -323,9 +330,8 @@ export const normalizeWebdriverStart = async (
         `--user-data-dir=${browserlessDataDir}`,
       );
     }
-    parsed.desiredCapabilities[
-      w3cChromeOptionsKey
-    ].binary = CHROME_BINARY_LOCATION;
+    parsed.desiredCapabilities[w3cChromeOptionsKey].binary =
+      CHROME_BINARY_LOCATION;
   }
 
   if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey])) {
@@ -336,9 +342,8 @@ export const normalizeWebdriverStart = async (
         `--user-data-dir=${browserlessDataDir}`,
       );
     }
-    parsed.capabilities.alwaysMatch[
-      w3cChromeOptionsKey
-    ].binary = CHROME_BINARY_LOCATION;
+    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].binary =
+      CHROME_BINARY_LOCATION;
   }
 
   if (
@@ -378,6 +383,7 @@ export const normalizeWebdriverStart = async (
   const pauseOnConnect = !!(
     capabilities['browserless.pause'] ?? capabilities['browserless:pause']
   );
+
   const trackingId =
     capabilities['browserless.trackingId'] ??
     capabilities['browserless:trackingId'] ??
@@ -457,6 +463,13 @@ export const getUserDataDir = () =>
 export const clearBrowserlessDataDirs = () =>
   rimraf(path.join(os.tmpdir(), `${browserlessDataDirPrefix}*`));
 
+export const mkDataDir = async (path: string) => {
+  if (await exists(path)) {
+    return;
+  }
+  await mkdir(path, { recursive: true });
+};
+
 export const parseRequest = (req: IncomingMessage): IHTTPRequest => {
   const ret: IHTTPRequest = req as IHTTPRequest;
   const parsed = url.parse(req.url || '', true);
@@ -474,7 +487,7 @@ export const getTimeoutParam = (
     req.method === 'POST' &&
     req.url &&
     req.url.includes('webdriver') &&
-    req.hasOwnProperty('body')
+    Object.prototype.hasOwnProperty.call(req, 'body')
       ? _.get(req, ['body', 'desiredCapabilities', 'browserless.timeout'], null)
       : _.get(req, 'parsed.query.timeout', null);
 
@@ -518,6 +531,10 @@ export const canPreboot = (
   incoming: ILaunchOptions,
   defaults: ILaunchOptions,
 ) => {
+  if (incoming.playwright) {
+    return false;
+  }
+
   if (
     !_.isUndefined(incoming.headless) &&
     incoming.headless !== defaults.headless
@@ -677,4 +694,11 @@ export const injectHostIntoSession = (
     devtoolsFrontendUrl,
     webSocketDebuggerUrl,
   };
+};
+
+export const getCDPClient = (page: Page): CDPSession => {
+  // @ts-ignore using internal CDP client
+  const c = page._client;
+
+  return typeof c === 'function' ? c.call(page) : c;
 };

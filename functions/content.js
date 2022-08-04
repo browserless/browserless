@@ -29,6 +29,7 @@ module.exports = async function content({ page, context }) {
     setExtraHTTPHeaders = null,
     setJavaScriptEnabled = null,
     userAgent = null,
+    viewport = null,
     waitFor,
   } = context;
 
@@ -76,46 +77,35 @@ module.exports = async function content({ page, context }) {
     await page.setUserAgent(userAgent);
   }
 
-  let response = null;
-
-  if (url !== null) {
-    response = await page.goto(url, gotoOptions);
-  } else {
-    // Whilst there is no way of waiting for all requests to finish with setContent,
-    // you can simulate a webrequest this way
-    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
-
-    await page.setRequestInterception(true);
-    page.once('request', (request) => {
-      request.respond({ body: html });
-      page.on('request', (request) => request.continue());
-    });
-
-    response = await page.goto('http://localhost', gotoOptions);
+  if (viewport) {
+    await page.setViewport(viewport);
   }
 
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
+
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate((s) => {
-        try {
-          document.createDocumentFragment().querySelector(s);
-        } catch (e) {
-          return false;
-        }
-        return true;
-      }, waitFor);
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
+        .then(() => true)
+        .catch(() => false);
 
       await (isSelector
         ? page.waitForSelector(waitFor)

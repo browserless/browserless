@@ -1,39 +1,25 @@
 import { ChildProcess } from 'child_process';
+
+// @ts-ignore no types
+import path from 'path';
+
+import { ParsedUrlQuery } from 'querystring';
+
+import { Transform } from 'stream';
+
+import url from 'url';
+
 // @ts-ignore no types
 import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
-import path from 'path';
+import fetch from 'node-fetch';
+import { chromium, BrowserServer } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { ParsedUrlQuery } from 'querystring';
-import { Transform } from 'stream';
-import treekill from 'tree-kill';
-import url from 'url';
-import { chromium, BrowserServer } from 'playwright-core';
-
-import { Features } from './features';
-import { browserHook, pageHook } from './hooks';
-import {
-  fetchJson,
-  getDebug,
-  getUserDataDir,
-  injectHostIntoSession,
-  rimraf,
-  sleep,
-} from './utils';
-
-import {
-  IBrowser,
-  IBrowserlessSessionOptions,
-  ILaunchOptions,
-  IWindowSize,
-  ISession,
-  IChromeDriver,
-  IHTTPRequest,
-  IDevtoolsJSON,
-} from './types';
+import treeKill from 'tree-kill';
+import untildify from 'untildify';
 
 import {
   ALLOW_FILE_PROTOCOL,
@@ -52,15 +38,50 @@ import {
   PROXY_URL,
   WORKSPACE_DIR,
 } from './config';
-
 import { PLAYWRIGHT_ROUTE } from './constants';
+import { Features } from './features';
+import { browserHook, pageHook, puppeteerHook } from './hooks';
+import {
+  IBrowser,
+  IBrowserlessSessionOptions,
+  ILaunchOptions,
+  IWindowSize,
+  ISession,
+  IChromeDriver,
+  IHTTPRequest,
+  IDevtoolsJSON,
+  IPage,
+  PuppeteerRequest,
+} from './types.d';
+import {
+  fetchJson,
+  getDebug,
+  getUserDataDir,
+  getCDPClient,
+  injectHostIntoSession,
+  mkDataDir,
+  rimraf,
+  sleep,
+} from './utils';
 
-const debug = getDebug('chrome-helper');
 const {
   CHROME_BINARY_LOCATION,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
 } = require('../env');
+
+const blacklist = require('../hosts.json');
+
+const {
+  dependencies: {
+    puppeteer: { version: puppeteerVersion },
+  },
+} = require('../package-lock.json');
+
+let versionCache: object;
+let protocolCache: object;
+
+const debug = getDebug('chrome-helper');
 
 const BROWSERLESS_ARGS = [
   '--no-sandbox',
@@ -69,9 +90,6 @@ const BROWSERLESS_ARGS = [
   '--disable-dev-shm-usage',
   '--no-first-run',
 ];
-
-const blacklist = require('../hosts.json');
-const thirtySeconds = 30 * 1000;
 
 const externalURL = PROXY_URL
   ? new URL(PROXY_URL)
@@ -86,7 +104,7 @@ const removeDataDir = (dir: string | null) => {
   }
 };
 
-const networkBlock = (request: puppeteer.Request) => {
+const networkBlock = (request: PuppeteerRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
   if (blacklist.includes(domain)) {
@@ -127,11 +145,12 @@ const isPuppeteer = (
 
 const setupPage = async ({
   browser,
-  page,
+  page: pptrPage,
   pauseOnConnect,
   blockAds,
   trackingId,
   windowSize,
+  meta,
 }: {
   browser: IBrowser;
   page: puppeteer.Page;
@@ -139,10 +158,25 @@ const setupPage = async ({
   blockAds: boolean;
   trackingId: string | null;
   windowSize?: IWindowSize;
+  meta: unknown;
 }) => {
-  const client = _.get(page, '_client', _.noop);
+  const page = pptrPage as IPage;
 
-  await pageHook({ page });
+  if (page._browserless_setup) {
+    return;
+  }
+
+  const client = getCDPClient(pptrPage);
+
+  if (!client) {
+    throw new Error(`Error setting up page, CDP client doesn't exist!`);
+  }
+
+  const id = _.get(page, '_target._targetId', 'Unknown');
+
+  await pageHook({ page, meta });
+
+  debug(`Setting up page ${id}`);
 
   // Don't let us intercept these as they're needed by consumers
   // Fixed in later version of chromium
@@ -178,8 +212,10 @@ const setupPage = async ({
   }
 
   if (!ALLOW_FILE_PROTOCOL) {
+    debug(`Setting up file:// protocol request rejection`);
     page.on('request', async (request) => {
       if (request.url().startsWith('file://')) {
+        debug(`File protocol request found in request, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -187,6 +223,7 @@ const setupPage = async ({
 
     page.on('response', async (response) => {
       if (response.url().startsWith('file://')) {
+        debug(`File protocol request found in response, terminating`);
         page.close().catch(_.noop);
         closeBrowser(browser);
       }
@@ -194,15 +231,19 @@ const setupPage = async ({
   }
 
   if (blockAds) {
+    debug(`Setting up page for ad-blocking`);
     await page.setRequestInterception(true);
     page.on('request', networkBlock);
+    page.once('close', () => page.off('request', networkBlock));
   }
 
   if (windowSize) {
+    debug(`Setting viewport dimensions`);
     await page.setViewport(windowSize);
   }
 
-  page.once('close', () => page.off('request', networkBlock));
+  page._browserless_setup = true;
+  browser._pages.push(page);
 };
 
 const setupBrowser = async ({
@@ -218,6 +259,7 @@ const setupBrowser = async ({
   process,
   windowSize,
   browserServer,
+  meta,
 }: {
   browser: puppeteer.Browser;
   browserWSEndpoint: string;
@@ -231,6 +273,7 @@ const setupBrowser = async ({
   windowSize?: IWindowSize;
   prebooted: boolean;
   browserServer: BrowserServer | puppeteer.Browser;
+  meta: unknown;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
   const browser = pptrBrowser as IBrowser;
@@ -247,19 +290,13 @@ const setupBrowser = async ({
   browser._blockAds = blockAds;
   browser._pauseOnConnect = pauseOnConnect;
   browser._browserServer = browserServer;
+  browser._pages = [];
 
   browser._parsed = url.parse(browserWSEndpoint, true);
   browser._wsEndpoint = browserWSEndpoint;
   browser._id = (browser._parsed.pathname as string).split('/').pop() as string;
 
-  await browserHook({ browser });
-
-  browser._browserProcess.once('exit', (code, signal) => {
-    debug(
-      `Browser process exited with code ${code} and signal ${signal}, cleaning up`,
-    );
-    closeBrowser(browser);
-  });
+  await browserHook({ browser, meta });
 
   browser.on('targetcreated', async (target) => {
     try {
@@ -274,6 +311,7 @@ const setupBrowser = async ({
           blockAds: browser._blockAds,
           pauseOnConnect: browser._pauseOnConnect,
           trackingId: browser._trackingId,
+          meta,
         });
       }
     } catch (error) {
@@ -281,18 +319,27 @@ const setupBrowser = async ({
     }
   });
 
-  const pages = await browser.pages();
+  debug('Finding prior pages');
 
-  pages.forEach((page) =>
-    setupPage({
-      browser,
-      blockAds,
-      page,
-      pauseOnConnect,
-      trackingId,
-      windowSize,
-    }),
-  );
+  const pages = (await Promise.race([browser.pages(), sleep(2500)])) as
+    | puppeteer.Page[]
+    | undefined;
+
+  if (pages && pages.length) {
+    debug(`Found ${pages.length} pages`);
+    pages.forEach((page) =>
+      setupPage({
+        browser,
+        blockAds,
+        page,
+        pauseOnConnect,
+        trackingId,
+        windowSize,
+        meta,
+      }),
+    );
+  }
+
   runningBrowsers.push(browser);
 
   return browser;
@@ -308,7 +355,8 @@ export const defaultLaunchArgs = {
   slowMo: undefined,
   userDataDir: DEFAULT_USER_DATA_DIR,
   playwright: false,
-  stealth: false,
+  stealth: DEFAULT_STEALTH,
+  meta: null,
 };
 
 /*
@@ -420,8 +468,10 @@ export const convertUrlParamsToLaunchOpts = (
     if (!_.isUndefined(playwrightProxyQuery)) {
       try {
         res = JSON.parse(decodeURIComponent(playwrightProxyQuery as string));
-      } catch(err) {
-        debug(`Error parsing playwright-proxy param to JSON: ${playwrightProxyQuery} isn't properly URL-encoded or JSON.stringified.`)
+      } catch (err) {
+        debug(
+          `Error parsing playwright-proxy param to JSON: ${playwrightProxyQuery} isn't properly URL-encoded or JSON.stringified.`,
+        );
       }
     }
 
@@ -448,6 +498,7 @@ export const convertUrlParamsToLaunchOpts = (
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
+    meta: urlParts,
   };
 };
 
@@ -475,23 +526,32 @@ export const launchChrome = async (
   const isPlaywright = launchArgs.playwright;
 
   // Having a user-data-dir in args is higher precedence than in opts
-  const hasUserDataDir = _.some(launchArgs.args, (arg) =>
-    arg.includes('--user-data-dir='),
-  );
+  const manualUserDataDir =
+    launchArgs.args
+      .find((arg) => arg.includes('--user-data-dir='))
+      ?.split('=')[1] || opts.userDataDir;
+
   const isHeadless =
     launchArgs.args.some((arg) => arg.startsWith('--headless')) ||
     typeof launchArgs.headless === 'undefined' ||
     launchArgs.headless === true;
 
-  if (hasUserDataDir || opts.userDataDir) {
+  if (!!manualUserDataDir || opts.userDataDir) {
     isUsingTempDataDir = false;
   }
 
   // If no data-dir is specified, use the default one in opts or generate one
   // except for playwright which will error doing so.
-  if (!hasUserDataDir) {
+  if (manualUserDataDir) {
+    const explodedPath = untildify(manualUserDataDir);
+    await mkDataDir(explodedPath);
+    opts.userDataDir = explodedPath;
+    launchArgs.args.push(`--user-data-dir=${explodedPath}`);
+    launchArgs.userDataDir = explodedPath;
+  } else {
     browserlessDataDir = opts.userDataDir || (await getUserDataDir());
     launchArgs.args.push(`--user-data-dir=${browserlessDataDir}`);
+    launchArgs.userDataDir = browserlessDataDir;
   }
 
   // Only use debugging pipe when headless except for playwright which
@@ -500,38 +560,36 @@ export const launchChrome = async (
     launchArgs.args.push(`--remote-debugging-pipe`);
   }
 
-  // Reset playwright to a workable state since it can't run headfull or use
+  // Reset playwright to a workable state since it can't run head-full or use
   // a user-data-dir
   if (isPlaywright) {
     launchArgs.args = launchArgs.args.filter(
       (arg) =>
         !arg.startsWith('--user-data-dir') && arg !== '--remote-debugging-pipe',
     );
-    launchArgs.headless = true;
   }
 
   debug(
     `Launching Chrome with args: ${JSON.stringify(launchArgs, null, '  ')}`,
   );
 
-  // Kill any user data-dir if 30 seconds go by without us launching
-  const rmUserDataDir = global.setTimeout(
-    removeDataDir,
-    thirtySeconds,
-    browserlessDataDir,
-  );
+  const injectedPuppeteer = await puppeteerHook(opts);
 
-  const browserServer = launchArgs.playwright
-    ? await chromium.launchServer({
+  const browserServerPromise = injectedPuppeteer
+    ? injectedPuppeteer.launch(launchArgs)
+    : launchArgs.playwright
+    ? chromium.launchServer({
         ...launchArgs,
-        headless: true,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? await pptrExtra.launch(launchArgs)
-    : await puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(launchArgs)
+    : puppeteer.launch(launchArgs);
 
-  clearTimeout(rmUserDataDir);
+  const browserServer = await browserServerPromise.catch((e: Error) => {
+    removeDataDir(browserlessDataDir);
+    throw e;
+  });
 
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
@@ -553,11 +611,12 @@ export const launchChrome = async (
       isUsingTempDataDir,
       keepalive: opts.keepalive || null,
       pauseOnConnect: opts.pauseOnConnect,
-      process: browserServer.process(),
+      process: browserServer.process() as ChildProcess,
       trackingId: opts.trackingId || null,
       windowSize: undefined,
       prebooted: isPreboot,
       browserServer,
+      meta: opts.meta,
     }),
   );
 };
@@ -610,6 +669,7 @@ export const launchChromeDriver = async ({
             trackingId,
             windowSize,
             browserServer: browser,
+            meta: null,
           });
         }
 
@@ -631,6 +691,52 @@ export const launchChromeDriver = async ({
   });
 };
 
+export const getVersionJSON = async () => {
+  if (!versionCache) {
+    const port = await getPort();
+    const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
+    });
+
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+    const meta = await res.json();
+
+    browser.close();
+
+    const { 'WebKit-Version': webkitVersion } = meta;
+
+    delete meta.webSocketDebuggerUrl;
+
+    const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+
+    versionCache = {
+      ...meta,
+      'Debugger-Version': debuggerVersion,
+      'Puppeteer-Version': puppeteerVersion,
+    };
+  }
+
+  return versionCache;
+};
+
+export const getProtocolJSON = async () => {
+  if (!protocolCache) {
+    const port = await getPort();
+    const browser = await puppeteer.launch({
+      executablePath: CHROME_BINARY_LOCATION,
+      args: [...BROWSERLESS_ARGS, `--remote-debugging-port=${port}`],
+    });
+
+    const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
+    protocolCache = await res.json();
+
+    browser.close();
+  }
+
+  return protocolCache;
+};
+
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));
 
@@ -649,7 +755,7 @@ export const kill = (id: string) => {
   return null;
 };
 
-export const closeBrowser = async (browser: IBrowser) => {
+export const closeBrowser = (browser: IBrowser) => {
   if (!browser._isOpen) {
     return;
   }
@@ -659,10 +765,6 @@ export const closeBrowser = async (browser: IBrowser) => {
 
   try {
     browser._keepaliveTimeout && clearTimeout(browser._keepaliveTimeout);
-
-    isPuppeteer(browser._browserServer)
-      ? browser._browserServer.disconnect()
-      : browser._browserServer.close();
     runningBrowsers = runningBrowsers.filter(
       (b) => b._wsEndpoint !== browser._wsEndpoint,
     );
@@ -678,18 +780,38 @@ export const closeBrowser = async (browser: IBrowser) => {
   } catch (error) {
     debug(`Browser close emitted an error ${error.message}`);
   } finally {
-    await sleep(200);
-    debug(
-      `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
-    );
+    process.nextTick(() => {
+      debug(
+        `Sending SIGKILL signal to browser process ${browser._browserProcess.pid}`,
+      );
+      const races = [sleep(1000), browser._browserServer.close()];
+      const proc = browser.process();
 
-    treekill(browser._browserProcess.pid, 'SIGKILL');
+      if (proc) {
+        races.push(new Promise((r) => proc.once('close', r)));
+      }
 
-    if (browser._browserlessDataDir) {
-      removeDataDir(browser._browserlessDataDir);
-    }
+      // Allow listeners to close before we garbage collect, which
+      // puppeteer-extra packages need
+      Promise.race(races).then(() => {
+        debug(`Garbage collecting and removing listeners`);
+        browser._pages.forEach((page) => {
+          page.removeAllListeners();
+          // @ts-ignore force any garbage collection by nulling the page(s)
+          page = null;
+        });
+        browser.removeAllListeners();
+        // @ts-ignore force any garbage collection by nulling the browser
+        browser = null;
+      });
 
-    // @ts-ignore force any garbage collection by nulling the browser
-    browser = null;
+      if (browser._browserProcess.pid) {
+        treeKill(browser._browserProcess.pid, 'SIGKILL');
+      }
+
+      if (browser._browserlessDataDir) {
+        removeDataDir(browser._browserlessDataDir);
+      }
+    });
   }
 };

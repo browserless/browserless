@@ -1,26 +1,28 @@
+import http, { ServerResponse } from 'http';
+
+import { Socket } from 'net';
+
+import url from 'url';
+
 import cookie from 'cookie';
 import cors from 'cors';
 import express from 'express';
 import promBundle from 'express-prom-bundle';
-import http from 'http';
 import httpProxy from 'http-proxy';
 import _ from 'lodash';
-import { Socket } from 'net';
+
 import client from 'prom-client';
 import request from 'request';
-import url from 'url';
 
+import { getBrowsersRunning } from './chrome-helper';
 import { Features } from './features';
-import * as util from './utils';
-
 import { getMachineStats, overloaded } from './hardware-monitoring';
 import { afterRequest, beforeRequest, externalRoutes } from './hooks';
+
 import { PuppeteerProvider } from './puppeteer-provider';
 import { Queue } from './queue';
 import { getRoutes } from './routes';
 import { clearTimers } from './scheduler';
-import { WebDriver } from './webdriver-provider';
-import { getBrowsersRunning } from './chrome-helper';
 
 import {
   IBrowserlessOptions,
@@ -28,7 +30,9 @@ import {
   IDone,
   IJob,
   IWebdriverStartHTTP,
-} from './types';
+} from './types.d';
+import * as util from './utils';
+import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
 
@@ -82,10 +86,12 @@ export class BrowserlessServer {
 
     this.proxy = httpProxy.createProxyServer();
     this.proxy.on('error', (err: Error, _req, res) => {
-      res.writeHead && res.writeHead(500, { 'Content-Type': 'text/plain' });
+      if (res instanceof ServerResponse) {
+        res.writeHead && res.writeHead(500, { 'Content-Type': 'text/plain' });
 
-      debug(`Issue communicating with Chrome: "${err.message}"`);
-      res.end(`Issue communicating with Chrome`);
+        debug(`Issue communicating with Chrome: "${err.message}"`);
+        res.end(`Issue communicating with Chrome`);
+      }
     });
 
     function restartOnFailure() {
@@ -124,9 +130,9 @@ export class BrowserlessServer {
       ? _.debounce(
           () => {
             debug(
-              `Calling web-hook for timed-out session(s): ${opts.rejectAlertURL}`,
+              `Calling web-hook for timed-out session(s): ${opts.timeoutAlertURL}`,
             );
-            request(opts.rejectAlertURL as string, _.noop);
+            request(opts.timeoutAlertURL as string, _.noop);
           },
           thirtyMinutes,
           debounceOpts,
@@ -179,6 +185,7 @@ export class BrowserlessServer {
     this.queue.on('timeout', this.onTimedOut.bind(this));
     this.queue.on('queued', this.onQueued.bind(this));
     this.queue.on('end', this.onQueueDrained.bind(this));
+    this.queue.on('start', this.onStart.bind(this));
 
     this.resetCurrentStat();
 
@@ -329,12 +336,13 @@ export class BrowserlessServer {
 
       return (this.httpServer = http
         .createServer(async (req, res) => {
-          const reqParsed = util.parseRequest(req);
-          const beforeResults = await beforeRequest({ req: reqParsed, res });
+          const beforeResults = await beforeRequest({ req, res });
 
           if (!beforeResults) {
             return;
           }
+
+          const reqParsed = util.parseRequest(req);
 
           // Handle webdriver requests early, which handles it's own auth
           if (util.isWebdriver(req)) {
@@ -371,9 +379,8 @@ export class BrowserlessServer {
           'upgrade',
           util.asyncWsHandler(
             async (req: http.IncomingMessage, socket: Socket, head: Buffer) => {
-              const reqParsed = util.parseRequest(req);
               const beforeResults = await beforeRequest({
-                req: reqParsed,
+                req,
                 socket,
                 head,
               });
@@ -387,6 +394,8 @@ export class BrowserlessServer {
               if (!beforeResults) {
                 return;
               }
+
+              const reqParsed = util.parseRequest(req);
 
               if (
                 this.config.token &&
@@ -502,13 +511,15 @@ export class BrowserlessServer {
       debug(
         `${req.url}: ${message}. Behavior of "http" set, writing response and closing.`,
       );
-      const httpResponse = util.dedent(`${header}
-        Content-Type: text/plain; charset=UTF-8
-        Content-Encoding: UTF-8
-        Accept-Ranges: bytes
-        Connection: keep-alive
-
-        ${message}`);
+      const httpResponse = [
+        header,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Encoding: UTF-8',
+        'Accept-Ranges: bytes',
+        'Connection: keep-alive',
+        '\r\n',
+        message,
+      ].join('\r\n');
 
       socket.write(httpResponse);
       socket.end();
@@ -568,6 +579,19 @@ export class BrowserlessServer {
     }
 
     return this.webdriver.proxySession(req, res);
+  }
+
+  private onStart() {
+    debug(`Starting new job`);
+    const currentlyRunning =
+      this.queue.length >= this.queue.concurrencySize
+        ? this.queue.concurrencySize
+        : this.queue.length;
+
+    this.currentStat.maxConcurrent =
+      currentlyRunning > this.currentStat.maxConcurrent
+        ? currentlyRunning
+        : this.currentStat.maxConcurrent;
   }
 
   private onSessionSuccess(_res: express.Response, job: IJob) {
@@ -640,6 +664,7 @@ export class BrowserlessServer {
       maxTime: 0,
       minTime: 0,
       meanTime: 0,
+      maxConcurrent: 0,
       sessionTimes: [],
     };
   }
@@ -647,18 +672,14 @@ export class BrowserlessServer {
   private async recordMetrics() {
     const { cpu, memory } = await getMachineStats();
     const priorMetrics = this.stats[this.stats.length - 1];
+    const aggregatedStats = {
+      ...this.currentStat,
+      ...this.calculateStats(this.currentStat),
+      cpu,
+      memory,
+    };
 
-    this.stats.push(
-      Object.assign(
-        {},
-        {
-          ...this.currentStat,
-          ...this.calculateStats(this.currentStat),
-          cpu,
-          memory,
-        },
-      ),
-    );
+    this.stats.push(Object.assign({}, aggregatedStats));
 
     this.resetCurrentStat();
 
@@ -666,8 +687,8 @@ export class BrowserlessServer {
       this.stats.shift();
     }
 
-    const mapToInt = (v?: number | null) => (!!v ? Math.round(v * 100) : v);
-    const mapToDisplay = (v?: number | null) => (!!v ? `${v}%` : v);
+    const mapToInt = (v?: number | null) => (v ? Math.round(v * 100) : v);
+    const mapToDisplay = (v?: number | null) => (v ? `${v}%` : v);
 
     const cpuStats = [cpu, priorMetrics?.cpu].map(mapToInt);
     const memStats = [memory, priorMetrics?.memory].map(mapToInt);
@@ -676,6 +697,21 @@ export class BrowserlessServer {
       `Health check stats: CPU ${cpuStats.map(
         mapToDisplay,
       )} MEM: ${memStats.map(mapToDisplay)}`,
+    );
+
+    debug(
+      `Current period usage: ${JSON.stringify({
+        date: aggregatedStats.date,
+        error: aggregatedStats.error,
+        rejected: aggregatedStats.rejected,
+        successful: aggregatedStats.successful,
+        timedout: aggregatedStats.timedout,
+        totalTime: aggregatedStats.totalTime,
+        maxTime: aggregatedStats.maxTime,
+        minTime: aggregatedStats.minTime,
+        meanTime: aggregatedStats.meanTime,
+        maxConcurrent: aggregatedStats.maxConcurrent,
+      })}`,
     );
 
     const badCPU = cpuStats.every((c) => c && c >= this.config.maxCPU);

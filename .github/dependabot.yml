@@ -1,6 +1,9 @@
 version: 2
 updates:
 - package-ecosystem: npm
+  # Always increase the version requirement
+  # to match the new version.
+  versioning-strategy: increase
   directory: "/"
   schedule:
     interval: daily

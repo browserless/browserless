@@ -12,6 +12,7 @@ const browserless = new BrowserlessServer({
   errorAlertURL: config.ERROR_ALERT_URL,
   exitOnHealthFailure: config.EXIT_ON_HEALTH_FAILURE,
   functionBuiltIns: config.FUNCTION_BUILT_INS,
+  functionEnvVars: config.FUNCTION_ENV_VARS,
   functionEnableIncognitoMode: config.FUNCTION_ENABLE_INCOGNITO_MODE,
   functionExternals: config.FUNCTION_EXTERNALS,
   healthFailureURL: config.FAILED_HEALTH_URL,
@@ -36,9 +37,14 @@ const browserless = new BrowserlessServer({
 
 browserless.startServer();
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
+process
+  .on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  })
+  .on('uncaughtException', (err) => {
+    console.error(err, 'Uncaught Exception thrown, exiting...');
+    process.exit(1);
+  });
 
 if (module.parent) {
   module.exports.browserless = browserless;

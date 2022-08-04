@@ -4,14 +4,13 @@ import {
   ServerResponse,
   ClientRequest,
 } from 'http';
+
 import httpProxy from 'http-proxy';
 import _ from 'lodash';
 import kill from 'tree-kill';
 
 import * as chromeHelper from './chrome-helper';
 import { Queue } from './queue';
-import { getDebug } from './utils';
-
 import {
   IChromeDriver,
   IBrowserlessStats,
@@ -21,7 +20,8 @@ import {
   IWebDriverSessions,
   IDone,
   IJob,
-} from './types';
+} from './types.d';
+import { getDebug } from './utils';
 
 const debug = getDebug('webdriver');
 
@@ -42,7 +42,7 @@ export class WebDriver {
     res: ServerResponse,
     params: IWebdriverStartNormalized['params'],
     currentStat: IBrowserlessStats,
-  ) {
+  ): Promise<ServerResponse | void> {
     debug(`Inbound webdriver request`);
 
     if (!this.queue.hasCapacity) {
@@ -124,7 +124,7 @@ export class WebDriver {
                   sessionId: id,
                 };
 
-                job.onTimeout = () => {
+                job.onTimeout = (): ServerResponse | void => {
                   const res = this.webDriverSessions[id].res;
                   if (res && !res.headersSent) {
                     res.writeHead && res.writeHead(408);
@@ -136,7 +136,11 @@ export class WebDriver {
                   debug(
                     `Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`,
                   );
-                  kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+
+                  if (chromeDriver.chromeProcess.pid) {
+                    kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
+                  }
+
                   chromeDriver.chromeProcess.off('close', done);
                   chromeDriver.browser &&
                     chromeHelper.closeBrowser(chromeDriver.browser);
@@ -161,7 +165,7 @@ export class WebDriver {
       },
       {
         browser: null,
-        close: () => {},
+        close: () => undefined,
         id: '',
         req,
         start: Date.now(),
@@ -230,7 +234,9 @@ export class WebDriver {
     for (const sessionId in this.webDriverSessions) {
       if (sessionId) {
         const session = this.webDriverSessions[sessionId];
-        kill(session.chromeDriver.pid, 'SIGKILL');
+        if (session.chromeDriver.pid) {
+          kill(session.chromeDriver.pid, 'SIGKILL');
+        }
         if (session.browser) {
           debug(
             `Killing chromedriver and proxy ${session.browser._browserProcess.pid}`,

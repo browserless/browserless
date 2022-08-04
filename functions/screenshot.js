@@ -30,6 +30,7 @@ module.exports = async function screenshot({ page, context } = {}) {
     userAgent = '',
     manipulate = null,
     options = {},
+    selector = null,
     rejectRequestPattern = [],
     rejectResourceTypes = [],
     requestInterceptors = [],
@@ -87,23 +88,10 @@ module.exports = async function screenshot({ page, context } = {}) {
     await page.setUserAgent(userAgent);
   }
 
-  let response = null;
-
-  if (url !== null) {
-    response = await page.goto(url, gotoOptions);
-  } else {
-    // Whilst there is no way of waiting for all requests to finish with setContent,
-    // you can simulate a webrequest this way
-    // see issue for more details: https://github.com/GoogleChrome/puppeteer/issues/728
-
-    await page.setRequestInterception(true);
-    page.once('request', (request) => {
-      request.respond({ body: html });
-      page.on('request', (request) => request.continue());
-    });
-
-    response = await page.goto('http://localhost', gotoOptions);
-  }
+  const response =
+    url !== null
+      ? await page.goto(url, gotoOptions)
+      : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
     for (tag in addStyleTag) {
@@ -119,14 +107,12 @@ module.exports = async function screenshot({ page, context } = {}) {
 
   if (waitFor) {
     if (typeof waitFor === 'string') {
-      const isSelector = await page.evaluate((s) => {
-        try {
-          document.createDocumentFragment().querySelector(s);
-        } catch (e) {
-          return false;
-        }
-        return true;
-      }, waitFor);
+      const isSelector = await page
+        .evaluate(
+          `document.createDocumentFragment().querySelector("${waitFor}")`,
+        )
+        .then(() => true)
+        .catch(() => false);
 
       await (isSelector
         ? page.waitForSelector(waitFor)
@@ -136,7 +122,13 @@ module.exports = async function screenshot({ page, context } = {}) {
     }
   }
 
-  const data = await page.screenshot(options);
+  const data =
+    selector !== null
+      ? await (async () => {
+          const elementHandle = await page.$(selector);
+          return await elementHandle.screenshot(options);
+        })()
+      : await page.screenshot(options);
 
   const headers = {
     'x-response-url': response?.url().substring(0, 1000),
@@ -145,6 +137,12 @@ module.exports = async function screenshot({ page, context } = {}) {
     'x-response-ip': response?.remoteAddress().ip,
     'x-response-port': response?.remoteAddress().port,
   };
+
+  let contentType = options.type ? options.type : 'png';
+
+  if (options.encoding && options.encoding === 'base64') {
+    contentType = 'text';
+  }
 
   if (manipulate) {
     const sharp = require('sharp');
@@ -169,13 +167,13 @@ module.exports = async function screenshot({ page, context } = {}) {
     return {
       data: await chain.toBuffer(),
       headers,
-      type: options.type ? options.type : 'png',
+      type: contentType,
     };
   }
 
   return {
     data,
     headers,
-    type: options.type ? options.type : 'png',
+    type: contentType,
   };
 };

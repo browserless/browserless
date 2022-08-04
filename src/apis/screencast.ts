@@ -1,12 +1,16 @@
+import { mkdir } from 'fs/promises';
 import path from 'path';
-import { after as downloadAfter } from './download';
-import { id, mkdir } from '../utils';
+
+import puppeteer from 'puppeteer';
+
 import { WORKSPACE_DIR } from '../config';
-import { IBefore } from '../types';
+import { IBefore } from '../types.d';
+import { id, getCDPClient } from '../utils';
+
+import { after as downloadAfter } from './download';
 
 export const before = async ({ page, code, debug, browser }: IBefore) => {
-  // @ts-ignore reaching into private methods
-  const client = page._client;
+  const client = getCDPClient(page);
   const renderer = await browser.newPage();
   const downloadPath = path.join(
     WORKSPACE_DIR,
@@ -16,8 +20,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
   const downloadName = id() + '.webm';
   let screencastAPI: any;
 
-  // @ts-ignore
-  await renderer._client.send('Page.setDownloadBehavior', {
+  await client.send('Page.setDownloadBehavior', {
     behavior: 'allow',
     downloadPath,
   });
@@ -104,7 +107,11 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     }, downloadName);
 
   const startScreencast = async () => {
-    const viewport = page.viewport();
+    const viewport = page.viewport() as ReturnType<puppeteer.Page['viewport']>;
+
+    if (!viewport) {
+      throw new Error(`Couldn't obtain the page's viewport!`);
+    }
     screencastAPI = await setup();
     await page.bringToFront();
 
@@ -124,13 +131,15 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
 
     client.on(
       'Page.screencastFrame',
-      ({ data, sessionId }: { data: string; sessionId: string }) => {
+      ({ data, sessionId }: { data: string; sessionId: number }) => {
         renderer.evaluateHandle(
           (screencastAPI, data) => screencastAPI.draw(data),
           screencastAPI,
           data,
         );
-        client.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+        client
+          .send('Page.screencastFrameAck', { sessionId })
+          .catch(() => undefined);
       },
     );
   };
@@ -169,9 +178,9 @@ export const after = async ({
   code: string;
   stopScreencast: () => Promise<void>;
   downloadPath: string;
-  debug: (...args: string[]) => {};
+  debug: (...args: string[]) => any;
   res: any;
-  done: (errBack?: Error | null) => {};
+  done: (errBack?: Error | null) => any;
 }) => {
   if (!code.includes('stopScreencast')) {
     await stopScreencast();

@@ -1,31 +1,62 @@
+#!/usr/bin/env node
+/* eslint-disable no-undef */
+const { exec: nodeExec } = require('child_process');
 const os = require('os');
 const path = require('path');
-const fs = require('fs-extra');
-const fetch = require('node-fetch');
+const { promisify } = require('util');
+
 const extract = require('extract-zip');
-const rimraf = require('rimraf');
+const fs = require('fs-extra');
+const _ = require('lodash');
+const fetch = require('node-fetch');
+const { installBrowsersForNpmInstall } = require('playwright-core/lib/server');
 const puppeteer = require('puppeteer');
+const rimraf = require('rimraf');
+
+const execAsync = promisify(nodeExec);
+const hostsJson = path.join(__dirname, '..', 'hosts.json');
+
+const exec = async (command) => {
+  const { stdout, stderr } = await execAsync(command);
+
+  if (stderr.trim().length) {
+    console.error(stderr);
+    return process.exit(1);
+  }
+
+  return stdout.trim();
+};
 
 const {
+  CHROME_BINARY_LOCATION,
+  IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
+  PUPPETEER_BINARY_LOCATION,
   PLATFORM,
   WINDOWS,
   MAC,
+  LINUX_ARM64,
 } = require('../env');
 
 const browserlessTmpDir = path.join(
   os.tmpdir(),
   `browserless-devtools-${Date.now()}`,
 );
+
+const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
+
 // @TODO: Fix this revision once devtools app works again
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
-const chromedriverUrl =
-  PLATFORM === MAC
-    ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`
-    : PLATFORM === WINDOWS
-    ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`
-    : `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+const chromedriverUrl = (() => {
+  if (PLATFORM === MAC)
+    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
+  if (PLATFORM === WINDOWS)
+    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`;
+
+  // Linux
+  return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+})();
 
 const downloadUrlToDirectory = (url, dir) =>
   fetch(url).then(
@@ -58,7 +89,40 @@ const waitForFile = async (filePath) =>
     );
   });
 
+const downloadAdBlockList = () => {
+  console.log(`Downloading ad-blocking list`);
+
+  return fetch(
+    'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+  )
+    .then((res) => res.text())
+    .then((raw) =>
+      _.chain(raw)
+        .split('\n')
+        .map((line) => {
+          const fragments = line.split(' ');
+          if (fragments.length > 1 && fragments[0] === '0.0.0.0') {
+            return fragments[1].trim();
+          }
+          return null;
+        })
+        .reject(_.isNil)
+        .value(),
+    )
+    .then((hostsArr) => {
+      fs.writeFileSync(hostsJson, JSON.stringify(hostsArr, null, '  '));
+    });
+};
+
 const downloadChromium = () => {
+  if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
+    throw new Error(`Chrome stable isn't supported for linux-arm64`);
+  }
+
+  if (IS_LINUX_ARM64) {
+    return installBrowsersForNpmInstall(['chromium']);
+  }
+
   if (USE_CHROME_STABLE) {
     console.log('Using chrome stable, not proceeding with chromium download');
     return Promise.resolve();
@@ -83,17 +147,18 @@ const downloadChromedriver = () => {
     `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  const chromedriverZipFolder =
-    PLATFORM === MAC
-      ? `chromedriver_mac64`
-      : PLATFORM === WINDOWS
-      ? `chromedriver_win32`
-      : `chromedriver_linux64`;
+  const chromedriverZipFolder = (() => {
+    if (PLATFORM === MAC) return 'chromedriver_mac64';
+    if (PLATFORM === WINDOWS) return 'chromedriver_win32';
+    return 'chromedriver_linux64'; // Linux
+  })();
+
   const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver`);
+  const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
     chromedriverZipFolder,
-    'chromedriver',
+    chromedriverBin,
   );
   const chromedriverFinalPath = path.join(
     __dirname,
@@ -139,11 +204,32 @@ const downloadDevTools = () => {
   new Promise(async (resolve, reject) => {
     try {
       await fs.mkdir(browserlessTmpDir);
+
       await Promise.all([
         downloadChromium(),
         downloadChromedriver(),
         downloadDevTools(),
+        downloadAdBlockList(),
       ]);
+
+      // If we're in docker, and this isn't a chrome-stable build,
+      // symlink where chrome-stable should be back to puppeteer's build
+      if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
+        if (!USE_CHROME_STABLE && !fs.existsSync(PUPPETEER_BINARY_LOCATION)) {
+          throw new Error(
+            `Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`,
+          );
+        }
+
+        (async () => {
+          console.log(
+            `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`,
+          );
+          await exec(
+            `ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`,
+          );
+        })();
+      }
     } catch (err) {
       console.error(`Error unpacking assets:\n${err.message}\n${err.stack}`);
       reject(err);

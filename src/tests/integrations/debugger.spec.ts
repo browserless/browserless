@@ -1,8 +1,10 @@
+import { expect } from 'chai';
 import fetch from 'node-fetch';
-import { BrowserlessServer } from '../../browserless';
-import { IBrowserlessOptions } from '../../types';
 
-import { defaultParams, killChrome } from './utils';
+import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../types.d';
+
+import { defaultParams } from './utils';
 
 describe('Browserless Debugger', () => {
   let browserless: BrowserlessServer;
@@ -11,8 +13,6 @@ describe('Browserless Debugger', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('serves the debugger page', async () => {
@@ -21,7 +21,7 @@ describe('Browserless Debugger', () => {
     await browserless.startServer();
 
     return fetch(`http://127.0.0.1:${params.port}/`).then((res) =>
-      expect(res.headers.get('content-type')).toContain('text/html'),
+      expect(res.headers.get('content-type')).to.contain('text/html'),
     );
   });
 });

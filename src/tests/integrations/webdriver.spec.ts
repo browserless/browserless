@@ -1,12 +1,12 @@
-import fetch from 'node-fetch';
+import { expect } from 'chai';
+
 import { BrowserlessServer } from '../../browserless';
+import { IBrowserlessOptions } from '../../types.d';
 import { sleep } from '../../utils';
 
-import { IBrowserlessOptions } from '../../types';
 import {
   defaultParams,
   getChromeProcesses,
-  killChrome,
   throws,
   webdriverOpts,
 } from './utils';
@@ -20,8 +20,6 @@ describe('Browserless Chrome Webdriver', () => {
 
   afterEach(async () => {
     await browserless.kill();
-
-    return killChrome();
   });
 
   it('runs concurrently', async () => {
@@ -49,44 +47,9 @@ describe('Browserless Chrome Webdriver', () => {
     await Promise.all([run(), run()]);
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(2);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
-  });
-
-  it('runs with a minimal start POST body', async () => {
-    const minBody = {
-      capabilities: {
-        alwaysMatch: {
-          'goog:chromeOptions': {
-            w3c: true,
-            args: ['--no-sandbox'],
-          },
-          pageLoadStrategy: 'normal',
-        },
-        firstMatch: [{}],
-      },
-    };
-    const params = defaultParams();
-    const browserless = start(params);
-
-    await browserless.startServer();
-
-    async function run() {
-      const res = await fetch(
-        `http://127.0.0.1:${params.port}/webdriver/session`,
-        {
-          body: JSON.stringify(minBody),
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-          },
-        },
-      );
-      expect(res.status).toEqual(200);
-    }
-
-    await run();
+    expect(browserless.currentStat.successful).to.equal(2);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('handles driver close calls', async () => {
@@ -111,9 +74,9 @@ describe('Browserless Chrome Webdriver', () => {
     await run();
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.successful).to.equal(1);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('runs lengthy sessions', async () => {
@@ -147,9 +110,9 @@ describe('Browserless Chrome Webdriver', () => {
     await Promise.all([run()]);
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.successful).to.equal(1);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('works with no timeouts', async () => {
@@ -177,10 +140,10 @@ describe('Browserless Chrome Webdriver', () => {
     await run();
     await sleep(50);
 
-    expect(browserless.currentStat.timedout).toEqual(0);
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.timedout).to.equal(0);
+    expect(browserless.currentStat.successful).to.equal(1);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('works with job-based timeouts', async () => {
@@ -209,10 +172,10 @@ describe('Browserless Chrome Webdriver', () => {
     await run();
     await sleep(50);
 
-    expect(browserless.currentStat.timedout).toEqual(1);
-    expect(browserless.currentStat.successful).toEqual(0);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.timedout).to.equal(1);
+    expect(browserless.currentStat.successful).to.equal(0);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('authorizes with tokens', async () => {
@@ -240,9 +203,9 @@ describe('Browserless Chrome Webdriver', () => {
     await run();
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.successful).to.equal(1);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('authorizes with webdriver-backed tokens', async () => {
@@ -281,9 +244,9 @@ describe('Browserless Chrome Webdriver', () => {
 
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(2);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.successful).to.equal(2);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
   });
 
   it('queues sessions', async () => {
@@ -308,8 +271,8 @@ describe('Browserless Chrome Webdriver', () => {
     await Promise.all([run(), run()]);
     await sleep();
 
-    expect(browserless.currentStat.successful).toEqual(2);
-    expect(browserless.currentStat.queued).toEqual(1);
+    expect(browserless.currentStat.successful).to.equal(2);
+    expect(browserless.currentStat.queued).to.equal(1);
   });
 
   it('fails requests', async () => {
@@ -331,7 +294,9 @@ describe('Browserless Chrome Webdriver', () => {
       .build()
       .then(throws)
       .catch((error: Error) => {
-        expect(error.message).toEqual('Unable to parse new session response: ');
+        expect(error.message).to.equal(
+          'Unable to parse new session response: ',
+        );
       });
   });
 
@@ -353,7 +318,7 @@ describe('Browserless Chrome Webdriver', () => {
       .build()
       .then(throws)
       .catch((error: Error) => {
-        expect(error.message).toEqual('Unauthorized');
+        expect(error.message).to.equal('Unauthorized');
       });
   });
 
@@ -379,13 +344,13 @@ describe('Browserless Chrome Webdriver', () => {
 
     await sleep(50);
 
-    expect(browserless.currentStat.successful).toEqual(1);
-    expect(browserless.currentStat.rejected).toEqual(0);
-    expect(browserless.currentStat.queued).toEqual(0);
+    expect(browserless.currentStat.successful).to.equal(1);
+    expect(browserless.currentStat.rejected).to.equal(0);
+    expect(browserless.currentStat.queued).to.equal(0);
     const processes = await getChromeProcesses();
 
     await sleep(50);
 
-    expect(processes.stdout).not.toContain('.local-chromium');
+    expect(processes.stdout).to.not.contain('.local-chromium');
   });
 });

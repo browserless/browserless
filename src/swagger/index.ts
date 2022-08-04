@@ -1,13 +1,13 @@
-const j2s = require('joi-to-swagger');
-
+import { pdf, content, scrape, screenshot, fn, stats } from '../schemas';
 import { dedent } from '../utils';
-import { liveQueryParams } from './query-params';
+
 import { liveHeaders } from './headers';
 import { httpCodes, liveAPICodes } from './http-codes';
+import { liveQueryParams } from './query-params';
+
+const j2s = require('joi-to-swagger');
 
 const { version } = require('../../package.json');
-
-import { pdf, content, scrape, screenshot, fn, stats } from '../schemas';
 
 const liveTags = ['Browser API'];
 const managementTags = ['Management API'];
@@ -193,11 +193,81 @@ export default {
                       minTime: {
                         type: 'number',
                       },
+                      maxConcurrent: {
+                        type: 'number',
+                      },
                       sessionTimes: {
                         type: 'array',
                         items: {
                           type: 'integer',
                         },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/metrics/total': {
+      get: {
+        tags: managementTags,
+        summary: `Returns metrics about worker in 5-minute increments.`,
+        responses: {
+          ...httpCodes,
+          200: {
+            description:
+              'A JSON payload with totals (either summed or averaged, depending) of all session statistics.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    date: {
+                      type: 'integer',
+                    },
+                    successful: {
+                      type: 'integer',
+                    },
+                    queued: {
+                      type: 'integer',
+                    },
+                    rejected: {
+                      type: 'integer',
+                    },
+                    unhealthy: {
+                      type: 'integer',
+                    },
+                    memory: {
+                      type: 'number',
+                    },
+                    cpu: {
+                      type: 'number',
+                    },
+                    timedout: {
+                      type: 'integer',
+                    },
+                    totalTime: {
+                      type: 'integer',
+                    },
+                    meanTime: {
+                      type: 'number',
+                    },
+                    maxTime: {
+                      type: 'number',
+                    },
+                    minTime: {
+                      type: 'number',
+                    },
+                    maxConcurrent: {
+                      type: 'number',
+                    },
+                    sessionTimes: {
+                      type: 'array',
+                      items: {
+                        type: 'integer',
                       },
                     },
                   },
@@ -574,6 +644,12 @@ export default {
                 schema: {
                   type: 'string',
                   format: 'binary',
+                },
+              },
+              'text/plain': {
+                schema: {
+                  type: 'string',
+                  format: 'base64',
                 },
               },
             },

@@ -1,15 +1,18 @@
 import { exec as execNode } from 'child_process';
-import _ from 'lodash';
+
 import os from 'os';
 import util from 'util';
-import { IBrowserlessOptions } from '../../types';
+
+import _ from 'lodash';
+
+import { IBrowserlessOptions } from '../../types.d';
 
 export const exec = util.promisify(execNode);
 export const getPort = () => 3000 + +_.uniqueId();
 export const defaultParams = (): IBrowserlessOptions => ({
   allowFileProtocol: false,
   chromeRefreshTime: 0,
-  connectionTimeout: 10000,
+  connectionTimeout: 15000,
   disabledFeatures: [],
   enableAPIGet: true,
   enableCors: false,
@@ -17,6 +20,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   errorAlertURL: null,
   exitOnHealthFailure: false,
   functionBuiltIns: ['url'],
+  functionEnvVars: [],
   functionEnableIncognitoMode: false,
   functionExternals: ['lighthouse'],
   healthFailureURL: null,
@@ -47,10 +51,6 @@ export const getChromeProcesses = () => {
   return exec(`ps -ef | grep local-chromium`);
 };
 
-export const killChrome = () => {
-  return exec(`pkill -f local-chromium`).catch(() => {});
-};
-
 export const webdriverOpts = {
-  args: ['--headless', '--no-sandbox'],
+  args: ['--headless', '--no-sandbox', '--log-level=OFF'],
 };
