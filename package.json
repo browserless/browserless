@@ -130,7 +130,7 @@
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.4.0",
     "sharp": "^0.30.5",
-    "snyk": "^1.986.0",
+    "snyk": "^1.987.0",
     "swagger-ui-express": "^4.2.0",
     "systeminformation": "^5.12.5",
     "table": "^6.0.1",
