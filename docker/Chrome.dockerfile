@@ -1,5 +1,6 @@
-ARG BASE_VERSION=1.17.0
-FROM browserless/base:${BASE_VERSION}
+ARG FROM=base
+ARG VERSION=1.17.0
+FROM browserless/${FROM}:${VERSION}
 
 # Build Args
 ARG USE_CHROME_STABLE
@@ -7,7 +8,6 @@ ARG PUPPETEER_CHROMIUM_REVISION
 ARG PUPPETEER_VERSION
 
 # Application parameters and variables
-ENV APP_DIR=/usr/src/app
 ENV PLAYWRIGHT_BROWSERS_PATH=${APP_DIR}
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
@@ -47,10 +47,10 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run postinstall &&\
   npm run build &&\
   npm prune --production &&\
-  chown -R blessuser:blessuser $APP_DIR
+  chown -R ${BLESS_USER}:${BLESS_USER} $APP_DIR
 
 # Run everything after as non-privileged user.
-USER node
+USER ${BLESS_USER}
 
 # Expose the web-socket and HTTP ports
 EXPOSE 3000

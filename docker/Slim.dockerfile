@@ -1,4 +1,9 @@
-FROM node:14-slim
+FROM node:16-slim
+
+ARG BLESS_USER=node
+
+ENV BLESS_USER=${BLESS_USER}
+ENV APP_DIR=/home/node/app
 
 # Dependencies + NodeJS
 RUN apt-get -qq update && \
@@ -49,6 +54,3 @@ RUN apt-get -qq update && \
   wget \
   xvfb &&\
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install deps necessary to build
-RUN npm install -g typescript @types/node

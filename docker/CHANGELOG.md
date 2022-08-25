@@ -1,3 +1,7 @@
+# Latest
+- Move to same version number for base and chrome repos.
+- Add a slim tag for the most recent puppeteer release.
+
 # 1.16.0
 - Dependency updates
 

@@ -1,6 +1,11 @@
 FROM ubuntu:20.04
 
+ARG BLESS_USER=blessuser
 ARG BLESS_USER_ID=999
+
+ENV BLESS_USER=${BLESS_USER}
+ENV BLESS_USER_ID=${BLESS_USER_ID}
+ENV APP_DIR=/usr/src/app
 
 COPY fonts.conf /etc/fonts/local.conf
 
@@ -95,7 +100,7 @@ RUN fc-cache -f -v && \
   apt-get -qq clean && \
   rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Add the browserless user (blessuser)
-RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
-  mkdir -p /home/blessuser/Downloads && \
-  chown -R blessuser:blessuser /home/blessuser
+# Add the browserless user ($BLESS_USER)
+RUN groupadd -r ${BLESS_USER_ID} && useradd --uid ${BLESS_USER_ID} -r -g ${BLESS_USER_ID} -G audio,video ${BLESS_USER_ID} && \
+  mkdir -p /home/${BLESS_USER_ID}/Downloads && \
+  chown -R ${BLESS_USER_ID}:${BLESS_USER_ID} /home/${BLESS_USER_ID}
