@@ -138,7 +138,7 @@
     "ts-node": "^10.8.0",
     "typescript": "^4.8.2",
     "untildify": "^4.0.0",
-    "vm2": "^3.9.5"
+    "vm2": "^3.9.11"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.35.1",
