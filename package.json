@@ -68,6 +68,14 @@
       "platform": "linux/amd64"
     }
   },
+  "playwrightVersions": {
+    "default": "playwright-core",
+    "1.25": "playwright-core",
+    "1.24": "playwright-124",
+    "1.23": "playwright-123",
+    "1.22": "playwright-122",
+    "1.21": "playwright-121"
+  },
   "releaseVersions": [
     "puppeteer-14.4.1",
     "puppeteer-10.4.0",
@@ -120,7 +128,11 @@
     "multer": "^1.4.1",
     "node-fetch": "^2.6.7",
     "node-pdftk": "^2.0.0",
-    "playwright-core": "^1.25.0",
+    "playwright-121": "npm:playwright-core@1.21.1",
+    "playwright-122": "npm:playwright-core@1.22.2",
+    "playwright-123": "npm:playwright-core@1.23.3",
+    "playwright-124": "npm:playwright-core@1.24.2",
+    "playwright-core": "^1.25.1",
     "prom-client": "^14.0.0",
     "puppeteer": "^16.2.0",
     "puppeteer-extra": "^3.1.15",
@@ -155,7 +167,7 @@
     "extension": [
       "ts"
     ],
-    "spec": "src/tests/**/*.spec.ts",
+    "spec": "src/tests/**/webs*.spec.ts",
     "require": "ts-node/register"
   },
   "snyk": true

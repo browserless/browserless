@@ -7,6 +7,7 @@ import { AsyncArray } from './async-array';
 import { BrowserlessServer } from './browserless';
 import * as chromeHelper from './chrome-helper';
 import { PLAYWRIGHT_ROUTE } from './constants';
+import { isVersionCompatible } from './playwright-provider';
 import { Queue } from './queue';
 import {
   IChromeServiceConfiguration,
@@ -377,7 +378,7 @@ export class PuppeteerProvider {
         `${jobId}: Too many concurrent and queued requests, rejecting with 429.`,
       );
       return this.server.rejectSocket({
-        header: `HTTP/1.1 429 Too Many Requests`,
+        header: `HTTP/1.1 400 Too Many Requests`,
         message: `Too Many Requests`,
         metricType: 'rejected',
         hook: this.server.capacityFullHook,
@@ -404,6 +405,20 @@ export class PuppeteerProvider {
     // its own process to prevent infinite/runaway scripts
     const handler = (done: IDone) => {
       const launchPromise = this.getChrome(opts);
+      if (
+        opts.playwright &&
+        opts.playwrightVersion &&
+        !isVersionCompatible(opts.playwrightVersion)
+      ) {
+        jobdebug(
+          `Version '${opts.playwrightVersion}' is not supported. Using default version.`,
+        );
+      }
+      if (opts.playwright) {
+        jobdebug(
+          `${job.id}: Versioning playwright to '${opts.playwrightVersion}'`,
+        );
+      }
       jobdebug(`${job.id}: Getting browser.`);
 
       const doneOnce = _.once((err) => {

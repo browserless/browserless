@@ -81,6 +81,7 @@ export interface ILaunchOptions {
   trackingId?: string;
   keepalive?: number;
   playwrightProxy?: LaunchOptions['proxy'];
+  playwrightVersion?: string | undefined;
   playwright: boolean;
   stealth: boolean;
   meta: unknown;
