@@ -167,7 +167,7 @@
     "extension": [
       "ts"
     ],
-    "spec": "src/tests/**/webs*.spec.ts",
+    "spec": "src/tests/**/*.spec.ts",
     "require": "ts-node/register"
   },
   "snyk": true
