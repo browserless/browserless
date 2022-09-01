@@ -424,7 +424,7 @@ describe('Browserless Chrome WebSockets', () => {
         expect(browserless.currentStat.successful).to.equal(0);
         expect(browserless.currentStat.rejected).to.equal(1);
         expect(browserless.currentStat.queued).to.equal(0);
-        expect(error.message).to.contain(`429`);
+        expect(error.message).to.contain.oneOf([`400`, `429`]);
       });
   });
 
