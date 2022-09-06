@@ -161,7 +161,12 @@
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.2.1",
     "simple-git-hooks": "^2.2.0",
-    "zx": "^7.0.8"
+    "zx": "^7.0.7"
+  },
+  "overrides": {
+    "playwright-121": {
+      "jpeg-js": "@0.4.4"
+    }
   },
   "mocha": {
     "extension": [
