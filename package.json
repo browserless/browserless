@@ -165,7 +165,7 @@
   },
   "overrides": {
     "playwright-121": {
-      "jpeg-js": "@0.4.4"
+      "jpeg-js": "0.4.4"
     }
   },
   "mocha": {
