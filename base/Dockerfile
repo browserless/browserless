@@ -82,9 +82,6 @@ RUN apt-get -y -qq --no-install-recommends install \
   xdg-utils \
   xvfb
 
-# Only install Adobe Flash on amd64 (not available for other architectures)
-RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then apt-get -qq --no-install-recommends install adobe-flashplugin; fi
-
 # Install NodeJS
 RUN curl --silent --location https://deb.nodesource.com/setup_16.x | bash - && \
   apt-get -qq install nodejs && \
