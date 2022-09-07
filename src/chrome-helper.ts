@@ -487,8 +487,8 @@ export const convertUrlParamsToLaunchOpts = (
     const uAgent = req.headers['user-agent'];
     if (!uAgent || !uAgent.startsWith('Playwright/')) return undefined;
 
-    const split = uAgent.split('Playwright/')[1].split('.');
-    return `${split[0]}.${split[1]}`;
+    const matches = uAgent.match(/(?<=Playwright\/)(\d+(\.\d+))/);
+    return _.first(matches);
   })();
 
   return {
