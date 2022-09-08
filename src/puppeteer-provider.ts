@@ -378,7 +378,7 @@ export class PuppeteerProvider {
         `${jobId}: Too many concurrent and queued requests, rejecting with 429.`,
       );
       return this.server.rejectSocket({
-        header: `HTTP/1.1 400 Too Many Requests`,
+        header: `HTTP/1.1 429 Too Many Requests`,
         message: `Too Many Requests`,
         metricType: 'rejected',
         hook: this.server.capacityFullHook,
