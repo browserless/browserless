@@ -1,4 +1,4 @@
-FROM node:16-slim
+FROM node:16-bullseye-slim
 
 ARG BLESS_USER=node
 
@@ -11,7 +11,6 @@ RUN apt-get -qq update && \
   apt-get -qq update && apt-get -y -qq --no-install-recommends install \
   dumb-init \
   git \
-  libappindicator3-1 \
   pdftk \
   unzip \
   locales \
@@ -47,9 +46,9 @@ RUN apt-get -qq update && \
   libxtst6 \
   libgbm-dev \
   ca-certificates \
-  libappindicator1 \
   libnss3 \
   lsb-release \
+  procps \
   xdg-utils \
   wget \
   xvfb &&\
