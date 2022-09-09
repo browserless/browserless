@@ -14,7 +14,7 @@ import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
 import fetch from 'node-fetch';
-import { chromium, BrowserServer } from 'playwright-core';
+import { BrowserServer } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -41,6 +41,7 @@ import {
 import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
+import { getPlaywright } from './playwright-provider';
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -482,6 +483,14 @@ export const convertUrlParamsToLaunchOpts = (
   const keepalive = _.isNaN(parsedKeepalive) ? undefined : parsedKeepalive;
   const parsedIgnoreDefaultArgs = parseIgnoreDefaultArgs(urlParts.query);
 
+  const playwrightVersion = (() => {
+    const uAgent = req.headers['user-agent'];
+    if (!uAgent || !uAgent.startsWith('Playwright/')) return undefined;
+
+    const matches = uAgent.match(/(?<=Playwright\/)(\d+(\.\d+))/);
+    return _.first(matches);
+  })();
+
   return {
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
@@ -495,6 +504,7 @@ export const convertUrlParamsToLaunchOpts = (
     pauseOnConnect: !_.isUndefined(pause),
     playwright,
     playwrightProxy,
+    playwrightVersion,
     slowMo: parseInt(slowMo as string, 10) || undefined,
     trackingId: _.isArray(trackingId) ? trackingId[0] : trackingId,
     userDataDir: (userDataDir as string) || DEFAULT_USER_DATA_DIR,
@@ -578,7 +588,7 @@ export const launchChrome = async (
   const browserServerPromise = injectedPuppeteer
     ? injectedPuppeteer.launch(launchArgs)
     : launchArgs.playwright
-    ? chromium.launchServer({
+    ? (await getPlaywright(opts.playwrightVersion)).launchServer({
         ...launchArgs,
         proxy: launchArgs.playwrightProxy,
       })

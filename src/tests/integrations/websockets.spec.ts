@@ -6,6 +6,10 @@ import puppeteer from 'puppeteer';
 import rimraf from 'rimraf';
 
 import { BrowserlessServer } from '../../browserless';
+import {
+  earliestPlaywrightVersion,
+  getPlaywright,
+} from '../../playwright-provider';
 import { IBrowserlessOptions } from '../../types.d';
 import { sleep, exists } from '../../utils';
 
@@ -420,7 +424,7 @@ describe('Browserless Chrome WebSockets', () => {
         expect(browserless.currentStat.successful).to.equal(0);
         expect(browserless.currentStat.rejected).to.equal(1);
         expect(browserless.currentStat.queued).to.equal(0);
-        expect(error.message).to.contain(`429`);
+        expect(error.message).to.contain.oneOf([`400`, `429`]);
       });
   });
 
@@ -474,9 +478,9 @@ describe('Browserless Chrome WebSockets', () => {
 
       const job = async () => {
         return new Promise(async (resolve) => {
-          const browser: any = await chromium.connect({
-            wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
-          });
+          const browser: any = await chromium.connect(
+            `ws://127.0.0.1:${params.port}/playwright`,
+          );
 
           browser.once('disconnected', resolve);
 
@@ -503,9 +507,9 @@ describe('Browserless Chrome WebSockets', () => {
 
       const job = async () => {
         return new Promise(async (resolve) => {
-          const browser: any = await chromium.connect({
-            wsEndpoint: `ws://127.0.0.1:${params.port}/playwright?--user-data-dir=/tmp&headless=false`,
-          });
+          const browser: any = await chromium.connect(
+            `ws://127.0.0.1:${params.port}/playwright?--user-data-dir=/tmp&headless=false`,
+          );
 
           browser.once('disconnected', resolve);
 
@@ -534,7 +538,7 @@ describe('Browserless Chrome WebSockets', () => {
     await browserless.startServer();
 
     return chromium
-      .connect({ wsEndpoint: `ws://127.0.0.1:${params.port}/playwright` })
+      .connect(`ws://127.0.0.1:${params.port}/playwright`)
       .then(throws)
       .catch((error) => {
         expect(browserless.currentStat.successful).to.equal(0);
@@ -543,6 +547,36 @@ describe('Browserless Chrome WebSockets', () => {
         expect(error.message).to.contain(`403`);
       });
   });
+
+  it('versions playwright dynamically', async () =>
+    new Promise(async (done) => {
+      const earliestPw = await getPlaywright(earliestPlaywrightVersion);
+      const params = defaultParams();
+      const browserless = await start(params);
+      await browserless.startServer();
+
+      const job = async () => {
+        return new Promise(async (resolve) => {
+          const browser: any = await earliestPw.connect({
+            wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
+          });
+
+          browser.once('disconnected', resolve);
+
+          browser.close();
+        });
+      };
+
+      browserless.queue.on('end', () => {
+        expect(browserless.currentStat.timedout).to.equal(0);
+        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.rejected).to.equal(0);
+        expect(browserless.currentStat.queued).to.equal(0);
+        done();
+      });
+
+      job();
+    }));
 
   it.skip('closes chrome when the session is closed', async () => {
     const params = defaultParams();
