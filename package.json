@@ -157,7 +157,7 @@
     "@typescript-eslint/parser": "^5.36.2",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
-    "eslint": "^8.23.0",
+    "eslint": "^8.23.1",
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.2.1",
     "simple-git-hooks": "^2.2.0",
