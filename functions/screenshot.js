@@ -20,9 +20,9 @@
  */
 const scrollThroughPage = async (page) => {
   // Scroll to page end to trigger lazy loading elements
-  const { height: bottomThreshold } = await page.viewport();
+  const viewport = await page.viewport();
 
-  await page.evaluate(() => {
+  await page.evaluate((bottomThreshold) => {
     const scrollInterval = 100;
     const scrollStep = Math.floor(window.innerHeight / 2);
 
@@ -45,7 +45,7 @@ const scrollThroughPage = async (page) => {
 
       scrollDown();
     });
-  });
+  }, viewport.height);
 };
 
 module.exports = async function screenshot({ page, context } = {}) {
