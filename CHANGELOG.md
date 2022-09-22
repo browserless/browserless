@@ -1,5 +1,19 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.54.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.55.0...master)
 - Dependency updates.
+
+# [v1.55.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.54.1)
+**Potentially Breaking**
+- Update base OS from Ubuntu 20.04 to Ubuntu 22.04.
+- Drops `path` support for both `addScriptTag` and `addStyleTag`. Use `url` or inject content directly.
+---
+- Dependency updates.
+- We now support multiple versions of playwright via `playwright-core`. browserless checks the User-Agent string and tries to load a compatible playwright server at runtime in order to avoid breakages between versions.
+- New `scrollPage` boolean parameter for the screenshot and other relevant APIs.
+- browserless now writes appropriately formatted HTTP and WebSocket messages for non-2xx responses.
+- Better CI coverage with prior puppeteer versions.
+- Adds back a `browser.json` file in our docker images for easier CDP-related queries.
+- A new `PORT` arg is available at build time in order to specify a PORT to listen onto.
+- Updated links for browserless documentation in docs.
 
 # [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
 - Dependency updates.
