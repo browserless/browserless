@@ -153,7 +153,7 @@
     "vm2": "^3.9.11"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.38.0",
+    "@typescript-eslint/eslint-plugin": "^5.38.1",
     "@typescript-eslint/parser": "^5.38.0",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
