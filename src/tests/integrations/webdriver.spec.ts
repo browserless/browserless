@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types.d';
@@ -77,6 +78,10 @@ describe('Browserless Chrome Webdriver', () => {
     expect(browserless.currentStat.successful).to.equal(1);
     expect(browserless.currentStat.rejected).to.equal(0);
     expect(browserless.currentStat.queued).to.equal(0);
+    // Ensures internal APIs clean-up properly
+    expect(
+      await (await fetch(`http://127.0.0.1:${params.port}/sessions`)).json(),
+    ).to.equal([]);
   });
 
   it('runs lengthy sessions', async () => {

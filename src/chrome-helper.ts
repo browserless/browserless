@@ -399,6 +399,7 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
 export const getDebuggingPages = async (
   trackingId?: string,
 ): Promise<ISession[]> => {
+  console.log(runningBrowsers);
   const results = await Promise.all(
     runningBrowsers
       .filter(
@@ -642,7 +643,7 @@ export const launchChromeDriver = async ({
 }: IBrowserlessSessionOptions) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
-    let iBrowser = null;
+    let iBrowser: null | IBrowser = null;
     const flags = [
       '--url-base=webdriver',
       '--verbose',
@@ -694,7 +695,7 @@ export const launchChromeDriver = async ({
     chromeProcess.stderr.pipe(findPort);
 
     return resolve({
-      browser: iBrowser,
+      browser: () => iBrowser,
       chromeProcess,
       port,
     });
