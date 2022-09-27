@@ -693,6 +693,9 @@ export const launchChromeDriver = async ({
 
     chromeProcess.stderr.pipe(findPort);
 
+    // browser is "lazily" loaded here and not established until
+    // later in selenium's lifecycle, hence why it's a "getter"
+    // function and not passed via reference
     return resolve({
       browser: () => iBrowser,
       chromeProcess,
