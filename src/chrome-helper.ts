@@ -399,7 +399,6 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
 export const getDebuggingPages = async (
   trackingId?: string,
 ): Promise<ISession[]> => {
-  console.log(runningBrowsers);
   const results = await Promise.all(
     runningBrowsers
       .filter(
