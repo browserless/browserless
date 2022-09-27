@@ -142,7 +142,6 @@ export class WebDriver {
                   if (chromeDriver.chromeProcess.pid) {
                     kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
                   }
-                  console.log(chromeDriver.browser);
                   chromeDriver.chromeProcess.off('close', done);
                   browser && chromeHelper.closeBrowser(browser);
                   proxy.close();
