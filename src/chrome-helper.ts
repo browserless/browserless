@@ -642,7 +642,7 @@ export const launchChromeDriver = async ({
 }: IBrowserlessSessionOptions) => {
   return new Promise<IChromeDriver>(async (resolve, reject) => {
     const port = await getPort();
-    let iBrowser = null;
+    let iBrowser: null | IBrowser = null;
     const flags = [
       '--url-base=webdriver',
       '--verbose',
@@ -693,8 +693,11 @@ export const launchChromeDriver = async ({
 
     chromeProcess.stderr.pipe(findPort);
 
+    // browser is "lazily" loaded here and not established until
+    // later in selenium's lifecycle, hence why it's a "getter"
+    // function and not passed via reference
     return resolve({
-      browser: iBrowser,
+      browser: () => iBrowser,
       chromeProcess,
       port,
     });

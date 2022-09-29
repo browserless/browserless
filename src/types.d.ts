@@ -15,7 +15,7 @@ import puppeteer from 'puppeteer';
 export interface IChromeDriver {
   port: number;
   chromeProcess: ChildProcess;
-  browser: IBrowser | null;
+  browser: () => IBrowser | null;
 }
 
 export interface IBrowser extends puppeteer.Browser {

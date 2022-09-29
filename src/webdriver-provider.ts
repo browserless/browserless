@@ -91,13 +91,14 @@ export class WebDriver {
                 const responseBody = body.toString();
                 const session = JSON.parse(responseBody);
                 const id = session.sessionId || session.value.sessionId;
+                const browser = chromeDriver.browser();
 
                 if (!id) {
-                  if (chromeDriver.browser) {
+                  if (browser) {
                     debug(
                       `Error starting chromedriver, killing underlying chromium.`,
                     );
-                    chromeHelper.closeBrowser(chromeDriver.browser);
+                    chromeHelper.closeBrowser(browser);
                   }
                   return done(
                     new Error(
@@ -116,7 +117,7 @@ export class WebDriver {
                 job.id = id;
 
                 this.webDriverSessions[id] = {
-                  browser: chromeDriver.browser,
+                  browser,
                   chromeDriver: chromeDriver.chromeProcess,
                   done,
                   proxy,
@@ -136,14 +137,13 @@ export class WebDriver {
                   debug(
                     `Killing chromedriver and proxy ${chromeDriver.chromeProcess.pid}`,
                   );
+                  const browser = chromeDriver.browser();
 
                   if (chromeDriver.chromeProcess.pid) {
                     kill(chromeDriver.chromeProcess.pid, 'SIGKILL');
                   }
-
                   chromeDriver.chromeProcess.off('close', done);
-                  chromeDriver.browser &&
-                    chromeHelper.closeBrowser(chromeDriver.browser);
+                  browser && chromeHelper.closeBrowser(browser);
                   proxy.close();
                   delete this.webDriverSessions[id];
                 };
