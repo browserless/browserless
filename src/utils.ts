@@ -488,7 +488,16 @@ export const getTimeoutParam = (
     req.url &&
     req.url.includes('webdriver') &&
     Object.prototype.hasOwnProperty.call(req, 'body')
-      ? _.get(req, ['body', 'desiredCapabilities', 'browserless.timeout'], null)
+      ? _.get(
+          req,
+          ['body', 'desiredCapabilities', 'browserless.timeout'],
+          null,
+        ) ||
+        _.get(
+          req,
+          ['body', 'capabilities', 'alwaysMatch', 'browserless:timeout'], // Selenium 4.5 > calls
+          null,
+        )
       : _.get(req, 'parsed.query.timeout', null);
 
   if (_.isArray(payloadTimer)) {
