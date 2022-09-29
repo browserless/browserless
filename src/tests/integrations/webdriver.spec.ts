@@ -156,7 +156,7 @@ describe('Browserless Chrome Webdriver', () => {
 
     await browserless.startServer();
     chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
-    chromeCapabilities.set('browserless.timeout', 10);
+    chromeCapabilities.set('browserless:timeout', 10);
 
     async function run() {
       const driver = new webdriver.Builder()
@@ -170,7 +170,7 @@ describe('Browserless Chrome Webdriver', () => {
     }
 
     await run();
-    await sleep(50);
+    await sleep(1000);
 
     expect(browserless.currentStat.timedout).to.equal(1);
     expect(browserless.currentStat.successful).to.equal(0);
@@ -231,20 +231,13 @@ describe('Browserless Chrome Webdriver', () => {
     {
       const chromeCapabilities = webdriver.Capabilities.chrome();
       chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
-      chromeCapabilities.set('browserless.token', 'abcd');
-      await run(chromeCapabilities);
-    }
-
-    {
-      const chromeCapabilities = webdriver.Capabilities.chrome();
-      chromeCapabilities.set('goog:chromeOptions', webdriverOpts);
       chromeCapabilities.set('browserless:token', 'abcd');
       await run(chromeCapabilities);
     }
 
     await sleep(50);
 
-    expect(browserless.currentStat.successful).to.equal(2);
+    expect(browserless.currentStat.successful).to.equal(1);
     expect(browserless.currentStat.rejected).to.equal(0);
     expect(browserless.currentStat.queued).to.equal(0);
   });
