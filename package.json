@@ -37,16 +37,6 @@
       "chromeRevision": "686378",
       "platform": "linux/amd64"
     },
-    "puppeteer-5.4.1": {
-      "puppeteer": "5.4.1",
-      "chromeRevision": "809590",
-      "platform": "linux/amd64"
-    },
-    "puppeteer-7.1.0": {
-      "puppeteer": "7.1.0",
-      "chromeRevision": "848005",
-      "platform": "linux/amd64"
-    },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
       "chromeRevision": "869685",
@@ -62,9 +52,19 @@
       "chromeRevision": "991974",
       "platform": "linux/amd64,linux/arm64"
     },
+    "puppeteer-16.2.0": {
+      "puppeteer": "16.2.0",
+      "chromeRevision": "1022525",
+      "platform": "linux/amd64,linux/arm64"
+    },
+    "puppeteer-18.0.5": {
+      "puppeteer": "18.0.5",
+      "chromeRevision": "1036745",
+      "platform": "linux/amd64,linux/arm64"
+    },
     "chrome-stable": {
-      "puppeteer": "14.4.1",
-      "chromeRevision": "991974",
+      "puppeteer": "18.0.5",
+      "chromeRevision": "1036745",
       "platform": "linux/amd64"
     }
   },
@@ -77,11 +77,11 @@
     "1.22": "playwright-1.22"
   },
   "releaseVersions": [
+    "puppeteer-18.0.5",
+    "puppeteer-16.2.0",
     "puppeteer-14.4.1",
     "puppeteer-10.4.0",
     "puppeteer-9.1.1",
-    "puppeteer-7.1.0",
-    "puppeteer-5.4.1",
     "puppeteer-1.20.0",
     "chrome-stable"
   ],
