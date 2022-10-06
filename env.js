@@ -10,7 +10,8 @@ const pptrVersion = pptrPackageJSON.version;
 const packageJson = require('./package.json');
 const IS_DOCKER = process.env.IS_DOCKER === 'true';
 
-const USE_CHROME_STABLE = process.env.USE_CHROME_STABLE && process.env.USE_CHROME_STABLE === 'true';
+const USE_CHROME_STABLE =
+  process.env.USE_CHROME_STABLE && process.env.USE_CHROME_STABLE === 'true';
 
 const MAC = 'MAC';
 const WINDOWS = 'WINDOWS';
@@ -23,13 +24,14 @@ const CHROME_BINARY_PATHS = {
   WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
 };
 
-const PLATFORM = os.platform() === 'win32' ?
-  WINDOWS :
-    os.platform() === 'darwin' ?
-      MAC :
-      os.arch() === 'arm64' ?
-        LINUX_ARM64 :
-        LINUX;
+const PLATFORM =
+  os.platform() === 'win32'
+    ? WINDOWS
+    : os.platform() === 'darwin'
+    ? MAC
+    : os.arch() === 'arm64'
+    ? LINUX_ARM64
+    : LINUX;
 
 /*
  * Assess which chromium revision to install.
@@ -55,12 +57,11 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return pptrPackageJSON.puppeteer.chromium_revision;
   }
 
-
   if (puppeteer._preferredRevision) {
     return puppeteer._preferredRevision;
   }
-  
-  const pptr = require('./node_modules/puppeteer/lib/cjs/puppeteer/revisions');
+
+  const pptr = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
   return pptr.PUPPETEER_REVISIONS.chromium;
 })();
 
@@ -74,7 +75,8 @@ const PUPPETEER_BINARY_LOCATION = (() => {
   }
 
   const browserFetcher = puppeteer.createBrowserFetcher();
-  return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION).executablePath;
+  return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
+    .executablePath;
 })();
 
 /*
