@@ -161,7 +161,7 @@
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.2.1",
     "simple-git-hooks": "^2.2.0",
-    "zx": "^7.1.0"
+    "zx": "^7.1.1"
   },
   "overrides": {
     "playwright-1.21": {
