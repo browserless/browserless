@@ -6,10 +6,7 @@ import puppeteer from 'puppeteer';
 import rimraf from 'rimraf';
 
 import { BrowserlessServer } from '../../browserless';
-import {
-  earliestPlaywrightVersion,
-  getPlaywright,
-} from '../../playwright-provider';
+import { getPlaywright } from '../../playwright-provider';
 import { IBrowserlessOptions } from '../../types.d';
 import { sleep, exists } from '../../utils';
 
@@ -550,32 +547,37 @@ describe('Browserless Chrome WebSockets', () => {
 
   it('versions playwright dynamically', async () =>
     new Promise(async (done) => {
-      const earliestPw = await getPlaywright(earliestPlaywrightVersion);
+      const { playwrightVersions } = require('../../../package.json');
       const params = defaultParams();
       const browserless = await start(params);
+      const pwKeys = Object.keys(playwrightVersions);
+
       await browserless.startServer();
 
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await earliestPw.connect({
-            wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
+      for (const version of pwKeys) {
+        const playwright = await getPlaywright(version);
+
+        const job = async () => {
+          return new Promise<void>(async (resolve) => {
+            const browser: any = await playwright.connect({
+              wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
+            });
+
+            browser.close();
+            resolve();
           });
+        };
 
-          browser.once('disconnected', resolve);
-
-          browser.close();
-        });
-      };
+        await job();
+      }
 
       browserless.queue.on('end', () => {
         expect(browserless.currentStat.timedout).to.equal(0);
-        expect(browserless.currentStat.successful).to.equal(1);
+        expect(browserless.currentStat.successful).to.equal(pwKeys.length);
         expect(browserless.currentStat.rejected).to.equal(0);
         expect(browserless.currentStat.queued).to.equal(0);
         done();
       });
-
-      job();
     }));
 
   it.skip('closes chrome when the session is closed', async () => {
