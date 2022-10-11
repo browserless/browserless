@@ -19,6 +19,7 @@ describe('Browserless Chrome Webdriver', () => {
     (browserless = new BrowserlessServer(args));
 
   afterEach(async () => {
+    sleep(1000);
     await browserless.kill();
   });
 
