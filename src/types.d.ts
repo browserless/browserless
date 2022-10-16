@@ -58,6 +58,7 @@ export interface ISession {
 export interface IWindowSize {
   width: number;
   height: number;
+  deviceScaleFactor?: number;
 }
 
 export interface PuppeteerRequest {

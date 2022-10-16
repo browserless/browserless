@@ -395,11 +395,14 @@ export const normalizeWebdriverStart = async (
   let windowSize;
 
   if (Array.isArray(windowSizeParsed)) {
-    const [width, height] = windowSizeParsed;
+    const [width, height, deviceScaleFactor] = windowSizeParsed;
     windowSize = {
       width: +width,
       height: +height,
     };
+    if (deviceScaleFactor) {
+      windowSize.deviceScaleFactor = parseInt(deviceScaleFactor)
+    }
   }
 
   return {
