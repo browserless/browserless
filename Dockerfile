@@ -49,7 +49,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run postinstall &&\
   npm run build &&\
   npm prune --production &&\
-  chown -R blessuser:blessuser $APP_DIR ~/.cache
+  chown -R blessuser:blessuser $APP_DIR
 
 # Run everything after as non-privileged user.
 USER blessuser
