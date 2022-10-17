@@ -9,6 +9,7 @@ ARG PORT=3000
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
+ENV PUPPETEER_CACHE_DIR=${APP_DIR}
 ENV PLAYWRIGHT_BROWSERS_PATH=${APP_DIR}
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
