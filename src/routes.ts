@@ -534,6 +534,7 @@ export const getRoutes = ({
         .getVersionJSON()
         .catch((err) => res.status(400).send(err.message));
 
+      console.log(version);
       return res.json({
         ...version,
         webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
