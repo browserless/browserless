@@ -501,11 +501,11 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.DEBUG_VIEWER)) {
     router.get('/json/protocol', async (_req, res) => {
-      const protocol = await chromeHelper
-        .getProtocolJSON()
-        .catch((err) => res.status(400).send(err.message));
-
-      return res.json(protocol);
+      try {
+        return res.json(await chromeHelper.getProtocolJSON());
+      } catch (err) {
+        return res.status(400).send(err.message);
+      }
     });
 
     router.get(
