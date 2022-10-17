@@ -532,16 +532,15 @@ export const getRoutes = ({
     router.get('/json/version', async (req, res) => {
       const baseUrl = req.get('host');
       const protocol = req.protocol.includes('s') ? 'wss' : 'ws';
-      const version = await chromeHelper
-        .getVersionJSON()
-        .catch((err) => res.status(400).send(err.message));
 
-      debug(`Version:`);
-      debug(version);
-      return res.json({
-        ...version,
-        webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
-      });
+      try {
+        return res.json({
+          ...(await chromeHelper.getVersionJSON()),
+          webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
+        });
+      } catch (err) {
+        return res.status(400).send(err.message);
+      }
     });
 
     router.get(
