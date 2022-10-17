@@ -36,13 +36,11 @@ import {
   exists,
   fnLoader,
   generateChromeTarget,
-  getDebug,
   lstat,
   queryValidation,
 } from './utils';
 
 const rimraf = require('rimraf');
-const debug = getDebug('router');
 
 // Browserless fn's
 const screenshot = fnLoader('screenshot');
