@@ -9,6 +9,7 @@ ARG PORT=3000
 
 # Application parameters and variables
 ENV APP_DIR=/usr/src/app
+ENV PUPPETEER_CACHE_DIR=${APP_DIR}
 ENV PLAYWRIGHT_BROWSERS_PATH=${APP_DIR}
 ENV CONNECTION_TIMEOUT=60000
 ENV CHROME_PATH=/usr/bin/google-chrome
@@ -48,7 +49,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   npm run postinstall &&\
   npm run build &&\
   npm prune --production &&\
-  chown -R blessuser:blessuser $APP_DIR
+  chown -R blessuser:blessuser $APP_DIR ~/.cache
 
 # Run everything after as non-privileged user.
 USER blessuser
