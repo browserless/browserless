@@ -655,7 +655,10 @@ export const launchChromeDriver = async ({
     const findPort = new Transform({
       transform: async (chunk, _, done) => {
         const message = chunk.toString();
-        const match = message.match(/DevTools listening on (ws:\/\/.*)/);
+        const webDriverRegex = /(?:"webSocketDebuggerUrl": "(ws:\/\/.*))"/g;
+        const cdpRegex = /DevTools listening on (ws:\/\/.*)/;
+
+        const match = message.match(cdpRegex) || webDriverRegex.exec(message);
 
         if (match) {
           chromeProcess.stderr && chromeProcess.stderr.unpipe(findPort);
