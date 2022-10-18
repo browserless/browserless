@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.55.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.56.0...master)
 - Dependency updates.
+
+# [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
+- Dependency updates.
+- Fixes various puppeteer issues with regards to revision information and browser-fetching.
+- Fixes a Selenium issue where failed browsers can cause session to zombie.
+- Small fix for route error handling.
+- Better selenium W3C support.
 
 # [v1.55.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.54.1)
 **Potentially Breaking**
