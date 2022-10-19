@@ -243,10 +243,11 @@ const downloadDevTools = () => {
     } finally {
       rimraf(browserlessTmpDir, (err) => {
         console.log('Done unpacking chromedriver and devtools assets');
-        if (err)
+        if (err) {
           console.warn(
             `Error removing temporary directory ${browserlessTmpDir}`,
           );
+        }
         resolve();
       });
     }
