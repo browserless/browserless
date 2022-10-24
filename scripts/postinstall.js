@@ -132,13 +132,12 @@ const downloadChromium = () => {
     `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  // New API in puppeteer >= 19.x.x
-  if (puppeteer.BrowserFetcher) {
-    const browserFetcher = new puppeteer.BrowserFetcher();
-    return browserFetcher.download(PUPPETEER_CHROMIUM_REVISION);
-  }
-
-  return puppeteer.createBrowserFetcher().download(PUPPETEER_CHROMIUM_REVISION);
+  return puppeteer
+    .createBrowserFetcher({
+      product: 'chrome',
+      path: './',
+    })
+    .download(PUPPETEER_CHROMIUM_REVISION);
 };
 
 const downloadChromedriver = () => {
