@@ -74,13 +74,11 @@ const PUPPETEER_BINARY_LOCATION = (() => {
     return playwright.chromium.executablePath();
   }
 
-  // New API in puppeteer >= 19.x.x
-  if (puppeteer.BrowserFetcher) {
-    const browserFetcher = new puppeteer.BrowserFetcher();
-    return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION).executablePath;
-  }
+  const browserFetcher = puppeteer.createBrowserFetcher({
+    product: 'chrome',
+    path: `./`,
+  });
 
-  const browserFetcher = puppeteer.createBrowserFetcher();
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
     .executablePath;
 })();
