@@ -154,7 +154,7 @@
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.42.1",
-    "@typescript-eslint/parser": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.1",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
     "eslint": "^8.27.0",
