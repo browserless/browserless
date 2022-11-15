@@ -1,5 +1,17 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.56.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...master)
 - Dependency updates.
+
+# [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
+- Dependency updates.
+- Add back in `puppeteer@13.1.3` for PDF/Screenshot performance.
+- Replace `puppeteer@18.0.5` in favor of `puppeteer@19.2.2`.
+- Better puppeteer install/binary path lookups.
+- Support for the following playwright versions via the /playwright path:
+  - 1.23.3
+  - 1.24.2
+  - 1.25.2
+  - 1.26.1
+  - 1.27.1
 
 # [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
 - Dependency updates.
