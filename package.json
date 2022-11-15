@@ -62,14 +62,14 @@
       "chromeRevision": "1022525",
       "platform": "linux/amd64,linux/arm64"
     },
-    "puppeteer-18.0.5": {
-      "puppeteer": "18.0.5",
-      "chromeRevision": "1036745",
+    "puppeteer-19.2.2": {
+      "puppeteer": "19.2.2",
+      "chromeRevision": "1056772",
       "platform": "linux/amd64,linux/arm64"
     },
     "chrome-stable": {
-      "puppeteer": "18.0.5",
-      "chromeRevision": "1036745",
+      "puppeteer": "19.2.2",
+      "chromeRevision": "1056772",
       "platform": "linux/amd64"
     }
   },
@@ -82,7 +82,7 @@
     "1.23": "playwright-1.23"
   },
   "releaseVersions": [
-    "puppeteer-18.0.5",
+    "puppeteer-19.2.2",
     "puppeteer-16.2.0",
     "puppeteer-14.4.1",
     "puppeteer-13.1.3",
