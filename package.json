@@ -75,11 +75,11 @@
   },
   "playwrightVersions": {
     "default": "playwright-core",
-    "1.27": "playwright-core",
+    "1.28": "playwright-core",
+    "1.27": "playwright-1.27",
     "1.26": "playwright-1.26",
     "1.25": "playwright-1.25",
-    "1.24": "playwright-1.24",
-    "1.23": "playwright-1.23"
+    "1.24": "playwright-1.24"
   },
   "releaseVersions": [
     "puppeteer-19.2.2",
@@ -134,11 +134,11 @@
     "multer": "1.4.5-lts.1",
     "node-fetch": "^2.6.7",
     "node-pdftk": "^2.0.0",
-    "playwright-1.23": "npm:playwright-core@1.23.3",
     "playwright-1.24": "npm:playwright-core@1.24.2",
     "playwright-1.25": "npm:playwright-core@1.25.2",
     "playwright-1.26": "npm:playwright-core@1.26.1",
-    "playwright-core": "^1.27.1",
+    "playwright-1.27": "npm:playwright-core@1.27.1",
+    "playwright-core": "^1.28.0",
     "prom-client": "^14.1.0",
     "puppeteer": "^19.2.2",
     "puppeteer-extra": "^3.1.15",
