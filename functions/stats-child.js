@@ -1,3 +1,5 @@
+/* global process, require */
+
 const lighthouse = require('lighthouse');
 
 const send = (msg) => process.send && process.send(msg);

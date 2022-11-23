@@ -1,3 +1,5 @@
+/* global document, module, require, setTimeout, window */
+
 /*
  * screenshot function
  *
