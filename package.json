@@ -1,6 +1,6 @@
 {
   "name": "browserless-chrome",
-  "version": "1.56.0",
+  "version": "1.57.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
@@ -148,9 +148,9 @@
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.6.1",
     "sharp": "^0.31.2",
-    "snyk": "^1.1060.0",
+    "snyk": "^1.1061.0",
     "swagger-ui-express": "^4.6.0",
-    "systeminformation": "^5.12.15",
+    "systeminformation": "^5.14.4",
     "table": "^6.8.1",
     "tree-kill": "^1.2.0",
     "ts-node": "^10.8.0",
@@ -159,13 +159,13 @@
     "vm2": "^3.9.11"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.43.0",
-    "@typescript-eslint/parser": "^5.43.0",
+    "@typescript-eslint/eslint-plugin": "^5.44.0",
+    "@typescript-eslint/parser": "^5.44.0",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
-    "eslint": "^8.27.0",
+    "eslint": "^8.28.0",
     "eslint-plugin-import": "^2.24.0",
-    "prettier": "^2.2.1",
+    "prettier": "^2.8.0",
     "simple-git-hooks": "^2.8.1",
     "zx": "^7.1.1"
   },
