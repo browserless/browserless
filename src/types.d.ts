@@ -10,7 +10,7 @@ import url from 'url';
 import { Response } from 'express';
 import { BrowserServer, LaunchOptions } from 'playwright-core';
 
-import puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 
 export interface IChromeDriver {
   port: number;
