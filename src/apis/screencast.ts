@@ -1,7 +1,7 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
-import puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer';
 
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
@@ -27,7 +27,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
 
   // Setup page handlers
   const setup = async () =>
-    await renderer.evaluateHandle((downloadName) => {
+    await renderer.evaluateHandle((downloadName: string) => {
       const screencastAPI = class {
         private canvas: HTMLCanvasElement;
         private ctx: CanvasRenderingContext2D;
@@ -116,7 +116,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await page.bringToFront();
 
     await renderer.evaluateHandle(
-      (screencastAPI, width, height) => screencastAPI.start({ width, height }),
+      (screencastAPI: any, width: number, height: number) => screencastAPI.start({ width, height }),
       screencastAPI,
       viewport.width,
       viewport.height,
@@ -133,7 +133,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
       'Page.screencastFrame',
       ({ data, sessionId }: { data: string; sessionId: number }) => {
         renderer.evaluateHandle(
-          (screencastAPI, data) => screencastAPI.draw(data),
+          (screencastAPI: any, data: any) => screencastAPI.draw(data),
           screencastAPI,
           data,
         );
@@ -148,7 +148,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await client.send('Page.stopScreencast');
     await renderer.bringToFront();
     await renderer.evaluateHandle(
-      (screencastAPI) => screencastAPI.stop(),
+      (screencastAPI: any) => screencastAPI.stop(),
       screencastAPI,
     );
   };
