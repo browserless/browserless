@@ -21,7 +21,7 @@ if (!BASE_VERSION) {
 
 async function cleanup() {
   await $`rm -rf browser.json`;
-  await $`git reset origin/master --hard`;
+  await $`git reset master --hard`;
   await $`rm -rf node_modules`;
 }
 
@@ -51,6 +51,15 @@ const deployVersion = async (tags, pptrVersion) => {
     process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
   }
 
+  const browserFetcher = puppeteer.createBrowserFetcher({
+    product: 'chrome',
+    path: `../`,
+  });
+
+  const executablePath = browserFetcher
+    .revisionInfo(puppeteerChromiumRevision)
+    .executablePath;
+
   await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
   await $`npm run postinstall`;
 
@@ -58,9 +67,7 @@ const deployVersion = async (tags, pptrVersion) => {
   const browser = await puppeteer.launch({
     executablePath: isChromeStable
       ? '/usr/bin/google-chrome'
-      : puppeteer
-          .executablePath()
-          .replace(/[0-9]{6,7}/g, puppeteerChromiumRevision),
+      : executablePath,
     args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
   });
 
@@ -141,3 +148,4 @@ const deployVersion = async (tags, pptrVersion) => {
     Promise.resolve(),
   );
 })();
+
