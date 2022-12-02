@@ -1,10 +1,6 @@
 #!/usr/bin/env zx
 
 /* eslint-disable no-undef */
-// puppeteer depends on this env variable to be set prior
-// so it can download bins in the right spot
-process.env.PUPPETEER_CACHE_DIR = process.cwd();
-
 const fs = require('fs/promises');
 
 const getPort = require('get-port');
@@ -77,7 +73,8 @@ const deployVersion = async (tags, pptrVersion) => {
   }
 
   const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome'
+    product: 'chrome',
+    path: `./`,
   });
 
   const executablePath = browserFetcher.revisionInfo(
@@ -145,6 +142,8 @@ const deployVersion = async (tags, pptrVersion) => {
 };
 
 (async function deploy() {
+  await $`export PUPPETEER_CACHE_DIR=${process.cwd()}`;
+
   const buildVersions = map(requestedVersions, (pptrVersion) => {
     const [major, minor, patch] = version.split('.');
 
