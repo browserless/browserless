@@ -43,8 +43,9 @@ console.log(
 
 async function cleanup() {
   await $`rm -rf browser.json`;
-  await $`git reset master --hard`;
   await $`rm -rf node_modules`;
+  await $`git clean -fd`;
+  await $`git reset master --hard`;
 }
 
 const deployVersion = async (tags, pptrVersion) => {
