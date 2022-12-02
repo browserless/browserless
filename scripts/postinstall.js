@@ -138,7 +138,7 @@ const downloadChromium = () => {
     .executablePath;
 
   console.log(
-    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION},at "${executablePath}"`,
+    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION} at "${executablePath}"`,
   );
 
   return browserFetcher.download(PUPPETEER_CHROMIUM_REVISION);
