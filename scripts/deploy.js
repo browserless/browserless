@@ -5,17 +5,17 @@
 // so it can download bins in the right spot
 process.env.PUPPETEER_CACHE_DIR = process.cwd();
 
-const fs = require("fs/promises");
+const fs = require('fs/promises');
 
-const getPort = require("get-port");
-const { map, noop } = require("lodash");
-const fetch = require("node-fetch");
-const puppeteer = require("puppeteer");
-const argv = require("yargs").argv;
+const getPort = require('get-port');
+const { map, noop } = require('lodash');
+const fetch = require('node-fetch');
+const puppeteer = require('puppeteer');
+const argv = require('yargs').argv;
 
-const { releaseVersions, chromeVersions, version } = require("../package.json");
+const { releaseVersions, chromeVersions, version } = require('../package.json');
 
-const REPO = "browserless/chrome";
+const REPO = 'browserless/chrome';
 
 if (!argv.base) {
   throw new Error(
@@ -23,22 +23,26 @@ if (!argv.base) {
   );
 }
 
-const versions = argv.versions ? argv.versions.split(",") : releaseVersions;
-const action = argv.action ? argv.action : "push";
-const missingVersions = versions.find((v) => !releaseVersions.includes(v));
+const requestedVersions = argv.versions ? argv.versions.split(',') : releaseVersions;
+const action = argv.action ? argv.action : 'push';
+const missingVersions = requestedVersions.filter((v) => !releaseVersions.includes(v));
 
 // Validate arg parsing
 if (missingVersions.length) {
   throw new Error(
     `Versions: ${missingVersions.join(
-      " "
+      ', '
     )} are missing from the package.json file manifest. Please double check your versions`
   );
 }
 
-if (!["push", "load"].includes(action)) {
+if (!['push', 'load'].includes(action)) {
   throw new Error(`--actions must be one of push or load`);
 }
+
+console.log(
+  `Building versions: ${requestedVersions.join(', ')} and ${action}ing into docker`
+);
 
 async function cleanup() {
   await $`rm -rf browser.json`;
@@ -57,10 +61,10 @@ const deployVersion = async (tags, pptrVersion) => {
 
   const puppeteerVersion = versionInfo.puppeteer;
   const puppeteerChromiumRevision = versionInfo.chromeRevision;
-  const platform = versionInfo.platform || "linux/amd64";
+  const platform = versionInfo.platform || 'linux/amd64';
 
   const [patchBranch, minorBranch, majorBranch] = tags;
-  const isChromeStable = majorBranch.includes("chrome-stable");
+  const isChromeStable = majorBranch.includes('chrome-stable');
 
   process.env.PUPPETEER_CHROMIUM_REVISION = puppeteerChromiumRevision;
   process.env.USE_CHROME_STABLE = false;
@@ -73,8 +77,7 @@ const deployVersion = async (tags, pptrVersion) => {
   }
 
   const browserFetcher = puppeteer.createBrowserFetcher({
-    product: "chrome",
-    path: `../`,
+    product: 'chrome'
   });
 
   const executablePath = browserFetcher.revisionInfo(
@@ -86,19 +89,19 @@ const deployVersion = async (tags, pptrVersion) => {
 
   const port = await getPort();
   const browser = await puppeteer.launch({
-    executablePath: isChromeStable ? "/usr/bin/google-chrome" : executablePath,
-    args: [`--remote-debugging-port=${port}`, "--no-sandbox"],
+    executablePath: isChromeStable ? '/usr/bin/google-chrome' : executablePath,
+    args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
   });
 
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
   const versionJson = await res.json();
-  const debuggerVersion = versionJson["WebKit-Version"].match(
+  const debuggerVersion = versionJson['WebKit-Version'].match(
     /\s\(@(\b[0-9a-f]{5,40}\b)/
   )[1];
 
   await Promise.all([
     fs.writeFile(
-      "browser.json",
+      'browser.json',
       JSON.stringify({
         ...versionJson,
         puppeteerVersion,
@@ -108,7 +111,7 @@ const deployVersion = async (tags, pptrVersion) => {
     browser.close(),
   ]);
 
-  const chromeStableArg = isChromeStable ? "true" : "false";
+  const chromeStableArg = isChromeStable ? 'true' : 'false';
 
   // docker build
   await $`docker buildx build \
@@ -119,9 +122,9 @@ const deployVersion = async (tags, pptrVersion) => {
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
   --label "browser=${versionJson.Browser}" \
-  --label "protocolVersion=${versionJson["Protocol-Version"]}" \
-  --label "v8Version=${versionJson["V8-Version"]}" \
-  --label "webkitVersion=${versionJson["WebKit-Version"]}" \
+  --label "protocolVersion=${versionJson['Protocol-Version']}" \
+  --label "v8Version=${versionJson['V8-Version']}" \
+  --label "webkitVersion=${versionJson['WebKit-Version']}" \
   --label "debuggerVersion=${debuggerVersion}" \
   --label "puppeteerVersion=${puppeteerVersion}" \
   -t ${REPO}:${patchBranch} \
@@ -142,8 +145,8 @@ const deployVersion = async (tags, pptrVersion) => {
 };
 
 (async function deploy() {
-  const versions = map(releaseVersions, (pptrVersion) => {
-    const [major, minor, patch] = version.split(".");
+  const buildVersions = map(requestedVersions, (pptrVersion) => {
+    const [major, minor, patch] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${pptrVersion}`;
     const minorBranch = `${major}.${minor}-${pptrVersion}`;
@@ -156,7 +159,7 @@ const deployVersion = async (tags, pptrVersion) => {
     };
   });
 
-  await versions.reduce(
+  await buildVersions.reduce(
     (lastJob, { tags, pptrVersion }) =>
       lastJob
         .then(() => deployVersion(tags, pptrVersion))
