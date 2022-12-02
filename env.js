@@ -79,10 +79,7 @@ const PUPPETEER_BINARY_LOCATION = (() => {
     return playwright.chromium.executablePath();
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome',
-    path: `./`,
-  });
+  const browserFetcher = puppeteer.createBrowserFetcher({ product: 'chrome' });
 
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
     .executablePath;

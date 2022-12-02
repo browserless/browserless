@@ -133,10 +133,7 @@ const downloadChromium = () => {
   );
 
   return puppeteer
-    .createBrowserFetcher({
-      product: 'chrome',
-      path: `./`,
-    })
+    .createBrowserFetcher({ product: 'chrome' })
     .download(PUPPETEER_CHROMIUM_REVISION);
 };
 
