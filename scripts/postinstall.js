@@ -128,16 +128,20 @@ const downloadChromium = () => {
     return Promise.resolve();
   }
 
+  const browserFetcher = puppeteer.createBrowserFetcher({
+    product: 'chrome',
+    path: `../`,
+  });
+
+  const executablePath = browserFetcher
+    .revisionInfo(PUPPETEER_CHROMIUM_REVISION)
+    .executablePath;
+
   console.log(
-    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`,
+    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION} at "${executablePath}"`,
   );
 
-  return puppeteer
-    .createBrowserFetcher({
-      product: 'chrome',
-      path: './',
-    })
-    .download(PUPPETEER_CHROMIUM_REVISION);
+  return browserFetcher.download(PUPPETEER_CHROMIUM_REVISION);
 };
 
 const downloadChromedriver = () => {
