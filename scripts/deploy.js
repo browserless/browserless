@@ -20,9 +20,13 @@ if (!BASE_VERSION) {
   );
 }
 
-const requestedVersions = argv.versions ? argv.versions.split(',') : releaseVersions;
+const requestedVersions = argv.versions
+  ? argv.versions.split(',')
+  : releaseVersions;
 const action = argv.action ? argv.action : 'push';
-const missingVersions = requestedVersions.filter((v) => !releaseVersions.includes(v));
+const missingVersions = requestedVersions.filter(
+  (v) => !releaseVersions.includes(v)
+);
 
 // Validate arg parsing
 if (missingVersions.length) {
@@ -38,7 +42,9 @@ if (!['push', 'load'].includes(action)) {
 }
 
 console.log(
-  `Building versions: ${requestedVersions.join(', ')} and ${action}ing into docker`
+  `Building versions: ${requestedVersions.join(
+    ', '
+  )} and ${action}ing into docker`
 );
 
 async function cleanup() {
@@ -74,14 +80,9 @@ const deployVersion = async (tags, pptrVersion) => {
     process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome',
-    path: `./`,
-  });
-
-  const executablePath = browserFetcher.revisionInfo(
-    puppeteerChromiumRevision
-  ).executablePath;
+  const executablePath = puppeteer
+    .createBrowserFetcher({ product: 'chrome' })
+    .revisionInfo(puppeteerChromiumRevision).executablePath;
 
   await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
   await $`npm run postinstall`;
