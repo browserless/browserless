@@ -142,8 +142,6 @@ const deployVersion = async (tags, pptrVersion) => {
 };
 
 (async function deploy() {
-  await $`export PUPPETEER_CACHE_DIR=${process.cwd()}`;
-
   const buildVersions = map(requestedVersions, (pptrVersion) => {
     const [major, minor, patch] = version.split('.');
 

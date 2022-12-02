@@ -1,5 +1,8 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-useless-escape */
+// Has to happen prior to requires so modules can read
+process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || process.cwd();
+
 const os = require('os');
 
 const playwright = require('playwright-core');
