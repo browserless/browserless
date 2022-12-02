@@ -12,8 +12,9 @@ const argv = require('yargs').argv;
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
+const BASE_VERSION = argv.base;
 
-if (!argv.base) {
+if (!BASE_VERSION) {
   throw new Error(
     `Expected a --base switch to tag the ${REPO} repo with, but none was found, eg: "npm run deploy -- --base 1.19.0".`
   );

@@ -41,7 +41,7 @@ const {
 
 const browserlessTmpDir = path.join(
   os.tmpdir(),
-  `browserless-devtools-${Date.now()}`,
+  `browserless-devtools-${Date.now()}`
 );
 
 const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
@@ -66,7 +66,7 @@ const downloadUrlToDirectory = (url, dir) =>
           .pipe(fs.createWriteStream(dir))
           .on('error', reject)
           .on('finish', resolve);
-      }),
+      })
   );
 
 const unzip = async (source, target) => extract(source, { dir: target });
@@ -85,7 +85,7 @@ const waitForFile = async (filePath) =>
     const interval = setInterval(() => fs.existsSync(filePath) && done(), 100);
     const timeout = setTimeout(
       () => done(`Timeout waiting for file ${filePath}`),
-      5000,
+      5000
     );
   });
 
@@ -93,7 +93,7 @@ const downloadAdBlockList = () => {
   console.log(`Downloading ad-blocking list`);
 
   return fetch(
-    'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',
+    'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts'
   )
     .then((res) => res.text())
     .then((raw) =>
@@ -107,7 +107,7 @@ const downloadAdBlockList = () => {
           return null;
         })
         .reject(_.isNil)
-        .value(),
+        .value()
     )
     .then((hostsArr) => {
       fs.writeFileSync(hostsJson, JSON.stringify(hostsArr, null, '  '));
@@ -128,32 +128,28 @@ const downloadChromium = () => {
     return Promise.resolve();
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome',
-    path: `../`,
-  });
-
-  const executablePath = browserFetcher
-    .revisionInfo(PUPPETEER_CHROMIUM_REVISION)
-    .executablePath;
-
   console.log(
-    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION} at "${executablePath}"`,
+    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}"`
   );
 
-  return browserFetcher.download(PUPPETEER_CHROMIUM_REVISION);
+  return puppeteer
+    .createBrowserFetcher({
+      product: 'chrome',
+      path: `./`,
+    })
+    .download(PUPPETEER_CHROMIUM_REVISION);
 };
 
 const downloadChromedriver = () => {
   if (USE_CHROME_STABLE) {
     console.log(
-      'chromedriver binary already installed, not proceeding with chromedriver',
+      'chromedriver binary already installed, not proceeding with chromedriver'
     );
     return Promise.resolve();
   }
 
   console.log(
-    `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`,
+    `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`
   );
 
   const chromedriverZipFolder = (() => {
@@ -167,7 +163,7 @@ const downloadChromedriver = () => {
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
     chromedriverZipFolder,
-    chromedriverBin,
+    chromedriverBin
   );
   const chromedriverFinalPath = path.join(
     __dirname,
@@ -176,7 +172,7 @@ const downloadChromedriver = () => {
     'chromedriver',
     'lib',
     'chromedriver',
-    'chromedriver',
+    'chromedriver'
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
@@ -190,14 +186,14 @@ const downloadChromedriver = () => {
 
 const downloadDevTools = () => {
   console.log(
-    `Downloading devtools assets for revision ${PUPPETEER_CHROMIUM_REVISION}`,
+    `Downloading devtools assets for revision ${PUPPETEER_CHROMIUM_REVISION}`
   );
   const devtoolsTmpZip = path.join(browserlessTmpDir, 'devtools');
   const devtoolsUnzippedPath = path.join(
     browserlessTmpDir,
     'devtools-frontend',
     'resources',
-    'inspector',
+    'inspector'
   );
   const devtoolsFinalPath = path.join(__dirname, '..', 'devtools');
 
@@ -226,16 +222,16 @@ const downloadDevTools = () => {
       if (IS_DOCKER && !fs.existsSync(CHROME_BINARY_LOCATION)) {
         if (!USE_CHROME_STABLE && !fs.existsSync(PUPPETEER_BINARY_LOCATION)) {
           throw new Error(
-            `Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`,
+            `Couldn't find chromium at path: "${PUPPETEER_BINARY_LOCATION}"`
           );
         }
 
         (async () => {
           console.log(
-            `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`,
+            `Symlinking chrome from ${CHROME_BINARY_LOCATION} to ${PUPPETEER_BINARY_LOCATION}`
           );
           await exec(
-            `ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`,
+            `ln -s ${PUPPETEER_BINARY_LOCATION} ${CHROME_BINARY_LOCATION}`
           );
         })();
       }
@@ -248,7 +244,7 @@ const downloadDevTools = () => {
         console.log('Done unpacking chromedriver and devtools assets');
         if (err) {
           console.warn(
-            `Error removing temporary directory ${browserlessTmpDir}`,
+            `Error removing temporary directory ${browserlessTmpDir}`
           );
         }
         resolve();
