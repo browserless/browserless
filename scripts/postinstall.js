@@ -129,7 +129,7 @@ const downloadChromium = () => {
   }
 
   console.log(
-    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}"`
+    `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`
   );
 
   return puppeteer
