@@ -134,7 +134,7 @@ const downloadChromium = () => {
   });
 
   const executablePath = browserFetcher
-    .revisionInfo(puppeteerChromiumRevision)
+    .revisionInfo(PUPPETEER_CHROMIUM_REVISION)
     .executablePath;
 
   console.log(
