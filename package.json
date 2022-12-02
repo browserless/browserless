@@ -50,7 +50,7 @@
     "puppeteer-13.1.3": {
       "puppeteer": "13.1.3",
       "chromeRevision": "950341",
-      "platform": "linux/amd64"
+      "platform": "linux/amd64,linux/arm64"
     },
     "puppeteer-14.4.1": {
       "puppeteer": "14.4.1",
@@ -140,7 +140,7 @@
     "playwright-1.27": "npm:playwright-core@1.27.1",
     "playwright-core": "^1.28.1",
     "prom-client": "^14.1.0",
-    "puppeteer": "^19.3.0",
+    "puppeteer": "16.2.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.11.1",
     "queue": "^6.0.0",
@@ -167,6 +167,7 @@
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.8.0",
     "simple-git-hooks": "^2.8.1",
+    "yargs": "^17.6.2",
     "zx": "^7.1.1"
   },
   "overrides": {
