@@ -15,7 +15,7 @@ const { releaseVersions, chromeVersions } = require('../package.json');
     await $`npm install --silent --save --save-exact puppeteer@${version} && npm run build`;
     await $`docker buildx build \
     --load \
-    --platform linux/arm64 \
+    --platform linux/amd64 \
     --build-arg "BASE_VERSION=latest" \
     --build-arg "USE_CHROME_STABLE=false" \
     --build-arg "PUPPETEER_CHROMIUM_REVISION=${chromeVersion}" \
