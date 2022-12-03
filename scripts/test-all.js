@@ -24,7 +24,7 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       --build-arg "USE_CHROME_STABLE=false" \
       -t browserless/chrome:${version} \
       .`;
-      await $`docker run --ipc=host -e CI=true --entrypoint ./test-all.sh browserless/chrome:${version}`;
+      await $`docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${version}`;
     } catch (err) {
       console.error(
         `Error running tests for ${version} of puppeteer: ${err.message}`,
