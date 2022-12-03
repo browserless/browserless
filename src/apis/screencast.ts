@@ -1,7 +1,7 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
-import * as puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer';
 
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';

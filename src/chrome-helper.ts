@@ -16,7 +16,7 @@ import _ from 'lodash';
 import fetch from 'node-fetch';
 // @ts-ignore no types
 import { BrowserServer } from 'playwright-core';
-import * as puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import treeKill from 'tree-kill';
