@@ -16,7 +16,7 @@ const BASE_VERSION = argv.base;
 
 if (!BASE_VERSION) {
   throw new Error(
-    `Expected a --base switch to tag the ${REPO} repo with, but none was found, eg: "npm run deploy -- --base 1.19.0".`
+    `Expected a --base switch to tag the ${REPO} repo with, but none was found, eg: "npm run deploy -- --base 1.19.0".`,
   );
 }
 
@@ -25,15 +25,15 @@ const requestedVersions = argv.versions
   : releaseVersions;
 const action = argv.action ? argv.action : 'push';
 const missingVersions = requestedVersions.filter(
-  (v) => !releaseVersions.includes(v)
+  (v) => !releaseVersions.includes(v),
 );
 
 // Validate arg parsing
 if (missingVersions.length) {
   throw new Error(
     `Versions: ${missingVersions.join(
-      ', '
-    )} are missing from the package.json file manifest. Please double check your versions`
+      ', ',
+    )} are missing from the package.json file manifest. Please double check your versions`,
   );
 }
 
@@ -43,8 +43,8 @@ if (!['push', 'load'].includes(action)) {
 
 console.log(
   `Building versions: ${requestedVersions.join(
-    ', '
-  )} and ${action}ing into docker`
+    ', ',
+  )} and ${action}ing into docker`,
 );
 
 async function cleanup() {
@@ -59,7 +59,7 @@ const deployVersion = async (tags, pptrVersion) => {
 
   if (!versionInfo) {
     throw new Error(
-      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`
+      `Couldn't locate version info for puppeteer version ${pptrVersion}. Did you forget to add it to the package.json?`,
     );
   }
 
@@ -96,7 +96,7 @@ const deployVersion = async (tags, pptrVersion) => {
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
   const versionJson = await res.json();
   const debuggerVersion = versionJson['WebKit-Version'].match(
-    /\s\(@(\b[0-9a-f]{5,40}\b)/
+    /\s\(@(\b[0-9a-f]{5,40}\b)/,
   )[1];
 
   await Promise.all([
@@ -106,7 +106,7 @@ const deployVersion = async (tags, pptrVersion) => {
         ...versionJson,
         puppeteerVersion,
         debuggerVersion,
-      })
+      }),
     ),
     browser.close(),
   ]);
@@ -133,11 +133,11 @@ const deployVersion = async (tags, pptrVersion) => {
 
   await $`git add --force hosts.json browser.json`.catch(noop);
   await $`git commit --quiet -m "DEPLOY.js committing files for tag ${patchBranch}"`.catch(
-    noop
+    noop,
   );
   await $`git tag --force ${patchBranch}`;
   await $`git push origin ${patchBranch} --force --quiet --no-verify &> /dev/null`.catch(
-    noop
+    noop,
   );
 
   // git reset for next update
@@ -167,6 +167,6 @@ const deployVersion = async (tags, pptrVersion) => {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
         }),
-    Promise.resolve()
+    Promise.resolve(),
   );
 })();

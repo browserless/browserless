@@ -26,7 +26,9 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       .`;
       await $`docker run --ipc=host -e CI=true --entrypoint ./test-all.sh browserless/chrome:${version}`;
     } catch (err) {
-      console.error(`Error running tests for ${version} of puppeteer: ${err.message}`);
+      console.error(
+        `Error running tests for ${version} of puppeteer: ${err.message}`,
+      );
       process.exit(1);
     }
     console.log(`Successfully ran all tests!`);

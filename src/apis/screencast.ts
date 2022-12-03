@@ -116,7 +116,8 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await page.bringToFront();
 
     await renderer.evaluateHandle(
-      (screencastAPI: any, width: number, height: number) => screencastAPI.start({ width, height }),
+      (screencastAPI: any, width: number, height: number) =>
+        screencastAPI.start({ width, height }),
       screencastAPI,
       viewport.width,
       viewport.height,
