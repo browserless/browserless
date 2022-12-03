@@ -12,7 +12,7 @@
  *    html: '<div>example</div>
  *    options: {
  *      ...
- *      see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions for available options
+ *      see https://github.com/GoogleChrome/puppeteer for available options
  *    }
  *  },
  * });
