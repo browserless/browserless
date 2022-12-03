@@ -1,10 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-useless-escape */
 
-// Has to happen prior to requires so modules can read
-process.env.PUPPETEER_CACHE_DIR =
-  process.env.PUPPETEER_CACHE_DIR || process.cwd();
-
 const os = require('os');
 
 const playwright = require('playwright-core');
@@ -25,8 +21,8 @@ const LINUX_ARM64 = 'LINUX_ARM64';
 
 const CHROME_BINARY_PATHS = {
   LINUX: '/usr/bin/google-chrome',
-  MAC: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  WIN: 'C:Program Files (x86)GoogleChromeApplicationchrome.exe',
+  MAC: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
+  WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
 };
 
 const PLATFORM =
