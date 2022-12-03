@@ -25,6 +25,7 @@
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
     "start": "node ./build",
     "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
+    "test-all": "./scripts/test-all.js",
     "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
     "postinstall": "node ./scripts/postinstall.js",
     "snyk-protect": "snyk protect",
@@ -167,6 +168,7 @@
     "eslint-plugin-import": "^2.24.0",
     "prettier": "^2.8.0",
     "simple-git-hooks": "^2.8.1",
+    "yargs": "^17.6.2",
     "zx": "^7.1.1"
   },
   "overrides": {

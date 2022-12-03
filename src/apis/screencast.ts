@@ -1,7 +1,7 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
-import * as puppeteer from 'puppeteer';
+import { Page } from 'puppeteer';
 
 import { WORKSPACE_DIR } from '../config';
 import { IBefore } from '../types.d';
@@ -107,7 +107,7 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     }, downloadName);
 
   const startScreencast = async () => {
-    const viewport = page.viewport() as ReturnType<puppeteer.Page['viewport']>;
+    const viewport = page.viewport() as ReturnType<Page['viewport']>;
 
     if (!viewport) {
       throw new Error(`Couldn't obtain the page's viewport!`);
@@ -116,7 +116,8 @@ export const before = async ({ page, code, debug, browser }: IBefore) => {
     await page.bringToFront();
 
     await renderer.evaluateHandle(
-      (screencastAPI: any, width: number, height: number) => screencastAPI.start({ width, height }),
+      (screencastAPI: any, width: number, height: number) =>
+        screencastAPI.start({ width, height }),
       screencastAPI,
       viewport.width,
       viewport.height,

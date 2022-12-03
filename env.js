@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-useless-escape */
+
 const os = require('os');
 
 const playwright = require('playwright-core');
@@ -74,10 +75,7 @@ const PUPPETEER_BINARY_LOCATION = (() => {
     return playwright.chromium.executablePath();
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome',
-    path: `./`,
-  });
+  const browserFetcher = puppeteer.createBrowserFetcher({ product: 'chrome' });
 
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
     .executablePath;
