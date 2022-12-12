@@ -127,7 +127,7 @@
     "get-port": "^5.0.0",
     "http-proxy": "^1.16.2",
     "joi": "^17.7.0",
-    "joi-to-swagger": "^6.1.1",
+    "joi-to-swagger": "^6.2.0",
     "lighthouse": "^9.6.8",
     "lodash": "^4.17.11",
     "mocha": "^10.1.0",
