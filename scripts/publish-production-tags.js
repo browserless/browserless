@@ -75,7 +75,7 @@ const deployVersion = async (tags, v) => {
 (async function deploy() {
   await $`docker buildx build --push --platform linux/amd64,linux/arm64 -t browserless/base:${version} base`;
 
-  const buildVersions = map(requestedVersions, (pV) => {
+  const buildVersions = map(releaseVersions, (pV) => {
     const [major, minor, patch] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${pV}`;
