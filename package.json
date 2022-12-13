@@ -23,55 +23,56 @@
     "deploy": "./scripts/deploy.js",
     "deploy-base": "./scripts/deploy-base.js",
     "dev": "npm run build && env-cmd -f ./.env.dev node build/index.js",
+    "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
+    "lint": "eslint src --ext .ts --fix",
+    "postinstall": "node ./scripts/postinstall.js",
+    "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
+    "publish-production-tags": "./scripts/publish-production-tags.js",
+    "snyk-protect": "snyk protect",
     "start": "node ./build",
     "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
-    "test-all": "./scripts/test-all.js",
-    "external": "rimraf debugger/devtools && node ./scripts/install-external-deps.js",
-    "postinstall": "node ./scripts/postinstall.js",
-    "snyk-protect": "snyk protect",
-    "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
-    "lint": "eslint src --ext .ts --fix"
+    "test-all": "./scripts/test-all.js"
   },
   "chromeVersions": {
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
       "chromeRevision": "686378",
-      "platform": "linux/amd64"
+      "platforms": ["linux/amd64"]
     },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
       "chromeRevision": "869685",
-      "platform": "linux/amd64,linux/arm64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "puppeteer-10.4.0": {
       "puppeteer": "10.4.0",
       "chromeRevision": "901912",
-      "platform": "linux/amd64,linux/arm64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "puppeteer-13.1.3": {
       "puppeteer": "13.1.3",
       "chromeRevision": "950341",
-      "platform": "linux/amd64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "puppeteer-14.4.1": {
       "puppeteer": "14.4.1",
       "chromeRevision": "991974",
-      "platform": "linux/amd64,linux/arm64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "puppeteer-16.2.0": {
       "puppeteer": "16.2.0",
       "chromeRevision": "1022525",
-      "platform": "linux/amd64,linux/arm64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "puppeteer-19.4.0": {
       "puppeteer": "19.4.0",
       "chromeRevision": "1069273",
-      "platform": "linux/amd64,linux/arm64"
+      "platforms": ["linux/amd64", "linux/arm64"]
     },
     "chrome-stable": {
       "puppeteer": "19.4.0",
       "chromeRevision": "1069273",
-      "platform": "linux/amd64"
+      "platforms": ["linux/amd64"]
     }
   },
   "playwrightVersions": {
@@ -141,7 +142,7 @@
     "playwright-1.27": "npm:playwright-core@1.27.1",
     "playwright-core": "^1.28.1",
     "prom-client": "^14.1.0",
-    "puppeteer": "^19.4.0",
+    "puppeteer": "^16.2.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.11.1",
     "queue": "^6.0.0",
@@ -177,9 +178,7 @@
     }
   },
   "mocha": {
-    "extension": [
-      "ts"
-    ],
+    "extension": ["ts"],
     "spec": "src/tests/**/*.spec.ts",
     "require": "ts-node/register"
   },
