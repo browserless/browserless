@@ -37,42 +37,64 @@
     "puppeteer-1.20.0": {
       "puppeteer": "1.20.0",
       "chromeRevision": "686378",
-      "platforms": ["linux/amd64"]
+      "platforms": [
+        "linux/amd64"
+      ]
     },
     "puppeteer-9.1.1": {
       "puppeteer": "9.1.1",
       "chromeRevision": "869685",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "puppeteer-10.4.0": {
       "puppeteer": "10.4.0",
       "chromeRevision": "901912",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "puppeteer-13.1.3": {
       "puppeteer": "13.1.3",
       "chromeRevision": "950341",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "puppeteer-14.4.1": {
       "puppeteer": "14.4.1",
       "chromeRevision": "991974",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "puppeteer-16.2.0": {
       "puppeteer": "16.2.0",
       "chromeRevision": "1022525",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "puppeteer-19.4.0": {
       "puppeteer": "19.4.0",
       "chromeRevision": "1069273",
-      "platforms": ["linux/amd64", "linux/arm64"]
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
     },
     "chrome-stable": {
       "puppeteer": "19.4.0",
       "chromeRevision": "1069273",
-      "platforms": ["linux/amd64"]
+      "platforms": [
+        "linux/amd64"
+      ]
     }
   },
   "playwrightVersions": {
@@ -142,7 +164,7 @@
     "playwright-1.27": "npm:playwright-core@1.27.1",
     "playwright-core": "^1.28.1",
     "prom-client": "^14.1.0",
-    "puppeteer": "^16.2.0",
+    "puppeteer": "^19.4.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.11.1",
     "queue": "^6.0.0",
@@ -178,7 +200,9 @@
     }
   },
   "mocha": {
-    "extension": ["ts"],
+    "extension": [
+      "ts"
+    ],
     "spec": "src/tests/**/*.spec.ts",
     "require": "ts-node/register"
   },
