@@ -29,5 +29,4 @@ jobs:
         run: npm i
 
       - name: Build, test and push production tags
-        uses: docker/build-push-action@v2
         run: npm run publish-production-tags
