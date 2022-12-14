@@ -7,18 +7,9 @@ const tag = process.env.GITHUB_REF_NAME;
 if (!tag) {
   throw new Error(`No $GITHUB_REF_NAME found, exiting`);
 }
-const [major, minor, patch] = tag.split('.');
-
-if (
-  typeof major === 'undefined' ||
-  typeof minor === 'undefined' ||
-  typeof patch === 'undefined'
-) {
-  throw new Error(`Tag format must use semantic versioning, eg "1.1.1"`);
-}
 
 console.log(
-  `Building production versions: ${releaseVersions.join(
+  `Testing versions: ${releaseVersions.join(
     ', '
   )} of browserless/chrome`
 );
@@ -31,33 +22,28 @@ console.log(
         `Couldn't locate version info for puppeteer version ${version}. Did you forget to add it to the package.json?`
       );
     }
+
     const puppeteerVersion = versionInfo.puppeteer;
     const puppeteerChromiumRevision = versionInfo.chromeRevision;
     const isChromeStable = releaseVersions === 'chrome-stable';
     const chromeStableArg = isChromeStable ? 'true' : 'false';
 
-    const patchBranch = `${major}.${minor}.${patch}-${version}`;
-    const minorBranch = `${major}.${minor}-${version}`;
-    const majorBranch = `${major}-${version}`;
-
     try {
-      await $`docker buildx build \
-      --push \
-      --platform ${platforms.join(',')} \
-      --build-arg "BASE_VERSION=${version}" \
+      await $`docker build \
+      --build-arg "BASE_VERSION=${tag}" \
       --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
       --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
       --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
-      -t browserless/chrome:${patchBranch} \
-      -t browserless/chrome:${minorBranch} \
-      -t browserless/chrome:${majorBranch} .`;
+      -t browserless/chrome:${tag}-${version} .`;
+
+      await $`docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${tag}-${version}`;
     } catch (err) {
       console.error(
-        `Error building for ${version} of puppeteer: ${err.message}`
+        `Error running tests for ${version} of puppeteer: ${err.message}`,
       );
       process.exit(1);
     }
-    console.log(`Successfully built ${versions.join(', ')} versions!`);
+    console.log(`Successfully ran tests for ${versions.join(', ')}!`);
     process.exit(0);
   }
 })();

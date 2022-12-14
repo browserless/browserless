@@ -31,7 +31,7 @@
     "snyk-protect": "snyk protect",
     "start": "node ./build",
     "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
-    "test-all": "./scripts/test-all.js"
+    "test-production-tags": "./scripts/test-production-tags.js"
   },
   "chromeVersions": {
     "puppeteer-1.20.0": {

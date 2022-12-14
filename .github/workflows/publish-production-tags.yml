@@ -1,4 +1,4 @@
-name: Publish a production tag to Docker
+name: Test and publish production tags
 
 on:
   release:
@@ -25,8 +25,14 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v1
 
+      - name: Build a production browserless/base image
+        run: docker buildx build --push --platform linux/arm64,linux/amd64 -t browserless/base:$GITHUB_REF_NAME base
+
       - name: Install npm modules
         run: npm i
 
-      - name: Build, test and push production tags
+      - name: Test production tags
+        run: npm run test-production-tags
+
+      - name: Publish production tags
         run: npm run publish-production-tags
