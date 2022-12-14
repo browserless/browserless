@@ -57,7 +57,7 @@ console.log(
       );
       process.exit(1);
     }
-    console.log(`Successfully built ${versions.join(', ')} versions!`);
-    process.exit(0);
   }
+  console.log(`Successfully built ${releaseVersions.join(', ')} versions!`);
+  process.exit(0);
 })();
