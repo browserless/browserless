@@ -171,7 +171,7 @@
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
     "selenium-webdriver": "^4.7.1",
-    "sharp": "^0.31.2",
+    "sharp": "^0.31.3",
     "snyk": "^1.1074.0",
     "swagger-ui-express": "^4.6.0",
     "systeminformation": "^5.16.6",
