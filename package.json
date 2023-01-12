@@ -188,7 +188,7 @@
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
     "eslint": "^8.31.0",
-    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-import": "^2.27.4",
     "prettier": "^2.8.2",
     "simple-git-hooks": "^2.8.1",
     "yargs": "^17.6.2",
