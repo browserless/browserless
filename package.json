@@ -83,7 +83,7 @@
     },
     "puppeteer-19.6.0": {
       "puppeteer": "19.6.0",
-      "chromeRevision": "1083080",
+      "chromeRevision": "1069273",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
@@ -91,7 +91,7 @@
     },
     "chrome-stable": {
       "puppeteer": "19.6.0",
-      "chromeRevision": "1083080",
+      "chromeRevision": "1069273",
       "platforms": [
         "linux/amd64"
       ]
