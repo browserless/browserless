@@ -670,6 +670,9 @@ export const launchChromeDriver = async ({
             ? await pptrExtra.connect({ browserWSEndpoint })
             : await puppeteer.connect({ browserWSEndpoint });
 
+          // Chromedriver boot-loops if it can't hook into an existing page
+          (await browser.pages()).length || (await browser.newPage());
+
           iBrowser = await setupBrowser({
             blockAds,
             browser,
