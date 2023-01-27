@@ -13,8 +13,8 @@ if (!version) {
 
 console.log(
   `Building versions: ${releaseVersions.join(
-    ', '
-  )}, testing and pushing into docker`
+    ', ',
+  )}, testing and pushing into docker`,
 );
 
 const deployVersion = async (tags, v) => {
@@ -22,7 +22,7 @@ const deployVersion = async (tags, v) => {
 
   if (!versionInfo) {
     throw new Error(
-      `Couldn't locate version info for puppeteer version ${v}. Did you forget to add it to the package.json?`
+      `Couldn't locate version info for puppeteer version ${v}. Did you forget to add it to the package.json?`,
     );
   }
 
@@ -58,8 +58,8 @@ const deployVersion = async (tags, v) => {
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
   -t browserless/chrome:${patchBranch} \
   -t browserless/chrome:${minorBranch} \
-  -t browserless/chrome:${majorBranch} .`
-    )
+  -t browserless/chrome:${majorBranch} .`,
+    ),
   );
 
   // Test the image prior to pushing it
@@ -96,6 +96,6 @@ const deployVersion = async (tags, v) => {
           console.log(`Error in build (${version}): `, error);
           process.exit(1);
         }),
-    Promise.resolve()
+    Promise.resolve(),
   );
 })();
