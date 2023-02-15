@@ -215,8 +215,8 @@ export class BrowserlessServer {
     debug(`Using configuration: `);
     debug(config);
 
-    if (config.SHOW_NETWORK_INFO) util.printNetworkInfo(debug, config.PORT);
-    if (config.SHOW_GET_STARTED_LINKS) util.printGetStartedLinks(debug);
+    if (config.PRINT_NETWORK_INFO) util.printNetworkInfo(debug, config.PORT);
+    if (config.PRINT_GET_STARTED_LINKS) util.printGetStartedLinks(debug);
   }
 
   public async getMetrics() {
