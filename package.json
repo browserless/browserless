@@ -166,7 +166,7 @@
     "playwright-1.29": "npm:playwright-core@1.29.2",
     "playwright-core": "^1.30.0",
     "prom-client": "^14.1.1",
-    "puppeteer": "^19.6.3",
+    "puppeteer": "^19.7.0",
     "puppeteer-extra": "^3.1.15",
     "puppeteer-extra-plugin-stealth": "^2.11.1",
     "queue": "^6.0.0",
@@ -185,8 +185,8 @@
     "vm2": "^3.9.14"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.51.0",
-    "@typescript-eslint/parser": "^5.51.0",
+    "@typescript-eslint/eslint-plugin": "^5.52.0",
+    "@typescript-eslint/parser": "^5.52.0",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.0.0",
     "eslint": "^8.34.0",
