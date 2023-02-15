@@ -10,7 +10,7 @@ import util from 'util';
 import cookie from 'cookie';
 import dbg from 'debug';
 import express from 'express';
-
+import ip from 'ip';
 import { Schema } from 'joi';
 import _ from 'lodash';
 
@@ -710,4 +710,21 @@ export const getCDPClient = (page: Page): CDPSession => {
   const c = page._client;
 
   return typeof c === 'function' ? c.call(page) : c;
+};
+
+export const printGetStartedLinks = (debug: dbg.Debugger) => {
+  debug(`
+Get started at\t https://www.browserless.io/docs/start
+Get a license at\t https://www.browserless.io/sign-up?type=commercial
+Get support at\t https://www.browserless.io/contact
+
+Happy coding!
+`);
+};
+
+export const printNetworkInfo = (debug: dbg.Debugger, port: number) => {
+  debug(`\n
+Running on port ${port}
+\tLocalhost\t ws:localhost:${port}
+\tLocal network\t ws:${ip.address()}:${port}`);
 };

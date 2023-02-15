@@ -211,7 +211,12 @@ export class BrowserlessServer {
     process.on('SIGTERM', boundClose);
     process.on('SIGINT', boundClose);
 
-    debug(require('./config'), `Final configuration`);
+    const config = require('./config');
+    debug(`Using configuration: `);
+    debug(config);
+
+    if (config.SHOW_NETWORK_INFO) util.printNetworkInfo(debug, config.PORT);
+    if (config.SHOW_GET_STARTED_LINKS) util.printGetStartedLinks(debug);
   }
 
   public async getMetrics() {
