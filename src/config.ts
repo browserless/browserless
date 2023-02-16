@@ -157,6 +157,14 @@ export const PREBOOT_CHROME: boolean = parseJSONParam(
   process.env.PREBOOT_CHROME,
   false,
 );
+export const PRINT_GET_STARTED_LINKS: boolean = parseJSONParam(
+  process.env.PRINT_GET_STARTED_LINKS,
+  true,
+);
+export const PRINT_NETWORK_INFO: boolean = parseJSONParam(
+  process.env.PRINT_NETWORK_INFO,
+  true,
+);
 
 // Security and accessibility
 export const DEBUG: string | undefined = getDebug();
