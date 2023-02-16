@@ -341,6 +341,9 @@ export class PuppeteerProvider {
 
     jobdebug(`${jobId}: ${req.url}: Inbound WebSocket request.`);
 
+    // Causes issues with browsers running puppeteer to connect
+    delete req.headers.origin;
+
     // Catch actual running pages and route them appropriately
     if (
       route.includes('/devtools/page') &&
