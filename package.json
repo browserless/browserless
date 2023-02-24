@@ -176,7 +176,7 @@
     "sharp": "^0.31.3",
     "snyk": "^1.1108.0",
     "swagger-ui-express": "^4.6.1",
-    "systeminformation": "^5.17.9",
+    "systeminformation": "^5.17.10",
     "table": "^6.8.1",
     "tree-kill": "^1.2.0",
     "ts-node": "^10.8.0",
