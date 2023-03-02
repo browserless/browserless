@@ -168,7 +168,7 @@
     "prom-client": "^14.1.1",
     "puppeteer": "^19.7.2",
     "puppeteer-extra": "^3.1.15",
-    "puppeteer-extra-plugin-stealth": "^2.11.1",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
