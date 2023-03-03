@@ -37,7 +37,7 @@ const browserless = new BrowserlessServer({
 });
 
 (async () => {
-  clearBrowserlessDataDirs();
+  await clearBrowserlessDataDirs();
   browserless.startServer();
 })();
 
