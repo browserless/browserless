@@ -1,5 +1,6 @@
 import { BrowserlessServer } from './browserless';
 import * as config from './config';
+import { removeTempDirs } from './utils';
 
 const browserless = new BrowserlessServer({
   allowFileProtocol: config.ALLOW_FILE_PROTOCOL,
@@ -35,7 +36,7 @@ const browserless = new BrowserlessServer({
   socketBehavior: config.SOCKET_CLOSE_METHOD,
 });
 
-browserless.startServer();
+removeTempDirs().then(() => browserless.startServer());
 
 process
   .on('unhandledRejection', (reason, promise) => {
