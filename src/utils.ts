@@ -40,6 +40,7 @@ const { CHROME_BINARY_LOCATION } = require('../env');
 const mkdtemp = util.promisify(fs.mkdtemp);
 
 const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const browserlessDataDirPrefix = 'browserless-data-dir-';
 
 export const jsonProtocolPrefix = 'BROWSERLESS';
 export const lstat = util.promisify(fs.lstat);
@@ -454,8 +455,6 @@ export const fnLoader = (fnName: string) =>
     path.join(__dirname, '..', 'functions', `${fnName}.js`),
     'utf8',
   );
-
-const browserlessDataDirPrefix = 'browserless-data-dir-';
 
 export const getUserDataDir = () =>
   mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
