@@ -50,6 +50,14 @@ export class PuppeteerProvider {
     );
   }
 
+  public setSwarm(swarm: IBrowser[]) {
+    this.chromeSwarm = new AsyncArray();
+
+    swarm.forEach((browser) => {
+      this.chromeSwarm.push(browser);
+    });
+  }
+
   public async start() {
     if (this.config.prebootChrome) {
       sysdebug(
@@ -576,7 +584,7 @@ export class PuppeteerProvider {
 
       jobdebug(`${job.id}: Browser cleanup complete.`);
 
-      if (this.config.prebootChrome && browser._prebooted) {
+      if (this.config.prebootChrome) {
         sysdebug(`Adding back Chrome swarm`);
         const newBrowser = await this.launchChrome(
           chromeHelper.defaultLaunchArgs,

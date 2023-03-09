@@ -43,6 +43,7 @@ import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
 import { getPlaywright } from './playwright-provider';
+import { PuppeteerProvider } from './puppeteer-provider';
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -527,6 +528,9 @@ export const launchChrome = async (
       ...BROWSERLESS_ARGS,
       ...(opts.args || []),
       `--remote-debugging-port=${port}`,
+      `--chrome-frame`,
+      `--window-size=1366,768`,
+      `--window-position=0,0`,
     ],
     executablePath: CHROME_BINARY_LOCATION,
     handleSIGINT: false,
@@ -601,13 +605,15 @@ export const launchChrome = async (
     removeDataDir(browserlessDataDir);
     throw e;
   });
-
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
   ).catch((e) => {
     browserServer.close();
     throw e;
   });
+  console.log(
+    `Getting browser server at ${`http://127.0.0.1:${port}/json/version`}: ${browserWSEndpoint}`,
+  );
 
   const iBrowser = isPuppeteer(browserServer)
     ? Promise.resolve(browserServer)
@@ -757,10 +763,19 @@ export const getProtocolJSON = async () => {
   return protocolCache;
 };
 
-export const killAll = async () => {
-  await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));
+export const killAll = async (puppeteerProvider: PuppeteerProvider) => {
+  await Promise.all(
+    runningBrowsers.map(async (browser) => {
+      closeBrowser(browser);
+      runningBrowsers = [];
 
-  runningBrowsers = [];
+      if (browser._prebooted) {
+        runningBrowsers.push(await launchChrome(defaultLaunchArgs, true));
+      }
+    }),
+  );
+
+  puppeteerProvider.setSwarm(runningBrowsers);
 
   return;
 };
