@@ -16,7 +16,7 @@ export const liveQueryParams = [
     description:
       'Whether or not the browser should run in headless mode or not.',
     schema: {
-      type: "boolean | \"new\""
+      type: 'boolean | "new"',
     },
   },
   {
