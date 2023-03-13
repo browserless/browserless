@@ -427,6 +427,13 @@ export const getDebuggingPages = async (
 
 export const getBrowsersRunning = () => runningBrowsers.length;
 
+const getHeadless = (param: string | string[] | undefined): boolean | 'new' => {
+  if (_.isUndefined(param)) return DEFAULT_HEADLESS;
+  if (param === 'new') return 'new';
+
+  return param !== 'false';
+};
+
 export const convertUrlParamsToLaunchOpts = (
   req: IHTTPRequest,
 ): ILaunchOptions => {
@@ -452,9 +459,7 @@ export const convertUrlParamsToLaunchOpts = (
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
 
-  const isHeadless = !_.isUndefined(headless)
-    ? headless !== 'false'
-    : DEFAULT_HEADLESS;
+  const isHeadless = getHeadless(headless);
 
   const isStealth = !_.isUndefined(stealth)
     ? stealth !== 'false'
