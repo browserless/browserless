@@ -60,7 +60,7 @@ export class PuppeteerProvider {
     });
   }
 
-  public async start() {
+  public async startChromeInstances() {
     if (this.config.prebootChrome) {
       sysdebug(
         `Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`,
@@ -81,10 +81,14 @@ export class PuppeteerProvider {
           return chrome;
         },
       );
+      const swarm = await Promise.all(launching);
 
-      return Promise.all(launching);
+      this.setSwarm(swarm);
+
+      return swarm;
     }
 
+    this.setSwarm();
     return Promise.resolve();
   }
 

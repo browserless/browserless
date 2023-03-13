@@ -286,7 +286,7 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    await this.puppeteerProvider.start();
+    await this.puppeteerProvider.startChromeInstances();
 
     return new Promise(async (r) => {
       // Make sure we have http server setup with some headroom
