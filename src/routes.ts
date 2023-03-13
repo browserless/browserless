@@ -294,7 +294,8 @@ export const getRoutes = ({
 
   if (!disabledFeatures.includes(Features.KILL_ENDPOINT)) {
     router.get('/kill/all', async (_req, res) => {
-      await chromeHelper.killAll(puppeteerProvider);
+      await chromeHelper.killAll();
+      puppeteerProvider.setSwarm(await puppeteerProvider.start());
 
       return res.sendStatus(204);
     });
