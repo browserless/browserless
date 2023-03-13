@@ -427,13 +427,6 @@ export const getDebuggingPages = async (
 
 export const getBrowsersRunning = () => runningBrowsers.length;
 
-const getHeadless = (param: string | string[] | undefined): boolean | 'new' => {
-  if (_.isUndefined(param)) return DEFAULT_HEADLESS;
-  if (param === 'new') return 'new';
-
-  return param !== 'false';
-};
-
 export const convertUrlParamsToLaunchOpts = (
   req: IHTTPRequest,
 ): ILaunchOptions => {
@@ -459,7 +452,9 @@ export const convertUrlParamsToLaunchOpts = (
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
 
-  const isHeadless = getHeadless(headless);
+  const isHeadless = !_.isUndefined(headless)
+    ? headless !== 'false'
+    : DEFAULT_HEADLESS;
 
   const isStealth = !_.isUndefined(stealth)
     ? stealth !== 'false'
@@ -591,16 +586,17 @@ export const launchChrome = async (
 
   const injectedPuppeteer = await puppeteerHook(opts);
 
+  // as any due to compatibility issues with pptr 16 <
   const browserServerPromise = injectedPuppeteer
-    ? injectedPuppeteer.launch(launchArgs)
+    ? injectedPuppeteer.launch(launchArgs as any)
     : launchArgs.playwright
     ? (await getPlaywright(opts.playwrightVersion)).launchServer({
         ...launchArgs,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? pptrExtra.launch(launchArgs)
-    : puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(launchArgs as any)
+    : puppeteer.launch(launchArgs as any);
 
   const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
