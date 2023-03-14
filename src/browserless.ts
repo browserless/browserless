@@ -211,7 +211,12 @@ export class BrowserlessServer {
     process.on('SIGTERM', boundClose);
     process.on('SIGINT', boundClose);
 
-    debug(require('./config'), `Final configuration`);
+    const config = require('./config');
+    debug(`Using configuration: `);
+    debug(config);
+
+    if (config.PRINT_NETWORK_INFO) util.printNetworkInfo(debug, config.PORT);
+    if (config.PRINT_GET_STARTED_LINKS) util.printGetStartedLinks(debug);
   }
 
   public async getMetrics() {
@@ -281,7 +286,7 @@ export class BrowserlessServer {
   }
 
   public async startServer(): Promise<any> {
-    await this.puppeteerProvider.start();
+    await this.puppeteerProvider.startChromeInstances();
 
     return new Promise(async (r) => {
       // Make sure we have http server setup with some headroom

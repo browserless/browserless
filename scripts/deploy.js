@@ -7,22 +7,51 @@ const getPort = require('get-port');
 const { map, noop } = require('lodash');
 const fetch = require('node-fetch');
 const puppeteer = require('puppeteer');
+const argv = require('yargs').argv;
 
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
-const BASE_VERSION = process.env.BASE_VERSION;
+const BASE_VERSION = argv.base;
 
 if (!BASE_VERSION) {
   throw new Error(
-    `Expected a $BASE_VERSION env variable to tag the ${REPO} repo, but none was found.`,
+    `Expected a --base switch to tag the ${REPO} repo with, but none was found, eg: "npm run deploy -- --base 1.19.0".`,
   );
 }
 
+const requestedVersions = argv.versions
+  ? argv.versions.split(',')
+  : releaseVersions;
+const action = argv.action ? argv.action : 'push';
+const missingVersions = requestedVersions.filter(
+  (v) => !releaseVersions.includes(v),
+);
+
+// Validate arg parsing
+if (missingVersions.length) {
+  throw new Error(
+    `Versions: ${missingVersions.join(
+      ', ',
+    )} are missing from the package.json file manifest. Please double check your versions`,
+  );
+}
+
+if (!['push', 'load'].includes(action)) {
+  throw new Error(`--actions must be one of push or load`);
+}
+
+console.log(
+  `Building versions: ${requestedVersions.join(
+    ', ',
+  )} and ${action}ing into docker`,
+);
+
 async function cleanup() {
   await $`rm -rf browser.json`;
-  await $`git reset origin/master --hard`;
   await $`rm -rf node_modules`;
+  await $`git clean -fd`;
+  await $`git reset master --hard`;
 }
 
 const deployVersion = async (tags, pptrVersion) => {
@@ -51,16 +80,16 @@ const deployVersion = async (tags, pptrVersion) => {
     process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
   }
 
+  const executablePath = puppeteer
+    .createBrowserFetcher({ product: 'chrome' })
+    .revisionInfo(puppeteerChromiumRevision).executablePath;
+
   await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
   await $`npm run postinstall`;
 
   const port = await getPort();
   const browser = await puppeteer.launch({
-    executablePath: isChromeStable
-      ? '/usr/bin/google-chrome'
-      : puppeteer
-          .executablePath()
-          .replace(/[0-9]{6,7}/g, puppeteerChromiumRevision),
+    executablePath: isChromeStable ? '/usr/bin/google-chrome' : executablePath,
     args: [`--remote-debugging-port=${port}`, '--no-sandbox'],
   });
 
@@ -86,7 +115,7 @@ const deployVersion = async (tags, pptrVersion) => {
 
   // docker build
   await $`docker buildx build \
-  --push \
+  --${action} \
   --platform ${platform} \
   --build-arg "BASE_VERSION=${BASE_VERSION}" \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
@@ -116,7 +145,7 @@ const deployVersion = async (tags, pptrVersion) => {
 };
 
 (async function deploy() {
-  const versions = map(releaseVersions, (pptrVersion) => {
+  const buildVersions = map(requestedVersions, (pptrVersion) => {
     const [major, minor, patch] = version.split('.');
 
     const patchBranch = `${major}.${minor}.${patch}-${pptrVersion}`;
@@ -130,7 +159,7 @@ const deployVersion = async (tags, pptrVersion) => {
     };
   });
 
-  await versions.reduce(
+  await buildVersions.reduce(
     (lastJob, { tags, pptrVersion }) =>
       lastJob
         .then(() => deployVersion(tags, pptrVersion))

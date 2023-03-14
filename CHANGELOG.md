@@ -1,5 +1,17 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.56.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...master)
 - Dependency updates.
+
+# [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
+- Dependency updates.
+- Add back in `puppeteer@13.1.3` for PDF/Screenshot performance.
+- Replace `puppeteer@18.0.5` in favor of `puppeteer@19.2.2`.
+- Better puppeteer install/binary path lookups.
+- Support for the following playwright versions via the /playwright path:
+  - 1.23.3
+  - 1.24.2
+  - 1.25.2
+  - 1.26.1
+  - 1.27.1
 
 # [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
 - Dependency updates.
@@ -314,7 +326,7 @@
 - Dependency updates.
 - Sets a system-default font of Ubuntu for most sites that use `system-ui` in their font declarations.
 - Fixes health-check failure webhooks.
-- New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://docs.browserless.io/docs/docker.html#using-a-proxy).
+- New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://www.browserless.io/docs/docker.html#using-a-proxy).
 - Moves over to GH actions over Travis for CI.
 
 # [1.27.0](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
@@ -554,7 +566,7 @@
 
 # 1.1.0
 
-With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Both use-cases are tightly coupled to the file-system, and can leave you scratching your head as to what's going one. For more information and detailed documentation, please refer to our doc-site at https://docs.browserless.io/
+With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Both use-cases are tightly coupled to the file-system, and can leave you scratching your head as to what's going one. For more information and detailed documentation, please refer to our doc-site at https://www.browserless.io/
 
 ## Minor Changes
 - New `WORKSPACE_DIR` variable for controlling where browserless stores files and uploads.

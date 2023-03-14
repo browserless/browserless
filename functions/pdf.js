@@ -1,3 +1,5 @@
+/* global module, require, setTimeout */
+
 /*
  * pdf function
  *
@@ -10,7 +12,7 @@
  *    html: '<div>example</div>
  *    options: {
  *      ...
- *      see https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagepdfoptions for available options
+ *      see https://github.com/GoogleChrome/puppeteer for available options
  *    }
  *  },
  * });
@@ -139,13 +141,13 @@ module.exports = async function pdf({ page, context }) {
       : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }

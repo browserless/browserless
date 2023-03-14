@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-useless-escape */
+
 const os = require('os');
 
 const playwright = require('playwright-core');
@@ -61,7 +62,7 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
     return puppeteer._preferredRevision;
   }
 
-  const pptr = require('./node_modules/puppeteer/node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
+  const pptr = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
   return pptr.PUPPETEER_REVISIONS.chromium;
 })();
 
@@ -74,10 +75,7 @@ const PUPPETEER_BINARY_LOCATION = (() => {
     return playwright.chromium.executablePath();
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({
-    product: 'chrome',
-    path: `./`,
-  });
+  const browserFetcher = puppeteer.createBrowserFetcher({ product: 'chrome' });
 
   return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
     .executablePath;

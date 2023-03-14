@@ -14,8 +14,9 @@ import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
 import fetch from 'node-fetch';
+// @ts-ignore no types
 import { BrowserServer } from 'playwright-core';
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser, Page } from 'puppeteer';
 import pptrExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import treeKill from 'tree-kill';
@@ -42,6 +43,7 @@ import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
 import { getPlaywright } from './playwright-provider';
+
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -139,9 +141,9 @@ const getTargets = async ({
 }): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
 
 const isPuppeteer = (
-  browserServer: puppeteer.Browser | BrowserServer,
-): browserServer is puppeteer.Browser => {
-  return (browserServer as puppeteer.Browser).disconnect !== undefined;
+  browserServer: Browser | BrowserServer,
+): browserServer is Browser => {
+  return (browserServer as Browser).disconnect !== undefined;
 };
 
 const setupPage = async ({
@@ -154,7 +156,7 @@ const setupPage = async ({
   meta,
 }: {
   browser: IBrowser;
-  page: puppeteer.Page;
+  page: Page;
   pauseOnConnect: boolean;
   blockAds: boolean;
   trackingId: string | null;
@@ -262,7 +264,7 @@ const setupBrowser = async ({
   browserServer,
   meta,
 }: {
-  browser: puppeteer.Browser;
+  browser: Browser;
   browserWSEndpoint: string;
   isUsingTempDataDir: boolean;
   browserlessDataDir: string | null;
@@ -273,7 +275,7 @@ const setupBrowser = async ({
   keepalive: number | null;
   windowSize?: IWindowSize;
   prebooted: boolean;
-  browserServer: BrowserServer | puppeteer.Browser;
+  browserServer: BrowserServer | Browser;
   meta: unknown;
 }): Promise<IBrowser> => {
   debug(`Chrome PID: ${process.pid}`);
@@ -323,7 +325,7 @@ const setupBrowser = async ({
   debug('Finding prior pages');
 
   const pages = (await Promise.race([browser.pages(), sleep(2500)])) as
-    | puppeteer.Page[]
+    | Page[]
     | undefined;
 
   if (pages && pages.length) {
@@ -585,22 +587,23 @@ export const launchChrome = async (
 
   const injectedPuppeteer = await puppeteerHook(opts);
 
+  // as any due to compatibility issues with pptr 16 <
+  const finalLaunch = launchArgs as any;
   const browserServerPromise = injectedPuppeteer
-    ? injectedPuppeteer.launch(launchArgs)
+    ? injectedPuppeteer.launch(finalLaunch)
     : launchArgs.playwright
     ? (await getPlaywright(opts.playwrightVersion)).launchServer({
         ...launchArgs,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? pptrExtra.launch(launchArgs)
-    : puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(finalLaunch)
+    : puppeteer.launch(finalLaunch);
 
   const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
     throw e;
   });
-
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
   ).catch((e) => {
@@ -665,9 +668,12 @@ export const launchChromeDriver = async ({
           const [, browserWSEndpoint] = match;
           debug(`Attaching to chromedriver browser on ${browserWSEndpoint}`);
 
-          const browser: puppeteer.Browser = stealth
+          const browser: Browser = stealth
             ? await pptrExtra.connect({ browserWSEndpoint })
             : await puppeteer.connect({ browserWSEndpoint });
+
+          // Chromedriver boot-loops if it can't hook into an existing page
+          (await browser.pages()).length || (await browser.newPage());
 
           iBrowser = await setupBrowser({
             blockAds,
@@ -755,10 +761,6 @@ export const getProtocolJSON = async () => {
 
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));
-
-  runningBrowsers = [];
-
-  return;
 };
 
 export const kill = (id: string) => {

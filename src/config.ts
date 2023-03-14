@@ -125,7 +125,7 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
   process.env.DEFAULT_BLOCK_ADS,
   false,
 );
-export const DEFAULT_HEADLESS: boolean = parseJSONParam(
+export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
   true,
 );
@@ -156,6 +156,14 @@ export const DEFAULT_USER_DATA_DIR: string | undefined = process.env
 export const PREBOOT_CHROME: boolean = parseJSONParam(
   process.env.PREBOOT_CHROME,
   false,
+);
+export const PRINT_GET_STARTED_LINKS: boolean = parseJSONParam(
+  process.env.PRINT_GET_STARTED_LINKS,
+  true,
+);
+export const PRINT_NETWORK_INFO: boolean = parseJSONParam(
+  process.env.PRINT_NETWORK_INFO,
+  true,
 );
 
 // Security and accessibility

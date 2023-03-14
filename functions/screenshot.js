@@ -1,3 +1,5 @@
+/* global document, module, require, setTimeout, window */
+
 /*
  * screenshot function
  *
@@ -20,7 +22,10 @@
  */
 const scrollThroughPage = async (page) => {
   // Scroll to page end to trigger lazy loading elements
-  const viewport = await page.viewport();
+  const viewport = (await page.viewport()) || {
+    width: 640,
+    height: 480,
+  }; // default Puppeteer viewport
 
   await page.evaluate((bottomThreshold) => {
     const scrollInterval = 100;
@@ -30,7 +35,7 @@ const scrollThroughPage = async (page) => {
       return window.pageYOffset + window.innerHeight;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       function scrollDown() {
         window.scrollBy(0, scrollStep);
 
@@ -125,13 +130,13 @@ module.exports = async function screenshot({ page, context } = {}) {
       : await page.setContent(html, gotoOptions);
 
   if (addStyleTag.length) {
-    for (tag in addStyleTag) {
+    for (const tag in addStyleTag) {
       await page.addStyleTag(addStyleTag[tag]);
     }
   }
 
   if (addScriptTag.length) {
-    for (script in addScriptTag) {
+    for (const script in addScriptTag) {
       await page.addScriptTag(addScriptTag[script]);
     }
   }
