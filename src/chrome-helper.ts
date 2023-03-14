@@ -587,16 +587,18 @@ export const launchChrome = async (
 
   const injectedPuppeteer = await puppeteerHook(opts);
 
+  // as any due to compatibility issues with pptr 16 <
+  const finalLaunch = launchArgs as any;
   const browserServerPromise = injectedPuppeteer
-    ? injectedPuppeteer.launch(launchArgs)
+    ? injectedPuppeteer.launch(finalLaunch)
     : launchArgs.playwright
     ? (await getPlaywright(opts.playwrightVersion)).launchServer({
         ...launchArgs,
         proxy: launchArgs.playwrightProxy,
       })
     : launchArgs.stealth
-    ? pptrExtra.launch(launchArgs)
-    : puppeteer.launch(launchArgs);
+    ? pptrExtra.launch(finalLaunch)
+    : puppeteer.launch(finalLaunch);
 
   const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
