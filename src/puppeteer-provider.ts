@@ -70,17 +70,10 @@ export class PuppeteerProvider {
         process.setMaxListeners(this.config.maxConcurrentSessions + 3);
       }
 
-      const launching = Array.from(
-        { length: this.config.maxConcurrentSessions },
-        async () => {
-          const chrome = await this.launchChrome(
-            chromeHelper.defaultLaunchArgs,
-            true,
-          );
-          this.chromeSwarm.push(chrome);
-          return chrome;
-        },
+      const launching = [...Array(this.config.maxConcurrentSessions)].map(() =>
+        this.launchChrome(chromeHelper.defaultLaunchArgs, true),
       );
+
       const swarm = await Promise.all(launching);
 
       this.setSwarm(swarm);
