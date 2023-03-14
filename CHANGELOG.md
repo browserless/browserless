@@ -6,7 +6,7 @@
 - Documentation link fixes.
 - Add new required lib `libu2f-udev`.
 - Support for puppeteer@19.7.5.
-- Supports playwright versions: `1.26`, `1.27`, `1.28`, `1.29`, `1.30` and `1.31`.
+- Supports playwright versions: `1.27`, `1.28`, `1.29`, `1.30` and `1.31`.
 - Better internal TypeScript definitions.
 - Print's a few extra log-lines at startup for links to various resources.
 - `/kill/all` now supports rebooting when PREBOOT is turned on.
