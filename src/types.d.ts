@@ -73,7 +73,7 @@ export interface ILaunchOptions {
   slowMo?: number;
   userDataDir?: string;
   dumpio?: boolean;
-  headless?: boolean;
+  headless?: boolean | 'new';
   args?: string[];
   ignoreDefaultArgs?: boolean | string[];
   pauseOnConnect: boolean;
@@ -105,7 +105,7 @@ export interface IRunHTTP {
   after?: (...args: any) => Promise<any>;
   flags?: string[];
   options?: any;
-  headless?: boolean;
+  headless?: boolean | 'new';
   ignoreDefaultArgs?: boolean | string[];
   builtin?: string[];
   envVars?: string[];
