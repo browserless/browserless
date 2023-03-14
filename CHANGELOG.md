@@ -1,5 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.58.0...master)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
+- Dependency updates.
+- Documentation link fixes.
+- Add new required lib `libu2f-udev`.
+- Support for puppeteer@19.7.5.
+- Supports playwright versions: `1.26`, `1.27`, `1.28`, `1.29`, `1.30` and `1.31`.
+- Better internal TypeScript definitions.
+- Print's a few extra log-lines at startup for links to various resources.
+- `/kill/all` now supports rebooting when PREBOOT is turned on.
+- Fixes an issue with chromedriver boot-looping in modern versions.
+- Adds support for `--headless=new`.
+- Fixes an issue where user-data-dirs aren't deleted due to a crashed container.
 
 # [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
 - Dependency updates.
