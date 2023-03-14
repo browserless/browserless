@@ -128,6 +128,7 @@ export interface IBrowserlessStats {
   maxTime: number;
   minTime: number;
   maxConcurrent: number;
+  units: number;
 }
 
 export interface ISandboxOpts {

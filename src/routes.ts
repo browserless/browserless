@@ -75,6 +75,8 @@ interface IGetRoutes {
   enableHeapdump: boolean;
 }
 
+const fiveMinuteIntervalsInAMonth = 8640;
+
 export const getRoutes = ({
   puppeteerProvider,
   getMetrics,
@@ -126,6 +128,8 @@ export const getRoutes = ({
     router.get('/metrics', async (_req, res) => res.json(await getMetrics()));
     router.get('/metrics/total', async (_req, res) => {
       const metrics = await getMetrics();
+      const availableMetrics = metrics.length;
+
       const totals = metrics.reduce(
         (accum, metric) => ({
           successful: accum.successful + metric.successful,
@@ -140,6 +144,9 @@ export const getRoutes = ({
           minTime: Math.min(accum.minTime, metric.minTime),
           maxConcurrent: Math.max(accum.maxConcurrent, metric.maxConcurrent),
           sessionTimes: [...accum.sessionTimes, ...metric.sessionTimes],
+          units: accum.units + metric.units,
+          estimatedMonthlyUnits: accum.estimatedMonthlyUnits,
+          minutesOfMetricsAvailable: accum.minutesOfMetricsAvailable + 5,
         }),
         {
           successful: 0,
@@ -153,10 +160,18 @@ export const getRoutes = ({
           minTime: 0,
           maxConcurrent: 0,
           timedout: 0,
+          units: 0,
+          estimatedMonthlyUnits: 0,
+          minutesOfMetricsAvailable: 0,
           sessionTimes: [],
         },
       );
+
       totals.meanTime = totals.meanTime / metrics.length;
+      totals.estimatedMonthlyUnits = Math.round(
+        totals.units / (availableMetrics / fiveMinuteIntervalsInAMonth),
+      );
+
       return res.json(totals);
     });
   }
