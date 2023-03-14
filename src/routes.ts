@@ -295,6 +295,7 @@ export const getRoutes = ({
   if (!disabledFeatures.includes(Features.KILL_ENDPOINT)) {
     router.get('/kill/all', async (_req, res) => {
       await chromeHelper.killAll();
+      await puppeteerProvider.startChromeInstances();
 
       return res.sendStatus(204);
     });

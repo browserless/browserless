@@ -43,6 +43,7 @@ import { PLAYWRIGHT_ROUTE } from './constants';
 import { Features } from './features';
 import { browserHook, pageHook, puppeteerHook } from './hooks';
 import { getPlaywright } from './playwright-provider';
+
 import {
   IBrowser,
   IBrowserlessSessionOptions,
@@ -603,7 +604,6 @@ export const launchChrome = async (
     removeDataDir(browserlessDataDir);
     throw e;
   });
-
   const { webSocketDebuggerUrl: browserWSEndpoint } = await fetchJson(
     `http://127.0.0.1:${port}/json/version`,
   ).catch((e) => {
@@ -761,10 +761,6 @@ export const getProtocolJSON = async () => {
 
 export const killAll = async () => {
   await Promise.all(runningBrowsers.map((browser) => closeBrowser(browser)));
-
-  runningBrowsers = [];
-
-  return;
 };
 
 export const kill = (id: string) => {

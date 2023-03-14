@@ -50,7 +50,17 @@ export class PuppeteerProvider {
     );
   }
 
-  public async start() {
+  public setSwarm(swarm: IBrowser[] | void) {
+    this.chromeSwarm = new AsyncArray();
+
+    if (!swarm) return;
+
+    swarm.forEach((browser) => {
+      this.chromeSwarm.push(browser);
+    });
+  }
+
+  public async startChromeInstances() {
     if (this.config.prebootChrome) {
       sysdebug(
         `Starting chrome swarm: ${this.config.maxConcurrentSessions} chrome instances starting`,
@@ -60,21 +70,18 @@ export class PuppeteerProvider {
         process.setMaxListeners(this.config.maxConcurrentSessions + 3);
       }
 
-      const launching = Array.from(
-        { length: this.config.maxConcurrentSessions },
-        async () => {
-          const chrome = await this.launchChrome(
-            chromeHelper.defaultLaunchArgs,
-            true,
-          );
-          this.chromeSwarm.push(chrome);
-          return chrome;
-        },
+      const launching = [...Array(this.config.maxConcurrentSessions)].map(() =>
+        this.launchChrome(chromeHelper.defaultLaunchArgs, true),
       );
 
-      return Promise.all(launching);
+      const swarm = await Promise.all(launching);
+
+      this.setSwarm(swarm);
+
+      return swarm;
     }
 
+    this.setSwarm();
     return Promise.resolve();
   }
 
