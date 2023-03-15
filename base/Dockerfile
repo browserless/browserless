@@ -61,6 +61,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   libpangocairo-1.0-0 \
   libstdc++6 \
   libu2f-udev \
+  libvulkan1 \
   libx11-6 \
   libx11-xcb1 \
   libxcb1 \
@@ -97,3 +98,4 @@ RUN fc-cache -f -v && \
 RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
   mkdir -p /home/blessuser/Downloads && \
   chown -R blessuser:blessuser /home/blessuser
+
