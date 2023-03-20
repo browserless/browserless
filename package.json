@@ -194,7 +194,7 @@
     "prettier": "^2.8.4",
     "simple-git-hooks": "^2.8.1",
     "yargs": "^17.7.1",
-    "zx": "^7.2.0"
+    "zx": "^7.2.1"
   },
   "overrides": {
     "playwright-1.21": {
