@@ -191,7 +191,7 @@
     "env-cmd": "^10.0.0",
     "eslint": "^8.36.0",
     "eslint-plugin-import": "^2.27.5",
-    "prettier": "^2.8.5",
+    "prettier": "^2.8.6",
     "simple-git-hooks": "^2.8.1",
     "yargs": "^17.7.1",
     "zx": "^7.2.1"
