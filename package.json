@@ -171,7 +171,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^6.0.0",
     "request": "^2.83.0",
-    "rimraf": "^3.0.0",
+    "rimraf": "^5.0.0",
     "selenium-webdriver": "^4.8.2",
     "sharp": "^0.32.0",
     "snyk": "^1.1140.0",
