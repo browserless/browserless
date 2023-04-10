@@ -166,7 +166,7 @@
     "playwright-1.31": "npm:playwright-core@1.31.2",
     "playwright-core": "^1.32.2",
     "prom-client": "^14.2.0",
-    "puppeteer": "^19.8.3",
+    "puppeteer": "^19.8.5",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^6.0.0",
