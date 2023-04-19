@@ -550,6 +550,7 @@ export class BrowserlessServer {
       minTime: _.min(stat.sessionTimes) || 0,
       meanTime: _.mean(stat.sessionTimes) || 0,
       totalTime: _.sum(stat.sessionTimes),
+      units: _.sumBy(stat.sessionTimes, (t) => Math.ceil(t / 30000)),
     };
   }
 
@@ -670,6 +671,7 @@ export class BrowserlessServer {
       minTime: 0,
       meanTime: 0,
       maxConcurrent: 0,
+      units: 0,
       sessionTimes: [],
     };
   }
@@ -716,6 +718,7 @@ export class BrowserlessServer {
         minTime: aggregatedStats.minTime,
         meanTime: aggregatedStats.meanTime,
         maxConcurrent: aggregatedStats.maxConcurrent,
+        units: aggregatedStats.units,
       })}`,
     );
 

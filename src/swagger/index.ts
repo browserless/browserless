@@ -264,6 +264,15 @@ export default {
                     maxConcurrent: {
                       type: 'number',
                     },
+                    units: {
+                      type: 'number',
+                    },
+                    estimatedMonthlyUnits: {
+                      type: 'number',
+                    },
+                    minutesOfMetricsAvailable: {
+                      type: 'number',
+                    },
                     sessionTimes: {
                       type: 'array',
                       items: {
