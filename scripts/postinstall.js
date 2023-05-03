@@ -5,12 +5,12 @@ const os = require('os');
 const path = require('path');
 const { promisify } = require('util');
 
+const chromeFetcher = require('@puppeteer/browsers');
 const extract = require('extract-zip');
 const fs = require('fs-extra');
 const _ = require('lodash');
 const fetch = require('node-fetch');
 const { installBrowsersForNpmInstall } = require('playwright-core/lib/server');
-const puppeteer = require('puppeteer');
 const rimraf = require('rimraf');
 
 const execAsync = promisify(nodeExec);
@@ -28,11 +28,10 @@ const exec = async (command) => {
 };
 
 const {
-  CHROME_BINARY_LOCATION,
+  CHROME_BINARY_PATHS,
   IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
-  PUPPETEER_BINARY_LOCATION,
   PLATFORM,
   WINDOWS,
   MAC,
@@ -50,12 +49,12 @@ const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
 const chromedriverUrl = (() => {
   if (PLATFORM === MAC)
-    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
+    return `https://chromedriver.storage.googleapis.com/${PUPPETEER_CHROMIUM_REVISION}/chromedriver_mac64.zip`;
   if (PLATFORM === WINDOWS)
-    return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_win32.zip?alt=media`;
+    return `https://chromedriver.storage.googleapis.com/${PUPPETEER_CHROMIUM_REVISION}/chromedriver_win32.zip`;
 
   // Linux
-  return `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_linux64.zip?alt=media`;
+  return `https://chromedriver.storage.googleapis.com/${PUPPETEER_CHROMIUM_REVISION}/chromedriver_linux64.zip`;
 })();
 
 const downloadUrlToDirectory = (url, dir) =>
@@ -114,7 +113,7 @@ const downloadAdBlockList = () => {
     });
 };
 
-const downloadChromium = () => {
+const downloadChromium = async () => {
   if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
     throw new Error(`Chrome stable isn't supported for linux-arm64`);
   }
@@ -132,9 +131,14 @@ const downloadChromium = () => {
     `Downloading chromium for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  return puppeteer
-    .createBrowserFetcher({ product: 'chrome' })
-    .download(PUPPETEER_CHROMIUM_REVISION);
+  return chromeFetcher.install({
+    cacheDir: path.join(
+      os.tmpdir(),
+      `${PUPPETEER_CHROMIUM_REVISION}-${chromeFetcher.Browser.CHROME}`,
+    ),
+    browser: chromeFetcher.Browser.CHROME,
+    buildId: PUPPETEER_CHROMIUM_REVISION,
+  });
 };
 
 const downloadChromedriver = () => {
@@ -149,17 +153,11 @@ const downloadChromedriver = () => {
     `Downloading chromedriver for revision ${PUPPETEER_CHROMIUM_REVISION}`,
   );
 
-  const chromedriverZipFolder = (() => {
-    if (PLATFORM === MAC) return 'chromedriver_mac64';
-    if (PLATFORM === WINDOWS) return 'chromedriver_win32';
-    return 'chromedriver_linux64'; // Linux
-  })();
-
-  const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver`);
+  const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver.zip`);
   const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
+
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
-    chromedriverZipFolder,
     chromedriverBin,
   );
   const chromedriverFinalPath = path.join(
@@ -169,7 +167,7 @@ const downloadChromedriver = () => {
     'chromedriver',
     'lib',
     'chromedriver',
-    'chromedriver',
+    chromedriverBin,
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
@@ -178,7 +176,10 @@ const downloadChromedriver = () => {
     .then(() => waitForFile(chromedriverUnzippedPath))
     .then(() => move(chromedriverUnzippedPath, chromedriverFinalPath))
     .then(() => fs.chmod(chromedriverFinalPath, '755'))
-    .then(() => waitForFile(chromedriverFinalPath));
+    .then(() => waitForFile(chromedriverFinalPath))
+    .catch((err) => {
+      console.error(err);
+    });
 };
 
 const downloadDevTools = () => {
@@ -206,9 +207,34 @@ const downloadDevTools = () => {
   new Promise(async (resolve, reject) => {
     try {
       await fs.mkdir(browserlessTmpDir);
+      const chromium = await downloadChromium();
+
+      const PUPPETEER_BINARY_LOCATION =
+        PLATFORM === LINUX_ARM64
+          ? playwright.chromium.executablePath()
+          : chromium.path;
+
+      const CHROME_BINARY_LOCATION = (() => {
+        if (process.env.CHROME_BINARY_LOCATION) {
+          return process.env.CHROME_BINARY_LOCATION;
+        }
+      
+        // In docker we symlink any chrome installs to the default install location
+        // so that chromedriver can do its thing
+        if (IS_DOCKER) {
+          return CHROME_BINARY_PATHS.LINUX;
+        }
+      
+        // If using chrome-stable, default to it's natural habitat
+        if (USE_CHROME_STABLE) {
+          return CHROME_BINARY_PATHS[PLATFORM];
+        }
+      
+        // All else uses pptr's bin
+        return PUPPETEER_BINARY_LOCATION;
+      })();
 
       await Promise.all([
-        downloadChromium(),
         downloadChromedriver(),
         downloadDevTools(),
         downloadAdBlockList(),
@@ -238,7 +264,7 @@ const downloadDevTools = () => {
       process.exit(1);
     } finally {
       rimraf(browserlessTmpDir, (err) => {
-        console.log('Done unpacking chromedriver and devtools assets');
+        console.log('\nDone unpacking chromedriver and devtools assets');
         if (err) {
           console.warn(
             `Error removing temporary directory ${browserlessTmpDir}`,
