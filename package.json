@@ -206,7 +206,7 @@
     "extension": [
       "ts"
     ],
-    "spec": "src/tests/**/webd*.spec.ts",
+    "spec": "src/tests/**/*.spec.ts",
     "require": "ts-node/register"
   },
   "snyk": true
