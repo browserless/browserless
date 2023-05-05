@@ -2,7 +2,9 @@
 /* eslint-disable no-useless-escape */
 
 const os = require('os');
+const path = require('path');
 
+const chromeFetcher = require('@puppeteer/browsers');
 const playwright = require('playwright-core');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
@@ -25,7 +27,6 @@ const CHROME_BINARY_PATHS = {
   WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
 };
 
-
 const PLATFORM =
   os.platform() === 'win32'
     ? WINDOWS
@@ -35,6 +36,12 @@ const PLATFORM =
     ? LINUX_ARM64
     : LINUX;
 
+const PUPPETEER_CACHE_DIR = path.join(
+  os.homedir(),
+  '.cache',
+  'puppeteer',
+  'chrome',
+);
 /*
  * Assess which chromium revision to install.
  * Note that in docker we do our own install, and
@@ -67,6 +74,47 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   return pptr.PUPPETEER_REVISIONS.chrome;
 })();
 
+/*
+ * Sometimes we don't use puppeteer's built-in chromium
+ * for compatibility reasons
+ */
+const PUPPETEER_BINARY_LOCATION = (() => {
+  if (PLATFORM === LINUX_ARM64) {
+    return playwright.chromium.executablePath();
+  }
+
+  return chromeFetcher.computeExecutablePath({
+    browser: chromeFetcher.Browser.CHROME,
+    buildId: PUPPETEER_CHROMIUM_REVISION,
+    cacheDir: PUPPETEER_CACHE_DIR
+  });
+})();
+
+
+/*
+ * Tells puppeteer, in its install script, what revision to download.
+ * This is set in our deploy.js file in our docker build. If
+ * PUPPETEER_SKIP_CHROMIUM_DOWNLOAD is true, then this is ignored
+ */
+const CHROME_BINARY_LOCATION = (() => {
+  if (process.env.CHROME_BINARY_LOCATION) {
+    return process.env.CHROME_BINARY_LOCATION;
+  }
+
+  // In docker we symlink any chrome installs to the default install location
+  // so that chromedriver can do its thing
+  if (IS_DOCKER) {
+    return CHROME_BINARY_PATHS.LINUX;
+  }
+
+  // If using chrome-stable, default to it's natural habitat
+  if (USE_CHROME_STABLE) {
+    return CHROME_BINARY_PATHS[PLATFORM];
+  }
+
+  // All else uses pptr's bin
+  return PUPPETEER_BINARY_LOCATION;
+})();
 
 /*
  * Tells the chromedriver library to download the appropriate chromedriver binary.
@@ -102,12 +150,14 @@ const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
 })();
 
 module.exports = {
-  CHROME_BINARY_PATHS,
   IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
+  CHROME_BINARY_LOCATION,
   CHROMEDRIVER_SKIP_DOWNLOAD,
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD,
+  PUPPETEER_BINARY_LOCATION,
+  PUPPETEER_CACHE_DIR,
   PLATFORM,
   WINDOWS,
   MAC,

@@ -28,14 +28,16 @@ const exec = async (command) => {
 };
 
 const {
-  CHROME_BINARY_PATHS,
+  CHROME_BINARY_LOCATION,
   IS_DOCKER,
   USE_CHROME_STABLE,
   PUPPETEER_CHROMIUM_REVISION,
+  PUPPETEER_BINARY_LOCATION,
   PLATFORM,
   WINDOWS,
   MAC,
   LINUX_ARM64,
+  PUPPETEER_CACHE_DIR,
 } = require('../env');
 
 const browserlessTmpDir = path.join(
@@ -113,7 +115,7 @@ const downloadAdBlockList = () => {
     });
 };
 
-const downloadChromium = async () => {
+const downloadChromium = () => {
   if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
     throw new Error(`Chrome stable isn't supported for linux-arm64`);
   }
@@ -132,10 +134,7 @@ const downloadChromium = async () => {
   );
 
   return chromeFetcher.install({
-    cacheDir: path.join(
-      os.tmpdir(),
-      `${PUPPETEER_CHROMIUM_REVISION}-${chromeFetcher.Browser.CHROME}`,
-    ),
+    cacheDir: PUPPETEER_CACHE_DIR,
     browser: chromeFetcher.Browser.CHROME,
     buildId: PUPPETEER_CHROMIUM_REVISION,
   });
@@ -155,7 +154,6 @@ const downloadChromedriver = () => {
 
   const chromedriverTmpZip = path.join(browserlessTmpDir, `chromedriver.zip`);
   const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
-
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
     chromedriverBin,
@@ -167,7 +165,7 @@ const downloadChromedriver = () => {
     'chromedriver',
     'lib',
     'chromedriver',
-    chromedriverBin,
+     chromedriverBin,
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
@@ -207,34 +205,9 @@ const downloadDevTools = () => {
   new Promise(async (resolve, reject) => {
     try {
       await fs.mkdir(browserlessTmpDir);
-      const chromium = await downloadChromium();
-
-      const PUPPETEER_BINARY_LOCATION =
-        PLATFORM === LINUX_ARM64
-          ? playwright.chromium.executablePath()
-          : chromium.path;
-
-      const CHROME_BINARY_LOCATION = (() => {
-        if (process.env.CHROME_BINARY_LOCATION) {
-          return process.env.CHROME_BINARY_LOCATION;
-        }
-      
-        // In docker we symlink any chrome installs to the default install location
-        // so that chromedriver can do its thing
-        if (IS_DOCKER) {
-          return CHROME_BINARY_PATHS.LINUX;
-        }
-      
-        // If using chrome-stable, default to it's natural habitat
-        if (USE_CHROME_STABLE) {
-          return CHROME_BINARY_PATHS[PLATFORM];
-        }
-      
-        // All else uses pptr's bin
-        return PUPPETEER_BINARY_LOCATION;
-      })();
 
       await Promise.all([
+        downloadChromium(),
         downloadChromedriver(),
         downloadDevTools(),
         downloadAdBlockList(),
@@ -264,7 +237,7 @@ const downloadDevTools = () => {
       process.exit(1);
     } finally {
       rimraf(browserlessTmpDir, (err) => {
-        console.log('\nDone unpacking chromedriver and devtools assets');
+        console.log('Done unpacking chromedriver and devtools assets');
         if (err) {
           console.warn(
             `Error removing temporary directory ${browserlessTmpDir}`,

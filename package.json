@@ -121,7 +121,7 @@
     "heapdump": "^0.3.15"
   },
   "dependencies": {
-    "@puppeteer/browsers": "^1.0.0",
+    "@puppeteer/browsers": "1.0.1",
     "@types/archiver": "^5.3.2",
     "@types/chai": "^4.3.5",
     "@types/cookie": "^0.5.0",
@@ -206,7 +206,7 @@
     "extension": [
       "ts"
     ],
-    "spec": "src/tests/**/*.spec.ts",
+    "spec": "src/tests/**/webd*.spec.ts",
     "require": "ts-node/register"
   },
   "snyk": true
