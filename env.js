@@ -37,11 +37,12 @@ const PLATFORM =
     : LINUX;
 
 const PUPPETEER_CACHE_DIR = path.join(
-  os.homedir(),
+  IS_DOCKER ? '/home/blessuser' : os.homedir(),
   '.cache',
   'puppeteer',
   'chrome',
 );
+
 /*
  * Assess which chromium revision to install.
  * Note that in docker we do our own install, and

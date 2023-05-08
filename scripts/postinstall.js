@@ -165,7 +165,7 @@ const downloadChromedriver = () => {
     'chromedriver',
     'lib',
     'chromedriver',
-     chromedriverBin,
+    chromedriverBin,
   );
 
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
