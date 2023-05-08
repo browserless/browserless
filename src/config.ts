@@ -127,7 +127,7 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
 );
 export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
-  ["new"],
+  true,
 );
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
   process.env.DEFAULT_LAUNCH_ARGS,
