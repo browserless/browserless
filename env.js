@@ -72,8 +72,14 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   }
 
   const pptr = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
-  return pptr.PUPPETEER_REVISIONS.chrome;
+
+  // For compatibility reasons
+  return pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
 })();
+
+const USE_CLASIC_HEADLESS =
+  !isNaN(Number(PUPPETEER_CHROMIUM_REVISION)) &&
+  PUPPETEER_CHROMIUM_REVISION <= 1108766;
 
 /*
  * Sometimes we don't use puppeteer's built-in chromium
@@ -85,12 +91,13 @@ const PUPPETEER_BINARY_LOCATION = (() => {
   }
 
   return chromeFetcher.computeExecutablePath({
-    browser: chromeFetcher.Browser.CHROME,
+    browser: USE_CLASIC_HEADLESS
+      ? chromeFetcher.Browser.CHROMIUM
+      : chromeFetcher.Browser.CHROME,
     buildId: PUPPETEER_CHROMIUM_REVISION,
-    cacheDir: PUPPETEER_CACHE_DIR
+    cacheDir: PUPPETEER_CACHE_DIR,
   });
 })();
-
 
 /*
  * Tells puppeteer, in its install script, what revision to download.
@@ -153,6 +160,7 @@ const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
 module.exports = {
   IS_DOCKER,
   USE_CHROME_STABLE,
+  USE_CLASIC_HEADLESS,
   PUPPETEER_CHROMIUM_REVISION,
   CHROME_BINARY_LOCATION,
   CHROMEDRIVER_SKIP_DOWNLOAD,
