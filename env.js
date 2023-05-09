@@ -77,7 +77,7 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   return pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
 })();
 
-const USE_CLASIC_HEADLESS =
+const IS_CHROME_FOR_TESTING =
   !isNaN(Number(PUPPETEER_CHROMIUM_REVISION)) &&
   PUPPETEER_CHROMIUM_REVISION <= 1108766;
 
@@ -91,7 +91,7 @@ const PUPPETEER_BINARY_LOCATION = (() => {
   }
 
   return chromeFetcher.computeExecutablePath({
-    browser: USE_CLASIC_HEADLESS
+    browser: IS_CHROME_FOR_TESTING
       ? chromeFetcher.Browser.CHROMIUM
       : chromeFetcher.Browser.CHROME,
     buildId: PUPPETEER_CHROMIUM_REVISION,
@@ -160,7 +160,7 @@ const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
 module.exports = {
   IS_DOCKER,
   USE_CHROME_STABLE,
-  USE_CLASIC_HEADLESS,
+  IS_CHROME_FOR_TESTING,
   PUPPETEER_CHROMIUM_REVISION,
   CHROME_BINARY_LOCATION,
   CHROMEDRIVER_SKIP_DOWNLOAD,

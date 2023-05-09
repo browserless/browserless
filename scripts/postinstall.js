@@ -31,7 +31,7 @@ const {
   CHROME_BINARY_LOCATION,
   IS_DOCKER,
   USE_CHROME_STABLE,
-  USE_CLASIC_HEADLESS,
+  IS_CHROME_FOR_TESTING,
   PUPPETEER_CHROMIUM_REVISION,
   PUPPETEER_BINARY_LOCATION,
   PLATFORM,
@@ -56,11 +56,11 @@ const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-b
 // has to be built depending on the version.
 // The file structure of the zip file also changed, so it also has to be handled differently
 const chromedriverUrl = (() => {
-  const baseUrl = USE_CLASIC_HEADLESS
+  const baseUrl = IS_CHROME_FOR_TESTING
     ? `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o`
     : `https://chromedriver.storage.googleapis.com/${PUPPETEER_CHROMIUM_REVISION}`;
 
-  if (USE_CLASIC_HEADLESS) {
+  if (IS_CHROME_FOR_TESTING) {
     if (PLATFORM === MAC)
       return `${baseUrl}/Mac%2F${PUPPETEER_CHROMIUM_REVISION}%2Fchromedriver_mac64.zip?alt=media`;
     if (PLATFORM === WINDOWS)
@@ -153,7 +153,7 @@ const downloadChromium = () => {
   return chromeFetcher.install({
     cacheDir: PUPPETEER_CACHE_DIR,
     // Pulls revisions from different servers. See the comment at line 54
-    browser: USE_CLASIC_HEADLESS
+    browser: IS_CHROME_FOR_TESTING
       ? chromeFetcher.Browser.CHROMIUM
       : chromeFetcher.Browser.CHROME,
     buildId: PUPPETEER_CHROMIUM_REVISION,
@@ -182,7 +182,7 @@ const downloadChromedriver = () => {
   const chromedriverBin = `chromedriver${PLATFORM === WINDOWS ? '.exe' : ''}`;
   const chromedriverUnzippedPath = path.join(
     browserlessTmpDir,
-    USE_CLASIC_HEADLESS ? chromedriverZipFolder : '',
+    IS_CHROME_FOR_TESTING ? chromedriverZipFolder : '',
     chromedriverBin,
   );
   const chromedriverFinalPath = path.join(
