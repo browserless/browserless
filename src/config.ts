@@ -9,6 +9,8 @@ import untildify from 'untildify';
 import { Features, isFeature } from './features';
 import { Feature } from './types.d';
 
+const { PUPPETEER_CHROMIUM_REVISION } = require('../env');
+
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
 const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk', 'sharp'];
@@ -127,7 +129,10 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
 );
 export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
-  true,
+
+  Number(PUPPETEER_CHROMIUM_REVISION) && PUPPETEER_CHROMIUM_REVISION <= 1108766
+    ? true
+    : ['new'],
 );
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
   process.env.DEFAULT_LAUNCH_ARGS,
