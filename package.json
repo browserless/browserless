@@ -175,7 +175,7 @@
     "selenium-webdriver": "^4.9.1",
     "sharp": "^0.32.1",
     "snyk": "^1.1153.0",
-    "swagger-ui-express": "^4.6.2",
+    "swagger-ui-express": "^4.6.3",
     "systeminformation": "^5.17.12",
     "table": "^6.8.1",
     "tree-kill": "^1.2.0",
