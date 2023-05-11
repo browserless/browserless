@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:kinetic
 
 ENV NODE_VERSION v18.12.0
 ENV NVM_DIR /usr/src/.nvm
