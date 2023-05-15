@@ -23,8 +23,8 @@ const LINUX_ARM64 = 'LINUX_ARM64';
 
 const CHROME_BINARY_PATHS = {
   LINUX: '/usr/bin/google-chrome',
-  MAC: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
-  WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+  MAC: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  WIN: 'C:Program Files (x86)GoogleChromeApplicationchrome.exe',
 };
 
 const PLATFORM =
@@ -77,9 +77,12 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   return pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
 })();
 
-const IS_CHROME_FOR_TESTING =
+const IS_CHROME_FOR_TESTING = !(
   !isNaN(Number(PUPPETEER_CHROMIUM_REVISION)) &&
-  PUPPETEER_CHROMIUM_REVISION <= 1108766;
+  PUPPETEER_CHROMIUM_REVISION <= 1108766
+);
+
+const CHROME_BINARY_TYPE = IS_CHROME_FOR_TESTING ? 'chrome-for-testing' : 'chromium';
 
 /*
  * Sometimes we don't use puppeteer's built-in chromium
@@ -92,8 +95,8 @@ const PUPPETEER_BINARY_LOCATION = (() => {
 
   return chromeFetcher.computeExecutablePath({
     browser: IS_CHROME_FOR_TESTING
-      ? chromeFetcher.Browser.CHROMIUM
-      : chromeFetcher.Browser.CHROME,
+      ? chromeFetcher.Browser.CHROME
+      : chromeFetcher.Browser.CHROMIUM,
     buildId: PUPPETEER_CHROMIUM_REVISION,
     cacheDir: PUPPETEER_CACHE_DIR,
   });
@@ -163,6 +166,7 @@ module.exports = {
   IS_CHROME_FOR_TESTING,
   PUPPETEER_CHROMIUM_REVISION,
   CHROME_BINARY_LOCATION,
+  CHROME_BINARY_TYPE,
   CHROMEDRIVER_SKIP_DOWNLOAD,
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD,
   PUPPETEER_BINARY_LOCATION,
