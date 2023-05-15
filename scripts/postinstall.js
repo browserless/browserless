@@ -196,8 +196,6 @@ const downloadChromedriver = () => {
     chromedriverBin,
   );
 
-  console.log(chromedriverUrl);
-
   return downloadUrlToDirectory(chromedriverUrl, chromedriverTmpZip)
     .then(() => waitForFile(chromedriverTmpZip))
     .then(() => unzip(chromedriverTmpZip, browserlessTmpDir))
