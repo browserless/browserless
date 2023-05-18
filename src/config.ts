@@ -9,6 +9,8 @@ import untildify from 'untildify';
 import { Features, isFeature } from './features';
 import { Feature } from './types.d';
 
+const { IS_CHROME_FOR_TESTING } = require('../env');
+
 // Required, by default, to make certain API's work
 const REQUIRED_INTERNALS = ['url'];
 const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk', 'sharp'];
@@ -127,7 +129,7 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
 );
 export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
-  true,
+  IS_CHROME_FOR_TESTING ? ['new'] : true,
 );
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
   process.env.DEFAULT_LAUNCH_ARGS,

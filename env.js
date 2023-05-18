@@ -2,7 +2,9 @@
 /* eslint-disable no-useless-escape */
 
 const os = require('os');
+const path = require('path');
 
+const chromeFetcher = require('@puppeteer/browsers');
 const playwright = require('playwright-core');
 const puppeteer = require('puppeteer');
 const pptrPackageJSON = require('puppeteer/package.json');
@@ -21,8 +23,8 @@ const LINUX_ARM64 = 'LINUX_ARM64';
 
 const CHROME_BINARY_PATHS = {
   LINUX: '/usr/bin/google-chrome',
-  MAC: '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome',
-  WIN: 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+  MAC: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  WIN: 'C:Program Files (x86)GoogleChromeApplicationchrome.exe',
 };
 
 const PLATFORM =
@@ -33,6 +35,13 @@ const PLATFORM =
     : os.arch() === 'arm64'
     ? LINUX_ARM64
     : LINUX;
+
+const PUPPETEER_CACHE_DIR = path.join(
+  IS_DOCKER ? '/home/blessuser' : os.homedir(),
+  '.cache',
+  'puppeteer',
+  'chrome',
+);
 
 /*
  * Assess which chromium revision to install.
@@ -63,8 +72,17 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   }
 
   const pptr = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
-  return pptr.PUPPETEER_REVISIONS.chromium;
+
+  // For compatibility reasons
+  return pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
 })();
+
+const IS_CHROME_FOR_TESTING = !(
+  !isNaN(Number(PUPPETEER_CHROMIUM_REVISION)) &&
+  PUPPETEER_CHROMIUM_REVISION <= 1108766
+);
+
+const CHROME_BINARY_TYPE = IS_CHROME_FOR_TESTING ? 'chrome-for-testing' : 'chromium';
 
 /*
  * Sometimes we don't use puppeteer's built-in chromium
@@ -75,10 +93,13 @@ const PUPPETEER_BINARY_LOCATION = (() => {
     return playwright.chromium.executablePath();
   }
 
-  const browserFetcher = puppeteer.createBrowserFetcher({ product: 'chrome' });
-
-  return browserFetcher.revisionInfo(PUPPETEER_CHROMIUM_REVISION)
-    .executablePath;
+  return chromeFetcher.computeExecutablePath({
+    browser: IS_CHROME_FOR_TESTING
+      ? chromeFetcher.Browser.CHROME
+      : chromeFetcher.Browser.CHROMIUM,
+    buildId: PUPPETEER_CHROMIUM_REVISION,
+    cacheDir: PUPPETEER_CACHE_DIR,
+  });
 })();
 
 /*
@@ -142,11 +163,14 @@ const PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = (() => {
 module.exports = {
   IS_DOCKER,
   USE_CHROME_STABLE,
+  IS_CHROME_FOR_TESTING,
   PUPPETEER_CHROMIUM_REVISION,
   CHROME_BINARY_LOCATION,
+  CHROME_BINARY_TYPE,
   CHROMEDRIVER_SKIP_DOWNLOAD,
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD,
   PUPPETEER_BINARY_LOCATION,
+  PUPPETEER_CACHE_DIR,
   PLATFORM,
   WINDOWS,
   MAC,
