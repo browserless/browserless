@@ -747,7 +747,6 @@ describe(`Utils`, () => {
         const results = await utils.normalizeWebdriverStart(
           req as IncomingMessage,
         );
-
         expect(results.params.windowSize).to.eql({ width, height, deviceScaleFactor });
       });
 
