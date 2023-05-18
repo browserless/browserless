@@ -110,6 +110,10 @@ const removeDataDir = (dir: string | null) => {
 const networkBlock = (request: PuppeteerRequest) => {
   const fragments = request.url().split('/');
   const domain = fragments.length > 2 ? fragments[2] : null;
+  // @ts-ignore alter to any for bw compatibility with old puppeteer
+  if ((request as any)?.isInterceptResolutionHandled()) {
+    return;
+  }
   if (blacklist.includes(domain)) {
     return request.abort();
   }
