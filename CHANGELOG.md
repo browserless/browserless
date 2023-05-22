@@ -1,7 +1,7 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.58.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.59.0...master)
 - Dependency updates.
 
-# [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...master)
+# [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
 - Dependency updates.
 - Bump to Ubuntu Kinetic release + updates to use relevant packages.
 - In support of puppeteer 20+, updates to `env.js` for finding/symlinking Chrome.
