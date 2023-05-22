@@ -9,6 +9,7 @@ const fetch = require('node-fetch');
 const puppeteer = require('puppeteer');
 const argv = require('yargs').argv;
 
+const { PUPPETEER_BINARY_LOCATION } = require('../env');
 const { releaseVersions, chromeVersions, version } = require('../package.json');
 
 const REPO = 'browserless/chrome';
@@ -80,9 +81,7 @@ const deployVersion = async (tags, pptrVersion) => {
     process.env.CHROMEDRIVER_SKIP_DOWNLOAD = false;
   }
 
-  const executablePath = puppeteer
-    .createBrowserFetcher({ product: 'chrome' })
-    .revisionInfo(puppeteerChromiumRevision).executablePath;
+  const executablePath = PUPPETEER_BINARY_LOCATION;
 
   await $`npm install --silent --save --save-exact puppeteer@${puppeteerVersion}`;
   await $`npm run postinstall`;
