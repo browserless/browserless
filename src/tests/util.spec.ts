@@ -735,6 +735,21 @@ describe(`Utils`, () => {
         expect(results.params.windowSize).to.eql({ width, height });
       });
 
+      it('sets a window size and deviceScaleFactor', async () => {
+        const width = 1920;
+        const height = 1080;
+        const deviceScaleFactor = 2;
+        const reqBody = getSeleniumAlwaysMatch() as any;
+        reqBody.desiredCapabilities['goog:chromeOptions'].args.push(
+          `--window-size=${width},${height},${deviceScaleFactor}`,
+        );
+        const req = bufferify(reqBody) as unknown;
+        const results = await utils.normalizeWebdriverStart(
+          req as IncomingMessage,
+        );
+        expect(results.params.windowSize).to.eql({ width, height, deviceScaleFactor });
+      });
+
       it('default sets a temporary directory for user-data', async () => {
         const reqBody = getSeleniumAlwaysMatch() as any;
         const req = bufferify(reqBody) as unknown;
