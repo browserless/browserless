@@ -1,6 +1,6 @@
 {
   "name": "browserless-chrome",
-  "version": "1.58.0",
+  "version": "1.59.0",
   "description": "Chrome-as-a-service on your own hardware or in the cloud.",
   "repository": "browserless/chrome",
   "engines": {
@@ -105,7 +105,7 @@
     "1.30": "playwright-1.30",
     "1.29": "playwright-1.29"
   },
-  "chromedriverBinary":     {
+  "chromedriverBinary": {
     "chrome-for-testing": {
       "baseUrl": "https://chromedriver.storage.googleapis.com",
       "format": "{BASE_URL}/{REVISION}/{FILENAME}.zip"
