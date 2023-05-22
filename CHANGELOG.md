@@ -1,7 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.58.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.59.0...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
+# [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
+- Dependency updates.
+- Bump to Ubuntu Kinetic release + updates to use relevant packages.
+- In support of puppeteer 20+, updates to `env.js` for finding/symlinking Chrome.
+- Supports playwright `1.33`, `1.32`, `1.31`, and `1.29.`. Drops support for earlier versions.
+- Ad-blocking and other request-interception in browserless is graceful using the `isInterceptResolutionHandled` method.
+
+# [v1.58.0](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
 - Dependency updates.
 - Documentation link fixes.
 - Add new required lib `libu2f-udev`.
