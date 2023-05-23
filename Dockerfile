@@ -1,4 +1,4 @@
-ARG BASE_VERSION=1.21.0
+ARG BASE_VERSION=1.59.0
 FROM browserless/base:${BASE_VERSION}
 
 # Build Args
