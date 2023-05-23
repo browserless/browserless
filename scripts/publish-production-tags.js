@@ -192,7 +192,7 @@ const deployVersion = async (tags, v) => {
   // Wait 30 seconds before proceeding to allow folks to verify.
   const answer = await prompt('\nProceed (y/n)?');
 
-  if (answer !== 'y' || answer !== 'yes') {
+  if (answer !== 'y' && answer !== 'yes') {
     return;
   }
 
