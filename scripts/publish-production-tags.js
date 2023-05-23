@@ -57,7 +57,7 @@ Releases only a specific platform for each release version. Supports linux/arm64
 const version = process.env.VERSION ?? npmVersion;
 const buildBase = !argv.skipBase;
 const requestedPlatform = argv.platform;
-const requestedActions = argv.actions ? argv.action.split(',') : allowedActions;
+const requestedActions = argv.actions ? argv.actions.split(',') : allowedActions;
 const requestedVersions = argv.versions
   ? argv.versions.split(',')
   : releaseVersions;
