@@ -4,14 +4,30 @@
 const { releaseVersions, chromeVersions } = require('../package.json');
 
 (async () => {
-  const versions = releaseVersions
-    .filter((v) => v.includes('puppeteer'))
-    .map((v) => v.replace('puppeteer-', ''));
+  const puppeteerVersions =
+    (await question(
+      `Which puppeteer versions do you want to test (Must be contained package.json "releaseVersions" and defaults to that list)? `,
+    )) || releaseVersions.join(',');
+
+    const requestedVersions = puppeteerVersions.split(',');
+
+    const missingVersions = requestedVersions.filter(
+      (v) => !releaseVersions.includes(v),
+    );
+
+    // Validate arg parsing
+    if (missingVersions.length) {
+      throw new Error(
+        `Versions: ${missingVersions.join(
+          ', ',
+        )} are missing from the package.json file manifest. Please double check your versions`,
+      );
+    }
 
   console.log(`Checking versions ${versions.join(', ')} of puppeteer`);
 
-  for (version of versions) {
-    const chromeVersion = chromeVersions[`puppeteer-${version}`].chromeRevision;
+  for (version of requestedVersions) {
+    const chromeVersion = chromeVersions[version].chromeRevision;
 
     try {
       await $`docker buildx build \
