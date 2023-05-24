@@ -393,7 +393,7 @@ export const normalizeWebdriverStart = async (
   const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
   const windowSizeParsed =
     windowSizeArg && windowSizeArg.split('=')[1].split(',');
-  let windowSize: IWebdriverStartNormalized["params"]["windowSize"];
+  let windowSize: IWebdriverStartNormalized['params']['windowSize'];
 
   if (Array.isArray(windowSizeParsed)) {
     const [width, height, deviceScaleFactor] = windowSizeParsed;
@@ -402,7 +402,7 @@ export const normalizeWebdriverStart = async (
       height: +height,
     };
     if (deviceScaleFactor) {
-      windowSize.deviceScaleFactor = parseInt(deviceScaleFactor)
+      windowSize.deviceScaleFactor = parseInt(deviceScaleFactor);
     }
   }
 
