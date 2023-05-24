@@ -56,6 +56,6 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       process.exit(1);
     }
   }
-  console.log(`Successfully ran tests for ${versions.join(', ')}!`);
+  console.log(`Successfully ran tests for ${requestedVersions.join(', ')}!`);
   process.exit(0);
 })();
