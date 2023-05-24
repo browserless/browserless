@@ -80,12 +80,12 @@ This CLI is interactive and you can override many parts of this build process. P
 
     if (!versionInfo) {
       throw new Error(
-        `Couldn't locate version info for puppeteer version ${v}. Did you forget to add it to the package.json?`,
+        `Couldn't locate version info for puppeteer version "${v}". Did you forget to add it to the package.json?`,
       );
     }
 
-    const puppeteerVersion = versionInfo.puppeteer;
     const puppeteerChromiumRevision = versionInfo.chromeRevision;
+    const puppeteerVersion = versionInfo.puppeteer;
 
     const [patchBranch, minorBranch, majorBranch] = tags;
     const isChromeStable = majorBranch.includes('chrome-stable');
@@ -109,8 +109,8 @@ This CLI is interactive and you can override many parts of this build process. P
     --platform ${platforms} \
     --build-arg "BASE_VERSION=${version}" \
     --build-arg "BASE_REPO=${baseRepo}" \
-    --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
     --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
+    --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
     --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
     -t ${repo}:${patchBranch} \
     -t ${repo}:${minorBranch} \

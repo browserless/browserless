@@ -9,35 +9,43 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       `Which puppeteer versions do you want to test (Must be contained package.json "releaseVersions" and defaults to that list)? `,
     )) || releaseVersions.join(',');
 
-    const requestedVersions = puppeteerVersions.split(',');
+  const requestedVersions = puppeteerVersions.split(',');
 
-    const missingVersions = requestedVersions.filter(
-      (v) => !releaseVersions.includes(v),
+  const missingVersions = requestedVersions.filter(
+    (v) => !releaseVersions.includes(v),
+  );
+
+  // Validate arg parsing
+  if (missingVersions.length) {
+    throw new Error(
+      `Versions: ${missingVersions.join(
+        ', ',
+      )} are missing from the package.json file manifest. Please double check your versions`,
     );
-
-    // Validate arg parsing
-    if (missingVersions.length) {
-      throw new Error(
-        `Versions: ${missingVersions.join(
-          ', ',
-        )} are missing from the package.json file manifest. Please double check your versions`,
-      );
-    }
+  }
 
   console.log(`Checking versions ${requestedVersions.join(', ')} of puppeteer`);
 
   for (version of requestedVersions) {
-    const chromeVersion = chromeVersions[version].chromeRevision;
+    const versionInfo = chromeVersions[version];
+
+    if (!versionInfo) {
+      throw new Error(
+        `Couldn't locate version info for puppeteer version "${version}". Did you forget to add it to the package.json?`,
+      );
+    }
+    const puppeteerChromiumRevision = versionInfo.chromeRevision;
+    const puppeteerVersion = versionInfo.puppeteer;
 
     try {
       await $`docker buildx build \
       --load \
       --platform linux/amd64 \
       --build-arg "BASE_VERSION=latest" \
+      --build-arg "BASE_REPO=browserless/base" \
       --build-arg "USE_CHROME_STABLE=false" \
-      --build-arg "PUPPETEER_CHROMIUM_REVISION=${chromeVersion}" \
-      --build-arg "PUPPETEER_VERSION=${version}" \
-      --build-arg "USE_CHROME_STABLE=false" \
+      --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
+      --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
       -t browserless/chrome:${version} \
       .`;
       await $`docker run --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${version}`;
