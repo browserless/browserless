@@ -11,7 +11,6 @@ const {
   chromeVersions,
   version: npmVersion,
 } = require('../package.json');
-const allowedActions = ['test', 'push'];
 
 if (argv.h || argv.help) {
   return console.log(`---
@@ -20,22 +19,12 @@ Builds production tags of the browserless/chrome image with options. You can com
 DEFAULT:
 '$ npm run deploy'
 
-Builds a new browserless/base with a version defined in the package.json field and builds, tests then pushes the image into docker.
+Builds a new browserless/base with a version defined in the package.json field and builds then pushes the image into docker.
 
 SET A RELEASE VERSION VERSION:
 '$ VERSION=1.2.3 npm run deploy'
 
-Override the package.json version, and build base then build, test, and push the versions.
-
-SKIP TESTS:
-'$ npm run deploy -- --action=push'
-
-Skips testing and pushes after successful building, similar to 'buildx --push' commands.
-
-SKIP PUSH:
-'$ npm run deploy -- --action=test'
-
-Skips pushing and simply tests the completed builds.
+Override the package.json version, used in the first part of our version semantics. Builds the base and chrome repos, pushing after success.
 
 SKIP BASE BUILDS:
 '$ npm run deploy -- --skipBase'
@@ -50,14 +39,14 @@ Releases only a specific version, and has to be included in the 'releaseVersions
 SPECIFY A SPECIFIC PLATFORM:
 '$ npm run deploy -- --platform=linux/arm64'
 
-Releases only a specific platform for each release version. Supports linux/arm64 and linux/amd64 platforms at the moment.
+Releases only a specific platform for each release version. Supports linux/arm64 and linux/amd64 platforms at the moment. If a prior tag has
+been made this *will* override it possibly removing the prior platform.
 ---`);
 }
 
 const version = process.env.VERSION ?? npmVersion;
 const buildBase = !argv.skipBase;
 const requestedPlatform = argv.platform;
-const requestedActions = argv.actions ? argv.actions.split(',') : allowedActions;
 const requestedVersions = argv.versions
   ? argv.versions.split(',')
   : releaseVersions;
@@ -72,10 +61,6 @@ if (missingVersions.length) {
       ', ',
     )} are missing from the package.json file manifest. Please double check your versions`,
   );
-}
-
-if (requestedActions.some((action) => !allowedActions.includes(action))) {
-  throw new Error(`--actions must only be ${allowedActions.join(',')}.`);
 }
 
 if (
@@ -111,8 +96,6 @@ const work = [
   `Building ${requestedVersions.join(', ')} on platform ${
     requestedPlatform ?? 'all platforms'
   }`,
-  requestedActions.includes('test') ? 'Testing these versions' : null,
-  requestedActions.includes('push') ? 'Pushing these versions' : null,
 ];
 
 console.log(work.filter((_) => !!_).join('.\n'));
@@ -146,46 +129,19 @@ const deployVersion = async (tags, v) => {
   }
 
   const chromeStableArg = isChromeStable ? 'true' : 'false';
-  const shouldTest = requestedActions.includes('test');
-  const shouldPush = requestedActions.includes('push');
-  const pushOnly = !shouldTest && shouldPush;
-  const initialAction = pushOnly ? '--push' : '--load';
 
   // Since we load the image, we can't run in parallel as it's
   // a known issue atm.
-  await Promise.all(
-    platforms.map(
-      (p) => $`docker buildx build \
-  ${initialAction} \
-  --platform ${p} \
+  await $`docker buildx build \
+  --push \
+  --platform ${platforms.join(',')} \
   --build-arg "BASE_VERSION=${version}" \
   --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
   --build-arg "USE_CHROME_STABLE=${chromeStableArg}" \
   --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
   -t browserless/chrome:${patchBranch} \
   -t browserless/chrome:${minorBranch} \
-  -t browserless/chrome:${majorBranch} .`,
-    ),
-  );
-
-  // If not testing and we pushed in the prior command, return
-  if (pushOnly) {
-    return;
-  }
-
-  // Test the image prior to pushing it
-  if (shouldTest) {
-    const testPlatform = requestedPlatform ?? 'linux/amd64';
-    await $`docker run --platform ${testPlatform} --ipc=host -e CI=true --entrypoint ./test.sh browserless/chrome:${patchBranch}`;
-  }
-
-  if (shouldPush) {
-    await Promise.all([
-      $`docker push browserless/chrome:${patchBranch}`,
-      $`docker push browserless/chrome:${minorBranch}`,
-      $`docker push browserless/chrome:${majorBranch}`,
-    ]);
-  }
+  -t browserless/chrome:${majorBranch} .`;
 };
 
 (async function deploy() {
@@ -198,8 +154,7 @@ const deployVersion = async (tags, v) => {
 
   if (buildBase) {
     const basePlatform = requestedPlatform ?? 'linux/amd64,linux/arm64';
-    const buildAction = requestedActions.includes('push') ? '--push' : '--load';
-    await $`docker buildx build ${buildAction} --platform ${basePlatform} -t browserless/base:${version} base`;
+    await $`docker buildx build --push --platform ${basePlatform} -t browserless/base:${version} base`;
   }
 
   const buildVersions = map(requestedVersions, (pV) => {
