@@ -24,7 +24,7 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       );
     }
 
-  console.log(`Checking versions ${versions.join(', ')} of puppeteer`);
+  console.log(`Checking versions ${requestedVersions.join(', ')} of puppeteer`);
 
   for (version of requestedVersions) {
     const chromeVersion = chromeVersions[version].chromeRevision;
