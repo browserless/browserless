@@ -36,6 +36,7 @@ const { releaseVersions, chromeVersions } = require('../package.json');
     }
     const puppeteerChromiumRevision = versionInfo.chromeRevision;
     const puppeteerVersion = versionInfo.puppeteer;
+    const isChromeStable = version.includes('chrome-stable').toString();
 
     try {
       await $`docker buildx build \
@@ -43,7 +44,7 @@ const { releaseVersions, chromeVersions } = require('../package.json');
       --platform linux/amd64 \
       --build-arg "BASE_VERSION=latest" \
       --build-arg "BASE_REPO=browserless/base" \
-      --build-arg "USE_CHROME_STABLE=false" \
+      --build-arg "USE_CHROME_STABLE=${isChromeStable}" \
       --build-arg "PUPPETEER_CHROMIUM_REVISION=${puppeteerChromiumRevision}" \
       --build-arg "PUPPETEER_VERSION=${puppeteerVersion}" \
       -t browserless/chrome:${version} \
