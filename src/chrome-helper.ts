@@ -55,6 +55,7 @@ import {
   IDevtoolsJSON,
   IPage,
   PuppeteerRequest,
+  HeadlessType,
 } from './types.d';
 import {
   fetchJson,
@@ -432,6 +433,19 @@ export const getDebuggingPages = async (
 
 export const getBrowsersRunning = () => runningBrowsers.length;
 
+const getHeadlessValue = (
+  param: string | string[] | undefined,
+): HeadlessType => {
+  const isDefined = !_.isUndefined(param);
+
+  if (isDefined) {
+    if (param === 'true') return true;
+    if (param === 'new') return 'new';
+  }
+
+  return DEFAULT_STEALTH;
+};
+
 export const convertUrlParamsToLaunchOpts = (
   req: IHTTPRequest,
 ): ILaunchOptions => {
@@ -457,9 +471,7 @@ export const convertUrlParamsToLaunchOpts = (
 
   const playwright = req.parsed.pathname === PLAYWRIGHT_ROUTE;
 
-  const isHeadless = !_.isUndefined(headless)
-    ? headless !== 'false'
-    : DEFAULT_HEADLESS;
+  const headlessValue = getHeadlessValue(headless);
 
   const isStealth = !_.isUndefined(stealth)
     ? stealth !== 'false'
@@ -501,7 +513,7 @@ export const convertUrlParamsToLaunchOpts = (
     args: !_.isEmpty(args) ? args : DEFAULT_LAUNCH_ARGS,
     blockAds: !_.isUndefined(blockAds) || DEFAULT_BLOCK_ADS,
     dumpio,
-    headless: isHeadless,
+    headless: headlessValue,
     stealth: isStealth,
     ignoreDefaultArgs: parsedIgnoreDefaultArgs,
     ignoreHTTPSErrors:
@@ -547,6 +559,8 @@ export const launchChrome = async (
       .find((arg) => arg.includes('--user-data-dir='))
       ?.split('=')[1] || opts.userDataDir;
 
+  // not necessary to allow it to be "new", since it's used to
+  // set an arg if it's Playwright and not headless=false
   const isHeadless =
     launchArgs.args.some((arg) => arg.startsWith('--headless')) ||
     typeof launchArgs.headless === 'undefined' ||

@@ -7,7 +7,7 @@ import _ from 'lodash';
 import untildify from 'untildify';
 
 import { Features, isFeature } from './features';
-import { Feature } from './types.d';
+import { Feature, HeadlessType } from './types.d';
 
 const { IS_CHROME_FOR_TESTING } = require('../env');
 
@@ -127,7 +127,7 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
   process.env.DEFAULT_BLOCK_ADS,
   false,
 );
-export const DEFAULT_HEADLESS: boolean | 'new' = parseJSONParam(
+export const DEFAULT_HEADLESS: HeadlessType = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
   IS_CHROME_FOR_TESTING ? ['new'] : true,
 );
