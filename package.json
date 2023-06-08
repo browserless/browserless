@@ -181,7 +181,7 @@
     "queue": "^6.0.0",
     "request": "^2.83.0",
     "rimraf": "^3.0.0",
-    "selenium-webdriver": "^4.9.2",
+    "selenium-webdriver": "^4.10.0",
     "sharp": "^0.32.1",
     "snyk": "^1.1175.0",
     "swagger-ui-express": "^4.6.3",
