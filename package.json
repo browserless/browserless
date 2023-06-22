@@ -129,7 +129,7 @@
     "heapdump": "^0.3.15"
   },
   "dependencies": {
-    "@puppeteer/browsers": "1.4.1",
+    "@puppeteer/browsers": "1.4.2",
     "@types/archiver": "^5.3.2",
     "@types/chai": "^4.3.5",
     "@types/cookie": "^0.5.0",
