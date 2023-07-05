@@ -1,0 +1,12 @@
+# Build/Source Files
+node_modules/
+build/
+fonts/
+
+# Editor preferences
+.editorconfig
+.dockerignore
+.git/
+.no-git/
+.vscode/
+.parcel-cache/

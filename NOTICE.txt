@@ -1,0 +1,6 @@
+Browserless Premium
+(c) 2022, browserless.io
+
+This project includes code from GitHub user "wanhose", from their "Cookie
+Dialog Monster" project, under the MIT License.
+(https://github.com/wanhose/cookie-dialog-monster)

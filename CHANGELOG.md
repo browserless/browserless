@@ -1,6 +1,27 @@
 # [Latest](https://github.com/browserless/chrome/compare/v1.59.0...master)
 - Dependency updates.
 
+# [v2.0.0-beta](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
+browserless 2.0.0 represents the best body of work after running browserless for over 5 years. It contains mostly the same functionality and more, and is rebuilt to be more modular and offer a NodeJS SDK. It's also much lighter and faster than prior versions and includes a lot of semantic changes.
+
+## Features
+- ECMAScript style module loading and dependencies.
+- New routing system using purely NodeJS's HTTP module.
+- Better logs and concurrency/queueing parameters.
+- Support for running the other major browser vendors in the same format and package.
+- The service now compiles TypeScript to runtime JOI validation for our routes.
+- Soon: upcoming support for extensions, long-running sessions and more.
+
+## Breaking Changes
+- Remove support for Selenium.
+- The `/function` API now runs inside the context of the browser and not in Node.
+- Drop support for keep-alive and pre-booting.
+- Support for a single `launch` query-string parameter for launching a browser versus many individual parameters.
+
+## Minor Changes
+- Many docker parameters have been renamed, but are backwards compatible. See config.ts for details.
+-
+
 # [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
 - Dependency updates.
 - Bump to Ubuntu Kinetic release + updates to use relevant packages.

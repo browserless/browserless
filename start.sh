@@ -13,7 +13,7 @@ _kill_procs() {
 # Relay quit commands to processes
 trap _kill_procs SIGTERM SIGINT
 
-Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix &
+Xvfb :99 -screen 0 1920x1080x16 -nolisten tcp -nolisten unix &
 xvfb=$!
 
 export DISPLAY=:99

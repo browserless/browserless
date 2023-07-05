@@ -1,0 +1,71 @@
+<head>
+  <title>Browserless Premium Docs</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="./favicon-32x32.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: rgb(13, 13, 13);
+    }
+    a[href^="mailto:"] {
+      text-decoration: underline !important;
+    }
+    a[href="https://github.com/Redocly/redoc"],
+    a[href="https://redocly.com/redoc/"] {
+      display: none !important;
+    }
+    a[download] {
+      color: white;
+      border: transparent;
+      background: -webkit-linear-gradient(45deg, rgb(255, 51, 153) 60%, rgb(255, 255, 51) 100%);
+    }
+    table,
+    table tr div {
+      background-color: rgb(13, 13, 13) !important;
+    }
+    td span ~ div button {
+      background-color: rgb(50, 50, 159) !important;
+    }
+    h1, h2, h3, h4, h5, p, a, button, li, div, path, span:not(.token) {
+      color: white !important;
+    }
+    div[aria-hidden="false"] * {
+      color: black !important;
+    }
+    li.react-tabs__tab--selected,
+    li > label[role="menuitem"] {
+      background-color: transparent !important;
+    }
+    .menu-content {
+      background-color: rgb(13, 13, 13) !important;
+      background: linear-gradient(225deg,#1a1a1a 27.14%,rgba(26,26,26,0)),#000;
+      padding: .5rem;
+    }
+    label[role=menuitem] polygon {
+      fill: white !important;
+    }
+    pre {
+      background: linear-gradient(225deg,#1a1a1a 27.14%,rgba(26,26,26,0)),#000;
+    }
+    label[type="tag"].active,
+    label[role="menuitem"].active,
+    label[type="section"].active {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    label[type="tag"]:hover,
+    label[role="menuitem"]:hover,
+    label[type="section"]:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .redoc-markdown :not(pre) code {
+      color: rgb(255, 102, 178) !important;
+    }
+  </style>
+</head>
+<body>
+  <redoc spec-url='docs/swagger.json'></redoc>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+</body>

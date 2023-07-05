@@ -1,22 +1,23 @@
 # Built Assets
 node_modules/
 build/
-external/
-devtools/
-
-# Deployment assets
-hosts.json
 browser.json
+metrics.json
 
 # MAC
 .DS_Store
 
 # Temp files
+.no-git/
 *.log
+.*cache*
 
-# Caches
-.sass-cache
-_site
+# Compiled Function Helper
+static/function/*js
+static/live/*js
 
-# Coverage
-coverage
+# Swagger JSON
+static/docs/swagger.json
+
+# Env files
+.env

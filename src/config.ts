@@ -1,272 +1,426 @@
-import fs from 'fs';
-
-import os from 'os';
+import { randomUUID } from 'crypto';
+import { EventEmitter } from 'events';
+import { mkdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 
 import debug from 'debug';
-import _ from 'lodash';
-import untildify from 'untildify';
 
-import { Features, isFeature } from './features';
-import { Feature, HeadlessType } from './types.d';
+import { keyLength } from './constants.js';
+import { exists, untildify } from './utils.js';
 
-const { IS_CHROME_FOR_TESTING } = require('../env');
+/**
+ * configs to add:
+ * EXIT_ON_HEALTH_FAILURE
+ * MAX_PAYLOAD_SIZE
+ */
 
-// Required, by default, to make certain API's work
-const REQUIRED_INTERNALS = ['url'];
-const REQUIRED_EXTERNALS = ['lighthouse', 'node-pdftk', 'sharp'];
+enum oldConfig {
+  CONNECTION_TIMEOUT = 'CONNECTION_TIMEOUT',
+  DEFAULT_USER_DATA_DIR = 'DEFAULT_USER_DATA_DIR',
+  ENABLE_API_GET = 'ENABLE_API_GET',
+  ENABLE_CORS = 'ENABLE_CORS',
+  MAX_CONCURRENT_SESSIONS = 'MAX_CONCURRENT_SESSIONS',
+  PRE_REQUEST_HEALTH_CHECK = 'PRE_REQUEST_HEALTH_CHECK',
+  PROXY_URL = 'PROXY_URL',
+  QUEUE_LENGTH = 'QUEUE_LENGTH',
+}
+
+enum newConfigMap {
+  CONNECTION_TIMEOUT = 'TIMEOUT',
+  DEFAULT_USER_DATA_DIR = 'DATA_DIR',
+  ENABLE_API_GET = 'ALLOW_GET',
+  ENABLE_CORS = 'CORS',
+  MAX_CONCURRENT_SESSIONS = 'CONCURRENT',
+  PRE_REQUEST_HEALTH_CHECK = 'HEALTH',
+  PROXY_URL = 'EXTERNAL',
+  QUEUE_LENGTH = 'QUEUED',
+}
+
+enum deprecatedConfig {
+  CHROME_REFRESH_TIME = 'CHROME_REFRESH_TIME',
+  DEFAULT_BLOCK_ADS = 'DEFAULT_BLOCK_ADS',
+  DEFAULT_DUMPIO = 'DEFAULT_DUMPIO',
+  DEFAULT_HEADLESS = 'DEFAULT_HEADLESS',
+  DEFAULT_IGNORE_DEFAULT_ARGS = 'DEFAULT_IGNORE_DEFAULT_ARGS',
+  DEFAULT_IGNORE_HTTPS_ERRORS = 'DEFAULT_IGNORE_HTTPS_ERRORS',
+  DEFAULT_LAUNCH_ARGS = 'DEFAULT_LAUNCH_ARGS',
+  DEFAULT_STEALTH = 'DEFAULT_STEALTH',
+  DISABLED_FEATURES = 'DISABLED_FEATURES',
+  ENABLE_HEAP_DUMP = 'ENABLE_HEAP_DUMP',
+  FUNCTION_BUILT_INS = 'FUNCTION_BUILT_INS',
+  FUNCTION_ENABLE_INCOGNITO_MODE = 'FUNCTION_ENABLE_INCOGNITO_MODE',
+  FUNCTION_ENV_VARS = 'FUNCTION_ENV_VARS',
+  FUNCTION_EXTERNALS = 'FUNCTION_EXTERNALS',
+  KEEP_ALIVE = 'KEEP_ALIVE',
+  PREBOOT_CHROME = 'PREBOOT_CHROME',
+  PRINT_GET_STARTED_LINKS = 'PRINT_GET_STARTED_LINKS',
+  WORKSPACE_DELETE_EXPIRED = 'WORKSPACE_DELETE_EXPIRED',
+  WORKSPACE_DIR = 'WORKSPACE_DIR',
+  WORKSPACE_EXPIRE_DAYS = 'WORKSPACE_EXPIRE_DAYS',
+}
+
+for (const config in deprecatedConfig) {
+  if (process.env[config] !== undefined) {
+    console.error(
+      `Environment variable of "${config}" is deprecated and ignored. See for more details`,
+    );
+  }
+}
+
+for (const config in oldConfig) {
+  if (process.env[config] !== undefined) {
+    const newConfigName = newConfigMap[config as oldConfig];
+    if (newConfigName) {
+      console.error(
+        `Please use variable name "${newConfigName}" in place of "${config}"`,
+      );
+    } else {
+      console.error(
+        `Environment variable of "${config}" has changed and will be removed in an upcoming release.`,
+      );
+    }
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const parseEnvVars = (defaultVal: any, ...variableNames: string[]) => {
+  return variableNames.reduce((priorReturn, variable, idx, all) => {
+    if (priorReturn !== undefined) {
+      return priorReturn;
+    }
+    const envVar = process.env[variable];
+    if (envVar !== undefined) {
+      return envVar !== 'false';
+    }
+    if (idx === all.length - 1 && priorReturn === undefined) {
+      return defaultVal;
+    }
+  }, undefined);
+};
 
 const getDebug = () => {
   if (typeof process.env.DEBUG !== 'undefined') {
     return process.env.DEBUG;
   }
 
-  if (process.env.CI) {
-    return process.env.DEBUG;
-  }
-
-  process.env.DEBUG = 'browserless*';
+  process.env.DEBUG = 'browserless*,-**:verbose';
   debug.enable(process.env.DEBUG);
   return process.env.DEBUG;
 };
 
-const getDisabledFeatures = () => {
-  const disabledFeatures: Feature[] = parseJSONParam(
-    process.env.DISABLED_FEATURES,
-    [],
-  ).map((disabledFeature: string) => {
-    if (isFeature(disabledFeature)) {
-      return disabledFeature as Feature;
+export class Config extends EventEmitter {
+  private readonly debug = getDebug();
+  private readonly host = process.env.HOST ?? 'localhost';
+  private readonly external = process.env.PROXY_URL ?? process.env.EXTERNAL;
+  private readonly isWin = process.platform === 'win32';
+
+  private port = +(process.env.PORT ?? '3000');
+
+  private downloadsDir = process.env.DOWNLOAD_DIR
+    ? untildify(process.env.DOWNLOAD_DIR)
+    : path.join(tmpdir(), 'browserless-download-dirs');
+
+  private dataDir = process.env.DATA_DIR
+    ? untildify(process.env.DATA_DIR)
+    : path.join(tmpdir(), 'browserless-data-dirs');
+
+  private metricsJSONPath = process.env.METRICS_JSON_PATH
+    ? untildify(process.env.METRICS_JSON_PATH)
+    : path.join(tmpdir(), 'browserless-metrics.json');
+
+  private createDataDir = !process.env.DATA_DIR;
+  private createDownloadsDir = !process.env.DOWNLOAD_DIR;
+
+  private routes = process.env.ROUTES
+    ? untildify(process.env.ROUTES)
+    : path.join(process.cwd(), 'build', 'routes');
+
+  private token = process.env.TOKEN ?? randomUUID();
+  private concurrent = +(
+    process.env.CONCURRENT ??
+    process.env.MAX_CONCURRENT_SESSIONS ??
+    '10'
+  );
+  private queued = +(process.env.QUEUE_LENGTH ?? process.env.QUEUED ?? '10');
+  private timeout = +(
+    process.env.TIMEOUT ??
+    process.env.CONNECTION_TIMEOUT ??
+    '30000'
+  );
+  private static = process.env.STATIC ?? path.join(process.cwd(), 'static');
+  private retries = +(process.env.RETRIES ?? '5');
+  private allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
+  private allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');
+  private allowCors = !!parseEnvVars(false, 'CORS', 'ENABLE_CORS');
+  private corsMethods = process.env.CORS_ALLOW_METHODS ?? 'OPTIONS, POST, GET';
+  private corsOrigin = process.env.CORS_ALLOW_ORIGIN ?? '*';
+  private corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
+  private maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
+  private maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
+  private healthCheck = !!parseEnvVars(false, 'HEALTH');
+  private failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
+  private queueAlertURL = process.env.QUEUE_ALERT_URL ?? null;
+  private rejectAlertURL = process.env.REJECT_ALERT_URL ?? null;
+  private timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
+  private errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
+
+  public getRoutes = (): string => this.routes;
+  public getHost = (): string => this.host;
+  public getPort = (): number => this.port;
+  public getIsWin = (): boolean => this.isWin;
+  public getToken = (): string => this.token;
+  public getDebug = (): string => this.debug;
+
+  /**
+   * The maximum number of concurrent sessions allowed. Set
+   * to "-1" or "Infinity" for no limit.
+   * @returns number
+   */
+  public getConcurrent = (): number => this.concurrent;
+
+  /**
+   * The maximum number of queued sessions allowed. Set to
+   * "-1" or "Infinity" for no limit.
+   * @returns number
+   */
+  public getQueued = (): number => this.queued;
+  public getTimeout = (): number => this.timeout;
+  public getStatic = (): string => this.static;
+  public getRetries = (): number => this.retries;
+  public getAllowFileProtocol = (): boolean => this.allowFileProtocol;
+  public getCPULimit = (): number => this.maxCpu;
+  public getMemoryLimit = (): number => this.maxMemory;
+  public getHealthChecksEnabled = (): boolean => this.healthCheck;
+  public getFailedHealthURL = () => this.failedHealthURL;
+  public getQueueAlertURL = () => this.queueAlertURL;
+  public getRejectAlertURL = () => this.rejectAlertURL;
+  public getTimeoutAlertURL = () => this.timeoutAlertURL;
+  public getErrorAlertURL = () => this.errorAlertURL;
+
+  /**
+   * If true, allows GET style calls on our browser-based APIs, using
+   * ?body=JSON format.
+   */
+  public getAllowGetCalls = (): boolean => this.allowGet;
+
+  /**
+   * Determines if CORS is allowed
+   */
+  public getAllowCORS = (): boolean => this.allowCors;
+
+  public getDataDir = async (): Promise<string> => {
+    if (this.createDataDir && !(await exists(this.dataDir))) {
+      await mkdir(this.dataDir, { recursive: true }).catch((err) => {
+        throw new Error(`Error in creating the data directory ${err}, exiting`);
+      });
+      this.createDataDir = false;
     }
-    throw new Error(
-      `Unsupported feature '${disabledFeature}'. Supported features: [${Object.entries(
-        Features,
-      )
-        .map(([, v]) => v)
-        .join(',')}]`,
-    );
+
+    if (!(await exists(this.dataDir))) {
+      throw new Error(
+        `"${this.dataDir}" Directory doesn't exist, did you forget to mount or make it?`,
+      );
+    }
+
+    return this.dataDir;
+  };
+
+  public getDownloadsDir = async (): Promise<string> => {
+    if (this.createDownloadsDir && !(await exists(this.downloadsDir))) {
+      await mkdir(this.downloadsDir, { recursive: true }).catch((err) => {
+        throw new Error(
+          `Error in creating the downloads directory ${err}, exiting`,
+        );
+      });
+      this.createDownloadsDir = false;
+    }
+
+    if (!(await exists(this.downloadsDir))) {
+      throw new Error(
+        `"${this.downloadsDir}" Directory doesn't exist, did you forget to mount or make it?`,
+      );
+    }
+
+    return this.downloadsDir;
+  };
+
+  /**
+   * Repeats the TOKEN parameter up to 24 characters so we can
+   * do AES encoding for saving things to disk and generating
+   * secure links.
+   */
+  public getAESKey = () => {
+    return Buffer.from(this.token.repeat(keyLength).substring(0, keyLength));
+  };
+
+  public getMetricsJSONPath = () => this.metricsJSONPath;
+
+  public setDataDir = async (newDataDir: string): Promise<string> => {
+    if (!(await exists(newDataDir))) {
+      throw new Error(
+        `New data-directory "${newDataDir}" doesn't exist, did you forget to mount or create it?`,
+      );
+    }
+    this.dataDir = newDataDir;
+    this.emit('data-dir', newDataDir);
+    return this.dataDir;
+  };
+
+  public setRoutes = (newRoutePath: string): string => {
+    this.emit('routes', newRoutePath);
+    return (this.routes = newRoutePath);
+  };
+
+  public setConcurrent = (newConcurrent: number): number => {
+    this.emit('concurrent', newConcurrent);
+    return (this.concurrent = newConcurrent);
+  };
+
+  public setQueued = (newQueued: number): number => {
+    this.emit('queued', newQueued);
+    return (this.queued = newQueued);
+  };
+
+  public setToken = (newToken: string): string => {
+    this.emit('token', newToken);
+    return (this.token = newToken);
+  };
+
+  public setTimeout = (newTimeout: number): number => {
+    this.emit('timeout', newTimeout);
+    return (this.timeout = newTimeout);
+  };
+
+  public setStatic = (newStatic: string): string => {
+    this.emit('static', newStatic);
+    return (this.static = newStatic);
+  };
+
+  public setRetries = (newRetries: number): number => {
+    this.emit('retries', newRetries);
+    return (this.retries = newRetries);
+  };
+
+  public setCPULimit = (limit: number): number => {
+    this.emit('cpuLimit', limit);
+    return (this.maxCpu = limit);
+  };
+
+  public setMemoryLimit = (limit: number): number => {
+    this.emit('memoryLimit', limit);
+    return (this.maxMemory = limit);
+  };
+
+  public enableHealthChecks = (enable: boolean): boolean => {
+    this.emit('healthCheck', enable);
+    return (this.healthCheck = enable);
+  };
+
+  public enableGETRequests = (enable: boolean): boolean => {
+    this.emit('getRequests', enable);
+    return (this.allowGet = enable);
+  };
+
+  public enableCORS = (enable: boolean): boolean => {
+    this.emit('cors', enable);
+    return (this.allowCors = enable);
+  };
+
+  public setCORSMethods = (methods: string): string => {
+    this.emit('corsMethods', methods);
+    return (this.corsMethods = methods);
+  };
+
+  public setCORSOrigin = (origin: string): string => {
+    this.emit('corsOrigin', origin);
+    return (this.corsOrigin = origin);
+  };
+
+  public setCORSMaxAge = (maxAge: number): number => {
+    this.emit('corsMaxAge', maxAge);
+    return (this.corsMaxAge = maxAge);
+  };
+  public setFailedHealthURL = (url: string | null): string | null => {
+    this.emit('failedHealthURL');
+    return (this.failedHealthURL = url);
+  };
+
+  public setQueueAlertURL = (url: string | null): string | null => {
+    this.emit('queueAlertURL');
+    return (this.queueAlertURL = url);
+  };
+
+  public setRejectAlertURL = (url: string | null): string | null => {
+    this.emit('rejectAlertURL');
+    return (this.rejectAlertURL = url);
+  };
+
+  public setTimeoutAlertURL = (url: string | null): string | null => {
+    this.emit('timeoutAlertURL');
+    return (this.timeoutAlertURL = url);
+  };
+
+  public setErrorAlertURL = (url: string | null): string | null => {
+    this.emit('errorAlertURL');
+    return (this.errorAlertURL = url);
+  };
+
+  public setMetricsJSONPath = (path: string) => {
+    this.emit('metricsJSONPath', path);
+    return (this.metricsJSONPath = path);
+  };
+
+  public setPort = (port: number) => {
+    this.emit('port', port);
+    return (this.port = port);
+  };
+
+  public setAllowFileProtocol = (allow: boolean): boolean => {
+    this.emit('allowFileProtocol', allow);
+    return (this.allowFileProtocol = allow);
+  };
+
+  /**
+   * Returns the fully-qualified server address, which
+   * includes host, protocol, and port for which the
+   * server is *actively* listening on. For uses behind
+   * a reverse proxy or some other load-balancer, use
+   * #getExternalAddress
+   *
+   * @returns Fully-qualified server address
+   */
+  public getServerAddress = (): string =>
+    this.port === 443
+      ? `https://${this.host}:${this.port}`
+      : this.port === 80
+      ? `http://${this.host}`
+      : `http://${this.host}:${this.port}`;
+
+  /**
+   * Returns the the fully-qualified URL for the
+   * external address that browserless might be
+   * running behind *or* the server address if
+   * no external URL is provided.
+   *
+   * @returns {string} The URL to reach the server
+   */
+  public getExternalAddress = (): string =>
+    this.external ?? this.getServerAddress();
+
+  /**
+   * When CORS is enabled, returns relevant CORS headers
+   * to requests and for the OPTIONS call. Values can be
+   * overridden by specifying `CORS_ALLOW_METHODS`, `CORS_ALLOW_ORIGIN`,
+   * and `CORS_MAX_AGE`
+   */
+  public getCORSHeaders = (): {
+    'Access-Control-Allow-Methods': string;
+    'Access-Control-Allow-Origin': string;
+    'Access-Control-Max-Age': number;
+  } => ({
+    'Access-Control-Allow-Methods': this.corsMethods,
+    'Access-Control-Allow-Origin': this.corsOrigin,
+    'Access-Control-Max-Age': this.corsMaxAge,
   });
-  if (
-    !parseJSONParam(process.env.ENABLE_DEBUG_VIEWER, true) &&
-    !disabledFeatures.includes(Features.DEBUG_VIEWER)
-  ) {
-    disabledFeatures.push(Features.DEBUG_VIEWER);
-  }
-  return disabledFeatures;
-};
-
-const parseJSONParam = (
-  param: string | undefined,
-  defaultParam: boolean | string[],
-) => {
-  if (param) {
-    try {
-      return JSON.parse(param);
-    } catch (err) {
-      console.warn(`Couldn't parse parameter: "${param}". Saw error "${err}"`);
-      return defaultParam;
-    }
-  }
-  return defaultParam;
-};
-
-const parseNumber = (
-  param: string | undefined,
-  defaultParam: number,
-): number => {
-  const parsed = _.parseInt(param || '');
-
-  if (_.isNaN(parsed)) {
-    return defaultParam;
-  }
-
-  return parsed;
-};
-
-const parseSocketBehavior = (behavior = 'http'): 'http' | 'close' => {
-  if (behavior !== 'http' && behavior !== 'close') {
-    console.warn(
-      `Unknown socket behavior of "${behavior}" passed in, using "http"`,
-    );
-    return 'http';
-  }
-
-  return behavior;
-};
-
-const thirtyMinutes = 30 * 60 * 1000;
-const expandedDir = untildify(process.env.WORKSPACE_DIR || '');
-
-// Timers/Queue/Concurrency
-export const CONNECTION_TIMEOUT: number = parseNumber(
-  process.env.CONNECTION_TIMEOUT,
-  30000,
-);
-export const MAX_CONCURRENT_SESSIONS: number = parseNumber(
-  process.env.MAX_CONCURRENT_SESSIONS,
-  10,
-);
-export const QUEUE_LENGTH: number = parseNumber(
-  process.env.MAX_QUEUE_LENGTH,
-  10,
-);
-export const SINGLE_RUN: boolean = parseJSONParam(
-  process.env.SINGLE_RUN,
-  false,
-);
-
-// Pre-boot/Default Launch Options
-export const CHROME_REFRESH_TIME: number = parseNumber(
-  process.env.CHROME_REFRESH_TIME,
-  thirtyMinutes,
-);
-export const KEEP_ALIVE: boolean = parseJSONParam(
-  process.env.KEEP_ALIVE,
-  false,
-);
-export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
-  process.env.DEFAULT_BLOCK_ADS,
-  false,
-);
-export const DEFAULT_HEADLESS: HeadlessType = parseJSONParam(
-  process.env.DEFAULT_HEADLESS,
-  IS_CHROME_FOR_TESTING ? ['new'] : true,
-);
-export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
-  process.env.DEFAULT_LAUNCH_ARGS,
-  [],
-);
-export const DEFAULT_IGNORE_DEFAULT_ARGS: boolean = parseJSONParam(
-  process.env.DEFAULT_IGNORE_DEFAULT_ARGS,
-  false,
-);
-export const DEFAULT_IGNORE_HTTPS_ERRORS: boolean = parseJSONParam(
-  process.env.DEFAULT_IGNORE_HTTPS_ERRORS,
-  false,
-);
-export const DEFAULT_DUMPIO: boolean = parseJSONParam(
-  process.env.DEFAULT_DUMPIO,
-  false,
-);
-export const DEFAULT_STEALTH: boolean = parseJSONParam(
-  process.env.DEFAULT_STEALTH,
-  false,
-);
-export const DEFAULT_USER_DATA_DIR: string | undefined = process.env
-  .DEFAULT_USER_DATA_DIR
-  ? untildify(process.env.DEFAULT_USER_DATA_DIR)
-  : undefined;
-export const PREBOOT_CHROME: boolean = parseJSONParam(
-  process.env.PREBOOT_CHROME,
-  false,
-);
-export const PRINT_GET_STARTED_LINKS: boolean = parseJSONParam(
-  process.env.PRINT_GET_STARTED_LINKS,
-  true,
-);
-export const PRINT_NETWORK_INFO: boolean = parseJSONParam(
-  process.env.PRINT_NETWORK_INFO,
-  true,
-);
-
-// Security and accessibility
-export const DEBUG: string | undefined = getDebug();
-export const DISABLED_FEATURES: Feature[] = getDisabledFeatures();
-export const ENABLE_CORS: boolean = parseJSONParam(
-  process.env.ENABLE_CORS,
-  false,
-);
-export const ENABLE_API_GET: boolean = parseJSONParam(
-  process.env.ENABLE_API_GET,
-  false,
-);
-export const TOKEN: string | null = process.env.TOKEN || null;
-export const ENABLE_HEAP_DUMP: boolean = parseJSONParam(
-  process.env.ENABLE_HEAP_DUMP,
-  false,
-);
-export const ALLOW_FILE_PROTOCOL: boolean = parseJSONParam(
-  process.env.ALLOW_FILE_PROTOCOL,
-  false,
-);
-
-// Puppeteer behavior
-export const DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR = parseJSONParam(
-  process.env.DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR,
-  false,
-);
-export const FUNCTION_BUILT_INS: string[] = parseJSONParam(
-  process.env.FUNCTION_BUILT_INS,
-  REQUIRED_INTERNALS,
-);
-export const FUNCTION_ENV_VARS: string[] = parseJSONParam(
-  process.env.FUNCTION_ENV_VARS,
-  [],
-);
-export const FUNCTION_ENABLE_INCOGNITO_MODE: boolean = parseJSONParam(
-  process.env.FUNCTION_ENABLE_INCOGNITO_MODE,
-  false,
-);
-export const FUNCTION_EXTERNALS: string[] = parseJSONParam(
-  process.env.FUNCTION_EXTERNALS,
-  REQUIRED_EXTERNALS,
-);
-export const WORKSPACE_DIR: string = fs.existsSync(expandedDir)
-  ? expandedDir
-  : os.tmpdir();
-export const WORKSPACE_DELETE_EXPIRED: boolean = parseJSONParam(
-  process.env.WORKSPACE_DELETE_EXPIRED,
-  false,
-);
-export const WORKSPACE_EXPIRE_DAYS: number = parseNumber(
-  process.env.WORKSPACE_EXPIRE_DAYS,
-  30,
-);
-
-// Web-hooks
-export const FAILED_HEALTH_URL: string | null =
-  process.env.FAILED_HEALTH_URL || null;
-export const QUEUE_ALERT_URL: string | null =
-  process.env.QUEUE_ALERT_URL || null;
-export const REJECT_ALERT_URL: string | null =
-  process.env.REJECT_ALERT_URL || null;
-export const TIMEOUT_ALERT_URL: string | null =
-  process.env.TIMEOUT_ALERT_URL || null;
-export const ERROR_ALERT_URL: string | null =
-  process.env.ERROR_ALERT_URL || null;
-export const SESSION_CHECK_FAIL_URL: string | null =
-  process.env.SESSION_CHECK_FAIL_URL || null;
-
-// Health
-export const PRE_REQUEST_HEALTH_CHECK: boolean = parseJSONParam(
-  process.env.PRE_REQUEST_HEALTH_CHECK,
-  false,
-);
-export const EXIT_ON_HEALTH_FAILURE: boolean = parseJSONParam(
-  process.env.EXIT_ON_HEALTH_FAILURE,
-  false,
-);
-export const MAX_CPU_PERCENT: number = parseNumber(
-  process.env.MAX_CPU_PERCENT,
-  99,
-);
-export const MAX_MEMORY_PERCENT: number = parseNumber(
-  process.env.MAX_MEMORY_PERCENT,
-  99,
-);
-export const METRICS_JSON_PATH: string | null = process.env.METRICS_JSON_PATH
-  ? untildify(process.env.METRICS_JSON_PATH)
-  : null;
-
-// Server Options
-
-// Host and port to bind our server to
-export const HOST: string | undefined = process.env.HOST;
-export const PORT: number = parseNumber(process.env.PORT, 8080);
-export const SOCKET_CLOSE_METHOD = parseSocketBehavior(
-  process.env.SOCKET_CLOSE_METHOD,
-);
-
-// PROXY URL is used for browserless to build appropriate URLs when it's behind a proxy
-// (must be a fully-qualified URL)
-export const PROXY_URL: string | undefined = process.env.PROXY_URL;
-export const MAX_PAYLOAD_SIZE: string = process.env.MAX_PAYLOAD_SIZE || '5mb';
+}
