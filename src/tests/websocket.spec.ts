@@ -7,6 +7,11 @@ import { Metrics } from '../metrics.js';
 import { exists, sleep } from '../utils.js';
 
 describe('WebSocket API', function () {
+
+  // Server shutdown can take a few seconds
+  // and so can these tests :/
+  this.timeout(5000);
+
   let browserless: Browserless;
 
   const start = ({
@@ -101,7 +106,7 @@ describe('WebSocket API', function () {
     expect(success).to.be.true;
   });
 
-  it.only('deletes user-data-dirs when not specified', async () => {
+  it('deletes user-data-dirs when not specified', async () => {
     await start();
 
     const browser = await puppeteer.connect({
@@ -111,7 +116,6 @@ describe('WebSocket API', function () {
     const [{ userDataDir }] = await fetch(
       'http://127.0.01:3000/sessions?token=browserless',
     ).then((r) => r.json());
-
     expect(await exists(userDataDir)).to.be.true;
 
     await browser.disconnect();

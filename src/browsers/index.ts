@@ -206,7 +206,7 @@ export class BrowserManager {
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs
     const userDataDir =
-      manualUserDataDir || Browser === CDPChromium
+      manualUserDataDir || Browser.name === CDPChromium.name
         ? await this.generateDataDir()
         : null;
 
