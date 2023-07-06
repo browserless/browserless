@@ -33,7 +33,7 @@ WORKDIR $APP_DIR
 COPY . .
 
 # Install Chrome Stable when specified
-RUN if [[ -z "$CHROME_STABLE_VERSION" ]]; then \
+RUN if [[ -n "$CHROME_STABLE_VERSION" ]]; then \
     wget --no-verbose -O /usr/bin/google-chrome https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_STABLE_VERSION}-1_amd64.deb; \
   elif [ "$USE_CHROME_STABLE" = "true" ]; then \
     cd /tmp &&\
