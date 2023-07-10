@@ -408,6 +408,7 @@ export interface IBrowserlessStats {
   successful: number;
   timedout: number;
   totalTime: number;
+  unauthorized: number;
   unhealthy: number;
   units: number;
 }

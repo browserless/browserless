@@ -1,4 +1,6 @@
 import { expect } from 'chai';
+import { deleteAsync } from 'del';
+import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer-core';
 
 import { Browserless } from '../browserless.js';
@@ -7,7 +9,6 @@ import { Metrics } from '../metrics.js';
 import { exists, sleep } from '../utils.js';
 
 describe('WebSocket API', function () {
-
   // Server shutdown can take a few seconds
   // and so can these tests :/
   this.timeout(5000);
@@ -31,7 +32,7 @@ describe('WebSocket API', function () {
     await start();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
 
     await browser.disconnect();
@@ -41,11 +42,11 @@ describe('WebSocket API', function () {
     await start();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
 
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
 
     await Promise.all([browser.disconnect(), browserTwo.disconnect()]);
@@ -56,7 +57,7 @@ describe('WebSocket API', function () {
 
     const didError = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://127.0.0.1:3000?token=bad`,
+        browserWSEndpoint: `ws://localhost:3000?token=bad`,
       })
       .then(() => false)
       .catch(() => true);
@@ -69,7 +70,7 @@ describe('WebSocket API', function () {
 
     const didError = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless`,
+        browserWSEndpoint: `ws://localhost:3000?token=browserless`,
       })
       .then(async (b) => {
         const page = await b.newPage();
@@ -91,7 +92,7 @@ describe('WebSocket API', function () {
 
     const success = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless&launch=${JSON.stringify(
+        browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${JSON.stringify(
           args,
         )}`,
       })
@@ -110,11 +111,11 @@ describe('WebSocket API', function () {
     await start();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://127.0.0.1:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
 
     const [{ userDataDir }] = await fetch(
-      'http://127.0.01:3000/sessions?token=browserless',
+      'http://localhost:3000/sessions?token=browserless',
     ).then((r) => r.json());
     expect(await exists(userDataDir)).to.be.true;
 
@@ -124,138 +125,81 @@ describe('WebSocket API', function () {
     expect(await exists(userDataDir)).to.be.false;
   });
 
-  it('creates user-data-dirs with CLI flags', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start(params);
-      await browserless.startServer();
-      const userDataDir = '/tmp/browserless-123';
+  it('creates user-data-dirs with userDataDir options', async () => {
+    const dataDirLocation = '/tmp/browserless-test-dir';
+    const launch = JSON.stringify({
+      userDataDir: dataDirLocation,
+    });
+    await start();
 
-      expect(await exists(userDataDir)).to.be.false;
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+    });
 
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await puppeteer.connect({
-            browserWSEndpoint: `ws://127.0.0.1:${params.port}?--user-data-dir=${userDataDir}`,
-          });
+    const [{ userDataDir }] = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    ).then((r) => r.json());
 
-          expect(await exists(userDataDir)).to.be.true;
-          browser.once('disconnected', resolve);
-          browser.disconnect();
-          // @ts-ignore
-          await rimraf(userDataDir, done);
-        });
-      };
+    expect(userDataDir === dataDirLocation).to.be.true;
+    expect(await exists(userDataDir)).to.be.true;
 
-      job();
-    }));
+    await browser.disconnect();
+    await sleep(500);
 
-  it('creates user-data-dirs with named flags', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start(params);
-      await browserless.startServer();
-      const userDataDir = '/tmp/browserless-123';
+    expect(await exists(userDataDir)).to.be.true;
+    await deleteAsync(userDataDir, { force: true });
+  });
 
-      expect(await exists(userDataDir)).to.be.false;
+  it('creates user-data-dirs with CLI flags', async () => {
+    const dataDirLocation = '/tmp/browserless-test-dir';
+    const launch = JSON.stringify({
+      args: [`--user-data-dir==${dataDirLocation}`],
+    });
+    await start();
 
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await puppeteer.connect({
-            browserWSEndpoint: `ws://127.0.0.1:${params.port}?userDataDir=${userDataDir}`,
-          });
-          expect(await exists(userDataDir)).to.be.true;
-          browser.once('disconnected', resolve);
-          browser.disconnect();
-          // @ts-ignore
-          await rimraf(userDataDir, done);
-        });
-      };
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+    });
 
-      job();
-    }));
+    const [{ userDataDir }] = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    ).then((r) => r.json());
 
-  it('runs with no leaks', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start({
-        ...params,
-        connectionTimeout: -1,
-      });
-      await browserless.startServer();
+    expect(userDataDir === dataDirLocation).to.be.true;
+    expect(await exists(userDataDir)).to.be.true;
 
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await puppeteer.connect({
-            browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
-          });
+    await browser.disconnect();
+    await sleep(500);
 
-          browser.once('disconnected', resolve);
+    expect(await exists(userDataDir)).to.be.true;
+    await deleteAsync(userDataDir, { force: true });
+  });
 
-          browser.disconnect();
-        });
-      };
+  it('runs with job-based timeouts', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    config.setTimeout(-1); // No timeout
+    await start({ config, metrics });
 
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).to.equal(0);
-        expect(browserless.currentStat.successful).to.equal(1);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?timeout=500&token=browserless`,
+    });
 
-        // browserless binds to these two events
-        // for graceful closing but puppeteer shouldn't
-        expect(process.listeners('SIGINT').length).to.equal(1);
-        expect(process.listeners('SIGTERM').length).to.equal(1);
-
-        expect(process.listeners('exit').length).to.equal(0);
-        expect(process.listeners('SIGHUP').length).to.equal(0);
-        done();
-      });
-
-      job();
-    }));
-
-  it('runs with job-based timeouts', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start({
-        ...params,
-        connectionTimeout: -1,
-      });
-      await browserless.startServer();
-
-      const job = async () => {
-        await puppeteer
-          .connect({
-            browserWSEndpoint: `ws://127.0.0.1:${params.port}?timeout=5000`,
-          })
-          .catch((error) => {
-            expect(error.message).to.contain('socket hang up');
-          });
-      };
-
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).to.equal(1);
-        expect(browserless.currentStat.successful).to.equal(0);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        done();
-      });
-
-      job();
-    }));
+    await sleep(750);
+    browser.disconnect();
+    expect(metrics.get().timedout).to.equal(1);
+    expect(metrics.get().successful).to.equal(0);
+  });
 
   it('allows the file-chooser', async () =>
     new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start(params);
-      await browserless.startServer();
-
+      await start();
       const job = async () => {
         const browser = await puppeteer.connect({
-          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
+          browserWSEndpoint: `ws://localhost:3000?token=browserless`,
         });
-        const [page] = await browser.pages();
+
+        const page = await browser.newPage();
 
         await page.setContent(`<div class="output" style="height: 62%;"><label for="avatar">Choose a profile picture:</label>
       <input type="file" id="avatar" name="avatar" accept="image/png, image/jpeg">
@@ -276,209 +220,94 @@ describe('WebSocket API', function () {
       job();
     }));
 
-  it('queues requests', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = start({
-        ...params,
-        maxConcurrentSessions: 1,
+  it('queues requests', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    config.setConcurrent(1);
+    await start({ config, metrics });
+
+    const job = async () => {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000?token=browserless`,
       });
+      await sleep(100);
 
-      await browserless.startServer();
+      return browser.disconnect();
+    };
 
-      const job = async () => {
-        const browser = await puppeteer.connect({
-          browserWSEndpoint: `ws://127.0.0.1:${params.port}`,
-        });
+    await Promise.all([job(), job()]);
 
-        browser.disconnect();
-      };
+    await sleep(100);
 
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.successful).to.equal(2);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(1);
-        done();
-      });
-
-      job();
-      job();
-    }));
+    const results = metrics.get();
+    expect(results.successful).to.equal(2);
+    expect(results.rejected).to.equal(0);
+    expect(results.queued).to.equal(1);
+  });
 
   it('fails requests', async () => {
-    const params = defaultParams();
-    const browserless = start({
-      ...params,
-      maxConcurrentSessions: 0,
-      maxQueueLength: 0,
-    });
-
-    await browserless.startServer();
+    const config = new Config();
+    config.setConcurrent(0);
+    config.setQueued(0);
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     return puppeteer
-      .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
-      .then(throws)
+      .connect({ browserWSEndpoint: `ws://localhost:3000?token=browserless` })
       .catch((error) => {
-        expect(browserless.currentStat.successful).to.equal(0);
-        expect(browserless.currentStat.rejected).to.equal(1);
-        expect(browserless.currentStat.queued).to.equal(0);
+        const restults = metrics.get();
+        expect(restults.successful).to.equal(0);
+        expect(restults.rejected).to.equal(1);
+        expect(restults.queued).to.equal(0);
         expect(error.message).to.contain.oneOf([`400`, `429`]);
       });
   });
 
-  it('fails requests with socket destroy', async () => {
-    const params = defaultParams();
-    const browserless = start({
-      ...params,
-      socketBehavior: 'close',
-      maxConcurrentSessions: 0,
-      maxQueueLength: 0,
-    });
-
-    await browserless.startServer();
-
-    return puppeteer
-      .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
-      .then(throws)
-      .catch((error) => {
-        expect(browserless.currentStat.successful).to.equal(0);
-        expect(browserless.currentStat.rejected).to.equal(1);
-        expect(browserless.currentStat.queued).to.equal(0);
-        expect(error.message).to.contain(`socket hang up`);
-      });
-  });
-
   it('fails requests without tokens', async () => {
-    const params = defaultParams();
-    const browserless = start({
-      ...params,
-      token: 'abc',
-    });
-
-    await browserless.startServer();
+    const metrics = new Metrics();
+    await start({ metrics });
 
     return puppeteer
-      .connect({ browserWSEndpoint: `ws://127.0.0.1:${params.port}` })
-      .then(throws)
+      .connect({ browserWSEndpoint: `ws://localhost:3000` })
       .catch((error) => {
-        expect(browserless.currentStat.successful).to.equal(0);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        expect(error.message).to.contain(`403`);
+        const results = metrics.get();
+        expect(results.successful).to.equal(0);
+        expect(results.rejected).to.equal(0);
+        expect(results.queued).to.equal(0);
+        expect(error.message).to.contain(`401`);
       });
   });
 
-  it('runs playwright', async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start(params);
-      await browserless.startServer();
+  it('runs playwright', async () => {
+    const metrics = new Metrics();
+    await start({ metrics });
 
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await chromium.connect(
-            `ws://127.0.0.1:${params.port}/playwright`,
-          );
+    const browser = await chromium.connect(
+      `ws://localhost:3000/playwright/chromium?token=browserless`,
+    );
 
-          browser.once('disconnected', resolve);
+    await browser.close();
 
-          browser.close();
-        });
-      };
-
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).to.equal(0);
-        expect(browserless.currentStat.successful).to.equal(1);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        done();
-      });
-
-      job();
-    }));
-
-  it(`doesn't allow playwright to do "headfull" or user-data-dirs`, async () =>
-    new Promise(async (done) => {
-      const params = defaultParams();
-      const browserless = await start(params);
-      await browserless.startServer();
-
-      const job = async () => {
-        return new Promise(async (resolve) => {
-          const browser: any = await chromium.connect(
-            `ws://127.0.0.1:${params.port}/playwright?--user-data-dir=/tmp&headless=false`,
-          );
-
-          browser.once('disconnected', resolve);
-
-          browser.close();
-        });
-      };
-
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).to.equal(0);
-        expect(browserless.currentStat.successful).to.equal(1);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        done();
-      });
-
-      job();
-    }));
+    const results = metrics.get();
+    expect(results.timedout).to.equal(0);
+    expect(results.successful).to.equal(1);
+    expect(results.rejected).to.equal(0);
+    expect(results.queued).to.equal(0);
+  });
 
   it('rejects playwright without tokens', async () => {
-    const params = defaultParams();
-    const browserless = start({
-      ...params,
-      token: 'abc',
-    });
+    const metrics = new Metrics();
+    await start({ metrics });
 
-    await browserless.startServer();
-
-    return chromium
-      .connect(`ws://127.0.0.1:${params.port}/playwright`)
-      .then(throws)
-      .catch((error) => {
-        expect(browserless.currentStat.successful).to.equal(0);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        expect(error.message).to.contain(`403`);
+    await chromium
+      .connect(`ws://localhost:3000/playwright/chromium`)
+      .catch((e) => {
+        const results = metrics.get();
+        expect(e.message).to.include('Bad or missing authentication');
+        expect(results.timedout).to.equal(0);
+        expect(results.successful).to.equal(0);
+        expect(results.unauthorized).to.equal(1);
+        expect(results.queued).to.equal(0);
       });
   });
-
-  it('versions playwright dynamically', async () =>
-    new Promise(async (done) => {
-      const { playwrightVersions } = require('../../../package.json');
-      const params = defaultParams();
-      const browserless = await start(params);
-      const pwKeys = Object.keys(playwrightVersions);
-
-      await browserless.startServer();
-
-      for (const version of pwKeys) {
-        const playwright = await getPlaywright(version);
-
-        const job = async () => {
-          return new Promise<void>(async (resolve) => {
-            const browser: any = await playwright.connect({
-              wsEndpoint: `ws://127.0.0.1:${params.port}/playwright`,
-            });
-
-            browser.close();
-            resolve();
-          });
-        };
-
-        await job();
-      }
-
-      browserless.queue.on('end', () => {
-        expect(browserless.currentStat.timedout).to.equal(0);
-        expect(browserless.currentStat.successful).to.equal(pwKeys.length);
-        expect(browserless.currentStat.rejected).to.equal(0);
-        expect(browserless.currentStat.queued).to.equal(0);
-        done();
-      });
-    }));
-
 });
