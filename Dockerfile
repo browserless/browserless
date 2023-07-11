@@ -4,6 +4,7 @@ FROM ${BASE_REPO}:${BASE_VERSION}
 
 # Build Args
 ARG USE_CHROME_STABLE
+ARG CHROME_STABLE_VERSION
 ARG PUPPETEER_CHROMIUM_REVISION
 ARG PUPPETEER_VERSION
 ARG PORT=3000
@@ -32,7 +33,11 @@ WORKDIR $APP_DIR
 COPY . .
 
 # Install Chrome Stable when specified
-RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
+RUN if [ -n "$CHROME_STABLE_VERSION" ]; then \
+    wget -q -O /tmp/chrome.deb https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_STABLE_VERSION}-1_amd64.deb && \
+    apt install -y /tmp/chrome.deb &&\
+    rm /tmp/chrome.deb; \
+  elif [ "$USE_CHROME_STABLE" = "true" ]; then \
     cd /tmp &&\
     wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&\
     dpkg -i google-chrome-stable_current_amd64.deb;\
