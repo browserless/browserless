@@ -74,7 +74,13 @@ const PUPPETEER_CHROMIUM_REVISION = (() => {
   const pptr = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions');
 
   // For compatibility reasons
-  return pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
+  const revision =
+    pptr.PUPPETEER_REVISIONS.chrome ?? pptr.PUPPETEER_REVISIONS.chromium;
+
+  // Some Chromium revision used by Puppeteer don't have a Chromedriver
+  // binary, so we override them to the closest available revision
+  const overrides = packageJson.chromedriverBinary.overrides;
+  return overrides[revision] || revision;
 })();
 
 const IS_CHROME_FOR_TESTING = !(
@@ -82,7 +88,9 @@ const IS_CHROME_FOR_TESTING = !(
   PUPPETEER_CHROMIUM_REVISION <= 1108766
 );
 
-const CHROME_BINARY_TYPE = IS_CHROME_FOR_TESTING ? 'chrome-for-testing' : 'chromium';
+const CHROME_BINARY_TYPE = IS_CHROME_FOR_TESTING
+  ? 'chrome-for-testing'
+  : 'chromium';
 
 /*
  * Sometimes we don't use puppeteer's built-in chromium
