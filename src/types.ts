@@ -393,6 +393,24 @@ export interface IBrowserlessPressure {
   running: number;
 }
 
+export interface IBrowserlessMetricTotals {
+  error: number;
+  estimatedMonthlyUnits: number;
+  maxConcurrent: number;
+  maxTime: number;
+  meanTime: number;
+  minTime: number;
+  minutesOfMetricsAvailable: number;
+  queued: number;
+  rejected: number;
+  sessionTimes: number[];
+  successful: number;
+  timedout: number;
+  totalTime: number;
+  unhealthy: number;
+  units: number;
+}
+
 export interface IBrowserlessStats {
   cpu: number | null;
   date: number;

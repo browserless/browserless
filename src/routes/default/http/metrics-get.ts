@@ -11,7 +11,7 @@ import {
 import { HTTPRoute, IBrowserlessStats } from '../../../types.js';
 import * as util from '../../../utils.js';
 
-export type ResponseSchema = IBrowserlessStats;
+export type ResponseSchema = Array<IBrowserlessStats>;
 
 const route: HTTPRoute = {
   accepts: [contentTypes.any],

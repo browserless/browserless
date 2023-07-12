@@ -82,7 +82,6 @@ const route: BrowserHTTPRoute = {
       await handler(req, browser).catch(reject);
 
       debug(`Download function has returned, finding downloads...`);
-
       async function checkIfDownloadComplete(): Promise<string | null> {
         if (res.headersSent) {
           debug(`Request headers have been sent, terminating download watch.`);
