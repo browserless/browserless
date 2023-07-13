@@ -51,6 +51,7 @@ export interface BodySchema {
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
+  scrollPage?: boolean;
   selector?: string;
   setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
   setJavaScriptEnabled?: boolean;
@@ -99,6 +100,7 @@ const route: BrowserHTTPRoute = {
       requestInterceptors = [],
       rejectResourceTypes = [],
       options,
+      scrollPage,
       setExtraHTTPHeaders,
       setJavaScriptEnabled,
       userAgent,
@@ -219,6 +221,10 @@ const route: BrowserHTTPRoute = {
       await util
         .waitForEvent(page, waitForEvent)
         .catch(util.bestAttemptCatch(bestAttempt));
+    }
+
+    if (scrollPage) {
+      await util.scrollThroughPage(page);
     }
 
     const headers = {

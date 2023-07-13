@@ -457,6 +457,45 @@ export const waitForEvent = async (
   ]);
 };
 
+/**
+ * Scrolls through the web-page to trigger any lazy-loaded
+ * assets to load up. Currently doesn't support infinite-loading
+ * pages as they'll increase the length of the page.
+ *
+ * @param page Page
+ */
+export const scrollThroughPage = async (page: Page) => {
+  const viewport = (await page.viewport()) || {
+    height: 480,
+    width: 640,
+  }; // default Puppeteer viewport
+
+  await page.evaluate((bottomThreshold) => {
+    const scrollInterval = 100;
+    const scrollStep = Math.floor(window.innerHeight / 2);
+
+    function bottomPos() {
+      return window.pageYOffset + window.innerHeight;
+    }
+
+    return new Promise((resolve) => {
+      function scrollDown() {
+        window.scrollBy(0, scrollStep);
+
+        if (document.body.scrollHeight - bottomPos() < bottomThreshold) {
+          window.scrollTo(0, 0);
+          setTimeout(resolve, 500);
+          return;
+        }
+
+        setTimeout(scrollDown, scrollInterval);
+      }
+
+      scrollDown();
+    });
+  }, viewport.height);
+};
+
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 export const noop = (): void => {};

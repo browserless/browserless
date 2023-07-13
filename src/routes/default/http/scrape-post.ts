@@ -20,6 +20,9 @@ import {
   debugScreenshotOpts,
   InBoundRequest,
   OutBoundRequest,
+  rejectRequestPattern,
+  rejectResourceTypes,
+  requestInterceptors,
   ScrapeDebugOptions,
   ScrapeElementSelector,
   UnwrapPromise,
@@ -39,6 +42,9 @@ export interface BodySchema {
   elements: Array<ScrapeElementSelector>;
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
+  rejectRequestPattern?: rejectRequestPattern[];
+  rejectResourceTypes?: rejectResourceTypes[];
+  requestInterceptors?: Array<requestInterceptors>;
   setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
   setJavaScriptEnabled?: boolean;
   url: Parameters<Page['goto']>[0];
@@ -223,6 +229,9 @@ const route: BrowserHTTPRoute = {
       debugOpts,
       elements,
       emulateMediaType,
+      rejectRequestPattern = [],
+      requestInterceptors = [],
+      rejectResourceTypes = [],
       setExtraHTTPHeaders,
       setJavaScriptEnabled,
       userAgent,
@@ -291,6 +300,30 @@ const route: BrowserHTTPRoute = {
 
     if (setJavaScriptEnabled) {
       await page.setJavaScriptEnabled(setJavaScriptEnabled);
+    }
+
+    if (
+      rejectRequestPattern.length ||
+      requestInterceptors.length ||
+      rejectResourceTypes.length
+    ) {
+      await page.setRequestInterception(true);
+
+      page.on('request', (req) => {
+        if (
+          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
+          rejectResourceTypes.includes(req.resourceType())
+        ) {
+          return req.abort();
+        }
+        const interceptor = requestInterceptors.find((r) =>
+          req.url().match(r.pattern),
+        );
+        if (interceptor) {
+          return req.respond(interceptor.response);
+        }
+        return req.continue();
+      });
     }
 
     const gotoResponse = await page
