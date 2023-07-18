@@ -183,7 +183,7 @@ export interface IChromeServiceConfiguration {
   maxConcurrentSessions: number;
   maxQueueLength: number;
   prebootChrome: boolean;
-  prebootWarm: number;
+  prebootQuantity: number;
   functionExternals: string[];
   functionEnableIncognitoMode: boolean;
   functionBuiltIns: string[];

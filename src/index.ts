@@ -27,7 +27,7 @@ const browserless = new BrowserlessServer({
   metricsJSONPath: config.METRICS_JSON_PATH,
   port: config.PORT,
   prebootChrome: config.PREBOOT_CHROME,
-  prebootWarm: config.PREBOOT_WARM,
+  prebootQuantity: config.PREBOOT_QUANTITY,
   queuedAlertURL: config.QUEUE_ALERT_URL,
   rejectAlertURL: config.REJECT_ALERT_URL,
   singleRun: config.SINGLE_RUN,
