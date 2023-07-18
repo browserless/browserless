@@ -25,6 +25,7 @@ Array [
   "metricsJSONPath",
   "port",
   "prebootChrome",
+  "prebootWarm",
   "queuedAlertURL",
   "rejectAlertURL",
   "sessionCheckFailURL",
