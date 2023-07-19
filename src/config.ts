@@ -159,6 +159,10 @@ export const PREBOOT_CHROME: boolean = parseJSONParam(
   process.env.PREBOOT_CHROME,
   false,
 );
+export const PREBOOT_QUANTITY: number = parseNumber(
+  process.env.PREBOOT_QUANTITY,
+  0,
+);
 export const PRINT_GET_STARTED_LINKS: boolean = parseJSONParam(
   process.env.PRINT_GET_STARTED_LINKS,
   true,

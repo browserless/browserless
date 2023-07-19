@@ -33,6 +33,7 @@ export const defaultParams = (): IBrowserlessOptions => ({
   metricsJSONPath: null,
   port: getPort(),
   prebootChrome: false,
+  prebootQuantity: 0,
   queuedAlertURL: null,
   rejectAlertURL: null,
   sessionCheckFailURL: null,
