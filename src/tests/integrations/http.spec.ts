@@ -804,7 +804,7 @@ describe('Browserless Chrome HTTP', () => {
         code: `module.exports = async ({ page }) => {
           await page.setViewport({ width: 640, height: 480 });
           await page.goto('https://example.com/');
-          await new Promise(r => global.setTimeout(r, 5000));
+          await new Promise(r => global.setTimeout(r, 2500));
         }`,
       };
 
