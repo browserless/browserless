@@ -204,7 +204,7 @@
     "eslint": "^8.45.0",
     "eslint-plugin-import": "^2.27.5",
     "prettier": "^3.0.0",
-    "simple-git-hooks": "^2.8.1",
+    "simple-git-hooks": "^2.9.0",
     "yargs": "^17.7.2",
     "zx": "^7.2.3"
   },
