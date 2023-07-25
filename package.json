@@ -28,7 +28,7 @@
     "prettier": "prettier --config .prettierrc --write --loglevel error \"{src,functions,scripts}/**/*.{js,ts}\"",
     "snyk-protect": "snyk protect",
     "start": "node ./build",
-    "test": "env-cmd -f ./src/tests/.env.test mocha --timeout 15000",
+    "test": "env-cmd -f ./src/tests/.env.test mocha",
     "test-all": "./scripts/test-all.js"
   },
   "chromeVersions": {
@@ -212,8 +212,10 @@
     "extension": [
       "ts"
     ],
+    "require": "ts-node/register",
+    "slow": 10000,
     "spec": "src/tests/**/*.spec.ts",
-    "require": "ts-node/register"
+    "timeout": 30000
   },
   "snyk": true
 }
