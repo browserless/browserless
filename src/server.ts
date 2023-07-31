@@ -128,12 +128,11 @@ export class HTTPServer {
 
         try {
           verbose(`Running found HTTP handler.`);
-          await handler(req, res, browser);
+          return await handler(req, res, browser);
         } finally {
           verbose(`HTTP Request handler has finished.`);
           this.browserManager.complete(browser);
         }
-        return;
       }
 
       return (handler as HTTPRoute['handler'])(req, res);
@@ -255,13 +254,9 @@ export class HTTPServer {
 
   public async stop(): Promise<void> {
     debug(`HTTP Server is shutting down`);
-    return new Promise(async (r) => {
-      this.server.close(async () => {
-        this.tearDown();
-        await this.browserManager.stop();
-        return r();
-      });
-    });
+    await new Promise(r => this.server.close(r));
+    await Promise.all([this.tearDown(), this.browserManager.stop()]);
+    debug(`HTTP Server shutdown complete`);
   }
 
   private tearDown() {
