@@ -53,19 +53,31 @@ const IS_LINUX_ARM64 = PLATFORM === LINUX_ARM64;
 // @TODO: Fix this revision once devtools app works again
 const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F848005%2Fdevtools-frontend.zip?alt=media`;
 
-// prettier-ignore
 const getChromeForTestingURL = (baseUrl, format, revision) => {
   const platform = process.platform;
   const arch = process.arch;
 
   let filename = '';
 
-  if (platform === 'win32' && arch === 'x64') filename = 'win32/chromedriver-win32.zip';
-  else if (platform === 'win32' && arch === 'x32') filename = 'win64/chromedriver-win64.zip';
-  else if (platform === 'darwin' && arch === 'arm64') filename = 'mac-arm64/chromedriver-mac-arm64.zip';
-  else if (platform === 'darwin' && arch === 'x64') filename = 'mac-x64/chromedriver-mac-x64.zip';
-  else if (platform === 'linux' && arch === 'x64') filename = 'linux64/chromedriver-linux64.zip';
-  else throw new Error('Unsupported platform');
+  switch (true) {
+    case platform === 'win32' && arch === 'x64':
+      filename = 'win32/chromedriver-win32.zip';
+      break;
+    case platform === 'win32' && arch === 'x32':
+      filename = 'win64/chromedriver-win64.zip';
+      break;
+    case platform === 'darwin' && arch === 'arm64':
+      filename = 'mac-arm64/chromedriver-mac-arm64.zip';
+      break;
+    case platform === 'darwin' && arch === 'x64':
+      filename = 'mac-x64/chromedriver-mac-x64.zip';
+      break;
+    case platform === 'linux' && arch === 'x64':
+      filename = 'linux64/chromedriver-linux64.zip';
+      break;
+    default:
+      throw new Error('Unsupported platform');
+  }
 
   return format
     .replace(`{BASE_URL}`, baseUrl)
@@ -73,14 +85,16 @@ const getChromeForTestingURL = (baseUrl, format, revision) => {
     .replace(`{FILENAME}`, filename);
 };
 
-// prettier-ignore
 const getChromiumURL = (baseUrl, format, revision) => {
   const platform = process.platform;
   let filename = '';
 
-  if (platform === 'win32') filename = `Win%2F${revision}%2Fchromedriver_win32.zip`;
-  else if (platform === 'darwin') filename = `Mac%2F${revision}%2Fchromedriver_mac64.zip`;
-  else if (platform === 'linux') filename = `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
+  if (platform === 'win32')
+    filename = `Win%2F${revision}%2Fchromedriver_win32.zip`;
+  else if (platform === 'darwin')
+    filename = `Mac%2F${revision}%2Fchromedriver_mac64.zip`;
+  else if (platform === 'linux')
+    filename = `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
   else throw new Error('Unsupported platform');
 
   return format
@@ -190,7 +204,7 @@ const downloadChromium = () => {
   });
 };
 
-const getBasenameFormUrl = (urlStr) => {
+const getBasenameFromUrl = (urlStr) => {
   const url = new URL(urlStr);
   return path.basename(url.pathname, path.extname(url.pathname));
 };
@@ -209,7 +223,9 @@ const downloadChromedriver = () => {
   );
 
   const chromedriverZipFolder = (() => {
-    if (IS_CHROME_FOR_TESTING) return getBasenameFormUrl(chromedriverUrl);
+    // Binaries hosted on edgedl.me server are inside a deterministic filepath: the unzipped folder 
+    // is going to have the same name as the file.
+    if (IS_CHROME_FOR_TESTING) return getBasenameFromUrl(chromedriverUrl);
 
     if (PLATFORM === MAC) return 'chromedriver_mac64';
     if (PLATFORM === WINDOWS) return 'chromedriver_win32';
