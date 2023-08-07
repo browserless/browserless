@@ -210,7 +210,6 @@ const getBasenameFromUrl = (urlStr) => {
 };
 
 const downloadChromedriver = () => {
-  console.log(chromedriverUrl);
   if (USE_CHROME_STABLE) {
     console.log(
       'chromedriver binary already installed, not proceeding with chromedriver',
