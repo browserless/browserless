@@ -222,7 +222,7 @@ const downloadChromedriver = () => {
   );
 
   const chromedriverZipFolder = (() => {
-    // Binaries hosted on edgedl.me server are inside a deterministic filepath: the unzipped folder 
+    // Binaries hosted on edgedl.me server are inside a deterministic filepath: the unzipped folder
     // is going to have the same name as the file.
     if (IS_CHROME_FOR_TESTING) return getBasenameFromUrl(chromedriverUrl);
 

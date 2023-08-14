@@ -153,7 +153,10 @@ module.exports = async function pdf({ page, context }) {
   }
 
   if (waitFor) {
-    if (typeof waitFor === 'string') {
+    if (typeof waitFor === 'object') {
+      const { selector, ...options } = waitFor;
+      await page.waitForSelector(selector, options);
+    } else if (typeof waitFor === 'string') {
       const isSelector = await page
         .evaluate(
           `document.createDocumentFragment().querySelector("${waitFor}")`,
