@@ -108,12 +108,12 @@
       "114.0.5735.133": "114.0.5735.90"
     },
     "chrome-for-testing": {
-      "baseUrl": "https://chromedriver.storage.googleapis.com",
-      "format": "{BASE_URL}/{REVISION}/{FILENAME}.zip"
+      "baseUrl": "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing",
+      "format": "{BASE_URL}/{REVISION}/{FILENAME}"
     },
     "chromium": {
       "baseUrl": "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o",
-      "format": "{BASE_URL}/{PLATFORM}%2F{REVISION}%2F{FILENAME}.zip?alt=media"
+      "format": "{BASE_URL}/{FILENAME}?alt=media"
     }
   },
   "releaseVersions": [
@@ -178,7 +178,7 @@
     "playwright-1.35": "npm:playwright-core@1.35.1",
     "playwright-core": "^1.36.2",
     "prom-client": "^14.2.0",
-    "puppeteer": "20.8.3",
+    "puppeteer": "21.0.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^6.0.0",
