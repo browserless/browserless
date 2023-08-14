@@ -62,7 +62,8 @@ export class PuppeteerProvider {
 
   public async startChromeInstances() {
     if (this.config.prebootChrome) {
-      const initialInstances = this.config.prebootQuantity || this.config.maxConcurrentSessions;
+      const initialInstances =
+        this.config.prebootQuantity || this.config.maxConcurrentSessions;
 
       sysdebug(
         `Starting chrome swarm: ${initialInstances} chrome instances starting`,

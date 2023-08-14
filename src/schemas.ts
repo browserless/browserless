@@ -1,6 +1,15 @@
 import Joi from 'joi';
 
-const waitFor = [Joi.string(), Joi.number()];
+const waitFor = [
+  Joi.string(),
+  Joi.number(),
+  Joi.object().keys({
+    selector: Joi.string(),
+    visible: Joi.boolean(),
+    hidden: Joi.boolean(),
+    timeout: Joi.number(),
+  }),
+];
 const userAgent = Joi.string();
 
 const gotoOptions = Joi.object().keys({

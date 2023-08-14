@@ -56,7 +56,7 @@ const getDisabledFeatures = () => {
 
 const parseJSONParam = (
   param: string | undefined,
-  defaultParam: boolean | string[],
+  defaultParam: boolean | string | string[],
 ) => {
   if (param) {
     try {
@@ -129,7 +129,7 @@ export const DEFAULT_BLOCK_ADS: boolean = parseJSONParam(
 );
 export const DEFAULT_HEADLESS: HeadlessType = parseJSONParam(
   process.env.DEFAULT_HEADLESS,
-  IS_CHROME_FOR_TESTING ? ['new'] : true,
+  IS_CHROME_FOR_TESTING ? 'new' : true,
 );
 export const DEFAULT_LAUNCH_ARGS: string[] = parseJSONParam(
   process.env.DEFAULT_LAUNCH_ARGS,
