@@ -56,28 +56,16 @@ const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-b
 const getChromeForTestingURL = (baseUrl, format, revision) => {
   const platform = process.platform;
   const arch = process.arch;
-
-  let filename = '';
-
-  switch (true) {
-    case platform === 'win32' && arch === 'x64':
-      filename = 'win32/chromedriver-win32.zip';
-      break;
-    case platform === 'win32' && arch === 'x32':
-      filename = 'win64/chromedriver-win64.zip';
-      break;
-    case platform === 'darwin' && arch === 'arm64':
-      filename = 'mac-arm64/chromedriver-mac-arm64.zip';
-      break;
-    case platform === 'darwin' && arch === 'x64':
-      filename = 'mac-x64/chromedriver-mac-x64.zip';
-      break;
-    case platform === 'linux' && arch === 'x64':
-      filename = 'linux64/chromedriver-linux64.zip';
-      break;
-    default:
-      throw new Error('Unsupported platform');
-  }
+  const filename =
+    platform === 'win32' && arch === 'x64'
+      ? 'win32/chromedriver-win64.zip'
+      : platform === 'win32' && arch === 'x32'
+      ? 'win64/chromedriver-win32.zip'
+      : platform === 'darwin' && arch === 'arm64'
+      ? 'mac-arm64/chromedriver-mac-arm64.zip'
+      : platform === 'darwin' && arch === 'x64'
+      ? 'mac-x64/chromedriver-mac-x64.zip'
+      : 'linux64/chromedriver-linux64.zip';
 
   return format
     .replace(`{BASE_URL}`, baseUrl)
@@ -87,15 +75,12 @@ const getChromeForTestingURL = (baseUrl, format, revision) => {
 
 const getChromiumURL = (baseUrl, format, revision) => {
   const platform = process.platform;
-  let filename = '';
-
-  if (platform === 'win32')
-    filename = `Win%2F${revision}%2Fchromedriver_win32.zip`;
-  else if (platform === 'darwin')
-    filename = `Mac%2F${revision}%2Fchromedriver_mac64.zip`;
-  else if (platform === 'linux')
-    filename = `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
-  else throw new Error('Unsupported platform');
+  const filename =
+    platform === 'win32'
+      ? `Win%2F${revision}%2Fchromedriver_win32.zip`
+      : platform === 'darwin'
+      ? `Mac%2F${revision}%2Fchromedriver_mac64.zip`
+      : `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
 
   return format
     .replace(`{BASE_URL}`, baseUrl)
@@ -180,7 +165,7 @@ const downloadChromium = () => {
   if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
     throw new Error(`Chrome stable isn't supported for linux-arm64`);
   }
-
+  console.log('HIT', IS_LINUX_ARM64);
   if (IS_LINUX_ARM64) {
     return installBrowsersForNpmInstall(['chromium']);
   }
