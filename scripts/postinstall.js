@@ -174,7 +174,7 @@ const downloadChromium = () => {
   if (USE_CHROME_STABLE && IS_LINUX_ARM64) {
     throw new Error(`Chrome stable isn't supported for linux-arm64`);
   }
-  console.log('HIT', IS_LINUX_ARM64);
+
   if (IS_LINUX_ARM64) {
     return installBrowsersForNpmInstall(['chromium']);
   }

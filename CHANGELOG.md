@@ -1,5 +1,19 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.59.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...master)
 - Dependency updates.
+
+# [v1.60.0](https://github.com/browserless/chrome/compare/v1.59.0...v1.60.0)
+- Dependency updates.
+- New build arguments in our Dockerfile to apply different named base repo.
+- New `CHROME_STABLE_VERSION` build arg for specifying a particular chrome stable version.
+- Fixes in postinstall hooks for various platforms and chrome-stable.
+- NEW: `waitFor` properties in our APIs now supports an object with selector + timeouts for more fine tuning.
+- Bump puppeteer `20.x.x` to `21.1.1` (116.0.5845.96).
+- Supports playwright versions `1.37`, `1.36`, `1.35`, `1.34`, and `1.33`.
+- Fixes in deploy script to handle versions, platforms and architectures.
+- Fixes an issue where headless defaults to `DEFAULT_STEALTH`.
+- New `PREBOOT_QUANTITY` for overriding the amount of pre-booted instances of Chrome.
+- Allow using a host's display by setting `DISPLAY` env variable.
+- Link fixes in README.md.
 
 # [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
 - Dependency updates.
