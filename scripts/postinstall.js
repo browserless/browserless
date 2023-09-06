@@ -56,16 +56,25 @@ const devtoolsUrl = `https://www.googleapis.com/download/storage/v1/b/chromium-b
 const getChromeForTestingURL = (baseUrl, format, revision) => {
   const platform = process.platform;
   const arch = process.arch;
-  const filename =
-    platform === 'win32' && arch === 'x64'
-      ? 'win32/chromedriver-win64.zip'
-      : platform === 'win32' && arch === 'x32'
-      ? 'win64/chromedriver-win32.zip'
-      : platform === 'darwin' && arch === 'arm64'
-      ? 'mac-arm64/chromedriver-mac-arm64.zip'
-      : platform === 'darwin' && arch === 'x64'
-      ? 'mac-x64/chromedriver-mac-x64.zip'
-      : 'linux64/chromedriver-linux64.zip';
+  let filename;
+
+  switch (true) {
+    case platform === 'win32' && arch === 'x64':
+      filename = 'win64/chromedriver-win64.zip';
+      break;
+    case platform === 'win32' && arch === 'x32':
+      filename = 'win32/chromedriver-win32.zip';
+      break;
+    case platform === 'darwin' && arch === 'arm64':
+      filename = 'mac-arm64/chromedriver-mac-arm64.zip';
+      break;
+    case platform === 'darwin' && arch === 'x64':
+      filename = 'mac-x64/chromedriver-mac-x64.zip';
+      break;
+    default:
+      filename = 'linux64/chromedriver-linux64.zip';
+      break;
+  }
 
   return format
     .replace(`{BASE_URL}`, baseUrl)
