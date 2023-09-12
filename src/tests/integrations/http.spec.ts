@@ -1647,6 +1647,7 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
+    const lighthouseTimeout = 60000;
     const params = {
       ...defaultParams(),
       connectionTimeout: 60000
@@ -1669,7 +1670,7 @@ describe('Browserless Chrome HTTP', () => {
       }).then((res) => {
         expect(res.status).to.equal(200);
       });
-    }).timeout(60000);
+    }).timeout(lighthouseTimeout);
 
     it('allows /GET requests', async () => {
       const browserless = start(params);
@@ -1684,7 +1685,7 @@ describe('Browserless Chrome HTTP', () => {
       ).then((res) => {
         expect(res.status).to.equal(200);
       });
-    }).timeout(60000);
+    }).timeout(lighthouseTimeout);
 
     it('times out requests', async () => {
       const params = defaultParams();
