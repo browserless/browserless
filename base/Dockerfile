@@ -1,4 +1,4 @@
-FROM ubuntu:kinetic
+FROM ubuntu:lunar
 
 ENV NODE_VERSION v18.12.0
 ENV NVM_DIR /usr/src/.nvm
