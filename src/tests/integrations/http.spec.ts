@@ -1647,8 +1647,13 @@ describe('Browserless Chrome HTTP', () => {
   });
 
   describe('/stats', () => {
+    const lighthouseTimeout = 60000;
+    const params = {
+      ...defaultParams(),
+      connectionTimeout: 60000
+    };
+
     it('allows requests', async () => {
-      const params = defaultParams();
       const browserless = start(params);
       await browserless.startServer();
 
@@ -1665,10 +1670,9 @@ describe('Browserless Chrome HTTP', () => {
       }).then((res) => {
         expect(res.status).to.equal(200);
       });
-    });
+    }).timeout(lighthouseTimeout);
 
     it('allows /GET requests', async () => {
-      const params = defaultParams();
       const browserless = start(params);
       await browserless.startServer();
 
@@ -1681,13 +1685,13 @@ describe('Browserless Chrome HTTP', () => {
       ).then((res) => {
         expect(res.status).to.equal(200);
       });
-    });
+    }).timeout(lighthouseTimeout);
 
     it('times out requests', async () => {
       const params = defaultParams();
       const browserless = start({
         ...params,
-        connectionTimeout: 5000,
+        connectionTimeout: 500,
       });
       await browserless.startServer();
 

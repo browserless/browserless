@@ -1,6 +1,6 @@
-FROM ubuntu:kinetic
+FROM ubuntu:lunar
 
-ENV NODE_VERSION v18.12.0
+ENV NODE_VERSION v18.17.0
 ENV NVM_DIR /usr/src/.nvm
 ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
 ENV PATH $NODE_PATH:$PATH
