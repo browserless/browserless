@@ -97,11 +97,11 @@
   },
   "playwrightVersions": {
     "default": "playwright-core",
-    "1.37": "playwright-core",
+    "1.38": "playwright-core",
+    "1.37": "playwright-1.37",
     "1.36": "playwright-1.36",
     "1.35": "playwright-1.35",
-    "1.34": "playwright-1.34",
-    "1.33": "playwright-1.33"
+    "1.34": "playwright-1.34"
   },
   "chromedriverBinary": {
     "overrides": {
@@ -172,11 +172,11 @@
     "multer": "1.4.5-lts.1",
     "node-fetch": "^2.7.0",
     "node-pdftk": "^2.0.0",
-    "playwright-1.33": "npm:playwright-core@1.33.0",
     "playwright-1.34": "npm:playwright-core@1.34.3",
     "playwright-1.35": "npm:playwright-core@1.35.1",
     "playwright-1.36": "npm:playwright-core@1.36.1",
-    "playwright-core": "^1.37.1",
+    "playwright-1.37": "npm:playwright-core@1.37.1",
+    "playwright-core": "^1.38.0",
     "prom-client": "^14.2.0",
     "puppeteer": "21.2.1",
     "puppeteer-extra": "^3.3.6",
