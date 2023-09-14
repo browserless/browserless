@@ -13,7 +13,6 @@ import url from 'url';
 import chromeDriver from 'chromedriver';
 import getPort from 'get-port';
 import _ from 'lodash';
-import fetch from 'node-fetch';
 // @ts-ignore no types
 import { BrowserServer } from 'playwright-core';
 import puppeteer, { Browser, Page } from 'puppeteer';

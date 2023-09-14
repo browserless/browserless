@@ -1,5 +1,4 @@
 import { expect } from 'chai';
-import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types.d';

@@ -1,6 +1,5 @@
 import chai, { expect } from 'chai';
 import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot';
-import fetch from 'node-fetch';
 
 import { BrowserlessServer } from '../../browserless';
 import { IBrowserlessOptions } from '../../types.d';
@@ -99,7 +98,11 @@ describe('Browserless Chrome HTTP', () => {
     });
     await browserless.startServer();
 
-    return fetch(`http://abc@127.0.0.1:${params.port}/json`).then(
+    const headers = new Headers({
+      Authorization: `Basic ${btoa('abc')}`,
+    });
+
+    return fetch(`http://127.0.0.1:${params.port}/json`, { headers }).then(
       (res: any) => {
         expect(res.headers['set-cookie']).toMatchSnapshot();
       },
@@ -1650,7 +1653,7 @@ describe('Browserless Chrome HTTP', () => {
     const lighthouseTimeout = 60000;
     const params = {
       ...defaultParams(),
-      connectionTimeout: 60000
+      connectionTimeout: 60000,
     };
 
     it('allows requests', async () => {
