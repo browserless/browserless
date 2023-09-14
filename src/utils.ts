@@ -14,7 +14,6 @@ import ip from 'ip';
 import { Schema } from 'joi';
 import _ from 'lodash';
 
-import fetch from 'node-fetch';
 import { CDPSession, Page } from 'puppeteer';
 
 import rmrf from 'rimraf';

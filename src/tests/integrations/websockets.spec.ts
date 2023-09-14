@@ -1,6 +1,5 @@
 import chai, { expect } from 'chai';
 import { jestSnapshotPlugin } from 'mocha-chai-jest-snapshot';
-import fetch from 'node-fetch';
 import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer';
 import rimraf from 'rimraf';

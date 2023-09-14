@@ -12,7 +12,6 @@ import httpProxy from 'http-proxy';
 import _ from 'lodash';
 
 import client from 'prom-client';
-import request from 'request';
 
 import { getBrowsersRunning } from './chrome-helper';
 import { Features } from './features';
@@ -35,6 +34,7 @@ import * as util from './utils';
 import { WebDriver } from './webdriver-provider';
 
 const debug = util.getDebug('server');
+const request = (url: string, cb: any) => fetch(url).then(cb).catch(_.noop);
 
 const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
