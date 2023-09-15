@@ -9,13 +9,13 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Build the foundation image
-      run: docker build -f ./docker/foundation/Dockerfile -t registry.browserless.io/foundation:latest.
+      run: docker build -f ./docker/foundation/Dockerfile -t registry.browserless.io/foundation:latest .
 
     - name: Build the chrome image
-      run: docker build -f ./docker/chromium/Dockerfile -t registry.browserless.io/chromium:latest.
+      run: docker build -f ./docker/chromium/Dockerfile -t registry.browserless.io/chromium:latest .
 
     - name: Build the basic version
-      run: docker build -f ./docker/basic/Dockerfile -t registry.browserless.io/basic:latest.
+      run: docker build -f ./docker/basic/Dockerfile -t registry.browserless.io/basic:latest .
 
     - name: Test the latest image
       run: docker run --ipc=host -e CI=true --entrypoint ./test.sh registry.browserless.io/basic:latest
