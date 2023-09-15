@@ -23,7 +23,6 @@ RUN mkdir -p $APP_DIR
 WORKDIR $APP_DIR
 
 # Copy Shared assets
-COPY browser.json .
 COPY static static
 COPY extensions extensions
 COPY package.json .
