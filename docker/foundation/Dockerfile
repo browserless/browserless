@@ -36,6 +36,7 @@ COPY LICENSE .
 COPY NOTICE.txt .
 COPY start.sh .
 COPY test.sh .
+COPY .mocharc.json .
 
 # Install node16/dumb-init
 RUN apt-get update && apt-get install -y curl && \

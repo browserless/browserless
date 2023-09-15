@@ -10,3 +10,9 @@ fonts/
 .no-git/
 .vscode/
 .parcel-cache/
+
+# ENV files
+*.env*
+
+# Other non-production dotfiles
+.eslintrc
