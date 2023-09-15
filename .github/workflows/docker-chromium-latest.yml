@@ -1,0 +1,18 @@
+name: Chromium Latest
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the foundation image
+      run: docker build -f ./docker/foundation/Dockerfile .
+
+    - name: Build the chrome image
+      run: docker build -f ./docker/chromium/Dockerfile .
+
+    - name: Build the basic version
+      run: docker build -f ./docker/basic/Dockerfile .
