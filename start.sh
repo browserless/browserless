@@ -22,4 +22,8 @@ dumb-init -- node ./build/index.js $@ &
 node=$!
 
 wait $node
-wait $xvfb
+
+if [ ! -z "$xvfb" ]
+then
+        wait $xvfb
+fi

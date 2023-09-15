@@ -1,4 +1,4 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.59.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...master)
 - Dependency updates.
 
 # [v2.0.0-beta](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
