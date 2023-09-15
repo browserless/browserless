@@ -53,8 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3.10 python3-pip && \
   update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-  update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
-  update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+  update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 # Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
