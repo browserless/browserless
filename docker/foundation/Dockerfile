@@ -35,6 +35,7 @@ COPY CHANGELOG.md .
 COPY LICENSE .
 COPY NOTICE.txt .
 COPY start.sh .
+COPY test.sh .
 
 # Install node16/dumb-init
 RUN apt-get update && apt-get install -y curl && \
