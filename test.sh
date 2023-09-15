@@ -8,4 +8,4 @@ export DISPLAY=:1
 
 export SOME_ENV_VAR_TO_ALLOW_IN_FUNCTIONS=true
 
-DEBUG=-* PUPPETEER_DISABLE_HEADLESS_WARNING=true ./node_modules/.bin/_mocha --timeout 30000 --slow 10000 --exit $@ && kill -TERM $xvfb
+DEBUG=-* PUPPETEER_DISABLE_HEADLESS_WARNING=true NODE_OPTIONS="--loader ts-node/esm" ./node_modules/.bin/_mocha --timeout 30000 --slow 10000 --exit $@ && kill -TERM $xvfb
