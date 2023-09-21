@@ -16,7 +16,7 @@ RUN apt-get -qq update && \
 # Add the partner repository
 RUN apt-get -y -qq install software-properties-common && \
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
-  apt-get -qq update
+  apt update
 
 # Accept Microsoft EULA agreement for ttf-mscorefonts-installer
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
