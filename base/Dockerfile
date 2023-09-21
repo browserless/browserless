@@ -9,9 +9,12 @@ ARG BLESS_USER_ID=999
 
 COPY fonts.conf /etc/fonts/local.conf
 
+# Update base image
+RUN apt-get -qq update && \
+  apt-get -qq dist-upgrade
+
 # Add the partner repository
-RUN apt-get -qq dist-upgrade && \
-  apt-get -y -qq install software-properties-common && \
+RUN apt-get -y -qq install software-properties-common && \
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
   apt-get -qq update
 
