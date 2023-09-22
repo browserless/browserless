@@ -1,3 +1,8 @@
+# 1.60.1
+- Drop `partner` repo.
+- Update node to 18.17.0
+- Move to `lunar`
+
 # 1.16.0
 - Dependency updates
 

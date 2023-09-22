@@ -1,5 +1,16 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.1...master)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
+- Dependency updates.
+- Drop the `partner` repo from builds as we no longer use it for installing `flash`.
+- Bump to `Ubuntu` lunar.
+- Bump to NodeJS 18.17.0
+- Package.json `engines.node` now reflects what node version we run on the docker image.
+- Drops support for playwright@`1.33` and default playwright to `1.38`.
+- Drops support for puppeteer@`21.1.1` in favor of `21.3.1`.
+- Replaces legacy `request` module with Node's native `fetch` for webhooks.
+- Drops `node-fetch` across the board in favor of `fetch` native.
 
 # [v1.60.0](https://github.com/browserless/chrome/compare/v1.59.0...v1.60.0)
 - Dependency updates.
