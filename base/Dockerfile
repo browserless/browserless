@@ -13,15 +13,12 @@ COPY fonts.conf /etc/fonts/local.conf
 RUN apt-get -qq update && \
   apt-get -qq dist-upgrade
 
-# Add the partner repository
-RUN apt-get -y -qq install software-properties-common && \
-  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner"
-
 # Accept Microsoft EULA agreement for ttf-mscorefonts-installer
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
 
 # Install dependencies for Chrome / Chromium
 RUN apt-get -y -qq --no-install-recommends install \
+  software-properties-common \
   build-essential \
   ca-certificates \
   curl \
