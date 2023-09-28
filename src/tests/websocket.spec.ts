@@ -120,7 +120,7 @@ describe('WebSocket API', function () {
     expect(await exists(userDataDir)).to.be.true;
 
     await browser.disconnect();
-    await sleep(500);
+    await sleep(1000);
 
     expect(await exists(userDataDir)).to.be.false;
   });
