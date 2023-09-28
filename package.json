@@ -19,7 +19,7 @@
     "deploy": "sh ./scripts/deploy.sh"
   },
   "author": "browserless.io",
-  "license": "ISC",
+  "license": "SSPL",
   "devDependencies": {
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
