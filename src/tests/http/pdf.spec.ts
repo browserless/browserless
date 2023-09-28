@@ -316,5 +316,4 @@ describe('/pdf API', function () {
       expect(res.status).to.equal(200);
     });
   });
-
 });

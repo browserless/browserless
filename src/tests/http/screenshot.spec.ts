@@ -276,13 +276,16 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/screenshot?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });

@@ -173,7 +173,7 @@ export class Browserless {
         }${httpRoute}`;
         const logger = utils.createLogger(`http:${name}`);
         const { default: route }: { default: HTTPRoute | BrowserHTTPRoute } =
-          await import(routeImport);
+          await import(routeImport + `?cb=${Date.now()}`);
 
         route.bodySchema = utils.safeParse(bodySchema);
         route.querySchema = utils.safeParse(querySchema);
@@ -208,7 +208,7 @@ export class Browserless {
         const {
           default: route,
         }: { default: WebSocketRoute | BrowserWebsocketRoute } = await import(
-          wsImport
+          wsImport + `?cb=${Date.now()}`
         );
 
         route.querySchema = utils.safeParse(querySchema);

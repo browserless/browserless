@@ -3,7 +3,7 @@ import q from 'queue';
 import { Config } from './config.js';
 import { Metrics } from './metrics.js';
 import { Monitoring } from './monitoring.js';
-import { createLogger } from './utils.js';
+import { TooManyRequests, createLogger } from './utils.js';
 import { WebHooks } from './webhooks.js';
 
 const debug = createLogger('limiter');
@@ -163,7 +163,9 @@ export class Limiter extends q {
           this.webhooks.callRejectAlertURL();
           this.metrics.addRejected();
           overCapacityFn(...args);
-          return rej(new Error(`Concurrency and queue is at capacity`));
+          return rej(
+            new TooManyRequests(`Concurrency and queue is at capacity`),
+          );
         }
 
         if (this.willQueue) {

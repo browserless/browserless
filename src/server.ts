@@ -254,7 +254,7 @@ export class HTTPServer {
 
   public async stop(): Promise<void> {
     debug(`HTTP Server is shutting down`);
-    await new Promise(r => this.server.close(r));
+    await new Promise((r) => this.server.close(r));
     await Promise.all([this.tearDown(), this.browserManager.stop()]);
     debug(`HTTP Server shutdown complete`);
   }
@@ -322,7 +322,13 @@ export class HTTPServer {
             )) &&
           ((!contentType && r.accepts.includes(contentTypes.any)) ||
             r.accepts.includes(contentType as contentTypes)),
-      ) || staticHandler;
+      ) || (req.method?.toLowerCase() === 'get' ? staticHandler : null);
+
+    if (!found) {
+      debug(`No matching WebSocket route handler for "${req.parsed.href}"`);
+      util.writeResponse(res, 404, 'Not Found');
+      return Promise.resolve();
+    }
 
     verbose(`Found matching HTTP route handler "${found.path}"`);
 

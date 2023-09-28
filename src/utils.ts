@@ -129,8 +129,8 @@ export const writeResponse = (
     if (!response.headersSent) {
       response.writeHead(httpMessage.code, { 'Content-Type': CTTHeader });
       response.end(message + '\n');
-      return;
     }
+    return;
   }
 
   const httpResponse = [

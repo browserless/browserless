@@ -47,9 +47,8 @@ describe('/function API', function () {
     });
   });
 
-  it.skip('runs "application/javascript" functions', async () => {
+  it('runs "application/javascript" functions', async () => {
     await start();
-
     const body = `export default async function ({ page }) {
       return Promise.resolve({
         data: "ok",
@@ -57,30 +56,30 @@ describe('/function API', function () {
       });
     }`;
 
-    await fetch(
-      'http://localhost:3000/function?token=browserless', {
-        body,
-        headers: { 'Content-Type': 'application/javascript' },
-        method: 'POST',  
-      },
-    ).then(async (res) => {
-      expect(await res.text()).to.equal('browserless');
+    await fetch('http://localhost:3000/function?token=browserless', {
+      body,
+      headers: { 'Content-Type': 'application/javascript' },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(json.type).to.equal('application/text');
       expect(res.status).to.equal(200);
     });
   });
 
-  it.skip('runs functions that import node libraries', async () => {
+  it('runs functions that import libraries', async () => {
     const config = new Config();
     const metrics = new Metrics();
 
     await start({ config, metrics });
     const body = {
       code: `
-      import util from 'util';
+      import 'https://code.jquery.com/jquery-3.6.0.min.js';
       export default async function ({ page }) {
         return Promise.resolve({
-          data: "ok",
-          type: "application/text",
+          data: typeof window.jQuery,
         });
       }`,
       context: {},
@@ -96,44 +95,12 @@ describe('/function API', function () {
       const json = await res.json();
 
       expect(json).to.have.property('data');
-      expect(json.data).to.equal('ok');
+      expect(json.data).to.equal('function');
       expect(res.status).to.equal(200);
     });
   });
 
-  it.skip('runs functions that import external libraries', async () => {
-    const config = new Config();
-    const metrics = new Metrics();
-
-    await start({ config, metrics });
-    const body = {
-      code: `
-      import util from 'node-fetch';
-      export default async function ({ page }) {
-        return Promise.resolve({
-          data: "ok",
-          type: "application/text",
-        });
-      }`,
-      context: {},
-    };
-
-    await fetch('http://localhost:3000/function?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
-      },
-      method: 'POST',
-    }).then(async (res) => {
-      const json = await res.json();
-
-      expect(json).to.have.property('data');
-      expect(json.data).to.equal('ok');
-      expect(res.status).to.equal(200);
-    });
-  });
-
-  it.skip('runs functions with custom content-types', async () => {
+  it('runs functions with custom return types', async () => {
     const config = new Config();
     const metrics = new Metrics();
 
@@ -145,7 +112,6 @@ describe('/function API', function () {
           data: {
             status: 'ok',
           },
-          type: "application/json",
         });
       }`,
       context: {},
@@ -160,6 +126,9 @@ describe('/function API', function () {
     }).then(async (res) => {
       const json = await res.json();
 
+      expect(res.headers.get('content-type')).to.equal(
+        `application/json; charset=UTF-8`,
+      );
       expect(json).to.have.property('data');
       expect(res.status).to.equal(200);
     });
@@ -189,7 +158,35 @@ describe('/function API', function () {
     });
   });
 
-  it.skip('rejects requests', async () => {
+  it('rejects requests with bad content-types', async () => {
+    const config = new Config();
+    config.setConcurrent(0);
+    config.setQueued(0);
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'joelson',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      return expect(res.status).to.equal(404);
+    });
+  });
+
+  it('rejects requests with 429', async () => {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
@@ -213,8 +210,33 @@ describe('/function API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      expect(res.status).to.equal(429);
+      return expect(res.status).to.equal(429);
     });
   });
 
+  it('rejects requests that are unauthorized', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/function?token=bless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      return expect(res.status).to.equal(401);
+    });
+  });
 });

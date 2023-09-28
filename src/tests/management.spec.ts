@@ -4,7 +4,7 @@ import { Browserless } from '../browserless.js';
 import { Config } from '../config.js';
 import { Metrics } from '../metrics.js';
 
-describe('status APIs', function () {
+describe('Management APIs', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -25,31 +25,35 @@ describe('status APIs', function () {
 
     await fetch('http://localhost:3000/config?token=6R0W53R135510').then(
       async (res) => {
-        expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
         expect(res.status).to.equal(200);
       },
     );
   });
 
-  
   it('allows requests to /metrics', async () => {
     await start();
 
     await fetch('http://localhost:3000/metrics?token=6R0W53R135510').then(
       async (res) => {
-        expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
         expect(res.status).to.equal(200);
       },
     );
   });
 
-  
   it('allows requests to /metrics/total', async () => {
     await start();
 
     await fetch('http://localhost:3000/metrics/total?token=6R0W53R135510').then(
       async (res) => {
-        expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
         expect(res.status).to.equal(200);
       },
     );
@@ -60,7 +64,9 @@ describe('status APIs', function () {
 
     await fetch('http://localhost:3000/sessions?token=6R0W53R135510').then(
       async (res) => {
-        expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
         expect(res.status).to.equal(200);
       },
     );

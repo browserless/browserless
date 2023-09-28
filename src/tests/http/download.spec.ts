@@ -24,31 +24,26 @@ describe('/download API', function () {
     await start();
 
     await fetch('http://localhost:3000/download?token=browserless', {
-      body: `export default async function ({ page }) {
+      body: `export default async ({ page }) => {
         await page.evaluate(() => {
           const txtContent = "data:text/plain;charset=utf-8,Hello world!";
           const encodedUri = encodeURI(txtContent);
           const link = document.createElement("a");
           link.setAttribute("href", encodedUri);
-          link.setAttribute("download", "data.csv");
+          link.setAttribute("download", "data.txt");
           document.body.appendChild(link);
-      
-          return link.click();
+
+          link.click();
         });
+        await new Promise(r => setTimeout(r, 1000));
       }`,
       headers: {
         'content-type': 'application/javascript',
       },
       method: 'POST',
     }).then(async (res) => {
-      console.log(await res.text());
-      expect;
-      // const json = await res.json();
-
-      // expect(json).to.have.property('data');
-      // expect(json.data).to.equal('ok');
-      // expect(res.status).to.equal(200);
+      expect(res.status).to.equal(200);
+      expect(await res.text()).to.equal('Hello world!');
     });
   });
-  
 });

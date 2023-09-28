@@ -57,7 +57,7 @@ describe('/scrape API', function () {
       },
     );
   });
-  
+
   it('handles debug options', async () => {
     await start();
     const body = {
