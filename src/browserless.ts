@@ -133,7 +133,7 @@ export class Browserless {
   }
 
   public async stop() {
-    clearInterval(this.metricsSaveIntervalID);
+    clearInterval(this.metricsSaveIntervalID as unknown as number);
     return Promise.all([this.server?.stop()]);
   }
 

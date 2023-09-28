@@ -1,8 +1,6 @@
 import { Page, Browser } from 'puppeteer-core';
 import { _connectToCDPBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/common/BrowserConnector.js';
 
-console.log(connect);
-
 type codeHandler = (params: {
   context: unknown;
   page: Page;

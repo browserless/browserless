@@ -203,7 +203,7 @@ describe(`Limiter`, () => {
       new Promise((d) => (timer = global.setTimeout(d, 1000)));
 
     const onTimeout = (...calledArgs: unknown[]) => {
-      clearTimeout(timer);
+      clearTimeout(timer as unknown as number);
       expect(calledArgs).to.eql(args);
       expect(webHooks.callTimeoutAlertURL.calledOnce).to.be.true;
       r(null);

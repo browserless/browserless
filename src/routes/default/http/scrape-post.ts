@@ -406,7 +406,7 @@ const route: BrowserHTTPRoute = {
     const [debugHTML, screenshot, pageCookies] = await Promise.all([
       debugOpts?.html ? (page.content() as Promise<string>) : null,
       debugOpts?.screenshot
-        ? (page.screenshot(debugScreenshotOpts) as Promise<string>)
+        ? (page.screenshot(debugScreenshotOpts) as unknown as Promise<string>)
         : null,
       debugOpts?.cookies ? page.cookies() : null,
     ]);
