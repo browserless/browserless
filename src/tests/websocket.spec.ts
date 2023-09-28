@@ -287,6 +287,7 @@ describe('WebSocket API', function () {
     );
 
     await browser.close();
+    await sleep(100);
 
     const results = metrics.get();
     expect(results.timedout).to.equal(0);

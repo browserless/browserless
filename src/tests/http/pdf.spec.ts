@@ -116,15 +116,15 @@ describe('/pdf API', function () {
     });
   });
 
-  it.skip('handles `waitForEvent` properties', async () => {
+  it('handles `waitForEvent` properties', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      html: `<script type="text/javascript">
+      const event = new Event("customEvent");
+      setTimeout(() => document.dispatchEvent(event), 1500);
+      </script>`,
       waitForEvent: {
         event: 'customEvent',
-      },
-      waitForFunction: {
-        fn: `(() => {const event = new Event("customEvent"); setTimeout(() => document.dispatchEvent(event), 1500);})()`,
       },
     };
 
@@ -177,7 +177,7 @@ describe('/pdf API', function () {
     });
   });
 
-  it.skip('rejects requests', async () => {
+  it('rejects requests', async () => {
     const config = new Config();
     const metrics = new Metrics();
     config.setConcurrent(0);

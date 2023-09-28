@@ -42,12 +42,13 @@ export interface BodySchema {
   elements: Array<ScrapeElementSelector>;
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
+  html?: Parameters<Page['setContent']>[0];
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
   setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
   setJavaScriptEnabled?: boolean;
-  url: Parameters<Page['goto']>[0];
+  url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
   viewport?: Parameters<Page['setViewport']>[0];
   waitForEvent?: WaitForEventOptions;
@@ -152,8 +153,12 @@ export interface ResponseSchema {
 
 const scrape = async (elements: ScrapeElementSelector[]) => {
   const wait = (selector: string, timeout = 30000) => {
-    return new Promise<void>((resolve) => {
-      const timeoutId = setTimeout(resolve, timeout);
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        clearTimeout(timeoutId);
+        clearInterval(intervalId);
+        reject(new Error(`Timed out waiting for selector "${selector}"`));
+      }, timeout);
       const intervalId = setInterval(() => {
         if (document.querySelector(selector)) {
           clearTimeout(timeoutId);
@@ -229,6 +234,7 @@ const route: BrowserHTTPRoute = {
       debugOpts,
       elements,
       emulateMediaType,
+      html,
       rejectRequestPattern = [],
       requestInterceptors = [],
       rejectResourceTypes = [],
@@ -242,9 +248,18 @@ const route: BrowserHTTPRoute = {
       waitForEvent,
     } = req.body as BodySchema;
 
+    const content = url || html;
+
+    if (!content) {
+      throw new util.BadRequest(
+        `One of "url" or "html" properties are required.`,
+      );
+    }
+
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<CDPChromium['newPage']>
     >;
+    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
     const messages: string[] = [];
     const outbound: OutBoundRequest[] = [];
     const inbound: InBoundRequest[] = [];
@@ -326,9 +341,9 @@ const route: BrowserHTTPRoute = {
       });
     }
 
-    const gotoResponse = await page
-      .goto(url, gotoOptions)
-      .catch(util.bestAttemptCatch(bestAttempt));
+    const gotoResponse = await gotoCall(content, gotoOptions).catch(
+      util.bestAttemptCatch(bestAttempt),
+    );
 
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
@@ -381,8 +396,14 @@ const route: BrowserHTTPRoute = {
       }
     }
 
-    const data = await page.evaluate(scrape, elements);
-    const [html, screenshot, pageCookies] = await Promise.all([
+    const data = await page.evaluate(scrape, elements).catch((e) => {
+      if (e.message.includes('Timed out')) {
+        throw new util.Timeout(e);
+      }
+      throw e;
+    });
+
+    const [debugHTML, screenshot, pageCookies] = await Promise.all([
       debugOpts?.html ? (page.content() as Promise<string>) : null,
       debugOpts?.screenshot
         ? (page.screenshot(debugScreenshotOpts) as Promise<string>)
@@ -394,7 +415,7 @@ const route: BrowserHTTPRoute = {
       ? {
           console: messages,
           cookies: pageCookies,
-          html,
+          html: debugHTML,
           network: {
             inbound,
             outbound,

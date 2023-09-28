@@ -20,7 +20,7 @@ describe('/download API', function () {
     await browserless.stop();
   });
 
-  it.skip('allows requests', async () => {
+  it('allows requests', async () => {
     await start();
 
     await fetch('http://localhost:3000/download?token=browserless', {
@@ -43,6 +43,7 @@ describe('/download API', function () {
       method: 'POST',
     }).then(async (res) => {
       expect(res.status).to.equal(200);
+      expect(res.headers.get('content-type')).to.equal('text/plain');
       expect(await res.text()).to.equal('Hello world!');
     });
   });

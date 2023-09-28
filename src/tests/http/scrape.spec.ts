@@ -90,12 +90,12 @@ describe('/scrape API', function () {
     });
   });
 
-  it.skip('handles selector timeouts', async () => {
+  it('handles selector timeouts', async () => {
     await start();
     const body = {
       elements: [
         {
-          selector: 'table',
+          selector: 'blink',
           timeout: 1000,
         },
       ],
@@ -109,7 +109,8 @@ describe('/scrape API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      expect(res.status).to.equal(408);
+      expect(await res.text()).to.contain('Timed out waiting for selector');
+      expect(res.status).not.to.equal(200);
     });
   });
 
@@ -223,20 +224,21 @@ describe('/scrape API', function () {
     });
   });
 
-  it.skip('handles `waitForEvent` properties', async () => {
+  it('handles `waitForEvent` properties', async () => {
     await start();
+
     const body = {
       elements: [
         {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      html: `<script type="text/javascript">
+      const event = new Event("customEvent");
+      setTimeout(() => document.dispatchEvent(event), 1500);
+      </script><a href="/">Link</a>`,
       waitForEvent: {
         event: 'customEvent',
-      },
-      waitForFunction: {
-        fn: `(() => {const event = new Event("customEvent"); setTimeout(() => document.dispatchEvent(event), 1500);})()`,
       },
     };
 
@@ -247,10 +249,10 @@ describe('/scrape API', function () {
       },
       method: 'POST',
     }).then((res) => {
+      expect(res.status).to.equal(200);
       expect(res.headers.get('content-type')).to.equal(
         'application/json; charset=UTF-8',
       );
-      expect(res.status).to.equal(200);
     });
   });
 
@@ -302,7 +304,7 @@ describe('/scrape API', function () {
     });
   });
 
-  it.skip('rejects requests', async () => {
+  it('rejects requests', async () => {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);

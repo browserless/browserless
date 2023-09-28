@@ -581,6 +581,14 @@ export class NotFound extends Error {
     errorLog(this.message);
   }
 }
+export class Timeout extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'Timeout';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
 
 export const bestAttemptCatch =
   (bestAttempt: boolean) =>

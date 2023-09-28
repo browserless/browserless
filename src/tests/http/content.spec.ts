@@ -147,15 +147,15 @@ describe('/content API', function () {
     });
   });
 
-  it.skip('handles `waitForEvent` properties', async () => {
+  it('handles `waitForEvent` properties', async () => {
     await start();
     const body = {
-      url: `https://example.com`,
+      html: `<script type="text/javascript">
+      const event = new Event("customEvent");
+      setTimeout(() => document.dispatchEvent(event), 1500);
+      </script>`,
       waitForEvent: {
         event: 'customEvent',
-      },
-      waitForFunction: {
-        fn: `(() => {const event = new Event("customEvent"); setTimeout(() => document.dispatchEvent(event), 1500);})()`,
       },
     };
 
@@ -166,7 +166,6 @@ describe('/content API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      res.text().then(console.log);
       expect(res.headers.get('content-type')).to.equal(
         'text/html; charset=UTF-8',
       );
@@ -212,7 +211,7 @@ describe('/content API', function () {
     });
   });
 
-  it.skip('rejects requests', async () => {
+  it('rejects requests', async () => {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);

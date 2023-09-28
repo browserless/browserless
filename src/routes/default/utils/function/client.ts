@@ -8,7 +8,7 @@ type codeHandler = (params: {
   page: Page;
 }) => Promise<unknown>;
 
-class FunctionRunner {
+export class FunctionRunner {
   private browser?: Browser;
   private page?: Page;
 
@@ -46,6 +46,9 @@ class FunctionRunner {
     }
 
     const response = await code({ context, page: this.page });
+    console.debug(
+      `_browserless_function_client_: Code is finished executing, closing page.`,
+    );
     this.page.close().catch(this.log);
 
     if (response instanceof Uint8Array) {

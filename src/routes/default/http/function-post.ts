@@ -67,9 +67,11 @@ const route: BrowserHTTPRoute = {
     const debug = getDebug();
     const config = getConfig();
     const handler = functionHandler(config, debug);
-    const { contentType, payload } = await handler(req, browser);
+    const { contentType, payload, page } = await handler(req, browser);
 
     debug(`Got function response of "${contentType}"`);
+    page.close();
+    page.removeAllListeners();
 
     if (contentType === 'uint8array') {
       const response = new Uint8Array(payload as Buffer);

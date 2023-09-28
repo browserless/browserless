@@ -83,7 +83,7 @@ describe('/performance API', function () {
     });
   });
 
-  it.skip('times out request', async () => {
+  it('times out request', async () => {
     const config = new Config();
     const metrics = new Metrics();
     config.setTimeout(10);
@@ -104,7 +104,7 @@ describe('/performance API', function () {
     });
   });
 
-  it.skip('rejects requests', async () => {
+  it('rejects requests', async () => {
     const config = new Config();
     const metrics = new Metrics();
     config.setConcurrent(0);

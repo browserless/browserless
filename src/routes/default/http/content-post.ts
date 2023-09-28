@@ -36,12 +36,13 @@ export interface BodySchema {
   cookies?: Array<Parameters<Page['setCookie']>[0]>;
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
+  html?: Parameters<Page['setContent']>[0];
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
   setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
   setJavaScriptEnabled?: setJavaScriptEnabled;
-  url: Parameters<Page['goto']>[0];
+  url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
   viewport?: Parameters<Page['setViewport']>[0];
   waitForEvent?: WaitForEventOptions;
@@ -88,6 +89,7 @@ const route: BrowserHTTPRoute = {
       bestAttempt = false,
       url,
       gotoOptions,
+      html,
       authenticate,
       addScriptTag = [],
       addStyleTag = [],
@@ -106,9 +108,18 @@ const route: BrowserHTTPRoute = {
       waitForEvent,
     } = req.body as BodySchema;
 
+    const content = url || html;
+
+    if (!content) {
+      throw new util.BadRequest(
+        `One of "url" or "html" properties are required.`,
+      );
+    }
+
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<CDPChromium['newPage']>
     >;
+    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
 
     if (emulateMediaType) {
       await page.emulateMediaType(emulateMediaType);
@@ -174,10 +185,9 @@ const route: BrowserHTTPRoute = {
       }
     }
 
-    const gotoResponse = await page.goto(url, gotoOptions).catch((e) => {
-      if (bestAttempt) return;
-      throw e;
-    });
+    const gotoResponse = await gotoCall(content, gotoOptions).catch(
+      util.bestAttemptCatch(bestAttempt),
+    );
 
     if (waitForTimeout) {
       await page
@@ -218,11 +228,11 @@ const route: BrowserHTTPRoute = {
       }
     }
 
-    const content = await page.content();
+    const markup = await page.content();
 
     page.close().catch(util.noop);
 
-    return util.writeResponse(res, 200, content, contentTypes.html);
+    return util.writeResponse(res, 200, markup, contentTypes.html);
   },
   method: Methods.post,
   path: HTTPRoutes.content,

@@ -79,8 +79,17 @@ const route: BrowserHTTPRoute = {
       debug(`Generating a download directory at "${downloadPath}"`);
       await mkdir(downloadPath);
       const handler = functionHandler(config, debug, { downloadPath });
-      await handler(req, browser).catch(reject);
+      const response = await handler(req, browser).catch((e) => {
+        debug(`Error running download code handler: "${e}"`);
+        reject(e);
+        return null;
+      });
 
+      if (!response) {
+        return;
+      }
+
+      const { page } = response;
       debug(`Download function has returned, finding downloads...`);
       async function checkIfDownloadComplete(): Promise<string | null> {
         if (res.headersSent) {
@@ -99,6 +108,10 @@ const route: BrowserHTTPRoute = {
       }
 
       const filePath = await checkIfDownloadComplete();
+      debug(`Closing pages.`);
+      page.close();
+      page.removeAllListeners();
+
       const rmDownload = util.once(
         () =>
           filePath &&

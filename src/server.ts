@@ -465,6 +465,10 @@ export class HTTPServer {
           return util.writeResponse(res, 429, e.message);
         }
 
+        if (e instanceof util.Timeout) {
+          return util.writeResponse(res, 408, e.message);
+        }
+
         debug(`Error handling request at "${found.path}": ${e}`);
         return util.writeResponse(res, 500, e.toString());
       });

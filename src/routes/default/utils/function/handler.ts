@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import debug from 'debug';
+import { Page } from 'puppeteer-core';
 
 import { BrowserInstance, UnwrapPromise } from 'src/types.js';
 
@@ -11,6 +12,14 @@ import { Config } from '../../../../config.js';
 import { contentTypes, Request, HTTPRoutes } from '../../../../http.js';
 import { mimeTypes } from '../../../../mime-types.js';
 import * as util from '../../../../utils.js';
+
+import { FunctionRunner } from './client.js';
+
+declare global {
+  interface Window {
+    BrowserlessFunctionRunner: typeof FunctionRunner;
+  }
+}
 
 interface JSONSchema {
   code: string;
@@ -29,7 +38,7 @@ export default (
   async (
     req: Request,
     browser: BrowserInstance,
-  ): Promise<{ contentType: string; payload: Buffer | string }> => {
+  ): Promise<{ contentType: string; page: Page; payload: unknown }> => {
     const isJson = req.headers['content-type']?.includes('json');
 
     const functionAssetLocation = path.join(config.getStatic(), 'function');
@@ -55,6 +64,10 @@ export default (
     const browserWSEndpoint = browser.publicWSEndpoint(
       req.parsed.searchParams.get('token') ?? '',
     );
+
+    if (!browserWSEndpoint) {
+      throw new Error(`No browser endpoint was found, is the browser running?`);
+    }
 
     const functionCodeJS = `browserless-function-${util.id()}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -115,7 +128,7 @@ export default (
 
     await page.goto(functionIndexHTML);
 
-    const res = await page
+    const { contentType, payload } = await page
       .evaluate(
         async (
           browserWSEndpoint,
@@ -127,8 +140,7 @@ export default (
             import('./' + functionCodeJS),
           ]);
           console.log('/function.js: imported successfully.');
-          // @ts-ignore imported in function's index.html
-          const helper = new BrowserlessFunctionRunner();
+          const helper = new window.BrowserlessFunctionRunner();
           const options = JSON.parse(serializedOptions);
           console.log('/function.js: executing puppeteer code.');
 
@@ -149,8 +161,9 @@ export default (
         throw new util.BadRequest(e.message);
       });
 
-    page.removeAllListeners();
-    page.close().catch(util.noop);
-
-    return res;
+    return {
+      contentType,
+      page,
+      payload,
+    };
   };
