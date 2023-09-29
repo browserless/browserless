@@ -161,8 +161,8 @@ export class BrowserManager {
     if (req.parsed.pathname.includes('/devtools/browser')) {
       const sessions = Array.from(this.browsers);
       const id = req.parsed.pathname.split('/').pop() as string;
-      const browser = sessions.find(([b]) =>
-        b.wsEndpoint()?.includes(req.parsed.pathname),
+      const browser = sessions.find(
+        ([b]) => b.wsEndpoint()?.includes(req.parsed.pathname),
       );
 
       if (browser) {
