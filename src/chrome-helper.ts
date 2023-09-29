@@ -142,7 +142,12 @@ const getTargets = async ({
   port,
 }: {
   port: string;
-}): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
+}): Promise<IDevtoolsJSON[]> =>
+  fetchJson(`http://127.0.0.1:${port}/json/list`, {
+    headers: {
+      Host: '127.0.0.1',
+    },
+  });
 
 const isPuppeteer = (
   browserServer: Browser | BrowserServer,
@@ -531,7 +536,7 @@ export const launchChrome = async (
   opts: ILaunchOptions,
   isPreboot: boolean,
 ): Promise<IBrowser> => {
-  const port = await getPort();
+  const port = '39589' ?? await getPort();
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
 
