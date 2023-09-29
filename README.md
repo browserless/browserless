@@ -2,8 +2,8 @@
   <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless_logo_screen_gradient.png">
 </div>
 
-> Looking for V1 of browserless? Check it out [here](https://github.com/browserless/chrome/tree/v1).
-> Version 1 is the version we currently still have running on the browserless service.
+> [Looking for v1.x.x of browserless? Check it out here](https://github.com/browserless/chrome/tree/v1).
+> NOTE: Version 1 is the version we currently still have running on browserless' hosted services.
 
 browserless is a web-based service that allows for remote clients to connect and execute headless work; all inside of docker. It supports new libraries like Puppeteer and Playwright, aiming to replace antiquated or in-house systems. We also bundle numerous handy REST-based APIs for doing more common actions like data collection, PDF generation and more.
 
