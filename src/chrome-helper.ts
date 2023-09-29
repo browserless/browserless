@@ -536,7 +536,7 @@ export const launchChrome = async (
   opts: ILaunchOptions,
   isPreboot: boolean,
 ): Promise<IBrowser> => {
-  const port = '39589' ?? await getPort();
+  const port = await getPort();
   let isUsingTempDataDir = true;
   let browserlessDataDir: string | null = null;
 
