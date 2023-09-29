@@ -2,6 +2,9 @@
   <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless_logo_screen_gradient.png">
 </div>
 
+> Looking for V1 of browserless? Check it out [here](https://github.com/browserless/chrome/tree/v1).
+> Version 1 is the version we currently still have running on the browserless service.
+
 browserless is a web-based service that allows for remote clients to connect and execute headless work; all inside of docker. It supports new libraries like Puppeteer and Playwright, aiming to replace antiquated or in-house systems. We also bundle numerous handy REST-based APIs for doing more common actions like data collection, PDF generation and more.
 
 We also take care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edge-cases like downloading files, managing sessions, and have a full documentation site built into the project which includes Open API docs.
@@ -22,7 +25,7 @@ If you've been struggling to get a browser up and running docker, or scaling out
 
 1. [Full documentation site](https://www.browserless.io/docs/start)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
-3. [Docker](https://hub.docker.com/r/browserless/chrome/)
+3. [Docker](https://github.com/browserless/chrome/pkgs/container/basic)
 4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
 
 # Features
@@ -46,9 +49,9 @@ You still execute the script itself which gives you total control over what libr
 
 > See more options on our [full documentation site](https://www.browserless.io/docs/docker-quickstart).
 
-1. `docker run -p 3000:3000 browserless/browserless`.
+1. `docker run -p 3000:3000 ghcr.io/browserless/basic`
 2. Visit `http://localhost:3000/docs` to see the documentation site.
-3. See more at our [docker repository](https://hub.docker.com/r/browserless/chrome/).
+3. See more at our [docker package](https://github.com/browserless/chrome/pkgs/container/basic).
 
 # Hosting Providers
 
@@ -85,24 +88,27 @@ const browser = await pw.chromium.launch();
 
 **After**
 ```js
-const browser = await pw.chromium.connect('ws://localhost:3000/chromium');
+const browser = await pw.chromium.connect('ws://localhost:3000/playwright/chromium');
+
+// OR
+const browser = await pw.chromium.connectOverCDP('ws://localhost:3000');
 ```
 
 After that, the rest of your code remains the same with no other changes required.
 
 # Usage with other libraries
 
-Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless.
+Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless. Please note that in V2 we no longer support selenium or webdriver integrations.
 
 You can find a much larger list of supported libraries [on our documentation site](https://www.browserless.io/docs/puppeteer-library).
 
 # Motivations
 
-Running Chrome on lambda is a fantastic idea but in practice is quite challenging. You're met with pretty tough upload limits, building Chrome yourself, and then dealing with odd invocation issues should everything else go ok. A lot of issues in various repositories are due to just challenges of getting Chrome running smoothly in AWS (see [here](https://github.com/GoogleChrome/puppeteer/issues?q=is%3Aissue+is%3Aopen+sort%3Acomments-desc)). You can see for yourself by going to nearly any library and sorting issues by most commented.
+Running Chrome on lambda or on your own is a fantastic idea but in practice is quite challenging in production. You're met with pretty tough cloud limits, possibly building Chrome yourself, and then dealing with odd invocation issues should everything else go ok. A lot of issues in various repositories are due to just challenges of getting Chrome running smoothly in AWS (see [here](https://github.com/GoogleChrome/puppeteer/issues?q=is%3Aissue+is%3Aopen+sort%3Acomments-desc)). You can see for yourself by going to nearly any library and sorting issues by most commented.
 
-Getting Chrome running well in docker is also a challenge as there's quiet a few packages you need in order to get Chrome running. Once that's done then there's still missing fonts, getting libraries to work with it, and having limitations on service reliability.
+Getting Chrome running well in docker is also a challenge as there's quiet a few packages you need in order to get Chrome running. Once that's done then there's still missing fonts, getting libraries to work with it, and having limitations on service reliability. This is also ignoring CVEs, access-controls, and scaling strategies.
 
-All of these issues prompted me to build a first-class image and workflow for interacting with Chrome in a more streamlined way. With browserless you never have to worry about fonts, extra packages, library support, or anything else. It should just work. On top of that it comes with a prescribed approach on how you interact with Chrome, which is through socket connections (similar to a database or any other external appliance). What this means is that you get the ability to drive Chrome remotely without having to do updates/releases to the thing that runs Chrome since it's divorced from your application.
+All of these issues prompted us to build a first-class image and workflow for interacting with Chrome in a more streamlined way. With browserless you never have to worry about fonts, extra packages, library support, security, or anything else. It just works reliably like any other modern web service. On top of that it comes with a prescribed approach on how you interact with Chrome, which is through socket connections (similar to a database or any other external appliance). What this means is that you get the ability to drive Chrome remotely without having to do updates/releases to the thing that runs Chrome since it's divorced from your application.
 
 # Licensing
 

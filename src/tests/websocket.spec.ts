@@ -296,6 +296,24 @@ describe('WebSocket API', function () {
     expect(results.queued).to.equal(0);
   });
 
+  it('runs playwright over CDP', async () => {
+    const metrics = new Metrics();
+    await start({ metrics });
+
+    const browser = await chromium.connectOverCDP(
+      `ws://localhost:3000?token=browserless`,
+    );
+
+    await browser.close();
+    await sleep(100);
+
+    const results = metrics.get();
+    expect(results.timedout).to.equal(0);
+    expect(results.successful).to.equal(1);
+    expect(results.rejected).to.equal(0);
+    expect(results.queued).to.equal(0);
+  });
+
   it('rejects playwright without tokens', async () => {
     const metrics = new Metrics();
     await start({ metrics });

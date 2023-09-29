@@ -5,5 +5,5 @@ VERSION="${VERSION:-latest}"
 docker buildx build \
   --push \
   --platform linux/amd64 \
-  -t registry.browserless.io/chromium:$VERSION \
+  -t ghcr.io/browserless/chromium:$VERSION \
   -f ./docker/chromium/Dockerfile .

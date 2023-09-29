@@ -4,6 +4,6 @@ VERSION="${VERSION:-latest}"
 
 docker buildx build \
   --push \
-  --platform linux/amd64 \
-  -t registry.browserless.io/foundation:$VERSION \
+  --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/browserless/foundation:$VERSION \
   -f ./docker/foundation/Dockerfile .

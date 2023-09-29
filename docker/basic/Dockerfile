@@ -1,5 +1,6 @@
 ARG VERSION=latest
-FROM registry.browserless.io/chromium:$VERSION
+FROM ghcr.io/browserless/chromium:$VERSION
+LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
 # Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/

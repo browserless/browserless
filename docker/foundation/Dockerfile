@@ -1,4 +1,5 @@
 FROM ubuntu:lunar
+LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
