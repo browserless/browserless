@@ -142,7 +142,12 @@ const getTargets = async ({
   port,
 }: {
   port: string;
-}): Promise<IDevtoolsJSON[]> => fetchJson(`http://127.0.0.1:${port}/json/list`);
+}): Promise<IDevtoolsJSON[]> =>
+  fetchJson(`http://127.0.0.1:${port}/json/list`, {
+    headers: {
+      Host: '127.0.0.1',
+    },
+  });
 
 const isPuppeteer = (
   browserServer: Browser | BrowserServer,
