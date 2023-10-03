@@ -8,3 +8,6 @@ build/
 .git/
 .no-git/
 .vscode/
+
+# Dev files
+*.env*
