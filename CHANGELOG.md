@@ -1,7 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.2...master)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
+# [v1.60.2](https://github.com/browserless/chrome/compare/v1.60.1...v1.60.2)
+- Dependency updates.
+- Fixes an issue where calls to GET /sessions sometimes return blank results.
+- Drop puppeteer `21.3.1` in favor of `21.3.6`.
+
+# [v1.60.1](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
 - Dependency updates.
 - Drop the `partner` repo from builds as we no longer use it for installing `flash`.
 - Bump to `Ubuntu` lunar.
