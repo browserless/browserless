@@ -16,6 +16,7 @@ import {
 } from './http.js';
 import { Limiter } from './limiter.js';
 import { Metrics } from './metrics.js';
+import { shimLegacyRequests } from './shim.js';
 import {
   BrowserHTTPRoute,
   BrowserWebsocketRoute,
@@ -283,6 +284,7 @@ export class HTTPServer {
 
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
+    shimLegacyRequests(req.parsed);
 
     if (this.config.getAllowCORS()) {
       Object.entries(this.config.getCORSHeaders()).forEach(([header, value]) =>
@@ -483,6 +485,8 @@ export class HTTPServer {
 
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
+    shimLegacyRequests(req.parsed);
+
     const { pathname } = req.parsed;
     req.queryParams = util.queryParamsToObject(req.parsed.searchParams);
 

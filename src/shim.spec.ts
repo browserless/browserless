@@ -148,8 +148,7 @@ describe.only('Request Shimming', () => {
     });
 
     it('handles array options', () => {
-      const url =
-        'wss://localhost?ignoreDefaultArgs=one,two,three';
+      const url = 'wss://localhost?ignoreDefaultArgs=one,two,three';
       const final =
         'wss://localhost/?launch=%7B%22ignoreDefaultArgs%22%3A%5B%22one%22%2C%22two%22%2C%22three%22%5D%7D';
       const shimmed = shimLegacyRequests(new URL(url));

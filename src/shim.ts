@@ -50,7 +50,14 @@ export const shimLegacyRequests = (url: URL): URL => {
       launchParams.stealth = stealth !== 'false';
     }
 
-    if (typeof ignoreDefaultArgs !== 'undefined' && launchParams.ignoreDefaultArgs === undefined) {
+    if (typeof stealth !== 'undefined' && launchParams.stealth === undefined) {
+      launchParams.stealth = stealth !== 'false';
+    }
+
+    if (
+      typeof ignoreDefaultArgs !== 'undefined' &&
+      launchParams.ignoreDefaultArgs === undefined
+    ) {
       const parsed =
         typeof ignoreDefaultArgs === 'string' && ignoreDefaultArgs.includes(',')
           ? ignoreDefaultArgs.split(',')
