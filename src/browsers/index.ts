@@ -231,7 +231,7 @@ export class BrowserManager {
 
     this.browsers.set(browser, connectionMeta);
 
-    await browser.launch(launchOptions);
+    await browser.launch(launchOptions as object);
 
     if (router.onNewPage) {
       browser.on('newPage', (page) =>

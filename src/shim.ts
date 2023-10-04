@@ -1,5 +1,5 @@
-import { convertIfBase64, safeParse } from './utils.js';
 import { CDPLaunchOptions } from './types';
+import { convertIfBase64, safeParse } from './utils.js';
 
 const shimParam = [
   'headless',
@@ -17,15 +17,14 @@ const shimParam = [
  *
  * @param req A parsed user requests
  */
-export const shimLegacyRequests = (url: URL) => {
+export const shimLegacyRequests = (url: URL): URL => {
   const { searchParams } = url;
   const params = [...searchParams];
   const names = params.map(([k]) => k);
 
-  const hasCLISwitches = names.some((name) => name.startsWith('--'));
+  const cliSwitches = params.filter(([name]) => name.startsWith('--'));
   const hasLegacyParams =
-    hasCLISwitches ||
-    shimParam.some((name) => names.includes(name));
+    cliSwitches || shimParam.some((name) => names.includes(name));
 
   if (hasLegacyParams) {
     const launchParams: CDPLaunchOptions =
@@ -36,27 +35,40 @@ export const shimLegacyRequests = (url: URL) => {
     const slowMo = searchParams.get('slowMo') ?? launchParams.slowMo;
     const headless = searchParams.get('headless') ?? launchParams.headless;
 
-    if (typeof headless !== 'undefined') {
+    if (
+      typeof headless !== 'undefined' &&
+      launchParams.headless === undefined
+    ) {
       launchParams.headless = headless === 'new' ? 'new' : headless !== 'false';
     }
 
-    if (typeof slowMo !== 'undefined') {
+    if (typeof slowMo !== 'undefined' && launchParams.slowMo === undefined) {
       launchParams.slowMo = +slowMo;
     }
 
-    if (typeof stealth !== 'undefined') {
-      launchParams.stealth = !!stealth;
+    if (typeof stealth !== 'undefined' && launchParams.stealth === undefined) {
+      launchParams.stealth = stealth !== 'false';
     }
 
-    if (typeof ignoreDefaultArgs !== 'undefined') {
-      launchParams.ignoreDefaultArgs = Array.isArray(ignoreDefaultArgs)
-        ? ignoreDefaultArgs
-        : ignoreDefaultArgs !== 'false';
+    if (typeof ignoreDefaultArgs !== 'undefined' && launchParams.ignoreDefaultArgs === undefined) {
+      const parsed =
+        typeof ignoreDefaultArgs === 'string' && ignoreDefaultArgs.includes(',')
+          ? ignoreDefaultArgs.split(',')
+          : ignoreDefaultArgs;
+      launchParams.ignoreDefaultArgs = Array.isArray(parsed)
+        ? parsed
+        : parsed !== 'false';
     }
 
     // Handle CLI switches
-    if (hasCLISwitches) {
-
+    if (cliSwitches.length) {
+      launchParams.args = cliSwitches.map(([n, v]) => `${n}=${v}`);
     }
+
+    shimParam.forEach((n) => searchParams.delete(n));
+    cliSwitches.forEach(([n]) => searchParams.delete(n));
+    searchParams.set('launch', JSON.stringify(launchParams));
   }
+
+  return url;
 };
