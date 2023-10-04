@@ -19,5 +19,8 @@ static/live/*js
 # Swagger JSON
 static/docs/swagger.json
 
-# Env files
-.env
+# Coverage
+coverage
+
+# Dev Files
+*.env*

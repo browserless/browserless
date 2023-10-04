@@ -1,7 +1,7 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.1...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.60.2...master)
 - Dependency updates.
 
-# [v2.0.0-beta](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
+# [v2.0.0](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
 browserless 2.0.0 represents the best body of work after running browserless for over 5 years. It contains mostly the same functionality and more, and is rebuilt to be more modular and offer a NodeJS SDK. It's also much lighter and faster than prior versions and includes a lot of semantic changes.
 
 ## Features
@@ -20,8 +20,13 @@ browserless 2.0.0 represents the best body of work after running browserless for
 
 ## Minor Changes
 - Many docker parameters have been renamed, but are backwards compatible. See config.ts for details.
--
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
+
+# [v1.60.2](https://github.com/browserless/chrome/compare/v1.60.1...v1.60.2)
+- Dependency updates.
+- Fixes an issue where calls to GET /sessions sometimes return blank results.
+- Drop puppeteer `21.3.1` in favor of `21.3.6`.
+
+# [v1.60.1](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
 - Dependency updates.
 - Drop the `partner` repo from builds as we no longer use it for installing `flash`.
 - Bump to `Ubuntu` lunar.
