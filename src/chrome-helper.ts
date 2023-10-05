@@ -310,6 +310,10 @@ const setupBrowser = async ({
 
   await browserHook({ browser, meta });
 
+  process.once('close', () => {
+    debug(`Browser process ${browser._id} has closed, cleaning up.`);
+    closeBrowser(browser);
+  });
   browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
