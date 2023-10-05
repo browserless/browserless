@@ -152,6 +152,11 @@ export class BrowserManager {
       'record',
       false,
     );
+    const blockAds = util.parseBooleanParam(
+      req.parsed.searchParams,
+      'blockAds',
+      false,
+    );
     const decodedLaunchOptions = util.convertIfBase64(
       req.parsed.searchParams.get('launch') || '{}',
     );
@@ -210,6 +215,7 @@ export class BrowserManager {
       (Browser.name === CDPChromium.name ? await this.generateDataDir() : null);
 
     const browser = new Browser({
+      blockAds,
       config: this.config,
       record,
       userDataDir,

@@ -117,6 +117,13 @@ export type Response = http.ServerResponse;
 
 export interface SystemQueryParameters {
   /**
+   * Whether or nor to load ad-blocking extensions for the session.
+   * This currently uses uBlock Origin and may cause certain sites
+   * to not load properly.
+   */
+  blockAds?: boolean;
+
+  /**
    * Launch options, which can be either an object
    * of puppeteer.launch options or playwright.launchServer
    * options, depending on the API. Must be either JSON

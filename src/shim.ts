@@ -5,7 +5,6 @@ const shimParam = [
   'headless',
   'stealth',
   'ignoreDefaultArgs',
-  'blockAds',
   'slowMo',
 ];
 

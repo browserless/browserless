@@ -1,0 +1,3673 @@
+! Title: uBlock₀ filters – Badware risks
+! Description: |
+!   For sites documented to put users at risk of installing 
+!   adware/crapware/malware, having login credentials stolen, etc.
+!   The purpose is to at least ensure a user is warned of the risks ahead.
+! Expires: 5 days
+! Last modified: Wed, 20 Sep 2023 12:17:42 +0000
+! License: https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE
+! Homepage: https://github.com/uBlockOrigin/uAssets
+!
+! GitHub issues: https://github.com/uBlockOrigin/uAssets/issues
+! GitHub pull requests: https://github.com/uBlockOrigin/uAssets/pulls
+!
+! Each entry has to be well enough sourced, see the comments above each entry for sources
+
+! Using request of type `document` will cause the whole site to be blocked through
+! strict blocking, yet the site will render properly if a user still decides to
+! go ahead.
+
+! 2014-10-22: https://assiste.com/01Net.html
+! 2013-03-25: https://www.malekal.com/pctutotuto4pc-association-avec-01net/
+! 2012-10-31: https://www.journaldunet.com/solutions/dsi/des-malwares-sur-telecharger-com-01net-1012.shtml
+! 2012-10-30: https://www.lesnumeriques.com/appli-logiciel/telecharger-depuis-01net-nuit-gravement-a-sante-pc-n26763.html
+! 2012-06-17: https://www.malekal.com/01net-pc-optimizer-pour-ne-pas-optimiser-son-pc/
+! 2012-02-17: http://neosting.net/logiciels/01net-et-softonic-ajoutent-aussi-un-installeur-publicitaire.html (Dead page)
+||01net.com/telecharger/$doc
+
+! 2015-03-11: https://blog.emsisoft.com/en/12678/mind-the-pup-top-download-portals-to-avoid/
+! 2015-01-21: https://www.howtogeek.com/207692/yes-every-freeware-download-site-is-serving-crapware-heres-the-proof/
+! 2015-01-11: https://www.howtogeek.com/198622/heres-what-happens-when-you-install-the-top-10-download.com-apps/
+! 2012-06-27: https://insecure.org/news/download-com-fiasco.html
+! 2011-12-05: https://seclists.org/nmap-announce/2011/5
+! 2011-08-22: https://www.extremetech.com/computing/93504-download-com-wraps-downloads-in-bloatware-lies-about-motivations
+! https://github.com/uBlockOrigin/uAssets/issues/926
+! ||download.cnet.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/79
+||flexytalk.net^
+||quickdomainfwd.com^
+
+! https://github.com/uBlockOrigin/uAssets/issues/1547
+||vlc.de^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/1738
+||audacity.de^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/1853
+||havenworks.com^$doc
+
+! https://github.com/gorhill/uBlock/wiki/Badware-risks#ublockorg
+||ublock.org^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/3060
+! https://www.bleepingcomputer.com/news/security/fake-websites-for-keepass-7zip-audacity-others-found-pushing-adware/
+! https://www.virustotal.com/#/file/a5616985e92ca7c1df3b132d2da2ef33c64f38ba2dca40445017037473d7d014/detection
+! https://twitter.com/certbund/status/1127864403276091393
+! https://github.com/uBlockOrigin/uAssets/issues/17880
+||7zip.es^$doc
+||7zip.fr^$doc
+||7zip.it^$doc
+||adblock.fr^$doc
+||aresgalaxy.es^$doc
+||audacity.es^$doc
+||audacity.fr^$doc
+||audacity.it^$doc
+||audacity.pl^$doc
+||azureus.es^$doc
+||bittorrent.es^$doc
+||bleachbit.com^$doc
+||blender3d.es^$doc
+||blender3d.fr^$doc
+||bluestacksdownloads.com^$doc
+||calibre.it^$doc
+||celestia.es^$doc
+||celestia.fr^$doc
+||clonezilla.es^$doc
+||clonezilla.fr^$doc
+||clonezilla.it^$doc
+||cyberduck.de^$doc
+||cyberduck.es^$doc
+||cyberduck.fr^$doc
+||cyberduck.it^$doc
+||filezilla.es^$doc
+||filezilla.fr^$doc
+||filezilla.it^$doc
+||filezilla.net^$doc
+||filezilla.pl^$doc
+||freefilesync.com^$doc
+||freerapid.fr^$doc
+||garagebandforpc.org^$doc
+||gimp.es^$doc
+||gparted.fr^$doc
+||gparted.it^$doc
+||greenshot.fr^$doc
+||greenshot.org^$doc
+||handbrake.es^$doc
+||handbrake.it^$doc
+||inkscape.es^$doc
+||inkscape.fr^$doc
+||inkscape.it^$doc
+||izarc.fr^$doc
+||jdownloader.fr^$doc
+||keepass.com^$doc
+||keepass.de^$doc
+||keepass.es^$doc
+||keepass.fr^$doc
+||keepass.it^$doc
+||keepassxc.com^$doc
+||notepad2.com^$doc
+||office.org^$doc
+||open-office.fr^$doc
+||paintnet.es^$doc
+||paintnet.fr^$doc
+||paintnet.it^$doc
+||pdfsam.com^$doc
+||peazip.com^$doc
+||qbittorrent.com^$doc
+||scribus.fr^$doc
+||scribus.it^$doc
+||senuti.org^$doc
+||smplayer.org^$doc
+||stellarium.es^$doc
+||stellarium.fr^$doc
+||truecrypt.fr^$doc
+||truecrypt.it^$doc
+||truecrypt.pl^$doc
+||unetbootin.net^$doc
+||unetbootin.org^$doc
+||utorrent.it^$doc
+||virtualbox.es^$doc
+||virtualbox.pl^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/3730
+! https://blog.sucuri.net/2018/10/malicious-redirects-from-newsharecounts-com-tweet-counter.html
+||newsharecounts.s3-us-west-2.amazonaws.com/nsc.js$script
+
+! https://github.com/uBlockOrigin/uAssets/issues/4201
+||googlo.co^$doc
+||yahoo-news.co^$doc
+! https://github.com/uBlockOrigin/uAssets/issues/4201#issuecomment-458340273
+||chairgaubsy.com^$doc
+||epailseptox.com^$doc
+||hentaiplaytime.com^$doc
+||notification-time.com^$doc
+||viewmypdf.com^$doc
+
+! com-guest.info badware
+||com-guest.info^$doc
+
+! foxload.com badware
+||foxload.com^$doc
+
+! aksia.co badware
+! Ref: https://www.bleepingcomputer.com/news/security/phisher-announces-more-attacks-against-hedge-funds-and-financial-firms/
+||aksia.co^$doc
+
+! ReImagePlus links
+! https://github.com/uBlockOrigin/uAssets/issues/5136
+! Ref: https://forums.malwarebytes.com/topic/194200-removal-instructions-for-reimage-repair/
+! https://windowsreport.com/extend-windows-laptop-battery-life/
+windowsreport.com##.code-block
+! https://appuals.com/fix-error-0x800701e3-on-windows-7-8-1-10/
+appuals.com##.appua-reimage-top
+appuals.com##.info.box
+! https://ugetfix.com/ask/how-to-fix-windows-store-error-0x8000ffff/
+pcseguro.es,sauguspc.lt,sichernpc.de,ugetfix.com,wyleczpc.pl##.download_button_info_texts
+pcseguro.es,sauguspc.lt,sichernpc.de,ugetfix.com,wyleczpc.pl##.js-download_button_additional_links
+pcseguro.es,sauguspc.lt,sichernpc.de,ugetfix.com,wyleczpc.pl##.primary_download
+pcseguro.es,sauguspc.lt,sichernpc.de,ugetfix.com,wyleczpc.pl##.sidebar_download_inner
+pcseguro.es,sauguspc.lt,sichernpc.de,ugetfix.com,wyleczpc.pl##div.attention-button-box-green
+! https://www.thewindowsclub.com/fix-windows-update-error-0xc1900130-on-windows-10
+thewindowsclub.com##.entry-content > div > strong:has-text(find & fix Windows error)
+! https://www.majorgeeks.com/files/details/patch_my_pc.html
+majorgeeks.com##b:has(a[target^="reimage"])
+||majorgeeks.com/images/icons/red_icon_18x17px.png$image
+! https://www.2-spyware.com/remove-redirector-gvt1-com.html
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.attention-button-wrap:has-text(Reimage)
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.ui-content > .win
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.sidebar_download_inner > :not(.voting-box):not(.colorbg-grey)
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##th:has-text(/^Detection$/)
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##th:has-text(/^Detection$/) + td
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.js-download_button_offer
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.primary_download
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.automatic_removal_list
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.quick-download-button-placeholder
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.nfc-bottom-right:has-text(Reimage)
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##a:has-text(Reimage)
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.quick-download-button-text
+! https://windowsloop.com/network-adapters-shortcut/
+||reimageplus.com^$doc
+
+! Lapsed domains that once hosted adblock lists, several of whom are now used for bad purposes
+! https://github.com/uBlockOrigin/uAssets/issues/5307
+||gjtech.net^$doc
+||securemecca.com^$doc
+
+! Badware
+||kuhoot.it^$doc
+
+! Fake cloudflare screen
+! https://github.com/uBlockOrigin/uAssets/issues/5305#issuecomment-484754393
+! https://github.com/uBlockOrigin/uAssets/issues/5489#issuecomment-488207423
+||gmboxx.com^
+||mr.media-bucket.com^
+
+! https://github.com/NanoMeow/QuickReports/issues/965#issuecomment-485274387
+||pl.allsports4free.club^
+||pl.allsports4u.club^
+
+! https://github.com/uBlockOrigin/uAssets/issues/5409
+||discount.s3blog.org^
+||s3blog.org^$3p
+||dataprovider.biz^
+
+! https://github.com/uBlockOrigin/uAssets/issues/5442
+||tplinkextender.net^
+
+! https://github.com/uBlockOrigin/uAssets/issues/4862#issuecomment-486941006
+||upload4earn.org^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/5805
+||newsfile.club^$doc
+||clickpush.biz^$doc
+
+! https://forums.lanik.us/viewtopic.php?f=62&p=149407#p149406
+||buzzadnetwork.com^$all
+
+! https://arstechnica.com/information-technology/2019/08/google-play-app-with-100-million-downloads-executed-secret-payloads/
+||abcdserver.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/6381
+||americanoverlook.com^
+||anonnews.co^
+||channel-7-news.com^
+||embols.com^
+||endingthefed.com^
+||goneleft.com^
+||nephef.com^
+||newsbreakshere.com^
+||rilenews.com^
+||thecontroversialfiles.net^
+||voxtribune.com^
+
+! https://blog.sucuri.net/2018/08/massive-wordpress-redirect-campaign-targets-vulnerable-tagdiv-themes-and-ultimate-member-plugins.html
+||checkisreal.com^
+||mysecurify.com^
+
+! https://www.wordfence.com/blog/2019/08/malicious-wordpress-redirect-campaign-attacking-several-plugins/
+||developsincelock.com^
+||gabriellalovecats.com^
+||jackielovedogs.com^
+||tomorrowwillbehotmaybe.com^
+||wiilberedmodels.com^
+
+! https://github.com/uBlockOrigin/uAssets/issues/6452
+||apple.com-*.live^
+
+! some badware testing around
+||cobalten.com^$all
+
+! redirect from egy best
+||stremanp.com^$all
+
+! redirects
+||nextyourcontent.com^$all
+||geniusdexchange.com^$all
+||securecloud-smart.com^$all
+||doctopdftech.com^$all
+||palundrus.com^$all
+||best2019-games-web4.com^$all
+||track-enable.com^$all
+||searchdimension.com^$all
+||beqbox.com^
+||bblck.me^$all
+||glinks.co^$all
+/?track=*&key=$all
+||getsecuritysuite.com^$all
+
+! SpyHunter links
+! Ref: https://blog.malwarebytes.com/detections/pup-optional-spyhunter/
+! https://howtoremove.guide/redirector-gvt1-com-virus-malware-chrome-removal/
+howtoremove.guide##div[style^="border:2px"]
+howtoremove.guide##.entry-content > div:has-text(Special Offer)
+! https://howtoremove.guide/redirector-gvt1-com-virus-malware-chrome-removal/ (German version only)
+howtoremove.guide###solution_v2_de
+howtoremove.guide###alt_content_main_div > p:has-text(SpyHunter)
+howtoremove.guide###gray_de
+! https://www.2-spyware.com/remove-redirector-gvt1-com.html
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##.automatic_removal_list_w > .ar_block_description
+2-spyware.com,novirus.uk,faravirus.ro,uirusu.jp,virusi.hr,wubingdu.cn,avirus.hu,ioys.gr,odstranitvirus.cz,tanpavirus.web.id,utanvirus.se,virukset.fi,losvirus.es,virusler.info.tr,semvirus.pt,lesvirus.fr,senzavirus.it,dieviren.de,viruset.no,usunwirusa.pl,zondervirus.nl,bedynet.ru,virusai.lt,virusi.bg,viirused.ee,udenvirus.dk##a:has-text(SpyHunter)
+
+! https://github.com/uBlockOrigin/uAssets/pull/6757
+||tncrun.net^$all
+
+! https://github.com/NanoMeow/QuickReports/issues/2772
+||d3125zvx5yi5sj.cloudfront.net^$all
+
+! https://github.com/NanoMeow/QuickReports/issues/2813
+||mp3hub.com^$doc
+
+! thepiratebay3 .com bad
+thepiratebay3.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/6544#issuecomment-586763083
+||procdnvids.net^
+||prostream.to^
+||storageplay.net^
+
+! https://github.com/NanoMeow/QuickReports/issues/2577
+! https://www.reddit.com/r/uBlockOrigin/comments/12nrzng/
+||mybestclick.net^$3p
+
+! https://github.com/NanoMeow/QuickReports/issues/3205
+||verified-extensions.com^
+
+! https://github.com/NanoMeow/QuickReports/issues/3299
+! https://github.com/NanoMeow/QuickReports/issues/3300
+||smsiak.pl^$doc
+||smsy24.pl^$doc
+
+! redirecting domains / fraud
+||video-adblock.com^$all
+||vid-adblocker.com^$all
+||multiadblock.com^$all
+||popsads.link^$all
+||adverdirect.com^$all
+||euphe-gun.com^$all
+||bestwinexperience.com^$all
+||triumphantplace.com^$all
+||traffic-go.com^$all
+||bainushe.com^$all
+||streamssitesearch.com^$all
+||trackertrak.com^$all
+||acceder.gratis^$all
+||catbeardx.com^$all
+||newsinform.net^$all
+||wdeliv.net^$all
+||watch-video.net^$all
+||findmedia.biz^$all
+||polimer.xyz^$all
+||bingstyle.com^$all
+||zctrack.com^$all
+||redirekted.com^$all
+||ptookaih.net^$all
+||blockskipad.com^$all
+||adpopblocker.com^$all
+||newsurprizeforyou.com^$all
+||oldharper.xyz^$all
+||teenyreligious.com^$all
+||goto2021.top^$all
+||redirectsstm.click^$all
+||horried.pro^$all
+||investing-fund.com^$all
+||investing-bank.com^$all
+||trafficjunction.com^$all
+||arclk.net^$all
+||clkepd.com^$all
+||btnativenav.com^$all
+||1111sale.us^$all
+||litance-viestside.icu^$all
+||omgtnc.com^$all
+||bector-blotance.xyz^$all
+||revercecaptcha.com^$all
+||bestoffer21.info^$all
+||express-news.me^$all
+||n06.biz^$all
+||um-bredirect.com^$all
+||terlaby.com^$all
+||aff2021.com^$all
+||claspedtwelve.com^$all
+||glbltraffic.com^$all
+||0redirc.com^$all
+||rsafrwdr.com^$all
+||sexyladydesire.xyz^$all
+||expmediadirect1.com^
+||inspirationhistorical.com^$all
+||maroohost.online^$all
+||rollmeout.xyz^$all
+||rouonixon.com^$all
+||amigosdetuciudad.com^$all
+||no1-casino.com^$all
+||bb-delivery.icu^$all
+||incorphishor.com^$all
+||phygical-questall.icu^$all
+||praterage-colled.com^$all
+||wwtracking.net^$all
+||womeniovers.net^$all
+||antig-hra.com^$all
+||fictiongroin.com^$all
+||sendyou123.com^$all
+||goaffmy.com^$all
+||pwrtds.com^$all
+||trackbyfast.com^$all
+||trfrc.com^$all
+||1ts11.top^$all
+||dating.hdxvideos.ru^$all
+||admntrk.com^$all
+||bnmu.xyz^$all
+||cngcpy.com^$all
+||cpmstatsart.com^$frame
+||elevisions.biz^$all
+||eneverals.biz^$all
+||harzfriends.de^$all
+||jobrave.live^$all
+||moviesboys.com/*.shtml$doc
+||name0fbestway.com^$all
+||netund.com^$all
+||onetouch7.info^$all
+||sex-is-here.com/*.shtml$doc
+||sexall.net/*.shtml$doc
+||upshroomishtor.com^$all
+||urtyert.com^$all
+||quellaplentyresolute.com^$all
+||hsrvu.com^$all
+||il119.com^$all
+||adtr1.com^$all
+||axdsz.pro^$all
+||click2click.xyz^$all
+||datingapp.live^$all
+||retargetcore.com^$all
+.com/c/*?s1=$doc,domain=com
+.net/c/*?s1=$doc,domain=net
+/tds/ae?tds_campaign=$doc
+||adating.link^$all
+||arthyredir.com^$all
+||aslnk.link^$all
+||benaughty.com^$all
+||searchdatestoday.com^$all
+||robin201.xyz^$all
+||bnewsblite.me^$all
+||ckre.net^$all
+||doprinplupr.com^$all
+||gotohouse2.cc^$all
+||nyalacornily.cam^$all
+||adalgard-wol.com^$all
+||chintsressels.com^$all
+||letmessagenow.com^$all
+||x-soft.club^$all
+||apilond.com^$all
+||tracklyfast.com^$all
+||ytbgamer.space^$all
+||atzekromchan.com^$all
+||pupok.link^$all
+||ntvpevnts.com^$all
+||google-yandex.info^$all
+||aditserve.com^$all
+||onclickclear.com^$all
+/bdv_rd.dbm?ownid=$doc
+?bid=0.*&search_referrer_domain=$doc
+||btpnav.com^$all
+||magnus-beo.com^$all
+||veysag.com^$all
+||fecebook.com^$all
+||festinus.xyz^$all
+||newssocial.org^$all
+||secureleadsforever.com^$all
+||techgadgetsy.com^$all
+/apop/redirect/zone/*$doc,popup
+||gayfeetbusy.link^$all
+||belbenback.live^$all
+/?pl=*&sm=$doc
+
+! hacked and abused for redirect
+tech4yougadgets.com##^meta[http-equiv="refresh"]
+tech4yougadgets.com##^script[src^="data:text/javascript;base64,"]
+tech4yougadgets.com##+js(aopr, Notification)
+||adstellar.icu^
+||aleks-avto-rnd.ru^$all
+||trk.setting-nervous-steady-noted.xyz^$all
+||tube911.com^$all
+||bestlifeoffer20.com^$all
+||clicks.affstrack.com^
+||weledying-jessed.com^$all
+?zoneid=*&cost=0.$doc
+||check-update-today.com^$all
+/zcredirect?visitid=*&iframeDetected=false|$doc
+*/zcvisitor/*?campaignid$doc
+||tweitter.com^$all
+||games4you.site^$all
+||mqdownload.com^$all
+||spacedrain.site^$all
+||vviotaer.space^$all
+/pop-click?sid=*&data=$doc
+/click?a=*&aff_click_id=$doc
+||stils-top.space^$all
+||actgames.site^$all
+||trwl1.com^$all
+||clixwells.com^$all
+||wxhiojortldjyegtkx.bid^$all
+||pushmeup.art^$all
+||pushub.net^$all
+||adserver*/?sdomain=$doc,popup
+||couponex.space^$all
+||bismuni.com^$all
+||date4sex.pro^$all
+/click.php?data=$doc
+&adspot_id=*&cost=0.$doc
+||game-hacks.online^$all
+||s4f.net^$all
+||onlyfreetoonporn.com^$all
+||tilda.gb.net^$all
+||cleardexchange.com^$all
+||duellosheliced.com^$all
+||shahidmosalsalat.co^$all
+||mokedirect.xyz^$all
+||srvpcn.com^$all
+||distributeclick.site^$all
+||tobmyfile.info^$all
+||lone1y.com^$all
+||tr1net.com^$all
+||usdownload.widost.com^$all
+||redirectto.fun^$all
+||cpttrcklnk.com^$all
+||neighborhoodsluts.com^$all
+.xyz/video.php?=*&dating_xyz_0&&0$frame
+||0redird.com^$all
+||extyoneplus-3.com^$all
+||turnhub.net^$all
+/click?pid=*&sub1=$doc
+||hyperwage.com^$all
+||bitcoingenerator.me^$all
+||bqyvip.cn^$all
+||privatewinners.com^$all
+! fraud => https://forums.lanik.us/viewtopic.php?f=90&t=45586
+||descargarjuegospc.net^
+||411medias.com^$all
+||zedplays.com^$all
+||special-update.online^$all
+||success-news.net^$all
+||downloads2020.com^$all
+||downloads2021.com^$all
+||aloha-news.net^$all
+||bookgr8.com^$all
+||internetspeedtracker.com^$all
+||system-update-new-2021.com^$all
+||m7c4d5r7.stackpathcdn.com^$all
+||serch03.biz^$all
+||ne02.biz^$all
+||gapscult.com^$all
+||worldactualstories.com^$all
+||allhugenewz.com^$all
+||fdgdfgdf.space^$all
+||download-app.net^$all
+||lib2.biz^$all
+||myactualblog.com^$all
+||ne03.biz^$all
+||pu4.biz^$all
+||hotlady4you.com^$all
+||privatesinglesmeet.com^$all
+||readytosinglesmeet.com^$all
+||sexplayground.net^$all
+||wishuiuck.net^$all
+||womeniover.com^$all
+||cleanphonefast.com^$all
+||fastphonebooster.com^$all
+||reimageplusminus.me^$all
+||flashymass.com^$all
+||luckywinner-web1.com^$all
+||girlssohorny.net^$all
+||theshoparound.com^$all
+||loverfuck.com^$all
+||profi-para.com^$all
+||onlineplus.click^$all
+||dirtyteenagers.com^$all
+||adulttdates.com^$all
+||jashautchord.com^$all
+||lucky4wins.club^$all
+||systemupdatix.club^$all
+||lackystars.com^$all
+||localchick-here.com^$all
+||trafempire.com^$all
+||findlovernow.com^$all
+||lover-date.com^$all
+||okay-dating.com^$all
+||downloadmobile.info^$all
+||datingdeserving.com^$all
+||mylocalhookup1.com^$all
+||topmatch4you.com^$all
+||goads.pro^$all
+||iamnaughty.com^$all
+||iwantu.com^$all
+||myhotdates.com^$all
+||onenightfriend.com^$doc
+||buddygays.com^$all
+||iover4u.net^$all
+||localsnapsext.com^$all
+||lovemateforyou.com^$all
+||shewantsumuch.com^$all
+||findmydating.com^$all
+||heartmedia.biz^$all
+||beta-news.org^$all
+/click.php?key=*cost=$doc,popup
+||dreamone.online^$all
+||totaltopposts.com^$all
+||djin.site^$all
+||ourhypewords.com^$all
+||antivirus.landerhd.com^$all
+||findyour-realsex2.com^$all
+||loveiswaiting.net^$all
+||world-news-filter.info^$all
+||instahookupxxx.com^$all
+||securesystemguide.com^$all
+||to6s.biz^$all
+||amazing-date4u.com^$all
+||localhookupclub1.com^$all
+||sweetgirls.date^$all
+||fast-travel.org^$all
+||typiccor.com^$all
+||wholedailyfeed.com^$all
+/?clck=*&sid=$doc
+||love7date.info^$all
+||bestsecretflirt.com^$all
+||toplov.com^$all
+||new-lady-for-your.com^$all
+||1firstofall1.com^$all
+||gegenhartz.de^$all
+||marootrack.co^$all
+||besty-deals.com^$all
+||beta-one.net^$all
+||kokotrokot.com^$all
+||maxy-tax.com^$all
+&dci=*&tds_campaign=$doc
+||eudoxia-myr.com^$all
+||revpu.sh^$all
+||ultimate-detection.com^$all
+||listen-heres.com^$all
+/smartlink/?a=$doc
+||date.sexpartnercommunity.com/landing/*$doc
+/ll/click.php?key=$doc
+||maxhacks.pro^$all
+/?ip=*&uclickhash=$doc
+||phoneapplicationlabs.top^$all
+||4qdx69gg2d.com^$all
+||cheaterboss.com^$all
+||dating-herenow3.com^$all
+||conditioning1.space^$all
+||wholewowblog.com^$all
+||cumshots.com^$all
+||multiflings.com^$all
+||newlove.life^$all
+||real-women-online.com^$all
+/?camp=*&cost=0.$doc
+||monglitch.monster^$all
+||d13nu0oomnx5ti.cloudfront.net^
+||m-afee.com^$all
+||quickdates1.com^$all
+||lovesingle.xyz^$all
+||getmackeepersoftpro.xyz^$all
+/expired/unprotected_win/?track=$doc
+||familysimulator.$all
+||instaflrt.com^$all
+||singlesgetmatched.com^$all
+||feelmyfile.info^$all
+||dougale.com^$all
+||adblockfast.com^$all
+||bookofsex.com^$all
+||webcams-chat.com^$all
+||mydirtytinders.com^$all
+||fuckmore.com^$all
+||dotchaudou.com^$all
+||classicpartnerships.com^$all
+||legendarytable.com^$all
+||greengoplatform.com^$all
+||transportgoline.com^$all
+||gobacktothefuture.biz^$all
+||cofounderspecials.com^$all
+||clearblueline.com^$all
+||di5.biz^$all
+||bettershitecolumn.com^$all
+||weatherplllatform.com^$all
+! https://github.com/AdguardTeam/AdguardFilters/issues/114312
+/prize/luckyus-ad/*$doc
+||mauptaub.com^$all
+||see-what-is-trending.com^$all
+||news-abcd.cc^$all
+||owlfolk.com^$all
+||onlyfreelesbianporn.com^$all
+||family-simulators.com^$all
+||your-dates-tonight.com^$all
+||familysimulatorgame.com^$all
+||trackingboost.com^$all
+||update-protection.com^$all
+||asiaxdate.com^$all
+||hotsimulator.com^$all
+/aff.php?*&data2=$doc
+/tds/ae?*&clickid=$doc
+/?clickid=*&ptracker=$doc
+||mous9.biz^$all
+||ourcommonnews.com^$all
+||vehicle-insurance-quote.com^$all
+^lpkey=*&uclickhash=$doc
+||systemupdatesy.life^$all
+||d135aysof2oufc.cloudfront.net^$all
+/?banner=*&phone=$doc
+||advidates.com^$all
+||scan-scan.com^$all
+||dvjqvdfujjvvkuyvhjqdvbjcmioljbhjmijq.s3.ap-northeast-1.amazonaws.com^$all
+/2/index.html#|$doc
+/?clickid=*&cost=0.$doc
+/index.php?key=*&t1=$doc
+||cmprotraf.club^$all
+||prelandappslab.com^$all
+/registration?theme=*&a_aid=$doc
+.top/prize/*.php?c=$doc
+||di02.biz^$all
+||adultonlineplay.com^$all
+||fastandslut.com^$all
+&click_price=0.*&click_id=$doc
+?brand=*&model=*&lptoken=$doc
+?brand=*&fingerprint_=$doc
+||familialsimulation.com^$all
+/\/(?:[0-9a-z]{7,25}-){9,13}[0-9a-z]{10,15}\/(?:[0-9a-z]+\/)+index\.php/$doc
+||imilroshoors.com^$all
+||trackhere.pl^$all
+||datingformeeting.com^$all
+||serving-passthrough.com^$all
+||soft-little.com^$all
+||week-tale.xyz^$all
+/_dating\d\/index\.html\?aref=/$doc
+||familysimulators.$all
+^apb=*&ata=mobilemdots^$doc
+||uoutube.com^$all
+! kkomj.ofchildr.buzz
+||ofchildr.buzz^$all
+||psxcvb.com^$all
+||0redire.com^$all
+||celxkpdir.com^$all
+||mkopli-1.live^$all
+||xonedart-2.live^$all
+^cep=*&zoneid=$doc
+^cep=*&s1=$doc
+||kewosi.live^$all
+.top/robot4*&a=$doc,domain=top
+||androidnotice.com^$all
+||wholenicefeed.com^$all
+||updaterlife.com^$all
+^s=*&ssk=*&svar=*&z=$doc
+/?cid=*&dom=$doc
+^s1=*&click_id=$doc
+||totalrecaptcha.top^$all
+/?type=*&button=2&clickid=$doc
+||valrogrowth.com^$all
+^device_model=*&p1=https$doc
+||5.61.55.143^
+://0.*.biz/?p=$doc
+.biz/sw/w1s.js|$script,3p
+||mo11.biz^$all
+/click.php?key=*&cpc=0&$doc
+||winsafe.xyz^$all
+||e0pxjz8hh09v.top^$all
+||pa5g7e5xs9.com^$all
+||mthzjfbnab.online^$all
+||sufcztdmwh.online^$all
+||37.1.213.100^
+/?p=*&sub1=$doc
+.xyz/ddos/1tn.html?clickid=$doc
+://e.*.top/video/?c=$doc
+/?srv_id=*#$doc
+||fearlessfont.info^$all
+||love88.club^$all
+||excelientdates.net^$all
+.html?cep=*&cost=0.$doc
+/1/index.html?p1=https%$doc
+||familysexsimulators.io^$all
+||23.109.87.170^
+||notificationsettings.com^$all
+.live/1*.html?cep=$doc
+||edfringe.com/*.php$all
+||jmdinfotechs.com^$all
+||grakorte.com^$all
+/click.php?key=*&zone_id=$doc
+||bestsportsite.autos^$all
+||dearosaka.com^$all
+||baste-znl.com^
+/domredirect?visitid=$doc
+||smart-redirecting.com^
+?adTagId=*&extclickid=$doc
+||namebawancitel.gq^
+/antibot/ab.php$xhr,1p
+||androiddetection.com^$all
+||elooksjustli.one^
+||ikouthaupi.com^$all
+||keepsclean.com^$all
+||magictrack1.com^
+||my-cleaner.info^$all
+||news-zolehe.com^$all
+||ready-for-download.com^
+||rcuacroossonec.com.ua^
+||taitlastwebegan.com^$all
+||thbstvd.com^
+||vpn-connection-security.com^$all
+||yourpcnotification.com^$all
+||ztzguv.com^$all
+/SRC/SRC.php?c=$doc
+&tb=redirect&allb=redirect&ob=redirect&href=$doc
+||belittlepads.com^$all
+||bulochka.xyz^
+||go2click.online^$all
+||datingmeetnet.com^$all
+||bndl-trp.com^$all
+||clean-2-clean.club^$all
+||top-official-app.com^$all
+||saworbpox.com^$all
+||pornonenight.com^$all
+||smarttvnew.live^$all
+||youfindadate.top^$all
+?z=*&ymid=$doc
+||xypthe.com^
+||besluor.com^
+/jr.php?gz=$doc
+||jamaretana.shop^$all
+/g?visitorid=*&extra_data2=|$doc
+||fehbsu.com^$all
+.com/play-2?h=*=eyJ&si1=$doc
+||cacto.cyou^
+||intrlguingdates.net^$all
+||prize-deals-today.click^$all
+/\.com\/proc\.php\?[0-9a-f]{40}$/$doc
+||eutrack.work^$all
+||postyourlife.com^$all
+||rplnd60.com^$all
+||djpjwf.com^$all
+||iwinprize.xyz^$all
+||shosril.com^
+||back-call.com^$all
+||meetamate.site^
+||niceelitdating.top^$all
+||dm09.biz^$all
+/click.php?key=*&dj_placement=$doc
+||floppyredirect.click^$all
+&srv_id=terra#$doc
+||ultimate-clean.club^$all
+||pcconelove.xyz^$all
+||premiumapps.cfd^
+||downloadrff.fun^$all
+||funuf.fun^$all
+||video.redwap.cam^$all
+||play.freeplayvideo.com^
+||cractica.xyz^$doc
+||beyourxfriend.com^$all
+||bybygnom.com^$all
+||stable-vpn-app.com^$all
+||paderrer.com^$all
+||best-site-online.com^
+||haffnetworkmm.com^$all
+/jump/next.php?r=$doc
+||softronline.click^
+/?clickid=*&t2=.$doc
+||skipalos.xyz^$all
+||makenoads.com^$all
+||dateclique.life^
+||family-simulators.io^$doc
+||familyfornicate.com^$doc
+||8graverstrw23.com^$all
+||speedtestnow.site^$all
+||programprotacol0.com^$all
+||lovedatee.net^$all
+/dating_lp?keyword=$doc
+.space/bonus/*.php?c=$doc
+||bdcalc.com^$all
+||club-gagnant.online^$all
+||srengin.com^$all
+||yogaretreat.site^
+/common-player-arrow/index.html?var=*&zoneid=$doc
+/common-player/index.html?var=*&zoneid=$doc
+/not-a-robot/index.html?$doc
+||dating.service2u.shop^$all
+||amazonaws.com/www.yournewlocalflingfinder7.com/$all
+||dirtyfree.games^$all
+||familycheaters.net^$all
+||register.blissfulltimes.com^$doc
+.com/pl?o=*&subid=$doc
+||enjoy-it.store^$all
+||geheimerseitensprung.com^$all
+||matches4you.info^$all
+||reifenachbarn.com^$all
+/zclkredirect?visitid=$doc
+||done-install.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/68588
+! https://github.com/uBlockOrigin/uAssets/issues/8869
+! https://github.com/AdguardTeam/AdguardFilters/issues/129112
+/^https:\/\/[0-9a-z]{3,}\.[-a-z]{10,}\.(?:li[fv]e|top|xyz)\/[a-z]{8}\/\?utm_campaign=\w{40,}/$doc,match-case,domain=life|live|top|xyz
+/^https:\/\/[a-z]{2,3}\d\.biz\/go\/[0-9a-z]{15,18}$/$doc,domain=biz
+! e.g. https://to3s.biz/?p=gi4tgnjwgu5gi3bpgy2tmmy
+/^https:\/\/to\ds\.biz\/\?p=/$doc,domain=biz
+! fake dating/prize/video sites
+/^https?:\/\/[0-9a-z]*\.?[-0-9a-z]{4,}\.[a-z]{2,11}\/(?:[0-9a-z]{6,8}\/)?\/?(?:article\d{4}\.doc)?\?u=[0-9a-z]{7}&o=[0-9a-z]{7}/$doc,frame,match-case
+! https://github.com/uBlockOrigin/uAssets/commit/df17084b4815e87d420e8adf19bf4959e828e6e5#commitcomment-66510549
+/^https?:\/\/[0-9a-z]*\.?[-0-9a-z]{4,}\.[a-z]{2,11}\/(?:[0-9a-z]{6,8}\/)?\/?(?:article\d{4}\.doc)?\?o=[0-9a-z]{7}&u=[0-9a-z]{7}/$doc,frame,match-case
+.live/web/?sid=t*~$doc
+! push notification scam
+/^https:\/\/(?:www\d\.)?[-a-z]{6,}\.(?:com|info|net|org)\/(?=[-_a-zA-Z]{0,42}\d)(?=[-_0-9a-z]{0,42}[A-Z])[-_0-9a-zA-Z]{43}\/\?cid=[-_0-9a-zA-Z]{10,36}(?:&qs\d=\S+)?&(?:s|pub)id=[-_0-9a-z{}]{1,32}(?:&s=0\.\d+)?(?:#\S+)?$/$doc,match-case,domain=com|info|net|org
+/^https:\/\/(?:www\d\.)?[-a-z]{6,}\.(?:com|info|net|org)\/(?=[-_a-zA-Z]{0,42}\d)(?=[-_0-9a-z]{0,42}[A-Z])[-_0-9a-zA-Z]{43}\/\?(?:pub|s)id=[-_0-9a-z{}]{1,32}(?:&qs\d=\S+)?&cid=[-_0-9a-zA-Z]{10,36}(?:&s=0\.\d+)?(?:#\S+)?$/$doc,match-case,domain=com|info|net|org
+
+! https://github.com/uBlockOrigin/uAssets/issues/8378
+||ogtrk.net^
+
+! https://www.hybrid-analysis.com/sample/3ad8f4dc6a021e82d25247c266d89d20d981f7187413405f0b2e35d984bd60cb
+||secureconv-dl.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/8466
+||91.241.60.117^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/8630
+||mfilecloud.com^$all
+||xsharenode.com^$all
+||xovilumium.space^$all
+||gamesfuny.space^$all
+||yuppdownload.com^$doc
+||expert-top.com^$doc
+||mega-share.pro^$doc
+||soft-updt.com^$doc
+||faslhd.com^$all
+||official-expert.org^$doc
+||file-uploud.site^$all
+||linksoft.site^$all
+||soft-file-free.com^$doc
+||progtechguru.com^$doc
+||progtechguru.org^$doc
+||pcworlds.net^$doc
+||portsoft2022.ru^$doc
+||firstsoftapp.com^$doc
+||expertstudiopro.com^$doc
+||pcworlds.us^$doc
+||gopcworlds.net^$doc
+||link-ii.info^$all
+||expertprosoft.com^$all
+||thepcworld.net^$all
+||lorealis.vip^$doc
+||one-click.cc^$all
+||descarga.pw^$doc
+||cyber-template.com^$all
+||top-cheats.com^$all
+||thepcworlds.com^$doc
+||extsoft.app^$all
+||hifix.pro^$doc
+||extra-soft.org^$doc
+||self-games.com^$doc
+||extra-software.com^$doc
+||rivalsoftware.xyz^$doc
+||mega-gratis.com^$doc
+||softextra.net^$doc
+||pcworld-one.net^$doc
+||pc-gratis.com^$doc
+||progamerhack.com^$doc
+||zensoft.online^$doc
+||gratissofts.com^$doc
+||edelw.online.swtest.ru^$all
+||orchk.com/pc/|$all
+||winterseyegaming.com^$doc
+||fortnite-gamerz.shop^$doc
+||quantummods.eu^$doc
+||secretcheatz.site^$doc
+||rivalhacks.site^$doc
+||fortnite-gamerz-team.shop^$doc
+||hotelbirlapalace.com^$doc
+||drop-cloud.org^$all
+||soft-lab.pw^$doc
+||trumpcheat.com^$doc
+||cheatname.xyz^$doc
+! https://www.virustotal.com/gui/file/a810ae0441a75d4b5ae36e7094343b0ef3661681dfe24cbf8c2131b1dfac0605?nocache=1
+||oceanofgame.net^$doc
+! https://github.com/uBlockOrigin/uAssets/issues/8630#issuecomment-810957825
+||tophacks.pro^$doc
+! https://www.virustotal.com/gui/file/ef44c876d70663b196cda34095c14b1342eb4f566cb032d7aeddf9e94017e66b?nocache=1
+||lavacheat.com^$doc
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/69036
+.systems/signup?ad_domain=$doc,popup
+
+! fake software updaters /redirections
+||1perpersqe1.com^$all
+||atnpx.com^
+||best-winplace.life^$all
+||checkup08.biz^
+||getvottak.com^
+||herdcowhas.icu^
+||illuminatelocks.com^
+||mfroute.com^
+||miserve-chanics.com^
+||track-149uew.link^
+||tratbc.com^
+||update-phone-today.com^
+||webpushcloud.top^
+||workerz1.com^
+||xpayperinstx2.com^
+||zoneforyourprize.life^
+||zvideo-live.com^
+/index.php?uid=*&code=ad^$doc
+||koitushinterneinnehmen.s3.eu-central-1.amazonaws.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/9045
+||securitydefender.xyz^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/84632
+! https://github.com/AdguardTeam/AdguardFilters/issues/84633
+||my-hookup-clubs1.com^$all
+! https://github.com/AdguardTeam/AdguardFilters/issues/84634
+! https://github.com/AdguardTeam/AdguardFilters/issues/84639
+||localsexfinderxxx4.com^$all
+! https://github.com/AdguardTeam/AdguardFilters/issues/84638
+||sinder8.com^$all
+! https://github.com/AdguardTeam/AdguardFilters/issues/84640
+||bigosext69.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/9344
+||captcharesolving-universe.com^$all
+
+! scam
+||trfcbooost.com^$all
+||turboadblocker.com^$all
+||mysearchflow.com^$all
+||adsbtc.org^$all
+||youtuba.com^$all
+||polyhymnia-mar.com^$all
+||2xdoubles.com^$all
+
+! Typosquatting: redirects to scam sites
+! https://www.reddit.com/r/uBlockOrigin/comments/12ok014/
+! https://www.reddit.com/r/uBlockOrigin/comments/12nrio5/
+! https://www.reddit.com/r/uBlockOrigin/comments/1392c8f/
+||bestbut.com^$all
+||girhub.com^$all
+||gmkail.com^$all
+||goglle.com^$all
+||linkefdin.com^
+||twitterr.com^$all
+||yautube.com^$all
+||yourube.com^$all
+||youtubee.com^$all
+||youtunbe.com^$all
+||youutube.com^$all
+||youvetube.com^$all
+! https://groups.google.com/a/mozilla.org/g/dev-security-policy/c/oxX69KFvsm4/m/WJXUELicBQAJ
+! "looks like typo squatting"
+||wanderlust.rocks^$all
+||harmlessmessage.com^$all
+||hushemail.net^$all
+||hushmailservice.com^$all
+||lavaboom.net^$all
+||privacyharbor.net^$all
+||privacyharbors.com^$all
+||prontonmailpro.com^$all
+||protonmails.com^$all
+||protonmails.net^$all
+||safemessagesystems.com^$all
+||silencemail.com^$all
+||tutamail.net^$all
+||tutanoto.com^$all
+||messagesafe.net^$all
+||msgsafe.net^$all
+||best4fuck.com^$all
+
+! https://www.huorong.cn/info/1531309921141.html
+||kuaizip.com^$all
+
+! https://www.huorong.cn/info/1618397948649.html
+! ||zhuangjizhuli.com^$all
+! ||zhuangjizhuli.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/9641
+||helooworld.us^$all
+
+! https://www.huorong.cn/info/1627034201698.html
+! https://bbs.kafan.cn/thread-2217785-1-1.html
+||win.zjwhr.top^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/9656
+||geekotg.com^$all
+! https://www.huorong.cn/info/1526627586130.html
+||xiaobaixitong.com^$all
+! https://www.huorong.cn/info/1577158839403.html
+||daque.cn^$all
+! https://www.huorong.cn/info/1598957552515.html
+||dabaicai.com^$all
+
+! https://www.huorong.cn/info/1617368984641.html
+||qqfzn.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/9785
+||lubuntu.net^$doc
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/92466
+/^https:\/\/serch\d{2}\.biz\/\?p=/$doc,domain=biz
+
+! https://github.com/uBlockOrigin/uAssets/issues/4014 and https://github.com/uBlockOrigin/uAssets/issues/9840
+! ||driverfix.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/9848
+||gghacks.com^$all
+||rewardsgiantusa.com^$doc
+||promotionsonlineusa.com^$doc
+||displayoptoffers.com^$doc
+||sweepstakesalerts.com^$doc
+||qualityhealth.com^$doc
+||consumerproductsusa.com^$doc
+||get-cracked.com^$all
+||tinyurl.com/gp84uz2$doc
+||mediafiire.com^$doc
+||onlinepromotionsusa.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/9933
+||greenadblocker.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/pull/10017
+||flash.cn^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/10075
+||superdatenow3.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/10116
+||hentai-tube.me^$doc
+
+! https://github.com/uBlockOrigin/uAssets/pull/10142
+||skyblockmods.com^$doc
+
+! https://github.com/uBlockOrigin/uAssets/commit/5832dfebb4021c639b90c2973946ff7638c2290f#commitcomment-57642161
+||foxmods.xyz^$doc
+
+! Phishing/Malware/Scams
+! https://www.virustotal.com/gui/collection/cf2c760f511d9331e578461fed09717054ec23413a93834a83371634e5aad73c
+||octopus-warriors.com^$all
+||futuretesla.net^$all
+||full-nitro.com^$all
+
+! phishing /malicious
+||gesas.it^$doc
+||techinnsrl.com^$doc
+||studiogiamberardino.it^$doc
+||eniedu.com^$doc
+||gamletaarnhuset.no^$doc
+||possessedcrackinghart.com^$all
+||adblock-pro-download.com^$all
+||reepratic.com^$all
+
+
+! phishing /scam /malware
+! https://www.virustotal.com/gui/collection/4b1e307754c94e87e17a0c14102b873f17c5d2001f4afa2e58c3a6b98f391710
+||cs2-twitchs.com^$all
+||dogehype.com^$all
+||cosmicdrift.co^$all
+||deltaproject.dev^$all
+||rblx.land^$all
+||csnegotiable.com^$all
+||olympofreptiles.io^$all
+||connect-csgo.com^$all
+||events-csgo.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/10181
+||nbryb.com^$all
+||onemacusa.com^$all
+||realnetnews.com^$all
+||rogueleader.org^$all
+||suggestive.com/deals/?cid=$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/10442
+||discordap.$all
+||discord*.gift^$all,domain=~discord.gift
+||discord*.gifts^$all,domain=~discord.gifts
+||discord-give.$all
+||discord-nitro.$all
+||discordgift.$all,domain=~discordgift.site
+||dlscord*.$all
+||dlscrod*.$all
+||freediscordnitro.$all
+||privatespace.click^$all
+||ww-softs.com^$all
+||updatemobilee.com^$all
+||supreme-ad-blocker.info^$all
+||buyadvupfor24.com^$all
+||erdeallyighab.com^$all
+||allprizesforme.com^$all
+
+! https://github.com/DandelionSprout/adfilt/issues/267
+||tekhacks.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/10503
+||freedownloadfiles.org^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/10536
+||tw-goldenwinner-57.com^$doc
+
+! https://github.com/iam-py-test/investigations/blob/main/2021/11/25/1.md
+! https://github.com/uBlockOrigin/uAssets/pull/10599
+||fasterfiles.net^$all
+||yunosurveys.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/10774
+! https://bbs.kafan.cn/thread-2222478-1-1.html
+||a1475.com^$all
+! https://bbs.kafan.cn/thread-2220230-1-1.html
+||ts-group.com^$all
+! https://bbs.kafan.cn/thread-2221419-1-1.html
+||2345.eyunsou.com^$all
+! https://bbs.kafan.cn/thread-2221500-1-1.html
+||88btbtt.com^$all
+||musmentportal.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/10997
+! fake domain
+||jinshanduba.org.cn^$all
+! https://bbs.kafan.cn/thread-2170747-1-1.html – malicious script
+||phpstat.cntcm.com.cn/phpstat/count/abceffgh/abceffgh.js^$script
+
+! https://github.com/uBlockOrigin/uAssets/pull/11041
+||cdn.discordapp.com/attachments/916391647955279943/*^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/11157
+||sideload.net^$doc
+||stc.tools^$doc
+||stcverify.com^$doc
+||1980s.click^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/11310
+! https://github.com/uBlockOrigin/uAssets/issues/14009
+goharpc.com,procrackerz.org,pccrackbox.com,365crack.com,cracklabel.com,keystool.com,pcwarezbox.com,10crack.com,crackproductkey.com,profullversion.com,crackswall.com,crackpcsoft.net,proappcrack.com,crackwinz.com,genuineactivator.com,crackedroot.com,topcracked.com,crackpro.org,fullcrackedpc.com,rootcracks.org,idmfullcrack.info,thecrackbox.com,idmpatched.com,autocracking.com,macwinsofts.com,productkeyfree.org,patchcracks.com,piratpc.com,cracksole.com,allsoftwarekeys.com,softwar2crack.com,procracks.net,productkeyforfree.com,bypassapp.com,zgamespc.com,newproductkey.com,serialkeysfree.org,crackdev.com,wazusoft.com,getpcsofts.net,rootscrack.com,cracktel.com,activators4windows.com,crackfury.com,up4crack.com,torrentfilefree.com,9to5crack.com,greencracks.com,procrackhere.com,proproductkey.com,crack11.com,centerapps.net,freelicensekey.org,pcsoftz.net,freecrackdownload.com,f4file.com,serialkey360.com##[onclick*="open"]
+serialkey89.com,installcracks.com,crackserialkey.co,maliksofts.com,crackpropc.com,ayeshapc.com,crackhomes.com,crackspro.co,crackknow.com,4howcrack.com,trycracksoftware.com,getprocrack.co,activationkeys.co,organiccrack.com,softwarance.com,procrackkey.co,download4mac.com,freeactivationkeys.org,explorecrack.com,okproductkey.com,downloadpc.net,up4pc.com,hitproversion.com,cracktube.net,abbaspc.net,crackdownload.org,crackdownload.me,corecrack.com,windowsactivator.info,keygenstore.com,procrackpc.co,getmacos.org,latestproductkey.co,shanpc.com,crackpckey.com,torrentfilefree.com,patchcracks.com,idmfullversion.com,wareskey.com,crackbell.com,newproductkey.com,osproductkey.com,serialkeysfree.org,autocracking.com,crackzoom.com,greencracks.com,profullversion.com,crackswall.com,rootcracks.org,licensekeys.org,softserialkey.com,free4pc.org,productkeys.org,crackedfine.com,idmcrackeys.com,crackedhere.com,licensekeysfree.org,trycracksetup.com,crackedroot.com,crackedsoft.org,assadpc.com,thecrackbox.com,crackproductkey.com,cracklabel.com,keystool.com,crackedpcs.com,cracksmad.com,licensekeyup.com,chcracked.com,finalcracked.com,activatorpros.com,crackedmod.com,whitecracked.com,cracksoon.com,boxcracked.com,activationkey.org,serialkeypatch.org,crackedsoftpc.com,proapkcrack.com,softscracked.com,freeappstorepc.com,reallpccrack.com,crackfullkey.net,hmzapc.com,zcracked.com,usecracked.com,crackedversion.com,aryancrack.com,piratespc.net,reallcrack.com,fultech.org##center > [class*="buttonPress-"]
+free4pc.org,warezcrack.net,freeprosoftz.com,vcracks.com,crackthere.com,keygenfile.net,scracked.com,cyberspc.com,softzcrack.com,crackintopc.com,zslicensekey.com,procrackpc.com,crackshere.com,crackdj.com,cracktopc.com,serialsofts.com,prosoftlink.com,zscracked.com,crackvip.com,windowcrack.com,softsnew.com,licensecrack.net,vstpatch.net,newcrack.info,topkeygen.com,vsthomes.com,vstserial.com,procrackerz.com,pcfullcrack.org,keygenpc.com,bicfic.com,ikcrack.com,downloadcracker.com,karancrack.com,piratesfile.com,activatorwin.com,starcrack.net,crackproduct.com,dgkcrack.com,crackglobal.com,crackcan.com,keygendownloads.com,crackpatched.com,windowsactivators.org,serialsoft.org,crackit.org,productscrack.com,crackurl.info,crackroot.net,crackmak.com,seeratpc.com,crackmix.com,piratepc.me,activators4windows.com,letcracks.com,latestcracked.com,proproductkey.com,fullversionforever.com,vlsoft.net,topcracked.com,goharpc.com,crackeado.net,freecrackdownload.com,assadpc.com,fileoye.com,f4file.com,crackpcsoft.net,crackwinz.com,excrack.com,mahcrack.com,get4pcs.com,keygenwin.com,mycrackfree.com,crackfullpro.com,crackkey4u.com,fileserialkey.com,cracksdat.com,crackgrid.com,licensekeysfree.com,crackkeymac.com,freecrack4u.com,getintomac.net,protocrack.com##div[class^="code-block code-block-"]
+crackkits.com,rootcracks.co,crackwatch.org,crackfix.net,origincrack.com,procrackerz.com,crackhub.org,crackrules.com,zeemalcrack.com,haxmac.cc,cracka2zsoft.com,clevercracks.com,crackpropc.com,crackspro.co,crackknow.com##.getox
+alicracks.com,win-crack.com,productkeyfree.org,productkeyforfree.com,procrackerz.org,crackdev.com,wazusoft.com,piratesfile.com,piratpc.com,kalicrack.com,sadeempc.com##center > a
+cracksoftwaress.net##div[style="float: none; margin:10px 0 10px 0; text-align:center;"]
+||xforce-cracks.com^$doc
+||fileisready.com^$doc
+/?act=*&epcVIP=$doc
+||yip.su/latestfiles|$all
+||yip.su/premiumfiles|$all
+||cli.re/premiumfiles|$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/11394
+||theannoyingsite.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/109902
+.top/vpnupdate/*/index.html$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/5605#issuecomment-1060013521
+||smartklick.biz^$all
+||piktag.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/12117
+||zoosk.online^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/12194
+||fulptube.org^$all
+
+||i7ece0xrg4nx.com^$all
+*/bouncy.php?*&inPopUp=$all
+||1redirc.com^$all
+||nutrientassumptionclaims.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/115960
+! https://www.virustotal.com/gui/url/6a4daf9dfa58864522ae7972ab042cf4bab17a48321b96d1952bd384210adcd2
+! https://transparencyreport.google.com/safe-browsing/search?url=https:%2F%2Fonpharmvermen.com%2F
+||onpharmvermen.com^$doc
+||sale24-pills.com^$doc
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/116327
+||junk-cleaner.org^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/12934
+! https://malwaretips.com/blogs/remove-hdvideosnet-com/
+||hdvideosnet.com^
+
+! https://github.com/uBlockOrigin/uAssets/issues/12982
+||shaktilar.xyz^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/13177
+! https://github.com/uBlockOrigin/uAssets/issues/13734
+||fullcrack.vn^$all
+
+! https://twitter.com/rarara18181818/status/1530214731608313856
+/rtbfeed.php?$image,3p
+
+! https://twitter.com/ot_inc/status/1532316247094087680
+||phone-analyzer.com^$doc
+
+! https://twitter.com/NaomiSuzuki_/status/1536553207299985408 fake chrome
+!#if !env_mobile
+/^http:\/\/[a-z]{5}\.[a-z]{5}\.com\/[a-z]{10}\.apk$/$doc,match-case,domain=com
+!#endif
+
+! https://github.com/uBlockOrigin/uAssets/pull/13858
+||skyblockqolhub.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/14034
+||fetishpartner.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/125147
+||facevideosc.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/126480
+/?c=propeller&lpid=$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/14505
+||4rxworld.su^$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/14588
+||geoflix.me^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/14769
+||ferme-lesca.fr^
+||odulunual.sa.com^
+
+! https://github.com/uBlockOrigin/uAssets/pull/14985
+||skymods.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/15061
+||hypixelstorexyz.pages.dev^$all
+||claims-hypixel.com^$all
+
+! torrdroidforpc. com 
+||landkemoty.click^$all
+||slugmefilehos.xyz^$all
+||tinyurl.com/setup-full-version$doc
+torrdroidforpc.com##[href^="http://slugmefilehos.xyz/"]
+
+! https://github.com/uBlockOrigin/uAssets/pull/15197
+||qolhub.info^$all
+
+! https://youtu.be/RfE_MreLSIM?t=183
+||haxsoft.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15335
+||sxfyjygs.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15368
+||zenlytrade.com^$all
+
+! https://shahrsakhtafzar.com/fa/news/security/42227-google-play-rubika-app-spy-users-personal-information
+! https://farnet.io/1401/08/324594/rubika-is-detected-as-malware/
+||rubika.ir^$all,domain=~web.rubika.ir|~m.rubika.ir
+
+! https://twitter.com/ozuma5119/status/1591616713992597506
+||letrigaze.live^$all
+! https://twitter.com/ozuma5119/status/1591614340817653761
+||buyqpfire.xyz^$all
+! https://twitter.com/chaberi/status/1591139355628044288
+||luckypapa.top^$all
+! https://twitter.com/harugasumi/status/1591652561182150656
+||nbsfmradio.com^$all
+! https://twitter.com/KesaGataMe0/status/1591648944446410752
+||adminht.top^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15777
+||ngazi.co.tz^$all
+||video-watch1.com^$all
+||musicinmysoul.biz^$all
+||choseoffhandsight.com^$all
+
+! https://twitter.com/harugasumi/status/1597417659163111424
+||metamasku.cc^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15879
+||downloadpro.online^$all
+
+! https://twitter.com/AP_Zenmashi/status/1598633272652619778
+! https://twitter.com/AP_Zenmashi/status/1598633426386833408
+||vipan.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15937
+! https://www.virustotal.com/gui/url/a70d88ffc974f8d9cc5c3561938e95435d20a12a555e8c10d638d2bee5292165
+||install1nstall1.com^$all
+||factor1right.com^$all
+||speedsoft-one.com^$all
+||whitefuulsoft.com^$all
+||softredtech.com^$all
+||downloadfreexx1.com^$all
+||flymylife.info^$all
+||kochava.com^
+||neptunclicks.com^
+||oolomos.com^$all
+||arakusus.com^$all
+||imgfil.com^$all
+||urlcod.com^$all
+||tiurll.com^$all
+||neppe.studio^$all
+||gowtos.com^$all
+||lomogd.com^$all
+||nosnou.com^$all
+||munkop.com^$all
+||voutew.com^$all
+||abukss.com^$all
+||amonro.com^$all
+||kiknu.com^$all
+||konmm.com^$all
+||bibtu.com^$all
+||xiuty.com^$all
+||pejik.com^$all
+||oyndr.com^$all
+||lpoms.com^$all
+||psfmi.com^$all
+||gftet.com^$all
+||fwern.com^$all
+||ytomb.com^$all
+||gghut.com^$all
+||nkmoo.com^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/136693
+/axad/?lpkey=$doc
+
+! https://github.com/uBlockOrigin/uAssets/issues/15990
+||vlcdownloads.com^$all
+
+! https://twitter.com/tougei_miryoku/status/1602878676508344320
+||borntiecalm.live^$all
+&t=main9|$doc,domain=live
+&t=main9ljs|$doc,domain=live
+&t=main9expsess|$doc,domain=live
+
+! https://github.com/uBlockOrigin/uAssets/pull/16038
+||hypixei.com^$all
+||msverify.dev^$all
+||microauth.ru^$all
+
+! Fake Steam website
+! https://github.com/uBlockOrigin/uAssets/pull/16143
+||99box.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/16153
+||block-ads-now.com^$all
+||ezadblocker.com^$all
+||watchadsfree.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/16156
+||discordoauthverification.onrender.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/16209
+||barlear.ru^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/16214
+||mc-hypixel.store^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/16257
+||kaminarisubs.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/16283
+||galeden.cn^$all
+
+! Phishing gathered from Twitter
+! https://twitter.com/AP_Zenmashi/status/1614845455271333890
+||3utilities.com^$all
+! https://twitter.com/KesaGataMe0/status/1621078596097048577
+||engagingtheheart.com^$all
+! https://twitter.com/sugimu_sec/status/1621525439658487813
+||cpuz.beerworldstore.com^$all
+! https://twitter.com/defenceability/status/1621446555726385153
+||bafybeidzp4sgidm4rvsc32fofkhbz5bdotbekov4mnwzejakvnzhhohysa.ipfs.dweb.link^$all
+! https://twitter.com/malware_traffic/status/1621728889486671873
+||cpu-id.top^$all
+! https://twitter.com/gorimpthon/status/1622092572188631041
+.top/index-install.html|$doc
+! https://twitter.com/defenceability/status/1622513282644054016
+||r39-g003-h8ig0w-u8f0we8-fgw0rgf-0we880e-rhgth.obs.ap-southeast-2.myhuaweicloud.com^$all
+! https://twitter.com/defenceability/status/1622801056379064321
+||bafybeiexjty7qmufu5jvbyln5ce5mue2lqw2htafc3api4wwsefxet5k54.ipfs.dweb.link^$all
+! https://twitter.com/harugasumi/status/1622816085157511168
+||jlydxj.com^$all
+! https://twitter.com/defenceability/status/1623182946806169600
+||chargerlogistics-dot-exceldocsverification.uk.r.appspot.com^$all
+! https://twitter.com/defenceability/status/1623546261126402058
+||bizerba-dot-azure-projectfiles.uk.r.appspot.com^$all
+! https://twitter.com/Sec_S_Owl/status/1623865705123938307
+||aidla64.com^$all
+! https://twitter.com/Sec_S_Owl/status/1623880734258921473
+||uahora.com^$all
+||cpuild.app^$all
+! https://twitter.com/sugimu_sec/status/1623855519646765056
+||alda64.com^$all
+! https://twitter.com/sugimu_sec/status/1624273843337699329
+||aida64ex.com^$all
+! https://twitter.com/catnap707/status/1624558197897048064
+||metamaskw.cc^$all
+! https://twitter.com/imabarizine/status/1625322105637339136
+||taylormadesells.com^$all
+||withaaglad.top^$all
+! https://twitter.com/defenceability/status/1627481450634420224
+||activacion-equipo.atsnx.com^$all
+! https://twitter.com/harugasumi/status/1627983624447627265
+||aajdrp.com^$all
+! https://twitter.com/KesaGataMe0/status/1628158467625349122
+||italianlottery.com^$all
+! https://twitter.com/harugasumi/status/1628577192212066304
+||metamasek.cc^$all
+! https://twitter.com/KesaGataMe0/status/1629253647212363777
+||theexpressiveteacher.com^$all
+||trashtotreasurecreativerecycling.com^$all
+||jacksoncookphotography.com^$all
+||michaelinachrysalis.com^$all
+! https://twitter.com/defenceability/status/1630009083347734528
+||ipfs.io/ipfs/QmeBkobLEam5YyjG5Yq5HoaXe9J1AZpia3urjNeSXfhjMj|$doc
+! https://twitter.com/KesaGataMe0/status/1631221448454062080
+||kucoinhi.com^$all
+! https://twitter.com/harugasumi/status/1631096887519608834
+||qhyhw.com^$all
+! https://twitter.com/KesaGataMe0/status/1631646070358048769
+||kangawabeank.com^$all
+! https://twitter.com/harugasumi/status/1633133887047217152
+||007itshop.com^$all
+! https://twitter.com/harugasumi/status/1634010430762008577
+||megancroft.bond^$all
+! https://twitter.com/harugasumi/status/1634924831564242944
+||tonghongad.com^$all
+! https://twitter.com/KesaGataMe0/status/1635333975672762369
+||thndg.com^$all
+! https://twitter.com/ozuma5119/status/1635414656646008833
+||e-tax-nta.web.app^$all
+! https://twitter.com/harugasumi/status/1636377881176854528
+||ogdwild.bond^$all
+! https://twitter.com/catnap707/status/1636891094284918784
+||haouwebb.bond^$all
+! https://twitter.com/harugasumi/status/1637463534631288832
+||sutarnbbe.bond^$all
+! https://twitter.com/harugasumi/status/1637678100594176000
+||dinglike.com^$all
+! https://twitter.com/AP_Zenmashi/status/1637660829553401862
+||stgami-o.top^$all
+! https://twitter.com/harugasumi/status/1638007162080497664
+||rafdnym.cn^$all
+! https://twitter.com/KesaGataMe0/status/1637987581525893122
+||ib-aieonobanck-co-jp.top^$all
+! https://twitter.com/ozuma5119/status/1638194144781930496
+||blisterlngdate.com^$all
+||fapello.xyz^$all
+! https://twitter.com/harugasumi/status/1638550130638082049
+||xmview.cn^$all
+! https://twitter.com/KesaGataMe0/status/1638932354319409154
+||jsbetzh.com^$all
+! https://twitter.com/harugasumi/status/1639633441523380224
+||sersdlos.cyou^$all
+! https://twitter.com/harugasumi/status/1640263282845188098
+||pf0755.cn^$all
+! https://twitter.com/ozuma5119/status/1640578127347986432
+||baoding66.top^$all
+! https://twitter.com/harugasumi/status/1640690554156507139
+||hohshops.com^$all
+! https://twitter.com/harugasumi/status/1640901957840957442
+||jyglassmachine.com^$all
+! https://twitter.com/KesaGataMe0/status/1641247846384164865
+||mymagicguide.com^$all
+! https://twitter.com/harugasumi/status/1642524464838762496
+||yanrefael.com^$all
+! https://twitter.com/harugasumi/status/1643783469456326656
+||laolao8.top^$all
+! https://mobile.twitter.com/sugimu_sec/status/1644914386291818499
+||amzpma.com^$all
+! https://twitter.com/harugasumi/status/1644990904242180098
+||hjxvcyu.com^$all
+! https://twitter.com/harugasumi/status/1647251655120019457
+||huiyouyang.com^$all
+! https://twitter.com/KesaGataMe0/status/1647882716216700929
+||bojsror.space^$all
+! https://twitter.com/harugasumi/status/1648219566303223809
+||restgzxdg.top^$all
+! https://twitter.com/harugasumi/status/1648185877498335232
+||ukrose.net^$all
+! https://twitter.com/catnap707/status/1648170578497667074
+||zyczdwu.cn^$all
+! https://twitter.com/PINKCOLORMILK/status/1648130688779157504
+||hehekakao.com^$all
+! https://twitter.com/masaomi346/status/1649260359763775488
+||bavaria-cup.ru^$all
+! https://twitter.com/harugasumi/status/1649575686783516673
+||maurine.co^$all
+! https://twitter.com/harugasumi/status/1649811944155791361
+||ugrvjkj.cn^$all
+! https://twitter.com/harugasumi/status/1650103143118835712
+||patriothomestore.com^$all
+! https://twitter.com/harugasumi/status/1650353873218068480
+||ameixosszpxpass.top^$all
+! https://twitter.com/masaomi346/status/1650395325188968450
+||buyshflat.life^$all
+! https://twitter.com/harugasumi/status/1652532125428781057
+||jdongktx.com^$all
+! https://twitter.com/harugasumi/status/1652527826455908354
+||techguykev.com^$all
+! https://twitter.com/harugasumi/status/1653330173381734400
+||anzenns.com^$all
+! https://twitter.com/harugasumi/status/1654108853389393923
+||paekatcerd.com^$all
+! https://twitter.com/kureha85983/status/1654413225629474818
+||easy-vipmarkets.com^$all
+! https://twitter.com/KesaGataMe0/status/1654365174701383681
+||pppfgz.wiki^$all
+! https://twitter.com/8614miyauchi/status/1654845878933557248
+||luckypapa.xyz^$doc
+! https://twitter.com/KesaGataMe0/status/1649696612929896448
+||reviewspay.cc^$all
+! https://twitter.com/harugasumi/status/1655527100819075072
+||jsdushid.com^$all
+! https://twitter.com/harugasumi/status/1655470724377907200
+||manage-fpw-my-sakura-fpw-jp-fpw.impulsion.mu^$all
+! https://twitter.com/pingineer_jp/status/1646373106557267968
+||honda-law-office.jp/wp-includes/70038/Earthcorejp/|$doc
+! https://twitter.com/harugasumi/status/1658279518224764928
+||metamasktoken.cc^$all
+! https://twitter.com/masaomi346/status/1659086582555594753
+||cutxkfair.live^$all
+! https://twitter.com/satontonton/status/1659183900059652098
+||itsaol.com^$all
+! https://twitter.com/harugasumi/status/1660593266419732480
+||guiyangouya.com^$all
+! https://twitter.com/harugasumi/status/1662052746164604929
+||fenglaila.com^$all
+! https://twitter.com/harugasumi/status/1663024361002106881
+||hbjingyao.com^$all
+! https://twitter.com/mojito1960/status/1664132222105051138
+||tokyu-dept.site^$all
+! https://twitter.com/catnap707/status/1664816822569271296
+||fairymeeting.com^$all
+! https://twitter.com/harugasumi/status/1666013629853097984
+||qhigh.com^$all
+! https://twitter.com/harugasumi/status/1666436001953136641
+||yoinst.com^$doc
+! https://twitter.com/yuusultultu/status/1668185343907237888
+||shindaan.com^$doc
+! https://twitter.com/AP_Zenmashi/status/1674082742013755393
+||almostmy.com^$all
+! https://twitter.com/AP_Zenmashi/status/1674316782549766146
+||iwiydir.cn^$all
+! https://twitter.com/harugasumi/status/1684166951575359494
+||mkwlejfnaklglkasdjg.com^$all
+! https://anond.hatelabo.jp/20230726175726
+||capitalfa.jp^$all
+||caponefx.com^$all
+! https://twitter.com/harugasumi/status/1687086629230653445
+||ifavoritebuy.com^$all
+! https://twitter.com/harugasumi/status/1687040302073454592
+||mies.eto-c.com^$all
+! https://twitter.com/NaomiSuzuki_/status/1687388567738404864
+||jpzone.vip^$all
+! https://twitter.com/harugasumi/status/1688105013044989953
+||aeon-jp.silacak.com^$all
+! https://twitter.com/tokoroten/status/1694532381506785791
+||tripmall.online^$all
+! https://twitter.com/harugasumi/status/1695040230204801514
+||aeonhelp.org^$all
+! https://twitter.com/harugasumi/status/1695071010712695064
+||appslipe.com^$all
+! https://twitter.com/AP_Zenmashi/status/1696248798056693933
+||amzamo.bio^$all
+! https://twitter.com/masaomi346/status/1696821001785635127
+||tokyobag.shop^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/141376
+||7oc5b1i3v4iu.top^$all
+
+! https://onijima.jp/?p=54165
+||pocket-888.com^$all
+
+! scam sites
+||adblock-one-protection.com^$all
+||browser-updating.com^$all
+||dokondigit.quest^$all
+||ka4cv7yh4w.com^$all
+||raedieshi.com^$all
+||webuzz.me^$doc
+||crosmall.homes^$all
+||coup-ling.net^$all
+||coup-ling-dm.net^$all
+||sossiotron.com^$all
+||usmall.xyz^$all
+||pulan.site^$all
+||thostco.club^$all
+||jpmalls.xyz^$all
+||gokinjolove.jp^$all
+||gokinjolove.net^$all
+||soreg.homes^$all
+||misstt.top^$all
+||wonsy.top^$all
+||hornygirlsinapp.com^$all
+||id001.jp^$all
+||xbav.one^$all
+||ligmono.top^$all
+||rwtwshop.com^$all
+||10un.jp^$doc
+||22dssklove-love.com^$doc
+||3flash83freak9.com^$doc
+||3tuhabe.info^$doc
+||404joyful.com^$doc
+||4256-on.biz^$doc
+||5dgja.com^$doc
+||6aqr9j.com^$doc
+||8senjya.jp^$doc
+||a-divination.com^$doc
+||ad7mylo.com^$doc
+||advice-obtrusive.com^$doc
+||after-pop-abc.com^$doc
+||aiai-talk.com^$doc
+||aiaitalk.com^$doc
+||aitolk.com^$doc
+||alicekdsod.com^$doc
+||amour.bliss-trance.com^$doc
+||amusementpalacegonow.com^$doc
+||any2st777fhy.com^$doc
+||aol-park.jp^$doc
+||applaud-acclaim.com^$doc
+||aqmessage.jp^$doc
+||aqua2022chat.blog^$doc
+||armed-postulation.com^$doc
+||asetpun.com^$doc
+||astraeus-star.site^$doc
+||best-chat.net^$doc
+||best-friendd.net^$doc
+||best-friendd2022.net^$doc
+||bestxchat.net^$doc
+||bluew-web.com^$doc
+||cabinet-office-go.com^$doc
+||can-pq-dee.com^$doc
+||car-na.jp^$doc
+||cbcdnkyyxubdsrmg.com^$doc
+||cdypsqghdgrw.com^$doc
+||ce-ent.biz^$doc
+||ce-free.biz^$doc
+||ces-ent.biz^$doc
+||ces-free.biz^$doc
+||ch3l.net^$doc
+||chichikurimanbo.com^$doc
+||chl3.net^$doc
+||club-rich.net^$doc
+||clubfukugyou.work^$doc
+||color--con.com^$doc
+||cosmos01.com^$doc
+||cple.jp^$doc
+||date-app.net^$doc
+||days-neighborhood.com^$doc
+||decided-decision.com^$doc
+||determinatioon.jp^$doc
+||dev.san47itu54szkk.jp^$doc
+||di-ana.jp^$doc
+||difficultba2cjeh.jp^$doc
+||diffuse-elderly.jp^$doc
+||display-baptism.net^$doc
+||dosukoudo.net^$doc
+||dot-acc.xyz^$doc
+||drct-match.com^$doc
+||drct-match.net^$doc
+||ds6boqkct.com^$doc
+||dydynight.org^$doc
+||eag1eag1e.com^$doc
+||easternuifbs0y1.jp^$doc
+||eiqualsfone.jp^$doc
+||elegant-erection.com^$doc
+||en-kakuri.biz^$doc
+||en-mu-su-bi.com^$doc
+||entertainment-undamped.net^$doc
+||epel-felmier.com^$doc
+||eve-ry-do.com^$doc
+||everyinfox2023.com^$doc
+||ex-fami.net^$doc
+||eyes-luv-u.com^$doc
+||f2f-free.biz^$doc
+||fallenw8bi.jp^$doc
+||fapp.work^$doc
+||fl-0wer685hjdp300.com^$doc
+||fle652.net^$doc
+||flk41.com^$doc
+||followingj2f8n.jp^$doc
+||formatch.co.jp^$doc
+||fortune-fate.jp^$doc
+||fortune-koun.jp^$doc
+||fortune-luna.com^$doc
+||friendxroom.com^$doc
+||ft-sou.com^$doc
+||fukumaneki-888.com^$doc
+||fukumaneki2211.com^$doc
+||g-a-y.jp^$doc
+||g6-gonight.org^$doc
+||gabfbnaqodnvfafnj.com^$doc
+||gandestin0.jp^$doc
+||girls.a-makeup.com^$doc
+||gm-ent.biz^$doc
+||gm-free.biz^$doc
+||gokusenn.jp^$doc
+||goldenluck.jp^$doc
+||hapabb.com^$doc
+||happy468.net^$doc
+||happymethod55.com^$doc
+||hi-a-so-bi.net^$doc
+||himatalk77.net^$doc
+||himichat999.net^$doc
+||home4ugoog10you.com^$doc
+||homeseventen.com^$doc
+||hope-for-shiningday.com^$doc
+||hori-hori.xyz^$doc
+||hp-dy.net^$doc
+||hphp-dy.net^$doc
+||htpgkd.xyz^$doc
+||i.redi-ana.jp^$doc
+||i2019.jp^$doc
+||in.other-geronica.com^$doc
+||indiscerptible-provisionally.jp^$doc
+||infoemphasiseleventh.com^$doc
+||infooperationsqueeze.com^$doc
+||infosmellleather.com^$doc
+||infostakewit.com^$doc
+||indi-ana.jp^$doc
+||information2022.com^$doc
+||ir0d0ri.jp^$doc
+||iri195.net^$doc
+||irie3.net^$doc
+||iuckgzcbceycgjs.com^$doc
+||ivy2241u.jp^$doc
+||jamjamjam.biz^$doc
+||jewelry-2018.net^$doc
+||jewely-line.com^$doc
+||job0w4zjnk.jp^$doc
+||k-colorful.jp^$doc
+||k-smilegallery.com^$doc
+||k0fu9.jp^$doc
+||k1wa.jp^$doc
+||kaiun-com.com^$doc
+||kaiun-park.jp^$doc
+||keep.secret-ace.com^$doc
+||key8qt3x.jp^$doc
+||kin-hakobune777.com^$doc
+||koifull.jp^$doc
+||koiroom.net^$doc
+||koiroomnotice.net^$doc
+||kouhad0.jp^$doc
+||koun-yogen.com^$doc
+||l-one-one.com^$doc
+||l-thr-thr.com^$doc
+||l-two-two.com^$doc
+||l0vekatsu.com^$doc
+||largeagw5fky.jp^$doc
+||lightn5.com^$doc
+||lin-link.net^$doc
+||line-line-biz.com^$doc
+||link-service.net^$doc
+||linkage-linkage.com^$doc
+||log.xi-cascade.com^$doc
+||lonely9ec8.jp^$doc
+||love-fit.jp^$doc
+||love-letter-dm.com^$doc
+||love-letter.info^$doc
+||love.sweet199.com^$doc
+||loveaholics.com^$doc
+||loveclinic.info^$doc
+||lovemelo.jp^$doc
+||lover-stream.com^$doc
+||lx8jq.nydlaepytwuekwhfyvivsf.com^$doc
+||luuce.jp^$doc
+||lzogdlorkfssui.net^$doc
+||machi-match.info^$doc
+||madnna.jp^$doc
+||madnna.net^$doc
+||mangogo.jp^$doc
+||mangogo.work^$doc
+||married-court.com^$doc
+||match-mate.jp^$doc
+||match-mate.net^$doc
+||matimati.site^$doc
+||maytail.jp^$doc
+||me22se2255.com^$doc
+||meetingc5owe.jp^$doc
+||meguri-eye.net^$doc
+||meguri-y.net^$doc
+||meltiness.jp^$doc
+||message117.jp^$doc
+||mith-ril.net^$doc
+||ml.ml.advice-obtrusive.com^$doc
+||mobaapo.net^$doc
+||mokchk.com^$doc
+||moody-night.net^$doc
+||moogle-set.space^$doc
+||moogle-set.website^$doc
+||moonsupermoon.moonmoonsunmoon.com^$doc
+||muhamed-online.com^$doc
+||my7love.xyz^$doc
+||mystic-wonder.com^$doc
+||mzyg882a63.com^$doc
+||naja59jg.com^$doc
+||nanaprof.com^$doc
+||navi-match.net^$doc
+||near-s.com^$doc
+||nearing.jp^$doc
+||nebueb.click^$doc
+||neverthelessadvertising.com^$doc
+||new-match.com^$doc
+||new.hpk0fu9.jp^$doc
+||newencounter.pw^$doc
+||nexttvuo1z.jp^$doc
+||nova.great-chat.net^$doc
+||ntt4p6tgc.com^$doc
+||nuclear5ugsbz3p.jp^$doc
+||nydlaepytwuekwhfyvivsf.com^$doc
+||on-glamour.xyz^$doc
+||one-chan-love.love^$doc
+||one-match01.com^$doc
+||onega.jp^$doc
+||onegaga.jp^$doc
+||opposite8cgp14y6.jp^$doc
+||oprirgreifeuprdlojeocg.com^$doc
+||originatepour.com^$doc
+||osubstancenasubstitute.com^$doc
+||otona-nona.biz^$doc
+||otonanona.jp^$doc
+||otonatime.net^$doc
+||oyasu-mi.tokyo^$doc
+||p2p-ent.biz^$doc
+||paesbeaqerdrsheuboapyh.com^$doc
+||pair-online.jp^$doc
+||permanent.wwtrend.com^$doc
+||piasukai.xyz^$doc
+||pinkredwhitereef.greenreef.net^$doc
+||pjmze.site^$doc
+||plati-num.com^$doc
+||pockpocket.com^$doc
+||poorup2zo.jp^$doc
+||pr0m.site^$doc
+||privatelife.jp^$doc
+||psg.make9-salon.com^$doc
+||ptt3bzstch2.com^$doc
+||purapuraichiban.com^$doc
+||purpleiyvf.com^$doc
+||r30address.com^$doc
+||r30deai.com^$doc
+||reddishpurple.com^$doc
+||reverita-t.jp^$doc
+||rhsrthrtjhe.com^$doc
+||ripiai.com^$doc
+||romance-time.jp^$doc
+||romancetime.jp^$doc
+||romancetrain.jp^$doc
+||royalclass-dm.com^$doc
+||royalclass.info^$doc
+||s4fk.destin0.jp^$doc
+||s5dgy389z7.com^$doc
+||salon1999.net^$doc
+||salon2022champagne.digital^$doc
+||salonoshirase.net^$doc
+||sen-no-y-t.com^$doc
+||shells.pairapple.net^$doc
+||sickfwk9.jp^$doc
+||skpt9s.jp^$doc
+||slow-piercer.com^$doc
+||sns-pair.net^$doc
+||star777seven.net^$doc
+||soul-ft.com^$doc
+||southern0olgwc.jp^$doc
+||space-high.com^$doc
+||spirilp3000.com^$doc
+||spirituallounge-3000.com^$doc
+||spkouhad0.jp^$doc
+||ssg.qui261rd22.jp^$doc
+||stolage.com^$doc
+||sugarboxxx.net^$doc
+||sugulove69.net^$doc
+||sugulove.com^$doc
+||suite0-free0.com^$doc
+||sun.kgi5fgwpp8.com^$doc
+||supervisionwyorf4.jp^$doc
+||sweetmemo.net^$doc
+||sweetmemoryy.com^$doc
+||t1a.jp^$doc
+||tadaapo123.com^$doc
+||tadaapomail.com^$doc
+||tadamatch.com^$doc
+||tenluuce.jp^$doc
+||terinron.com^$doc
+||thanks-dot.com^$doc
+||tissue-length.com^$doc
+||trgxchjiskfsxee.com^$doc
+||tsumalabo.jp^$doc
+||tttt.star095.com^$doc
+||tumalabo.net^$doc
+||tumanavi.com^$doc
+||tumanavi22.com^$doc
+||tyotto.jp^$doc
+||tyotyo.biz^$doc
+||u-nit-ed.com^$doc
+||u3ig.com^$doc
+||undetermined-whitish.com^$doc
+||uniquemjbd9fu.jp^$doc
+||urbanv8dg.jp^$doc
+||ura-nai-best.com^$doc
+||uu.universsee.com^$doc
+||vanilla-japan.net^$doc
+||verita-t.jp^$doc
+||very.bes-tplay.com^$doc
+||vip.trust-site.net^$doc
+||we.success-vichada.com^$doc
+||with.2-on-line.com^$doc
+||xugmbqz.com^$doc
+||y3tkz53rz.com^$doc
+||you10star72googl.com^$doc
+||yu0287tk.com^$doc
+||yumajhsbsff.com^$doc
+||zmrbkwtmbvzmznv.com^$doc
+||ztkjjhkzaidpanu.com^$doc
+||zwhsj.site^$doc
+||2dfjwa.com^$doc
+||8ngpmu.com^$doc
+||addicted-to-u.com^$doc
+||af6frm.com^$doc
+||apple22cd.com^$doc
+||back-rich.com^$doc
+||cherry.mermaid77c.com^$doc
+||dgduwb.com^$doc
+||eeu5dt.com^$doc
+||jivo-ce.jp^$doc
+||md47ez.com^$doc
+||online2022-shopping.com^$doc
+||ptn9tf.com^$doc
+||uxzdx5.com^$doc
+||whimsicalrain.com^$doc
+||6464f046fd436e46h.buzz^$all
+||be-service-client.net^$all
+||franceexpress.net^$all
+||funwithflies.online^$all
+||japanshopforsale.fun^$all
+||japanshopforsale.store^$all
+||japatravel.com^$all
+||khjkhk.store^$all
+||malayriyabukhar.xyz^$all
+||meeturdate.com^$all
+||merachatkaghar.xyz^$all
+||myjapanonlineshop.xyz^$all
+||mymeetworld.com^$all
+||mynameserverok.xyz^$all
+||newdomainleloyarjaldiseab.beauty^$all
+||newdomianleloyarjaldiseabto.quest^$all
+||newsonclik.com^$all
+||prewebdating.com^$all
+||slapcleaner.com^$all
+||thebestfoodsecretrecipes.com^$all
+||tatikhale.xyz^$all
+||thehungerforfood.com^$all
+||2226wurpatw.tokyo^$doc
+||ab5sa.com^$doc
+||app.plum375ap.com^$doc
+||asiansgetnaughty.com^$doc
+||blackstunners.com^$doc
+||bxg-h.jp^$doc
+||budhump.com^$doc
+||busisma1.com^$doc
+||connect-wp.net^$doc
+||electro-magneticwave.com^$doc
+||eternal.mobius-loop.net^$doc
+||fukuinnnokotoba.com^$doc
+||humpbuds.com^$doc
+||like.delight-light.net^$doc
+||line-bs.com^$doc
+||localsgowild.com^$doc
+||mv-r1ck.com^$doc
+||naughtyfever.com^$doc
+||nw-fzi.jp^$doc
+||oo.opaall.com^$doc
+||or-nl.jp^$doc
+||select-point.com^$doc
+||sldg02.com^$doc
+||sll-lp1f.com^$doc
+||smart-chat.info^$doc
+||tenseikaiun.com^$doc
+||ui7aud5ei4uhx7.com^$doc
+||v1v-g1ft-o7.com^$doc
+||wish-spiritua.net^$doc
+||woman-busi.com^$doc
+||world-vision-central.com^$doc
+||chaljakismat.xyz^$all
+||betonclickone.com^$all
+||japanshopforsale.online^$all
+||jpsilversingle.com^$all
+||omiaijapan.net^$all
+||bestsportsite.shop^$all
+||guide-antivirus.com^$all
+||japanclothing.in^$all
+||secure-57v.pages.dev^$all
+||sweepsdomains.co.uk^$all
+||windowliveinfo.live^$all
+||wwworiginal.com^$all
+||buynewrvsbuyonline.com^$all
+||skyonelendings.com^$all
+||swaws.link^$all
+||thakthukgye.blob.core.windows.net^$all
+||amante-love1.com^$doc
+||decent-decision.jp^$doc
+||ll-m-work-2020.com^$doc
+||pgym2t8p25uf3gz.com^$doc
+||slb3cr9dx9.jp^$doc
+||soku-h.net^$doc
+||sukui05.com^$doc
+||36vv-ssj.com^$doc
+||4miracle4.jp^$doc
+||4qy35wd.com^$doc
+||7nwa.cxiujudffaitd.jp^$doc
+||abc.qnjgipohki59.com^$doc
+||abc.youtus7216.com^$doc
+||akfdfdnupyfy.com^$doc
+||amari-ama.com^$doc
+||ank.vop-95jszkk.jp^$doc
+||attendantmulticultural.com^$doc
+||axd.jp^$doc
+||bambam-bi.com^$doc
+||banana0141.com^$doc
+||big-country-load.com^$doc
+||bowmediation.com^$doc
+||c-al-e1nder.com^$doc
+||chocochipu-o.com^$doc
+||chumsline.jp^$doc
+||cosmos-metatrade.com^$doc
+||da-ro-s.com^$doc
+||dandelion-horsetail.work^$doc
+||dddiey-s1d2.com^$doc
+||ddeityy.com^$doc
+||deaimatch.jp^$doc
+||dream-by-catch.com^$doc
+||everhotmet.com^$doc
+||every-fpcx.com^$doc
+||exiv14.jp^$doc
+||facebooc.jp^$doc
+||ff-dai.net^$doc
+||friendmatch.jp^$doc
+||fxdt0001.com^$doc
+||ganesha0910.com^$doc
+||ganesha52697.com^$doc
+||gm-we.jp^$doc
+||gtir5die6sutngr.jpn.com^$doc
+||happiness-gate.com^$doc
+||happy-h0ur.jp^$doc
+||heart-s2.com^$doc
+||htjrs-6re-ew.com^$doc
+||htre-vcf-d.com^$doc
+||iikanjiyanakanjide.wixsite.com^$doc
+||j75e-gfrs-df.com^$doc
+||juice-is-apple.com^$doc
+||jungle-juggler.jp^$doc
+||kisekichikara.com^$doc
+||l1nefree.com^$doc
+||lets-white-push.com^$doc
+||loto-chance.com^$doc
+||lovyy.date^$doc
+||makoto-in-room.wixsite.com^$doc
+||mass-calc-read.com^$doc
+||mercury-fortune-telling.net^$doc
+||moira-101.com^$doc
+||nem0phila000.com^$doc
+||nitr5eur6fjhtsw.jpn.com^$doc
+||npo-government.jp^$doc
+||okai.work^$doc
+||onegoodperday.com^$doc
+||p3s18f1d0.com^$doc
+||pa-ir.net^$doc
+||pc.candlecandle.jp^$doc
+||pcfdt0001.com^$doc
+||pcfgdi0001.com^$doc
+||pcfsb0001.com^$doc
+||pdss3a1r.jp^$doc
+||pfunding-01.com^$doc
+||pororin081.com^$doc
+||primal.premium-prism.net^$doc
+||rainbow-fortune.biz^$doc
+||rainbow-fortune.com^$doc
+||rainbow-fortune.jp^$doc
+||sall.etchat.jp^$doc
+||som7ebb3.com^$doc
+||somatryui53.com^$doc
+||star-fortune.com^$doc
+||stella1647.com^$doc
+||supp0.jp^$doc
+||toki-no-irodori.com^$doc
+||tokyo-get-business.jp^$doc
+||tomodachixoxo.wixsite.com^$doc
+||top-smart-board.com^$doc
+||triangle123.com^$doc
+||trust-tarade.net^$doc
+||txi-r.jp^$doc
+||ukokjxfbdqwffmuvsd.jp^$doc
+||umjditpwlb4f.com^$doc
+||unmei-kaika.com^$doc
+||ur54-htres.com^$doc
+||very10.com^$doc
+||vf5rkgirsir8ska.jpn.com^$doc
+||vitop7eg5sqwgbk.jpn.com^$doc
+||vixii.co^$doc
+||w4y5u6.com^$doc
+||wishhoree1890.com^$doc
+||with-with.net^$doc
+||xs5rur1she7eyry.jpn.com^$doc
+||you.y-uh9k7n5y.tokyo^$doc
+||yus6kxc.jp^$doc
+||57zyazmk.jp^$doc
+||a.tlineat.jp^$doc
+||abc.lemon2023.com^$doc
+||am-bassador.jp^$doc
+||angelchance.com^$doc
+||b2ujcm.com^$doc
+||be-loaded.com^$doc
+||characteristicobservant.com^$doc
+||chat-6d49-k0hy.com^$doc
+||clarinet20.com^$doc
+||cocoa-cocoa-cocoa.com^$doc
+||coralnov.jp^$doc
+||deai.amour-site.com^$doc
+||deaisaito.jp^$doc
+||dia-lover.com^$doc
+||doorway-of-guidance.com^$doc
+||ed-blissful.com^$doc
+||eika-akie220202.com^$doc
+||equal-envelope.jp^$doc
+||eternalfame461.com^$doc
+||ev-upstart.com^$doc
+||for-tg.com^$doc
+||for20-coco.com^$doc
+||fortune-gluck.com^$doc
+||fortune-mooon.com^$doc
+||ft-flower.com^$doc
+||fukugyou2022.net^$doc
+||fukukomachi-220513.com^$doc
+||fukunoha211013.com^$doc
+||fukura210317.com^$doc
+||future-marvellous.com^$doc
+||gate-of-happy.com^$doc
+||gdzewykg-e6bh3e.com^$doc
+||gentle-general.jp^$doc
+||glossy-gross.jp^$doc
+||gluck-happy.com^$doc
+||gluck-fortune.com^$doc
+||gluck-happyuranai.com^$doc
+||gluck-horoscope.com^$doc
+||gluck-luckyuranai.com^$doc
+||gluck-miracleuranai.com^$doc
+||gluck-secreturanai.com^$doc
+||gluck-uranai-gluck.com^$doc
+||gluck-uranaisalon.com^$doc
+||gogonews.club^$doc
+||happiness-sign.com^$doc
+||happy-gluck.com^$doc
+||happyuranai-gluck.com^$doc
+||heart-uranai.com^$doc
+||herbariuum.jp^$doc
+||holydivination.com^$doc
+||honnkaku-uranai-gluck.com^$doc
+||horoscope-gluck.com^$doc
+||ht5d4g4r.com^$doc
+||iflirts.com^$doc
+||im-excellent.com^$doc
+||infomessagehappy.com^$doc
+||iris-808.com^$doc
+||jdig56po.com^$doc
+||jungle-juggler.com^$doc
+||jungle-juggler.net^$doc
+||jye5c854umzyn.com^$doc
+||kaaairoo549kai.com^$doc
+||kahimeyuki.jp^$doc
+||kairos-9987kaa.com^$doc
+||kantan-uranai.com^$doc
+||karinaroom.wixsite.com^$doc
+||keitai-uranai.com^$doc
+||l-chat.jp^$doc
+||life-happy-family.com^$doc
+||line-chat-firends.com^$doc
+||login-chat.net^$doc
+||lovekatsu2277.com^$doc
+||luckyuranai-gluck.com^$doc
+||marine-nuts.online^$doc
+||match1ng.com^$doc
+||mintiia.com^$doc
+||mio-love2.wixsite.com^$doc
+||miracleuranai-gluck.com^$doc
+||moon-1light.com^$doc
+||moon1234moom.com^$doc
+||mttk2020.jp^$doc
+||mystery-forest.com^$doc
+||mr-benjamin.com^$doc
+||nexus.nice-splice.com^$doc
+||oficialinesp.wixsite.com^$doc
+||one-sunnyday.com^$doc
+||online-gluck.com^$doc
+||onlineuranai-gluck.com^$doc
+||opponent-remain.com^$doc
+||p-chi.info^$doc
+||pairpure.jp^$doc
+||pairpure.jp.net^$doc
+||peoplemanmanpeople.com^$doc
+||photo-gallery-picture2398.com^$doc
+||pinponpaipan.com^$doc
+||poke10ve.com^$doc
+||pocketlove.jp^$doc
+||pos.tnsd-apsq.com^$doc
+||ppo.re9t-hmd0.com^$doc
+||pulp-days.jp^$doc
+||pwo.wane-jctl.com^$doc
+||relife0001.com^$doc
+||relifemail555.com^$doc
+||rkdif.xyz^$doc
+||s-kiseki.jp^$doc
+||sebumu28.com^$doc
+||secreturanai-gluck.com^$doc
+||sevensmooon.com^$doc
+||shiawase-tobira.com^$doc
+||sign-happy.com^$doc
+||smartphone-uranai.com^$doc
+||soymiilk.jp^$doc
+||su-hisenjutu.com^$doc
+||suhi-senjutsu.com^$doc
+||suhi-sejutsuexpert.com^$doc
+||tada10ve.jp^$doc
+||tada1ove.com^$doc
+||take.the.n-chapter.jp^$doc
+||tenojorvaca.com^$doc
+||themselves-embryo.com^$doc
+||tkmailgirl.xyz^$doc
+||toxic-ventilate.com^$doc
+||ultratime.info^$doc
+||umjdt.site^$doc
+||uranai-gluck.com^$doc
+||uranai-keitai.com^$doc
+||uranai-smartphone.com^$doc
+||uranaikantei-gluck.com^$doc
+||uranaionline-gluck.com^$doc
+||uranaisalon-gluck.com^$doc
+||usmiel.online^$doc
+||uu-charisma.jp^$doc
+||v-yummy.com^$doc
+||vin.vaji47uj.com^$doc
+||vroom24.com^$doc
+||vroom24365.com^$doc
+||webdeai.jp^$doc
+||wmw.matchin.jp^$doc
+||wn56y7ve57j12zuv7tyj.com^$doc
+||woman-good-job.work^$doc
+||world.ex-advantage.jp^$doc
+||xxa.uji8979erd77.jp^$doc
+||y-tradie.com^$doc
+||zaitaku-baito.com^$doc
+||action0120.com^$doc
+||alphabet0120.com^$doc
+||au0212te.com^$doc
+||auni230119.com^$doc
+||backyardperipheral.com^$doc
+||best-web2020.com^$doc
+||computer0120.com^$doc
+||cyber0120.com^$doc
+||degmq5l23.jp^$doc
+||direct198.com^$doc
+||dosudosuo.com^$doc
+||dotcom0120.com^$doc
+||ently7go.jp^$doc
+||f1kuent0.jp^$doc
+||fanfande.net^$doc
+||female-good.work^$doc
+||forum0120.com^$doc
+||foundate-core.net^$doc
+||i8mg4bxfku.com^$doc
+||intern0120.com^$doc
+||kasegeru-rank.com^$doc
+||li-neeee.net^$doc
+||linemail.work^$doc
+||love.classy-line.net^$doc
+||magnum0120.com^$doc
+||make2022.com^$doc
+||media0120.com^$doc
+||n3umd.gbfdji0i09.com^$doc
+||neutral0120.com^$doc
+||new0fuku.jp^$doc
+||positive0120.com^$doc
+||protein0120.com^$doc
+||okay-work.info^$doc
+||ol2ewq989.jp^$doc
+||openhouse0120.com^$doc
+||refrain0120.com^$doc
+||rybdhn2nyp.com^$doc
+||salon.beauty202201.com^$doc
+||saturn0120.com^$doc
+||sbfw.work^$doc
+||sma-talk.com^$doc
+||smile-4u-2u.com^$doc
+||sokkinjobmasu.work^$doc
+||somethingyourselves.com^$doc
+||sorriso.fate-saber.net^$doc
+||tim.time-time-zyunizi.com^$doc
+||tppxi8sa9gppy.com^$doc
+||uj2tu1y.com^$doc
+||unclependulum.com^$doc
+||warmthsupportive.com^$doc
+||xxxmake.com^$doc
+||yours-mail.com^$doc
+||zas8k2hj3i.com^$doc
+||zx742h5p6d.com^$doc
+||16pqhigsm9sc6zp.net^$doc
+||1litteno.home-walil1.jp^$doc
+||1st-mail.jp^$doc
+||2507u35ia6mk1.com^$doc
+||2qpk150djf0ri.jp^$doc
+||56fv2z8bfv9.com^$doc
+||5jd2tj2idrool.com^$doc
+||6zgak8az1b8wn3.com^$doc
+||777.funnyy.net^$doc
+||advancedaily711.com^$doc
+||again.lrwxrawroemtghrmzbn.com^$doc
+||ai-ne.net^$doc
+||ai-tas.com^$doc
+||ai3tu.com^$doc
+||alch.treas.jp^$doc
+||amaenbo.jp^$doc
+||amourplace.jp^$doc
+||ancient-guidance.jp^$doc
+||animal-vegetable.com^$doc
+||apple012.com^$doc
+||ash-976.com^$doc
+||asw.16itue354er.jp^$doc
+||asw.lkjs214awe.jp^$doc
+||ataru-loto.com^$doc
+||atchm.net^$doc
+||bb.bluetopaazz.com^$doc
+||bontruth.com^$doc
+||c.onnect.jp^$doc
+||c930lhsivns1b.jp^$doc
+||chat111room-09.com^$doc
+||ci16f.com^$doc
+||confidencial-uniq.com^$doc
+||connect-jumbo.com^$doc
+||cosdate.jp^$doc
+||credence-website.com^$doc
+||cxbvnmyeruw.com^$doc
+||czrpzrxpybbgrtcv.com^$doc
+||d-hiyori.com^$doc
+||daisukimatch.jp^$doc
+||defendeerrpro.jp^$doc
+||di-payment.com^$doc
+||diamond-line.net^$doc
+||diner123pay.com^$doc
+||diners789.com^$doc
+||dinosaur-crown.com^$doc
+||dreamatch.jp^$doc
+||edge-campaign-japan.com^$doc
+||eiqnnmxvun5ge97.com^$doc
+||en5wr67sag3.com^$doc
+||enigma-quorum.com^$doc
+||equation-of-happiness.com^$doc
+||eromatchi.jp^$doc
+||ev.every-every-happy.com^$doc
+||fanta-stic.net^$doc
+||flirt.com^$doc
+||fx-protrade.net^$doc
+||garden-nomadl1i.com^$doc
+||ggcake.tindersplus.net^$doc
+||glitter-girls.net^$doc
+||gokuhuku.jp^$doc
+||goodnews-sp.com^$doc
+||gyakusimei.com^$doc
+||h-spe.net^$doc
+||hapim.net^$doc
+||happy-egg.net^$doc
+||happylife-partner.com^$doc
+||heartmatch.jp^$doc
+||hho.yes-hhoyf.com^$doc
+||home-22-time.com^$doc
+||hy4ied3d.com^$doc
+||i5h56ozira7l6.jp^$doc
+||ideallife21.com^$doc
+||ii-earth.com^$doc
+||imvcenuietfmw.net^$doc
+||itssofunny010.com^$doc
+||jack-roaddinc.jp^$doc
+||japanhotties.jp^$doc
+||jdoasjfojuhod.com^$doc
+||kaiunmegami.jp^$doc
+||kaiunrecipe.com^$doc
+||kmamk.net^$doc
+||koipara.jp^$doc
+||koudoukan.jp^$doc
+||kring-stone.jp^$doc
+||lib-333-lib.com^$doc
+||likeandlive.com^$doc
+||lmn.bb-lemon.com^$doc
+||local-bang.com^$all
+||lovedotto.net^$doc
+||lovewish.jp^$doc
+||lrwxrawroemtghrmzbn.com^$doc
+||lunalunadream.distance-box.net^$doc
+||lutherinfo.com^$doc
+||luthersaite.com^$doc
+||lux-ex.info^$doc
+||lvmeet.net^$doc
+||machimatch.jp^$doc
+||matchmix.jp^$doc
+||mem.wakuwa98.com^$doc
+||mmdem.net^$doc
+||mmkat.net^$doc
+||mmlnc.net^$doc
+||moelove.jp^$doc
+||mustwork.work^$doc
+||myocean.jp^$doc
+||nakayama.chikarakosopower.com^$doc
+||netsgram.com^$doc
+||network.pochi-apricot.com^$doc
+||nextaex.com^$doc
+||okane.link^$doc
+||one.thx-birthday.com^$doc
+||one-two-up.jp^$doc
+||one1-day.com^$doc
+||otakuplay.jp^$doc
+||otakurabu.jp^$doc
+||p18d6.hp.peraichi.com^$doc
+||pairnavipairnavi.com^$doc
+||pakok.net^$doc
+||paradise-angel.com^$doc
+||paysnum.com^$doc
+||peaces-ign.com^$doc
+||peachzone.site^$doc
+||plaza-l1o0nni-p1aza.com^$doc
+||ps-sns0girls.com^$doc
+||ptron.net^$doc
+||pxk.jp^$doc
+||ranch-1and.com^$doc
+||removerted.com^$doc
+||rexsvj8omabse.jp^$doc
+||richheart.completelifetime.com^$doc
+||room-582.com^$doc
+||room-82yhjeidk.com^$doc
+||s908b9n62w53u.jp^$doc
+||sard1.com^$doc
+||sca-letter.com^$doc
+||sdhjak.com^$doc
+||sea-into-53426l1.com^$doc
+||sfsrch.com^$doc
+||sg3.s-u-g-a-r-sugar.com^$doc
+||shihukumichibiki.jp^$doc
+||sns.smle.mobi^$doc
+||sokudeai.jp^$doc
+||sokuh.net^$doc
+||sonic-nicehands.com^$doc
+||specialapp-sns.com^$doc
+||stowers-service.com^$doc
+||sxtown.jp^$doc
+||syakoba.com^$doc
+||teamwork-project.com^$doc
+||tennshinomitibiki01.com^$doc
+||tenshinomitibiki.com^$doc
+||theater-1iil1.com^$doc
+||unafei-kokusai.com^$doc
+||upforit.com^$doc
+||uptoest.com^$doc
+||vhills.net^$doc
+||votteetten.com^$doc
+||vqydliiyda.net^$doc
+||wbp-hk.com^$doc
+||wbpb9.com^$doc
+||whim-w.net^$doc
+||xn--4dkua4c8143c.jp^$doc
+||xn--edkc9m807k.jp^$doc
+||xn--n8j0la8wb3547bghe.jp^$doc
+||xn--n8jwkyc7fw52nfvd.jp^$doc
+||xn--z9j635l1gs.jp^$doc
+||xn--z9jzga6u1506a.jp^$doc
+||xtqmufypnebap.jp^$doc
+||xyg.application-sns.com^$doc
+||you4love.jp^$doc
+||zil1u73o.mars-for-5gt2li.com^$doc
+||zmaka.net^$doc
+||znapybthaneyjepbrinwitkc.com^$doc
+||taosaleset.com^$all
+||0281.jp^$doc
+||0909810.com^$doc
+||093093.jp^$doc
+||11093.jp^$doc
+||19093.jp^$doc
+||2349.jp^$doc
+||2h1.jp^$doc
+||39093.net^$doc
+||39093.tv^$doc
+||4151.biz^$doc
+||4151.tv^$doc
+||55093.com^$doc
+||55bdsm.com^$doc
+||aeru.tv^$doc
+||affairdating.com^$doc
+||aitai.biz^$doc
+||amantssexy.com^$doc
+||askme4date.com^$doc
+||b-7.jp^$doc
+||babaroa.net^$doc
+||bbs-7.jp^$doc
+||bbsdx.jp^$doc
+||benbbs.net^$doc
+||bnbn.jp^$doc
+||c-y.jp^$doc
+||celcol.jp^$doc
+||celebri.jp^$doc
+||choucreme.com^$doc
+||chy.jp^$doc
+||cjok.net^$doc
+||crostol.com^$doc
+||datenabi.com^$doc
+||doem.jp^$doc
+||ebifri.com^$doc
+||eraberu.jp^$doc
+||erocm.com^$doc
+||flirtanu.com^$doc
+||flirtmoms.com^$doc
+||freedom-garden.com^$doc
+||freesexmatch.com^$doc
+||geh.jp^$doc
+||getnaughty.com^$doc
+||gofun.jp^$doc
+||gspo.jp^$doc
+||guj.jp^$doc
+||guw.jp^$doc
+||h093.net^$doc
+||hipma.jp^$doc
+||hmai.jp^$doc
+||hmhm.jp^$doc
+||hoct.cc^$doc
+||hxh.jp^$doc
+||igetnaughty.com^$doc
+||irha.jp^$doc
+||jnjn.jp^$doc
+||jukcha.com^$doc
+||jukuana.net^$doc
+||jyk.jp^$doc
+||kadak.jp^$doc
+||kanbbs.net^$doc
+||kokanjo.net^$doc
+||koubi.jp^$doc
+||koy.jp^$doc
+||ksds.jp^$doc
+||linblog.info^$doc
+||linguette.net^$doc
+||locals.dating^$doc
+||loveju.net^$doc
+||mamak.jp^$doc
+||matchx2.com^$doc
+||meetdatekiss.com^$doc
+||meetpie.net^$doc
+||mejp.net^$doc
+||mgirl.jp^$doc
+||mland.jp^$doc
+||mmnav.jp^$doc
+||moecoco.com^$doc
+||mymymy.net^$doc
+||natadecoco.net^$doc
+||naughtydate.com^$doc
+||newhoney.jp^$doc
+||nuide.net^$doc
+||oneisan.net^$doc
+||oolontya.com^$doc
+||pair-pair.com^$doc
+||panacota.net^$doc
+||piparelli.net^$doc
+||pirikitos.com^$doc
+||pmew.jp^$doc
+||pnav.jp^$doc
+||quickflirt.com^$doc
+||ricopin.com^$doc
+||scnv.jp^$doc
+||serev.net^$doc
+||sfg.jp^$doc
+||sfge.jp^$doc
+||singles50.jp^$doc
+||smab.jp^$doc
+||smism.jp^$doc
+||smmax.jp^$doc
+||soha.jp^$doc
+||sok8.net^$doc
+||stomatico.com^$doc
+||suguaitaina.com^$doc
+||suguao.net^$doc
+||sumatuma.com^$doc
+||sxe.jp^$doc
+||syasei.com^$doc
+||tapi2.jp^$doc
+||tarto.net^$doc
+||tendermeetonline.com^$doc
+||tendermeets.com^$doc
+||tinql.com^$doc
+||together.com^$doc
+||maturedating.com^$doc
+||topg.jp^$doc
+||tubakinohimitsu.amebaownd.com^$doc
+||tugonoyoi.com^$doc
+||twowife.com^$doc
+||txtx.jp^$doc
+||ulla.com^$doc
+||uniformdating.com^$doc
+||wantubad.com^$doc
+||wildmeets.com^$doc
+||xgal.jp^$doc
+||xzo.jp^$doc
+||yceleb.com^$doc
+||yourskiss.com^$doc
+||bruno-brown.com^$doc
+||life-is-luminous.com^$doc
+||00ebjdbagyqwt.club^$doc
+||0didjsgheje.club^$doc
+||5050.fm^$doc
+||6xtpke4.com^$doc
+||8xpamp5fxd.com^$doc
+||a5qd6qjhwg5d.com^$doc
+||aberration-0000000001.com^$doc
+||abstain-soldier.com^$doc
+||adoptmeantranslate.com^$doc
+||after-7.net^$doc
+||aikatuz.jp^$doc
+||all-time-domain.com^$doc
+||always-happy-fortune.com^$doc
+||alwayslike.safestspot.jp^$doc
+||anau6stg6y.com^$doc
+||andyou2.com^$doc
+||aphrodite-astrology.net^$doc
+||apppleheaddd.jp^$doc
+||bestcosme.jp^$doc
+||blueberrydevastating.com^$doc
+||browser9182.web.fc2.com^$doc
+||burmesterone.jp^$doc
+||callb.biz^$doc
+||catchmetalk.blog^$doc
+||catchmetalk.com^$doc
+||charecttorr.jp^$doc
+||charm-n.com^$doc
+||chesscheckersvariation.com^$doc
+||circle7-bd.com^$doc
+||club-house.link^$doc
+||cocoro-liberty.com^$doc
+||coin-of-fate.jp^$doc
+||crystal5116.biz^$doc
+||d-sr.net^$doc
+||d-will.net^$doc
+||dalnynpu.tokyo^$doc
+||daylighteel.com^$doc
+||ddxdda.unusualdate.com^$doc
+||digital-mail.jp^$doc
+||divination-truth.com^$doc
+||dnrwecqiyl.mobi^$doc
+||during-the-holiday.com^$doc
+||e-d-en.com^$doc
+||eme.emeralldd.com^$doc
+||every-au.com^$doc
+||every-bisque.com^$doc
+||every-blanched.com^$doc
+||every-cornsilk.com^$doc
+||every-coral.com^$doc
+||every-cute.com^$doc
+||every-dark.com^$doc
+||every-dodo.com^$doc
+||every-ds123.com^$doc
+||every-enjoy.com^$doc
+||every-gold.com^$doc
+||every-isb.com^$doc
+||every-lemon.com^$doc
+||every-light.com^$doc
+||every-line1.com^$doc
+||every-line2.com^$doc
+||every-nejp.com^$doc
+||every-pcpc.com^$doc
+||every-rose.com^$doc
+||every-salmon.com^$doc
+||every-super.com^$doc
+||every-toroku1.com^$doc
+||every-toroku2.com^$doc
+||every-toroku3.com^$doc
+||every-yellow.com^$doc
+||experiencedlawsuit.com^$doc
+||extentfillet.com^$doc
+||family5-life.com^$doc
+||febdd.info^$doc
+||flupshare.com^$doc
+||fortune-start.com^$doc
+||fortune-yakata.com^$doc
+||fvipbyolrsex.info^$doc
+||g-spiritual.com^$doc
+||gate-1-spiritual.com^$doc
+||gnan.jp^$doc
+||gnchag.com^$doc
+||gran-danker.jp^$doc
+||gyakunan.net^$doc
+||happiness-gate01.com^$doc
+||high-moon-sun.com^$doc
+||higher-mainnd.jp^$doc
+||hretdsubgrmc.jp^$doc
+||htgefegf56756.xyz^$doc
+||hy3irjf.com^$doc
+||igazre.com^$doc
+||jg3wpu8um2zucn4m6a.com^$doc
+||jinsei-uranai2023.com^$doc
+||jk94ciajt8.com^$doc
+||just1ce.net^$doc
+||kagayaki-tk.biz^$doc
+||kagayaki-tk.com^$doc
+||kantei-oracle.com^$doc
+||kinhako-lp.com^$doc
+||kinhako-m01.com^$doc
+||kinhako-m02.com^$doc
+||kinhako-p01.com^$doc
+||kinhako-p02.com^$doc
+||lightlydismantle.com^$doc
+||lineme.mom^$doc
+||lover-c.com^$doc
+||luck-is-home.com^$doc
+||mamagathering.org^$doc
+||match007.jp^$doc
+||mc-aoyama.com^$doc
+||mercury-lp.net^$doc
+||michibiki-uranai.com^$doc
+||miracle-door.com^$doc
+||mirai-kouun2023.com^$doc
+||mjzca66n34j7.com^$doc
+||moon-luck-power.com^$doc
+||mother-sku.jp^$doc
+||okanekasegeru.com^$doc
+||online-777.jp^$doc
+||p-mel.net^$doc
+||paknz.star-superstar-yellow.com^$doc
+||part-ner01.jp^$doc
+||peachcafe.net^$doc
+||poison-idea.com^$doc
+||polaris-775.com^$doc
+||pollutionsatisfyadopt.com^$doc
+||prophecy-of-fate.com^$doc
+||relief.glad-glory.com^$doc
+||rising-to-fortune.com^$doc
+||rosaca-nina.net^$doc
+||ru.ruubbyy.com^$doc
+||s-space.jp^$doc
+||sachikuru.jp^$doc
+||shinjitsu-mirai2023.com^$doc
+||sokuai.jp^$doc
+||sp-gt-meet.com^$doc
+||spring-sealion.com^$doc
+||spiritual-gt.com^$doc
+||spiritual-gt1.com^$doc
+||spiritual-leading.com^$doc
+||sta.star-star777.com^$doc
+||star-club-self.com^$doc
+||star-superstar-yellow.com^$doc
+||sugusagasu.com^$doc
+||sukui01.com^$doc
+||sukui02.com^$doc
+||sukui03.com^$doc
+||sukui04.com^$doc
+||sukuinote.jp^$doc
+||sumsmsp.info^$doc
+||szddbxyumfcf.net^$doc
+||szwbnlpq.info^$doc
+||tarot2fs.com^$doc
+||telet.me^$doc
+||this-you-good.com^$doc
+||tikgold2023.com^$doc
+||tomikuji.com^$doc
+||trend-officialsearch.com^$doc
+||ugfdwmausxfy.net^$doc
+||unmei-hikari2023.com^$doc
+||unmei2023.com^$doc
+||uranai-beginning.com^$doc
+||uranai-hit.com^$doc
+||uranai-like.com^$doc
+||utugmz93sr.com^$doc
+||vwqrzutjc.info^$doc
+||wafxz2.com^$doc
+||wastearguewasteill.com^$doc
+||web.fe-vrier.com^$doc
+||whitemusk.jp^$doc
+||whpbrmdss.com^$doc
+||will-kantei.com^$doc
+||wkdk.jp^$doc
+||xmwvmzm3fd8h.com^$doc
+||zrkp7fgmcdwe.com^$doc
+||feemwshape.sbs^$doc
+||6xy-zg.com^$doc
+||bvnx599app.com^$doc
+||cwa-2020.com^$doc
+||dwoetbarcrooplsloiwh.com^$doc
+||gargar.making-garden.com^$doc
+||gate-way110.com^$doc
+||happy-popice.com^$doc
+||kronos2022.com^$doc
+||like-baloon-leaf.com^$doc
+||mor.chance-10dayful.com^$doc
+||octagongon.com^$doc
+||qfmjw.arpviufltwiostoegrm.com^$doc
+||s.meru.jp^$doc
+||ts7nept8.com^$doc
+||vcrwv.monster^$doc
+||x-yz6asktoi.com^$doc
+||x-yzn6.com^$doc
+||x6-yz-kzyx0.com^$doc
+||x6-yzk.com^$doc
+||xy-z0-ra-had0.com^$doc
+||xy-z6goo-xyz.com^$doc
+||xy-z6x.com^$doc
+||xyz-xy.com^$doc
+||ytjon-d2s1ah.com^$doc
+||yuetp7hj.com^$doc
+||lets-tip315.com^$doc
+||loveri.net^$doc
+||lvli.jp^$doc
+||m2sg.jp^$doc
+||mamasg.net^$doc
+||mcbien.net^$doc
+||mlaligms205s.com^$doc
+||rollfa.net^$doc
+||rollin-12fate.com^$doc
+||rollin-fat1e.com^$doc
+||sgua.jp^$doc
+||spilov.net^$doc
+||splv.jp^$doc
+||suguap.net^$doc
+||vien.jp^$doc
+||a-power.jp^$doc
+||eternal-station.jp^$doc
+||fnyge.site^$doc
+||friends-connect.com^$doc
+||kinun-2023.com^$doc
+||madonnaoasis.com^$doc
+||msg.metamessen.net^$doc
+||o-cean-fortune.biz^$doc
+||o-cean-fortune.com^$doc
+||secondary-with.com^$doc
+||fure-ai.com^$doc
+||fure-ai.site^$doc
+||happy-classic.com^$doc
+||poiu7895123.jp^$doc
+||rea-love.net^$doc
+||bvjdogmfommbobmedmf.com^$doc
+||ggtt-more-special.com^$doc
+||lpdoinoibnsndoppigh.com^$doc
+||natu.natural-natural-pure.com^$doc
+||npafnapnnapfpaengdf.com^$doc
+||b6s4as9myw75g877krwp.com^$doc
+||hr7sy8fpw7tr43u3dab2.com^$doc
+||loving-happy.com^$doc
+||pw3a2rps8p97x2u5-2rf.com^$doc
+||wzbrughrw9a63hnfurap.com^$doc
+||xa7f8d9i9su2pchn6mps.com^$doc
+||btc8228.com^$all
+||btc9339.com^$all
+||buyeosport.life^$all
+||eoxleiy.store^$all
+||feehhfilm.life^$all
+||needzmfolk.life^$all
+||abacus-prefix.com^$doc
+||aj5sa87e.com^$doc
+||celezma.net^$doc
+||dismay-sacred.com^$doc
+||hamfqppcycjiskc.com^$doc
+||loveru.jp^$doc
+||match-1match.jp^$doc
+||mopo.vv-pb1salon.com^$doc
+||morale-yellow.com^$doc
+||quq.ygdd7ssl.com^$doc
+||shining.relief-lives.net^$doc
+||t1amo.jp^$doc
+||gswwichggroup.top^$doc
+||k.buybagnow.com^$doc
+||pffawtchpoffical.buzz^$doc
+||qswwichqhood.top^$doc
+||shop.gsawichgcenter.top^$doc
+||tswwichtband.top^$doc
+||uggstore.online^$doc
+||jampamn.online^$doc
+||fair.alivio-platform.com^$doc
+||pair-seat.net^$doc
+||pairseat.net^$doc
+||sez.jp^$doc
+||matching-go.jp^$doc
+||kira-kira.blue^$doc
+||p-chi.tech^$doc
+||rearea2022.com^$doc
+||vanilla-japan.love^$doc
+||jtybleua.jp^$doc
+||mai-tel.jp^$doc
+||sfc.bz^$doc
+||sfget.jp^$doc
+||download-campaign.com^$doc
+||fine-cloud.net^$doc
+||float-next.com^$doc
+||matomenever.com^$doc
+||mid-round.com^$doc
+||otonanojikan13579.net^$doc
+||up-loop.net^$doc
+||videochat-fan.com^$doc
+||3296cb.com^$doc
+||8waku-fbfb.com^$doc
+||mamamour.net^$doc
+||apr-business.sa.com^$doc
+||siasou.jp^$doc
+||2chlovers.web.fc2.com^$doc
+||lovez.jp^$doc
+||hfmarkets001.com^$all
+||letakgrab.com^$doc
+||pinskscope.life^$doc
+||moremorelove.net^$doc
+||accidentalunderground.jp^$doc
+||after-noon.jp^$doc
+||bse.bb64bb8.com^$doc
+||chatchu.jp^$doc
+||cupid-chat.net^$doc
+||docommo.com^$doc
+||doconno.com^$doc
+||f9ng8gb.com^$doc
+||feig04.com^$doc
+||fx640b4a8v2n.net^$doc
+||grace-pot.com^$doc
+||h76-hng7gvn.com^$doc
+||latterinformation.jp^$doc
+||leaf.lau-rier.com^$doc
+||maiwai2.jp^$doc
+||m0onet.com^$doc
+||mo6nri.com^$doc
+||mon1it.com^$doc
+||moon1hit.com^$doc
+||moonlight-ebbandflow.com^$doc
+||multiplelucky.jp^$doc
+||nanroom.net^$doc
+||nowtuma.net^$doc
+||ny-ms.jp^$doc
+||ownpayment.jp^$doc
+||p39ztyx.com^$doc
+||pastelism02.jpn.com^$doc
+||pineapplecake-yummy.com^$doc
+||platinum-center.com^$doc
+||retailaudio.jp^$doc
+||ssq.spofbd99.com^$doc
+||sss-sidejob.com^$doc
+||t26dmg9.com^$doc
+||tokuyama-kaiun.com^$doc
+||vy8monlf1t.com^$doc
+||wifekai.net^$doc
+||yummy-yuy.com^$doc
+||yummy2-yuy.com^$doc
+||zerocha.jp^$doc
+||augury-uranainoizumi.com^$doc
+||bexitzwfjipzs.jp^$doc
+||bh9jld.catchato10.com^$doc
+||catchato10.com^$doc
+||chat-search.com^$doc
+||dor.ppp-pocket-ttt.com^$doc
+||fz988hnbaha.com^$doc
+||happy.pp99adad.com^$doc
+||hhh.u3se3jg3gae.com^$doc
+||hzalwkcjbudom.info^$doc
+||ii.iriiss.com^$doc
+||let.attract1v3.com^$doc
+||lmoox5.net^$doc
+||mchynxqpiswuj.info^$doc
+||mtl.metel-x-x-x.com^$doc
+||panlcake.net^$doc
+||paradise.shine-site.com^$doc
+||s21aabb6.com^$doc
+||sstt22free5.com^$doc
+||utg.ri64-pdmv.com^$doc
+||venus-uranainoizumi.com^$doc
+||vgwkhaujofqxe.info^$doc
+||whuaqdsfjktgr.info^$doc
+||z4e2yem9edj.com^$doc
+||vanillafrappuccino.jp^$doc
+||vegansweeets.jp^$doc
+||getmatch.jp^$doc
+||mcpoc.linenet.top^$doc
+||hn-mizuki.com^$doc
+||urara02032023.com^$doc
+||ang.el-mail.online^$doc
+||atre-frer6.com^$doc
+||berate-expressive.com^$doc
+||comcom0511.com^$doc
+||gloria-divination.$doc
+||mothersmilk.jp^$doc
+||otomachi.jp^$doc
+||smoothie-smoothie.jp^$doc
+||suffix-consignment.com^$doc
+||amazonlogistics.jp^$all
+||fukusenkan.com^$doc
+||koi-chat.net^$doc
+||sachikru.com^$doc
+||sachikru1.com^$doc
+||sachikru3.com^$doc
+||sachikru4.com^$doc
+||sachikru5.com^$doc
+||sachikru6.com^$doc
+||sachikru7.com^$doc
+||sachikru8.com^$doc
+||bookblack5208w.com^$doc
+||freest200look.com^$doc
+||leterthe-gese.com^$doc
+||off-wiloeese.com^$doc
+||the-style-free.info^$doc
+||weekenddogkeep.com^$doc
+||koundayori.com^$doc
+||second-love-love.jp^$doc
+||chuchu2.jp^$doc
+||deaiai55.com^$doc
+||kokocha.site^$doc
+||hjytu75fro0.jp^$doc
+||secssnetplan.jp^$doc
+||3-uh9cj.com^$doc
+||3x-c9ua.net^$doc
+||68a9i9w.com^$doc
+||988s82r.com^$doc
+||efzhm85.com^$doc
+||rhyprua.com^$doc
+||tui8s2e.com^$doc
+||emyqsvk7zw.com^$doc
+||evqhubkfh8.com^$doc
+||jinuja5zgm.com^$doc
+||ljqq93npbr.com^$doc
+||n9zxgxpdu6.com^$doc
+||pnw0kbzjtt.com^$doc
+||sdlbtwi3lr.com^$doc
+||tvngrq6yat.com^$doc
+||vjybuykaxz4.com^$doc
+||willgood-will.com^$doc
+||y2sysagetf.com^$doc
+||san-dast.net^$doc
+||dedestin0.jp^$doc
+||fortune-fortuna.com^$doc
+||legamee.jp^$doc
+||miraiah.jp^$doc
+||sen8senjya.jp^$doc
+||happy-matome.com^$doc
+||fukuroou.jp^$doc
+||kennsaku.jp^$doc
+||matchingsite.jp^$doc
+||for.life-thrones.com^$doc
+||7wbb.com^$doc
+||me-ru.jp^$doc
+||byoep.moustachespontaneous.com^$doc
+||categorywrench.com^$doc
+||cuddle.please-delight.com^$doc
+||elephantdevout.com^$doc
+||moustachespontaneous.com^$doc
+||waterproofvile.com^$doc
+||ht54s-grf.com^$doc
+||hyop-ed12.com^$doc
+||ss7-yhw0-wk.com^$doc
+||st.stryyy.com^$doc
+||w-dbl.com^$doc
+||recruit-gold.com^$doc
+||tokimake.site^$doc
+||tokimeku.xyz^$doc
+||tokimeku4569.shop^$doc
+||6q5c53c6sg4z9vkkpqnc.com^$doc
+||emoti-on.com^$doc
+||jinsei-undesu.com^$doc
+||sftqg7t9cyzjaw0b.com^$doc
+||spiritual-jp.com^$doc
+||unki-josho.com^$doc
+||xdpiwrx7ub.net^$doc
+||2022del-eats.com^$doc
+||cl-oud9.com^$doc
+||feve-r.com^$doc
+||ma-tching.com^$doc
+||mugicom.live^$doc
+||romanc-e.com^$doc
+||sns3615.com^$doc
+||talkthattalkllc.com^$doc
+||time1time.com^$doc
+||go-ld-li-ne.site^$doc
+||gold-line.click^$doc
+||gold-line.online^$doc
+||cloudmax.jp^$doc
+||mama-piece.com^$doc
+||mamakatu42.blogspot.com^$doc
+||princess2022.com^$doc
+||vivian.jp.net^$doc
+||cha-nce.net^$doc
+||mirusiru.online^$doc
+||mirusiru.site^$doc
+||mobileverify.net^$doc
+||grabgiftcard.net^$doc
+||giftcardhero.net^$doc
+||ewapps.top^$all
+||awapps.cfd^$all
+||awapp.store^$doc
+||cleansoft.online^$doc
+||softlab.fun^$doc
+||appxfree.com^$doc
+||appxfree.top^$doc
+||vbucks.buzz^$doc
+||vbucks.cloud^$doc
+||absent-pretty.net^$doc
+||ahmrispfewmkhbwz.com^$doc
+||aim-all.com^$doc
+||breeding-ashes.com^$doc
+||every0028.jp^$doc
+||flash0007.jp^$doc
+||grasshoppermirro.com^$doc
+||nuts.sugar1105.com^$doc
+||propro.promise-p-roror-452.com^$doc
+||right-off.com^$doc
+||tatuieaawtkjnxzj.com^$doc
+||vacuumcleanerani.com^$doc
+||prc.pr-e-c-i-o-us.com^$doc
+||vghe0-ed7-d.com^$doc
+||kounnomichishirube.net^$doc
+||lucksignpost0804.org^$doc
+||lightning02s.com^$doc
+||lightning0707.com^$doc
+||jkytd-rd3.com^$doc
+||le.tter99.com^$doc
+||silversex.com^$doc
+||flirttime.com^$doc
+||eyesput55.com^$doc
+||scene7goal3.work^$doc
+||all-friends0817.com^$doc
+||ma-rry.net^$doc
+||ma-rry.site^$doc
+||altdorfer-niklaus.com^$doc
+||cherish.royal-loyalty.com^$doc
+||eliminateabyss.com^$doc
+||lucky-star69.com^$doc
+||lucky-star8.com^$doc
+||tulip-tulip.net^$doc
+||koinik.net^$doc
+||ukylcim.top^$doc
+||shop20.cheapsalesstore2023.com^$doc
+||gallery-sight.com^$doc
+||yurizono.com^$doc
+||9gcpz8hu.com^$doc
+||bobonheur.com^$doc
+||cit-rine.com^$doc
+||ctn-ctn.com^$doc
+||holy-kantei.com^$doc
+||sk3-renew.com^$doc
+||unki-max.com^$doc
+||boost6182ll.com^$doc
+||eir.tdhg7ppa.com^$doc
+||grea-fd12dr.com^$doc
+||cpd.ipllo4ys.com^$doc
+||htjrs-fgds.com^$doc
+||recklessdroughtburglar.com^$doc
+||the-match.jp^$doc
+
+! https://twitter.com/1ZRR4H/status/1623067548781539339
+||soft-pro.site^$all
+||exp-pc.com^$all
+||download2348.mediafire.com/ewjzz8pmn7rg/4n5bc37ank892fh/Expert-PC_2023.rar^$all
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/142492
+||apkmirror.co^$all
+||webogram.org^$all
+||webogram.ru^$all
+||xn--80affa3aj0al.xn--80asehdb^$all
+||telegr.am/user_mgt/login$all
+||tgram.ru^$all
+||telegramm.site^$all
+||web-telegram.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/15793
+! https://github.com/blocklistproject/Lists/issues/933
+||jnkms0zfueh.click^$all
+||pjljo54uk.click^$all
+||v1asy4ncr.click^$all
+||p5tvhrlw30h.click^$all
+||8narwi309.click^$all
+||sbjjzdwqg41ps.click^$all
+||9bghqk3avg2gnh.click^$all
+||lrhxz60alkjtik.click^$all
+||6t09fag307ep.click^$all
+||klwukospapf.click^$all
+||uerqelim91ut.click^$all
+||tvbxrr4ym3.click^$all
+||eicxz6jfjaw.click^$all
+||8ebtdbsjsu.click^$all
+||zjzxtmhcldsb.click^$all
+||s2dd1io1x.click^$all
+||sa489zylbvg.click^$all
+||rsurwhytjwbn.click^$all
+||de2b8pzju0h.click^$all
+.click/*?s=*&g=*&q=$script,3p
+.click/?h=*&user=$script,3p
+.one/?h=*&user=$script,3p
+.cfd/?h=*&user=$script,3p
+.xyz/*?s=*&g=*&q=$script,3p
+.click/*/?partner=*&pg=$script,3p
+.xyz/*/?partner=*&pg=$script,3p
+.online/?h=*&user=$script,3p
+.pro/?h=*&user=$script,3p
+.click/?user=*&h=$script,3p
+.cfd/?aD*HlwZT1jJnRtcD01JmFkY29kZT0x$script,3p
+
+! https://github.com/uBlockOrigin/uAssets/pull/16764#issuecomment-1431353276
+||xfiley.me^$all
+!#if !env_mobile
+||n.fcd.su^$all
+!#endif
+
+! https://app.any.run/tasks/679e9afa-eb19-4414-a086-e280a779a448 and https://tria.ge/230217-xd8nksgc9x/behavioral2
+||ru-torproject.ru^$all
+||anapatformacion.org/modules/file/tor/tor-browser.zip^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/16397
+/^https:\/\/[a-z]+\.com\/away\.php\?url=[%0-9A-z]{100,}$/$doc
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/143447#issuecomment-1438352020
+||a-new86.com^$all
+||ane102.net^$all
+||honey8.love^$all
+||honey888.love^$all
+||ima55notice.biz^$all
+||infozoomplus.biz^$all
+||koi2ru.com^$all
+||likechat33.net^$all
+||likechat33call.net^$all
+||pair55.net^$all
+||pair55call.net^$all
+||room2021.net^$all
+||roomoshirase.net^$all
+||smore91.net^$all
+||som419.net^$all
+||touchoshirase.net^$all
+||touchtacchi.net^$all
+||wsws1234.net^$all
+||wswsnews.net^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/11s92xa/
+! https://www.virustotal.com/gui/url/e1d9aadb5c1f979f0c83a54015cf84cda2da0fa9c4b452c6dabe62deeb70add5/detection
+||s3.amazonaws.com/extpro/speed4.html$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/11s92xa/badware_risks_page_request_malware/jceopse/?context
+! https://pastebin.com/t3z1m0tN
+! https://www.virustotal.com/gui/url/2fb57656f55db6d335696767de2d73693a31148429ef6b51b97c01e43563a8ee
+! https://www.virustotal.com/gui/url/7f8f874b486a656948944aa205c75fc490cff1235f1114e067f161e69f0bcbb9
+||imgfarm.com/images/dlp2/prod$3p
+||myway.com^$all
+/anemone-*.min.js$script,1p
+
+! https://www.reddit.com/r/uBlockOrigin/comments/1204r6t/
+! https://www.virustotal.com/gui/url/9c3e71b70367a121e5163602a0b8ffe67417f3c6e5f83ce32ca812a87e70a322
+||adblockers.b-cdn.net^$all
+||pleasetrack.com^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/1212vbf/
+! https://www.virustotal.com/gui/file/001724988888ce452750961d9f0d6249945c42cf7d511467bcb57f2eec4fd9c9
+||tor-browser-rus.ru^$all
+
+! techsupport scam
+/?{BV_SRCID}&$doc
+/werrx01/^$doc
+/merrx01/^$doc
+||ondigitalocean.app/*^phone=+1-$doc
+||flexedfitt.com^$all
+.online/*/eeeekayresrsammicraaajkaschhoilsebadhiyakuchtanahiaayaajturuionmeebbat/$doc
+||plesk.page/*?phone=$doc
+||satttawishonemottorecepi.online^$all
+||s3.ap-southeast-1.amazonaws.com/99991.675.7799.8989.2699.8899.0909.is.access.denied.us/honda+69/seahorsendigitalocean.app/0h0o0n0d0a0/index+(7).html$all
+/Win0xixm07/?phone=$doc
+/DanBEr000CH0Er0Security07/index.html$doc
+||sanshuni-creeto-senfunamaki.online^$all
+/asdfghjkl.tech/index.html$doc
+/mooncars/rover/chasra*/index.php$doc
+/systemerror-win-chx/?$doc
+/systemerror-win-chx1/?$doc
+/W*ity0*00Er00*/index.$doc
+||s3.ap-northeast-1.amazonaws.com/tedex.com/*/index.html$all
+/^https:\/\/(?:www\.)?[a-z]{8,15}\.[a-z]{3}\/V1\/$/$document,domain=one|top,match-case
+||smarttvnew.vercel.app^$all
+/systemerror-mac/?$doc
+/Win0SecurityEr0CH0700Err0rSt/index.html$doc
+/werrx01/index.html$doc
+||activexsportswear.com^$all
+||besttreasurecoastroofing.com^$all
+||eharmonysingle.online^$all
+||errorordufhwe.s3.ap-south-1.amazonaws.com^$all
+||kbklgtigkhykmjh.azurewebsites.net^$all
+||microsoftsupportservices.com^$all
+||onlinemessage.z13.web.core.windows.net^$all
+||teszoom.com^$all
+||tftgirkjgdhdjhdggcjhd.azurewebsites.net^$all
+||tiffanyandtoke.com^$all
+||versanity8373.z13.web.core.windows.net^$all
+||yewojoshi.shop^$all
+||s3.ap-northeast-2.amazonaws.com/%*!!%*/index.html$doc
+||s3.amazonaws.com/securityfotrus.1.13/index.html$all
+||s3.eu-west-2.amazonaws.com/675.88.u6.8878/index.html$all
+||s3.us-west-1.amazonaws.com/security.uni.firewall.$all
+! apparently hacked and turned to a joke techsupport scam
+||westernbible.edu^$doc
+/Win00Security07/index.html$document
+||varchardetection777.site^$all
+||xngqoc.com^$all
+/Er0Wind0fsd0Security087/index.html$doc
+||chuberanetto.tech^$all
+||starglaxyheritez.tech^$all
+||websafety.online^$all
+||chuibesumeru.shop^$all
+||windwserror.com^$all
+||comeon-date.online^$all
+||popts.site^$all
+||hotel-samal.com^$all
+||cnctddot.com^$all
+||woocommerce-sagepayments.com^$all
+||mct-niger.com^$all
+||julitaczerwinska.pl^$all
+||klinikmrc.com^$all
+||govimpot.com^$all
+||premiumexpertclass87.xyz^$all
+||pressanddresses.com^$all
+||hrmntrimagukeazctesto.shop^$all
+||stb-media.xyz^$all
+||compass-holding.com^$all
+||ojosclear.com^$all
+||tankien.land^$all
+||pguilford.com^$all
+||theweddingmahotsav.com^$all
+||xac2gjx.autos^$all
+||detailsreceipts.com^$all
+||hodllane.com^$all
+||hiddenamonghearts.com^$all
+||stowesupperclub.com^$all
+||185.161.248.253^$all
+||auditedmicros.website^$all
+||checkedservices.website^$all
+||tumhiho.site^$all
+||chutkeliye.online^$all
+||golovanov.net^$all
+||kimarikasta.online^$all
+||lucasmrahman.xyz^$all
+||odarimasta.online^$all
+||processprivate.website^$all
+||tobyaburton.xyz^$all
+||votuporn.cfd^$all
+||yaravoyara.online^$all
+||microagent.site^$all
+||165-227-173-120.plesk.page^$all
+||horporn.cfd^$all
+/^https:\/\/[-a-z]{12,20}\.[a-z]{3,7}\/[-0-9A-Za-z]{60,}\d{4}\/001\//$doc,domain=site|top|website
+/^https:\/\/[-a-z]{12,20}\.[a-z]{3,7}\/[-0-9A-Za-z]{60,}\d{4}\/004\//$doc,domain=site|top|website
+||dare2life.click^$all
+||pushlandings.b-cdn.net^$all
+||ssupp2.site^$all
+||webaudhar.online^$all
+||asian-maturedates.click^$all
+||flextd.shop^$all
+||pirocarsrepo.site^$all
+||64-226-126-114.plesk.page^$all
+||boomdates.online^$all
+||erroarwasuppoto.world^$all
+||fastndio.s3.eu-central-1.amazonaws.com^$all
+||ikiped.online^$all
+||mockgopickers.com^$all
+||pub-77106c9273be4f3fbec6b6d6c3c51b7f.r2.dev^$all
+||hosterunozxxxna.shop^$all
+||is1admjctetdi7d.azureedge.net^$all
+||dbslfqowejd.b-cdn.net^$all
+||ghrthryh.b-cdn.net^$all
+||sok-rev.b-cdn.net^$all
+||oewrnroun33f3inin.z13.web.core.windows.net^$all
+||antisoftjapan.site^$all
+||erroarwasuppoto.life^$all
+||aia2pzq6f9rjxkr.azureedge.net^$all
+||updatemybrowser.website^$all
+||yjx48np3o0acfkh.azureedge.net^$all
+||saludoads.com^$all
+||janganhackya.com^$all
+||jantalabh.online^$all
+||viewmerit.info^$all
+||blexad.shop^$all
+||urchin-app-h4qjf.ondigitalocean.app^$all
+||xoty55.cfd^$all
+||dumbabd.online^$all
+||alewis.sbs^$all
+||edeyk.sbs^$all
+||edfzh.sbs^$all
+||tanhes.sbs^$all
+||tansxv.sbs^$all
+||tanvoa.sbs^$all
+||tanwmv.sbs^$all
+||d32j8bxzmz32bf.amplifyapp.com^$all
+||dbobog3u7d43i.amplifyapp.com^$all
+||kosbqn.sbs^$all
+||taniqj.sbs^$all
+||ahmxgv.sbs^$all
+||edluv.sbs^$all
+||koskdd.sbs^$all
+||liqftt.sbs^$all
+||k7ahm75fimizl0v9y8.azureedge.net^$all
+/^https:\/\/[a-z]{6}\.shop\/ed\/$/$doc,domain=shop
+||s3.ap-northeast-1.amazonaws.com/ongoing.com/aanoitmessure/index.html^$all
+||foodhereandnow.com^$all
+||setkuttina.pages.dev^$all
+
+! https://insight-jp.nttsecurity.com/post/102ic6o/webgoogle-chrome
+||gateway.pinata.cloud^$3p
+
+! https://twitter.com/genegene1234561/status/1647164176438280192
+||japanonlinebroadcast.live^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/12ng4o8/
+! https://www.virustotal.com/gui/url/fe6b4bc7a258a92a97ad3216c85d159857ccd581df9b31a50a308ca49f967e34
+! https://www.virustotal.com/gui/url/0d491da362effc08d2b026f32242046d174165e7995abbde6917ef7864a7556c
+||crackedpc.org^$all
+||cracksway.com^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/12pues7/
+! https://www.virustotal.com/gui/domain/123moviesgo.ga
+! https://www.urlvoid.com/scan/123moviesgo.ga/
+||123moviesgo.ga^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/12r255v/gamingnewsanalystcom_badware/
+! https://github.com/uBlockOrigin/uAssets/pull/17655
+||gamingnewsanalyst.com^$all
+||gamingdebates.com^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/12vi0jy/
+! https://www.virustotal.com/gui/url/e705e6e86261849df50f80f32db2bb74abb1f69fd2681a370c5013be27c9daf0
+! https://www.virustotal.com/gui/file/f1e859d99072e35f20e172d8458e3ea1baf8ba86c8c9e311a0debcd2acd5d0fc
+||bonzi.link^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/1314r3d/
+! https://www.virustotal.com/gui/url/23a6e05b5c2005b085b2cb41f35cddf2e689d72797448dd8c7399f7f929507e0
+||bestgames-2022.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/17869
+||videoadblocker.pro^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/17947
+! https://www.virustotal.com/gui/domain/pccdirect.site
+! https://safeweb.norton.com/report/show?url=pccdirect.site
+||pccdirect.site^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/17960
+! https://malwaretips.com/blogs/remove-template-search-newtab/
+! https://www.virustotal.com/gui/domain/templatesearch.org
+||templatesearch.org^$all
+
+! https://www.reddit.com/r/uBlockOrigin/comments/13a95k2/
+! https://www.virustotal.com/gui/url/dfe9c3f9bf87d003c70fecae8012b9fe4858a3922e6218b05a672fd3fe7f140e
+! https://safeweb.norton.com/report/show?url=f-i-n-d.onlyfuns.win
+! https://sitecheck.sucuri.net/results/f-i-n-d.onlyfuns.win
+||f-i-n-d.onlyfuns.win^$all
+! https://safeweb.norton.com/report/show?url=search-journal.onlyfuns.win
+! https://urlscan.io/result/826671e6-126b-4113-82e3-24d96469bd93/
+! https://sitecheck.sucuri.net/results/https/search-journal.onlyfuns.win/ydt
+! https://www.virustotal.com/gui/domain/search-journal.onlyfuns.win
+! https://www.virustotal.com/gui/domain/ftx.onlyfuns.win
+||search-journal.onlyfuns.win^$all
+||ftx.onlyfuns.win^$all
+! https://www.virustotal.com/gui/domain/starssp.top
+||starssp.top^$all
+! https://www.virustotal.com/gui/domain/adultpics.wiki
+||adultpics.wiki^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18103
+! https://www.virustotal.com/gui/file/1f4f7b787ee329059e4de4487ba5c17c7c6ca3be95b72c9873fc9380632fa1f9/
+! https://www.virustotal.com/gui/domain/d2r3dgsh5nr4kg.cloudfront.net
+! https://www.virustotal.com/gui/domain/gamefabrique.com
+! https://otx.alienvault.com/indicator/domain/gamefabrique.com
+! https://opentip.kaspersky.com/gamefabrique.com
+! https://safeweb.norton.com/report/show?url=gamefabrique.com
+! https://www.urlvoid.com/scan/gamefabrique.com/
+||gamefabrique.com^$all
+||d2r3dgsh5nr4kg.cloudfront.net/installer/$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18141
+||skytils.net^$all
+||skyblockmaniacs.net^$all
+||fragbots.net^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18208
+||hard-configurator.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18332
+! https://github.com/uBlockOrigin/uAssets/issues/18333
+||filmshngjbzix.blogspot.com^
+! https://www.virustotal.com/gui/domain/mopiez.com
+||mopiez.com^
+! https://www.virustotal.com/gui/domain/goglel.com
+||goglel.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18353
+||easylist.club^$all
+
+! https://github.com/uBlockOrigin/uAssets/pull/18388
+! https://www.forbes.com/sites/jacksonweimer/2021/04/10/that-twitter-family-tree-trend-is-secretly-following-random-accounts--without-your-consent
+||roundyearfun.org^$all
+||roundyearfun.com^$all
+||anyplacehere.me^$all
+||funaroundy.click^$all
+||anyplacehere.live^$all
+||funtwitter.games^$all
+||twitter-circle.com^$all
+||funroundy.click^$all
+||twitterfun.games^$all
+||funxgames.site^$all
+||funroundy.online^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18380
+||bestextensionegde.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/18678
+||nekogram.org^$all
+
+! https://github.com/DandelionSprout/adfilt/discussions/779#discussioncomment-6298369
+||anglebank.space^$all
+.com/api/users?token=*&uuid=&pii=&in=false^$doc
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/158317
+||asdmcm.com^$all
+.com/bot-captcha-1?h=$doc
+
+! https://github.com/uBlockOrigin/uAssets/pull/19359
+||vencord.app^$all,domain=~vencord.dev
+
+! https://github.com/AdguardTeam/AdguardFilters/issues/159825
+/^https:\/\/[a-z]{5,7}\.[0-9a-z]{12}\.top\/[0-9a-f]{32}\/[0-9-a-f]{32}\/$/$doc,match-case,domain=top
+/\/[0-9a-f]{32}\/maq\/$/$doc,match-case,domain=com|top
+/antivirus/main/cleaner-default/*$doc
+
+! Copycat and fake sites
+! FitGirl Repacks - Official site: fitgirl-repacks.site
+! https://old.reddit.com/r/FitGirlRepack/
+! https://old.reddit.com/r/PiratedGames/comments/drlx3r/does_anyone_know_the_official_website_for_fitgirl/
+! https://old.reddit.com/r/CrackWatch/comments/wl7nfb/dream_cycle_v209_release_fitgirl_repack_158_gb/?context=3
+! https://github.com/uBlockOrigin/uAssets/issues/15085
+! https://github.com/uBlockOrigin/uAssets/pull/15850
+||fitgirl-repacks.*^$all,domain=~fitgirl-repacks.site,to=~fitgirl-repacks.site
+||fitgirl-repack.*^$all,domain=~fitgirl-repacks.site
+||fitgirlrepacks.*^$all,domain=~fitgirl-repacks.site
+||fitgirlrepack.*^$all,domain=~fitgirl-repacks.site
+||fitgirls-repack.*^$all,domain=~fitgirl-repacks.site
+||fitgirl-repacks-site.org^$doc,domain=~fitgirl-repacks.site
+! https://github.com/uBlockOrigin/uAssets/issues/18205
+||fitgirlrepacksite.com^$all,domain=~fitgirl-repacks.site
+! https://github.com/uBlockOrigin/uAssets/issues/18206
+||fitgirl.cc^$all,domain=~fitgirl-repacks.site
+! Magisk manager - Official site: https://github.com/topjohnwu/Magisk
+! https://xda-developers.com/psa-magiskmanager-com-not-official-website-magisk/
+! https://forum.xda-developers.com/t/downloaded-a-fake-magisk.4581461/
+! https://old.reddit.com/r/Android/comments/7r346t/psa_magiskmanagercom_is_not_the_official_website/
+! https://github.com/topjohnwu/Magisk/issues/3435
+||magiskmanager.com^$all
+||magisk.me^$all
+||magiskcn.com^$all
+||magiskapp.com^$all
+||magiskroot.com^$all
+||magiskroot.net^$all
+||magisks.com^$all
+||themagisk.com^$all
+! LibreTube - Official site: libretube.dev
+! https://github.com/libre-tube/LibreTube/issues/4409
+||libretube.*^$all,domain=~libretube.dev,to=~libretube.dev
+||libretubeapk.com^$all,domain=~libretube.dev
+! ReVanced - Official site: revanced.app
+! https://old.reddit.com/r/revancedapp/comments/1327o38/list_of_fake_revanced_sites_download_sites/
+! https://old.reddit.com/r/AfterVanced/comments/wf4ov1/the_raftervanced_faq_frequently_asked_questions/
+! https://github.com/revanced/revanced-discussions/discussions/854#discussioncomment-4565731
+! https://safeweb.norton.com/report/show?url=revanced.io
+! https://sitecheck.sucuri.net/results/revanced.io
+! https://github.com/uBlockOrigin/uAssets/pull/17469
+! https://github.com/uBlockOrigin/uAssets/pull/19580
+||revanced.*^$all,from=~revanced.app,to=~revanced.app
+||revancedapk.*^$all,domain=~revanced.app
+||revancedapp.*^$all,domain=~revanced.app
+||youtubevanced.*^$all,domain=~revanced.app
+||youtuberevanced.*^$all,domain=~revanced.app
+||re-vanced.com^$all,domain=~revanced.app
+||revancedio.com^$all,domain=~revanced.app
+||revanceddl.com^$all,domain=~revanced.app
+||revancedapp.net^$all,domain=~revanced.app
+||revancedmusic.com^$all,domain=~revanced.app
+||revancedyoutube.org^$all,domain=~revanced.app
+! https://github.com/uBlockOrigin/uAssets/issues/18857#issuecomment-1625235048
+||revancedextended.*^$all,domain=~revanced.app
+||ytrevanced.com^$all,domain=~revanced.app
+||tuberevanced.com^$all,domain=~revanced.app
+||vanced-official.com^$all,domain=~revanced.app
+||vanced.pro^$all,domain=~revanced.app
+||vancedmanager.com^$all,domain=~revanced.app
+! LuckyPatcher - Official site: luckypatchers.com
+! https://old.reddit.com/r/luckypatcher/comments/rawq9f/what_is_the_official_website/
+! https://old.reddit.com/r/luckypatcher/comments/aln5tj/official_download_for_lucky_patcher/
+||luckypatchers.net^$all,domain=~luckypatchers.com
+||luckypatcherwin.com^$all,domain=~luckypatchers.com
+! Balena Etcher - Official site: etcher.balena.io
+! https://forums.balena.io/t/counterfeit-etcher-websites/274606/5
+||etcher.net^$all,domain=~etcher.balena.io
+||etcher.download^$all,domain=~etcher.balena.io
+||balenaetcher.*^$all,domain=~etcher.balena.io
+||balena-etcher.com^$all,domain=~etcher.balena.io
+
+! phishing https://www.virustotal.com/gui/url/8521a1e5b4269111fb1e98f2142739dad1d6fb42ddf5198597c68abfea395f7f/detection
+||reink2.top^

@@ -23,6 +23,7 @@ export class CDPChromium extends EventEmitter {
   private config: Config;
   private userDataDir: string | null;
   private record: boolean;
+  private blockAds: boolean;
   private running = false;
   private browser: Browser | null = null;
   private browserWSEndpoint: string | null = null;
@@ -34,7 +35,9 @@ export class CDPChromium extends EventEmitter {
     userDataDir,
     config,
     record,
+    blockAds,
   }: {
+    blockAds: boolean;
     config: Config;
     record: boolean;
     userDataDir: CDPChromium['userDataDir'];
@@ -44,7 +47,7 @@ export class CDPChromium extends EventEmitter {
     this.userDataDir = userDataDir;
     this.config = config;
     this.record = record;
-
+    this.blockAds = blockAds;
     this.debug(`Starting new browser instance`);
   }
 
@@ -259,20 +262,32 @@ export class CDPChromium extends EventEmitter {
       executablePath: playwright.chromium.executablePath(),
     };
 
-    if (this.record) {
-      finalOptions.args.push(
-        '--enable-usermedia-screen-capturing',
-        '--enable-blink-features=GetUserMedia',
-        '--allow-http-screen-capture',
-        '--auto-select-desktop-capture-source=browserless-screencast',
-        '--load-extension=' +
-          path.join(__dirname, '..', '..', 'extensions', 'screencast'),
-        '--disable-extensions-except=' +
-          path.join(__dirname, '..', '..', 'extensions', 'screencast'),
-        '--disable-infobars',
-      );
-      finalOptions.ignoreDefaultArgs = ['--enable-automation'];
+    if (this.record || this.blockAds) {
+      const requiredExtensionArgs: string[] = [];
+      // Necessary to load extensions
       finalOptions.headless = false;
+
+      if (this.record) {
+        finalOptions.ignoreDefaultArgs = ['--enable-automation'];
+        requiredExtensionArgs.push(
+          '--enable-usermedia-screen-capturing',
+          '--enable-blink-features=GetUserMedia',
+          '--allow-http-screen-capture',
+          '--auto-select-desktop-capture-source=browserless-screencast',
+          '--disable-infobars',
+        );
+      }
+
+      const loadExtensionPaths: string = [
+        ...this.record ? [path.join(__dirname, '..', '..', 'extensions', 'screencast')] : [],
+        ...this.blockAds ? [path.join(__dirname, '..', '..', 'extensions', 'ublock')] : [],
+      ].join(',');
+
+      finalOptions.args.push(
+        ...requiredExtensionArgs,
+        '--load-extension=' + loadExtensionPaths,
+        '--disable-extensions-except=' + loadExtensionPaths,
+      );
     }
 
     const launch = options.stealth
