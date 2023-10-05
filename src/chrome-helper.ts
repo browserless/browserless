@@ -424,7 +424,12 @@ export const getDebuggingPages = async (
           throw new Error(`Error finding port in browser endpoint: ${port}`);
         }
 
-        const sessions = await getTargets({ port });
+        const sessions = await getTargets({ port }).catch((e) => {
+          debug(
+            `Error fetching sessions from target: ${e.message} ${e.stack}.`,
+          );
+          return [];
+        });
 
         return sessions.map((session) =>
           injectHostIntoSession(externalURL, browser, session),

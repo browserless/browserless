@@ -126,7 +126,7 @@ export const getBasicAuthToken = (req: IncomingMessage): string | undefined => {
 export const asyncWsHandler = (handler: IUpgradeHandler) => {
   return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
     Promise.resolve(handler(req, socket, head)).catch((error: Error) => {
-      debug(`Error in WebSocket handler: ${error}`);
+      debug(`Error in WebSocket handler: ${error} ${error.stack}`);
       socket.write(
         [
           'HTTP/1.1 400 Bad Request',
@@ -134,9 +134,10 @@ export const asyncWsHandler = (handler: IUpgradeHandler) => {
           'Content-Encoding: UTF-8',
           'Accept-Ranges: bytes',
           'Connection: keep-alive',
-        ].join('\n') + '\n\n',
+          '\r\n',
+          'Bad Request, ' + error.message,
+        ].join('\r\n'),
       );
-      socket.write(Buffer.from('Bad Request, ' + error.message));
       socket.end();
     });
   };
