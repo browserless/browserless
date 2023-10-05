@@ -310,6 +310,10 @@ const setupBrowser = async ({
 
   await browserHook({ browser, meta });
 
+  process.once('close', () => {
+    debug(`Browser process ${browser._id} has closed, cleaning up.`);
+    closeBrowser(browser);
+  });
   browser.on('targetcreated', async (target) => {
     try {
       const page = await target.page();
@@ -424,7 +428,12 @@ export const getDebuggingPages = async (
           throw new Error(`Error finding port in browser endpoint: ${port}`);
         }
 
-        const sessions = await getTargets({ port });
+        const sessions = await getTargets({ port }).catch((e) => {
+          debug(
+            `Error fetching sessions from target: ${e.message} ${e.stack}.`,
+          );
+          return [];
+        });
 
         return sessions.map((session) =>
           injectHostIntoSession(externalURL, browser, session),
