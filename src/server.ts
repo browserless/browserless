@@ -281,9 +281,8 @@ export class HTTPServer {
 
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
-    shimLegacyRequests(req.parsed);
-
     const proceed = await beforeRequest({ req, res });
+    shimLegacyRequests(req.parsed);
 
     if (!proceed) return;
 
@@ -490,9 +489,8 @@ export class HTTPServer {
 
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
-    shimLegacyRequests(req.parsed);
-
     const proceed = await beforeRequest({ head, req, socket });
+    shimLegacyRequests(req.parsed);
 
     if (!proceed) return;
 

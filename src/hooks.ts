@@ -13,22 +13,22 @@ const pageSetupPath = path.join(__dirname, '..', 'external', 'page.js');
 export const beforeRequest: (args: BeforeRequest) => boolean = fs.existsSync(
   beforeHookPath,
 )
-  ? await import(beforeHookPath)
+  ? (await import(beforeHookPath)).default
   : () => true;
 
 export const afterRequest: (args: AfterResponse) => boolean = fs.existsSync(
   afterHookPath,
 )
-  ? await import(afterHookPath)
+  ? (await import(afterHookPath)).default
   : () => true;
 
 export const browserHook: (opts: BrowserHook) => Promise<boolean> =
   fs.existsSync(browserSetupPath)
-    ? await import(browserSetupPath)
+    ? (await import(browserSetupPath)).default
     : () => Promise.resolve(true);
 
 export const pageHook: (opts: PageHook) => Promise<boolean> = fs.existsSync(
   pageSetupPath,
 )
-  ? require(pageSetupPath)
+  ? (await import(pageSetupPath)).default
   : () => Promise.resolve(true);
