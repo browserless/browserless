@@ -1,12 +1,10 @@
 import fs from 'fs';
-import path from 'path';
-import { dirname } from 'path';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 import { BeforeRequest, AfterResponse, BrowserHook, PageHook } from './types';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
 const afterHookPath = path.join(__dirname, '..', 'external', 'after.js');
 const browserSetupPath = path.join(__dirname, '..', 'external', 'browser.js');
