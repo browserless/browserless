@@ -279,8 +279,12 @@ export class CDPChromium extends EventEmitter {
       }
 
       const loadExtensionPaths: string = [
-        ...this.record ? [path.join(__dirname, '..', '..', 'extensions', 'screencast')] : [],
-        ...this.blockAds ? [path.join(__dirname, '..', '..', 'extensions', 'ublock')] : [],
+        ...(this.record
+          ? [path.join(__dirname, '..', '..', 'extensions', 'screencast')]
+          : []),
+        ...(this.blockAds
+          ? [path.join(__dirname, '..', '..', 'extensions', 'ublock')]
+          : []),
       ].join(',');
 
       finalOptions.args.push(

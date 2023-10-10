@@ -25,6 +25,29 @@ import {
 import { Metrics } from './metrics';
 import { Monitoring } from './monitoring';
 
+export interface BeforeRequest {
+  head?: Buffer;
+  req: Request;
+  res?: http.ServerResponse;
+  socket?: stream.Duplex;
+}
+
+export interface AfterResponse {
+  req: http.IncomingMessage;
+  start: number;
+  status: 'successful' | 'error' | 'timedout';
+}
+
+export interface BrowserHook {
+  browser: CDPChromium | PlaywrightChromium;
+  meta: URL;
+}
+
+export interface PageHook {
+  meta: URL;
+  page: Page;
+}
+
 export interface RouteParams {
   config: Config;
   metrics: Metrics;

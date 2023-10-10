@@ -4,6 +4,7 @@ import path, { join } from 'path';
 import { deleteAsync } from 'del';
 
 import { Config } from '../config.js';
+import { browserHook, pageHook } from '../hooks.js';
 import { Request, HTTPManagementRoutes } from '../http.js';
 import {
   BrowserHTTPRoute,
@@ -238,12 +239,12 @@ export class BrowserManager {
     this.browsers.set(browser, connectionMeta);
 
     await browser.launch(launchOptions as object);
+    await browserHook({ browser, meta: req.parsed });
 
-    if (router.onNewPage) {
-      browser.on('newPage', (page) =>
-        (router.onNewPage || util.noop)(req.parsed || '', page),
-      );
-    }
+    browser.on('newPage', async (page) => {
+      await pageHook({ meta: req.parsed, page });
+      (router.onNewPage || util.noop)(req.parsed || '', page);
+    });
 
     return browser;
   };

@@ -7,6 +7,7 @@ import micromatch from 'micromatch';
 
 import { BrowserManager } from './browsers/index.js';
 import { Config } from './config.js';
+import { beforeRequest } from './hooks.js';
 import {
   contentTypes,
   Methods,
@@ -278,13 +279,17 @@ export class HTTPServer {
       `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
     );
 
-    const staticHandler = this.httpRoutes.find(
-      (route) => route.path === HTTPManagementRoutes.static,
-    ) as HTTPRoute;
-
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
+
+    const proceed = await beforeRequest({ req, res });
+
+    if (!proceed) return;
+
+    const staticHandler = this.httpRoutes.find(
+      (route) => route.path === HTTPManagementRoutes.static,
+    ) as HTTPRoute;
 
     if (this.config.getAllowCORS()) {
       Object.entries(this.config.getCORSHeaders()).forEach(([header, value]) =>
@@ -486,6 +491,10 @@ export class HTTPServer {
     const req = request as Request;
     req.parsed = util.convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
+
+    const proceed = await beforeRequest({ head, req, socket });
+
+    if (!proceed) return;
 
     const { pathname } = req.parsed;
     req.queryParams = util.queryParamsToObject(req.parsed.searchParams);

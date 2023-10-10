@@ -1,12 +1,7 @@
 import { CDPLaunchOptions } from './types';
 import { convertIfBase64, safeParse } from './utils.js';
 
-const shimParam = [
-  'headless',
-  'stealth',
-  'ignoreDefaultArgs',
-  'slowMo',
-];
+const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
 
 /**
  * Given a legacy connect or API call, this shim will
