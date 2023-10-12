@@ -11,6 +11,8 @@ import {
 import { BrowserManager } from './browsers';
 import { CDPChromium } from './browsers/cdp-chromium';
 import { PlaywrightChromium } from './browsers/playwright-chromium';
+import { PlaywrightFirefox } from './browsers/playwright-firefox';
+import { PlaywrightWebkit } from './browsers/playwright-webkit';
 import { Config } from './config';
 import { FileSystem } from './file-system';
 import {
@@ -39,7 +41,11 @@ export interface AfterResponse {
 }
 
 export interface BrowserHook {
-  browser: CDPChromium | PlaywrightChromium;
+  browser:
+    | CDPChromium
+    | PlaywrightChromium
+    | PlaywrightFirefox
+    | PlaywrightWebkit;
   meta: URL;
 }
 
@@ -54,9 +60,17 @@ export interface RouteParams {
   schema?: unknown;
 }
 
-export type BrowserClasses = typeof CDPChromium | typeof PlaywrightChromium;
+export type BrowserClasses =
+  | typeof CDPChromium
+  | typeof PlaywrightChromium
+  | typeof PlaywrightFirefox
+  | typeof PlaywrightWebkit;
 
-export type BrowserInstance = CDPChromium | PlaywrightChromium;
+export type BrowserInstance =
+  | CDPChromium
+  | PlaywrightChromium
+  | PlaywrightFirefox
+  | PlaywrightWebkit;
 
 export interface BrowserJSON {
   Browser: string;

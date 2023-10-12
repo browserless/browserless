@@ -12,6 +12,8 @@ import { Page } from 'puppeteer-core';
 
 import { CDPChromium } from './browsers/cdp-chromium.js';
 import { PlaywrightChromium } from './browsers/playwright-chromium.js';
+import { PlaywrightFirefox } from './browsers/playwright-firefox.js';
+import { PlaywrightWebkit } from './browsers/playwright-webkit.js';
 import { Config } from './config.js';
 import { encryptionAlgo, encryptionSep } from './constants.js';
 import { codes, contentTypes, encodings, Request } from './http.js';
@@ -386,11 +388,21 @@ export const convertIfBase64 = (item: string): string =>
 
 export const availableBrowsers = Promise.all([
   exists(playwright.chromium.executablePath()),
-]).then(([chromeExists]) => {
+  exists(playwright.firefox.executablePath()),
+  exists(playwright.webkit.executablePath()),
+]).then(([chromeExists, firefoxExists, webkitExists]) => {
   const availableBrowsers = [];
 
   if (chromeExists) {
     availableBrowsers.push(...[CDPChromium, PlaywrightChromium]);
+  }
+
+  if (firefoxExists) {
+    availableBrowsers.push(PlaywrightFirefox);
+  }
+
+  if (webkitExists) {
+    availableBrowsers.push(PlaywrightWebkit);
   }
 
   return availableBrowsers;

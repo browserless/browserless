@@ -133,7 +133,9 @@ export const generateOpenAPI = async () => {
 
   const isWin = process.platform === 'win32';
   const readme = (await fs.readFile('README.md')).toString();
-  const changelog = marked.parse((await fs.readFile('CHANGELOG.md')).toString());
+  const changelog = marked.parse(
+    (await fs.readFile('CHANGELOG.md')).toString(),
+  );
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
     customSiteTitle: 'Browserless Premium Documentation',

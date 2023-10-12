@@ -4,7 +4,6 @@ import playwright from 'playwright-core';
 import puppeteer from 'puppeteer-core';
 
 (async () => {
-  console.log(playwright.chromium.executablePath());
   const browser = await puppeteer.launch({
     args: [`--no-sandbox`],
     executablePath: playwright.chromium.executablePath(),

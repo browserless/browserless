@@ -1,7 +1,6 @@
-# Build/Source Files
+# Build Files
 node_modules/
 build/
-fonts/
 
 # Editor preferences
 .editorconfig

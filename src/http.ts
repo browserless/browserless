@@ -81,6 +81,8 @@ export enum WebsocketRoutes {
   browser = '/devtools/browser/*',
   page = '/devtools/page/*',
   playwrightChromium = '/playwright/chromium',
+  playwrightFirefox = '/playwright/firefox',
+  playwrightWebkit = '/playwright/webkit',
 }
 
 export enum HTTPRoutes {

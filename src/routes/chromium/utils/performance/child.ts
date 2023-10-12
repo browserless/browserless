@@ -3,7 +3,7 @@ import lighthouse from 'lighthouse';
 
 import * as util from '../../../../utils.js';
 
-import { Message, start } from './types';
+import { Message, start } from './types.js';
 
 const debug = util.createLogger('http:performance:child');
 

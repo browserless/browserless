@@ -40,7 +40,7 @@ gulp.task('tsc', () => {
 gulp.task(
   'parcel:function',
   runCmd(
-    "npx parcel build src/routes/default/utils/function/client.ts --target modern --no-source-maps --no-scope-hoist --log-level error --dist-dir ./static/function --public-url './'",
+    "npx parcel build src/routes/chromium/utils/function/client.ts --target modern --no-source-maps --no-scope-hoist --log-level error --dist-dir ./static/function --public-url './'",
   ),
 );
 
@@ -65,17 +65,17 @@ gulp.task('generate:selectors', generateSelectors);
 
 gulp.task('generate:openapi', generateOpenAPI);
 
-gulp.task('install:chromium', runCmd('npx playwright-core install chromium'));
+gulp.task(
+  'install:browsers',
+  runCmd('npx playwright --yes install chromium firefox webkit'),
+);
 
 gulp.task(
   'install:cdp-json',
   runCmd('node --no-warnings --loader ts-node/esm ./scripts/cdp-json.ts'),
 );
 
-gulp.task('install:dev', gulp.series('install:chromium', 'install:cdp-json'));
-
-gulp.task('cmd:foundation', runCmd('./scripts/foundation.sh'));
-gulp.task('cmd:chromium', runCmd('./scripts/chromium.sh'));
+gulp.task('install:dev', gulp.series('install:browsers', 'install:cdp-json'));
 gulp.task('deploy', runCmd('npx ts-node scripts/deploy'));
 
 gulp.task(

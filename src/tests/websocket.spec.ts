@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { deleteAsync } from 'del';
-import { chromium } from 'playwright-core';
+import { chromium, webkit, firefox } from 'playwright-core';
 import puppeteer from 'puppeteer-core';
 
 import { Browserless } from '../browserless.js';
@@ -28,7 +28,47 @@ describe('WebSocket API', function () {
     await browserless.stop();
   });
 
-  it('runs websocket requests', async () => {
+  it('runs chromium websocket requests', async () => {
+    await start();
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+    });
+
+    await browser.disconnect();
+  });
+
+  it('runs chromium CDP requests', async () => {
+    await start();
+
+    const browser = await chromium.connectOverCDP(
+      `ws://localhost:3000?token=browserless`,
+    );
+
+    await browser.close();
+  });
+
+  it('runs firefox websocket requests', async () => {
+    await start();
+
+    const browser = await firefox.connect(
+      `ws://localhost:3000/playwright/firefox?token=browserless`,
+    );
+
+    await browser.close();
+  });
+
+  it('runs webkit websocket requests', async () => {
+    await start();
+
+    const browser = await webkit.connect(
+      `ws://localhost:3000/playwright/webkit?token=browserless`,
+    );
+
+    await browser.close();
+  });
+
+  it('runs chromium websocket requests', async () => {
     await start();
 
     const browser = await puppeteer.connect({
@@ -59,6 +99,19 @@ describe('WebSocket API', function () {
       .connect({
         browserWSEndpoint: `ws://localhost:3000?token=bad`,
       })
+      .then(() => false)
+      .catch(() => true);
+
+    expect(didError).to.be.true;
+  });
+
+  it('rejects playwright requests', async () => {
+    await start();
+
+    const didError = await firefox
+      .connect(
+        `ws://localhost:3000/playwright/firefox?token=bad`,
+      )
       .then(() => false)
       .catch(() => true);
 

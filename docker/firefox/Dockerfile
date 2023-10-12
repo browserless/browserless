@@ -1,12 +1,20 @@
 ARG VERSION=latest
-FROM ghcr.io/browserless/chromium:$VERSION
+FROM ghcr.io/browserless/foundation:$VERSION
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
+
+# Install browser(s)
+RUN npx --yes playwright install firefox &&\
+  npx --yes playwright install-deps firefox
 
 # Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/
 
 # Install source
 COPY src src/
+RUN rm -r src/routes/
+
+# Only bundle routes for this build
+COPY src/routes/firefox src/routes/firefox/
 
 # Install fonts
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
