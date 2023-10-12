@@ -15,10 +15,10 @@ For the most comprehensive documentation, feel free to visit the built-in doc-si
 - [/pdf API](#pdf)
 - [/screenshot API](#screenshot)
 - [/scrape API](#scrape)
-- [/config API](#config)
 - [/stats API](#stats)
+- [/screencast API](#screencast)
 - [/sessions API](#sessions)
-- [Other differences](#other-changes)
+- [/config API](#config)
 
 # Design Changes and overall goals
 
@@ -33,6 +33,8 @@ browserless 2.xx was designed and developed for the sole purpose of making brows
 
 This, in combination with the past 5+ years experience in headless, means there's several things that are different in browserless 2.xx. Please refer to the above Table of Contents to find the most relevant information for your API, library or use-case.
 
+Finally, browserless does its best to be friendly and helpful by logging things like out-of-date parameters and configuration. Please be sure to read through logs when migrating existing workflows over and we'll continue to improve these messages as time goes on.
+
 # List of Major and Potentially Breaking Changes
 - Many docker environment variable changes (see below).
 - Drop support for DEFAULT_* arguments.
@@ -41,6 +43,9 @@ This, in combination with the past 5+ years experience in headless, means there'
 - When using custom launch flags for APIs and Libraries: please update to the new format which is a consolidated `&launch` parameter.
 - Playwright's Chromium path is now `/playwright/chromium` in order to reflect other browsers in different paths.
 - Unknown query parameters or JSON POST parameters will now respond with a 4xx error.
+- New `/function` API environment and uses Ecmascript modules. We no longer run /function calls in the NodeJS environment, and instead run inside the browser's JavaScript runtime. `import` does work and loads modules over HTTP instead of locally.
+- `blockAds` now uses Ublock Origin to facilitate ad-blocking. No more request interception.
+- The prior `/stats` API is now located at `/performance`.
 
 # Docker
 
@@ -117,8 +122,7 @@ You may also optionally base64 encode these JSON stringified `launch` parameter 
 
 The biggest difference in the function API is that it no longer operates inside of the NodeJS runtime, but in the browser. It also supports ECMAScript modules, so you'll have to tweak existing code to work inside 2.xx. This is a fairly large change, and any /function calls should be well tested prior to deploying them into production.
 
-
-The function API is still hybrid in that it can accept a JavaScript file (with content-type application/javascript) OR a JSON file with `code` and `context` properties. Be sure to read more about it on the built-in docsite.
+The function API is still hybrid in that it can accept a JavaScript file (with content-type application/javascript) OR a JSON file with `code` and `context` properties. Be sure to read more about it on the built-in doc-site.
 
 Browserless also now infers the appropriate response type so you no longer need to specify it. Simply return whatever data you wish and it'll write the request appropriately.
 
@@ -180,3 +184,39 @@ export default async({ page }) => {
   return parsed;
 }
 ```
+
+# /pdf
+
+The PDF API operates in a similar fashion as the in browserless 1.xx. The biggest difference is how launch flags are handled, which now use a consolidated `launch` object to hold all CLI arguments and flags.
+
+`waitFor` has now been removed and deprecated in favor of puppeteer's discrete API methods: `waitForEvent`, `waitForFunction`, `waitForSelector` and `waitForTimeout`.
+
+`rotate` has been removed due to lack of usage and included 3rd party dependencies. `safeMode` has also been removed in favor of using puppeteer's streaming capabilities that are much less error-prone.
+
+# /screenshot
+
+The /screenshot API operates very similarly to how it did in browserless 1.xx. A few properties and options have been removed due to their infrequent usage and 3rd party dependencies.
+
+`waitFor` has now been removed and deprecated in favor of puppeteer's discrete API methods: `waitForEvent`, `waitForFunction`, `waitForSelector` and `waitForTimeout`.
+
+`manipulate` has also been removed since it was infrequently used and required numerous other dependencies in order to run properly.
+
+# /scrape
+
+The /scrape API operates similarly to how it did in browserless 1.xx. A few properties and options have been removed due to their infrequent usage and 3rd party dependencies.
+
+`waitFor` has now been removed and deprecated in favor of puppeteer's discrete API methods: `waitForEvent`, `waitForFunction`, `waitForSelector` and `waitForTimeout`.
+
+# /stats
+
+The /stats API has been moved to /performance now to better reflect the action its doing since the word "stats" in this context can be ambiguous. Internally, it still runs lighthouse reports and you can provide various configurations to it.
+
+# /screencast
+
+The /screencast API has been removed in favor of a library-based approach. browserless 2.xx now ships with what we call an "embedded" API which you can use to initiate a recording of a page and get the response back (with audio!).
+
+Please refer to the built-in doc-site for how to do screencasting or consult your library of choice for how to screencast.
+
+# /config
+
+The /config API now returns more meta-data about the instance including more parameters. Please visit the internal doc-site page to see the JSON response and all the properties.
