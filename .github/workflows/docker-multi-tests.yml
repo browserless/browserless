@@ -1,4 +1,4 @@
-name: Chromium Latest
+name: Multi Tests
 
 on: [pull_request]
 
@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Build the foundation image
+    - name: Build the foundation layer
       run: docker build -f ./docker/foundation/Dockerfile -t browserless-tmp/foundation:latest .
 
     - name: Build the multi image

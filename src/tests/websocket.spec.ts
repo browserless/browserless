@@ -109,9 +109,7 @@ describe('WebSocket API', function () {
     await start();
 
     const didError = await firefox
-      .connect(
-        `ws://localhost:3000/playwright/firefox?token=bad`,
-      )
+      .connect(`ws://localhost:3000/playwright/firefox?token=bad`)
       .then(() => false)
       .catch(() => true);
 
