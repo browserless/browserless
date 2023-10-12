@@ -23,8 +23,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=$APP_DIR/installed-browsers
 
 # Setup
-RUN mkdir -p $APP_DIR &&\
-  mkdir -p /etc/apt/keyrings
+RUN mkdir -p $APP_DIR $NVM_DIR
 
 # Working Dir
 WORKDIR $APP_DIR
@@ -60,8 +59,7 @@ RUN apt-get update && apt-get install -y \
     xvfb
 
 # Install nvm with node and npm
-RUN mkdir -p $NVM_DIR &&\
-  curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
