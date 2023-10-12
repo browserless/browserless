@@ -6,7 +6,9 @@ This document serves as a guide to migrate existing systems from browserless 1.x
 
 For the most comprehensive documentation, feel free to visit the built-in doc-site located at `/docs` route. Browserless also logs this on startup for help.
 
-- [Design Changes](#design)
+## Table of Contents
+- [Design Changes](#design-changes-and-overall-goals)
+- [List of Major Changes](#list-of-major-and-potentially-breaking-changes)
 - [Docker](#docker)
 - [Libraries (Playwright, Puppeteer, etc.)](#libraries)
 - [/function API](#function)
@@ -16,17 +18,29 @@ For the most comprehensive documentation, feel free to visit the built-in doc-si
 - [/config API](#config)
 - [/stats API](#stats)
 - [/sessions API](#sessions)
-- Other differences
+- [Other differences](#other-changes)
 
-# Design Changes
+# Design Changes and overall goals
 
-browserless 2.xx was designed and developed for the sole purpose of making behavior more deterministic. We want to make the process of operating a headless browser stack more developer-friendly since these workflows can often be frustrating to work with. What do we mean by this? Here's a few points
+browserless 2.xx was designed and developed for the sole purpose of making browser behavior more deterministic. We want to make the process of operating a headless browser stack more developer-friendly since these workflows can often be frustrating to work with. What do we mean by this? Here's a few points
 
 - Unknown parameters will fail with 4xx errors since they're unrecognized.
 - No more pre-booting or keep-alive as they can cause so many problems.
 - A typescript-first workflow. All routes are strongly typed with a prescriptive approach so you can add your own.
+- Forcing of best practices: we generate a unique TOKEN when none is present, meaning you *must* have a token at all times.
+- Better logging and built-in doc-site with all parameters and definitions.
+- Enhanced and comprehensive security.
 
-- Better logging and built-in docsite with all parameters and definitions.
+This, in combination with the past 5+ years experience in headless, means there's several things that are different in browserless 2.xx. Please refer to the above Table of Contents to find the most relevant information for your API, library or use-case.
+
+# List of Major and Potentially Breaking Changes
+- Many docker environment variable changes (see below).
+- Drop support for DEFAULT_* arguments.
+- Drop support for pre-booting and keep-alive.
+- TOKEN is now randomly generated when none is present to enforce some authentication.
+- When using custom launch flags for APIs and Libraries: please update to the new format which is a consolidated `&launch` parameter.
+- Playwright's Chromium path is now `/playwright/chromium` in order to reflect other browsers in different paths.
+- Unknown query parameters or JSON POST parameters will now respond with a 4xx error.
 
 # Docker
 
@@ -69,6 +83,7 @@ Browserless will log these and replace them for you internally, but feel free to
 - `PRE_REQUEST_HEALTH_CHECK`: Is now: `HEALTH`
 - `PROXY_URL`: Is now: `EXTERNAL`
 - `QUEUE_LENGTH`: Is now: `QUEUED`
+- `TOKEN`: Remains `TOKEN` but is randomly generated when none is present.
 
 ### Other Changes
 

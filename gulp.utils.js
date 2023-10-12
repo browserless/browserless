@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 
+import { marked } from 'marked';
 import TJS from 'typescript-json-schema';
 
 const swaggerJSONPath = path.join('static', 'docs', 'swagger.json');
@@ -122,22 +123,16 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
 };
 
 export const generateOpenAPI = async () => {
-  const [
-    { getRouteFiles },
-    { Config },
-    {
-      errorCodes,
-    },
-    packageJSON,
-  ] = await Promise.all([
-    import('./build/utils.js'),
-    import('./build/config.js'),
-    import('./build/http.js'),
-    fs.readFile(packageJSONPath),
-  ]);
+  const [{ getRouteFiles }, { Config }, { errorCodes }, packageJSON] =
+    await Promise.all([
+      import('./build/utils.js'),
+      import('./build/config.js'),
+      import('./build/http.js'),
+      fs.readFile(packageJSONPath),
+    ]);
 
   const isWin = process.platform === 'win32';
-  const readme = (await fs.readFile('README.md')).toString();
+  const readme = marked.parse((await fs.readFile('README.md')).toString());
   const changelog = (await fs.readFile('CHANGELOG.md')).toString();
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
@@ -145,7 +140,7 @@ export const generateOpenAPI = async () => {
     definitions: {},
     info: {
       description: readme + changelog,
-      title: 'Browserless Premium',
+      title: 'Browserless',
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
         altText: 'browserless logo',

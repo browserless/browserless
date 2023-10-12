@@ -48,7 +48,7 @@ gulp.task('parcel', gulp.series(['parcel:function']));
 
 gulp.task('prettier', () => {
   return gulp
-    .src(['{src,functions,scripts}/**/*.{js,ts}', 'gulpfile.js'])
+    .src(['{src,functions,scripts,.}/**/*.{js,ts}', 'gulpfile.js'])
     .pipe(prettier({ config: '.prettierrc', logLevel: 'error', write: true }))
     .pipe(gulp.dest('./'));
 });
