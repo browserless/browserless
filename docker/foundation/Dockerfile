@@ -1,4 +1,4 @@
-FROM ubuntu:lunar
+FROM ubuntu:jammy
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
 ARG DEBIAN_FRONTEND=noninteractive
