@@ -67,7 +67,7 @@ gulp.task('generate:openapi', generateOpenAPI);
 
 gulp.task(
   'install:browsers',
-  runCmd('npx playwright --yes install chromium firefox webkit'),
+  runCmd('npx --yes playwright install chromium firefox webkit'),
 );
 
 gulp.task(

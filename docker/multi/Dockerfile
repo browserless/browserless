@@ -3,8 +3,8 @@ FROM ghcr.io/browserless/foundation:$VERSION
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
 # Install browser(s) and generate CDP JSON stub
-RUN npx --yes playwright install chromium webkit firefox &&\
-  npx --yes playwright install-deps chromium webkit firefox
+RUN npx --yes playwright install chromium firefox webkit &&\
+  npx --yes playwright install-deps chromium firefox webkit
 
 # Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/
