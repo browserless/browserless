@@ -1,0 +1,15 @@
+name: Multi Tests
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the base layer
+      run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+
+    - name: Build the multi image
+      run: docker build --build-arg VERSION=latest -f ./docker/webkit/Dockerfile -t ghcr.io/browserless/webkit:latest .
