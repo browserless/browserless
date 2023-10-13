@@ -21,7 +21,7 @@ export default async ({
       './',
       'build',
       'routes',
-      'default',
+      'chromium',
       'utils',
       'performance',
       'child.js',
@@ -29,7 +29,7 @@ export default async ({
 
     debug(`Starting up child at ${childPath}`);
 
-    const child = fork(path.join(childPath));
+    const child = fork(childPath);
     const port = new URL(browser.wsEndpoint() || '').port;
 
     let closed = false;

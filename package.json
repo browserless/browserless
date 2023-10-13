@@ -22,7 +22,8 @@
   },
   "overrides": {
     "chokidar": "3.5.3",
-    "glob-parent": "6.0.2"
+    "glob-parent": "6.0.2",
+    "lookup-closest-locale": "6.2.0"
   },
   "devDependencies": {
     "@parcel/watcher": "^2.3.0",
