@@ -2,20 +2,12 @@ ARG VERSION=latest
 FROM ghcr.io/browserless/foundation:$VERSION
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
-# Install browser(s) and generate CDP JSON stub
-RUN npx --yes playwright install chromium firefox webkit &&\
-  npx --yes playwright install-deps chromium firefox webkit
-
-# Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/
-
-# Install source
 COPY src src/
 
-# Install fonts
-RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
   apt-get -y -qq install software-properties-common &&\
-  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
+  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
   apt-get -y -qq --no-install-recommends install \
     fontconfig \
     fonts-freefont-ttf \
@@ -31,14 +23,14 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-# Build and cleanup the app
-RUN fc-cache -f -v && \
+RUN npx --yes playwright install chromium firefox webkit &&\
+  npx --yes playwright install-deps chromium firefox webkit &&\
   npm run build &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
+  fc-cache -f -v &&\
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 
-# Run everything after as non-privileged user.
 USER blessuser
 
 CMD ["./start.sh"]

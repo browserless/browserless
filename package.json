@@ -1,7 +1,9 @@
 {
   "name": "browserless",
   "version": "2.0.0",
+  "license": "SSPL",
   "description": "The browserless platform",
+  "author": "browserless.io",
   "type": "module",
   "scripts": {
     "build": "gulp build",
@@ -18,8 +20,10 @@
     "build:function": "gulp parcel",
     "deploy": "sh ./scripts/deploy.sh"
   },
-  "author": "browserless.io",
-  "license": "SSPL",
+  "overrides": {
+    "chokidar": "3.5.3",
+    "glob-parent": "6.0.2"
+  },
   "devDependencies": {
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
@@ -42,7 +46,7 @@
     "merge2": "^1.4.1",
     "nodemon": "^3.0.1",
     "os-browserify": "^0.3.0",
-    "parcel": "^2.9.1",
+    "parcel": "^2.10.0",
     "path-browserify": "^1.0.1",
     "prettier": "^3.0.3",
     "process": "^0.11.10",
@@ -94,7 +98,7 @@
   "targets": {
     "modern": {
       "engines": {
-        "browsers": "Chrome 113"
+        "browsers": "Chrome 117"
       }
     }
   }

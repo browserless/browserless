@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:20.04
 
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
@@ -22,13 +22,10 @@ ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=$APP_DIR/installed-browsers
 
-# Setup
 RUN mkdir -p $APP_DIR $NVM_DIR
 
-# Working Dir
 WORKDIR $APP_DIR
 
-# Copy Shared assets
 COPY external external
 COPY static static
 COPY extensions extensions
@@ -45,34 +42,29 @@ COPY start.sh .
 COPY test.sh .
 COPY .mocharc.json .
 
-# Install node16/dumb-init
 RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    dumb-init \
-    git \
-    gnupg \
-    libu2f-udev \
-    software-properties-common \
-    ssh \
-    wget \
-    xvfb
+  ca-certificates \
+  curl \
+  dumb-init \
+  git \
+  gnupg \
+  libu2f-udev \
+  software-properties-common \
+  ssh \
+  wget \
+  xvfb
 
-# Install nvm with node and npm
 RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
-# Install Python 3.10
 RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3.10 python3-pip && \
   update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
   update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-# Add the browserless user (blessuser)
 RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
   mkdir -p /home/blessuser/Downloads && \
   chown -R blessuser:blessuser /home/blessuser
 
-# Install all dependencies
 RUN npm i --production=false
