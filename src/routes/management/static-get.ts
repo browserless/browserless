@@ -8,10 +8,10 @@ import {
   HTTPManagementRoutes,
   Request,
   APITags,
-} from '../../../http.js';
-import { mimeTypes } from '../../../mime-types.js';
-import { HTTPRoute } from '../../../types.js';
-import * as utils from '../../../utils.js';
+} from '../../http.js';
+import { mimeTypes } from '../../mime-types.js';
+import { HTTPRoute } from '../../types.js';
+import * as utils from '../../utils.js';
 
 const debug = utils.createLogger('http:static');
 const verbose = utils.createLogger('http:static:verbose');

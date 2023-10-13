@@ -6,6 +6,7 @@ LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
 RUN rm -r src/routes/
+COPY src/routes/management src/routes/management/
 COPY src/routes/webkit src/routes/webkit/
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \

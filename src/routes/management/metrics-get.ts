@@ -6,10 +6,10 @@ import {
   HTTPManagementRoutes,
   Request,
   APITags,
-} from '../../../http.js';
+} from '../../http.js';
 
-import { HTTPRoute, IBrowserlessStats } from '../../../types.js';
-import * as util from '../../../utils.js';
+import { HTTPRoute, IBrowserlessStats } from '../../types.js';
+import * as util from '../../utils.js';
 
 export type ResponseSchema = Array<IBrowserlessStats>;
 

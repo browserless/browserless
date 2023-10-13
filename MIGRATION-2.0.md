@@ -36,6 +36,7 @@ This, in combination with the past 5+ years experience in headless, means there'
 Finally, browserless does its best to be friendly and helpful by logging things like out-of-date parameters and configuration. Please be sure to read through logs when migrating existing workflows over and we'll continue to improve these messages as time goes on.
 
 # List of Major and Potentially Breaking Changes
+- Drop support for Selenium and Webdriver.
 - Many docker environment variable changes (see below).
 - Drop support for DEFAULT_* arguments.
 - Drop support for pre-booting and keep-alive.
