@@ -1,5 +1,5 @@
 ARG VERSION=latest
-FROM ghcr.io/browserless/foundation:$VERSION
+FROM ghcr.io/browserless/base:$VERSION
 LABEL org.opencontainers.image.source https://github.com/browserless/chrome
 
 COPY fonts/* /usr/share/fonts/truetype/
