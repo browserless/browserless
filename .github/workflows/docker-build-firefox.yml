@@ -1,4 +1,4 @@
-name: Multi Tests
+name: Firefox Build
 
 on: [pull_request]
 

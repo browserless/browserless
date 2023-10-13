@@ -1,4 +1,4 @@
-name: Multi Tests
+name: Webkit Build
 
 on: [pull_request]
 
