@@ -4,7 +4,7 @@ import { Browserless } from '../../browserless.js';
 import { Config } from '../../config.js';
 import { Metrics } from '../../metrics.js';
 
-describe.only('/performance API', function () {
+describe('/performance API', function () {
   let browserless: Browserless;
 
   const start = ({
