@@ -12,7 +12,7 @@ jobs:
       run: docker build -f ./docker/foundation/Dockerfile -t ghcr.io/browserless/foundation:gh-test .
 
     - name: Build the multi image
-      run: docker build -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:gh-test --build-arg VERSION=gh-test .
+      run: docker build --build-arg VERSION=gh-test -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:gh-test .
 
     - name: Test the multi image
       run: docker run --ipc=host -e CI=true --entrypoint ./test.sh ghcr.io/browserless/multi:gh-test

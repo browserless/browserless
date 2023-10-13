@@ -10,6 +10,9 @@ assignees: ''
 **Describe the bug**
 A clear and concise description of what the bug is.
 
+*If your having issues with a particular site or being bot-blocked, then it's
+not an issue with this repo. Please send us an email at support@browserless.io.*
+
 **To Reproduce**
 Steps to reproduce the behavior:
 1. Go to '...'
