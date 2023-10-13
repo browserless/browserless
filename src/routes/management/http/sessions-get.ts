@@ -6,10 +6,10 @@ import {
   Methods,
   HTTPManagementRoutes,
   APITags,
-} from '../../http.js';
+} from '../../../http.js';
 
-import { BrowserlessSessionJSON, HTTPRoute } from '../../types.js';
-import * as util from '../../utils.js';
+import { BrowserlessSessionJSON, HTTPRoute } from '../../../types.js';
+import * as util from '../../../utils.js';
 
 export type ResponseSchema = BrowserlessSessionJSON[];
 
