@@ -83,7 +83,6 @@ gulp.task(
   gulp.series(
     'clean',
     'tsc',
-    'parcel',
     'generate:schemas',
     'generate:selectors',
     'generate:openapi',
