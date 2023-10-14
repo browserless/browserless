@@ -275,10 +275,10 @@ describe('WebSocket API', function () {
     return puppeteer
       .connect({ browserWSEndpoint: `ws://localhost:3000?token=browserless` })
       .catch((error) => {
-        const restults = metrics.get();
-        expect(restults.successful).to.equal(0);
-        expect(restults.rejected).to.equal(1);
-        expect(restults.queued).to.equal(0);
+        const results = metrics.get();
+        expect(results.successful).to.equal(0);
+        expect(results.rejected).to.equal(1);
+        expect(results.queued).to.equal(0);
         expect(error.message).to.contain.oneOf([`400`, `429`]);
       });
   });
