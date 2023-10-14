@@ -1,4 +1,4 @@
-name: Docker Test All
+name: Multi
 
 on: [pull_request]
 
