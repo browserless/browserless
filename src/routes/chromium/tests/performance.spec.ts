@@ -1,8 +1,8 @@
 import { expect } from 'chai';
 
-import { Browserless } from '../../browserless.js';
-import { Config } from '../../config.js';
-import { Metrics } from '../../metrics.js';
+import { Browserless } from '../../../browserless.js';
+import { Config } from '../../../config.js';
+import { Metrics } from '../../../metrics.js';
 
 describe('/performance API', function () {
   let browserless: Browserless;

@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 
-import { Browserless } from '../../browserless.js';
-import { Config } from '../../config.js';
-import { Metrics } from '../../metrics.js';
+import { Browserless } from '../../../browserless.js';
+import { Config } from '../../../config.js';
+import { Metrics } from '../../../metrics.js';
 
-describe('/content API', function () {
+describe('/pdf API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -26,7 +26,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -37,9 +37,7 @@ describe('/content API', function () {
       expect(res.headers.get('x-response-url')).to.not.be.undefined;
       expect(res.headers.get('x-response-ip')).to.not.be.undefined;
       expect(res.headers.get('x-response-por')).to.not.be.undefined;
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -47,14 +45,12 @@ describe('/content API', function () {
   it('404s GET requests', async () => {
     await start();
 
-    await fetch('http://localhost:3000/content?token=browserless').then(
-      (res) => {
-        expect(res.headers.get('content-type')).to.equal(
-          'text/plain; charset=UTF-8',
-        );
-        expect(res.status).not.to.equal(200);
-      },
-    );
+    await fetch('http://localhost:3000/pdf?token=browserless').then((res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(res.status).not.to.equal(200);
+    });
   });
 
   it('handles `waitForFunction` properties', async () => {
@@ -66,16 +62,14 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -89,16 +83,14 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -112,37 +104,14 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
-      expect(res.status).to.equal(200);
-    });
-  });
-
-  it('handles `waitForTimeout` properties', async () => {
-    await start();
-    const body = {
-      url: 'https://example.com',
-      waitForTimeout: 500,
-    };
-
-    await fetch('http://localhost:3000/content?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
-      },
-      method: 'POST',
-    }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -159,16 +128,14 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -180,27 +147,26 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/html; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
 
   it('times out requests', async () => {
     await start();
+
     const body = {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless&timeout=10', {
+    await fetch('http://localhost:3000/pdf?token=browserless&timeout=10', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -213,23 +179,23 @@ describe('/content API', function () {
 
   it('rejects requests', async () => {
     const config = new Config();
+    const metrics = new Metrics();
     config.setConcurrent(0);
     config.setQueued(0);
-    const metrics = new Metrics();
+
     await start({ config, metrics });
 
     const body = {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
-    }).then(async (res) => {
-      expect(await res.text()).to.equal('Too many requests\n');
+    }).then((res) => {
       expect(res.status).to.equal(429);
     });
   });
@@ -237,9 +203,11 @@ describe('/content API', function () {
   it('allows for providing http response payloads', async () => {
     const config = new Config();
     const metrics = new Metrics();
+    config.setConcurrent(10);
+    config.setQueued(10);
     config.setTimeout(30000);
-    await start({ config, metrics });
 
+    await start({ config, metrics });
     const body = {
       requestInterceptors: [
         {
@@ -254,20 +222,20 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
-    }).then(async (res) => {
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
 
-  it('allows goto options', async () => {
+  it('allows setting goto options', async () => {
     await start();
-
     const body = {
       gotoOptions: {
         waitUntil: `networkidle2`,
@@ -275,13 +243,76 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
-    }).then(async (res) => {
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows setting HTML body', async () => {
+    await start();
+    const body = {
+      html: '<h1>Hello!</h1>',
+    };
+
+    await fetch('http://localhost:3000/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows setting PDF options', async () => {
+    await start();
+    const body = {
+      options: {
+        landscape: true,
+      },
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows custom viewports', async () => {
+    await start();
+    const body = {
+      url: 'https://example.com',
+      viewport: {
+        deviceScaleFactor: 3,
+        height: 100,
+        width: 100,
+      },
+    };
+
+    await fetch('http://localhost:3000/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });

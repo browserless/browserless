@@ -1,12 +1,12 @@
 import { expect } from 'chai';
 import { deleteAsync } from 'del';
-import { chromium, webkit, firefox } from 'playwright-core';
+import { chromium } from 'playwright-core';
 import puppeteer from 'puppeteer-core';
 
-import { Browserless } from '../browserless.js';
-import { Config } from '../config.js';
-import { Metrics } from '../metrics.js';
-import { exists, sleep } from '../utils.js';
+import { Browserless } from '../../../browserless.js';
+import { Config } from '../../../config.js';
+import { Metrics } from '../../../metrics.js';
+import { exists, sleep } from '../../../utils.js';
 
 describe('WebSocket API', function () {
   // Server shutdown can take a few seconds
@@ -48,26 +48,6 @@ describe('WebSocket API', function () {
     await browser.close();
   });
 
-  it('runs firefox websocket requests', async () => {
-    await start();
-
-    const browser = await firefox.connect(
-      `ws://localhost:3000/playwright/firefox?token=browserless`,
-    );
-
-    await browser.close();
-  });
-
-  it('runs webkit websocket requests', async () => {
-    await start();
-
-    const browser = await webkit.connect(
-      `ws://localhost:3000/playwright/webkit?token=browserless`,
-    );
-
-    await browser.close();
-  });
-
   it('runs chromium websocket requests', async () => {
     await start();
 
@@ -99,17 +79,6 @@ describe('WebSocket API', function () {
       .connect({
         browserWSEndpoint: `ws://localhost:3000?token=bad`,
       })
-      .then(() => false)
-      .catch(() => true);
-
-    expect(didError).to.be.true;
-  });
-
-  it('rejects playwright requests', async () => {
-    await start();
-
-    const didError = await firefox
-      .connect(`ws://localhost:3000/playwright/firefox?token=bad`)
       .then(() => false)
       .catch(() => true);
 
@@ -320,7 +289,7 @@ describe('WebSocket API', function () {
 
     return puppeteer
       .connect({ browserWSEndpoint: `ws://localhost:3000` })
-      .catch((error) => {
+      .catch((error: Error) => {
         const results = metrics.get();
         expect(results.successful).to.equal(0);
         expect(results.rejected).to.equal(0);

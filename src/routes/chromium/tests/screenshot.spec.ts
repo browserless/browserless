@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 
-import { Browserless } from '../../browserless.js';
-import { Config } from '../../config.js';
-import { Metrics } from '../../metrics.js';
+import { Browserless } from '../../../browserless.js';
+import { Config } from '../../../config.js';
+import { Metrics } from '../../../metrics.js';
 
-describe('/scrape API', function () {
+describe('/screenshot API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -23,24 +23,17 @@ describe('/scrape API', function () {
   it('allows requests', async () => {
     await start();
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
@@ -48,7 +41,7 @@ describe('/scrape API', function () {
   it('404s GET requests', async () => {
     await start();
 
-    await fetch('http://localhost:3000/scrape?token=browserless').then(
+    await fetch('http://localhost:3000/screenshot?token=browserless').then(
       (res) => {
         expect(res.headers.get('content-type')).to.equal(
           'text/plain; charset=UTF-8',
@@ -58,86 +51,117 @@ describe('/scrape API', function () {
     );
   });
 
-  it('handles debug options', async () => {
+  it('allows custom viewports', async () => {
     await start();
     const body = {
-      debugOpts: {
-        network: true,
-      },
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
-    };
-
-    await fetch('http://localhost:3000/scrape?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
-      },
-      method: 'POST',
-    }).then(async (res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
-      expect(res.status).to.equal(200);
-
-      const json = await res.json();
-      expect(json).to.have.property('debug');
-      expect(json.debug).to.have.property('network');
-    });
-  });
-
-  it('handles selector timeouts', async () => {
-    await start();
-    const body = {
-      elements: [
-        {
-          selector: 'blink',
-          timeout: 1000,
-        },
-      ],
-      url: 'https://example.com',
-    };
-
-    await fetch('http://localhost:3000/scrape?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
-      },
-      method: 'POST',
-    }).then(async (res) => {
-      expect(await res.text()).to.contain('Timed out waiting for selector');
-      expect(res.status).not.to.equal(200);
-    });
-  });
-
-  it('handles `waitForFunction` properties', async () => {
-    await start();
-    const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
-      url: 'https://example.com',
-      waitForFunction: {
-        fn: '() => 5 + 5',
+      viewport: {
+        deviceScaleFactor: 3,
+        height: 100,
+        width: 100,
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows to specify selector', async () => {
+    await start();
+    const body = {
+      selector: 'h1',
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows setting HTML body', async () => {
+    await start();
+    const body = {
+      html: '<h1>Hello!</h1>',
+    };
+
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows for providing http response payloads', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    config.setConcurrent(10);
+    config.setQueued(10);
+    config.setTimeout(30000);
+
+    await start({ config, metrics });
+    const body = {
+      requestInterceptors: [
+        {
+          pattern: '.*data.json',
+          response: {
+            body: '{"data": 123}',
+            contentType: 'application/json',
+            status: 200,
+          },
+        },
+      ],
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('handles `waitForFunction` properties', async () => {
+    await start();
+    const body = {
+      url: 'https://example.com',
+      waitForFunction: {
+        fn: '() => 5 + 5',
+      },
+    };
+
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
@@ -145,27 +169,20 @@ describe('/scrape API', function () {
   it('handles async `waitForFunction` properties', async () => {
     await start();
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
@@ -173,27 +190,20 @@ describe('/scrape API', function () {
   it('handles `waitForSelector` properties', async () => {
     await start();
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
       waitForSelector: {
         selector: 'h1',
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
@@ -201,58 +211,43 @@ describe('/scrape API', function () {
   it('handles `waitForTimeout` properties', async () => {
     await start();
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
       waitForTimeout: 500,
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
 
   it('handles `waitForEvent` properties', async () => {
     await start();
-
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       html: `<script type="text/javascript">
       const event = new Event("customEvent");
       setTimeout(() => document.dispatchEvent(event), 1500);
-      </script><a href="/">Link</a>`,
+      </script>`,
       waitForEvent: {
         event: 'customEvent',
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
     });
   });
 
@@ -260,24 +255,17 @@ describe('/scrape API', function () {
     await start();
     const body = {
       cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });
@@ -285,21 +273,19 @@ describe('/scrape API', function () {
   it('times out requests', async () => {
     await start();
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/screenshot?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -312,15 +298,10 @@ describe('/scrape API', function () {
     await start({ config, metrics });
 
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -335,15 +316,10 @@ describe('/scrape API', function () {
     await start();
 
     const body = {
-      elements: [
-        {
-          selector: 'a',
-        },
-      ],
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

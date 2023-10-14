@@ -89,13 +89,7 @@ gulp.task(
   ),
 );
 
-gulp.task(
-  'build:dev',
-  gulp.parallel(
-    'build',
-    'parcel',
-  ),
-);
+gulp.task('build:dev', gulp.parallel('build', 'parcel'));
 
 gulp.task('serve:dev', (cb) => {
   const routesSrc = path.join(process.cwd(), 'src', 'routes');
