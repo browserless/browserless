@@ -55,10 +55,10 @@ describe('Webkit Websocket API', function () {
 
     const browser = await webkit.connect(
       `ws://localhost:3000/playwright/webkit?timeout=500&token=browserless`,
-    );
+    ).catch(() => null);
 
     await sleep(750);
-    browser.close();
+    browser && browser.close();
     expect(metrics.get().timedout).to.equal(1);
     expect(metrics.get().successful).to.equal(0);
   });

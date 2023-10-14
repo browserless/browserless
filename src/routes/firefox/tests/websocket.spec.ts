@@ -55,10 +55,10 @@ describe('Firefox Websocket API', function () {
 
     const browser = await firefox.connect(
       `ws://localhost:3000/playwright/firefox?timeout=500&token=browserless`,
-    );
+      ).catch(() => null);
 
     await sleep(750);
-    browser.close();
+    browser && browser.close();
     expect(metrics.get().timedout).to.equal(1);
     expect(metrics.get().successful).to.equal(0);
   });

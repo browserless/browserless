@@ -3,7 +3,7 @@ name: Chromium
 on: [pull_request]
 
 jobs:
-  build:
+  Test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
