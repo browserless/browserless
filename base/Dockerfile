@@ -36,6 +36,7 @@ RUN apt-get -y -qq --no-install-recommends install \
   fonts-roboto \
   fonts-thai-tlwg \
   fonts-ubuntu \
+  fonts-urw-base35 \
   fonts-wqy-zenhei \
   gconf-service \
   git \
