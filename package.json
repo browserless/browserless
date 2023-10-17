@@ -24,6 +24,9 @@
     "glob-parent": "6.0.2",
     "lookup-closest-locale": "6.2.0"
   },
+  "optionalDependencies": {
+    "@parcel/watcher-linux-x64-glibc": "^2.3.0"
+  },
   "devDependencies": {
     "@parcel/watcher": "^2.3.0",
     "@swc/cli": "^0.1.62",
