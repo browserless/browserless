@@ -53,9 +53,11 @@ describe('Firefox Websocket API', function () {
     config.setTimeout(-1); // No timeout
     await start({ config, metrics });
 
-    const browser = await firefox.connect(
-      `ws://localhost:3000/playwright/firefox?timeout=500&token=browserless`,
-      ).catch(() => null);
+    const browser = await firefox
+      .connect(
+        `ws://localhost:3000/playwright/firefox?timeout=500&token=browserless`,
+      )
+      .catch(() => null);
 
     await sleep(750);
     browser && browser.close();

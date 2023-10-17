@@ -74,9 +74,7 @@ export class PlaywrightChromium extends EventEmitter {
     if (!this.browser || !this.browserWSEndpoint) {
       throw new util.ServerError(`Browser hasn't been launched yet!`);
     }
-    const browser = await playwright.chromium.connect({
-      wsEndpoint: this.browserWSEndpoint,
-    });
+    const browser = await playwright.chromium.connect(this.browserWSEndpoint);
     return await browser.newPage();
   };
 
