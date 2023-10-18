@@ -133,7 +133,7 @@
   },
   "dependencies": {
     "@puppeteer/browsers": "1.7.1",
-    "@types/archiver": "^5.3.3",
+    "@types/archiver": "^5.3.4",
     "@types/chai": "^4.3.9",
     "@types/cookie": "^0.5.3",
     "@types/cors": "^2.8.15",
