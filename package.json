@@ -136,7 +136,7 @@
     "@types/archiver": "^5.3.3",
     "@types/chai": "^4.3.8",
     "@types/cookie": "^0.5.2",
-    "@types/cors": "^2.8.14",
+    "@types/cors": "^2.8.15",
     "@types/express": "^4.17.19",
     "@types/http-proxy": "^1.17.12",
     "@types/ip": "^1.1.1",
