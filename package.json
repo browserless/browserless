@@ -142,7 +142,7 @@
     "@types/ip": "^1.1.2",
     "@types/lodash": "^4.14.199",
     "@types/mocha": "^10.0.2",
-    "@types/multer": "^1.4.8",
+    "@types/multer": "^1.4.9",
     "@types/node": "^20.8.6",
     "@types/rimraf": "^3.0.0",
     "@types/shortid": "0.0.30",
