@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "build": "gulp build",
+    "build:client": "gulp build:client",
     "clean": "gulp clean",
     "dev": "gulp build:dev && env-cmd -f ./.env gulp serve:dev",
     "prettier": "gulp prettier",
@@ -71,7 +72,7 @@
     "micromatch": "^4.0.4",
     "mocha": "^10.0.0",
     "playwright-core": "^1.35.1",
-    "puppeteer-core": "^20.9.0",
+    "puppeteer-core": "^21.3.8",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
