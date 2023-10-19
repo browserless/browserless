@@ -16,7 +16,7 @@
     "test": "cross-env DEBUG=quiet mocha",
     "generate:schemas": "gulp generate:schemas",
     "generate:selectors": "gulp generate:selectors",
-    "build:function": "gulp parcel",
+    "build:function": "gulp build:function",
     "deploy": "sh ./scripts/deploy.sh"
   },
   "overrides": {
@@ -24,11 +24,7 @@
     "glob-parent": "6.0.2",
     "lookup-closest-locale": "6.2.0"
   },
-  "optionalDependencies": {
-    "@parcel/watcher-linux-x64-glibc": "^2.3.0"
-  },
   "devDependencies": {
-    "@parcel/watcher": "^2.3.0",
     "@swc/cli": "^0.1.62",
     "@swc/core": "^1.3.93",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
@@ -39,6 +35,8 @@
     "cross-env": "^7.0.3",
     "crypto-browserify": "^3.12.0",
     "env-cmd": "^10.1.0",
+    "esbuild": "^0.19.5",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.9.0",
     "eslint-plugin-import": "^2.24.0",
     "eslint-plugin-typescript-sort-keys": "^3.1.0",
@@ -54,7 +52,6 @@
     "merge2": "^1.4.1",
     "nodemon": "^3.0.1",
     "os-browserify": "^0.3.0",
-    "parcel": "^2.10.0",
     "path-browserify": "^1.0.1",
     "prettier": "^3.0.3",
     "process": "^0.11.10",

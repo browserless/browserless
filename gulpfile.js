@@ -24,7 +24,7 @@ const fileInSubDir = (parentDir, file) => {
 };
 
 gulp.task('clean', () =>
-  deleteAsync(['build', 'static/function/*js*', '.parcel-cache']),
+  deleteAsync(['build', 'static/function/*js*']),
 );
 
 gulp.task('tsc', () => {
@@ -38,13 +38,13 @@ gulp.task('tsc', () => {
 });
 
 gulp.task(
-  'parcel:function',
+  'build:function',
   runCmd(
-    "npx parcel build src/routes/chromium/utils/function/client.ts --target modern --no-source-maps --no-scope-hoist --log-level error --dist-dir ./static/function --public-url './'",
+    "node esbuild.js",
   ),
 );
 
-gulp.task('parcel', gulp.series(['parcel:function']));
+gulp.task('build:client', gulp.series(['build:function']));
 
 gulp.task('prettier', () => {
   return gulp
@@ -89,7 +89,7 @@ gulp.task(
   ),
 );
 
-gulp.task('build:dev', gulp.parallel('build', 'parcel'));
+gulp.task('build:dev', gulp.parallel('build', 'build:client'));
 
 gulp.task('serve:dev', (cb) => {
   const routesSrc = path.join(process.cwd(), 'src', 'routes');
