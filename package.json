@@ -76,7 +76,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "sinon": "^16.0.0",
+    "sinon": "^17.0.0",
     "systeminformation": "^5.17.12",
     "ts-node": "^10.8.0"
   },
