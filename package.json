@@ -20,11 +20,6 @@
     "build:function": "gulp build:function",
     "deploy": "sh ./scripts/deploy.sh"
   },
-  "overrides": {
-    "chokidar": "3.5.3",
-    "glob-parent": "6.0.2",
-    "lookup-closest-locale": "6.2.0"
-  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "@typescript-eslint/parser": "^6.8.0",
