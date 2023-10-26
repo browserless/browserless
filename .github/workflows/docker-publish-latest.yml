@@ -1,0 +1,96 @@
+name: Publish Latest Docker Images to GitHub Container Registry
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  push_to_registry:
+    name: Push multi-platform docker images to ghcr.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Publish the latest Base image
+        uses: docker/build-push-action@v2
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          tags: |
+            browserless/base:latest
+          context: ./base
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest Chrome image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          tags: |
+            browserless/chrome:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest FireFox image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          tags: |
+            browserless/firefox:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest Webkit image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          tags: |
+            browserless/webkit:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest Multi image
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          tags: |
+            browserless/multi:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
