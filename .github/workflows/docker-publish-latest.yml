@@ -31,6 +31,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/base/Dockerfile
           tags: |
             browserless/base:latest
           context: .
@@ -45,6 +46,7 @@ jobs:
           build-args: |
             VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/chrome/Dockerfile
           tags: |
             browserless/chrome:latest
           context: .
@@ -59,6 +61,7 @@ jobs:
           build-args: |
             VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/firefox/Dockerfile
           tags: |
             browserless/firefox:latest
           context: .
@@ -73,6 +76,7 @@ jobs:
           build-args: |
             VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/webkit/Dockerfile
           tags: |
             browserless/webkit:latest
           context: .
@@ -87,6 +91,7 @@ jobs:
           build-args: |
             VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/multi/Dockerfile
           tags: |
             browserless/multi:latest
           context: .
