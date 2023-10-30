@@ -1,0 +1,23 @@
+html {
+    height: 100vh;
+    overflow: hidden;
+    width: 100vw;
+    }
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: stretch;
+    overflow: hidden;
+    width: 100%;
+    }
+.body {
+    flex-shrink: 0;
+    }
+.codeMirrorContainer {
+    flex-grow: 1;
+    }
+#userFilters {
+    text-align: left;
+    word-wrap: normal;
+    }

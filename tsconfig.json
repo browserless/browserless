@@ -1,17 +1,22 @@
 {
   "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./build",
     "baseUrl": ".",
-    "skipLibCheck": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "target": "es2017",
+    "module": "es2022",
+    "moduleResolution": "Node",
+    "target": "es2022",
     "lib": [
       "dom",
-      "es7"
+      "dom.iterable",
+      "es2022"
     ],
-    "removeComments": true,
+    "paths": {
+      "puppeteer": ["node_modules/@types/puppeteer"]
+    },
+    "strict": true,
+    "removeComments": false,
     "noImplicitAny": true,
-    "inlineSourceMap": true,
     "noEmitOnError": false,
     "strictNullChecks": true,
     "noImplicitReturns": true,
@@ -19,9 +24,9 @@
     "noUnusedParameters": true,
     "declaration": true,
     "esModuleInterop": true,
-    "outDir": "./build",
-    "rootDir": "./src",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true
   },
   "exclude": [
     "./src/tests/*"

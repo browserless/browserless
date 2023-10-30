@@ -1,0 +1,18 @@
+name: Multi
+
+on: [pull_request]
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the base layer
+      run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+
+    - name: Build the multi image
+      run: docker build --build-arg VERSION=latest -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:latest .
+
+    - name: Test the multi image
+      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh ghcr.io/browserless/multi:latest

@@ -1,598 +1,69 @@
-import fs from 'fs';
-import { stat, mkdir } from 'fs/promises';
-import { IncomingMessage } from 'http';
-import net from 'net';
-import os from 'os';
+import crypto from 'crypto';
+import * as fs from 'fs/promises';
+import { ServerResponse } from 'http';
+import { homedir } from 'os';
 import path from 'path';
-import url from 'url';
-import util from 'util';
+import { Duplex } from 'stream';
 
-import cookie from 'cookie';
-import dbg from 'debug';
-import express from 'express';
-import ip from 'ip';
-import { Schema } from 'joi';
-import _ from 'lodash';
+import debug from 'debug';
+import gradient from 'gradient-string';
+import playwright, { CDPSession } from 'playwright-core';
+import { Page } from 'puppeteer-core';
 
-import { CDPSession, Page } from 'puppeteer';
-
-import rmrf from 'rimraf';
-
-import { DEFAULT_BLOCK_ADS, DEFAULT_STEALTH, WORKSPACE_DIR } from './config';
-import { WEBDRIVER_ROUTE } from './constants';
-
+import { CDPChromium } from './browsers/cdp-chromium.js';
+import { PlaywrightChromium } from './browsers/playwright-chromium.js';
+import { PlaywrightFirefox } from './browsers/playwright-firefox.js';
+import { PlaywrightWebkit } from './browsers/playwright-webkit.js';
+import { Config } from './config.js';
+import { encryptionAlgo, encryptionSep } from './constants.js';
+import { codes, contentTypes, encodings, Request } from './http.js';
 import {
-  IWebdriverStartHTTP,
-  IWebdriverStartNormalized,
-  IWorkspaceItem,
-  IUpgradeHandler,
-  IRequestHandler,
-  IHTTPRequest,
-  ILaunchOptions,
-  IBrowser,
-  IDevtoolsJSON,
-  ISession,
-} from './types.d';
+  BrowserHTTPRoute,
+  BrowserWebsocketRoute,
+  HTTPRoute,
+  WaitForEventOptions,
+  WaitForFunctionOptions,
+  WebSocketRoute,
+} from './types.js';
 
-const { CHROME_BINARY_LOCATION } = require('../env');
-
-const mkdtemp = util.promisify(fs.mkdtemp);
-
-const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const browserlessDataDirPrefix = 'browserless-data-dir-';
-
-export const jsonProtocolPrefix = 'BROWSERLESS';
-export const lstat = util.promisify(fs.lstat);
-export const readdir = util.promisify(fs.readdir);
-export const writeFile = util.promisify(fs.writeFile);
-export const rimraf = util.promisify(rmrf);
-export const getDebug = (level: string) => dbg(`browserless:${level}`);
-export const exists = (path: string) =>
-  stat(path)
-    .then(() => true)
-    .catch(() => false);
-
-const webdriverSessionCloseReg =
-  /^\/webdriver\/session\/((\w+$)|(\w+\/window))/;
-
-const debug = getDebug('system');
-
-const legacyChromeOptionsKey = 'chromeOptions';
-const w3cChromeOptionsKey = 'goog:chromeOptions';
-
-const readFilesRecursive = async (
-  dir: string,
-  results: IWorkspaceItem[] = [],
-) => {
-  const [, parentDir] = dir.split(WORKSPACE_DIR);
-  const workspaceDir = _.chain(parentDir)
-    .split(path.sep)
-    .compact()
-    .head()
-    .value();
-
-  const files = await readdir(dir);
-
-  await Promise.all(
-    files.map(async (file) => {
-      const stats = await lstat(path.join(dir, file));
-
-      if (stats.isDirectory()) {
-        return readFilesRecursive(path.join(dir, file), results);
-      }
-
-      results.push({
-        created: stats.birthtime,
-        isDirectory: stats.isDirectory(),
-        name: file,
-        path: path.join('/workspace', parentDir, file),
-        size: stats.size,
-        workspaceId: workspaceDir || null,
-      });
-
-      return results;
-    }),
-  );
-
-  return results;
+const isHTTP = (
+  writeable: ServerResponse | Duplex,
+): writeable is ServerResponse => {
+  return (writeable as ServerResponse).writeHead !== undefined;
 };
 
-export const id = (prepend = '') =>
-  prepend +
-  Array.from({ length: prepend ? 32 - prepend.length : 32 }, () =>
-    characters.charAt(Math.floor(Math.random() * characters.length)),
-  ).join('');
-
-export const buildWorkspaceDir = async (
-  dir: string,
-): Promise<IWorkspaceItem[] | null> => {
-  const hasDownloads = await exists(dir);
-
-  if (!hasDownloads) {
-    return null;
+const getAuthHeaderToken = (header: string) => {
+  if (header.startsWith('Basic')) {
+    const username = header.split(/\s+/).pop() || '';
+    const token = Buffer.from(username, 'base64').toString().replace(':', '');
+    return token;
   }
 
-  return await readFilesRecursive(dir);
-};
-
-export const getBasicAuthToken = (req: IncomingMessage): string | undefined => {
-  const header = req.headers.authorization || '';
-  const username = header.split(/\s+/).pop() || '';
-  const token = Buffer.from(username, 'base64').toString().replace(':', '');
-
-  return token.length ? token : undefined;
-};
-
-export const asyncWsHandler = (handler: IUpgradeHandler) => {
-  return (req: IncomingMessage, socket: net.Socket, head: Buffer) => {
-    Promise.resolve(handler(req, socket, head)).catch((error: Error) => {
-      debug(`Error in WebSocket handler: ${error} ${error.stack}`);
-      socket.write(
-        [
-          'HTTP/1.1 400 Bad Request',
-          'Content-Type: text/plain; charset=UTF-8',
-          'Content-Encoding: UTF-8',
-          'Accept-Ranges: bytes',
-          'Connection: keep-alive',
-          '\r\n',
-          'Bad Request, ' + error.message,
-        ].join('\r\n'),
-      );
-      socket.end();
-    });
-  };
-};
-
-export const asyncWebHandler = (handler: IRequestHandler) => {
-  return (req: express.Request, res: express.Response) => {
-    Promise.resolve(handler(req, res)).catch((error) => {
-      debug(`Error in route handler: ${error}`);
-      res.status(400).send(error.message);
-    });
-  };
-};
-
-export const bodyValidation = (schema: Schema) => {
-  return (
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-  ) => {
-    const header = req.header('content-type');
-    if (header && !header.includes('json')) {
-      return next();
-    }
-
-    const result = schema.validate(req.body);
-
-    if (result.error) {
-      debug(`Malformed incoming request: ${result.error}`);
-      return res.status(400).send(result.error.details);
-    }
-
-    // Allow .defaults to work otherwise
-    // Joi schemas default's won't apply
-    req.body = result.value;
-
-    return next();
-  };
-};
-
-export const queryValidation = (schema: Schema) => {
-  return (
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction,
-  ) => {
-    let inflated: string | null = null;
-
-    if (typeof req.query.body !== 'string') {
-      return res
-        .status(400)
-        .send(
-          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
-        );
-    }
-
-    try {
-      inflated = JSON.parse(req.query.body);
-    } catch {
-      inflated = null;
-    }
-
-    if (!inflated) {
-      return res
-        .status(400)
-        .send(
-          `The query-parameter "body" is required, and must be a URL-encoded normalized JSON object.`,
-        );
-    }
-
-    const result = schema.validate(inflated);
-
-    if (result.error) {
-      debug(`Malformed incoming request: ${result.error}`);
-      return res.status(400).send(result.error.details);
-    }
-
-    // Allow .defaults to work otherwise
-    // Joi schemas default's won't apply
-    req.body = result.value;
-
-    return next();
-  };
-};
-
-export const tokenCookieName = 'browserless_token';
-export const codeCookieName = 'browserless_code';
-
-export const isAuthorized = (req: IHTTPRequest, token: string) => {
-  const cookies = cookie.parse(req.headers.cookie || '');
-  const parsedUrl = req.parsed;
-  const authToken =
-    _.get(parsedUrl, 'query.token', null) ||
-    getBasicAuthToken(req) ||
-    cookies[tokenCookieName];
-
-  if (authToken !== token) {
-    return false;
-  }
-
-  return true;
-};
-
-export const fetchJson = (url: string, opts?: any) =>
-  fetch(url, opts).then((res) => {
-    if (!res.ok) {
-      throw res;
-    }
-    return res.json();
-  });
-
-export const generateChromeTarget = () => {
-  return `/devtools/page/${id(jsonProtocolPrefix)}`;
-};
-
-export const sleep = function sleep(time = 0) {
-  return new Promise((r) => {
-    global.setTimeout(r, time);
-  });
-};
-
-const safeParse = (maybeJson: any) => {
-  try {
-    return JSON.parse(maybeJson);
-  } catch {
-    return null;
-  }
-};
-
-export const normalizeWebdriverStart = async (
-  req: IncomingMessage,
-): Promise<IWebdriverStartNormalized> => {
-  const body = await readRequestBody(req);
-  const parsed = safeParse(body);
-
-  let browserlessDataDir: string | null = null;
-
-  // First, convert legacy chrome options to W3C spec
-  if (_.has(parsed, ['desiredCapabilities', legacyChromeOptionsKey])) {
-    parsed.desiredCapabilities[w3cChromeOptionsKey] = _.cloneDeep(
-      parsed.desiredCapabilities[legacyChromeOptionsKey],
-    );
-    delete parsed.desiredCapabilities[legacyChromeOptionsKey];
-  }
-
-  if (_.has(parsed, ['capabilities', 'alwaysMatch', legacyChromeOptionsKey])) {
-    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey] = _.cloneDeep(
-      parsed.capabilities.alwaysMatch[legacyChromeOptionsKey] ||
-        parsed.desiredCapabilities[w3cChromeOptionsKey],
-    );
-    delete parsed.capabilities.alwaysMatch[legacyChromeOptionsKey];
-  }
-
-  if (
-    _.has(parsed, ['capabilities', 'firstMatch']) &&
-    _.some(parsed.capabilities.firstMatch, (opt) => opt[legacyChromeOptionsKey])
-  ) {
-    _.each(parsed.capabilities.firstMatch, (opt) => {
-      if (opt[legacyChromeOptionsKey]) {
-        opt[w3cChromeOptionsKey] = _.cloneDeep(opt[legacyChromeOptionsKey]);
-        delete opt[legacyChromeOptionsKey];
-      }
-    });
-  }
-
-  const capabilities = _.merge(
-    {},
-    parsed?.capabilities?.firstMatch?.['0'],
-    parsed?.capabilities?.alwaysMatch,
-    parsed?.desiredCapabilities,
-  );
-
-  const launchArgs = _.get(
-    capabilities,
-    [w3cChromeOptionsKey, 'args'],
-    [],
-  ) as string[];
-
-  // Set a temp data dir
-  const isUsingTempDataDir = !launchArgs.some((arg: string) =>
-    arg.startsWith('--user-data-dir'),
-  );
-  browserlessDataDir = isUsingTempDataDir ? await getUserDataDir() : null;
-
-  // Set binary path and user-data-dir
-  if (_.has(parsed, ['desiredCapabilities', w3cChromeOptionsKey])) {
-    if (isUsingTempDataDir) {
-      parsed.desiredCapabilities[w3cChromeOptionsKey].args =
-        parsed.desiredCapabilities[w3cChromeOptionsKey].args || [];
-      parsed.desiredCapabilities[w3cChromeOptionsKey].args.push(
-        `--user-data-dir=${browserlessDataDir}`,
-      );
-    }
-    parsed.desiredCapabilities[w3cChromeOptionsKey].binary =
-      CHROME_BINARY_LOCATION;
-  }
-
-  if (_.has(parsed, ['capabilities', 'alwaysMatch', w3cChromeOptionsKey])) {
-    if (isUsingTempDataDir) {
-      parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args =
-        parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args || [];
-      parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].args.push(
-        `--user-data-dir=${browserlessDataDir}`,
-      );
-    }
-    parsed.capabilities.alwaysMatch[w3cChromeOptionsKey].binary =
-      CHROME_BINARY_LOCATION;
-  }
-
-  if (
-    _.has(parsed, ['capabilities', 'firstMatch']) &&
-    _.some(parsed.capabilities.firstMatch, (opt) => opt[w3cChromeOptionsKey])
-  ) {
-    _.each(parsed.capabilities.firstMatch, (opt) => {
-      if (opt[w3cChromeOptionsKey]) {
-        if (isUsingTempDataDir) {
-          opt[w3cChromeOptionsKey].args = opt[w3cChromeOptionsKey].args || [];
-          opt[w3cChromeOptionsKey].args.push(
-            `--user-data-dir=${browserlessDataDir}`,
-          );
-        }
-        opt[w3cChromeOptionsKey].binary = CHROME_BINARY_LOCATION;
-      }
-    });
-  }
-
-  const blockAds = !!(
-    capabilities['browserless.blockAds'] ??
-    capabilities['browserless:blockAds'] ??
-    DEFAULT_BLOCK_ADS
-  );
-
-  const stealth = !!(
-    capabilities['browserless.stealth'] ??
-    capabilities['browserless:stealth'] ??
-    DEFAULT_STEALTH
-  );
-
-  const token =
-    capabilities['browserless.token'] ??
-    capabilities['browserless:token'] ??
-    getBasicAuthToken(req);
-
-  const pauseOnConnect = !!(
-    capabilities['browserless.pause'] ?? capabilities['browserless:pause']
-  );
-
-  const trackingId =
-    capabilities['browserless.trackingId'] ??
-    capabilities['browserless:trackingId'] ??
-    null;
-
-  const windowSizeArg = launchArgs.find((arg) => arg.includes('window-size='));
-  const windowSizeParsed =
-    windowSizeArg && windowSizeArg.split('=')[1].split(',');
-  let windowSize: IWebdriverStartNormalized['params']['windowSize'];
-
-  if (Array.isArray(windowSizeParsed)) {
-    const [width, height, deviceScaleFactor] = windowSizeParsed;
-    windowSize = {
-      width: +width,
-      height: +height,
-    };
-    if (deviceScaleFactor) {
-      windowSize.deviceScaleFactor = parseInt(deviceScaleFactor);
-    }
-  }
-
-  return {
-    body: parsed,
-    params: {
-      token,
-      stealth,
-      blockAds,
-      trackingId,
-      pauseOnConnect,
-      windowSize,
-      isUsingTempDataDir,
-      browserlessDataDir,
-    },
-  };
-};
-
-// NOTE, if proxying request elsewhere, you must re-stream the body again
-const readRequestBody = async (req: IncomingMessage): Promise<any> => {
-  return new Promise((resolve) => {
-    const body: Uint8Array[] = [];
-    let hasResolved = false;
-
-    const resolveNow = (results: any) => {
-      if (hasResolved) {
-        return;
-      }
-      hasResolved = true;
-      resolve(results);
-    };
-
-    req
-      .on('data', (chunk) => body.push(chunk))
-      .on('end', () => {
-        const final = Buffer.concat(body).toString();
-        if (hasResolved) {
-          return;
-        }
-        resolveNow(final);
-      })
-      .on('aborted', () => {
-        resolveNow(null);
-      })
-      .on('error', () => {
-        resolveNow(null);
-      });
-  });
-};
-
-export const fnLoader = (fnName: string) =>
-  fs.readFileSync(
-    path.join(__dirname, '..', 'functions', `${fnName}.js`),
-    'utf8',
-  );
-
-export const getUserDataDir = () =>
-  mkdtemp(path.join(os.tmpdir(), browserlessDataDirPrefix));
-
-export const clearBrowserlessDataDirs = () =>
-  rimraf(path.join(os.tmpdir(), `${browserlessDataDirPrefix}*`));
-
-export const mkDataDir = async (path: string) => {
-  if (await exists(path)) {
-    return;
-  }
-  await mkdir(path, { recursive: true });
-};
-
-export const parseRequest = (req: IncomingMessage): IHTTPRequest => {
-  const ret: IHTTPRequest = req as IHTTPRequest;
-  const parsed = url.parse(req.url || '', true);
-
-  ret.parsed = parsed;
-
-  return ret;
-};
-
-// Number = time in MS, undefined = no timeout, null = no timeout set and should use system-default
-export const getTimeoutParam = (
-  req: IHTTPRequest | IWebdriverStartHTTP,
-): number | undefined | null => {
-  const payloadTimer =
-    req.method === 'POST' &&
-    req.url &&
-    req.url.includes('webdriver') &&
-    Object.prototype.hasOwnProperty.call(req, 'body')
-      ? _.get(
-          req,
-          ['body', 'desiredCapabilities', 'browserless.timeout'],
-          null,
-        ) ||
-        _.get(
-          req,
-          ['body', 'capabilities', 'alwaysMatch', 'browserless:timeout'], // Selenium 4.5 > calls
-          null,
-        )
-      : _.get(req, 'parsed.query.timeout', null);
-
-  if (_.isArray(payloadTimer)) {
-    return null;
-  }
-
-  const parsedTimer = _.parseInt(payloadTimer || '');
-
-  if (_.isNaN(parsedTimer)) {
-    return null;
-  }
-
-  if (parsedTimer === -1) {
-    return undefined;
-  }
-
-  if (_.isNumber(parsedTimer)) {
-    return parsedTimer;
+  if (header.startsWith('Bearer')) {
+    const [, token] = header.split(' ');
+    return token;
   }
 
   return null;
 };
 
-export const isWebdriverStart = (req: IncomingMessage) => {
-  return req.method?.toLowerCase() === 'post' && req.url === WEBDRIVER_ROUTE;
+export const buildDir: string = path.join(path.resolve(), 'build');
+export const tsExtension = '.d.ts';
+export const jsonExtension = '.json';
+export const jsExtension = '.js';
+
+export const id = (): string => crypto.randomUUID();
+
+export const createLogger = (domain: string): debug.Debugger => {
+  return debug(`browserless:${domain}`);
 };
 
-export const isWebdriverClose = (req: IncomingMessage) => {
-  return (
-    req.method?.toLowerCase() === 'delete' &&
-    webdriverSessionCloseReg.test(req.url || '')
-  );
-};
+const errorLog = createLogger('error');
 
-export const isWebdriver = (req: IncomingMessage) => {
-  return req.url?.includes(WEBDRIVER_ROUTE);
-};
-
-export const canPreboot = (
-  incoming: ILaunchOptions,
-  defaults: ILaunchOptions,
-) => {
-  if (incoming.playwright) {
-    return false;
-  }
-
-  if (
-    !_.isUndefined(incoming.headless) &&
-    incoming.headless !== defaults.headless
-  ) {
-    return false;
-  }
-
-  if (
-    !_.isUndefined(incoming.args) &&
-    _.difference(incoming.args, defaults.args as string[]).length
-  ) {
-    return false;
-  }
-
-  if (!_.isUndefined(incoming.ignoreDefaultArgs)) {
-    if (
-      typeof incoming.ignoreDefaultArgs !== typeof defaults.ignoreDefaultArgs
-    ) {
-      return false;
-    }
-
-    if (
-      Array.isArray(incoming.ignoreDefaultArgs) &&
-      Array.isArray(defaults.ignoreDefaultArgs)
-    ) {
-      return !_.difference(
-        incoming.ignoreDefaultArgs,
-        defaults.ignoreDefaultArgs,
-      ).length;
-    }
-
-    if (incoming.ignoreDefaultArgs !== defaults.ignoreDefaultArgs) {
-      return false;
-    }
-  }
-
-  if (
-    !_.isUndefined(incoming.userDataDir) &&
-    incoming.userDataDir !== defaults.userDataDir
-  ) {
-    return false;
-  }
-
-  return true;
-};
-
-export const dedent = (strings: string | string[], ...values: string[]) => {
+export const dedent = (
+  strings: string | string[],
+  ...values: string[]
+): string => {
   const raw = Array.isArray(strings) ? strings : [strings];
 
   let result = '';
@@ -601,7 +72,7 @@ export const dedent = (strings: string | string[], ...values: string[]) => {
     result += raw[i]
       // join lines when there is a suppressed newline
       .replace(/\\\n[ \t]*/g, '')
-      // handle escaped backticks
+      // handle escaped back-ticks
       .replace(/\\`/g, '`');
 
     if (i < values.length) {
@@ -639,94 +110,672 @@ export const dedent = (strings: string | string[], ...values: string[]) => {
   );
 };
 
-export const urlJoinPaths = (...paths: string[]) =>
-  paths.map((s) => _.trim(s, '/')).join('/');
+export const isConnected = (connection: Duplex | ServerResponse): boolean =>
+  isHTTP(connection) ? !!connection.socket?.writable : !!connection.writable;
 
-export const injectHostIntoSession = (
-  host: URL,
-  browser: IBrowser,
-  session: IDevtoolsJSON,
-): ISession => {
-  const { port } = browser._parsed;
-  const wsEndpoint = browser._wsEndpoint;
-  const isSSL = host.protocol === 'https:';
-
-  if (!port) {
-    throw new Error(`No port found for browser devtools!`);
+export const writeResponse = (
+  writeable: Duplex | ServerResponse,
+  httpCode: keyof typeof codes,
+  message: string,
+  contentType: contentTypes = contentTypes.text,
+): void => {
+  if (!isConnected(writeable)) {
+    return;
   }
 
-  const parsedWebSocketDebuggerUrl = new URL(session.webSocketDebuggerUrl);
-  const parsedWsEndpoint = new URL(wsEndpoint);
-  const parsedDevtoolsFrontendURL = new URL(
-    session.devtoolsFrontendUrl,
-    host.href,
+  const httpMessage = codes[httpCode];
+  const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
+
+  if (isHTTP(writeable)) {
+    const response = writeable;
+    if (!response.headersSent) {
+      response.writeHead(httpMessage.code, { 'Content-Type': CTTHeader });
+      response.end(message + '\n');
+    }
+    return;
+  }
+
+  const httpResponse = [
+    httpMessage.message,
+    `Content-Type: ${CTTHeader}`,
+    'Content-Encoding: UTF-8',
+    'Accept-Ranges: bytes',
+    'Connection: keep-alive',
+    '\r\n',
+    message,
+  ].join('\r\n');
+
+  writeable.write(httpResponse);
+  writeable.end();
+  return;
+};
+
+export const jsonResponse = (
+  response: ServerResponse,
+  httpCode: keyof typeof codes = 200,
+  json: unknown = {},
+  allowNull = true,
+): void => {
+  const httpMessage = codes[httpCode];
+  const CTTHeader = `${contentTypes.json}; charset=${encodings.utf8}`;
+
+  if (!response.headersSent) {
+    response.writeHead(httpMessage.code, { 'Content-Type': CTTHeader });
+    response.end(removeNullStringify(json, allowNull));
+    return;
+  }
+
+  return;
+};
+
+export const fetchJson = (
+  url: string,
+  init?: RequestInit | undefined,
+): Promise<unknown> =>
+  fetch(url, init).then((res) => {
+    if (!res.ok) {
+      throw res;
+    }
+    return res.json();
+  });
+
+export const getTokenFromRequest = (req: Request) => {
+  const authHeader = req.headers['authorization'];
+  const tokenParam = req.parsed.searchParams.get('token');
+  return tokenParam ?? getAuthHeaderToken(authHeader || '');
+};
+
+export const isAuthorized = (
+  req: Request,
+  route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
+  token: string,
+): boolean => {
+  if (route.auth === false) {
+    return true;
+  }
+  const requestToken = getTokenFromRequest(req);
+
+  if (!requestToken) {
+    return false;
+  }
+
+  return token === requestToken;
+};
+
+// NOTE, if proxying request elsewhere, you must re-stream the body again
+export const readRequestBody = async (req: Request): Promise<string> => {
+  return new Promise((resolve) => {
+    const body: Uint8Array[] = [];
+    let hasResolved = false;
+
+    const resolveOnce = (results: string) => {
+      if (hasResolved) {
+        return;
+      }
+      hasResolved = true;
+      resolve(results);
+    };
+
+    req
+      .on('data', (chunk) => body.push(chunk))
+      .on('end', () => {
+        const final = Buffer.concat(body).toString();
+        resolveOnce(final);
+      })
+      .on('aborted', () => {
+        resolveOnce('');
+      })
+      .on('error', () => {
+        resolveOnce('');
+      });
+  });
+};
+
+export const safeParse = (maybeJson: string): unknown | null => {
+  try {
+    return JSON.parse(maybeJson);
+  } catch {
+    return null;
+  }
+};
+
+export const removeNullStringify = (
+  json: unknown,
+  allowNull = true,
+): string => {
+  return JSON.stringify(json, (_key, value) => {
+    if (allowNull) return value;
+    if (value !== null) return value;
+  });
+};
+
+export const jsonOrString = (maybeJson: string): unknown | string =>
+  safeParse(maybeJson) ?? maybeJson;
+
+export const readBody = async (
+  req: Request,
+): Promise<ReturnType<typeof safeParse>> => {
+  if (
+    typeof req.body === 'string' &&
+    (isBase64.test(req.body) || req.body.startsWith('{'))
+  ) {
+    return safeParse(convertIfBase64(req.body));
+  }
+  const body = await readRequestBody(req);
+
+  return req.headers['content-type']?.includes(contentTypes.json)
+    ? safeParse(body)
+    : body;
+};
+
+export const getRouteFiles = async (config: Config): Promise<string[][]> => {
+  const routes = config.getRoutes();
+  const foundRoutes: string[] = await fs
+    .readdir(routes)
+    .then((dirs) =>
+      dirs.flatMap((d) => [
+        path.join(routes, d, 'ws'),
+        path.join(routes, d, 'http'),
+      ]),
+    )
+    .catch(() => []);
+
+  const [httpRouteFolders, wsRouteFolders] = foundRoutes.reduce(
+    ([http, ws]: [string[], string[]], route) => {
+      if (route.endsWith('http')) {
+        http.push(route);
+      }
+
+      if (route.endsWith('ws')) {
+        ws.push(route);
+      }
+
+      return [http, ws];
+    },
+    [[], []],
   );
 
-  // Override the URL primitives to the base host or proxy
-  parsedWebSocketDebuggerUrl.hostname = host.hostname;
-  parsedWebSocketDebuggerUrl.port = host.port;
-  parsedWebSocketDebuggerUrl.protocol = isSSL ? 'wss:' : 'ws:';
+  const [httpDirs, wsDirs] = await Promise.all([
+    await Promise.all(
+      httpRouteFolders.map((r) =>
+        fs
+          .readdir(r)
+          .then((files) => files.map((f) => path.join(r, f)))
+          .catch(() => []),
+      ),
+    ),
+    await Promise.all(
+      wsRouteFolders.map((r) =>
+        fs
+          .readdir(r)
+          .then((files) => files.map((f) => path.join(r, f)))
+          .catch(() => []),
+      ),
+    ),
+  ]);
 
-  parsedWsEndpoint.hostname = host.hostname;
-  parsedWsEndpoint.port = host.port;
-  parsedWsEndpoint.protocol = isSSL ? 'wss:' : 'ws:';
+  return [httpDirs.flat(), wsDirs.flat()];
+};
 
-  // Prepend any base-path of the external URL's
-  if (host.pathname !== '/') {
-    parsedWebSocketDebuggerUrl.pathname = urlJoinPaths(
-      host.pathname,
-      parsedWebSocketDebuggerUrl.pathname,
-    );
-    parsedWsEndpoint.pathname = urlJoinPaths(
-      host.pathname,
-      parsedWsEndpoint.pathname,
-    );
-    parsedDevtoolsFrontendURL.pathname = urlJoinPaths(
-      host.pathname,
-      parsedDevtoolsFrontendURL.pathname,
-    );
+export const make404 = (...messages: string[]): string => {
+  const [title, ...rest] = messages;
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <title>Not Found</title>
+    </head>
+    <style>
+    body {
+      padding: 50px;
+      width: 960px;
+      margin: 0 auto;
+    }
+    pre {
+      overflow-wrap: break-word;
+      white-space: break-spaces;
+    }
+    </style>
+    <body><div style="background-image: url(&quot;data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9JzMwMHB4JyB3aWR0aD0nMzAwcHgnICBmaWxsPSIjMDAwMDAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGRhdGEtbmFtZT0i0KHQu9C+0LkgMSIgdmlld0JveD0iMCAwIDEyOCAxMjgiIHg9IjBweCIgeT0iMHB4Ij48dGl0bGU+aWNfcXVlc3Rpb25fbWFya193aW5kb3c8L3RpdGxlPjxjaXJjbGUgY3g9IjExNiIgY3k9IjEyIiByPSIyIj48L2NpcmNsZT48Y2lyY2xlIGN4PSIxMDgiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMTAwIiBjeT0iMTIiIHI9IjIiPjwvY2lyY2xlPjxwYXRoIGQ9Ik0xMjEsMEg3QTcsNywwLDAsMCwwLDdWMTIxYTcsNywwLDAsMCw3LDdIMTIxYTcsNywwLDAsMCw3LTdWN0E3LDcsMCwwLDAsMTIxLDBaTTcsNEgxMjFhMywzLDAsMCwxLDMsM1YyMEg0VjdBMywzLDAsMCwxLDcsNFpNMTIxLDEyNEg3YTMsMywwLDAsMS0zLTNWMjRIMTI0VjEyMUEzLDMsMCwwLDEsMTIxLDEyNFoiPjwvcGF0aD48cGF0aCBkPSJNNjQsNDcuNTJhMTQsMTQsMCwwLDAtMTQsMTQsMiwyLDAsMCwwLDQsMCwxMCwxMCwwLDEsMSwyMCwwYzAsMy44My0yLjEyLDYuMS00LjgxLDlDNjYsNzQsNjIsNzguMjQsNjIsODYuMjNhMiwyLDAsMSwwLDQsMGMwLTYuNDEsMy05LjYsNi4xNC0xM0M3NSw3MC4xNSw3OCw2Nyw3OCw2MS41NEExNCwxNCwwLDAsMCw2NCw0Ny41MloiPjwvcGF0aD48Y2lyY2xlIGN4PSI2NCIgY3k9Ijk2LjIzIiByPSIyLjI1Ij48L2NpcmNsZT48L3N2Zz4=&quot;); background-repeat: no-repeat; height: 75px; background-size: contain; background-position: 50%;"></div>
+      <pre style="font-size: 24px; font-weight: bold">404: ${title}</pre>
+      <pre>${rest.join('\n')}</pre>
+    </body>
+    </html>
+    `;
+};
+
+/**
+ * Returns a Promise that will automatically resolve
+ * after the provided number of milliseconds.
+ *
+ * @param {number} time
+ * @returns {Promise}
+ */
+export const sleep = (time: number): Promise<void> =>
+  new Promise((r) => setTimeout(r, time));
+
+/**
+ * Returns a boolean if a given filepath (directory or file)
+ * exists in the file system. Uses stat internally.
+ *
+ * @param {string} path The file or folder path
+ * @returns {boolean}
+ */
+export const exists = async (path: string): Promise<boolean> => {
+  return !!(await fs.stat(path).catch(() => false));
+};
+
+/**
+ * Returns a boolean if a given file, not directory,
+ * exists in the file system. Uses stat internally.
+ *
+ * @param {string} path The file or folder path
+ * @returns {boolean}
+ */
+export const fileExists = async (path: string): Promise<boolean> =>
+  fs
+    .stat(path)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+
+const isBase64 =
+  /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
+
+export const convertIfBase64 = (item: string): string =>
+  isBase64.test(item) ? Buffer.from(item, 'base64').toString() : item;
+
+export const availableBrowsers = Promise.all([
+  exists(playwright.chromium.executablePath()),
+  exists(playwright.firefox.executablePath()),
+  exists(playwright.webkit.executablePath()),
+]).then(([chromeExists, firefoxExists, webkitExists]) => {
+  const availableBrowsers = [];
+
+  if (chromeExists) {
+    availableBrowsers.push(...[CDPChromium, PlaywrightChromium]);
   }
 
-  parsedDevtoolsFrontendURL.search = `?${isSSL ? 'wss' : 'ws'}=${host.host}${
-    parsedWebSocketDebuggerUrl.pathname
-  }`;
+  if (firefoxExists) {
+    availableBrowsers.push(PlaywrightFirefox);
+  }
 
-  const browserWSEndpoint = parsedWsEndpoint.href;
-  const webSocketDebuggerUrl = parsedWebSocketDebuggerUrl.href;
-  const devtoolsFrontendUrl =
-    parsedDevtoolsFrontendURL.pathname + parsedDevtoolsFrontendURL.search;
+  if (webkitExists) {
+    availableBrowsers.push(PlaywrightWebkit);
+  }
 
-  return {
-    ...session,
-    port,
-    browserId: browser._id,
-    trackingId: browser._trackingId,
-    browserWSEndpoint,
-    devtoolsFrontendUrl,
-    webSocketDebuggerUrl,
+  return availableBrowsers;
+});
+
+export const queryParamsToObject = (
+  params: URLSearchParams,
+): Record<string, unknown> => {
+  const entries = params.entries();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = {};
+  for (const [key, value] of entries) {
+    result[key] = value === '' ? true : jsonOrString(value);
+  }
+  return result;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+const wrapUserFunction = (fn: string) => {
+  // Handle async definitions
+  if (fn.includes('async') || fn.includes('await')) {
+    return new AsyncFunction(`await (${fn})(); return true`);
+  }
+
+  // Handle IIFE or anonymous functions
+  if (fn.startsWith('function') || fn.startsWith('()')) {
+    return `(${fn})()`;
+  }
+
+  // Simple statement-like functions
+  return fn;
+};
+
+export const waitForFunction = async (
+  page: Page,
+  opts: WaitForFunctionOptions,
+): Promise<void> => {
+  const { fn, polling, timeout } = opts;
+  const wrappedFn = wrapUserFunction(fn);
+  // @ts-ignore objects are valid arguments into evaluate
+  return page.waitForFunction(wrappedFn, { polling, timeout });
+};
+
+export const waitForEvent = async (
+  page: Page,
+  opts: WaitForEventOptions,
+): Promise<void> => {
+  const awaitEvent = async (event: string) => {
+    await new Promise<void>((resolve) => {
+      document.addEventListener(event, () => resolve(), { once: true });
+    });
+  };
+
+  const timeout = opts.timeout || 30000;
+
+  await Promise.race([
+    page.evaluate(awaitEvent, opts.event),
+    sleep(timeout).then(() => {
+      throw new Error('Event awaiting timeout');
+    }),
+  ]);
+};
+
+/**
+ * Scrolls through the web-page to trigger any lazy-loaded
+ * assets to load up. Currently doesn't support infinite-loading
+ * pages as they'll increase the length of the page.
+ *
+ * @param page Page
+ */
+export const scrollThroughPage = async (page: Page) => {
+  const viewport = (await page.viewport()) || {
+    height: 480,
+    width: 640,
+  }; // default Puppeteer viewport
+
+  await page.evaluate((bottomThreshold) => {
+    const scrollInterval = 100;
+    const scrollStep = Math.floor(window.innerHeight / 2);
+
+    function bottomPos() {
+      return window.pageYOffset + window.innerHeight;
+    }
+
+    return new Promise((resolve) => {
+      function scrollDown() {
+        window.scrollBy(0, scrollStep);
+
+        if (document.body.scrollHeight - bottomPos() < bottomThreshold) {
+          window.scrollTo(0, 0);
+          setTimeout(resolve, 500);
+          return;
+        }
+
+        setTimeout(scrollDown, scrollInterval);
+      }
+
+      scrollDown();
+    });
+  }, viewport.height);
+};
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export const noop = (): void => {};
+
+export const once = <A extends unknown[], R, T>(
+  fn: (this: T, ...arg: A) => R,
+): ((this: T, ...arg: A) => R | undefined) => {
+  let done = false;
+  return function (this: T, ...args: A) {
+    return done ? void 0 : ((done = true), fn.apply(this, args));
   };
 };
+
+export const getRandomNegativeInt = (): number => {
+  return Math.floor(Math.random() * 1000000000) * -1;
+};
+
+/**
+ * Converts an inbound req.url string to a valid URL object.
+ * Handles cases where browserless might be behind a path or reverse proxy.
+ *
+ * @param url The inbound url, generally req.url
+ * @param config The config object
+ * @returns The full URL object
+ */
+export const convertPathToURL = (url: string, config: Config): URL => {
+  const external = config.getExternalAddress();
+  const fullInboundURL = new URL(url, external).href;
+  const internalPath = fullInboundURL.replace(external, '');
+
+  return new URL(internalPath, config.getServerAddress());
+};
+
+export const makeExternalURL = (
+  externalAddress: string,
+  ...parts: string[]
+): string => {
+  const externalURL = new URL(externalAddress);
+
+  return new URL(path.join(externalURL.pathname, ...parts), externalAddress)
+    .href;
+};
+
+export class BadRequest extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BadRequest';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+
+export class TooManyRequests extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TooManyRequests';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+
+export class ServerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ServerError';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+export class Unauthorized extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'Unauthorized';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+export class NotFound extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFound';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+export class Timeout extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'Timeout';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+
+export const bestAttemptCatch =
+  (bestAttempt: boolean) =>
+  (err: Error): void => {
+    if (bestAttempt) return;
+    throw err;
+  };
+
+export const parseBooleanParam = (
+  params: URLSearchParams,
+  name: string,
+  defaultValue: boolean,
+) => {
+  const value = params.get(name);
+
+  if (value === null) {
+    return defaultValue;
+  }
+
+  // ?param format (no specified value)
+  if (value === '' || value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  return defaultValue;
+};
+
+export const parseNumberParam = (
+  params: URLSearchParams,
+  name: string,
+  defaultValue: number,
+) => {
+  const value = params.get(name);
+
+  if (value === null) {
+    return defaultValue;
+  }
+
+  // ?param format (no specified value)
+  if (value === '') {
+    return defaultValue;
+  }
+
+  const numb = +value;
+
+  if (isNaN(numb)) {
+    return defaultValue;
+  }
+
+  return numb;
+};
+
+export const parseStringParam = (
+  params: URLSearchParams,
+  name: string,
+  defaultValue: string,
+) => {
+  const value = params.get(name);
+
+  if (value === null) {
+    return defaultValue;
+  }
+
+  // ?param format (no specified value)
+  if (value === '') {
+    return true;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+export const encrypt = (text: string, secret: Buffer) => {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(encryptionAlgo, secret, iv);
+  const encrypted = cipher.update(text, 'utf8', 'hex');
+
+  return [
+    encrypted + cipher.final('hex'),
+    Buffer.from(iv).toString('hex'),
+  ].join(encryptionSep);
+};
+
+export const decrypt = (encryptedText: string, secret: Buffer) => {
+  const [encrypted, iv] = encryptedText.split(encryptionSep);
+  if (!iv) throw new ServerError('Bad or invalid encrypted format');
+  const decipher = crypto.createDecipheriv(
+    encryptionAlgo,
+    secret,
+    Buffer.from(iv, 'hex'),
+  );
+  return decipher.update(encrypted, 'hex', 'utf8') + decipher.final('utf8');
+};
+
+interface RequestInitTimeout extends RequestInit {
+  timeout?: number;
+}
+
+export const fetchTimeout = async (
+  input: RequestInfo | URL,
+  initWithTimeout?: RequestInitTimeout,
+) => {
+  if (!initWithTimeout) return await fetch(input);
+  const { timeout, ...init } = initWithTimeout;
+
+  if (!timeout) return await fetch(input, init);
+
+  const controller = new AbortController();
+  const id = setTimeout(
+    () => controller.abort(new Error(`TimeoutError`)),
+    timeout,
+  );
+  let res;
+
+  try {
+    res = await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(id);
+  }
+  return res;
+};
+
+export const untildify = (path: string) => {
+  const homeDir = homedir();
+
+  return homeDir ? path.replace(/^~(?=$|\/|\\)/, homeDir) : path;
+};
+
+export const printLogo = (docsLink: string) => `
+---------------------------------------------------------
+| browserless.io premium
+| To read documentation and more, load in your browser:
+|
+| ${docsLink}
+---------------------------------------------------------
+${gradient(
+  '#ff1a8c',
+  '#ffea00',
+)(`
+
+█▓▒
+████▒
+████▒
+████▒   ▒██▓▒
+████▒   ▒████
+████▒   ▒████
+████▒   ▒████
+████▒   ▒████
+████▒   ▒████
+████▒   ▒██████▓▒
+████▒   ▒██████████▒
+████▒   ▒██████▓████
+████▒   ▒█▓▓▒  ▒████
+████▒          ▒████
+████▒       ▒▓██████
+████▒   ▒▓████████▓▒
+████▓▓████████▓▒
+██████████▓▒
+  ▓███▓▒
+
+`)}`;
 
 export const getCDPClient = (page: Page): CDPSession => {
   // @ts-ignore using internal CDP client
   const c = page._client;
 
   return typeof c === 'function' ? c.call(page) : c;
-};
-
-export const printGetStartedLinks = (debug: dbg.Debugger) => {
-  debug(`
-Get started at\t https://www.browserless.io/docs/start
-Get a license at\t https://www.browserless.io/sign-up?type=commercial
-Get support at\t https://www.browserless.io/contact
-
-Happy coding!
-`);
-};
-
-export const printNetworkInfo = (debug: dbg.Debugger, port: number) => {
-  debug(`\n
-Running on port ${port}
-\tLocalhost\t ws:localhost:${port}
-\tLocal network\t ws:${ip.address()}:${port}`);
 };

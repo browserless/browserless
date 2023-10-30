@@ -1,5 +1,6 @@
 version: 2
 updates:
+
 - package-ecosystem: npm
   # Always increase the version requirement
   # to match the new version.
@@ -8,42 +9,9 @@ updates:
   schedule:
     interval: daily
   open-pull-requests-limit: 10
-  ignore:
-  - dependency-name: snyk
-    versions:
-    - 1.447.0
-    - 1.459.0
-    - 1.486.0
-    - 1.495.0
-    - 1.526.0
-    - 1.557.0
-    - 1.566.0
-  - dependency-name: "@types/node"
-    versions:
-    - 14.14.35
-    - 15.0.0
-  - dependency-name: simple-git-hooks
-    versions:
-    - 2.4.1
-  - dependency-name: table
-    versions:
-    - 6.3.0
-  - dependency-name: puppeteer
-    versions:
-    - 7.0.0
-    - 7.0.1
-    - 7.0.4
-    - 8.0.0
-  - dependency-name: systeminformation
-    versions:
-    - 5.0.6
-    - 5.3.5
-  - dependency-name: ts-jest
-    versions:
-    - 26.5.0
-    - 26.5.1
+
 - package-ecosystem: docker
-  directory: "/"
+  directory: "/docker"
   schedule:
     interval: daily
   open-pull-requests-limit: 10
