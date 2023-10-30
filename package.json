@@ -88,7 +88,7 @@
       ]
     },
     "chrome-stable": {
-      "puppeteer": "21.3.6",
+      "puppeteer": "21.4.1",
       "chromeRevision": "118.0.5993.70",
       "platforms": [
         "linux/amd64"
