@@ -33,7 +33,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           tags: |
             browserless/base:latest
-          context: ./base
+          context: ./docker/base
           push: true
           platforms: |
             linux/amd64
