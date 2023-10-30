@@ -1,5 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.60.2...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.61.0...master)
 - Dependency updates.
+
+# [v1.61.0](https://github.com/browserless/chrome/compare/v1.60.2...v1.61.0)
+- **FINAL of V1 for browserless/chrome. [See notes on V2 here](https://github.com/browserless/chrome/pull/3345)**
+- Dependency updates.
+- Added `fonts-urw-base35`.
+- Supports puppeteer `1.20`, `10.4.0`, `13.1.3`, `14.4.1`, `16.2.0`, `19.7.5` and `21.4.1`.
+- Supports playwright `1.39`, `1.38`, `1.37`, `1.36`, `1.35`, `1.34`, and `1.33`.
+- Fixes an issue where keep-alive chrome instances aren't properly tracked when `browser.close` is called.
+- Fix improper handling of HTTP writing on bare sockets with 500 errors.
 
 # [v1.60.2](https://github.com/browserless/chrome/compare/v1.60.1...v1.60.2)
 - Dependency updates.
