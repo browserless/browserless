@@ -1,6 +1,12 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/browserless/chrome/master/assets/browserless_logo_screen_gradient.png">
-</div>
+![browserless.io logo](/assets/logo.png)
+
+![Docker Pulls](https://img.shields.io/docker/pulls/browserless/chrome)
+![GitHub package.json version (subfolder of monorepo)](https://img.shields.io/github/package-json/v/browserless/chrome)
+![Chrome CI](https://github.com/browserless/chrome/actions/workflows/docker-chromium.yml/badge.svg)
+![Firefox CI](https://github.com/browserless/chrome/actions/workflows/docker-firefox.yml/badge.svg)
+![Webkit CI](https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg)
+![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
+
 
 > [Looking for v1.x.x of browserless? Check it out here](https://github.com/browserless/chrome/tree/v1).
 > NOTE: Version 1 is the version we currently still have running on browserless' hosted services.
