@@ -28,7 +28,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish the latest Base image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/base/Dockerfile
@@ -41,7 +41,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Chrome image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             VERSION=latest
@@ -56,7 +56,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest FireFox image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             VERSION=latest
@@ -71,7 +71,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Webkit image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             VERSION=latest
@@ -86,7 +86,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Multi image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           build-args: |
             VERSION=latest
