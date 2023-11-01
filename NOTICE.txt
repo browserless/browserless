@@ -1,4 +1,4 @@
-Browserless Premium
+Browserless
 (c) 2022, browserless.io
 
 This project includes code from GitHub user "wanhose", from their "Cookie

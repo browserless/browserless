@@ -741,7 +741,7 @@ export const untildify = (path: string) => {
 
 export const printLogo = (docsLink: string) => `
 ---------------------------------------------------------
-| browserless.io premium
+| browserless.io
 | To read documentation and more, load in your browser:
 |
 | ${docsLink}
