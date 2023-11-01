@@ -138,7 +138,7 @@ export const generateOpenAPI = async () => {
   );
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
-    customSiteTitle: 'Browserless Premium Documentation',
+    customSiteTitle: 'Browserless Documentation',
     definitions: {},
     info: {
       description: readme + changelog,
