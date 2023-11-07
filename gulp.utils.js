@@ -124,7 +124,6 @@ export const pullUblockOrigin = async (cb) => {
     fetch(url).then(
       (response) =>
         new Promise((resolve, reject) => {
-          console.log(`Downloading ${url} to ${dir}`);
           Readable.fromWeb(response.body)
             .pipe(createWriteStream(dir))
             .on('error', reject)
@@ -142,7 +141,13 @@ export const pullUblockOrigin = async (cb) => {
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
   await unzip(zipFile, { dir: join(__dirname, 'extensions') });
   // uBlock0.chromium is always the prod name
-  await fs.rename(join(extensionsDir, 'uBlock0.chromium'), join('extensions', 'ublock'));
+  await fs.rename(
+    join(extensionsDir, 'uBlock0.chromium'),
+    join('extensions', 'ublock'),
+  );
+  await deleteAsync(zipFile, { force: true }).catch((err) => {
+    console.warn('Could not delete temporary download file: ' + err.message);
+  });
 
   cb();
 };
