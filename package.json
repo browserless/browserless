@@ -32,7 +32,7 @@
     "@types/node": "^20.8.10",
     "@types/sinon": "^17.0.0",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
-    "@typescript-eslint/parser": "^6.8.0",
+    "@typescript-eslint/parser": "^6.10.0",
     "assert": "^2.0.0",
     "chai": "^4.3.6",
     "cross-env": "^7.0.3",
