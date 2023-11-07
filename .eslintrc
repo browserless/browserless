@@ -10,6 +10,13 @@
     "plugin:@typescript-eslint/recommended",
     "plugin:typescript-sort-keys/recommended"
   ],
+  "ignorePatterns": [
+    "node_modules/*",
+    "build/*",
+    ".DS_Store",
+    ".no-git/*",
+    "*.log"
+  ],
   "rules": {
     "sort-keys": [
       "error",

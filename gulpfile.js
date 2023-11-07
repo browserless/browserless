@@ -100,7 +100,7 @@ gulp.task('serve:dev', (cb) => {
       const routesWereModified = files.some((file) =>
         fileInSubDir(routesSrc, file),
       );
-      return routesWereModified ? [] : [];
+      return routesWereModified ? ['generate:schemas'] : [];
     },
   });
 });

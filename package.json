@@ -73,5 +73,25 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
     "systeminformation": "^5.17.12"
-  }
+  },
+  "mocha": {
+    "extension": ["ts"],
+    "loader": "ts-node/esm",
+    "spec": "src/**/*.spec.ts",
+    "timeout": 30000,
+    "slow": 5000
+  },
+  "nodemon": {
+    "ignoreRoot": [".git", ".no-git"],
+    "watch": ["src"],
+    "exec": "npx tsc && node ./build/index.js",
+    "ext": "ts json",
+    "signal": "SIGTERM"
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "all",
+    "singleQuote": true,
+    "printWidth": 80
+  }    
 }
