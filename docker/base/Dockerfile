@@ -40,7 +40,6 @@ COPY LICENSE .
 COPY NOTICE.txt .
 COPY start.sh .
 COPY test.sh .
-COPY .mocharc.json .
 COPY esbuild.js .
 
 RUN apt-get update && apt-get install -y \
