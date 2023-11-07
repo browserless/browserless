@@ -7,6 +7,7 @@ import path, { join } from 'path';
 import { Readable } from 'stream';
 import { fileURLToPath } from 'url';
 
+import { deleteAsync } from 'del';
 import unzip from 'extract-zip';
 import { marked } from 'marked';
 import TJS from 'typescript-json-schema';
@@ -132,7 +133,7 @@ export const pullUblockOrigin = async (cb) => {
     );
 
   if (existsSync(uBlockDir)) {
-    fs.unlink(uBlockDir);
+    await deleteAsync(uBlockDir);
   }
   const data = await fetch(
     'https://api.github.com/repos/gorhill/uBlock/releases/latest',

@@ -85,6 +85,7 @@ gulp.task(
   gulp.series(
     'clean',
     'tsc',
+    'install:ublock',
     'generate:schemas',
     'generate:selectors',
     'generate:openapi',
