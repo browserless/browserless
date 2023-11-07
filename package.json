@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",
-    "@types/debug": "^4.1.6",
+    "@types/debug": "^4.1.11",
     "@types/expect": "^24.3.0",
     "@types/gradient-string": "^1.1.2",
     "@types/gulp": "^4.0.9",
