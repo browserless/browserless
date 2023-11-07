@@ -61,6 +61,7 @@
     "debug": "^4.3.2",
     "del": "^7.0.0",
     "enjoi": "^9.0.1",
+    "extract-zip": "^2.0.1",
     "file-type": "^18.6.0",
     "get-port": "^7.0.0",
     "gradient-string": "^2.0.0",

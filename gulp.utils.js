@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* global console, process fetch */
-import { existsSync } from 'fs';
+import { createWriteStream, existsSync } from 'fs';
 import fs from 'fs/promises';
-import path from 'path';
+import os from 'os';
+import path, { join } from 'path';
+import { Readable } from 'stream';
+import { fileURLToPath } from 'url';
 
+import unzip from 'extract-zip';
 import { marked } from 'marked';
 import TJS from 'typescript-json-schema';
 
@@ -106,6 +110,39 @@ export const generateSchemas = async (cb) => {
         );
       }),
   );
+  cb();
+};
+
+export const pullUblockOrigin = async (cb) => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const zipFile = os.tmpdir() + '/ublock.zip';
+  const extensionsDir = join(__dirname, 'extensions');
+  const uBlockDir = join(extensionsDir, 'ublock');
+
+  const downloadUrlToDirectory = (url, dir) =>
+    fetch(url).then(
+      (response) =>
+        new Promise((resolve, reject) => {
+          console.log(`Downloading ${url} to ${dir}`);
+          Readable.fromWeb(response.body)
+            .pipe(createWriteStream(dir))
+            .on('error', reject)
+            .on('finish', resolve);
+        }),
+    );
+
+  if (existsSync(uBlockDir)) {
+    fs.unlink(uBlockDir);
+  }
+  const data = await fetch(
+    'https://api.github.com/repos/gorhill/uBlock/releases/latest',
+  );
+  const json = await data.json();
+  await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
+  await unzip(zipFile, { dir: join(__dirname, 'extensions') });
+  // uBlock0.chromium is always the prod name
+  await fs.rename(join(extensionsDir, 'uBlock0.chromium'), join('extensions', 'ublock'));
+
   cb();
 };
 
