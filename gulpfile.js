@@ -14,6 +14,7 @@ import {
   generateSelectors,
   generateSchemas,
   generateOpenAPI,
+  pullUblockOrigin,
 } from './gulp.utils.js';
 
 const runCmd = run.default;
@@ -76,6 +77,7 @@ gulp.task(
 );
 
 gulp.task('install:dev', gulp.series('install:browsers', 'install:cdp-json'));
+gulp.task('install:ublock', pullUblockOrigin);
 gulp.task('deploy', runCmd('npx ts-node scripts/deploy'));
 
 gulp.task(
@@ -83,6 +85,7 @@ gulp.task(
   gulp.series(
     'clean',
     'tsc',
+    'install:ublock',
     'generate:schemas',
     'generate:selectors',
     'generate:openapi',

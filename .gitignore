@@ -4,6 +4,7 @@ build/
 external/*.js
 browser.json
 metrics.json
+extensions/ublock
 
 # MAC
 .DS_Store
