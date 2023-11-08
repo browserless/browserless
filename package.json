@@ -29,7 +29,7 @@
     "@types/http-proxy": "^1.17.7",
     "@types/micromatch": "^4.0.5",
     "@types/mocha": "^10.0.4",
-    "@types/node": "^20.8.10",
+    "@types/node": "^20.9.0",
     "@types/sinon": "^17.0.1",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
