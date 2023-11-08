@@ -27,7 +27,7 @@
     "@types/gradient-string": "^1.1.2",
     "@types/gulp": "^4.0.17",
     "@types/http-proxy": "^1.17.7",
-    "@types/micromatch": "^4.0.2",
+    "@types/micromatch": "^4.0.5",
     "@types/mocha": "^10.0.4",
     "@types/node": "^20.8.10",
     "@types/sinon": "^17.0.1",
