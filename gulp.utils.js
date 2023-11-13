@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { deleteAsync } from 'del';
 import unzip from 'extract-zip';
 import { marked } from 'marked';
+import { moveFile } from 'move-file';
 import TJS from 'typescript-json-schema';
 
 const swaggerJSONPath = path.join('static', 'docs', 'swagger.json');
@@ -117,6 +118,7 @@ export const generateSchemas = async (cb) => {
 export const pullUblockOrigin = async (cb) => {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const zipFile = os.tmpdir() + '/ublock.zip';
+  const tmpUblockPath = path.join(os.tmpdir(), 'uBlock0.chromium'); // uBlock0.chromium is always the prod name
   const extensionsDir = join(__dirname, 'extensions');
   const uBlockDir = join(extensionsDir, 'ublock');
 
@@ -139,11 +141,10 @@ export const pullUblockOrigin = async (cb) => {
   );
   const json = await data.json();
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
-  await unzip(zipFile, { dir: join(__dirname, 'extensions') });
-  // uBlock0.chromium is always the prod name
-  await fs.rename(
-    join(extensionsDir, 'uBlock0.chromium'),
-    join('extensions', 'ublock'),
+  await unzip(zipFile, { dir: os.tmpdir() });
+  await moveFile(
+    join(tmpUblockPath),
+    join(extensionsDir, 'ublock'),
   );
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);

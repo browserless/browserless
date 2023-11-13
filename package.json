@@ -51,6 +51,7 @@
     "gulp-typescript": "^6.0.0-alpha.1",
     "marked": "^10.0.0",
     "mocha": "^10.0.0",
+    "move-file": "^3.1.0",
     "nodemon": "^3.0.1",
     "prettier": "^3.1.0",
     "sinon": "^17.0.1",
@@ -76,15 +77,22 @@
     "systeminformation": "^5.21.17"
   },
   "mocha": {
-    "extension": ["ts"],
+    "extension": [
+      "ts"
+    ],
     "loader": "ts-node/esm",
     "spec": "src/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
   },
-  "nodemon": {
-    "ignoreRoot": [".git", ".no-git"],
-    "watch": ["src"],
+  "nodemonConfig": {
+    "ignoreRoot": [
+      ".git",
+      ".no-git"
+    ],
+    "watch": [
+      "src"
+    ],
     "exec": "npx tsc && node ./build/index.js",
     "ext": "ts json",
     "signal": "SIGTERM"
@@ -94,5 +102,5 @@
     "trailingComma": "all",
     "singleQuote": true,
     "printWidth": 80
-  }    
+  }
 }
