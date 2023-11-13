@@ -52,7 +52,7 @@
     "marked": "^9.1.5",
     "mocha": "^10.0.0",
     "nodemon": "^3.0.1",
-    "prettier": "^3.0.3",
+    "prettier": "^3.1.0",
     "sinon": "^17.0.1",
     "ts-node": "^10.8.0",
     "typescript": "^5.1.3",
