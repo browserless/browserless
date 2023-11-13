@@ -9,7 +9,7 @@
     "build": "gulp build",
     "build:client": "gulp build:client",
     "clean": "gulp clean",
-    "dev": "gulp build:dev && env-cmd -f ./.env.dev gulp serve:dev",
+    "dev": "gulp build:dev && env-cmd -f ./.env gulp serve:dev",
     "prettier": "gulp prettier",
     "lint": "eslint . --ext .ts --fix",
     "install:dev": "gulp install:dev",
