@@ -31,7 +31,7 @@
     "@types/mocha": "^10.0.4",
     "@types/node": "^20.9.0",
     "@types/sinon": "^17.0.1",
-    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.10.0",
     "assert": "^2.0.0",
     "chai": "^4.3.6",
