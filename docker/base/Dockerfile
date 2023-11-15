@@ -32,8 +32,8 @@ COPY extensions extensions
 COPY package.json .
 COPY package-lock.json .
 COPY tsconfig.json .
-COPY gulpfile.js .
-COPY gulp.utils.js .
+COPY gulpfile.ts .
+COPY gulp.utils.ts .
 COPY README.md .
 COPY CHANGELOG.md .
 COPY LICENSE .
