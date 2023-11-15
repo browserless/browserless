@@ -188,8 +188,12 @@ export const getTokenFromRequest = (req: Request) => {
 export const isAuthorized = (
   req: Request,
   route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
-  token: string,
+  token: string | null,
 ): boolean => {
+  if (token === null){
+    return true;
+  }
+  
   if (route.auth === false) {
     return true;
   }

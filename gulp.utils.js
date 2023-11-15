@@ -360,7 +360,7 @@ export const generateOpenAPI = async () => {
             description: prop.description,
             in: 'query',
             name: prop,
-            required: required.includes(prop),
+            required: required && required.includes(prop),
             schema: properties[prop],
           }))
           .sort(sortSwaggerRequiredAlpha);

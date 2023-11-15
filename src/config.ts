@@ -136,7 +136,8 @@ export class Config extends EventEmitter {
     ? untildify(process.env.ROUTES)
     : path.join(process.cwd(), 'build', 'routes');
 
-  private token = process.env.TOKEN ?? randomUUID();
+  private token = process.env.TOKEN || null;
+  private aesToken = this.token || randomUUID();
   private concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -169,7 +170,7 @@ export class Config extends EventEmitter {
   public getHost = (): string => this.host;
   public getPort = (): number => this.port;
   public getIsWin = (): boolean => this.isWin;
-  public getToken = (): string => this.token;
+  public getToken = (): string | null => this.token;
   public getDebug = (): string => this.debug;
 
   /**
@@ -251,7 +252,7 @@ export class Config extends EventEmitter {
    * secure links.
    */
   public getAESKey = () => {
-    return Buffer.from(this.token.repeat(keyLength).substring(0, keyLength));
+    return Buffer.from(this.aesToken.repeat(keyLength).substring(0, keyLength));
   };
 
   public getMetricsJSONPath = () => this.metricsJSONPath;
