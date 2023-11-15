@@ -283,7 +283,7 @@ export class Config extends EventEmitter {
     return (this.queued = newQueued);
   };
 
-  public setToken = (newToken: string): string => {
+  public setToken = (newToken: string | null): string | null => {
     this.emit('token', newToken);
     return (this.token = newToken);
   };
