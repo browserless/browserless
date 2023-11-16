@@ -18,7 +18,7 @@ export type ErrorFn<TArgs extends unknown[]> = (...args: TArgs) => void;
 
 interface Job {
   (): Promise<unknown>;
-  args: unknown;
+  args: unknown[];
   onTimeoutFn: (job: Job) => unknown;
   start: number;
   timeout: number;
@@ -83,7 +83,7 @@ export class Limiter extends q {
     );
     this.metrics.addSuccessful(Date.now() - job.start);
     afterRequest({
-      args: job.args,
+      req: job.args[0],
       start: job.start,
       status: 'successful',
     } as AfterResponse);
@@ -103,7 +103,7 @@ export class Limiter extends q {
     debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
     afterRequest({
-      args: job.args,
+      req: job.args[0],
       start: job.start,
       status: 'timedout',
     } as AfterResponse);
@@ -120,10 +120,10 @@ export class Limiter extends q {
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
     afterRequest({
-      args: job.args,
+      req: job.args[0],
       start: job.start,
       status: 'error',
-    });
+    } as AfterResponse);
   }
 
   private logQueue(message: string) {

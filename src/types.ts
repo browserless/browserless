@@ -35,10 +35,7 @@ export interface BeforeRequest {
 }
 
 export interface AfterResponse {
-  args: {
-    req: http.IncomingMessage;
-    res: http.ServerResponse;
-  },
+  req: http.IncomingMessage;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }
