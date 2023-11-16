@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDirs": ["./src"],
     "outDir": "./build",
     "baseUrl": ".",
     "module": "es2022",
@@ -11,9 +11,6 @@
       "dom.iterable",
       "es2022"
     ],
-    "paths": {
-      "puppeteer": ["node_modules/@types/puppeteer"]
-    },
     "strict": true,
     "removeComments": false,
     "noImplicitAny": true,
@@ -28,9 +25,6 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true
   },
-  "exclude": [
-    "./src/tests/*"
-  ],
   "include": [
     "./src/**/*"
   ]

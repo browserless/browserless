@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* global console, process fetch */
 import { createWriteStream, existsSync } from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
@@ -16,21 +14,28 @@ import TJS from 'typescript-json-schema';
 const swaggerJSONPath = path.join('static', 'docs', 'swagger.json');
 const packageJSONPath = path.join('package.json');
 
-const readFileOrNull = async (path) => {
-  const contents = await fs.readFile(path).catch(() => null);
+const readFileOrNull = async (path: string | null) => {
+  if (!path) {
+    return 'null';
+  }
 
-  return contents ? contents.toString() : null;
+  try {
+    const content = await fs.readFile(path);
+    return content.toString();
+  } catch (e) {
+    return 'null';
+  }
 };
 
-export const generateSelectors = async (cb) => {
-  const { buildDir } = await import('./build/utils.js');
+export const generateSelectors = async () => {
+  const { buildDir } = await import('./src/utils.js');
   const dataDir = path.join(buildDir, 'data');
   const selectorsURL =
     'https://raw.githubusercontent.com/wanhose/cookie-dialog-monster/main/data/elements.txt';
   const classesURL =
     'https://raw.githubusercontent.com/wanhose/cookie-dialog-monster/main/data/classes.txt';
 
-  const get = async (url, type) => {
+  const get = async (url: string, type: string) => {
     try {
       const res = await fetch(url);
       const json = (await res.text()).split('\n');
@@ -49,12 +54,10 @@ export const generateSelectors = async (cb) => {
     get(selectorsURL, 'selectors'),
     get(classesURL, 'classes'),
   ]);
-
-  cb();
 };
 
-export const generateSchemas = async (cb) => {
-  const { getRouteFiles, tsExtension } = await import('./build/utils.js');
+export const generateSchemas = async () => {
+  const { getRouteFiles, tsExtension } = await import('./src/utils.js');
 
   const schemas = ['BodySchema', 'QuerySchema', 'ResponseSchema'];
   const settings = {
@@ -67,7 +70,7 @@ export const generateSchemas = async (cb) => {
     await fs.readFile('tsconfig.json', 'utf-8'),
   );
 
-  const { Config } = await import('./build/config.js');
+  const { Config } = await import('./src/config.js');
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   await Promise.all(
     [...httpRoutes, ...wsRoutes]
@@ -112,20 +115,20 @@ export const generateSchemas = async (cb) => {
         );
       }),
   );
-  cb();
 };
 
-export const pullUblockOrigin = async (cb) => {
+export const pullUblockOrigin = async () => {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const zipFile = os.tmpdir() + '/ublock.zip';
   const tmpUblockPath = path.join(os.tmpdir(), 'uBlock0.chromium'); // uBlock0.chromium is always the prod name
   const extensionsDir = join(__dirname, 'extensions');
   const uBlockDir = join(extensionsDir, 'ublock');
 
-  const downloadUrlToDirectory = (url, dir) =>
+  const downloadUrlToDirectory = (url: string, dir: string) =>
     fetch(url).then(
       (response) =>
         new Promise((resolve, reject) => {
+          // @ts-ignore
           Readable.fromWeb(response.body)
             .pipe(createWriteStream(dir))
             .on('error', reject)
@@ -142,18 +145,18 @@ export const pullUblockOrigin = async (cb) => {
   const json = await data.json();
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
   await unzip(zipFile, { dir: os.tmpdir() });
-  await moveFile(
-    join(tmpUblockPath),
-    join(extensionsDir, 'ublock'),
-  );
+  await moveFile(join(tmpUblockPath), join(extensionsDir, 'ublock'));
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });
-
-  cb();
 };
 
-const sortSwaggerRequiredAlpha = (prop, otherProp) => {
+interface Prop {
+  name: string;
+  required: boolean;
+}
+
+const sortSwaggerRequiredAlpha = (prop: Prop, otherProp: Prop) => {
   if (prop.required === otherProp.required) {
     if (prop.name < otherProp.name) {
       return -1;
@@ -169,9 +172,9 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
 export const generateOpenAPI = async () => {
   const [{ getRouteFiles }, { Config }, { errorCodes }, packageJSON] =
     await Promise.all([
-      import('./build/utils.js'),
-      import('./build/config.js'),
-      import('./build/http.js'),
+      import('./src/utils.js'),
+      import('./src/config.js'),
+      import('./src/http.js'),
       fs.readFile(packageJSONPath),
     ]);
 
@@ -194,6 +197,7 @@ export const generateOpenAPI = async () => {
       },
     },
     openapi: '3.0.0',
+    paths: {},
     servers: [],
     // Inject routes here...
   };
@@ -212,6 +216,7 @@ export const generateOpenAPI = async () => {
         const query = routeModule.replace('.js', '.query.json');
         const response = routeModule.replace('.js', '.response.json');
         const isWebSocket = routeModule.includes('/ws/');
+
         const {
           tags,
           description,
@@ -222,6 +227,7 @@ export const generateOpenAPI = async () => {
           contentTypes,
           title,
         } = route;
+
         return {
           accepts,
           auth,
@@ -243,14 +249,15 @@ export const generateOpenAPI = async () => {
 
   const paths = routeMetaData.reduce((accum, r) => {
     const swaggerRoute = {
+      definitions: {} as { [key: string]: unknown },
       description: r.description,
-      parameters: [],
+      parameters: [] as Array<unknown>,
       requestBody: {
-        content: {},
+        content: {} as { [key: string]: unknown },
       },
       responses: {
         ...errorCodes,
-      },
+      } as { [key: string]: unknown },
       summary: r.path,
       tags: r.tags,
     };
@@ -265,11 +272,12 @@ export const generateOpenAPI = async () => {
       ...(r?.response?.definitions || {}),
     };
 
-    for (const [defName, definition] of Object.entries(allDefs)) {
-      if (!swaggerJSON.definitions[defName]) {
-        swaggerJSON.definitions[defName] = definition;
-      }
-    }
+    Object.entries(allDefs).forEach(([defName, definition]) => {
+      // @ts-ignore
+      swaggerJSON.definitions[defName] =
+        // @ts-ignore
+        swaggerJSON.definitions[defName] ?? definition;
+    });
 
     if (r.isWebSocket) {
       swaggerRoute.responses['101'] = {
@@ -293,7 +301,8 @@ export const generateOpenAPI = async () => {
         };
       } else {
         const okResponses = r.contentTypes.reduce(
-          (accum, c) => {
+          (accum: object, c: string) => {
+            // @ts-ignore
             accum.content[c] = {
               schema: {
                 type: 'text',
@@ -316,9 +325,11 @@ export const generateOpenAPI = async () => {
     if (r.body) {
       const { properties, type, anyOf } = r.body;
       if (anyOf) {
+        // @ts-ignore
         anyOf.forEach((anyType) => {
           if (anyType.type === 'string') {
             const type = r.accepts.filter(
+              // @ts-ignore
               (accept) => accept !== 'application/json',
             );
             swaggerRoute.requestBody.content[type] = {
@@ -357,7 +368,6 @@ export const generateOpenAPI = async () => {
       if (props.length) {
         swaggerRoute.parameters = props
           .map((prop) => ({
-            description: prop.description,
             in: 'query',
             name: prop,
             required: required.includes(prop),
@@ -367,7 +377,9 @@ export const generateOpenAPI = async () => {
       }
     }
 
+    // @ts-ignore
     accum[r.path] = accum[r.path] || {};
+    // @ts-ignore
     accum[r.path][r.method] = swaggerRoute;
 
     return accum;
