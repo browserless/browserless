@@ -2,7 +2,7 @@ import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { BeforeRequest, AfterResponse, BrowserHook, PageHook } from './types';
+import { AfterResponse, BeforeRequest, BrowserHook, PageHook } from './types';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');
@@ -16,7 +16,7 @@ export const beforeRequest: (args: BeforeRequest) => boolean = fs.existsSync(
   ? (await import(beforeHookPath)).default
   : () => true;
 
-export const afterRequest: (args: AfterResponse) => boolean = fs.existsSync(
+export const afterRequest: (args: AfterResponse | unknown) => boolean = fs.existsSync(
   afterHookPath,
 )
   ? (await import(afterHookPath)).default

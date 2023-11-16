@@ -1,8 +1,10 @@
 import q from 'queue';
 
 import { Config } from './config.js';
+import { afterRequest } from './hooks.js';
 import { Metrics } from './metrics.js';
 import { Monitoring } from './monitoring.js';
+import { AfterResponse } from './types.js';
 import { TooManyRequests, createLogger } from './utils.js';
 import { WebHooks } from './webhooks.js';
 
@@ -16,6 +18,7 @@ export type ErrorFn<TArgs extends unknown[]> = (...args: TArgs) => void;
 
 interface Job {
   (): Promise<unknown>;
+  args: unknown;
   onTimeoutFn: (job: Job) => unknown;
   start: number;
   timeout: number;
@@ -79,6 +82,11 @@ export class Limiter extends q {
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
+    afterRequest({
+      args: job.args,
+      start: job.start,
+      status: 'successful',
+    } as AfterResponse);
   }
 
   private handleJobTimeout({
@@ -94,6 +102,11 @@ export class Limiter extends q {
     this.webhooks.callTimeoutAlertURL();
     debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
+    afterRequest({
+      args: job.args,
+      start: job.start,
+      status: 'timedout',
+    } as AfterResponse);
 
     next();
   }
@@ -106,6 +119,11 @@ export class Limiter extends q {
     debug(`Recording failed stat, cleaning up: "${error?.toString()}"`);
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
+    afterRequest({
+      args: job.args,
+      start: job.start,
+      status: 'error',
+    });
   }
 
   private logQueue(message: string) {
@@ -189,6 +207,7 @@ export class Limiter extends q {
         };
 
         const job: Job = Object.assign(bound, {
+          args,
           onTimeoutFn: () => onTimeoutFn(...args),
           start: Date.now(),
           timeout,
