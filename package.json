@@ -70,7 +70,7 @@
     "lighthouse": "^11.1.0",
     "micromatch": "^4.0.4",
     "playwright-core": "^1.35.1",
-    "puppeteer-core": "^21.5.1",
+    "puppeteer-core": "^21.5.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
