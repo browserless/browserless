@@ -16,11 +16,10 @@ export const beforeRequest: (args: BeforeRequest) => boolean = fs.existsSync(
   ? (await import(beforeHookPath)).default
   : () => true;
 
-export const afterRequest: (args: AfterResponse | unknown) => boolean = fs.existsSync(
-  afterHookPath,
-)
-  ? (await import(afterHookPath)).default
-  : () => true;
+export const afterRequest: (args: AfterResponse | unknown) => boolean =
+  fs.existsSync(afterHookPath)
+    ? (await import(afterHookPath)).default
+    : () => true;
 
 export const browserHook: (opts: BrowserHook) => Promise<boolean> =
   fs.existsSync(browserSetupPath)
