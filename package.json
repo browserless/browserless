@@ -25,7 +25,7 @@
     "@types/gulp-nodemon": "^0.0.37",
     "@types/gulp-sourcemaps": "^0.0.38",
     "@types/merge2": "^1.4.4",
-    "@types/chai": "^4.3.10",
+    "@types/chai": "^4.3.11",
     "@types/debug": "^4.1.12",
     "@types/gradient-string": "^1.1.5",
     "@types/gulp": "^4.0.17",
