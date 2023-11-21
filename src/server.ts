@@ -280,8 +280,8 @@ export class HTTPServer {
     );
 
     const req = request as Request;
-    req.parsed = util.convertPathToURL(request.url || '', this.config);
     const proceed = await beforeRequest({ req, res });
+    req.parsed = util.convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 
     if (!proceed) return;
@@ -488,8 +488,8 @@ export class HTTPServer {
     verbose(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
-    req.parsed = util.convertPathToURL(request.url || '', this.config);
     const proceed = await beforeRequest({ head, req, socket });
+    req.parsed = util.convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 
     if (!proceed) return;
