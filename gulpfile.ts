@@ -1,11 +1,11 @@
-/* global process */
 import path from 'path';
 
 import { deleteAsync } from 'del';
 import gulp from 'gulp';
 import nodemon from 'gulp-nodemon';
+// @ts-ignore no types :(
 import prettier from 'gulp-prettier';
-import { default as run } from 'gulp-run-command';
+import { default as runExport } from 'gulp-run-command';
 import sourcemaps from 'gulp-sourcemaps';
 import ts from 'gulp-typescript';
 import merge from 'merge2';
@@ -17,16 +17,15 @@ import {
   pullUblockOrigin,
 } from './gulp.utils.js';
 
-const runCmd = run.default;
+// @ts-ignore
+const run = runExport.default;
 
-const fileInSubDir = (parentDir, file) => {
+const fileInSubDir = (parentDir: string, file: string) => {
   const relative = path.relative(parentDir, file);
   return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
 };
 
-gulp.task('clean', () =>
-  deleteAsync(['build', 'static/function/*js*']),
-);
+gulp.task('clean', () => deleteAsync(['build', 'static/function/*js*']));
 
 gulp.task('tsc', () => {
   const tsProject = ts.createProject('tsconfig.json');
@@ -38,12 +37,7 @@ gulp.task('tsc', () => {
   ]);
 });
 
-gulp.task(
-  'build:function',
-  runCmd(
-    "node esbuild.js",
-  ),
-);
+gulp.task('build:function', run('node esbuild.js'));
 
 gulp.task('build:client', gulp.series(['build:function']));
 
@@ -51,14 +45,14 @@ gulp.task('prettier', () => {
   return gulp
     .src([
       '{src,functions,scripts}/**/*.{js,ts}',
-      'gulpfile.js',
-      'gulp.utils.js',
+      'gulpfile.ts',
+      'gulp.utils.ts',
     ])
-    .pipe(prettier({ config: '.prettierrc', logLevel: 'error', write: true }))
+    .pipe(prettier({ logLevel: 'error', write: true }))
     .pipe(gulp.dest('./'));
 });
 
-gulp.task('lint', runCmd('npx eslint . --ext .ts --fix'));
+gulp.task('lint', run('npx eslint . --ext .ts --fix'));
 
 gulp.task('generate:schemas', generateSchemas);
 
@@ -68,17 +62,17 @@ gulp.task('generate:openapi', generateOpenAPI);
 
 gulp.task(
   'install:browsers',
-  runCmd('npx --yes playwright install chromium firefox webkit'),
+  run('npx --yes playwright install chromium firefox webkit'),
 );
 
 gulp.task(
   'install:cdp-json',
-  runCmd('node --no-warnings --loader ts-node/esm ./scripts/cdp-json.ts'),
+  run('node --no-warnings --loader ts-node/esm ./scripts/cdp-json.ts'),
 );
 
 gulp.task('install:dev', gulp.series('install:browsers', 'install:cdp-json'));
 gulp.task('install:ublock', pullUblockOrigin);
-gulp.task('deploy', runCmd('npx ts-node scripts/deploy'));
+gulp.task('deploy', run('npx ts-node scripts/deploy'));
 
 gulp.task(
   'build',

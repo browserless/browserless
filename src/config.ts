@@ -395,8 +395,8 @@ export class Config extends EventEmitter {
     this.port === 443
       ? `https://${this.host}:${this.port}`
       : this.port === 80
-      ? `http://${this.host}`
-      : `http://${this.host}:${this.port}`;
+        ? `http://${this.host}`
+        : `http://${this.host}:${this.port}`;
 
   /**
    * Returns the the fully-qualified URL for the
