@@ -30,7 +30,7 @@
     "@types/gradient-string": "^1.1.5",
     "@types/gulp": "^4.0.17",
     "@types/http-proxy": "^1.17.14",
-    "@types/micromatch": "^4.0.5",
+    "@types/micromatch": "^4.0.6",
     "@types/mocha": "^10.0.5",
     "@types/node": "^20.9.3",
     "@types/sinon": "^17.0.2",
