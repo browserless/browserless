@@ -82,6 +82,7 @@ export class Limiter extends q {
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
+    // @TODO Figure out a better argument handling for jobs
     afterRequest({
       req: job.args[0],
       start: job.start,
