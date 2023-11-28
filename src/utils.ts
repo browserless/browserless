@@ -190,10 +190,10 @@ export const isAuthorized = (
   route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
   token: string | null,
 ): boolean => {
-  if (token === null){
+  if (token === null) {
     return true;
   }
-  
+
   if (route.auth === false) {
     return true;
   }

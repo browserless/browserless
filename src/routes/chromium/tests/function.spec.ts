@@ -11,7 +11,6 @@ describe('/function API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -21,7 +20,10 @@ describe('/function API', function () {
   });
 
   it('runs functions', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       code: `export default async function ({ page }) {
         return Promise.resolve({
@@ -48,7 +50,10 @@ describe('/function API', function () {
   });
 
   it('runs "application/javascript" functions', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = `export default async function ({ page }) {
       return Promise.resolve({
         data: "ok",
@@ -71,8 +76,8 @@ describe('/function API', function () {
 
   it('runs functions that import libraries', async () => {
     const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-
     await start({ config, metrics });
     const body = {
       code: `
@@ -102,8 +107,8 @@ describe('/function API', function () {
 
   it('runs functions with custom return types', async () => {
     const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-
     await start({ config, metrics });
     const body = {
       code: `
@@ -135,8 +140,10 @@ describe('/function API', function () {
   });
 
   it('times out requests', async () => {
-    await start();
-
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       code: `export default async function ({ page }) {
         return Promise.resolve({
@@ -162,6 +169,7 @@ describe('/function API', function () {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -190,6 +198,7 @@ describe('/function API', function () {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -216,6 +225,7 @@ describe('/function API', function () {
 
   it('rejects requests that are unauthorized', async () => {
     const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -237,6 +247,36 @@ describe('/function API', function () {
       method: 'POST',
     }).then(async (res) => {
       return expect(res.status).to.equal(401);
+    });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/function', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
     });
   });
 });

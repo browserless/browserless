@@ -11,7 +11,6 @@ describe('/content API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -21,7 +20,10 @@ describe('/content API', function () {
   });
 
   it('allows requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
     };
@@ -45,7 +47,10 @@ describe('/content API', function () {
   });
 
   it('404s GET requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     await fetch('http://localhost:3000/content?token=browserless').then(
       (res) => {
@@ -58,7 +63,10 @@ describe('/content API', function () {
   });
 
   it('handles `waitForFunction` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForFunction: {
@@ -81,7 +89,10 @@ describe('/content API', function () {
   });
 
   it('handles async `waitForFunction` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForFunction: {
@@ -104,7 +115,10 @@ describe('/content API', function () {
   });
 
   it('handles `waitForSelector` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForSelector: {
@@ -127,7 +141,10 @@ describe('/content API', function () {
   });
 
   it('handles `waitForTimeout` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForTimeout: 500,
@@ -148,7 +165,10 @@ describe('/content API', function () {
   });
 
   it('handles `waitForEvent` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       html: `<script type="text/javascript">
       const event = new Event("customEvent");
@@ -174,7 +194,10 @@ describe('/content API', function () {
   });
 
   it('allows cookies', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
       url: 'https://example.com',
@@ -195,7 +218,10 @@ describe('/content API', function () {
   });
 
   it('times out requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
     };
@@ -215,6 +241,7 @@ describe('/content API', function () {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -236,8 +263,9 @@ describe('/content API', function () {
 
   it('allows for providing http response payloads', async () => {
     const config = new Config();
-    const metrics = new Metrics();
+    config.setToken('browserless');
     config.setTimeout(30000);
+    const metrics = new Metrics();
     await start({ config, metrics });
 
     const body = {
@@ -266,7 +294,10 @@ describe('/content API', function () {
   });
 
   it('allows goto options', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const body = {
       gotoOptions: {
@@ -282,6 +313,30 @@ describe('/content API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    await start();
+    const body = {
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/content', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('x-response-code')).to.not.be.undefined;
+      expect(res.headers.get('x-response-url')).to.not.be.undefined;
+      expect(res.headers.get('x-response-ip')).to.not.be.undefined;
+      expect(res.headers.get('x-response-por')).to.not.be.undefined;
+      expect(res.headers.get('content-type')).to.equal(
+        'text/html; charset=UTF-8',
+      );
       expect(res.status).to.equal(200);
     });
   });

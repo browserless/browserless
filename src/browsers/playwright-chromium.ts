@@ -121,7 +121,7 @@ export class PlaywrightChromium extends EventEmitter {
     wsURL.hostname = serverURL.hostname;
     wsURL.port = serverURL.port;
     wsURL.protocol = serverURL.protocol === 'https' ? 'wss' : 'ws';
-    if (token){
+    if (token) {
       wsURL.searchParams.set('token', token);
     }
 

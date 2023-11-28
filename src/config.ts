@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import { mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -137,7 +136,6 @@ export class Config extends EventEmitter {
     : path.join(process.cwd(), 'build', 'routes');
 
   private token = process.env.TOKEN || null;
-  private aesToken = this.token || randomUUID();
   private concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -252,7 +250,8 @@ export class Config extends EventEmitter {
    * secure links.
    */
   public getAESKey = () => {
-    return Buffer.from(this.aesToken.repeat(keyLength).substring(0, keyLength));
+    const aesToken = this.token || 'browserless';
+    return Buffer.from(aesToken.repeat(keyLength).substring(0, keyLength));
   };
 
   public getMetricsJSONPath = () => this.metricsJSONPath;

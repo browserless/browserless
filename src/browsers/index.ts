@@ -27,7 +27,7 @@ export class BrowserManager {
   private launching: Map<string, Promise<unknown>> = new Map();
   private timers: Map<string, number> = new Map();
 
-  constructor(private config: Config) { }
+  constructor(private config: Config) {}
 
   private removeUserDataDir = async (userDataDir: string | null) => {
     if (userDataDir && (await util.exists(userDataDir))) {
@@ -85,10 +85,10 @@ export class BrowserManager {
       initialConnectURL: new URL(session.initialConnectURL, serverAddress).href,
       killURL: session.id
         ? util.makeExternalURL(
-          serverAddress,
-          HTTPManagementRoutes.sessions,
-          session.id,
-        )
+            serverAddress,
+            HTTPManagementRoutes.sessions,
+            session.id,
+          )
         : null,
       running: browser.isRunning(),
       timeAliveMs: Date.now() - session.startedOn,
@@ -116,7 +116,9 @@ export class BrowserManager {
     await Promise.all(cleanupACtions.map((a) => a()));
   };
 
-  public getAllSessions = async (req: Request): Promise<BrowserlessSessionJSON[]> => {
+  public getAllSessions = async (
+    req: Request,
+  ): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
 
     const requestToken = util.getTokenFromRequest(req);
