@@ -27,13 +27,7 @@ const route: HTTPRoute = {
       throw new util.BadRequest(`Couldn't load browsers running`);
     }
 
-    const token = util.getTokenFromRequest(req);
-
-    if (!token) {
-      throw new util.BadRequest(`Couldn't locate your API token`);
-    }
-
-    const response: ResponseSchema = await browserManager().getAllSessions();
+    const response: ResponseSchema = await browserManager().getAllSessions(req);
 
     return util.jsonResponse(res, 200, response);
   },

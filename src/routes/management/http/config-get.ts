@@ -31,7 +31,7 @@ export interface ResponseSchema {
   retries: number;
   timeout: number;
   timeoutAlertURL: string | null;
-  token: string;
+  token: string | null;
 }
 
 const route: HTTPRoute = {

@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
 import { mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -136,7 +135,7 @@ export class Config extends EventEmitter {
     ? untildify(process.env.ROUTES)
     : path.join(process.cwd(), 'build', 'routes');
 
-  private token = process.env.TOKEN ?? randomUUID();
+  private token = process.env.TOKEN || null;
   private concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -169,7 +168,7 @@ export class Config extends EventEmitter {
   public getHost = (): string => this.host;
   public getPort = (): number => this.port;
   public getIsWin = (): boolean => this.isWin;
-  public getToken = (): string => this.token;
+  public getToken = (): string | null => this.token;
   public getDebug = (): string => this.debug;
 
   /**
@@ -251,7 +250,8 @@ export class Config extends EventEmitter {
    * secure links.
    */
   public getAESKey = () => {
-    return Buffer.from(this.token.repeat(keyLength).substring(0, keyLength));
+    const aesToken = this.token || 'browserless';
+    return Buffer.from(aesToken.repeat(keyLength).substring(0, keyLength));
   };
 
   public getMetricsJSONPath = () => this.metricsJSONPath;
@@ -282,7 +282,7 @@ export class Config extends EventEmitter {
     return (this.queued = newQueued);
   };
 
-  public setToken = (newToken: string): string => {
+  public setToken = (newToken: string | null): string | null => {
     this.emit('token', newToken);
     return (this.token = newToken);
   };

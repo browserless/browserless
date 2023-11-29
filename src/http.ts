@@ -150,5 +150,5 @@ export interface SystemQueryParameters {
   /**
    * The authorization token
    */
-  token: string;
+  token?: string;
 }

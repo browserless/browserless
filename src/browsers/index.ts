@@ -116,8 +116,16 @@ export class BrowserManager {
     await Promise.all(cleanupACtions.map((a) => a()));
   };
 
-  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
+  public getAllSessions = async (
+    req: Request,
+  ): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
+
+    const requestToken = util.getTokenFromRequest(req);
+    const token = this.config.getToken();
+    if (token && !requestToken) {
+      throw new util.BadRequest(`Couldn't locate your API token`);
+    }
 
     return sessions.map(([browser, session]) =>
       this.generateSessionJson(browser, session),
@@ -189,8 +197,9 @@ export class BrowserManager {
       );
     }
     const requestToken = util.getTokenFromRequest(req);
+    const token = this.config.getToken();
 
-    if (!requestToken) {
+    if (token && !requestToken) {
       throw new util.ServerError(`Error locating authorization token`);
     }
 
