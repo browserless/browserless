@@ -5,7 +5,8 @@
   "description": "The browserless platform",
   "author": "browserless.io",
   "type": "module",
-  "main": "./src/exports.ts",
+  "types": "./src/exports.ts",
+  "main": "./build/exports.js",
   "bin": {
     "browserless": "./bin/browserless.js"
   },

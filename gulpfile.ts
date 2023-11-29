@@ -1,11 +1,5 @@
 import path from 'path';
 
-import {
-  generateSelectors,
-  generateSchemas,
-  generateOpenAPI,
-  pullUblockOrigin,
-} from '@browserless.io/browserless/gulp.utils.js';
 
 import { deleteAsync } from 'del';
 import gulp from 'gulp';
@@ -16,6 +10,13 @@ import { default as runExport } from 'gulp-run-command';
 import sourcemaps from 'gulp-sourcemaps';
 import ts from 'gulp-typescript';
 import merge from 'merge2';
+
+import {
+  generateSelectors,
+  generateSchemas,
+  generateOpenAPI,
+  pullUblockOrigin,
+} from './gulp.utils.js';
 
 // @ts-ignore
 const run = runExport.default;
