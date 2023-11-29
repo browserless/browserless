@@ -34,9 +34,6 @@ import {
 import Enjoi from 'enjoi';
 import micromatch from 'micromatch';
 
-const debug = createLogger('server');
-const verbose = createLogger('server:verbose');
-
 export interface HTTPServerOptions {
   concurrent: number;
   host: string;
@@ -49,6 +46,8 @@ export class HTTPServer {
   private server: http.Server = http.createServer();
   private port: number;
   private host?: string;
+  private log = createLogger('server');
+  private verbose = createLogger('server:verbose');
 
   constructor(
     private config: Config,
@@ -65,7 +64,7 @@ export class HTTPServer {
       this.registerWebSocketRoute(r),
     );
 
-    debug(
+    this.log(
       `Server instantiated with host "${this.host}" on port "${
         this.port
       }" using token "${this.config.getToken()}"`,
@@ -73,33 +72,33 @@ export class HTTPServer {
   }
 
   private onQueueFullHTTP = (_req: Request, res: Response) => {
-    debug(`Queue is full, sending 429 response`);
+    this.log(`Queue is full, sending 429 response`);
     return writeResponse(res, 429, 'Too many requests');
   };
 
   private onQueueFullWebSocket = (_req: Request, socket: stream.Duplex) => {
-    debug(`Queue is full, sending 429 response`);
+    this.log(`Queue is full, sending 429 response`);
     return writeResponse(socket, 429, 'Too many requests');
   };
 
   private onHTTPTimeout = (_req: Request, res: Response) => {
-    debug(`HTTP job has timedout, sending 429 response`);
+    this.log(`HTTP job has timedout, sending 429 response`);
     return writeResponse(res, 408, 'Request has timed out');
   };
 
   private onWebsocketTimeout = (_req: Request, socket: stream.Duplex) => {
-    debug(`Websocket job has timedout, sending 429 response`);
+    this.log(`Websocket job has timedout, sending 429 response`);
     return writeResponse(socket, 408, 'Request has timed out');
   };
 
   private onHTTPUnauthorized = (_req: Request, res: Response) => {
-    debug(`HTTP request is not properly authorized, responding with 401`);
+    this.log(`HTTP request is not properly authorized, responding with 401`);
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
   };
 
   private onWebsocketUnauthorized = (_req: Request, socket: stream.Duplex) => {
-    debug(`Websocket request is not properly authorized, responding with 401`);
+    this.log(`Websocket request is not properly authorized, responding with 401`);
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
   };
@@ -111,7 +110,7 @@ export class HTTPServer {
     ) =>
     async (req: Request, res: Response) => {
       if (!isConnected(res)) {
-        debug(`HTTP Request has closed prior to running`);
+        this.log(`HTTP Request has closed prior to running`);
         return Promise.resolve();
       }
 
@@ -122,7 +121,7 @@ export class HTTPServer {
         );
 
         if (!isConnected(res)) {
-          debug(`HTTP Request has closed prior to running`);
+          this.log(`HTTP Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }
@@ -132,15 +131,15 @@ export class HTTPServer {
         }
 
         if (!isConnected(res)) {
-          debug(`HTTP Request has closed prior to running`);
+          this.log(`HTTP Request has closed prior to running`);
           return Promise.resolve();
         }
 
         try {
-          verbose(`Running found HTTP handler.`);
+          this.verbose(`Running found HTTP handler.`);
           return await handler(req, res, browser);
         } finally {
-          verbose(`HTTP Request handler has finished.`);
+          this.verbose(`HTTP Request handler has finished.`);
           this.browserManager.complete(browser);
         }
       }
@@ -155,7 +154,7 @@ export class HTTPServer {
     ) =>
     async (req: Request, socket: stream.Duplex, head: Buffer) => {
       if (!isConnected(socket)) {
-        debug(`WebSocket Request has closed prior to running`);
+        this.log(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
       }
 
@@ -166,7 +165,7 @@ export class HTTPServer {
         );
 
         if (!isConnected(socket)) {
-          debug(`WebSocket Request has closed prior to running`);
+          this.log(`WebSocket Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }
@@ -176,10 +175,10 @@ export class HTTPServer {
         }
 
         try {
-          verbose(`Running found WebSocket handler.`);
+          this.verbose(`Running found WebSocket handler.`);
           await handler(req, socket, head, browser);
         } finally {
-          verbose(`WebSocket Request handler has finished.`);
+          this.verbose(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);
         }
         return;
@@ -196,7 +195,7 @@ export class HTTPServer {
   private registerHTTPRoute(
     route: HTTPRoute | BrowserHTTPRoute,
   ): HTTPRoute | BrowserHTTPRoute {
-    verbose(`Registering HTTP ${route.method.toUpperCase()} ${route.path}`);
+    this.verbose(`Registering HTTP ${route.method.toUpperCase()} ${route.path}`);
 
     route._browserManager = () => this.browserManager;
 
@@ -218,7 +217,7 @@ export class HTTPServer {
   private registerWebSocketRoute(
     route: WebSocketRoute | BrowserWebsocketRoute,
   ): WebSocketRoute | BrowserWebsocketRoute {
-    verbose(`Registering WebSocket "${route.path}"`);
+    this.verbose(`Registering WebSocket "${route.path}"`);
 
     route._browserManager = () => this.browserManager;
 
@@ -238,7 +237,7 @@ export class HTTPServer {
   }
 
   public async start(): Promise<void> {
-    debug(`HTTP Server is starting`);
+    this.log(`HTTP Server is starting`);
 
     this.server.on('request', this.handleRequest);
     this.server.on('upgrade', this.handleWebSocket);
@@ -255,7 +254,7 @@ export class HTTPServer {
         },
         undefined,
         () => {
-          debug(listenMessage);
+          this.log(listenMessage);
           r(undefined);
         },
       );
@@ -263,14 +262,14 @@ export class HTTPServer {
   }
 
   public async stop(): Promise<void> {
-    debug(`HTTP Server is shutting down`);
+    this.log(`HTTP Server is shutting down`);
     await new Promise((r) => this.server.close(r));
     await Promise.all([this.tearDown(), this.browserManager.stop()]);
-    debug(`HTTP Server shutdown complete`);
+    this.log(`HTTP Server shutdown complete`);
   }
 
   private tearDown() {
-    debug(`Tearing down all listeners and internal routes`);
+    this.log(`Tearing down all listeners and internal routes`);
     this.server && this.server.removeAllListeners();
     this.httpRoutes = [];
     this.webSocketRoutes = [];
@@ -283,7 +282,7 @@ export class HTTPServer {
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) => {
-    verbose(
+    this.verbose(
       `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
     );
 
@@ -339,15 +338,15 @@ export class HTTPServer {
       ) || (req.method?.toLowerCase() === 'get' ? staticHandler : null);
 
     if (!found) {
-      debug(`No matching WebSocket route handler for "${req.parsed.href}"`);
+      this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
       writeResponse(res, 404, 'Not Found');
       return Promise.resolve();
     }
 
-    verbose(`Found matching HTTP route handler "${found.path}"`);
+    this.verbose(`Found matching HTTP route handler "${found.path}"`);
 
     if (found?.auth) {
-      verbose(`Authorizing HTTP request to "${request.url}"`);
+      this.verbose(`Authorizing HTTP request to "${request.url}"`);
       const tokens = this.config.getToken();
       const isPermitted = isAuthorized(req, found, tokens);
 
@@ -372,7 +371,7 @@ export class HTTPServer {
     }
 
     if (found.querySchema) {
-      verbose(`Validating route query-params with QUERY schema`);
+      this.verbose(`Validating route query-params with QUERY schema`);
       try {
         const schema = Enjoi.schema(found.querySchema);
         const valid = schema.validate(req.queryParams, {
@@ -392,7 +391,7 @@ export class HTTPServer {
             )
             .join('\n');
 
-          debug(`HTTP query-params contain errors sending 400:${errorDetails}`);
+          this.log(`HTTP query-params contain errors sending 400:${errorDetails}`);
 
           writeResponse(
             res,
@@ -403,7 +402,7 @@ export class HTTPServer {
           return Promise.resolve();
         }
       } catch (e) {
-        debug(`Error parsing body schema`, e);
+        this.log(`Error parsing body schema`, e);
         writeResponse(
           res,
           500,
@@ -415,7 +414,7 @@ export class HTTPServer {
     }
 
     if (found.bodySchema) {
-      verbose(`Validating route payload with BODY schema`);
+      this.verbose(`Validating route payload with BODY schema`);
       try {
         const schema = Enjoi.schema(found.bodySchema);
         const valid = schema.validate(body, { abortEarly: false });
@@ -433,7 +432,7 @@ export class HTTPServer {
             )
             .join('\n');
 
-          debug(`HTTP body contain errors sending 400:${errorDetails}`);
+          this.log(`HTTP body contain errors sending 400:${errorDetails}`);
 
           writeResponse(
             res,
@@ -444,7 +443,7 @@ export class HTTPServer {
           return Promise.resolve();
         }
       } catch (e) {
-        debug(`Error parsing body schema`, e);
+        this.log(`Error parsing body schema`, e);
         writeResponse(
           res,
           500,
@@ -460,7 +459,7 @@ export class HTTPServer {
     return (found as HTTPRoute)
       .handler(req, res)
       .then(() => {
-        verbose('HTTP connection complete');
+        this.verbose('HTTP connection complete');
       })
       .catch((e) => {
         if (e instanceof BadRequest) {
@@ -483,7 +482,7 @@ export class HTTPServer {
           return writeResponse(res, 408, e.message);
         }
 
-        debug(`Error handling request at "${found.path}": ${e}`);
+        this.log(`Error handling request at "${found.path}": ${e}`);
         return writeResponse(res, 500, e.toString());
       });
   };
@@ -493,7 +492,7 @@ export class HTTPServer {
     socket: stream.Duplex,
     head: Buffer,
   ) => {
-    verbose(`Handling inbound WebSocket request on "${request.url}"`);
+    this.verbose(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
     const proceed = await beforeRequest({ head, req, socket });
@@ -510,10 +509,10 @@ export class HTTPServer {
     );
 
     if (found) {
-      verbose(`Found matching WebSocket route handler "${found.path}"`);
+      this.verbose(`Found matching WebSocket route handler "${found.path}"`);
 
       if (found?.auth) {
-        verbose(`Authorizing WebSocket request to "${req.parsed.href}"`);
+        this.verbose(`Authorizing WebSocket request to "${req.parsed.href}"`);
         const isPermitted = isAuthorized(req, found, this.config.getToken());
 
         if (!isPermitted) {
@@ -522,7 +521,7 @@ export class HTTPServer {
       }
 
       if (found.querySchema) {
-        verbose(`Validating route query-params with QUERY schema`);
+        this.verbose(`Validating route query-params with QUERY schema`);
         try {
           const schema = Enjoi.schema(found.querySchema);
           const valid = schema.validate(req.queryParams, {
@@ -542,7 +541,7 @@ export class HTTPServer {
               )
               .join('\n');
 
-            debug(
+            this.log(
               `WebSocket query-params contain errors sending 400:${errorDetails}`,
             );
 
@@ -555,7 +554,7 @@ export class HTTPServer {
             return Promise.resolve();
           }
         } catch (e) {
-          debug(`Error parsing query-params schema`, e);
+          this.log(`Error parsing query-params schema`, e);
           writeResponse(
             socket,
             500,
@@ -571,7 +570,7 @@ export class HTTPServer {
       return (found as WebSocketRoute)
         .handler(req, socket, head)
         .then(() => {
-          verbose('Websocket connection complete');
+          this.verbose('Websocket connection complete');
         })
         .catch((e) => {
           if (e instanceof BadRequest) {
@@ -590,13 +589,13 @@ export class HTTPServer {
             return writeResponse(socket, 429, e.message);
           }
 
-          debug(`Error handling request at "${found.path}": ${e}\n${e.stack}`);
+          this.log(`Error handling request at "${found.path}": ${e}\n${e.stack}`);
 
           return writeResponse(socket, 500, e.message);
         });
     }
 
-    debug(`No matching WebSocket route handler for "${req.parsed.href}"`);
+    this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
     return writeResponse(socket, 404, 'Not Found');
   };
 }
