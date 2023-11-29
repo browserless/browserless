@@ -1,4 +1,4 @@
-import { Page, Browser } from 'puppeteer-core';
+import { Browser, Page } from 'puppeteer-core';
 import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
 
 type codeHandler = (params: {

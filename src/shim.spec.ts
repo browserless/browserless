@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-
-import { shimLegacyRequests } from './shim.js';
+import { shimLegacyRequests } from '@browserless.io/browserless';
 
 describe('Request Shimming', () => {
   describe('headless', () => {

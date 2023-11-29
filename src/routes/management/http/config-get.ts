@@ -1,15 +1,14 @@
-import { ServerResponse } from 'http';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPManagementRoutes,
   APITags,
-} from '../../../http.js';
-
-import { HTTPRoute } from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPManagementRoutes,
+  HTTPRoute,
+  Methods,
+  Request,
+  ServerError,
+  contentTypes,
+  jsonResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 export interface ResponseSchema {
   allowCORS: boolean;
@@ -31,7 +30,7 @@ export interface ResponseSchema {
   retries: number;
   timeout: number;
   timeoutAlertURL: string | null;
-  token: string;
+  token: string | null;
 }
 
 const route: HTTPRoute = {
@@ -45,7 +44,7 @@ const route: HTTPRoute = {
     const { _config: getConfig } = route;
 
     if (!getConfig) {
-      throw new util.ServerError(`Couldn't locate the config object`);
+      throw new ServerError(`Couldn't locate the config object`);
     }
 
     const config = getConfig();
@@ -73,7 +72,7 @@ const route: HTTPRoute = {
       token: config.getToken(),
     };
 
-    return util.jsonResponse(res, 200, response);
+    return jsonResponse(res, 200, response);
   },
   method: Methods.get,
   path: HTTPManagementRoutes.config,

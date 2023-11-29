@@ -1,15 +1,15 @@
-import { ServerResponse } from 'http';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPManagementRoutes,
   APITags,
-} from '../../../http.js';
-
-import { BrowserlessSessionJSON, HTTPRoute } from '../../../types.js';
-import * as util from '../../../utils.js';
+  BadRequest,
+  BrowserlessSessionJSON,
+  HTTPManagementRoutes,
+  HTTPRoute,
+  Methods,
+  Request,
+  contentTypes,
+  jsonResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 export type ResponseSchema = BrowserlessSessionJSON[];
 
@@ -24,18 +24,12 @@ const route: HTTPRoute = {
     const { _browserManager: browserManager } = route;
 
     if (!browserManager) {
-      throw new util.BadRequest(`Couldn't load browsers running`);
+      throw new BadRequest(`Couldn't load browsers running`);
     }
 
-    const token = util.getTokenFromRequest(req);
+    const response: ResponseSchema = await browserManager().getAllSessions(req);
 
-    if (!token) {
-      throw new util.BadRequest(`Couldn't locate your API token`);
-    }
-
-    const response: ResponseSchema = await browserManager().getAllSessions();
-
-    return util.jsonResponse(res, 200, response);
+    return jsonResponse(res, 200, response);
   },
   method: Methods.get,
   path: HTTPManagementRoutes.sessions,

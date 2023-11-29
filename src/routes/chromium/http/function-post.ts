@@ -1,25 +1,22 @@
-import { ServerResponse } from 'http';
-import Stream from 'stream';
-
-import { fileTypeFromBuffer } from 'file-type';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPRoutes,
+  Methods,
+  Request,
+  ServerError,
+  SystemQueryParameters,
+  contentTypes,
+  dedent,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
+import Stream from 'stream';
+import { fileTypeFromBuffer } from 'file-type';
 import functionHandler from '../utils/function/handler.js';
 
 interface JSONSchema {
@@ -47,7 +44,7 @@ const route: BrowserHTTPRoute = {
   browser: CDPChromium,
   concurrency: true,
   contentTypes: [contentTypes.any],
-  description: util.dedent(`
+  description: dedent(`
   A JSON or JavaScript content-type API for running puppeteer code in the browser's context.
   Browserless sets up a blank page, injects your puppeteer code, and runs it.
   You can optionally load external libraries via the "import" module that are meant for browser usage.
@@ -61,7 +58,7 @@ const route: BrowserHTTPRoute = {
     const { _config: getConfig, _debug: getDebug } = route;
 
     if (!getConfig || !getDebug) {
-      throw new util.ServerError(`Couldn't load configuration for request`);
+      throw new ServerError(`Couldn't load configuration for request`);
     }
 
     const debug = getDebug();
@@ -79,9 +76,7 @@ const route: BrowserHTTPRoute = {
         .mime;
 
       if (!type) {
-        throw new util.BadRequest(
-          `Couldn't determine function's response type.`,
-        );
+        throw new BadRequest(`Couldn't determine function's response type.`);
       } else {
         debug(`Sending file-type response of "${type}"`);
         const readStream = new Stream.PassThrough();
@@ -90,12 +85,7 @@ const route: BrowserHTTPRoute = {
         return new Promise((r) => readStream.pipe(res).once('close', r));
       }
     } else {
-      util.writeResponse(
-        res,
-        200,
-        payload as string,
-        contentType as contentTypes,
-      );
+      writeResponse(res, 200, payload as string, contentType as contentTypes);
     }
 
     return;

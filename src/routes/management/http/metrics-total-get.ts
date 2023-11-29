@@ -1,15 +1,15 @@
-import { ServerResponse } from 'http';
-
 import {
-  contentTypes,
-  Methods,
-  HTTPManagementRoutes,
-  Request,
   APITags,
-} from '../../../http.js';
-
-import { HTTPRoute, IBrowserlessMetricTotals } from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPManagementRoutes,
+  HTTPRoute,
+  IBrowserlessMetricTotals,
+  Methods,
+  Request,
+  ServerError,
+  contentTypes,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 export type ResponseSchema = IBrowserlessMetricTotals;
 
@@ -26,9 +26,7 @@ const route: HTTPRoute = {
     const { _fileSystem, _config } = route;
 
     if (!_fileSystem || !_config) {
-      throw new util.ServerError(
-        `Couldn't locate the file-system or config module`,
-      );
+      throw new ServerError(`Couldn't locate the file-system or config module`);
     }
 
     const fileSystem = _fileSystem();
@@ -81,12 +79,7 @@ const route: HTTPRoute = {
       totals.units / (availableMetrics / fiveMinuteIntervalsInAMonth),
     );
 
-    return util.writeResponse(
-      res,
-      200,
-      JSON.stringify(totals),
-      contentTypes.json,
-    );
+    return writeResponse(res, 200, JSON.stringify(totals), contentTypes.json);
   },
   method: Methods.get,
   path: HTTPManagementRoutes.metricsTotal,

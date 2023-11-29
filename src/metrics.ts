@@ -1,4 +1,4 @@
-import { IBrowserlessStats } from './types';
+import { IBrowserlessStats } from '@browserless.io/browserless';
 
 export class Metrics {
   private sessionTimes: number[] = [];

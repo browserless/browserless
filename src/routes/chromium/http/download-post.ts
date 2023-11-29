@@ -1,29 +1,28 @@
-import { createReadStream } from 'fs';
-import { mkdir, readdir } from 'fs/promises';
-import { ServerResponse } from 'http';
-import path from 'path';
-
-import { deleteAsync } from 'del';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-import { mimeTypes } from '../../../mime-types.js';
-
-import {
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPRoutes,
+  Methods,
+  NotFound,
+  Request,
+  ServerError,
+  SystemQueryParameters,
+  contentTypes,
+  dedent,
+  id,
+  mimeTypes,
+  once,
+  sleep,
+} from '@browserless.io/browserless';
+import { mkdir, readdir } from 'fs/promises';
+import { ServerResponse } from 'http';
+import { createReadStream } from 'fs';
+import { deleteAsync } from 'del';
 import functionHandler from '../utils/function/handler.js';
+import path from 'path';
 
 interface JSONSchema {
   code: string;
@@ -48,7 +47,7 @@ const route: BrowserHTTPRoute = {
   browser: CDPChromium,
   concurrency: true,
   contentTypes: [contentTypes.any],
-  description: util.dedent(`
+  description: dedent(`
   A JSON or JavaScript content-type API for returning files Chrome has downloaded during
   the execution of puppeteer code, which is ran inside context of the browser.
   Browserless sets up a blank page, a fresh download directory, injects your puppeteer code, and then executes it.
@@ -65,7 +64,7 @@ const route: BrowserHTTPRoute = {
 
       if (!getConfig || !getDebug) {
         return reject(
-          new util.ServerError(`Couldn't load configuration for request`),
+          new ServerError(`Couldn't load configuration for request`),
         );
       }
 
@@ -73,7 +72,7 @@ const route: BrowserHTTPRoute = {
       const config = getConfig();
       const downloadPath = path.join(
         await config.getDownloadsDir(),
-        `.browserless.download.${util.id()}`,
+        `.browserless.download.${id()}`,
       );
 
       debug(`Generating a download directory at "${downloadPath}"`);
@@ -98,7 +97,7 @@ const route: BrowserHTTPRoute = {
         }
         const [fileName] = await readdir(downloadPath);
         if (!fileName || fileName.endsWith('.crdownload')) {
-          await util.sleep(500);
+          await sleep(500);
           return checkIfDownloadComplete();
         }
 
@@ -112,7 +111,7 @@ const route: BrowserHTTPRoute = {
       page.close();
       page.removeAllListeners();
 
-      const rmDownload = util.once(
+      const rmDownload = once(
         () =>
           filePath &&
           deleteAsync(filePath, { force: true })
@@ -142,7 +141,7 @@ const route: BrowserHTTPRoute = {
           if (error) {
             rmDownload();
             return reject(
-              new util.NotFound(
+              new NotFound(
                 `Couldn't locate or send downloads in "${downloadPath}"`,
               ),
             );

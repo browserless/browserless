@@ -1,19 +1,23 @@
+import {
+  BadRequest,
+  BrowserInstance,
+  CDPChromium,
+  Config,
+  HTTPRoutes,
+  Request,
+  UnwrapPromise,
+  contentTypes,
+  convertIfBase64,
+  exists,
+  id,
+  makeExternalURL,
+  mimeTypes,
+} from '@browserless.io/browserless';
+import { FunctionRunner } from './client.js';
+import { Page } from 'puppeteer-core';
+import debug from 'debug';
 import fs from 'fs';
 import path from 'path';
-
-import debug from 'debug';
-import { Page } from 'puppeteer-core';
-
-import { BrowserInstance, UnwrapPromise } from 'src/types.js';
-
-import { CDPChromium } from '../../../../browsers/cdp-chromium.js';
-import { Config } from '../../../../config.js';
-
-import { contentTypes, Request, HTTPRoutes } from '../../../../http.js';
-import { mimeTypes } from '../../../../mime-types.js';
-import * as util from '../../../../utils.js';
-
-import { FunctionRunner } from './client.js';
 
 declare global {
   interface Window {
@@ -42,11 +46,11 @@ export default (
     const isJson = req.headers['content-type']?.includes('json');
 
     const functionAssetLocation = path.join(config.getStatic(), 'function');
-    const functionRequestPath = util.makeExternalURL(
+    const functionRequestPath = makeExternalURL(
       config.getExternalAddress(),
       HTTPRoutes.function,
     );
-    const functionIndexHTML = util.makeExternalURL(
+    const functionIndexHTML = makeExternalURL(
       config.getExternalAddress(),
       HTTPRoutes.function,
       '/index.html',
@@ -60,7 +64,7 @@ export default (
         };
 
     const context = JSON.stringify(rawContext);
-    const code = util.convertIfBase64(rawCode);
+    const code = convertIfBase64(rawCode);
     const browserWSEndpoint = browser.publicWSEndpoint(
       req.parsed.searchParams.get('token') ?? '',
     );
@@ -69,7 +73,7 @@ export default (
       throw new Error(`No browser endpoint was found, is the browser running?`);
     }
 
-    const functionCodeJS = `browserless-function-${util.id()}.js`;
+    const functionCodeJS = `browserless-function-${id()}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<CDPChromium['newPage']>
     >;
@@ -94,8 +98,7 @@ export default (
           });
         }
         const filePath = path.join(functionAssetLocation, filename);
-        const exists = await util.exists(filePath);
-        if (exists) {
+        if (await exists(filePath)) {
           const contentType = mimeTypes.get(path.extname(filePath));
           return request.respond({
             body: await fs.readFileSync(filePath).toString(),
@@ -158,7 +161,7 @@ export default (
       )
       .catch((e) => {
         debug(`Error running code: ${e}`);
-        throw new util.BadRequest(e.message);
+        throw new BadRequest(e.message);
       });
 
     return {

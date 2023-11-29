@@ -1,15 +1,13 @@
-import { Duplex } from 'stream';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
-
 import {
-  Request,
-  WebsocketRoutes,
-  SystemQueryParameters,
   APITags,
-} from '../../../http.js';
-
-import { BrowserWebsocketRoute, CDPLaunchOptions } from '../../../types.js';
+  BrowserWebsocketRoute,
+  CDPChromium,
+  CDPLaunchOptions,
+  Request,
+  SystemQueryParameters,
+  WebsocketRoutes,
+} from '@browserless.io/browserless';
+import { Duplex } from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;

@@ -1,8 +1,5 @@
+import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
 
 describe('/performance API', function () {
   let browserless: Browserless;
@@ -11,7 +8,6 @@ describe('/performance API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -21,7 +17,10 @@ describe('/performance API', function () {
   });
 
   it('allows requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
     };
@@ -41,7 +40,10 @@ describe('/performance API', function () {
   });
 
   it('404s GET requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     await fetch('http://localhost:3000/performance?token=browserless').then(
       (res) => {
@@ -54,7 +56,10 @@ describe('/performance API', function () {
   });
 
   it('allows setting config', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       config: {
         extends: 'lighthouse:default',
@@ -85,8 +90,9 @@ describe('/performance API', function () {
 
   it('times out request', async () => {
     const config = new Config();
-    const metrics = new Metrics();
     config.setTimeout(10);
+    config.setToken('browserless');
+    const metrics = new Metrics();
     await start({ config, metrics });
 
     const body = {
@@ -109,7 +115,7 @@ describe('/performance API', function () {
     const metrics = new Metrics();
     config.setConcurrent(0);
     config.setQueued(0);
-
+    config.setToken('browserless');
     await start({ config, metrics });
 
     const body = {
@@ -124,6 +130,26 @@ describe('/performance API', function () {
       method: 'POST',
     }).then((res) => {
       expect(res.status).to.equal(429);
+    });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    await start();
+    const body = {
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/performance', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
+      expect(res.status).to.equal(200);
     });
   });
 });

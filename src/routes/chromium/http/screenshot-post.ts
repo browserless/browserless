@@ -1,32 +1,32 @@
-import { ServerResponse } from 'http';
-import Stream from 'stream';
-
-import { ElementHandle, Page } from 'puppeteer-core';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
+  BadRequest,
   BrowserHTTPRoute,
+  BrowserInstance,
+  CDPChromium,
+  CDPLaunchOptions,
+  HTTPRoutes,
+  Methods,
+  Request,
+  SystemQueryParameters,
+  UnwrapPromise,
+  WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
-  WaitForEventOptions,
-  CDPLaunchOptions,
   bestAttempt,
+  bestAttemptCatch,
+  contentTypes,
+  noop,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
-  BrowserInstance,
-  UnwrapPromise,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  scrollThroughPage,
+  waitForEvent as waitForEvt,
+  waitForFunction as waitForFn,
+} from '@browserless.io/browserless';
+import { ElementHandle, Page } from 'puppeteer-core';
+import { ServerResponse } from 'http';
+import Stream from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
@@ -82,7 +82,7 @@ const route: BrowserHTTPRoute = {
         : req.headers.accept;
 
     if (!req.body) {
-      throw new util.BadRequest(`Couldn't parse JSON body`);
+      throw new BadRequest(`Couldn't parse JSON body`);
     }
 
     res.setHeader('Content-Type', contentType);
@@ -114,15 +114,13 @@ const route: BrowserHTTPRoute = {
     } = req.body as BodySchema;
 
     if (options?.path) {
-      throw new util.BadRequest(`"path" option is not allowed`);
+      throw new BadRequest(`"path" option is not allowed`);
     }
 
     const content = url || html;
 
     if (!content) {
-      throw new util.BadRequest(
-        `One of "url" or "html" properties are required.`,
-      );
+      throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -195,36 +193,34 @@ const route: BrowserHTTPRoute = {
     }
 
     const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      util.bestAttemptCatch(bestAttempt),
+      bestAttemptCatch(bestAttempt),
     );
 
     if (waitForTimeout) {
       await page
         .waitForTimeout(waitForTimeout)
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForFunction) {
-      await util
-        .waitForFunction(page, waitForFunction)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForFn(page, waitForFunction).catch(
+        bestAttemptCatch(bestAttempt),
+      );
     }
 
     if (waitForSelector) {
       const { selector, hidden, timeout, visible } = waitForSelector;
       await page
         .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForEvent) {
-      await util
-        .waitForEvent(page, waitForEvent)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
     }
 
     if (scrollPage) {
-      await util.scrollThroughPage(page);
+      await scrollThroughPage(page);
     }
 
     const headers = {
@@ -246,7 +242,7 @@ const route: BrowserHTTPRoute = {
       : page;
 
     if (!target) {
-      throw new util.BadRequest('Element not found on page!');
+      throw new BadRequest('Element not found on page!');
     }
 
     const buffer = (await (target as Page).screenshot(options)) as Buffer;
@@ -256,7 +252,7 @@ const route: BrowserHTTPRoute = {
 
     await new Promise((r) => readStream.pipe(res).once('close', r));
 
-    page.close().catch(util.noop);
+    page.close().catch(noop);
   },
   method: Methods.post,
   path: HTTPRoutes.screenshot,

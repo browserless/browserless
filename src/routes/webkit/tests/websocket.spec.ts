@@ -1,10 +1,11 @@
+import {
+  Browserless,
+  Config,
+  Metrics,
+  sleep,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 import { webkit } from 'playwright-core';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
-import { sleep } from '../../../utils.js';
 
 describe('Webkit Websocket API', function () {
   // Server shutdown can take a few seconds
@@ -17,7 +18,6 @@ describe('Webkit Websocket API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -27,7 +27,10 @@ describe('Webkit Websocket API', function () {
   });
 
   it('runs webkit websocket requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await webkit.connect(
       `ws://localhost:3000/playwright/webkit?token=browserless`,
@@ -37,7 +40,10 @@ describe('Webkit Websocket API', function () {
   });
 
   it('rejects playwright requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const didError = await webkit
       .connect(`ws://localhost:3000/playwright/webkit?token=bad`)
@@ -51,6 +57,7 @@ describe('Webkit Websocket API', function () {
     const config = new Config();
     const metrics = new Metrics();
     config.setTimeout(-1); // No timeout
+    config.setToken('browserless');
     await start({ config, metrics });
 
     const browser = await webkit
@@ -69,6 +76,7 @@ describe('Webkit Websocket API', function () {
     const config = new Config();
     const metrics = new Metrics();
     config.setConcurrent(1);
+    config.setToken('browserless');
     await start({ config, metrics });
 
     const job = async () => {
@@ -94,6 +102,7 @@ describe('Webkit Websocket API', function () {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -109,8 +118,10 @@ describe('Webkit Websocket API', function () {
   });
 
   it('fails requests without tokens', async () => {
+    const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-    await start({ metrics });
+    await start({ config, metrics });
 
     return webkit
       .connect(`ws://localhost:3000/playwright/webkit`)
@@ -121,5 +132,15 @@ describe('Webkit Websocket API', function () {
         expect(results.queued).to.equal(0);
         expect(error.message).to.contain(`401`);
       });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    await start();
+
+    const browser = await webkit.connect(
+      `ws://localhost:3000/playwright/webkit`,
+    );
+
+    await browser.close();
   });
 });

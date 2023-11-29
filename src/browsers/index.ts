@@ -1,26 +1,34 @@
-import { mkdir } from 'fs/promises';
-import path, { join } from 'path';
-
-import { deleteAsync } from 'del';
-
-import { Config } from '../config.js';
-import { browserHook, pageHook } from '../hooks.js';
-import { Request, HTTPManagementRoutes } from '../http.js';
 import {
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
-  BrowserlessSession,
-  BrowserlessSessionJSON,
   BrowserServerOptions,
   BrowserWebsocketRoute,
+  BrowserlessSession,
+  BrowserlessSessionJSON,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../types.js';
+  Config,
+  HTTPManagementRoutes,
+  NotFound,
+  Request,
+  ServerError,
+  browserHook,
+  convertIfBase64,
+  createLogger,
+  exists,
+  getTokenFromRequest,
+  id,
+  makeExternalURL,
+  noop,
+  pageHook,
+  parseBooleanParam,
+} from '@browserless.io/browserless';
+import path, { join } from 'path';
+import { deleteAsync } from 'del';
+import { mkdir } from 'fs/promises';
 
-import * as util from '../utils.js';
-
-import { CDPChromium } from './cdp-chromium.js';
-
-const debug = util.createLogger('browser-manager');
+const debug = createLogger('browser-manager');
 
 export class BrowserManager {
   private browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
@@ -30,7 +38,7 @@ export class BrowserManager {
   constructor(private config: Config) {}
 
   private removeUserDataDir = async (userDataDir: string | null) => {
-    if (userDataDir && (await util.exists(userDataDir))) {
+    if (userDataDir && (await exists(userDataDir))) {
       debug(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
         debug(`Error cleaning up user-data-dir "${err}" at ${userDataDir}`);
@@ -48,7 +56,7 @@ export class BrowserManager {
    * @returns Promise<string> of the fully-qualified path of the directory
    */
   private generateDataDir = async (
-    sessionId: string = util.id(),
+    sessionId: string = id(),
   ): Promise<string> => {
     const baseDirectory = await this.config.getDataDir();
     const dataDirPath = join(
@@ -56,7 +64,7 @@ export class BrowserManager {
       `browserless-data-dir-${sessionId}`,
     );
 
-    if (await util.exists(dataDirPath)) {
+    if (await exists(dataDirPath)) {
       debug(`Data directory already exists, not creating "${dataDirPath}"`);
       return dataDirPath;
     }
@@ -64,7 +72,7 @@ export class BrowserManager {
     debug(`Generating user-data-dir at ${dataDirPath}`);
 
     await mkdir(dataDirPath, { recursive: true }).catch((err) => {
-      throw new util.ServerError(
+      throw new ServerError(
         `Error creating data-directory "${dataDirPath}": ${err}`,
       );
     });
@@ -84,7 +92,7 @@ export class BrowserManager {
       browserId: browser.wsEndpoint()?.split('/').pop(),
       initialConnectURL: new URL(session.initialConnectURL, serverAddress).href,
       killURL: session.id
-        ? util.makeExternalURL(
+        ? makeExternalURL(
             serverAddress,
             HTTPManagementRoutes.sessions,
             session.id,
@@ -116,8 +124,16 @@ export class BrowserManager {
     await Promise.all(cleanupACtions.map((a) => a()));
   };
 
-  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
+  public getAllSessions = async (
+    req: Request,
+  ): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
+
+    const requestToken = getTokenFromRequest(req);
+    const token = this.config.getToken();
+    if (token && !requestToken) {
+      throw new BadRequest(`Couldn't locate your API token`);
+    }
 
     return sessions.map(([browser, session]) =>
       this.generateSessionJson(browser, session),
@@ -148,17 +164,13 @@ export class BrowserManager {
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
   ): Promise<BrowserInstance> => {
     const { browser: Browser } = router;
-    const record = util.parseBooleanParam(
-      req.parsed.searchParams,
-      'record',
-      false,
-    );
-    const blockAds = util.parseBooleanParam(
+    const record = parseBooleanParam(req.parsed.searchParams, 'record', false);
+    const blockAds = parseBooleanParam(
       req.parsed.searchParams,
       'blockAds',
       false,
     );
-    const decodedLaunchOptions = util.convertIfBase64(
+    const decodedLaunchOptions = convertIfBase64(
       req.parsed.searchParams.get('launch') || '{}',
     );
     let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
@@ -176,7 +188,7 @@ export class BrowserManager {
         return browser[0];
       }
 
-      throw new util.NotFound(
+      throw new NotFound(
         `Couldn't locate browser "${id}" for request "${req.parsed.pathname}"`,
       );
     }
@@ -184,14 +196,15 @@ export class BrowserManager {
     try {
       parsedLaunchOptions = JSON.parse(decodedLaunchOptions);
     } catch (err) {
-      throw new util.BadRequest(
+      throw new BadRequest(
         `Error parsing launch-options: ${err}. Launch options must be a JSON or base64-encoded JSON object`,
       );
     }
-    const requestToken = util.getTokenFromRequest(req);
+    const requestToken = getTokenFromRequest(req);
+    const token = this.config.getToken();
 
-    if (!requestToken) {
-      throw new util.ServerError(`Error locating authorization token`);
+    if (token && !requestToken) {
+      throw new ServerError(`Error locating authorization token`);
     }
 
     const routerOptions =
@@ -229,7 +242,7 @@ export class BrowserManager {
       isTempDataDir: !manualUserDataDir,
       launchOptions,
       numbConnected: 1,
-      resolver: util.noop,
+      resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
       ttl: 0,
@@ -243,7 +256,7 @@ export class BrowserManager {
 
     browser.on('newPage', async (page) => {
       await pageHook({ meta: req.parsed, page });
-      (router.onNewPage || util.noop)(req.parsed || '', page);
+      (router.onNewPage || noop)(req.parsed || '', page);
     });
 
     return browser;

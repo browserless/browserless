@@ -1,5 +1,4 @@
-import { Browserless } from './browserless.js';
-import { createLogger } from './utils.js';
+import { Browserless, createLogger } from '@browserless.io/browserless';
 
 (async () => {
   const browserless = new Browserless();

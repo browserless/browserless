@@ -1,28 +1,27 @@
-import { readFile } from 'fs/promises';
-import { userInfo } from 'os';
 import * as path from 'path';
-
 import {
-  availableBrowsers,
-  Config,
+  BrowserHTTPRoute,
   BrowserManager,
+  BrowserWebsocketRoute,
+  Config,
   FileSystem,
+  HTTPRoute,
+  HTTPServer,
+  IBrowserlessStats,
   Limiter,
   Metrics,
   Monitoring,
-  HTTPServer,
-  HTTPRoute,
-  BrowserHTTPRoute,
-  WebSocketRoute,
-  BrowserWebsocketRoute,
-  IBrowserlessStats,
   WebHooks,
+  WebSocketRoute,
+  availableBrowsers,
   createLogger,
   getRouteFiles,
   makeExternalURL,
   printLogo,
   safeParse,
 } from '@browserless.io/browserless';
+import { readFile } from 'fs/promises';
+import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
 

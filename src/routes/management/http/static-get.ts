@@ -1,20 +1,22 @@
-import { createReadStream } from 'fs';
+import {
+  APITags,
+  HTTPManagementRoutes,
+  HTTPRoute,
+  Methods,
+  NotFound,
+  Request,
+  ServerError,
+  contentTypes,
+  createLogger,
+  fileExists,
+  mimeTypes,
+} from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
+import { createReadStream } from 'fs';
 import path from 'path';
 
-import {
-  contentTypes,
-  Methods,
-  HTTPManagementRoutes,
-  Request,
-  APITags,
-} from '../../../http.js';
-import { mimeTypes } from '../../../mime-types.js';
-import { HTTPRoute } from '../../../types.js';
-import * as utils from '../../../utils.js';
-
-const debug = utils.createLogger('http:static');
-const verbose = utils.createLogger('http:static:verbose');
+const debug = createLogger('http:static');
+const verbose = createLogger('http:static:verbose');
 
 const pathMap: Map<
   string,
@@ -37,7 +39,7 @@ const streamFile = (res: ServerResponse, file: string, contentType?: string) =>
           debug(`Error finding file ${file}, sending 404`);
           pathMap.delete(file);
           return reject(
-            new utils.NotFound(`No handler or file found for resource ${file}`),
+            new NotFound(`No handler or file found for resource ${file}`),
           );
         }
       })
@@ -62,7 +64,7 @@ const route: HTTPRoute = {
     }
 
     if (!getConfig) {
-      throw new utils.ServerError(`Couldn't load configuration for request`);
+      throw new ServerError(`Couldn't load configuration for request`);
     }
 
     const config = getConfig();
@@ -71,17 +73,15 @@ const route: HTTPRoute = {
 
     const filePath = (
       await Promise.all([
-        utils.fileExists(file).then((exists) => (exists ? file : undefined)),
-        utils
-          .fileExists(indexFile)
-          .then((exists) => (exists ? indexFile : undefined)),
+        fileExists(file).then((exists) => (exists ? file : undefined)),
+        fileExists(indexFile).then((exists) =>
+          exists ? indexFile : undefined,
+        ),
       ])
     ).find((_) => !!_);
 
     if (!filePath) {
-      throw new utils.NotFound(
-        `No handler or file found for resource ${pathname}`,
-      );
+      throw new NotFound(`No handler or file found for resource ${pathname}`);
     }
 
     verbose(`Found new file "${filePath}", caching path and serving`);

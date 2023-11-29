@@ -1,21 +1,19 @@
-/* eslint-disable @typescript-eslint/ban-types */
-import { ServerResponse } from 'http';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
 import {
-  contentTypes,
-  SystemQueryParameters,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-} from '../../../http.js';
-import {
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPRoutes,
+  Methods,
+  Request,
+  ServerError,
+  SystemQueryParameters,
+  contentTypes,
+  jsonResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 import main from '../utils/performance/main.js';
 
@@ -50,11 +48,11 @@ const route: BrowserHTTPRoute = {
   ): Promise<void> => {
     const { _config: getConfig } = route;
     if (!req.body) {
-      throw new util.BadRequest(`No JSON body present`);
+      throw new BadRequest(`No JSON body present`);
     }
 
     if (!getConfig) {
-      throw new util.ServerError(`Couldn't load configuration for timeouts`);
+      throw new ServerError(`Couldn't load configuration for timeouts`);
     }
     const config = getConfig();
     const response = await main({
@@ -63,7 +61,7 @@ const route: BrowserHTTPRoute = {
       timeout: config.getTimeout(),
     });
 
-    return util.jsonResponse(res, 200, response);
+    return jsonResponse(res, 200, response);
   },
   method: Methods.post,
   path: HTTPRoutes.performance,

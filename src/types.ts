@@ -1,31 +1,29 @@
 import * as http from 'http';
 import * as stream from 'stream';
-
 import {
-  Page,
-  ResponseForRequest,
-  HTTPRequest,
-  ScreenshotOptions,
-} from 'puppeteer-core';
-
-import { BrowserManager } from './browsers';
-import { CDPChromium } from './browsers/cdp-chromium';
-import { PlaywrightChromium } from './browsers/playwright-chromium';
-import { PlaywrightFirefox } from './browsers/playwright-firefox';
-import { PlaywrightWebkit } from './browsers/playwright-webkit';
-import { Config } from './config';
-import { FileSystem } from './file-system';
-import {
-  contentTypes,
+  APITags,
+  BrowserManager,
+  CDPChromium,
+  Config,
+  FileSystem,
   HTTPManagementRoutes,
   HTTPRoutes,
   Methods,
-  WebsocketRoutes,
+  Metrics,
+  Monitoring,
+  PlaywrightChromium,
+  PlaywrightFirefox,
+  PlaywrightWebkit,
   Request,
-  APITags,
-} from './http';
-import { Metrics } from './metrics';
-import { Monitoring } from './monitoring';
+  WebsocketRoutes,
+  contentTypes,
+} from '@browserless.io/browserless';
+import {
+  HTTPRequest,
+  Page,
+  ResponseForRequest,
+  ScreenshotOptions,
+} from 'puppeteer-core';
 
 export interface BeforeRequest {
   head?: Buffer;

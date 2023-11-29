@@ -1,15 +1,14 @@
-import { Duplex } from 'stream';
-
-import { PlaywrightFirefox } from '../../../browsers/playwright-firefox.js';
 import {
-  Request,
-  WebsocketRoutes,
-  SystemQueryParameters,
   APITags,
-} from '../../../http.js';
-
-import { BrowserServerOptions, BrowserWebsocketRoute } from '../../../types.js';
-import * as util from '../../../utils.js';
+  BadRequest,
+  BrowserServerOptions,
+  BrowserWebsocketRoute,
+  PlaywrightFirefox,
+  Request,
+  SystemQueryParameters,
+  WebsocketRoutes,
+} from '@browserless.io/browserless';
+import { Duplex } from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
@@ -31,7 +30,7 @@ const route: BrowserWebsocketRoute = {
       .includes('playwright');
 
     if (!isPlaywright) {
-      throw new util.BadRequest(
+      throw new BadRequest(
         `Only playwright is allowed to work with this route`,
       );
     }

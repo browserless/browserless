@@ -1,14 +1,14 @@
-import { EventEmitter } from 'events';
-import { Duplex } from 'stream';
-
-import httpProxy from 'http-proxy';
+import {
+  BrowserServerOptions,
+  Config,
+  Request,
+  ServerError,
+  createLogger,
+} from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
-
-import { Config } from 'src/config.js';
-
-import { Request } from '../http.js';
-import { BrowserServerOptions } from '../types.js';
-import * as util from '../utils.js';
+import { Duplex } from 'stream';
+import { EventEmitter } from 'events';
+import httpProxy from 'http-proxy';
 
 export class PlaywrightWebkit extends EventEmitter {
   private config: Config;
@@ -18,7 +18,7 @@ export class PlaywrightWebkit extends EventEmitter {
   private proxy = httpProxy.createProxyServer();
   private browser: playwright.BrowserServer | null = null;
   private browserWSEndpoint: string | null = null;
-  private debug = util.createLogger('browsers:playwright:webkit');
+  private debug = createLogger('browsers:playwright:webkit');
 
   constructor({
     config,
@@ -59,28 +59,22 @@ export class PlaywrightWebkit extends EventEmitter {
   public pages = async (): Promise<[]> => [];
 
   public getPageId = (): string => {
-    throw new util.ServerError(
-      `#getPageId is not yet supported with this browser.`,
-    );
+    throw new ServerError(`#getPageId is not yet supported with this browser.`);
   };
 
   public makeLiveURL = (): void => {
-    throw new util.ServerError(
-      `Live URLs are not yet supported with this browser.`,
-    );
+    throw new ServerError(`Live URLs are not yet supported with this browser.`);
   };
 
   public newPage = async (): Promise<Page> => {
-    throw new util.ServerError(`Can't create new page with this browser`);
+    throw new ServerError(`Can't create new page with this browser`);
   };
 
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
     if (this.record) {
-      throw new util.ServerError(
-        `Recording is not yet available with this browser`,
-      );
+      throw new ServerError(`Recording is not yet available with this browser`);
     }
 
     this.debug(`Launching WebKit Handler`);
@@ -113,7 +107,9 @@ export class PlaywrightWebkit extends EventEmitter {
     wsURL.hostname = serverURL.hostname;
     wsURL.port = serverURL.port;
     wsURL.protocol = serverURL.protocol === 'https' ? 'wss' : 'ws';
-    wsURL.searchParams.set('token', token);
+    if (token) {
+      wsURL.searchParams.set('token', token);
+    }
 
     return wsURL.href;
   };
@@ -129,7 +125,7 @@ export class PlaywrightWebkit extends EventEmitter {
   ): Promise<void> =>
     new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
-        throw new util.ServerError(
+        throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
         );
       }

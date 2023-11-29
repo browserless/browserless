@@ -1,8 +1,5 @@
+import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
 
 describe('/screenshot API', function () {
   let browserless: Browserless;
@@ -11,7 +8,6 @@ describe('/screenshot API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -21,7 +17,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
     };
@@ -39,7 +38,10 @@ describe('/screenshot API', function () {
   });
 
   it('404s GET requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     await fetch('http://localhost:3000/screenshot?token=browserless').then(
       (res) => {
@@ -52,7 +54,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows custom viewports', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       viewport: {
@@ -75,7 +80,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows to specify selector', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       selector: 'h1',
       url: 'https://example.com',
@@ -94,7 +102,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows setting HTML body', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       html: '<h1>Hello!</h1>',
     };
@@ -117,6 +128,7 @@ describe('/screenshot API', function () {
     config.setConcurrent(10);
     config.setQueued(10);
     config.setTimeout(30000);
+    config.setToken('browserless');
 
     await start({ config, metrics });
     const body = {
@@ -146,7 +158,10 @@ describe('/screenshot API', function () {
   });
 
   it('handles `waitForFunction` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForFunction: {
@@ -167,7 +182,10 @@ describe('/screenshot API', function () {
   });
 
   it('handles async `waitForFunction` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForFunction: {
@@ -188,7 +206,10 @@ describe('/screenshot API', function () {
   });
 
   it('handles `waitForSelector` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForSelector: {
@@ -209,7 +230,10 @@ describe('/screenshot API', function () {
   });
 
   it('handles `waitForTimeout` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
       waitForTimeout: 500,
@@ -228,7 +252,10 @@ describe('/screenshot API', function () {
   });
 
   it('handles `waitForEvent` properties', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       html: `<script type="text/javascript">
       const event = new Event("customEvent");
@@ -252,7 +279,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows cookies', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
       url: 'https://example.com',
@@ -271,7 +301,10 @@ describe('/screenshot API', function () {
   });
 
   it('times out requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const body = {
       url: 'https://example.com',
     };
@@ -294,6 +327,7 @@ describe('/screenshot API', function () {
     const config = new Config();
     config.setConcurrent(0);
     config.setQueued(0);
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
@@ -313,7 +347,10 @@ describe('/screenshot API', function () {
   });
 
   it('allows goto options', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const body = {
       url: 'https://example.com',
@@ -326,6 +363,24 @@ describe('/screenshot API', function () {
       },
       method: 'POST',
     }).then((res) => {
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    await start();
+    const body = {
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/screenshot', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
       expect(res.status).to.equal(200);
     });
   });

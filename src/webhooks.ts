@@ -1,5 +1,4 @@
-import { Config } from './config.js';
-import { fetchTimeout, noop } from './utils.js';
+import { Config, fetchTimeout, noop } from '@browserless.io/browserless';
 
 export class WebHooks {
   constructor(private config: Config) {}

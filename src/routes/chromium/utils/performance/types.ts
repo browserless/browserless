@@ -1,5 +1,5 @@
 import { Config, Flags } from 'lighthouse';
-import { BrowserInstance } from 'src/types.js';
+import { BrowserInstance } from '@browserless.io/browserless';
 
 export interface Message {
   data?: unknown;

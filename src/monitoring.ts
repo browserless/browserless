@@ -1,8 +1,9 @@
+import {
+  Config,
+  IResourceLoad,
+  createLogger,
+} from '@browserless.io/browserless';
 import si from 'systeminformation';
-
-import { Config } from './config.js';
-import { IResourceLoad } from './types.js';
-import { createLogger } from './utils.js';
 
 const log = createLogger('hardware');
 

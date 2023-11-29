@@ -1,12 +1,14 @@
-import { expect } from 'chai';
-import { deleteAsync } from 'del';
+import {
+  Browserless,
+  Config,
+  Metrics,
+  exists,
+  sleep,
+} from '@browserless.io/browserless';
 import { chromium } from 'playwright-core';
+import { deleteAsync } from 'del';
+import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
-import { exists, sleep } from '../../../utils.js';
 
 describe('WebSocket API', function () {
   // Server shutdown can take a few seconds
@@ -19,7 +21,6 @@ describe('WebSocket API', function () {
     config = new Config(),
     metrics = new Metrics(),
   }: { config?: Config; metrics?: Metrics } = {}) => {
-    config.setToken('browserless');
     browserless = new Browserless({ config, metrics });
     return browserless.start();
   };
@@ -29,7 +30,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs chromium websocket requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
@@ -39,7 +43,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs chromium CDP requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await chromium.connectOverCDP(
       `ws://localhost:3000?token=browserless`,
@@ -49,7 +56,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs chromium websocket requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
@@ -59,7 +69,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs multiple websocket requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
@@ -73,7 +86,10 @@ describe('WebSocket API', function () {
   });
 
   it('rejects websocket requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const didError = await puppeteer
       .connect({
@@ -86,7 +102,10 @@ describe('WebSocket API', function () {
   });
 
   it('rejects file protocol requests', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const didError = await puppeteer
       .connect({
@@ -105,7 +124,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs with ignored arguments', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
     const args = {
       ignoreDefaultArgs: true,
     };
@@ -128,7 +150,10 @@ describe('WebSocket API', function () {
   });
 
   it('deletes user-data-dirs when not specified', async () => {
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
@@ -150,7 +175,10 @@ describe('WebSocket API', function () {
     const launch = JSON.stringify({
       userDataDir: dataDirLocation,
     });
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
@@ -175,7 +203,10 @@ describe('WebSocket API', function () {
     const launch = JSON.stringify({
       args: [`--user-data-dir==${dataDirLocation}`],
     });
-    await start();
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
 
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
@@ -197,8 +228,9 @@ describe('WebSocket API', function () {
 
   it('runs with job-based timeouts', async () => {
     const config = new Config();
-    const metrics = new Metrics();
+    config.setToken('browserless');
     config.setTimeout(-1); // No timeout
+    const metrics = new Metrics();
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
@@ -213,7 +245,10 @@ describe('WebSocket API', function () {
 
   it('allows the file-chooser', async () =>
     new Promise(async (done) => {
-      await start();
+      const config = new Config();
+      config.setToken('browserless');
+      const metrics = new Metrics();
+      await start({ config, metrics });
       const job = async () => {
         const browser = await puppeteer.connect({
           browserWSEndpoint: `ws://localhost:3000?token=browserless`,
@@ -242,8 +277,9 @@ describe('WebSocket API', function () {
 
   it('queues requests', async () => {
     const config = new Config();
-    const metrics = new Metrics();
+    config.setToken('browserless');
     config.setConcurrent(1);
+    const metrics = new Metrics();
     await start({ config, metrics });
 
     const job = async () => {
@@ -267,6 +303,7 @@ describe('WebSocket API', function () {
 
   it('fails requests', async () => {
     const config = new Config();
+    config.setToken('browserless');
     config.setConcurrent(0);
     config.setQueued(0);
     const metrics = new Metrics();
@@ -284,8 +321,10 @@ describe('WebSocket API', function () {
   });
 
   it('fails requests without tokens', async () => {
+    const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-    await start({ metrics });
+    await start({ config, metrics });
 
     return puppeteer
       .connect({ browserWSEndpoint: `ws://localhost:3000` })
@@ -299,8 +338,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs playwright', async () => {
+    const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-    await start({ metrics });
+    await start({ config, metrics });
 
     const browser = await chromium.connect(
       `ws://localhost:3000/playwright/chromium?token=browserless`,
@@ -317,8 +358,10 @@ describe('WebSocket API', function () {
   });
 
   it('runs playwright over CDP', async () => {
+    const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-    await start({ metrics });
+    await start({ config, metrics });
 
     const browser = await chromium.connectOverCDP(
       `ws://localhost:3000?token=browserless`,
@@ -335,8 +378,10 @@ describe('WebSocket API', function () {
   });
 
   it('rejects playwright without tokens', async () => {
+    const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
-    await start({ metrics });
+    await start({ config, metrics });
 
     await chromium
       .connect(`ws://localhost:3000/playwright/chromium`)
@@ -348,5 +393,15 @@ describe('WebSocket API', function () {
         expect(results.unauthorized).to.equal(1);
         expect(results.queued).to.equal(0);
       });
+  });
+
+  it('allows requests without token when auth token is not set', async () => {
+    await start();
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000`,
+    });
+
+    await browser.disconnect();
   });
 });

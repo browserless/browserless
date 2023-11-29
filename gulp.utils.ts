@@ -1,15 +1,14 @@
 import { createWriteStream, existsSync } from 'fs';
-import fs from 'fs/promises';
-import os from 'os';
 import path, { join } from 'path';
 import { Readable } from 'stream';
-import { fileURLToPath } from 'url';
-
+import TJS from 'typescript-json-schema';
 import { deleteAsync } from 'del';
-import unzip from 'extract-zip';
+import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 import { marked } from 'marked';
 import { moveFile } from 'move-file';
-import TJS from 'typescript-json-schema';
+import os from 'os';
+import unzip from 'extract-zip';
 
 const swaggerJSONPath = path.join('static', 'docs', 'swagger.json');
 const packageJSONPath = path.join('package.json');
@@ -370,7 +369,7 @@ export const generateOpenAPI = async () => {
           .map((prop) => ({
             in: 'query',
             name: prop,
-            required: required.includes(prop),
+            required: required?.includes(prop),
             schema: properties[prop],
           }))
           .sort(sortSwaggerRequiredAlpha);

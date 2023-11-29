@@ -1,7 +1,5 @@
-import { writeFile, readFile } from 'fs/promises';
-
-import { Config } from './config.js';
-import { encrypt, decrypt } from './utils.js';
+import { Config, decrypt, encrypt } from '@browserless.io/browserless';
+import { readFile, writeFile } from 'fs/promises';
 
 export class FileSystem {
   private fsMap: Map<string, string[]> = new Map();
