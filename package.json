@@ -1,10 +1,14 @@
 {
-  "name": "browserless",
+  "name": "@browserless.io/browserless",
   "version": "2.0.0",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
   "type": "module",
+  "main": "./src/exports.ts",
+  "bin": {
+    "browserless": "./bin/browserless.js"
+  },
   "scripts": {
     "build": "npm run ts-gulp build",
     "build:client": "npm run ts-gulp build:client",
@@ -63,6 +67,7 @@
     "typescript-json-schema": "^0.62.0"
   },
   "dependencies": {
+    "@browserless.io/browserless": "file:./",
     "debug": "^4.3.2",
     "del": "^7.0.0",
     "enjoi": "^9.0.1",

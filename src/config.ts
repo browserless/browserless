@@ -4,9 +4,9 @@ import { mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 
+import { keyLength } from '@browserless.io/browserless';
 import debug from 'debug';
 
-import { keyLength } from './constants.js';
 import { exists, untildify } from './utils.js';
 
 /**
