@@ -24,7 +24,6 @@ import {
   safeParse,
 } from '@browserless.io/browserless';
 
-const debug = createLogger('index');
 const routeSchemas = ['body', 'query'];
 
 export class Browserless {
@@ -35,6 +34,7 @@ export class Browserless {
   private browserManager: BrowserManager;
   private limiter: Limiter;
   private webhooks: WebHooks;
+  private debug: debug.Debugger = createLogger('index');
 
   webSocketRouteFiles: string[] = [];
   httpRouteFiles: string[] = [];
@@ -82,7 +82,7 @@ export class Browserless {
 
     this.metrics.reset();
 
-    debug(
+    this.debug(
       `Current period usage: ${JSON.stringify({
         date: aggregatedStats.date,
         error: aggregatedStats.error,
@@ -99,7 +99,7 @@ export class Browserless {
     );
 
     if (metricsPath) {
-      debug(`Saving metrics to "${metricsPath}"`);
+      this.debug(`Saving metrics to "${metricsPath}"`);
       this.fileSystem.append(metricsPath, JSON.stringify(aggregatedStats));
     }
   };
@@ -150,9 +150,9 @@ export class Browserless {
 
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
 
-    debug(printLogo(docsLink));
-    debug(`Running as user "${userInfo().username}"`);
-    debug('Starting import of HTTP Routes');
+    this.debug(printLogo(docsLink));
+    this.debug(`Running as user "${userInfo().username}"`);
+    this.debug('Starting import of HTTP Routes');
     for (const httpRoute of httpRouteFiles) {
       if (httpRoute.endsWith('js')) {
         const { name } = path.parse(httpRoute);
@@ -185,7 +185,7 @@ export class Browserless {
       }
     }
 
-    debug('Starting import of WebSocket Routes');
+    this.debug('Starting import of WebSocket Routes');
     for (const wsRoute of wsRouteFiles) {
       if (wsRoute.endsWith('js')) {
         const { name } = path.parse(wsRoute);
@@ -232,7 +232,7 @@ export class Browserless {
       }
     });
 
-    debug(`Imported and validated all route files, starting up server.`);
+    this.debug(`Imported and validated all route files, starting up server.`);
 
     this.server = new HTTPServer(
       this.config,
@@ -244,7 +244,7 @@ export class Browserless {
     );
 
     await this.server.start();
-    debug(`Starting metrics collection.`);
+    this.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
       () => this.saveMetrics(),
       this.metricsSaveInterval,
