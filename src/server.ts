@@ -98,7 +98,9 @@ export class HTTPServer {
   };
 
   private onWebsocketUnauthorized = (_req: Request, socket: stream.Duplex) => {
-    this.log(`Websocket request is not properly authorized, responding with 401`);
+    this.log(
+      `Websocket request is not properly authorized, responding with 401`,
+    );
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
   };
@@ -195,7 +197,9 @@ export class HTTPServer {
   private registerHTTPRoute(
     route: HTTPRoute | BrowserHTTPRoute,
   ): HTTPRoute | BrowserHTTPRoute {
-    this.verbose(`Registering HTTP ${route.method.toUpperCase()} ${route.path}`);
+    this.verbose(
+      `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
+    );
 
     route._browserManager = () => this.browserManager;
 
@@ -391,7 +395,9 @@ export class HTTPServer {
             )
             .join('\n');
 
-          this.log(`HTTP query-params contain errors sending 400:${errorDetails}`);
+          this.log(
+            `HTTP query-params contain errors sending 400:${errorDetails}`,
+          );
 
           writeResponse(
             res,
@@ -589,7 +595,9 @@ export class HTTPServer {
             return writeResponse(socket, 429, e.message);
           }
 
-          this.log(`Error handling request at "${found.path}": ${e}\n${e.stack}`);
+          this.log(
+            `Error handling request at "${found.path}": ${e}\n${e.stack}`,
+          );
 
           return writeResponse(socket, 500, e.message);
         });
