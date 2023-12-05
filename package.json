@@ -35,7 +35,7 @@
     "@types/node": "^20.10.3",
     "@types/sinon": "^17.0.2",
     "@typescript-eslint/eslint-plugin": "^6.13.2",
-    "@typescript-eslint/parser": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.2",
     "assert": "^2.0.0",
     "chai": "^4.3.6",
     "cross-env": "^7.0.3",
