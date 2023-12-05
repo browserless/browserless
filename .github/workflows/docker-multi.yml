@@ -15,4 +15,4 @@ jobs:
       run: docker build --build-arg VERSION=latest -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:latest .
 
     - name: Test the multi image
-      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh ghcr.io/browserless/multi:latest
+      run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/multi:latest

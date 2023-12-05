@@ -19,7 +19,7 @@ trap _kill_procs SIGTERM SIGINT
 Xvfb :99 -screen 0 1920x1080x16 -nolisten tcp -nolisten unix &
 xvfb=$!
 
-dumb-init -- node ./build/index.js $@ &
+dumb-init -- node ../build/index.js $@ &
 node=$!
 
 wait $node

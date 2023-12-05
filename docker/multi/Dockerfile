@@ -34,4 +34,4 @@ RUN npx --yes playwright install chromium firefox webkit &&\
 
 USER blessuser
 
-CMD ["./start.sh"]
+CMD ["./scripts/start.sh"]

@@ -36,4 +36,4 @@ RUN npx --yes playwright install firefox &&\
 
 USER blessuser
 
-CMD ["./start.sh"]
+CMD ["./scripts/start.sh"]

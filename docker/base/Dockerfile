@@ -26,21 +26,20 @@ RUN mkdir -p $APP_DIR $NVM_DIR
 
 WORKDIR $APP_DIR
 
-COPY external external
-COPY static static
+COPY assets assets
+COPY bin bin
 COPY extensions extensions
-COPY package.json .
-COPY package-lock.json .
-COPY tsconfig.json .
-COPY gulpfile.ts .
-COPY gulp.utils.ts .
-COPY README.md .
+COPY external external
+COPY scripts scripts
+COPY static static
+
 COPY CHANGELOG.md .
 COPY LICENSE .
 COPY NOTICE.txt .
-COPY start.sh .
-COPY test.sh .
-COPY esbuild.js .
+COPY package.json .
+COPY package-lock.json .
+COPY README.md .
+COPY tsconfig.json .
 
 RUN apt-get update && apt-get install -y \
   ca-certificates \

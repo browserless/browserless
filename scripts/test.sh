@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Install devDependencies for tests
+# Install all dependencies for tests
 npm i --production=false
 
 # Setup env variables
@@ -14,4 +14,4 @@ Xvfb :1 -screen 0 1024x768x16 -nolisten tcp -nolisten unix &
 xvfb=$!
 
 # Run the tests
-./node_modules/.bin/_mocha --timeout 30000 --slow 10000 --exit $@ && kill -TERM $xvfb
+../node_modules/.bin/_mocha --timeout 30000 --slow 10000 --exit $@ && kill -TERM $xvfb

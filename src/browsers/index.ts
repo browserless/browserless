@@ -28,20 +28,21 @@ import path, { join } from 'path';
 import { deleteAsync } from 'del';
 import { mkdir } from 'fs/promises';
 
-const debug = createLogger('browser-manager');
-
 export class BrowserManager {
   private browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   private launching: Map<string, Promise<unknown>> = new Map();
   private timers: Map<string, number> = new Map();
+  private debug = createLogger('browser-manager');
 
   constructor(private config: Config) {}
 
   private removeUserDataDir = async (userDataDir: string | null) => {
     if (userDataDir && (await exists(userDataDir))) {
-      debug(`Deleting data directory "${userDataDir}"`);
+      this.debug(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
-        debug(`Error cleaning up user-data-dir "${err}" at ${userDataDir}`);
+        this.debug(
+          `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
+        );
       });
     }
   };
@@ -65,11 +66,13 @@ export class BrowserManager {
     );
 
     if (await exists(dataDirPath)) {
-      debug(`Data directory already exists, not creating "${dataDirPath}"`);
+      this.debug(
+        `Data directory already exists, not creating "${dataDirPath}"`,
+      );
       return dataDirPath;
     }
 
-    debug(`Generating user-data-dir at ${dataDirPath}`);
+    this.debug(`Generating user-data-dir at ${dataDirPath}`);
 
     await mkdir(dataDirPath, { recursive: true }).catch((err) => {
       throw new ServerError(
@@ -108,13 +111,13 @@ export class BrowserManager {
     session: BrowserlessSession,
   ): Promise<void> => {
     const cleanupACtions: Array<() => Promise<void>> = [];
-    debug(`${session.numbConnected} Client(s) are currently connected`);
+    this.debug(`${session.numbConnected} Client(s) are currently connected`);
 
-    debug(`Closing browser session`);
+    this.debug(`Closing browser session`);
     cleanupACtions.push(() => browser.close());
 
     if (session.isTempDataDir) {
-      debug(
+      this.debug(
         `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
       );
       this.browsers.delete(browser);
@@ -143,7 +146,7 @@ export class BrowserManager {
   public complete = async (browser: BrowserInstance): Promise<void> => {
     const session = this.browsers.get(browser);
     if (!session) {
-      debug(`Couldn't locate session for browser, proceeding with close`);
+      this.debug(`Couldn't locate session for browser, proceeding with close`);
       return browser.close();
     }
 
@@ -184,7 +187,7 @@ export class BrowserManager {
       );
 
       if (browser) {
-        debug(`Located browser with ID ${id}`);
+        this.debug(`Located browser with ID ${id}`);
         return browser[0];
       }
 
@@ -263,7 +266,7 @@ export class BrowserManager {
   };
 
   public stop = async (): Promise<void> => {
-    debug(`Closing down browser instances`);
+    this.debug(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
     const timers = Array.from(this.timers);
@@ -272,6 +275,6 @@ export class BrowserManager {
     this.browsers = new Map();
     this.timers = new Map();
 
-    debug(`Shutdown complete`);
+    this.debug(`Shutdown complete`);
   };
 }

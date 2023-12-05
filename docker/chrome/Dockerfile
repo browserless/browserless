@@ -37,4 +37,4 @@ RUN npx --yes playwright install chromium &&\
 
 USER blessuser
 
-CMD ["./start.sh"]
+CMD ["./scripts/start.sh"]

@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-
 import playwright from 'playwright-core';
 import puppeteer from 'puppeteer-core';
 
