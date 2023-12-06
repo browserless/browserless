@@ -13,7 +13,7 @@
   "scripts": {
     "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function",
-    "build:function": "node esbuild.js",
+    "build:function": "node scripts/build-function.js",
     "build:schemas": "node scripts/build-schemas.js",
     "build:openapi": "node scripts/build-open-api.js",
     "build:selectors": "node scripts/build-selectors.js",
