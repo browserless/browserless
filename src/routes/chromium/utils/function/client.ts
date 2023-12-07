@@ -1,5 +1,5 @@
 import { Browser, Page } from 'puppeteer-core';
-import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
+import { _connectToBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/common/BrowserConnector.js';
 
 type codeHandler = (params: {
   context: unknown;
