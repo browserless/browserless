@@ -1,5 +1,6 @@
 import { Page, Browser } from 'puppeteer-core';
 import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
+import { BrowserWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/common/BrowserWebSocketTransport';
 
 type codeHandler = (params: {
   context: unknown;
@@ -22,12 +23,19 @@ export class FunctionRunner {
   }) {
     console.log(`/function.js: Got endpoint: "${data.browserWSEndpoint}"`);
     const { browserWSEndpoint, code, context, options } = data;
-    this.browser = (await connect({
-      browserWSEndpoint,
+    const connectionTransport =
+      await BrowserWebSocketTransport.create(browserWSEndpoint);
+    const cdpOptions = {
       headers: {
         Host: '127.0.0.1',
       },
-    })) as unknown as Browser;
+    };
+
+    this.browser = (await connect(
+      connectionTransport,
+      browserWSEndpoint,
+      cdpOptions,
+    )) as unknown as Browser;
     this.browser.once('disconnected', () => this.stop());
     this.page = await this.browser.newPage();
 
