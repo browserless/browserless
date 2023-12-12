@@ -58,6 +58,9 @@ export interface RouteParams {
   schema?: unknown;
 }
 
+/**
+ * The type of browser required to run this route or handler.
+ */
 export type BrowserClasses =
   | typeof CDPChromium
   | typeof PlaywrightChromium

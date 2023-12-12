@@ -152,7 +152,8 @@ export class Browserless {
     this.debug(printLogo(docsLink));
     this.debug(`Running as user "${userInfo().username}"`);
     this.debug('Starting import of HTTP Routes');
-    for (const httpRoute of httpRouteFiles) {
+
+    for (const httpRoute of [...httpRouteFiles, ...this.httpRouteFiles]) {
       if (httpRoute.endsWith('js')) {
         const { name } = path.parse(httpRoute);
         const [bodySchema, querySchema] = await Promise.all(
@@ -185,7 +186,7 @@ export class Browserless {
     }
 
     this.debug('Starting import of WebSocket Routes');
-    for (const wsRoute of wsRouteFiles) {
+    for (const wsRoute of [...wsRouteFiles, ...this.webSocketRouteFiles]) {
       if (wsRoute.endsWith('js')) {
         const { name } = path.parse(wsRoute);
         const [, querySchema] = await Promise.all(

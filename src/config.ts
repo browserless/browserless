@@ -1,9 +1,12 @@
 import { exists, keyLength, untildify } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import debug from 'debug';
+import { fileURLToPath } from 'url';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { tmpdir } from 'os';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * configs to add:
@@ -130,7 +133,7 @@ export class Config extends EventEmitter {
 
   private routes = process.env.ROUTES
     ? untildify(process.env.ROUTES)
-    : path.join(process.cwd(), 'build', 'routes');
+    : path.join(__dirname, '..', 'build', 'routes');
 
   private token = process.env.TOKEN || null;
   private concurrent = +(
@@ -144,7 +147,7 @@ export class Config extends EventEmitter {
     process.env.CONNECTION_TIMEOUT ??
     '30000'
   );
-  private static = process.env.STATIC ?? path.join(process.cwd(), 'static');
+  private static = process.env.STATIC ?? path.join(__dirname, '..', 'static');
   private retries = +(process.env.RETRIES ?? '5');
   private allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
   private allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');

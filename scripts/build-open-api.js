@@ -2,13 +2,16 @@
 /* global process */
 'use strict';
 
+import { join, parse } from 'path';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { marked } from 'marked';
-import path from 'path';
 
-const cwd = process.cwd();
-const swaggerJSONPath = path.join(cwd, 'static', 'docs', 'swagger.json');
-const packageJSONPath = path.join(cwd, 'package.json');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const moduleMain = import.meta.url.endsWith(process.argv[1]);
+const swaggerJSONPath = join(__dirname, '..', 'static', 'docs', 'swagger.json');
+const packageJSONPath = join(__dirname, '..', 'package.json');
 
 const readFileOrNull = async (path) => {
   if (!path) {
@@ -36,7 +39,10 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
   return Number(otherProp.required) - Number(prop.required);
 };
 
-(async () => {
+const buildOpenAPI = async (
+  externalHTTPRoutes = [],
+  externalWebSocketRoutes = [],
+) => {
   const [{ getRouteFiles }, { Config }, { errorCodes }, packageJSON] =
     await Promise.all([
       import('../build/utils.js'),
@@ -46,9 +52,9 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
     ]);
 
   const isWin = process.platform === 'win32';
-  const readme = (await fs.readFile('README.md')).toString();
+  const readme = (await fs.readFile('README.md').catch(() => '')).toString();
   const changelog = marked.parse(
-    (await fs.readFile('CHANGELOG.md')).toString(),
+    (await fs.readFile('CHANGELOG.md').catch(() => '')).toString(),
   );
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
@@ -70,7 +76,12 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
   };
 
   const routeMetaData = await Promise.all(
-    [...httpRoutes, ...wsRoutes]
+    [
+      ...httpRoutes,
+      ...wsRoutes,
+      ...externalHTTPRoutes,
+      ...externalWebSocketRoutes,
+    ]
       .filter((r) => r.endsWith('.js'))
       .sort()
       .map(async (routeModule) => {
@@ -79,10 +90,11 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
         if (!route) {
           throw new Error(`Invalid route file to import docs ${routeModule}`);
         }
+        const { name } = parse(routeModule);
         const body = routeModule.replace('.js', '.body.json');
         const query = routeModule.replace('.js', '.query.json');
         const response = routeModule.replace('.js', '.response.json');
-        const isWebSocket = routeModule.includes('/ws/');
+        const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
 
         const {
           tags,
@@ -252,6 +264,11 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
     return accum;
   }, {});
   swaggerJSON.paths = paths;
-
   fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
-})();
+};
+
+export default buildOpenAPI;
+
+if (moduleMain) {
+  buildOpenAPI();
+}

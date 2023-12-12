@@ -1,12 +1,17 @@
 #!/usr/bin/env node
-/* global console */
+/* global console, process */
 'use strict';
 
 import TJS from 'typescript-json-schema';
 import fs from 'fs/promises';
 import path from 'path';
 
-(async () => {
+const moduleMain = import.meta.url.endsWith(process.argv[1]);
+
+const buildSchemas = async (
+  externalHTTPRoutes = [],
+  externalWebSocketRoutes = [],
+) => {
   const { getRouteFiles, tsExtension } = await import('../build/utils.js');
 
   const schemas = ['BodySchema', 'QuerySchema', 'ResponseSchema'];
@@ -22,8 +27,19 @@ import path from 'path';
 
   const { Config } = await import('../build/config.js');
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
+
+  // Depending on if we're parsing an external projects routes,
+  // skip the prebuilt ones. This makes it much faster to build
+  const routesToParse = moduleMain ? [
+    ...httpRoutes,
+    ...wsRoutes,
+  ] : [
+    ...externalHTTPRoutes,
+    ...externalWebSocketRoutes,
+  ];
+
   await Promise.all(
-    [...httpRoutes, ...wsRoutes]
+    routesToParse
       .filter((r) => r.endsWith(tsExtension))
       .map(async (route) => {
         const routeFile = (await fs.readFile(route)).toString('utf-8');
@@ -65,4 +81,10 @@ import path from 'path';
         );
       }),
   );
-})();
+};
+
+export default buildSchemas;
+
+if (moduleMain) {
+  buildSchemas();
+}
