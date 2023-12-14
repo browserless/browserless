@@ -224,6 +224,18 @@ export class BrowserManager {
       manualUserDataDir ||
       (Browser.name === CDPChromium.name ? await this.generateDataDir() : null);
 
+    const proxyServer =
+      launchOptions.args
+        ?.find((arg) => arg.includes('--proxy-server='))
+        ?.split('=')[1] ||
+      (launchOptions as BrowserServerOptions)?.proxy?.server;
+
+    if (proxyServer) {
+      (launchOptions as BrowserServerOptions).proxy = (
+        launchOptions as BrowserServerOptions
+      ).proxy || { server: proxyServer };
+    }
+
     const browser = new Browser({
       blockAds,
       config: this.config,
