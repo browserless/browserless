@@ -86,9 +86,12 @@ export class PlaywrightWebkit extends EventEmitter {
     this.debug(`Launching WebKit Handler`);
 
     this.browser = await playwright.webkit.launchServer({
-      ...options,
-      args: [this.userDataDir ? `-profile=${this.userDataDir}` : ''],
+      args: [
+        ...(options.args || []),
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+      ],
       executablePath: playwright.webkit.executablePath(),
+      proxy: options.proxy,
     });
 
     const browserWSEndpoint = this.browser.wsEndpoint();
