@@ -86,12 +86,12 @@ export class PlaywrightFirefox extends EventEmitter {
     this.debug(`Launching Firefox Handler`);
 
     this.browser = await playwright.firefox.launchServer({
+      ...options,
       args: [
         ...(options.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
       executablePath: playwright.firefox.executablePath(),
-      proxy: options.proxy,
     });
 
     const browserWSEndpoint = this.browser.wsEndpoint();
