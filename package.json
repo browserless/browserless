@@ -94,7 +94,10 @@
   "eslintConfig": {
     "root": true,
     "parser": "@typescript-eslint/parser",
-    "plugins": ["@typescript-eslint", "typescript-sort-keys"],
+    "plugins": [
+      "@typescript-eslint",
+      "typescript-sort-keys"
+    ],
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
@@ -112,19 +115,34 @@
       "sort-keys": [
         "error",
         "asc",
-        { "caseSensitive": true, "natural": false, "minKeys": 2 }
+        {
+          "caseSensitive": true,
+          "natural": false,
+          "minKeys": 2
+        }
       ],
-      "semi": [2, "always"],
+      "semi": [
+        2,
+        "always"
+      ],
       "no-async-promise-executor": 0,
       "@typescript-eslint/ban-ts-comment": 0,
       "@typescript-eslint/no-var-requires": 0,
-      "sort-imports": ["error", {
-        "ignoreCase": false,
-        "ignoreDeclarationSort": false,
-        "ignoreMemberSort": false,
-        "memberSyntaxSortOrder": ["none", "all", "multiple", "single"],
-        "allowSeparatedGroups": false
-    }]
+      "sort-imports": [
+        "error",
+        {
+          "ignoreCase": false,
+          "ignoreDeclarationSort": false,
+          "ignoreMemberSort": false,
+          "memberSyntaxSortOrder": [
+            "none",
+            "all",
+            "multiple",
+            "single"
+          ],
+          "allowSeparatedGroups": false
+        }
+      ]
     }
   },
   "mocha": {

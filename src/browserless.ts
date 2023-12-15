@@ -50,23 +50,31 @@ export class Browserless {
     fileSystem,
     webhooks,
   }: {
-    browserManager?: BrowserManager;
-    config?: Config;
-    fileSystem?: FileSystem;
-    limiter?: Limiter;
-    metrics?: Metrics;
-    monitoring?: Monitoring;
-    webhooks?: WebHooks;
+    browserManager?: typeof BrowserManager;
+    config?: typeof Config;
+    fileSystem?: typeof FileSystem;
+    limiter?: typeof Limiter;
+    metrics?: typeof Metrics;
+    monitoring?: typeof Monitoring;
+    webhooks?: typeof WebHooks;
   } = {}) {
-    this.config = config || new Config();
-    this.metrics = metrics || new Metrics();
-    this.webhooks = webhooks || new WebHooks(this.config);
-    this.browserManager = browserManager || new BrowserManager(this.config);
-    this.monitoring = monitoring || new Monitoring(this.config);
-    this.fileSystem = fileSystem || new FileSystem(this.config);
-    this.limiter =
-      limiter ||
-      new Limiter(this.config, this.metrics, this.monitoring, this.webhooks);
+    this.config = config ? new config() : new Config();
+    this.metrics = metrics ? new metrics() : new Metrics();
+    this.webhooks = webhooks
+      ? new webhooks(this.config)
+      : new WebHooks(this.config);
+    this.browserManager = browserManager
+      ? new browserManager(this.config)
+      : new BrowserManager(this.config);
+    this.monitoring = monitoring
+      ? new monitoring(this.config)
+      : new Monitoring(this.config);
+    this.fileSystem = fileSystem
+      ? new fileSystem(this.config)
+      : new FileSystem(this.config);
+    this.limiter = limiter
+      ? new limiter(this.config, this.metrics, this.monitoring, this.webhooks)
+      : new Limiter(this.config, this.metrics, this.monitoring, this.webhooks);
   }
 
   private saveMetrics = async (): Promise<void> => {

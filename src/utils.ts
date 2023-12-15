@@ -190,7 +190,7 @@ export const getTokenFromRequest = (req: Request) => {
 export const isAuthorized = (
   req: Request,
   route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
-  token: string | null,
+  token: string | string[] | null,
 ): boolean => {
   if (token === null) {
     return true;
@@ -205,7 +205,7 @@ export const isAuthorized = (
     return false;
   }
 
-  return token === requestToken;
+  return (Array.isArray(token) ? token : [token]).includes(requestToken);
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again

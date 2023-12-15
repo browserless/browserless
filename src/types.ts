@@ -95,9 +95,9 @@ interface Route {
   _monitor?: () => Monitoring;
 
   /**
-   * Whether the route requires a token to access
+   * Whether the route requires a token to access.
    */
-  auth: boolean;
+  auth: boolean | ((req: Request) => Promise<boolean>);
 
   /**
    * The schematic of the submitted BODY (typically)

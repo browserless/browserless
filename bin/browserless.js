@@ -12,15 +12,34 @@ import { spawn } from 'child_process';
 
 const log = debug('browserless:sdk:log');
 
-const allowedCMDs = ['build', 'dev'];
 const cmd = process.argv[2];
 const cwd = process.cwd();
+const allowedCMDs = ['build', 'dev'];
+const srcDir = path.join(cwd, 'build');
 
 if (!allowedCMDs.includes(cmd)) {
   throw new Error(
     `Unknown command of "${cmd}". Is your @browserless.io/browserless package up to date?`,
   );
 }
+
+const importClassOverride = async (files, className) => {
+  const classModuleFile = files.find((f) =>
+    path.parse(f).name.endsWith(className),
+  );
+
+  if (!classModuleFile) {
+    return;
+  }
+
+  const classModuleFullFilePath = path.join(srcDir, classModuleFile);
+
+  if (!classModuleFile) {
+    return;
+  }
+  log(`Loading module override "${classModuleFile}"`);
+  return import(classModuleFullFilePath);
+};
 
 const buildTypeScript = async () =>
   new Promise((resolve, reject) => {
@@ -40,7 +59,6 @@ const buildTypeScript = async () =>
 const dev = async () => {
   log(`Compiling TypeScript`);
   await buildTypeScript();
-  const srcDir = path.join(cwd, 'build');
 
   log(`Scanning src folder for routes`);
   const files = await fs.readdir(srcDir);
@@ -61,6 +79,25 @@ const dev = async () => {
     [[], []],
   );
 
+  log(`Loading class overrides if present`);
+  const [
+    browserManager,
+    config,
+    fileSystem,
+    limiter,
+    metrics,
+    monitoring,
+    webhooks,
+  ] = await Promise.all([
+    importClassOverride(files, 'browser-manager'),
+    importClassOverride(files, 'config'),
+    importClassOverride(files, 'file-system'),
+    importClassOverride(files, 'limiter'),
+    importClassOverride(files, 'metrics'),
+    importClassOverride(files, 'monitoring'),
+    importClassOverride(files, 'webhooks'),
+  ]);
+
   log(`Generating Runtime Schema Validation`);
   await buildSchemas(
     httpRoutes.map((f) => f.replace('.js', '.d.ts')),
@@ -69,7 +106,18 @@ const dev = async () => {
 
   log(`Generating OpenAPI JSON`);
   await buildOpenAPI(httpRoutes, webSocketRoutes);
-  const browserless = new Browserless();
+
+  log(`Starting http service`);
+
+  const browserless = new Browserless({
+    browserManager,
+    config,
+    fileSystem,
+    limiter,
+    metrics,
+    monitoring,
+    webhooks,
+  });
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));
   webSocketRoutes.forEach((r) => browserless.addWebSocketRoute(r));
@@ -83,7 +131,7 @@ switch (cmd) {
     dev();
     break;
 
-  case 'build':
-    buildTypeScript();
+  case 'docker':
+    console.error(`Not yet implemented...`);
     break;
 }

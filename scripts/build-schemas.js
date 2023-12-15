@@ -30,13 +30,9 @@ const buildSchemas = async (
 
   // Depending on if we're parsing an external projects routes,
   // skip the prebuilt ones. This makes it much faster to build
-  const routesToParse = moduleMain ? [
-    ...httpRoutes,
-    ...wsRoutes,
-  ] : [
-    ...externalHTTPRoutes,
-    ...externalWebSocketRoutes,
-  ];
+  const routesToParse = moduleMain
+    ? [...httpRoutes, ...wsRoutes]
+    : [...externalHTTPRoutes, ...externalWebSocketRoutes];
 
   await Promise.all(
     routesToParse
