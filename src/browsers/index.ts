@@ -224,16 +224,20 @@ export class BrowserManager {
       manualUserDataDir ||
       (Browser.name === CDPChromium.name ? await this.generateDataDir() : null);
 
-    const proxyServer =
-      launchOptions.args
-        ?.find((arg) => arg.includes('--proxy-server='))
-        ?.split('=')[1] ||
-      (launchOptions as BrowserServerOptions)?.proxy?.server;
+    const proxyServerArg = launchOptions.args?.find((arg) =>
+      arg.includes('--proxy-server='),
+    );
 
-    if (proxyServer) {
-      (launchOptions as BrowserServerOptions).proxy = (
-        launchOptions as BrowserServerOptions
-      ).proxy || { server: proxyServer };
+    if (
+      launchOptions.args &&
+      proxyServerArg &&
+      req.parsed.pathname.startsWith('/playwright')
+    ) {
+      (launchOptions as BrowserServerOptions).proxy = {
+        server: proxyServerArg.split('=')[1],
+      };
+      const argIndex = launchOptions.args.indexOf(proxyServerArg);
+      launchOptions.args.splice(argIndex, 1);
     }
 
     const browser = new Browser({
