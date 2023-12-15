@@ -81,7 +81,10 @@ export class PlaywrightWebkit extends EventEmitter {
 
     this.browser = await playwright.webkit.launchServer({
       ...options,
-      args: [this.userDataDir ? `-profile=${this.userDataDir}` : ''],
+      args: [
+        ...(options.args || []),
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+      ],
       executablePath: playwright.webkit.executablePath(),
     });
 

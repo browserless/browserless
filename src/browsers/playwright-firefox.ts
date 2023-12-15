@@ -81,7 +81,10 @@ export class PlaywrightFirefox extends EventEmitter {
 
     this.browser = await playwright.firefox.launchServer({
       ...options,
-      args: [this.userDataDir ? `-profile=${this.userDataDir}` : ''],
+      args: [
+        ...(options.args || []),
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+      ],
       executablePath: playwright.firefox.executablePath(),
     });
 
