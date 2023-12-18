@@ -1,4 +1,3 @@
-# This file is auto-generated and shouldn't be edited directly
 ARG FROM=ghcr.io/browserless/multi
 ARG VERSION=latest
 
@@ -17,8 +16,11 @@ WORKDIR $APP_DIR
 COPY src src
 COPY package.json .
 COPY package-lock.json .
-COPY *README.md .
 COPY tsconfig.json .
+
+# Optional files that might not always be there
+COPY *browserless.io-browserless-*.tgz .
+COPY *README.md .
 
 # Install dependencies
 RUN npm install
