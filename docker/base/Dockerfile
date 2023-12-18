@@ -21,6 +21,7 @@ ENV LANG="C.UTF-8"
 ENV NODE_ENV=production
 ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
 
 RUN mkdir -p $APP_DIR $NVM_DIR
 
