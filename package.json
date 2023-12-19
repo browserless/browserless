@@ -40,7 +40,7 @@
     "chai": "^4.3.6",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0",
-    "esbuild": "^0.19.9",
+    "esbuild": "^0.19.10",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.56.0",
     "eslint-plugin-import": "^2.29.1",
