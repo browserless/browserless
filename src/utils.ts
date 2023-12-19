@@ -1,17 +1,13 @@
 import * as fs from 'fs/promises';
 import {
-  BrowserHTTPRoute,
-  BrowserWebsocketRoute,
   CDPChromium,
   Config,
-  HTTPRoute,
   PlaywrightChromium,
   PlaywrightFirefox,
   PlaywrightWebkit,
   Request,
   WaitForEventOptions,
   WaitForFunctionOptions,
-  WebSocketRoute,
   codes,
   contentTypes,
   encodings,
@@ -185,27 +181,6 @@ export const getTokenFromRequest = (req: Request) => {
   const authHeader = req.headers['authorization'];
   const tokenParam = req.parsed.searchParams.get('token');
   return tokenParam ?? getAuthHeaderToken(authHeader || '');
-};
-
-export const isAuthorized = (
-  req: Request,
-  route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
-  token: string | string[] | null,
-): boolean => {
-  if (token === null) {
-    return true;
-  }
-
-  if (route.auth === false) {
-    return true;
-  }
-  const requestToken = getTokenFromRequest(req);
-
-  if (!requestToken) {
-    return false;
-  }
-
-  return (Array.isArray(token) ? token : [token]).includes(requestToken);
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again

@@ -15,6 +15,7 @@ import {
   Request,
   Response,
   Timeout,
+  Token,
   TooManyRequests,
   Unauthorized,
   WebSocketRoute,
@@ -22,7 +23,6 @@ import {
   contentTypes,
   convertPathToURL,
   createLogger,
-  isAuthorized,
   isConnected,
   queryParamsToObject,
   readBody,
@@ -56,6 +56,7 @@ export class HTTPServer {
     private limiter: Limiter,
     private httpRoutes: Array<HTTPRoute | BrowserHTTPRoute>,
     private webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute>,
+    private token: Token,
   ) {
     this.host = config.getHost();
     this.port = config.getPort();
@@ -351,8 +352,7 @@ export class HTTPServer {
 
     if (found?.auth) {
       this.verbose(`Authorizing HTTP request to "${request.url}"`);
-      const tokens = this.config.getToken();
-      const isPermitted = isAuthorized(req, found, tokens);
+      const isPermitted = this.token.isAuthorized(req, found);
 
       if (!isPermitted) {
         return this.onHTTPUnauthorized(req, res);
@@ -519,7 +519,7 @@ export class HTTPServer {
 
       if (found?.auth) {
         this.verbose(`Authorizing WebSocket request to "${req.parsed.href}"`);
-        const isPermitted = isAuthorized(req, found, this.config.getToken());
+        const isPermitted = this.token.isAuthorized(req, found);
 
         if (!isPermitted) {
           return this.onWebsocketUnauthorized(req, socket);

@@ -11,6 +11,7 @@ import {
   Limiter,
   Metrics,
   Monitoring,
+  Token,
   WebHooks,
   WebSocketRoute,
   availableBrowsers,
@@ -33,6 +34,7 @@ export class Browserless {
   private browserManager: BrowserManager;
   private limiter: Limiter;
   private webhooks: WebHooks;
+  private token: Token;
   private debug: debug.Debugger = createLogger('index');
 
   webSocketRouteFiles: string[] = [];
@@ -49,6 +51,7 @@ export class Browserless {
     metrics,
     fileSystem,
     webhooks,
+    token,
   }: {
     browserManager?: BrowserManager;
     config?: Config;
@@ -56,10 +59,12 @@ export class Browserless {
     limiter?: Limiter;
     metrics?: Metrics;
     monitoring?: Monitoring;
+    token?: Token;
     webhooks?: WebHooks;
   } = {}) {
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
+    this.token = token || new Token(this.config);
     this.webhooks = webhooks || new WebHooks(this.config);
     this.browserManager = browserManager || new BrowserManager(this.config);
     this.monitoring = monitoring || new Monitoring(this.config);
@@ -241,6 +246,7 @@ export class Browserless {
       this.limiter,
       httpRoutes,
       wsRoutes,
+      this.token,
     );
 
     await this.server.start();
