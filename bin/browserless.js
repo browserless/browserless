@@ -191,6 +191,7 @@ const start = async (dev = false) => {
     limiter,
     metrics,
     monitoring,
+    token,
     webhooks,
   ] = await Promise.all([
     importClassOverride(files, 'browser-manager'),
@@ -199,6 +200,7 @@ const start = async (dev = false) => {
     importClassOverride(files, 'limiter'),
     importClassOverride(files, 'metrics'),
     importClassOverride(files, 'monitoring'),
+    importClassOverride(files, 'token'),
     importClassOverride(files, 'webhooks'),
   ]);
 
@@ -210,6 +212,7 @@ const start = async (dev = false) => {
     limiter,
     metrics,
     monitoring,
+    token,
     webhooks,
   });
 
