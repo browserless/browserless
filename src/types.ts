@@ -2,15 +2,13 @@ import * as http from 'http';
 import * as stream from 'stream';
 import {
   APITags,
-  BrowserManager,
+  Browserless,
   CDPChromium,
   Config,
-  FileSystem,
   HTTPManagementRoutes,
   HTTPRoutes,
   Methods,
   Metrics,
-  Monitoring,
   PlaywrightChromium,
   PlaywrightFirefox,
   PlaywrightWebkit,
@@ -81,54 +79,104 @@ export interface BrowserJSON {
   'WebKit-Version': string;
 }
 
+/**
+ * The default launch options or a function, accepting
+ * the request object, that produces the launch options.
+ */
 type defaultLaunchOptions =
   | CDPLaunchOptions
   | BrowserlessLaunch
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
 interface Route {
-  _browserManager?: () => BrowserManager;
-  _config?: () => Config;
-  _debug?: () => debug.Debugger;
-  _fileSystem?: () => FileSystem;
-  _metrics?: () => Metrics;
-  _monitor?: () => Monitoring;
-
   /**
-   * Whether the route requires a token to access.
+   * A boolean, or a function that returns a boolean, on
+   * whether the route requires an API token to access.
    */
   auth: boolean | ((req: Request) => Promise<boolean>);
 
   /**
    * The schematic of the submitted BODY (typically)
-   * an object when the route is json-based.
+   * an object when the route is json-based. This is generated
+   * automatically if your route defines a BodySchema type.
    */
   bodySchema?: unknown;
 
   /**
    * Whether the route should be bound by the global
-   * concurrency limit
+   * concurrency limit defined in your configuration.
    */
   concurrency: boolean;
 
   /**
-   * Description of the route and what it does
+   * Description of the route and what it does. This description
+   * is then used in the embedded documentation site.
    */
   description: string;
 
   /**
-   * The HTTP path that this route handles
+   * Helper function to load the browser-manager instance. Defined
+   * and injected by browserless after initialization.
+   * @returns BrowserManager
+   */
+  getBrowserManager?: () => Browserless['browserManager'];
+
+
+  /**
+   * Helper function that loads the config module. Defined and injected by
+   * browserless after initialization.
+   * @returns Config
+   */
+  getConfig?: () => Browserless['config'];
+
+  /**
+   * Helper function that loads the debug module, useful
+   * for logging messages scoped to the routes path. Defined
+   * and injected by browserless after initialization.
+   * @returns Debug
+   */
+  getDebug?: () => debug.Debugger;
+
+  /**
+   * Helper function that loads the file-system module
+   * for interacting with file-systems. Defined and injected by
+   * browserless after initialization.
+   * @returns FileSystem
+   */
+  getFileSystem?: () => Browserless['fileSystem'];
+
+  /**
+   * Helper function that loads the metrics module for
+   * collecting and aggregating statistics. Defined and injected by
+   * browserless after initialization.
+   * @returns Metrics
+   */
+  getMetrics?: () => Browserless['metrics'];
+
+  /**
+   * Helper function that loads the monitoring module useful
+   * for monitoring system health. Defined and injected by
+   * browserless after initialization.
+   * @returns Monitor
+   */
+  getMonitoring?: () => Browserless['monitoring'];
+
+  /**
+   * The HTTP path that this route handles, eg '/my-route'
    */
   path: HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
 
   /**
    * The query parameters accepted by the route, defined in
-   * an object format.
+   * an object format. This is auto-generated for you if your
+   * route defines and exports a QuerySchema type.
    */
   querySchema?: unknown;
 
   /**
-   * The structure of the routes response when successful
+   * The structure of the routes response when successful. This
+   * is auto-generated for you if your route defines a ResponseSchema
+   * type and exports it in your route.
    */
   responseSchema?: unknown;
 
@@ -139,6 +187,11 @@ interface Route {
   tags: APITags[];
 }
 
+/**
+ * A primitive HTTP-based route that doesn't require a
+ * browser in order to fulfill requests. Used by downstream HTTPRoute
+ * and WebSocketRoute
+ */
 interface BasicHTTPRoute extends Route {
   /**
    * The allowed Content-Types that this route can read and handle.
@@ -160,6 +213,10 @@ interface BasicHTTPRoute extends Route {
   method: Methods;
 }
 
+/**
+ * A HTTP-based route, with a handler, that can fulfill requests without
+ * a browser required.
+ */
 export interface HTTPRoute extends BasicHTTPRoute {
   browser: null;
 
@@ -169,6 +226,11 @@ export interface HTTPRoute extends BasicHTTPRoute {
   handler: (req: Request, res: http.ServerResponse) => Promise<unknown>;
 }
 
+/**
+ * A HTTP-based route, with a handler, that can fulfill requests but
+ * requires a browser in order to do so. Handler will then be called
+ * with a 3rd argument of the browser class specified.
+ */
 export interface BrowserHTTPRoute extends BasicHTTPRoute {
   browser: BrowserClasses;
 
@@ -187,6 +249,10 @@ export interface BrowserHTTPRoute extends BasicHTTPRoute {
   onNewPage?: undefined;
 }
 
+/**
+ * A WebSocket-based route, with a handler, that can fulfill requests
+ * that do not require a browser in order to operate.
+ */
 export interface WebSocketRoute extends Route {
   browser: null;
 
@@ -200,6 +266,11 @@ export interface WebSocketRoute extends Route {
   ) => Promise<unknown>;
 }
 
+/**
+ * A WebSocket-based route, with a handler, that can fulfill requests
+ * that need a browser. Handler is called with an additional argument of
+ * browser (the browser class required to run the route).
+ */
 export interface BrowserWebsocketRoute extends Route {
   browser: BrowserClasses;
 
@@ -216,6 +287,10 @@ export interface BrowserWebsocketRoute extends Route {
     browser: BrowserInstance,
   ): Promise<unknown>;
 
+  /**
+   * An optional function to automatically set up or handle new page
+   * creation. Useful for injecting behaviors or other functionality.
+   */
   onNewPage?: (url: URL, page: Page) => Promise<void>;
 }
 

@@ -55,7 +55,7 @@ const route: HTTPRoute = {
   contentTypes: [contentTypes.any],
   description: `Serves static files inside of this "static" directory. Content-types will vary depending on the type of file being returned.`,
   handler: async (req: Request, res: ServerResponse): Promise<unknown> => {
-    const { _config: getConfig } = route;
+    const { getConfig: getConfig } = route;
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
 

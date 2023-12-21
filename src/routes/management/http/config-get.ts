@@ -41,7 +41,7 @@ const route: HTTPRoute = {
   contentTypes: [contentTypes.json],
   description: `Returns a JSON payload of the current system configuration.`,
   handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { _config: getConfig } = route;
+    const { getConfig: getConfig } = route;
 
     if (!getConfig) {
       throw new ServerError(`Couldn't locate the config object`);

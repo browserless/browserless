@@ -186,11 +186,11 @@ export class Browserless {
 
         route.bodySchema = safeParse(bodySchema);
         route.querySchema = safeParse(querySchema);
-        route._config = () => this.config;
-        route._metrics = () => this.metrics;
-        route._monitor = () => this.monitoring;
-        route._fileSystem = () => this.fileSystem;
-        route._debug = () => logger;
+        route.getConfig = () => this.config;
+        route.getMetrics = () => this.metrics;
+        route.getMonitoring = () => this.monitoring;
+        route.getFileSystem = () => this.fileSystem;
+        route.getDebug = () => logger;
 
         httpRoutes.push(route);
       }
@@ -221,11 +221,11 @@ export class Browserless {
         );
 
         route.querySchema = safeParse(querySchema);
-        route._config = () => this.config;
-        route._metrics = () => this.metrics;
-        route._monitor = () => this.monitoring;
-        route._fileSystem = () => this.fileSystem;
-        route._debug = () => logger;
+        route.getConfig = () => this.config;
+        route.getMetrics = () => this.metrics;
+        route.getMonitoring = () => this.monitoring;
+        route.getFileSystem = () => this.fileSystem;
+        route.getDebug = () => logger;
 
         wsRoutes.push(route);
       }

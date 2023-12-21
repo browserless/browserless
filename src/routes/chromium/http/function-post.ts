@@ -55,7 +55,7 @@ const route: BrowserHTTPRoute = {
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> => {
-    const { _config: getConfig, _debug: getDebug } = route;
+    const { getConfig: getConfig, getDebug: getDebug } = route;
 
     if (!getConfig || !getDebug) {
       throw new ServerError(`Couldn't load configuration for request`);

@@ -17,7 +17,6 @@ import {
   convertIfBase64,
   createLogger,
   exists,
-  getTokenFromRequest,
   id,
   makeExternalURL,
   noop,
@@ -127,16 +126,8 @@ export class BrowserManager {
     await Promise.all(cleanupACtions.map((a) => a()));
   };
 
-  public getAllSessions = async (
-    req: Request,
-  ): Promise<BrowserlessSessionJSON[]> => {
+  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
-
-    const requestToken = getTokenFromRequest(req);
-    const token = this.config.getToken();
-    if (token && !requestToken) {
-      throw new BadRequest(`Couldn't locate your API token`);
-    }
 
     return sessions.map(([browser, session]) =>
       this.generateSessionJson(browser, session),
@@ -202,12 +193,6 @@ export class BrowserManager {
       throw new BadRequest(
         `Error parsing launch-options: ${err}. Launch options must be a JSON or base64-encoded JSON object`,
       );
-    }
-    const requestToken = getTokenFromRequest(req);
-    const token = this.config.getToken();
-
-    if (token && !requestToken) {
-      throw new ServerError(`Error locating authorization token`);
     }
 
     const routerOptions =

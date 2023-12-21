@@ -23,7 +23,7 @@ const route: HTTPRoute = {
   contentTypes: [contentTypes.json],
   description: `Gets total metric details summed from the time the server started.`,
   handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { _fileSystem, _config } = route;
+    const { getFileSystem: _fileSystem, getConfig: _config } = route;
 
     if (!_fileSystem || !_config) {
       throw new ServerError(`Couldn't locate the file-system or config module`);

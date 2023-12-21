@@ -46,7 +46,7 @@ const route: BrowserHTTPRoute = {
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> => {
-    const { _config: getConfig } = route;
+    const { getConfig: getConfig } = route;
     if (!req.body) {
       throw new BadRequest(`No JSON body present`);
     }

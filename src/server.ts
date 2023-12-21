@@ -152,19 +152,19 @@ export class HTTPServer {
       req.parsed.searchParams.delete('body');
     }
 
-    const found = this.router.getRouteForHTTPRequest(req);
+    const route = await this.router.getRouteForHTTPRequest(req);
 
-    if (!found) {
+    if (!route) {
       this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
       writeResponse(res, 404, 'Not Found');
       return Promise.resolve();
     }
 
-    this.verbose(`Found matching HTTP route handler "${found.path}"`);
+    this.verbose(`Found matching HTTP route handler "${route.path}"`);
 
-    if (found?.auth) {
+    if (route?.auth) {
       this.verbose(`Authorizing HTTP request to "${request.url}"`);
-      const isPermitted = this.token.isAuthorized(req, found);
+      const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
         return this.onHTTPUnauthorized(req, res);
@@ -177,8 +177,8 @@ export class HTTPServer {
 
     if (
       ((req.headers['content-type']?.includes(contentTypes.json) ||
-        (found.accepts.length === 1 &&
-          found.accepts.includes(contentTypes.json))) &&
+        (route.accepts.length === 1 &&
+          route.accepts.includes(contentTypes.json))) &&
         typeof body !== 'object') ||
       body === null
     ) {
@@ -186,10 +186,10 @@ export class HTTPServer {
       return Promise.resolve();
     }
 
-    if (found.querySchema) {
+    if (route.querySchema) {
       this.verbose(`Validating route query-params with QUERY schema`);
       try {
-        const schema = Enjoi.schema(found.querySchema);
+        const schema = Enjoi.schema(route.querySchema);
         const valid = schema.validate(req.queryParams, {
           abortEarly: false,
         });
@@ -231,10 +231,10 @@ export class HTTPServer {
       }
     }
 
-    if (found.bodySchema) {
+    if (route.bodySchema) {
       this.verbose(`Validating route payload with BODY schema`);
       try {
-        const schema = Enjoi.schema(found.bodySchema);
+        const schema = Enjoi.schema(route.bodySchema);
         const valid = schema.validate(body, { abortEarly: false });
 
         if (valid.error) {
@@ -272,7 +272,7 @@ export class HTTPServer {
       }
     }
 
-    return (found as HTTPRoute)
+    return (route as HTTPRoute)
       .handler(req, res)
       .then(() => {
         this.verbose('HTTP connection complete');
@@ -298,7 +298,7 @@ export class HTTPServer {
           return writeResponse(res, 408, e.message);
         }
 
-        this.log(`Error handling request at "${found.path}": ${e}`);
+        this.log(`Error handling request at "${route.path}": ${e}`);
         return writeResponse(res, 500, e.toString());
       });
   };
@@ -319,24 +319,24 @@ export class HTTPServer {
 
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 
-    const found = this.router.getRouteForWebSocketRequest(req);
+    const route = await this.router.getRouteForWebSocketRequest(req);
 
-    if (found) {
-      this.verbose(`Found matching WebSocket route handler "${found.path}"`);
+    if (route) {
+      this.verbose(`Found matching WebSocket route handler "${route.path}"`);
 
-      if (found?.auth) {
+      if (route?.auth) {
         this.verbose(`Authorizing WebSocket request to "${req.parsed.href}"`);
-        const isPermitted = this.token.isAuthorized(req, found);
+        const isPermitted = await this.token.isAuthorized(req, route);
 
         if (!isPermitted) {
           return this.onWebsocketUnauthorized(req, socket);
         }
       }
 
-      if (found.querySchema) {
+      if (route.querySchema) {
         this.verbose(`Validating route query-params with QUERY schema`);
         try {
-          const schema = Enjoi.schema(found.querySchema);
+          const schema = Enjoi.schema(route.querySchema);
           const valid = schema.validate(req.queryParams, {
             abortEarly: false,
           });
@@ -378,7 +378,7 @@ export class HTTPServer {
         }
       }
 
-      return (found as WebSocketRoute)
+      return (route as WebSocketRoute)
         .handler(req, socket, head)
         .then(() => {
           this.verbose('Websocket connection complete');
@@ -401,7 +401,7 @@ export class HTTPServer {
           }
 
           this.log(
-            `Error handling request at "${found.path}": ${e}\n${e.stack}`,
+            `Error handling request at "${route.path}": ${e}\n${e.stack}`,
           );
 
           return writeResponse(socket, 500, e.message);

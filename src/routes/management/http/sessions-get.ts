@@ -20,14 +20,14 @@ const route: HTTPRoute = {
   concurrency: false,
   contentTypes: [contentTypes.json],
   description: `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`,
-  handler: async (req: Request, res: ServerResponse): Promise<void> => {
-    const { _browserManager: browserManager } = route;
+  handler: async (_req: Request, res: ServerResponse): Promise<void> => {
+    const { getBrowserManager: browserManager } = route;
 
     if (!browserManager) {
       throw new BadRequest(`Couldn't load browsers running`);
     }
 
-    const response: ResponseSchema = await browserManager().getAllSessions(req);
+    const response: ResponseSchema = await browserManager().getAllSessions();
 
     return jsonResponse(res, 200, response);
   },

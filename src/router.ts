@@ -146,7 +146,7 @@ export class Router {
       `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
     );
 
-    route._browserManager = () => this.browserManager;
+    route.getBrowserManager = () => this.browserManager;
 
     const bound = route.handler.bind(route);
     const wrapped = this.wrapHTTPHandler(route, bound);
@@ -170,7 +170,7 @@ export class Router {
   ): WebSocketRoute | BrowserWebsocketRoute {
     this.verbose(`Registering WebSocket "${route.path}"`);
 
-    route._browserManager = () => this.browserManager;
+    route.getBrowserManager = () => this.browserManager;
 
     const bound = route.handler.bind(route);
     const wrapped = this.wrapWebSocketHandler(route, bound);
@@ -202,7 +202,7 @@ export class Router {
     ) as HTTPRoute;
   }
 
-  public getRouteForHTTPRequest(req: Request) {
+  public async getRouteForHTTPRequest(req: Request) {
     const accepts = (req.headers['accept']?.toLowerCase() || '*/*').split(',');
     const contentType = req.headers['content-type']?.toLowerCase() as
       | contentTypes
@@ -224,7 +224,7 @@ export class Router {
     );
   }
 
-  public getRouteForWebSocketRequest(req: Request) {
+  public async getRouteForWebSocketRequest(req: Request) {
     const { pathname } = req.parsed;
 
     return this.webSocketRoutes.find((r) =>

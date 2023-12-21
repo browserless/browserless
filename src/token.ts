@@ -11,14 +11,14 @@ import {
 export class Token {
   constructor(protected config: Config) {}
 
-  public isAuthorized = (
+  public isAuthorized = async (
     req: Request,
     route:
       | BrowserHTTPRoute
       | BrowserWebsocketRoute
       | HTTPRoute
       | WebSocketRoute,
-  ): boolean => {
+  ): Promise<boolean> => {
     const token = this.config.getToken();
 
     if (token === null) {

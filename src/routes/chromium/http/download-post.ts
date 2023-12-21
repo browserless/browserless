@@ -60,7 +60,7 @@ const route: BrowserHTTPRoute = {
     browser: BrowserInstance,
   ): Promise<void> =>
     new Promise(async (resolve, reject) => {
-      const { _config: getConfig, _debug: getDebug } = route;
+      const { getConfig: getConfig, getDebug: getDebug } = route;
 
       if (!getConfig || !getDebug) {
         return reject(
