@@ -11,14 +11,14 @@ import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
 
 export class PlaywrightWebkit extends EventEmitter {
-  private config: Config;
-  private userDataDir: string | null;
-  private record: boolean;
-  private running = false;
-  private proxy = httpProxy.createProxyServer();
-  private browser: playwright.BrowserServer | null = null;
-  private browserWSEndpoint: string | null = null;
-  private debug = createLogger('browsers:playwright:webkit');
+  protected config: Config;
+  protected userDataDir: string | null;
+  protected record: boolean;
+  protected running = false;
+  protected proxy = httpProxy.createProxyServer();
+  protected browser: playwright.BrowserServer | null = null;
+  protected browserWSEndpoint: string | null = null;
+  protected debug = createLogger('browsers:playwright:webkit');
 
   constructor({
     config,
@@ -38,7 +38,7 @@ export class PlaywrightWebkit extends EventEmitter {
     this.debug(`Starting new browser instance`);
   }
 
-  private cleanListeners() {
+  protected cleanListeners() {
     this.removeAllListeners();
   }
 

@@ -6,8 +6,8 @@ import {
 import si from 'systeminformation';
 
 export class Monitoring {
-  private log = createLogger('hardware');
-  constructor(private config: Config) {}
+  protected log = createLogger('hardware');
+  constructor(protected config: Config) {}
 
   public getMachineStats = async (): Promise<IResourceLoad> => {
     const [cpuLoad, memLoad] = await Promise.all([

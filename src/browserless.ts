@@ -11,6 +11,7 @@ import {
   Limiter,
   Metrics,
   Monitoring,
+  Router,
   Token,
   WebHooks,
   WebSocketRoute,
@@ -27,15 +28,16 @@ import { userInfo } from 'os';
 const routeSchemas = ['body', 'query'];
 
 export class Browserless {
-  private config: Config;
-  private monitoring: Monitoring;
-  private metrics: Metrics;
-  private fileSystem: FileSystem;
-  private browserManager: BrowserManager;
-  private limiter: Limiter;
-  private webhooks: WebHooks;
-  private token: Token;
-  private debug: debug.Debugger = createLogger('index');
+  protected debug: debug.Debugger = createLogger('index');
+  protected browserManager: BrowserManager;
+  protected config: Config;
+  protected fileSystem: FileSystem;
+  protected limiter: Limiter;
+  protected metrics: Metrics;
+  protected monitoring: Monitoring;
+  protected router: Router;
+  protected token: Token;
+  protected webhooks: WebHooks;
 
   webSocketRouteFiles: string[] = [];
   httpRouteFiles: string[] = [];
@@ -46,21 +48,23 @@ export class Browserless {
   constructor({
     browserManager,
     config,
-    monitoring,
+    fileSystem,
     limiter,
     metrics,
-    fileSystem,
-    webhooks,
+    monitoring,
+    router,
     token,
+    webhooks,
   }: {
-    browserManager?: BrowserManager;
-    config?: Config;
-    fileSystem?: FileSystem;
-    limiter?: Limiter;
-    metrics?: Metrics;
-    monitoring?: Monitoring;
-    token?: Token;
-    webhooks?: WebHooks;
+    browserManager?: Browserless['browserManager'];
+    config?: Browserless['config'];
+    fileSystem?: Browserless['fileSystem'];
+    limiter?: Browserless['limiter'];
+    metrics?: Browserless['metrics'];
+    monitoring?: Browserless['monitoring'];
+    router?: Browserless['router'];
+    token?: Browserless['token'];
+    webhooks?: Browserless['webhooks'];
   } = {}) {
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
@@ -72,9 +76,11 @@ export class Browserless {
     this.limiter =
       limiter ||
       new Limiter(this.config, this.metrics, this.monitoring, this.webhooks);
+    this.router =
+      router || new Router(this.config, this.browserManager, this.limiter);
   }
 
-  private saveMetrics = async (): Promise<void> => {
+  protected saveMetrics = async (): Promise<void> => {
     const metricsPath = this.config.getMetricsJSONPath();
     const { cpu, memory } = await this.monitoring.getMachineStats();
     const metrics = await this.metrics.get();
@@ -237,16 +243,16 @@ export class Browserless {
       }
     });
 
+    httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
+    wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
+
     this.debug(`Imported and validated all route files, starting up server.`);
 
     this.server = new HTTPServer(
       this.config,
       this.metrics,
-      this.browserManager,
-      this.limiter,
-      httpRoutes,
-      wsRoutes,
       this.token,
+      this.router,
     );
 
     await this.server.start();

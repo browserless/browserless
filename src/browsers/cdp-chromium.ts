@@ -24,16 +24,16 @@ import puppeteerStealth from 'puppeteer-extra';
 puppeteerStealth.use(StealthPlugin());
 
 export class CDPChromium extends EventEmitter {
-  private config: Config;
-  private userDataDir: string | null;
-  private record: boolean;
-  private blockAds: boolean;
-  private running = false;
-  private browser: Browser | null = null;
-  private browserWSEndpoint: string | null = null;
-  private port?: number;
-  private debug = createLogger('browsers:cdp:chromium');
-  private proxy = httpProxy.createProxyServer();
+  protected config: Config;
+  protected userDataDir: string | null;
+  protected record: boolean;
+  protected blockAds: boolean;
+  protected running = false;
+  protected browser: Browser | null = null;
+  protected browserWSEndpoint: string | null = null;
+  protected port?: number;
+  protected debug = createLogger('browsers:cdp:chromium');
+  protected proxy = httpProxy.createProxyServer();
 
   constructor({
     userDataDir,
@@ -55,12 +55,12 @@ export class CDPChromium extends EventEmitter {
     this.debug(`Starting new browser instance`);
   }
 
-  private cleanListeners() {
+  protected cleanListeners() {
     this.browser?.removeAllListeners();
     this.removeAllListeners();
   }
 
-  private setUpEmbeddedAPI = async (
+  protected setUpEmbeddedAPI = async (
     page: Page,
     id: string,
     record: boolean,
@@ -189,7 +189,7 @@ export class CDPChromium extends EventEmitter {
     return makeExternalURL(serverAddress, 'live', query);
   };
 
-  private onTargetCreated = async (target: Target) => {
+  protected onTargetCreated = async (target: Target) => {
     if (target.type() === 'page') {
       const page = await target.page().catch((e) => {
         this.debug(`Error in new page ${e}`);

@@ -2,9 +2,9 @@ import { Config, decrypt, encrypt } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
 
 export class FileSystem {
-  private fsMap: Map<string, string[]> = new Map();
+  protected fsMap: Map<string, string[]> = new Map();
 
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {}
 
   /**
    * Appends contents to a file-path for persistance. File contents are

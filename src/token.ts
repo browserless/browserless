@@ -9,7 +9,7 @@ import {
 } from '@browserless.io/browserless';
 
 export class Token {
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {}
 
   public isAuthorized = (
     req: Request,

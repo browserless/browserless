@@ -25,14 +25,14 @@ interface Job {
 }
 
 export class Limiter extends q {
-  private queued: number;
-  private debug = createLogger('limiter');
+  protected queued: number;
+  protected debug = createLogger('limiter');
 
   constructor(
-    private config: Config,
-    private metrics: Metrics,
-    private monitor: Monitoring,
-    private webhooks: WebHooks,
+    protected config: Config,
+    protected metrics: Metrics,
+    protected monitor: Monitoring,
+    protected webhooks: WebHooks,
   ) {
     super({
       autostart: true,
@@ -73,11 +73,11 @@ export class Limiter extends q {
     this.addEventListener('end', this.handleEnd);
   }
 
-  private handleEnd() {
+  protected handleEnd() {
     this.logQueue('All jobs complete.');
   }
 
-  private handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
+  protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
     this.debug(
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
@@ -91,7 +91,7 @@ export class Limiter extends q {
     } as AfterResponse);
   }
 
-  private handleJobTimeout({
+  protected handleJobTimeout({
     detail: { next, job },
   }: {
     detail: { job: Job; next: Job };
@@ -113,7 +113,7 @@ export class Limiter extends q {
     next();
   }
 
-  private handleFail({
+  protected handleFail({
     detail: { error, job },
   }: {
     detail: { error: unknown; job: Job };
@@ -128,7 +128,7 @@ export class Limiter extends q {
     } as AfterResponse);
   }
 
-  private logQueue(message: string) {
+  protected logQueue(message: string) {
     this.debug(
       `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
     );

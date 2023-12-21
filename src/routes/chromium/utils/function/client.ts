@@ -8,8 +8,8 @@ type codeHandler = (params: {
 }) => Promise<unknown>;
 
 export class FunctionRunner {
-  private browser?: Browser;
-  private page?: Page;
+  protected browser?: Browser;
+  protected page?: Page;
 
   public log = () => console.log.bind(console);
 

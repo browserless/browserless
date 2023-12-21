@@ -191,6 +191,7 @@ const start = async (dev = false) => {
     limiter,
     metrics,
     monitoring,
+    router,
     token,
     webhooks,
   ] = await Promise.all([
@@ -200,11 +201,13 @@ const start = async (dev = false) => {
     importClassOverride(files, 'limiter'),
     importClassOverride(files, 'metrics'),
     importClassOverride(files, 'monitoring'),
+    importClassOverride(files, 'router'),
     importClassOverride(files, 'token'),
     importClassOverride(files, 'webhooks'),
   ]);
 
   log(`Starting Browserless`);
+
   const browserless = new Browserless({
     browserManager,
     config,
@@ -212,6 +215,7 @@ const start = async (dev = false) => {
     limiter,
     metrics,
     monitoring,
+    router,
     token,
     webhooks,
   });

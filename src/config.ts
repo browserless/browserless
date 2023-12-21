@@ -109,60 +109,61 @@ const getDebug = () => {
 };
 
 export class Config extends EventEmitter {
-  private readonly debug = getDebug();
-  private readonly host = process.env.HOST ?? 'localhost';
-  private readonly external = process.env.PROXY_URL ?? process.env.EXTERNAL;
-  private readonly isWin = process.platform === 'win32';
+  protected readonly debug = getDebug();
+  protected readonly host = process.env.HOST ?? 'localhost';
+  protected readonly external = process.env.PROXY_URL ?? process.env.EXTERNAL;
+  protected readonly isWin = process.platform === 'win32';
 
-  private port = +(process.env.PORT ?? '3000');
+  protected port = +(process.env.PORT ?? '3000');
 
-  private downloadsDir = process.env.DOWNLOAD_DIR
+  protected downloadsDir = process.env.DOWNLOAD_DIR
     ? untildify(process.env.DOWNLOAD_DIR)
     : path.join(tmpdir(), 'browserless-download-dirs');
 
-  private dataDir = process.env.DATA_DIR
+  protected dataDir = process.env.DATA_DIR
     ? untildify(process.env.DATA_DIR)
     : path.join(tmpdir(), 'browserless-data-dirs');
 
-  private metricsJSONPath = process.env.METRICS_JSON_PATH
+  protected metricsJSONPath = process.env.METRICS_JSON_PATH
     ? untildify(process.env.METRICS_JSON_PATH)
     : path.join(tmpdir(), 'browserless-metrics.json');
 
-  private createDataDir = !process.env.DATA_DIR;
-  private createDownloadsDir = !process.env.DOWNLOAD_DIR;
+  protected createDataDir = !process.env.DATA_DIR;
+  protected createDownloadsDir = !process.env.DOWNLOAD_DIR;
 
-  private routes = process.env.ROUTES
+  protected routes = process.env.ROUTES
     ? untildify(process.env.ROUTES)
     : path.join(__dirname, '..', 'build', 'routes');
 
-  private token = process.env.TOKEN || null;
-  private concurrent = +(
+  protected token = process.env.TOKEN || null;
+  protected concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
     '10'
   );
-  private queued = +(process.env.QUEUE_LENGTH ?? process.env.QUEUED ?? '10');
-  private timeout = +(
+  protected queued = +(process.env.QUEUE_LENGTH ?? process.env.QUEUED ?? '10');
+  protected timeout = +(
     process.env.TIMEOUT ??
     process.env.CONNECTION_TIMEOUT ??
     '30000'
   );
-  private static = process.env.STATIC ?? path.join(__dirname, '..', 'static');
-  private retries = +(process.env.RETRIES ?? '5');
-  private allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
-  private allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');
-  private allowCors = !!parseEnvVars(false, 'CORS', 'ENABLE_CORS');
-  private corsMethods = process.env.CORS_ALLOW_METHODS ?? 'OPTIONS, POST, GET';
-  private corsOrigin = process.env.CORS_ALLOW_ORIGIN ?? '*';
-  private corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
-  private maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
-  private maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
-  private healthCheck = !!parseEnvVars(false, 'HEALTH');
-  private failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
-  private queueAlertURL = process.env.QUEUE_ALERT_URL ?? null;
-  private rejectAlertURL = process.env.REJECT_ALERT_URL ?? null;
-  private timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
-  private errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
+  protected static = process.env.STATIC ?? path.join(__dirname, '..', 'static');
+  protected retries = +(process.env.RETRIES ?? '5');
+  protected allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
+  protected allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');
+  protected allowCors = !!parseEnvVars(false, 'CORS', 'ENABLE_CORS');
+  protected corsMethods =
+    process.env.CORS_ALLOW_METHODS ?? 'OPTIONS, POST, GET';
+  protected corsOrigin = process.env.CORS_ALLOW_ORIGIN ?? '*';
+  protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
+  protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
+  protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
+  protected healthCheck = !!parseEnvVars(false, 'HEALTH');
+  protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
+  protected queueAlertURL = process.env.QUEUE_ALERT_URL ?? null;
+  protected rejectAlertURL = process.env.REJECT_ALERT_URL ?? null;
+  protected timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
+  protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
 
   public getRoutes = (): string => this.routes;
   public getHost = (): string => this.host;

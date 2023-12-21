@@ -29,14 +29,14 @@ import { deleteAsync } from 'del';
 import { mkdir } from 'fs/promises';
 
 export class BrowserManager {
-  private browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
-  private launching: Map<string, Promise<unknown>> = new Map();
-  private timers: Map<string, number> = new Map();
-  private debug = createLogger('browser-manager');
+  protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
+  protected launching: Map<string, Promise<unknown>> = new Map();
+  protected timers: Map<string, number> = new Map();
+  protected debug = createLogger('browser-manager');
 
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {}
 
-  private removeUserDataDir = async (userDataDir: string | null) => {
+  protected removeUserDataDir = async (userDataDir: string | null) => {
     if (userDataDir && (await exists(userDataDir))) {
       this.debug(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
@@ -56,7 +56,7 @@ export class BrowserManager {
    * @param sessionId The ID of the session
    * @returns Promise<string> of the fully-qualified path of the directory
    */
-  private generateDataDir = async (
+  protected generateDataDir = async (
     sessionId: string = id(),
   ): Promise<string> => {
     const baseDirectory = await this.config.getDataDir();
@@ -83,7 +83,7 @@ export class BrowserManager {
     return dataDirPath;
   };
 
-  private generateSessionJson = (
+  protected generateSessionJson = (
     browser: BrowserInstance,
     session: BrowserlessSession,
   ) => {

@@ -1,16 +1,16 @@
 import { IBrowserlessStats } from '@browserless.io/browserless';
 
 export class Metrics {
-  private sessionTimes: number[] = [];
-  private successful = 0;
-  private queued = 0;
-  private rejected = 0;
-  private unauthorized = 0;
-  private concurrent = 0;
-  private timedout = 0;
-  private running = 0;
-  private unhealthy = 0;
-  private error = 0;
+  protected sessionTimes: number[] = [];
+  protected successful = 0;
+  protected queued = 0;
+  protected rejected = 0;
+  protected unauthorized = 0;
+  protected concurrent = 0;
+  protected timedout = 0;
+  protected running = 0;
+  protected unhealthy = 0;
+  protected error = 0;
 
   addSuccessful = (sessionTime: number): number => {
     --this.running;
@@ -90,7 +90,7 @@ export class Metrics {
     this.sessionTimes = [];
   };
 
-  private calculateStats(sessionTimes: number[]) {
+  protected calculateStats(sessionTimes: number[]) {
     return {
       maxTime: Math.max(...sessionTimes) || 0,
       meanTime: sessionTimes.reduce(

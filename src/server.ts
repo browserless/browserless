@@ -2,18 +2,13 @@ import * as http from 'http';
 import * as stream from 'stream';
 import {
   BadRequest,
-  BrowserHTTPRoute,
-  BrowserManager,
-  BrowserWebsocketRoute,
   Config,
-  HTTPManagementRoutes,
   HTTPRoute,
-  Limiter,
-  Methods,
   Metrics,
   NotFound,
   Request,
   Response,
+  Router,
   Timeout,
   Token,
   TooManyRequests,
@@ -23,7 +18,6 @@ import {
   contentTypes,
   convertPathToURL,
   createLogger,
-  isConnected,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -32,7 +26,6 @@ import {
 
 // @ts-ignore
 import Enjoi from 'enjoi';
-import micromatch from 'micromatch';
 
 export interface HTTPServerOptions {
   concurrent: number;
@@ -43,27 +36,20 @@ export interface HTTPServerOptions {
 }
 
 export class HTTPServer {
-  private server: http.Server = http.createServer();
-  private port: number;
-  private host?: string;
-  private log = createLogger('server');
-  private verbose = createLogger('server:verbose');
+  protected server: http.Server = http.createServer();
+  protected port: number;
+  protected host?: string;
+  protected log = createLogger('server');
+  protected verbose = createLogger('server:verbose');
 
   constructor(
-    private config: Config,
-    private metrics: Metrics,
-    private browserManager: BrowserManager,
-    private limiter: Limiter,
-    private httpRoutes: Array<HTTPRoute | BrowserHTTPRoute>,
-    private webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute>,
-    private token: Token,
+    protected config: Config,
+    protected metrics: Metrics,
+    protected token: Token,
+    protected router: Router,
   ) {
     this.host = config.getHost();
     this.port = config.getPort();
-    this.httpRoutes = httpRoutes.map((r) => this.registerHTTPRoute(r));
-    this.webSocketRoutes = webSocketRoutes.map((r) =>
-      this.registerWebSocketRoute(r),
-    );
 
     this.log(
       `Server instantiated with host "${this.host}" on port "${
@@ -72,174 +58,22 @@ export class HTTPServer {
     );
   }
 
-  private onQueueFullHTTP = (_req: Request, res: Response) => {
-    this.log(`Queue is full, sending 429 response`);
-    return writeResponse(res, 429, 'Too many requests');
-  };
-
-  private onQueueFullWebSocket = (_req: Request, socket: stream.Duplex) => {
-    this.log(`Queue is full, sending 429 response`);
-    return writeResponse(socket, 429, 'Too many requests');
-  };
-
-  private onHTTPTimeout = (_req: Request, res: Response) => {
-    this.log(`HTTP job has timedout, sending 429 response`);
-    return writeResponse(res, 408, 'Request has timed out');
-  };
-
-  private onWebsocketTimeout = (_req: Request, socket: stream.Duplex) => {
-    this.log(`Websocket job has timedout, sending 429 response`);
-    return writeResponse(socket, 408, 'Request has timed out');
-  };
-
-  private onHTTPUnauthorized = (_req: Request, res: Response) => {
+  protected onHTTPUnauthorized = (_req: Request, res: Response) => {
     this.log(`HTTP request is not properly authorized, responding with 401`);
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
   };
 
-  private onWebsocketUnauthorized = (_req: Request, socket: stream.Duplex) => {
+  protected onWebsocketUnauthorized = (
+    _req: Request,
+    socket: stream.Duplex,
+  ) => {
     this.log(
       `Websocket request is not properly authorized, responding with 401`,
     );
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
   };
-
-  private wrapHTTPHandler =
-    (
-      route: HTTPRoute | BrowserHTTPRoute,
-      handler: HTTPRoute['handler'] | BrowserHTTPRoute['handler'],
-    ) =>
-    async (req: Request, res: Response) => {
-      if (!isConnected(res)) {
-        this.log(`HTTP Request has closed prior to running`);
-        return Promise.resolve();
-      }
-
-      if (route.browser) {
-        const browser = await this.browserManager.getBrowserForRequest(
-          req,
-          route,
-        );
-
-        if (!isConnected(res)) {
-          this.log(`HTTP Request has closed prior to running`);
-          this.browserManager.complete(browser);
-          return Promise.resolve();
-        }
-
-        if (!browser) {
-          return writeResponse(res, 500, `Error loading the browser.`);
-        }
-
-        if (!isConnected(res)) {
-          this.log(`HTTP Request has closed prior to running`);
-          return Promise.resolve();
-        }
-
-        try {
-          this.verbose(`Running found HTTP handler.`);
-          return await handler(req, res, browser);
-        } finally {
-          this.verbose(`HTTP Request handler has finished.`);
-          this.browserManager.complete(browser);
-        }
-      }
-
-      return (handler as HTTPRoute['handler'])(req, res);
-    };
-
-  private wrapWebSocketHandler =
-    (
-      route: WebSocketRoute | BrowserWebsocketRoute,
-      handler: WebSocketRoute['handler'] | BrowserWebsocketRoute['handler'],
-    ) =>
-    async (req: Request, socket: stream.Duplex, head: Buffer) => {
-      if (!isConnected(socket)) {
-        this.log(`WebSocket Request has closed prior to running`);
-        return Promise.resolve();
-      }
-
-      if (route.browser) {
-        const browser = await this.browserManager.getBrowserForRequest(
-          req,
-          route,
-        );
-
-        if (!isConnected(socket)) {
-          this.log(`WebSocket Request has closed prior to running`);
-          this.browserManager.complete(browser);
-          return Promise.resolve();
-        }
-
-        if (!browser) {
-          return writeResponse(socket, 500, `Error loading the browser.`);
-        }
-
-        try {
-          this.verbose(`Running found WebSocket handler.`);
-          await handler(req, socket, head, browser);
-        } finally {
-          this.verbose(`WebSocket Request handler has finished.`);
-          this.browserManager.complete(browser);
-        }
-        return;
-      }
-      return (handler as WebSocketRoute['handler'])(req, socket, head);
-    };
-
-  private getTimeout(req: Request) {
-    const timer = req.parsed.searchParams.get('timeout');
-
-    return timer ? +timer : undefined;
-  }
-
-  private registerHTTPRoute(
-    route: HTTPRoute | BrowserHTTPRoute,
-  ): HTTPRoute | BrowserHTTPRoute {
-    this.verbose(
-      `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
-    );
-
-    route._browserManager = () => this.browserManager;
-
-    const bound = route.handler.bind(route);
-    const wrapped = this.wrapHTTPHandler(route, bound);
-
-    route.handler = route.concurrency
-      ? this.limiter.limit(
-          wrapped,
-          this.onQueueFullHTTP,
-          this.onHTTPTimeout,
-          this.getTimeout,
-        )
-      : wrapped;
-
-    return route;
-  }
-
-  private registerWebSocketRoute(
-    route: WebSocketRoute | BrowserWebsocketRoute,
-  ): WebSocketRoute | BrowserWebsocketRoute {
-    this.verbose(`Registering WebSocket "${route.path}"`);
-
-    route._browserManager = () => this.browserManager;
-
-    const bound = route.handler.bind(route);
-    const wrapped = this.wrapWebSocketHandler(route, bound);
-
-    route.handler = route.concurrency
-      ? this.limiter.limit(
-          wrapped,
-          this.onQueueFullWebSocket,
-          this.onWebsocketTimeout,
-          this.getTimeout,
-        )
-      : wrapped;
-
-    return route;
-  }
 
   public async start(): Promise<void> {
     this.log(`HTTP Server is starting`);
@@ -269,21 +103,19 @@ export class HTTPServer {
   public async stop(): Promise<void> {
     this.log(`HTTP Server is shutting down`);
     await new Promise((r) => this.server.close(r));
-    await Promise.all([this.tearDown(), this.browserManager.stop()]);
+    await Promise.all([this.tearDown(), this.router.teardown()]);
     this.log(`HTTP Server shutdown complete`);
   }
 
-  private tearDown() {
+  protected tearDown() {
     this.log(`Tearing down all listeners and internal routes`);
     this.server && this.server.removeAllListeners();
-    this.httpRoutes = [];
-    this.webSocketRoutes = [];
 
     // @ts-ignore garbage collect this reference
     this.server = null;
   }
 
-  private handleRequest = async (
+  protected handleRequest = async (
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) => {
@@ -297,10 +129,6 @@ export class HTTPServer {
     shimLegacyRequests(req.parsed);
 
     if (!proceed) return;
-
-    const staticHandler = this.httpRoutes.find(
-      (route) => route.path === HTTPManagementRoutes.static,
-    ) as HTTPRoute;
 
     if (this.config.getAllowCORS()) {
       Object.entries(this.config.getCORSHeaders()).forEach(([header, value]) =>
@@ -324,23 +152,7 @@ export class HTTPServer {
       req.parsed.searchParams.delete('body');
     }
 
-    const accepts = (req.headers['accept']?.toLowerCase() || '*/*').split(',');
-    const contentType = req.headers['content-type']?.toLowerCase() as
-      | contentTypes
-      | undefined;
-
-    const found =
-      this.httpRoutes.find(
-        (r) =>
-          micromatch.isMatch(req.parsed.pathname, r.path) &&
-          r.method === (req.method?.toLocaleLowerCase() as Methods) &&
-          (accepts.some((a) => a.startsWith('*/*')) ||
-            r.contentTypes.some((contentType) =>
-              accepts.includes(contentType),
-            )) &&
-          ((!contentType && r.accepts.includes(contentTypes.any)) ||
-            r.accepts.includes(contentType as contentTypes)),
-      ) || (req.method?.toLowerCase() === 'get' ? staticHandler : null);
+    const found = this.router.getRouteForHTTPRequest(req);
 
     if (!found) {
       this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
@@ -460,8 +272,6 @@ export class HTTPServer {
       }
     }
 
-    // #wrapHTTPHandler will take care of applying the extra browser
-    // argument for this to to work properly
     return (found as HTTPRoute)
       .handler(req, res)
       .then(() => {
@@ -493,7 +303,7 @@ export class HTTPServer {
       });
   };
 
-  private handleWebSocket = async (
+  protected handleWebSocket = async (
     request: http.IncomingMessage,
     socket: stream.Duplex,
     head: Buffer,
@@ -507,12 +317,9 @@ export class HTTPServer {
 
     if (!proceed) return;
 
-    const { pathname } = req.parsed;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 
-    const found = this.webSocketRoutes.find((r) =>
-      micromatch.isMatch(pathname, r.path),
-    );
+    const found = this.router.getRouteForWebSocketRequest(req);
 
     if (found) {
       this.verbose(`Found matching WebSocket route handler "${found.path}"`);
@@ -571,8 +378,6 @@ export class HTTPServer {
         }
       }
 
-      // #wrapWebSocketHandler will take care of applying the extra browser
-      // argument for this to to work properly
       return (found as WebSocketRoute)
         .handler(req, socket, head)
         .then(() => {
