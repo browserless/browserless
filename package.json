@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.0.0-beta-2",
+  "version": "2.0.0-beta-3",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -96,7 +96,10 @@
   "eslintConfig": {
     "root": true,
     "parser": "@typescript-eslint/parser",
-    "plugins": ["@typescript-eslint", "typescript-sort-keys"],
+    "plugins": [
+      "@typescript-eslint",
+      "typescript-sort-keys"
+    ],
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
@@ -120,7 +123,10 @@
           "minKeys": 2
         }
       ],
-      "semi": [2, "always"],
+      "semi": [
+        2,
+        "always"
+      ],
       "no-async-promise-executor": 0,
       "@typescript-eslint/ban-ts-comment": 0,
       "@typescript-eslint/no-var-requires": 0,
@@ -130,22 +136,34 @@
           "ignoreCase": false,
           "ignoreDeclarationSort": false,
           "ignoreMemberSort": false,
-          "memberSyntaxSortOrder": ["none", "all", "multiple", "single"],
+          "memberSyntaxSortOrder": [
+            "none",
+            "all",
+            "multiple",
+            "single"
+          ],
           "allowSeparatedGroups": false
         }
       ]
     }
   },
   "mocha": {
-    "extension": ["ts"],
+    "extension": [
+      "ts"
+    ],
     "loader": "ts-node/esm",
     "spec": "src/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
   },
   "nodemonConfig": {
-    "ignoreRoot": [".git", ".no-git"],
-    "watch": ["src"],
+    "ignoreRoot": [
+      ".git",
+      ".no-git"
+    ],
+    "watch": [
+      "src"
+    ],
     "exec": "npx tsc && node ./build/index.js",
     "ext": "ts json",
     "signal": "SIGTERM"
