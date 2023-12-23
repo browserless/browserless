@@ -11,11 +11,11 @@
 > [Looking for v1.x.x of browserless? Check it out here](https://github.com/browserless/chrome/tree/v1).
 > NOTE: Version 1 is the version we currently still have running on browserless' hosted services.
 
-browserless is a web-based service that allows for remote clients to connect and execute headless work; all inside of docker. It supports new libraries like Puppeteer and Playwright, aiming to replace antiquated or in-house systems. We also bundle numerous handy REST-based APIs for doing more common actions like data collection, PDF generation and more.
+Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
-We also take care of other common issues such as missing system-fonts, missing external libraries, and performance improvements. We even handle edge-cases like downloading files, managing sessions, and have a full documentation site built into the project which includes Open API docs.
+We take care of common issues such as missing system-fonts, missing external libraries, and performance improvements, along with edge-cases like downloading files and managing sessions. For details, check out the documentation site built into the project which includes Open API docs.
 
-If you've been struggling to get a browser up and running docker, or scaling out your headless workloads, then browserless was built for you.
+If you've been struggling to deploy headless browsers without running into issues or bloated resource requirements, then Browserless was built for you. Run the browsers in [our cloud](https://browserless.io/) or your own, [free for non-commercial uses](https://github.com/browserless/browserless#licensing). 
 # Table of Contents
 
 1. [Features](#features)
@@ -40,14 +40,14 @@ If you've been struggling to get a browser up and running docker, or scaling out
 - Fonts and emoji's working out-of-the-box.
 - Debug Viewer for actively viewing/debugging running sessions.
 - An interactive puppeteer debugger, so you can see what the headless browser is doing and use its DevTools.
-- Works with most headless libraries.
+- Works with unforked Puppeteer and Playwright.
 - Configurable session timers and health-checks to keep things running smoothly.
 - Error tolerant: if Chrome dies it won't.
 - [Support for running and development on Apple's M1 machines](#building-for-arm64-apple-m1-machines)
 
 # How it works
 
-browserless listens for both incoming websocket requests, generally issued by most libraries, as well as pre-build REST APIs to do common functions (PDF generation, images and so on). When a websocket connects to browserless it starts Chrome and proxies your request into it. Once the session is done then it closes and awaits for more connections. Some libraries use Chrome's HTTP endpoints, like `/json` to inspect debug-able targets, which browserless also supports.
+Browserless listens for both incoming websocket requests, generally issued by most libraries, as well as pre-build REST APIs to do common functions (PDF generation, images and so on). When a websocket connects to Browserless it starts Chrome and proxies your request into it. Once the session is done then it closes and awaits for more connections. Some libraries use Chrome's HTTP endpoints, like `/json` to inspect debug-able targets, which Browserless also supports.
 
 You still execute the script itself which gives you total control over what library you want to choose and when to do upgrades. This also comes with the benefit of keep your code proprietary and able to run on numerous platforms. We simply take care of all the browser-aspects and offer a management layer on top of the browser.
 
@@ -71,7 +71,7 @@ If you're interested in using this image for commercial aspects, then please rea
 
 # Puppeteer
 
-Puppeteer allows you to specify a remote location for chrome via the `browserWSEndpoint` option. Setting this for browserless is a single line of code change.
+Puppeteer allows you to specify a remote location for chrome via the `browserWSEndpoint` option. Setting this for Browserless is a single line of code change.
 
 **Before**
 ```js
@@ -114,13 +114,13 @@ Running Chrome on lambda or on your own is a fantastic idea but in practice is q
 
 Getting Chrome running well in docker is also a challenge as there's quiet a few packages you need in order to get Chrome running. Once that's done then there's still missing fonts, getting libraries to work with it, and having limitations on service reliability. This is also ignoring CVEs, access-controls, and scaling strategies.
 
-All of these issues prompted us to build a first-class image and workflow for interacting with Chrome in a more streamlined way. With browserless you never have to worry about fonts, extra packages, library support, security, or anything else. It just works reliably like any other modern web service. On top of that it comes with a prescribed approach on how you interact with Chrome, which is through socket connections (similar to a database or any other external appliance). What this means is that you get the ability to drive Chrome remotely without having to do updates/releases to the thing that runs Chrome since it's divorced from your application.
+All of these issues prompted us to build a first-class image and workflow for interacting with Chrome in a more streamlined way. With Browserless you never have to worry about fonts, extra packages, library support, security, or anything else. It just works reliably like any other modern web service. On top of that it comes with a prescribed approach on how you interact with Chrome, which is through socket connections (similar to a database or any other external appliance). What this means is that you get the ability to drive Chrome remotely without having to do updates/releases to the thing that runs Chrome since it's divorced from your application.
 
 # Licensing
 
 SPDX-License-Identifier: SSPL-1.0 OR Browserless Commercial License.
 
-If you want to use browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/contact). A commercial license grants you:
+If you want to use Browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/contact). A commercial license grants you:
 
 - Priority support on issues and features.
 - On-premise running as well as running on public cloud providers for commercial/CI purposes for proprietary systems.
@@ -129,4 +129,4 @@ If you want to use browserless to build commercial sites, applications, or in a 
 
 Not only does it grant you a license to run such a critical piece of infrastructure, but you are also supporting further innovation in this space and our ability to contribute to it.
 
-If you are creating an open source application under a license compatible with the Server Side License 1.0, you may use browserless under those terms.
+If you are creating an open source application under a license compatible with the Server Side License 1.0, you may use Browserless under those terms.
