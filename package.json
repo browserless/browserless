@@ -7,7 +7,9 @@
   "type": "module",
   "types": "./src/exports.ts",
   "main": "./build/exports.js",
-  "exports": "./build/exports.js",
+  "exports": {
+    ".": "./build/exports.js"
+  },
   "bin": {
     "browserless": "./bin/browserless.js"
   },
