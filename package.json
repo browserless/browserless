@@ -158,18 +158,6 @@
     "timeout": 30000,
     "slow": 5000
   },
-  "nodemonConfig": {
-    "ignoreRoot": [
-      ".git",
-      ".no-git"
-    ],
-    "watch": [
-      "src"
-    ],
-    "exec": "npx tsc && node ./build/index.js",
-    "ext": "ts json",
-    "signal": "SIGTERM"
-  },
   "prettier": {
     "semi": true,
     "trailingComma": "all",
