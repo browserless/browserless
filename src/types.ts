@@ -121,7 +121,6 @@ interface Route {
    */
   getBrowserManager?: () => Browserless['browserManager'];
 
-
   /**
    * Helper function that loads the config module. Defined and injected by
    * browserless after initialization.

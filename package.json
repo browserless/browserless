@@ -7,6 +7,7 @@
   "type": "module",
   "types": "./src/exports.ts",
   "main": "./build/exports.js",
+  "exports": "./build/exports.js",
   "bin": {
     "browserless": "./bin/browserless.js"
   },
@@ -26,7 +27,7 @@
     "install:dev": "npm run install:browsers && npm run install:cdp-json",
     "lint": "eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
-    "prettier": "prettier '{src,functions,scripts,bin,external}/**/*.{js,ts}' --log-level error --write",
+    "prettier": "prettier '{src,functions,scripts,bin,external}/**/*.{js,ts,json}' --log-level error --write",
     "test": "cross-env DEBUG=quiet mocha"
   },
   "files": [
@@ -45,7 +46,6 @@
     "tsconfig.json"
   ],
   "dependencies": {
-    "@browserless.io/browserless": "file:./",
     "debug": "^4.3.2",
     "del": "^7.0.0",
     "enjoi": "^9.0.1",
@@ -96,10 +96,7 @@
   "eslintConfig": {
     "root": true,
     "parser": "@typescript-eslint/parser",
-    "plugins": [
-      "@typescript-eslint",
-      "typescript-sort-keys"
-    ],
+    "plugins": ["@typescript-eslint", "typescript-sort-keys"],
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
@@ -123,10 +120,7 @@
           "minKeys": 2
         }
       ],
-      "semi": [
-        2,
-        "always"
-      ],
+      "semi": [2, "always"],
       "no-async-promise-executor": 0,
       "@typescript-eslint/ban-ts-comment": 0,
       "@typescript-eslint/no-var-requires": 0,
@@ -136,34 +130,22 @@
           "ignoreCase": false,
           "ignoreDeclarationSort": false,
           "ignoreMemberSort": false,
-          "memberSyntaxSortOrder": [
-            "none",
-            "all",
-            "multiple",
-            "single"
-          ],
+          "memberSyntaxSortOrder": ["none", "all", "multiple", "single"],
           "allowSeparatedGroups": false
         }
       ]
     }
   },
   "mocha": {
-    "extension": [
-      "ts"
-    ],
+    "extension": ["ts"],
     "loader": "ts-node/esm",
     "spec": "src/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
   },
   "nodemonConfig": {
-    "ignoreRoot": [
-      ".git",
-      ".no-git"
-    ],
-    "watch": [
-      "src"
-    ],
+    "ignoreRoot": [".git", ".no-git"],
+    "watch": ["src"],
     "exec": "npx tsc && node ./build/index.js",
     "ext": "ts json",
     "signal": "SIGTERM"

@@ -177,6 +177,8 @@ const build = async () => {
   };
 };
 
+const isConstructor = (reference) => typeof reference === 'function';
+
 const start = async (dev = false) => {
   const { httpRoutes, webSocketRoutes, files } = dev
     ? await build()
@@ -185,15 +187,15 @@ const start = async (dev = false) => {
   log(`Importing all class overrides if present`);
 
   const [
-    browserManager,
-    config,
-    fileSystem,
-    limiter,
-    metrics,
-    monitoring,
-    router,
-    token,
-    webhooks,
+    BrowserManager,
+    Config,
+    FileSystem,
+    Limiter,
+    Metrics,
+    Monitoring,
+    Router,
+    Token,
+    Webhooks,
   ] = await Promise.all([
     importClassOverride(files, 'browser-manager'),
     importClassOverride(files, 'config'),
@@ -207,6 +209,26 @@ const start = async (dev = false) => {
   ]);
 
   log(`Starting Browserless`);
+
+  const config = isConstructor(Config) ? new Config() : config;
+  const metrics = isConstructor(Metrics) ? new Metrics() : metrics;
+  const token = isConstructor(Token) ? new Token(config) : token;
+  const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : webhooks;
+  const browserManager = isConstructor(BrowserManager)
+    ? new BrowserManager(config)
+    : browserManager;
+  const monitoring = isConstructor(Monitoring)
+    ? new Monitoring(config)
+    : monitoring;
+  const fileSystem = isConstructor(FileSystem)
+    ? new FileSystem(config)
+    : fileSystem;
+  const limiter = isConstructor(Limiter)
+    ? new Limiter(config, metrics, monitoring, webhooks)
+    : limiter;
+  const router = isConstructor(Router)
+    ? new Router(config, browserManager, limiter)
+    : router;
 
   const browserless = new Browserless({
     browserManager,
