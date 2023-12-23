@@ -210,25 +210,25 @@ const start = async (dev = false) => {
 
   log(`Starting Browserless`);
 
-  const config = isConstructor(Config) ? new Config() : config;
-  const metrics = isConstructor(Metrics) ? new Metrics() : metrics;
-  const token = isConstructor(Token) ? new Token(config) : token;
-  const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : webhooks;
+  const config = isConstructor(Config) ? new Config() : Config;
+  const metrics = isConstructor(Metrics) ? new Metrics() : Metrics;
+  const token = isConstructor(Token) ? new Token(config) : Token;
+  const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : Webhooks;
   const browserManager = isConstructor(BrowserManager)
     ? new BrowserManager(config)
-    : browserManager;
+    : BrowserManager;
   const monitoring = isConstructor(Monitoring)
     ? new Monitoring(config)
-    : monitoring;
+    : Monitoring;
   const fileSystem = isConstructor(FileSystem)
     ? new FileSystem(config)
-    : fileSystem;
+    : FileSystem;
   const limiter = isConstructor(Limiter)
     ? new Limiter(config, metrics, monitoring, webhooks)
-    : limiter;
+    : Limiter;
   const router = isConstructor(Router)
     ? new Router(config, browserManager, limiter)
-    : router;
+    : Router;
 
   const browserless = new Browserless({
     browserManager,
