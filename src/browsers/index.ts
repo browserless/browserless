@@ -2,6 +2,7 @@ import { mkdir } from 'fs/promises';
 import path, { join } from 'path';
 
 import { deleteAsync } from 'del';
+import getPort from 'get-port';
 
 import { Config } from '../config.js';
 import { browserHook, pageHook } from '../hooks.js';
@@ -26,6 +27,7 @@ export class BrowserManager {
   private browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   private launching: Map<string, Promise<unknown>> = new Map();
   private timers: Map<string, number> = new Map();
+  private versionCache: object | undefined;
 
   constructor(private config: Config) {}
 
@@ -72,6 +74,40 @@ export class BrowserManager {
     return dataDirPath;
   };
 
+  public getVersionJSON = async () => {
+    if (!this.versionCache) {
+      const port = await getPort();
+      const config = this.config;
+      config.setPort(port);
+
+      const browser = new CDPChromium({
+        blockAds: false,
+        config: config,
+        record: false,
+        userDataDir: null,
+      });
+      await browser.launch({
+        args: [ `--remote-debugging-port=${port}` ],
+      });
+  
+      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+      const meta = await res.json();
+ 
+      browser.close();
+
+      const { 'WebKit-Version': webkitVersion } = meta;
+      delete meta.webSocketDebuggerUrl;
+      const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+  
+      this.versionCache = {
+        ...meta,
+        'Debugger-Version': debuggerVersion,
+      };
+    }
+  
+    return this.versionCache;
+  };
+
   private generateSessionJson = (
     browser: BrowserInstance,
     session: BrowserlessSession,
@@ -82,6 +118,9 @@ export class BrowserManager {
       ...session,
       browser: browser.constructor.name,
       browserId: browser.wsEndpoint()?.split('/').pop(),
+      cdp: browser instanceof CDPChromium ? {
+        wsEndpoint: browser.wsEndpoint()
+      } : null,
       initialConnectURL: new URL(session.initialConnectURL, serverAddress).href,
       killURL: session.id
         ? util.makeExternalURL(

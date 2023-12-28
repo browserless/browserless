@@ -97,6 +97,7 @@ export enum HTTPRoutes {
 
 export enum HTTPManagementRoutes {
   config = '/config',
+  jsonVersion = '/json/version',
   metrics = '/metrics',
   metricsTotal = '/metrics/total',
   sessions = '/sessions',
