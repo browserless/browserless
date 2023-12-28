@@ -94,7 +94,7 @@ const buildTypeScript = async () =>
   });
 
 const getSourceFiles = async () => {
-  const files = await fs.readdir(srcDir);
+  const files = await fs.readdir(srcDir, { recursive: true });
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
       const parsed = path.parse(file);
