@@ -13,6 +13,8 @@
     a[href^="mailto:"] {
       text-decoration: underline !important;
     }
+
+    img[src="/assets/logo.png"],
     a[href="https://github.com/Redocly/redoc"],
     a[href="https://redocly.com/redoc/"] {
       display: none !important;
@@ -62,6 +64,31 @@
     }
     .redoc-markdown :not(pre) code {
       color: rgb(255, 102, 178) !important;
+    }
+
+    input[aria-label="Search"] {
+      color: white;
+    }
+
+    div[role="search"] svg.search-icon path {
+      fill: white !important;
+    }
+
+    div[data-role="search:results"] {
+      background: rgb(51, 51, 51);
+    }
+
+    div[role="search"] div.scrollbar-container {
+      height: fit-content;
+      z-index: 11111;
+      position: absolute;
+      width: 94%;
+    }
+
+    div.menu-content > div > img {
+      width: 75%;
+      margin-left: 5%;
+      margin-bottom: 10%;
     }
   </style>
 </head>
