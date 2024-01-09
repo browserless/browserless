@@ -226,7 +226,7 @@ describe('WebSocket API', function () {
   it('creates user-data-dirs with CLI flags', async () => {
     const dataDirLocation = '/tmp/browserless-test-dir';
     const launch = JSON.stringify({
-      args: [`--user-data-dir==${dataDirLocation}`],
+      args: [`--user-data-dir=${dataDirLocation}`],
     });
     const config = new Config();
     config.setToken('browserless');
