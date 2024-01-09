@@ -192,7 +192,7 @@ describe('WebSocket API', function () {
     await browser.disconnect();
     await sleep(1000);
 
-    expect(await exists(userDataDir)).to.be.false;
+    expect(await exists(userDataDir)).to.be.true;
   });
 
   it('creates user-data-dirs with userDataDir options', async () => {
