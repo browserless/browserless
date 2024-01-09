@@ -82,27 +82,52 @@ export class BrowserManager {
     return dataDirPath;
   };
 
-  protected generateSessionJson = (
+  private generateSessionJson = async (
     browser: BrowserInstance,
     session: BrowserlessSession,
   ) => {
     const serverAddress = this.config.getExternalAddress();
 
-    return {
-      ...session,
-      browser: browser.constructor.name,
-      browserId: browser.wsEndpoint()?.split('/').pop(),
-      initialConnectURL: new URL(session.initialConnectURL, serverAddress).href,
-      killURL: session.id
-        ? makeExternalURL(
-            serverAddress,
-            HTTPManagementRoutes.sessions,
-            session.id,
-          )
-        : null,
-      running: browser.isRunning(),
-      timeAliveMs: Date.now() - session.startedOn,
-    };
+    const sessions = [
+      {
+        ...session,
+        browser: browser.constructor.name,
+        browserId: browser.wsEndpoint()?.split('/').pop(),
+        initialConnectURL: new URL(session.initialConnectURL, serverAddress)
+          .href,
+        killURL: session.id
+          ? makeExternalURL(
+              serverAddress,
+              HTTPManagementRoutes.sessions,
+              session.id,
+            )
+          : null,
+        running: browser.isRunning(),
+        timeAliveMs: Date.now() - session.startedOn,
+        type: 'browser',
+      },
+    ];
+
+    const wsEndpoint = browser.wsEndpoint();
+    if (browser.constructor.name === 'CDPChromium' && wsEndpoint) {
+      const port = new URL(wsEndpoint).port;
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+        headers: {
+          Host: '127.0.0.1',
+        },
+      });
+      if (response.ok) {
+        const body = await response.json();
+        for (const page of body) {
+          sessions.push({
+            ...sessions[0],
+            ...page,
+            browserWSEndpoint: wsEndpoint,
+          });
+        }
+      }
+    }
+    return sessions;
   };
 
   public close = async (
@@ -129,9 +154,12 @@ export class BrowserManager {
   public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
 
-    return sessions.map(([browser, session]) =>
-      this.generateSessionJson(browser, session),
-    );
+    const formattedSessions: BrowserlessSessionJSON[] = [];
+    for (const [browser, session] of sessions) {
+      const formattedSession = await this.generateSessionJson(browser, session);
+      formattedSessions.push(...formattedSession);
+    }
+    return formattedSessions;
   };
 
   public complete = async (browser: BrowserInstance): Promise<void> => {
@@ -208,7 +236,7 @@ export class BrowserManager {
     const manualUserDataDir =
       launchOptions.args
         ?.find((arg) => arg.includes('--user-data-dir='))
-        ?.split('=')[2] || (launchOptions as CDPLaunchOptions).userDataDir;
+        ?.split('=')[1] || (launchOptions as CDPLaunchOptions).userDataDir;
 
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs

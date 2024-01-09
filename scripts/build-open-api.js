@@ -56,17 +56,19 @@ const buildOpenAPI = async (
   const changelog = marked.parse(
     (await fs.readFile('CHANGELOG.md').catch(() => '')).toString(),
   );
+
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
     customSiteTitle: 'Browserless Documentation',
     definitions: {},
     info: {
-      description: readme + changelog,
+      // Concatenation necessary for Changelog to show up in sidebar
+      description: readme + `\n# Changelog\n` + changelog,
       title: 'Browserless',
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
         altText: 'browserless logo',
-        url: './docs/browserless-logo.png',
+        url: './docs/browserless-logo-inline.svg',
       },
     },
     openapi: '3.0.0',
