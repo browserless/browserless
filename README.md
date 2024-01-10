@@ -8,8 +8,8 @@
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
 
 
-> [Looking for v1.x.x of browserless? Check it out here](https://github.com/browserless/chrome/tree/v1).
-> NOTE: Version 1 is the version we currently still have running on browserless' hosted services.
+> [Looking for v2.x.x of browserless? Check it out here](https://github.com/browserless/browserless).
+> NOTE: Version 1 is the version we currently still have running on browserless' hosted services, we would recommend self-hosted users migrate to v2.
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
