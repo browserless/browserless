@@ -298,7 +298,6 @@ export class HTTPServer {
           return writeResponse(res, 408, e.message);
         }
 
-        this.log(`Error handling request at "${route.path}": ${e}`);
         return writeResponse(res, 500, e.toString());
       });
   };

@@ -16,6 +16,7 @@ import {
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
+  dedent,
   noop,
   rejectRequestPattern,
   rejectResourceTypes,
@@ -64,14 +65,21 @@ export interface BodySchema {
   waitForTimeout?: Parameters<Page['waitForTimeout']>[0];
 }
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.png, contentTypes.jpeg, contentTypes.text],
-  description: `A JSON-based API for getting a screenshot binary from either a supplied "url" or "html" payload in your request.`,
-  handler: async (
+export default class ScreenshotPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.png, contentTypes.jpeg, contentTypes.text];
+  description = dedent(`
+    A JSON-based API for getting a screenshot binary from either a supplied
+    "url" or "html" payload in your request. Many options exist including
+    cookies, user-agents, setting timers and network mocks.
+  `);
+  method = Methods.post;
+  path = HTTPRoutes.screenshot;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -253,10 +261,5 @@ const route: BrowserHTTPRoute = {
     await new Promise((r) => readStream.pipe(res).once('close', r));
 
     page.close().catch(noop);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.screenshot,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

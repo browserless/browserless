@@ -9,6 +9,7 @@ import {
   contentTypes,
   convertIfBase64,
   exists,
+  getTokenFromRequest,
   id,
   makeExternalURL,
   mimeTypes,
@@ -66,7 +67,7 @@ export default (
     const context = JSON.stringify(rawContext);
     const code = convertIfBase64(rawCode);
     const browserWSEndpoint = browser.publicWSEndpoint(
-      req.parsed.searchParams.get('token') ?? '',
+      getTokenFromRequest(req) ?? '',
     );
 
     if (!browserWSEndpoint) {

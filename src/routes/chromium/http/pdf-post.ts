@@ -16,6 +16,7 @@ import {
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
+  dedent,
   noop,
   rejectRequestPattern,
   rejectResourceTypes,
@@ -61,14 +62,22 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = string;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.pdf],
-  description: `A JSON-based API for getting a PDF binary from either a supplied "url" or "html" payload in your request.`,
-  handler: async (
+export default class PDFPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.pdf];
+  description = dedent(`
+    A JSON-based API for getting a PDF binary from either a supplied
+    "url" or "html" payload in your request. Many options exist for
+    injecting cookies, request interceptors, user-agents and waiting for
+    selectors, timers and more.
+  `);
+  method = Methods.post;
+  path = HTTPRoutes.pdf;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -225,10 +234,5 @@ const route: BrowserHTTPRoute = {
     });
 
     page.close().catch(noop);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.pdf,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

@@ -8,7 +8,6 @@ import {
   HTTPRoutes,
   Methods,
   Request,
-  ServerError,
   SystemQueryParameters,
   contentTypes,
   dedent,
@@ -38,31 +37,28 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = unknown;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json, contentTypes.javascript],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.any],
-  description: dedent(`
+export default class FunctionPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json, contentTypes.javascript];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.any];
+  description = dedent(`
   A JSON or JavaScript content-type API for running puppeteer code in the browser's context.
   Browserless sets up a blank page, injects your puppeteer code, and runs it.
   You can optionally load external libraries via the "import" module that are meant for browser usage.
   Values returned from the function are checked and an appropriate content-type and response is sent back
-  to your HTTP call.`),
-  handler: async (
+  to your HTTP call.`);
+  method = Methods.post;
+  path = HTTPRoutes.function;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> => {
-    const { getConfig: getConfig, getDebug: getDebug } = route;
-
-    if (!getConfig || !getDebug) {
-      throw new ServerError(`Couldn't load configuration for request`);
-    }
-
-    const debug = getDebug();
-    const config = getConfig();
+    const debug = this.debug();
+    const config = this.config();
     const handler = functionHandler(config, debug);
     const { contentType, payload, page } = await handler(req, browser);
 
@@ -89,10 +85,5 @@ const route: BrowserHTTPRoute = {
     }
 
     return;
-  },
-  method: Methods.post,
-  path: HTTPRoutes.function,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

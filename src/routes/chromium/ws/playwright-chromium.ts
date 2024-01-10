@@ -14,12 +14,14 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-const route: BrowserWebsocketRoute = {
-  auth: true,
-  browser: PlaywrightChromium,
-  concurrency: true,
-  description: `Connect to Chromium with any playwright-compliant library.`,
-  handler: async (
+export default class PlaywrightChromiumRoute extends BrowserWebsocketRoute {
+  auth = true;
+  browser = PlaywrightChromium;
+  concurrency = true;
+  description = `Connect to Chromium with any playwright style library.`;
+  path = WebsocketRoutes.playwrightChromium;
+  tags = [APITags.browserWS];
+  handler = async (
     req: Request,
     socket: Duplex,
     head: Buffer,
@@ -36,9 +38,5 @@ const route: BrowserWebsocketRoute = {
     }
 
     return browser.proxyWebSocket(req, socket, head);
-  },
-  path: WebsocketRoutes.playwrightChromium,
-  tags: [APITags.browserWS],
-};
-
-export default route;
+  };
+}

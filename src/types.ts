@@ -88,12 +88,21 @@ type defaultLaunchOptions =
   | BrowserlessLaunch
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
-interface Route {
+abstract class Route {
+  constructor(
+    protected _browserManager: Browserless['browserManager'],
+    protected _config: Browserless['config'],
+    protected _fileSystem: Browserless['fileSystem'],
+    protected _debug: Browserless['debug'],
+    protected _metrics: Browserless['metrics'],
+    protected _monitoring: Browserless['monitoring'],
+  ) {}
+
   /**
    * A boolean, or a function that returns a boolean, on
    * whether the route requires an API token to access.
    */
-  auth: boolean | ((req: Request) => Promise<boolean>);
+  auth: boolean | ((req: Request) => Promise<boolean>) = true;
 
   /**
    * The schematic of the submitted BODY (typically)
@@ -101,69 +110,6 @@ interface Route {
    * automatically if your route defines a BodySchema type.
    */
   bodySchema?: unknown;
-
-  /**
-   * Whether the route should be bound by the global
-   * concurrency limit defined in your configuration.
-   */
-  concurrency: boolean;
-
-  /**
-   * Description of the route and what it does. This description
-   * is then used in the embedded documentation site.
-   */
-  description: string;
-
-  /**
-   * Helper function to load the browser-manager instance. Defined
-   * and injected by browserless after initialization.
-   * @returns BrowserManager
-   */
-  getBrowserManager?: () => Browserless['browserManager'];
-
-  /**
-   * Helper function that loads the config module. Defined and injected by
-   * browserless after initialization.
-   * @returns Config
-   */
-  getConfig?: () => Browserless['config'];
-
-  /**
-   * Helper function that loads the debug module, useful
-   * for logging messages scoped to the routes path. Defined
-   * and injected by browserless after initialization.
-   * @returns Debug
-   */
-  getDebug?: () => debug.Debugger;
-
-  /**
-   * Helper function that loads the file-system module
-   * for interacting with file-systems. Defined and injected by
-   * browserless after initialization.
-   * @returns FileSystem
-   */
-  getFileSystem?: () => Browserless['fileSystem'];
-
-  /**
-   * Helper function that loads the metrics module for
-   * collecting and aggregating statistics. Defined and injected by
-   * browserless after initialization.
-   * @returns Metrics
-   */
-  getMetrics?: () => Browserless['metrics'];
-
-  /**
-   * Helper function that loads the monitoring module useful
-   * for monitoring system health. Defined and injected by
-   * browserless after initialization.
-   * @returns Monitor
-   */
-  getMonitoring?: () => Browserless['monitoring'];
-
-  /**
-   * The HTTP path that this route handles, eg '/my-route'
-   */
-  path: HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
 
   /**
    * The query parameters accepted by the route, defined in
@@ -180,10 +126,73 @@ interface Route {
   responseSchema?: unknown;
 
   /**
+   * Whether the route should be bound by the global
+   * concurrency limit defined in your configuration.
+   */
+  concurrency: boolean = true;
+
+  /**
+   * Description of the route and what it does. This description
+   * is then used in the embedded documentation site.
+   */
+  description?: string;
+
+  /**
+   * Helper function to load the browser-manager instance. Defined
+   * and injected by browserless after initialization.
+   * @returns BrowserManager
+   */
+  browserManager = () => this._browserManager;
+
+  /**
+   * Helper function that loads the config module. Defined and injected by
+   * browserless after initialization.
+   * @returns Config
+   */
+  config = () => this._config;
+
+  /**
+   * Helper function that loads the debug module, useful
+   * for logging messages scoped to the routes path. Defined
+   * and injected by browserless after initialization.
+   * @returns Debug
+   */
+  debug = () => this._debug;
+
+  /**
+   * Helper function that loads the file-system module
+   * for interacting with file-systems. Defined and injected by
+   * browserless after initialization.
+   * @returns FileSystem
+   */
+  fileSystem = () => this._fileSystem;
+
+  /**
+   * Helper function that loads the metrics module for
+   * collecting and aggregating statistics. Defined and injected by
+   * browserless after initialization.
+   * @returns Metrics
+   */
+  metrics = () => this._metrics;
+
+  /**
+   * Helper function that loads the monitoring module useful
+   * for monitoring system health. Defined and injected by
+   * browserless after initialization.
+   * @returns Monitor
+   */
+  monitoring = () => this._monitoring;
+
+  /**
+   * The HTTP path that this route handles, eg '/my-route'
+   */
+  abstract path: HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
+
+  /**
    * The tag(s) for the route to categorize it in the
    * documentation portal
    */
-  tags: APITags[];
+  abstract tags: APITags[];
 }
 
 /**
@@ -191,38 +200,39 @@ interface Route {
  * browser in order to fulfill requests. Used by downstream HTTPRoute
  * and WebSocketRoute
  */
-interface BasicHTTPRoute extends Route {
+abstract class BasicHTTPRoute extends Route {
   /**
    * The allowed Content-Types that this route can read and handle.
    * If a request comes in with a Content-Type of 'application/json', then
    * this accepts would need to include ["application/json"] in order to not 404
    */
-  accepts: Array<contentTypes>;
+  abstract accepts: Array<contentTypes>;
 
   /**
    * The Content-Types that this route will will respond with, and must match the Accepts
    * Header from a client if present. If a request comes in with an Accepts of "application/json"
    * then the contentTypes here would need to include ["application/json"] in order to not 404.
    */
-  contentTypes: Array<contentTypes>;
+  abstract contentTypes: Array<contentTypes>;
 
   /**
    * The allowed methods ("GET", "POST", etc) this route can utilize and match against.
    */
-  method: Methods;
+  abstract method: Methods;
 }
 
 /**
  * A HTTP-based route, with a handler, that can fulfill requests without
  * a browser required.
  */
-export interface HTTPRoute extends BasicHTTPRoute {
-  browser: null;
-
+export abstract class HTTPRoute extends BasicHTTPRoute {
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
-  handler: (req: Request, res: http.ServerResponse) => Promise<unknown>;
+  abstract handler: (
+    req: Request,
+    res: http.ServerResponse,
+  ) => Promise<unknown>;
 }
 
 /**
@@ -230,35 +240,39 @@ export interface HTTPRoute extends BasicHTTPRoute {
  * requires a browser in order to do so. Handler will then be called
  * with a 3rd argument of the browser class specified.
  */
-export interface BrowserHTTPRoute extends BasicHTTPRoute {
-  browser: BrowserClasses;
-
+export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
   defaultLaunchOptions?: defaultLaunchOptions;
+
+  abstract browser: BrowserClasses;
 
   /**
    * Handles an inbound HTTP request with a 3rd param of the predefined
    * browser used for the route -- only Chrome CDP is support currently.
    */
-  handler: (
+  abstract handler: (
     req: Request,
     res: http.ServerResponse,
     browser: BrowserInstance,
   ) => Promise<unknown>;
 
-  onNewPage?: undefined;
+  /**
+   * An optional function to automatically set up or handle new page
+   * creation. Useful for injecting behaviors or other functionality.
+   */
+  onNewPage?: (url: URL, page: Page) => Promise<void>;
 }
 
 /**
  * A WebSocket-based route, with a handler, that can fulfill requests
  * that do not require a browser in order to operate.
  */
-export interface WebSocketRoute extends Route {
-  browser: null;
+export abstract class WebSocketRoute extends Route {
+  browser = null;
 
   /**
    * Handles an inbound Websocket request, and handles the connection
    */
-  handler: (
+  abstract handler: (
     req: Request,
     socket: stream.Duplex,
     head: Buffer,
@@ -270,8 +284,8 @@ export interface WebSocketRoute extends Route {
  * that need a browser. Handler is called with an additional argument of
  * browser (the browser class required to run the route).
  */
-export interface BrowserWebsocketRoute extends Route {
-  browser: BrowserClasses;
+export abstract class BrowserWebsocketRoute extends Route {
+  abstract browser: BrowserClasses;
 
   defaultLaunchOptions?: defaultLaunchOptions;
 
@@ -279,7 +293,7 @@ export interface BrowserWebsocketRoute extends Route {
    * Handles an inbound Websocket request, and handles the connection
    * with the prior set browser being injected.
    */
-  handler(
+  abstract handler(
     req: Request,
     socket: stream.Duplex,
     head: Buffer,

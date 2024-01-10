@@ -1,6 +1,5 @@
 import {
   APITags,
-  BadRequest,
   BrowserlessSessionJSON,
   HTTPManagementRoutes,
   HTTPRoute,
@@ -13,27 +12,20 @@ import { ServerResponse } from 'http';
 
 export type ResponseSchema = BrowserlessSessionJSON[];
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: true,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.json],
-  description: `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`,
-  handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { getBrowserManager: browserManager } = route;
-
-    if (!browserManager) {
-      throw new BadRequest(`Couldn't load browsers running`);
-    }
-
-    const response: ResponseSchema = await browserManager().getAllSessions();
+export default class SessionsGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = true;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.json];
+  description = `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.sessions;
+  tags = [APITags.management];
+  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+    const browserManager = this.browserManager();
+    const response: ResponseSchema = await browserManager.getAllSessions();
 
     return jsonResponse(res, 200, response);
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.sessions,
-  tags: [APITags.management],
-};
-
-export default route;
+  };
+}

@@ -14,12 +14,14 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-const route: BrowserWebsocketRoute = {
-  auth: true,
-  browser: PlaywrightWebkit,
-  concurrency: true,
-  description: `Connect to Webkit with any playwright-compliant library.`,
-  handler: async (
+export default class PlaywrightWebkitRoute extends BrowserWebsocketRoute {
+  auth = true;
+  browser = PlaywrightWebkit;
+  concurrency = true;
+  description = `Connect to Webkit with any playwright-compliant library.`;
+  path = WebsocketRoutes.playwrightWebkit;
+  tags = [APITags.browserWS];
+  handler = async (
     req: Request,
     socket: Duplex,
     head: Buffer,
@@ -36,9 +38,5 @@ const route: BrowserWebsocketRoute = {
     }
 
     return browser.proxyWebSocket(req, socket, head);
-  },
-  path: WebsocketRoutes.playwrightWebkit,
-  tags: [APITags.browserWS],
-};
-
-export default route;
+  };
+}

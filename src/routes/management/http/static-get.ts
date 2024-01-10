@@ -5,7 +5,6 @@ import {
   Methods,
   NotFound,
   Request,
-  ServerError,
   contentTypes,
   createLogger,
   fileExists,
@@ -47,15 +46,17 @@ const streamFile = (res: ServerResponse, file: string, contentType?: string) =>
       .pipe(res);
   });
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: false,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.any],
-  description: `Serves static files inside of this "static" directory. Content-types will vary depending on the type of file being returned.`,
-  handler: async (req: Request, res: ServerResponse): Promise<unknown> => {
-    const { getConfig: getConfig } = route;
+export default class StaticGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = false;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.any];
+  description = `Serves static files inside of this "static" directory. Content-types will vary depending on the type =of file being returned.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.static;
+  tags = [APITags.management];
+  handler = async (req: Request, res: ServerResponse): Promise<unknown> => {
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
 
@@ -63,11 +64,7 @@ const route: HTTPRoute = {
       return streamFile(res, fileCache.path, fileCache.contentType);
     }
 
-    if (!getConfig) {
-      throw new ServerError(`Couldn't load configuration for request`);
-    }
-
-    const config = getConfig();
+    const config = this.config();
     const file = path.join(config.getStatic(), pathname);
     const indexFile = path.join(file, 'index.html');
 
@@ -100,10 +97,5 @@ const route: HTTPRoute = {
     });
 
     return streamFile(res, filePath, contentType);
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.static,
-  tags: [APITags.management],
-};
-
-export default route;
+  };
+}

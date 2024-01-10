@@ -8,7 +8,6 @@ import {
   Methods,
   NotFound,
   Request,
-  ServerError,
   SystemQueryParameters,
   contentTypes,
   dedent,
@@ -41,35 +40,30 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = unknown;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json, contentTypes.javascript],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.any],
-  description: dedent(`
+export default class DownloadPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json, contentTypes.javascript];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.any];
+  description = dedent(`
   A JSON or JavaScript content-type API for returning files Chrome has downloaded during
   the execution of puppeteer code, which is ran inside context of the browser.
   Browserless sets up a blank page, a fresh download directory, injects your puppeteer code, and then executes it.
   You can load external libraries via the "import" syntax, and import ESM-style modules
   that are written for execution inside of the browser. Once your script is finished, any
-  downloaded files from Chromium are returned back with the appropriate content-type header.`),
-  handler: async (
+  downloaded files from Chromium are returned back with the appropriate content-type header.`);
+  method = Methods.post;
+  path = HTTPRoutes.download;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> =>
     new Promise(async (resolve, reject) => {
-      const { getConfig: getConfig, getDebug: getDebug } = route;
-
-      if (!getConfig || !getDebug) {
-        return reject(
-          new ServerError(`Couldn't load configuration for request`),
-        );
-      }
-
-      const debug = getDebug();
-      const config = getConfig();
+      const debug = this.debug();
+      const config = this.config();
       const downloadPath = path.join(
         await config.getDownloadsDir(),
         `.browserless.download.${id()}`,
@@ -153,10 +147,5 @@ const route: BrowserHTTPRoute = {
           return resolve();
         })
         .pipe(res);
-    }),
-  method: Methods.post,
-  path: HTTPRoutes.download,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+    });
+}

@@ -1,6 +1,5 @@
 import {
   APITags,
-  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
   CDPChromium,
@@ -8,7 +7,6 @@ import {
   HTTPRoutes,
   Methods,
   Request,
-  ServerError,
   SystemQueryParameters,
   contentTypes,
   jsonResponse,
@@ -34,27 +32,22 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = object;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.json],
-  description: `Run lighthouse performance audits with a supplied "url" in your JSON payload.`,
-  handler: async (
+export default class PerformancePost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.json];
+  description = `Run lighthouse performance audits with a supplied "url" in your JSON payload.`;
+  method = Methods.post;
+  path = HTTPRoutes.performance;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> => {
-    const { getConfig: getConfig } = route;
-    if (!req.body) {
-      throw new BadRequest(`No JSON body present`);
-    }
-
-    if (!getConfig) {
-      throw new ServerError(`Couldn't load configuration for timeouts`);
-    }
-    const config = getConfig();
+    const config = this.config();
     const response = await main({
       browser,
       context: req.body as BodySchema,
@@ -62,10 +55,5 @@ const route: BrowserHTTPRoute = {
     });
 
     return jsonResponse(res, 200, response);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.performance,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

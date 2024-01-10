@@ -88,10 +88,11 @@ const buildOpenAPI = async (
       .sort()
       .map(async (routeModule) => {
         const routeImport = `${isWin ? 'file:///' : ''}${routeModule}`;
-        const { default: route } = await import(routeImport);
-        if (!route) {
+        const { default: Route } = await import(routeImport);
+        if (!Route) {
           throw new Error(`Invalid route file to import docs ${routeModule}`);
         }
+        const route = new Route();
         const { name } = parse(routeModule);
         const body = routeModule.replace('.js', '.body.json');
         const query = routeModule.replace('.js', '.query.json');

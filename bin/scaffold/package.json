@@ -1,0 +1,21 @@
+{
+  "name": "",
+  "version": "1.0.0",
+  "description": "A browserless.io extension project!",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "DEBUG=browserless* browserless build",
+    "docker": "DEBUG=browserless* browserless docker",
+    "clean": "rm -r build",
+    "dev": "DEBUG=browserless*,-**:verbose browserless dev",
+    "start": "DEBUG=browserless*,-**:verbose browserless start",
+    "prettier": "prettier 'src/**.{js,ts,json}' --log-level error --write"
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@browserless.io/browserless": "^2.0.0-beta-5"
+  }
+}

@@ -107,9 +107,9 @@ export enum HTTPManagementRoutes {
 }
 
 export enum APITags {
-  'browserAPI' = 'Browser APIs',
-  'browserWS' = 'Browser WebSockets',
-  'management' = 'Management APIs',
+  'browserAPI' = 'Browser REST APIs',
+  'browserWS' = 'Browser WebSocket APIs',
+  'management' = 'Management REST APIs',
 }
 
 export interface Request extends http.IncomingMessage {

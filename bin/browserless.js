@@ -18,7 +18,7 @@ const promptLog = debug('browserless:prompt');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];
 const cwd = process.cwd();
-const allowedCMDs = ['build', 'dev', 'docker', 'start'];
+const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create'];
 const srcDir = path.join(cwd, 'build');
 
 if (!allowedCMDs.includes(cmd)) {
@@ -58,6 +58,23 @@ const importClassOverride = async (files, className) => {
   }
   log(`Importing module override "${classModuleFullFilePath}"`);
   return (await import(classModuleFullFilePath)).default;
+};
+
+const installDependencies = async (workingDirectory) => {
+  new Promise((resolve, reject) => {
+    spawn('npm', ['i'], {
+      cwd: workingDirectory,
+      stdio: 'inherit',
+    }).once('close', (code) => {
+      if (code === 0) {
+        log(`Successfully installed Dependencies.`);
+        return resolve();
+      }
+      return reject(
+        `Error when installing dependencies, see output for more details`,
+      );
+    });
+  });
 };
 
 const buildDockerImage = async (cmd) => {
@@ -350,6 +367,44 @@ const buildDocker = async () => {
   }
 };
 
+const create = async () => {
+  const validNameRegex = /^[a-zA-Z0-9-_]+$/gi;
+  const directory = (
+    await prompt('What should we name this project (hyphens are ok)?')
+  ).trim();
+  const scaffoldLocation = path.join(__dirname, 'scaffold');
+
+  if (!directory) {
+    throw new Error(`A valid name is required.`);
+  }
+
+  const isValidDirectory = validNameRegex.test(directory);
+
+  if (!isValidDirectory) {
+    throw new Error(`Name must not include special characters.`);
+  }
+
+  const installPath = path.join(cwd, directory);
+  log(`Creating folder "${installPath}"...`);
+  await fs.mkdir(installPath);
+
+  log(`Copying Project Dependencies...`);
+  const sdkFiles = await fs.readdir(scaffoldLocation, { recursive: true });
+  for (const sdkFile of sdkFiles) {
+    const from = path.join(scaffoldLocation, sdkFile);
+    const to = path.join(installPath, sdkFile);
+
+    if ((await fs.lstat(from)).isDirectory()) {
+      await fs.mkdir(to);
+    } else {
+      await fs.copyFile(from, to);
+    }
+  }
+
+  log(`Installing npm modules...`);
+  await installDependencies(installPath);
+};
+
 switch (cmd) {
   case 'start':
     start(false);
@@ -365,5 +420,9 @@ switch (cmd) {
 
   case 'docker':
     buildDocker();
+    break;
+
+  case 'create':
+    create();
     break;
 }

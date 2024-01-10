@@ -198,18 +198,21 @@ const scrape = async (elements: ScrapeElementSelector[]) => {
   });
 };
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.json],
-  description: dedent(`
+export default class ScrapePost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.json];
+  description = dedent(`
     A JSON-based API that returns text, html, and meta-data from a given list of selectors.
     Debugging information is available by sending in the appropriate flags in the "debugOpts"
     property. Responds with an array of JSON objects.
-  `),
-  handler: async (
+  `);
+  method = Methods.post;
+  path = HTTPRoutes.scrape;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -430,10 +433,5 @@ const route: BrowserHTTPRoute = {
     page.close().catch(noop);
 
     return jsonResponse(res, 200, response, false);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.scrape,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

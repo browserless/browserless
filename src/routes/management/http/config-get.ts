@@ -4,7 +4,6 @@ import {
   HTTPRoute,
   Methods,
   Request,
-  ServerError,
   contentTypes,
   jsonResponse,
 } from '@browserless.io/browserless';
@@ -33,21 +32,18 @@ export interface ResponseSchema {
   token: string | null;
 }
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: true,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.json],
-  description: `Returns a JSON payload of the current system configuration.`,
-  handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { getConfig: getConfig } = route;
-
-    if (!getConfig) {
-      throw new ServerError(`Couldn't locate the config object`);
-    }
-
-    const config = getConfig();
+export default class ConfigGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = true;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.json];
+  description = `Returns a JSON payload of the current system configuration.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.config;
+  tags = [APITags.management];
+  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+    const config = this.config();
 
     const response: ResponseSchema = {
       allowCORS: config.getAllowCORS(),
@@ -73,10 +69,5 @@ const route: HTTPRoute = {
     };
 
     return jsonResponse(res, 200, response);
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.config,
-  tags: [APITags.management],
-};
-
-export default route;
+  };
+}

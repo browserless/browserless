@@ -27,6 +27,10 @@ import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
 
+type Implements<T> = {
+  new (...args: unknown[]): T;
+};
+
 export class Browserless {
   protected debug: debug.Debugger = createLogger('index');
   protected browserManager: BrowserManager;
@@ -181,16 +185,25 @@ export class Browserless {
           this.config.getIsWin() ? 'file:///' : ''
         }${httpRoute}`;
         const logger = createLogger(`http:${name}`);
-        const { default: route }: { default: HTTPRoute | BrowserHTTPRoute } =
+        const {
+          default: Route,
+        }: { default: Implements<HTTPRoute> | Implements<BrowserHTTPRoute> } =
           await import(routeImport + `?cb=${Date.now()}`);
-
+        const route = new Route(
+          this.browserManager,
+          this.config,
+          this.fileSystem,
+          logger,
+          this.metrics,
+          this.monitoring,
+        );
         route.bodySchema = safeParse(bodySchema);
         route.querySchema = safeParse(querySchema);
-        route.getConfig = () => this.config;
-        route.getMetrics = () => this.metrics;
-        route.getMonitoring = () => this.monitoring;
-        route.getFileSystem = () => this.fileSystem;
-        route.getDebug = () => logger;
+        route.config = () => this.config;
+        route.metrics = () => this.metrics;
+        route.monitoring = () => this.monitoring;
+        route.fileSystem = () => this.fileSystem;
+        route.debug = () => logger;
 
         httpRoutes.push(route);
       }
@@ -215,17 +228,27 @@ export class Browserless {
         }${wsRoute}`;
         const logger = createLogger(`ws:${name}`);
         const {
-          default: route,
-        }: { default: WebSocketRoute | BrowserWebsocketRoute } = await import(
-          wsImport + `?cb=${Date.now()}`
-        );
+          default: Route,
+        }: {
+          default:
+            | Implements<WebSocketRoute>
+            | Implements<BrowserWebsocketRoute>;
+        } = await import(wsImport + `?cb=${Date.now()}`);
 
+        const route = new Route(
+          this.browserManager,
+          this.config,
+          this.fileSystem,
+          logger,
+          this.metrics,
+          this.monitoring,
+        );
         route.querySchema = safeParse(querySchema);
-        route.getConfig = () => this.config;
-        route.getMetrics = () => this.metrics;
-        route.getMonitoring = () => this.monitoring;
-        route.getFileSystem = () => this.fileSystem;
-        route.getDebug = () => logger;
+        route.config = () => this.config;
+        route.metrics = () => this.metrics;
+        route.monitoring = () => this.monitoring;
+        route.fileSystem = () => this.fileSystem;
+        route.debug = () => logger;
 
         wsRoutes.push(route);
       }
@@ -234,11 +257,12 @@ export class Browserless {
     // Validate that browsers are installed and route paths are unique
     [...httpRoutes, ...wsRoutes].forEach((route) => {
       if (
+        'browser' in route &&
         route.browser &&
-        !installedBrowsers.some((b) => b.name === route.browser.name)
+        !installedBrowsers.some((b) => b.name === route.browser?.name)
       ) {
         throw new Error(
-          `Couldn't load route "${route.path}" due to missing browser of "${route.browser.name}"`,
+          `Couldn't load route "${route.path}" due to missing browser of "${route.browser?.name}"`,
         );
       }
     });

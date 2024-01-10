@@ -67,7 +67,7 @@ export class Router {
         return Promise.resolve();
       }
 
-      if (route.browser) {
+      if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
@@ -111,7 +111,7 @@ export class Router {
         return Promise.resolve();
       }
 
-      if (route.browser) {
+      if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
@@ -146,8 +146,6 @@ export class Router {
       `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
     );
 
-    route.getBrowserManager = () => this.browserManager;
-
     const bound = route.handler.bind(route);
     const wrapped = this.wrapHTTPHandler(route, bound);
 
@@ -169,8 +167,6 @@ export class Router {
     route: WebSocketRoute | BrowserWebsocketRoute,
   ): WebSocketRoute | BrowserWebsocketRoute {
     this.verbose(`Registering WebSocket "${route.path}"`);
-
-    route.getBrowserManager = () => this.browserManager;
 
     const bound = route.handler.bind(route);
     const wrapped = this.wrapWebSocketHandler(route, bound);

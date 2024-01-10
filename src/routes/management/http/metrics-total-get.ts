@@ -5,7 +5,6 @@ import {
   IBrowserlessMetricTotals,
   Methods,
   Request,
-  ServerError,
   contentTypes,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -15,28 +14,23 @@ export type ResponseSchema = IBrowserlessMetricTotals;
 
 const fiveMinuteIntervalsInAMonth = 8640;
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: true,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.json],
-  description: `Gets total metric details summed from the time the server started.`,
-  handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { getFileSystem: _fileSystem, getConfig: _config } = route;
-
-    if (!_fileSystem || !_config) {
-      throw new ServerError(`Couldn't locate the file-system or config module`);
-    }
-
-    const fileSystem = _fileSystem();
-    const config = _config();
-
+export default class MetricsTotalGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = true;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.json];
+  description = `Gets total metric details summed from the time the server started.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.metricsTotal;
+  tags = [APITags.management];
+  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+    const fileSystem = this.fileSystem();
+    const config = this.config();
     const metrics = (await fileSystem.read(config.getMetricsJSONPath())).map(
       (m) => JSON.parse(m),
     );
     const availableMetrics = metrics.length;
-
     const totals: IBrowserlessMetricTotals = metrics.reduce(
       (accum, metric) => ({
         error: accum.error + metric.error,
@@ -80,10 +74,5 @@ const route: HTTPRoute = {
     );
 
     return writeResponse(res, 200, JSON.stringify(totals), contentTypes.json);
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.metricsTotal,
-  tags: [APITags.management],
-};
-
-export default route;
+  };
+}

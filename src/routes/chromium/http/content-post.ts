@@ -61,15 +61,17 @@ export type QuerySchema = SystemQueryParameters & {
   launch?: CDPLaunchOptions | string;
 };
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.html],
-  description: `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`,
-
-  handler: async (
+export default class ContentPostRoute extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.html];
+  description = `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`;
+  method = Methods.post;
+  path = HTTPRoutes.content;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -229,10 +231,5 @@ const route: BrowserHTTPRoute = {
     page.close().catch(noop);
 
     return writeResponse(res, 200, markup, contentTypes.html);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.content,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}
