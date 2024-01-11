@@ -4,15 +4,20 @@ Welcome to your browserless.io SDK project! This readme will help you get starte
 
 Please note that, as of right now, breaking changes aren't yet reflected in our semantic versioning. You can think of this SDK as still in beta for the time being, and we'll carefully document any major or breaking changes in future releases of Browserless.
 
+Finally, this SDK and Browserless.io are built to support businesses and enterprise clients. If you're looking to use our code and modules in a production environment, [please contact us to get appropriately licensed](https://www.browserless.io/contact).
+
 ## Table of Contents
 - [Quick Start](#quick-start)
 - [About](#about)
+- [The CLI](#the-cli)
 - [Routing](#routing)
 - [Utilities](#utilities)
 - [Extending Modules](#extending-modules)
-- [Building]()
-- [Docker]()
-- [Licensing]()
+- [Running in Development](#running-in-development)
+- [Building for Production](#building-for-production)
+- [Running without Building](#running-without-building)
+- [Docker](#docker)
+- [Licensing](#licensing)
 
 ## Quick Start
 
@@ -74,6 +79,30 @@ Once you're satisfied with your work, you can run `npm start` and Browserless wi
 Finally, once you're ready to build the docker image, simply execute `npm run docker` and follow the steps to build your docker image.
 
 With these components and enhancements you can extend practically any part of Browserless: add new browsers, support multiple token authentication, save things to a file-system or external platform, push things to S3 buckets, and way more!
+
+## The CLI
+
+Alongside the SDK that Browserless ships with, you'll also get a handy CLI that can help with all aspects of extending Browserless. Most of the CLI commands are ran as `npm run *` commands as is common in NodeJS projects. These are listed in the package.json "scripts" property for your reference.
+
+Similarly, you can simply run these commands by doing:
+
+```sh
+$ npx @browserless.io/browserless $COMMAND
+```
+
+For instance, to print the help text, simply execute:
+
+```sh
+$ npx @browserless.io/browserless help
+```
+
+For help with a specific command, you can also run:
+
+```sh
+$ npx npx @browserless.io/browserless help start
+```
+
+By default most commands are non-interactive, such as the `build` and `dev` commands. Others, like the `docker` commands, can operate in a interactive or non-interactive mode when the correct switches are applied.
 
 ## Routing
 
@@ -316,3 +345,71 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
 ```
 
 With this approach you can effectively write, extend and author your own workflows within browserless!
+
+## Running in Development
+
+After the project has been set up, you can use npm commands to build and run your code. The most important of these is the `npm run dev` command, which will do the following:
+
+- Compile your TypeScript files into a NodeJS compatible `build` directory.
+- Load your authored routes and generate runtime validations for them.
+- Generate an OpenAPI JSON manifest for the documentation site.
+- Finally, it will start the service, binding to port `3000` and `localhost`.
+
+This process may take up to a few seconds depending on the number of routes you've created. Browserless prioritizes, in order: deterministic behavior, completion and then speed.
+
+Once these are done you'll notice some friendly logs in your terminal, as well as a link to the documentation site that comes for free with your route definitions!
+
+## Building for Production
+
+While the end-goal is a docker image being built, you can simply do a complete build for CI or other purposes by simply running:
+
+```sh
+$ npm run build
+```
+
+Similar to development builds, this will compile all assets, generate OpenAPI JSON, and build out the runtime validation files, but *won't start the http server*.
+
+If you wish to simply run the server without having to rebuild assets, then read more below.
+
+## Running without Building
+
+If you wish to simply run the project without building, then simply run:
+
+```sh
+$ npm start
+```
+
+This will skip all the building phases required to normally start the server. Useful if you're simply restarting due to an error or want to just re-use the last made build.
+
+## Docker
+
+Browserless comes with a CLI utility to help with building your docker image. It takes care of things like platforms, correctly setting up the production bundle, logging, and more. To get started with the docker build simply run:
+
+```sh
+$ npm run docker
+```
+
+Without any argument switches (those fun `--some-argument` bits), Browserless will prompt for input in a interactive way. To see a list of all options to input at once, run:
+
+```sh
+$ npm run docker help
+```
+
+This will print out all the available options so you can run a build in a continuous integration environment.
+
+Based upon answers to either these switches or prompts, this utility will pull a respective GitHub container from the Browserless organization, insert your code, then build and execute it.
+
+## Licensing
+
+SPDX-License-Identifier: SSPL-1.0 OR Browserless Commercial License.
+
+If you want to use Browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using Browserless. [You can purchase a commercial license here](https://www.browserless.io/contact). A commercial license grants you:
+
+- Priority support on issues and features.
+- On-premise running as well as running on public cloud providers for commercial/CI purposes for proprietary systems.
+- Ability to modify the source (forking) for your own purposes.
+- This SDK and accompanying software it produces.
+
+Not only does it grant you a license to run such a critical piece of infrastructure, but you are also supporting further innovation in this space and our ability to contribute to it.
+
+If you are creating an open source application under a license compatible with the Server Side License 1.0, you may use Browserless under those terms.

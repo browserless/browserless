@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 'use strict';
+process.env.DEBUG = process.env.DEBUG || 'browserless*';
+
 import { Browserless } from '@browserless.io/browserless';
 import buildOpenAPI from '../scripts/build-open-api.js';
 import buildSchemas from '../scripts/build-schemas.js';
 
 import { createInterface } from 'readline';
 import debug from 'debug';
+import { dedent } from '../build/utils.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import path from 'path';
@@ -17,8 +20,9 @@ const promptLog = debug('browserless:prompt');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];
+const subCMD = process.argv[3];
 const cwd = process.cwd();
-const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create'];
+const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create', 'help'];
 const srcDir = path.join(cwd, 'build');
 
 if (!allowedCMDs.includes(cmd)) {
@@ -405,6 +409,83 @@ const create = async () => {
   await installDependencies(installPath);
 };
 
+const help = () => {
+  if (subCMD) {
+    if (!allowedCMDs.includes(subCMD)) {
+      throw new Error(`Unknown command of "${subCMD}" passed.`);
+    }
+
+    switch (subCMD) {
+      case 'start':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless start
+
+        Description: Starts the HTTP server without building source.
+          Useful for restarting a prior build, testing quickly, or
+          running without packaging into a docker image.
+      `);
+        break;
+
+      case 'dev':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless dev
+
+        Description: Builds the TypeScript files, compiles runtime
+          route validation, generates the OpenAPI JSON document,
+          and starts the development server at localhost:3000.
+      `);
+        break;
+
+      case 'build':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless build
+
+        Description: Builds the TypeScript files, compiles runtime
+          route validation, generates the OpenAPI JSON document,
+          and exits. Useful for testing full compilation.
+      `);
+        break;
+
+      case 'docker':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless docker
+
+        Description: Builds a docker image from source. This command is hybrid
+          in that it can be either interactive or use the switches listed below.
+
+        Options:
+          --from        The Browserless docker image to extend from (ghcr.io/browserless/multi:latest).
+          --action      One of "push" or "load" to load or push to a registry.
+          --tag         The full tag, including version, to name the image (IE: my-bless/chrome:latest).
+          --platform    A comma-separated list of platforms to build for.
+          --proceed     Proceed with building the image without prompting.
+      `);
+        break;
+
+      case 'create':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless create
+
+        Description: Creates a new project with interactive prompts.
+      `);
+        break;
+    }
+
+    return;
+  }
+
+  console.log(dedent`
+    Usage: npx @browserless.io/browserless [command] [arguments]
+
+    Options:
+      create    Creates a new scaffold project, installs dependencies, and exits.
+      dev       Compiles TypeScript, generates build assets and starts the server.
+      build     Compiles TypeScript, generates build assets and exits.
+      docker    Generates a docker image.
+      start     Starts the http server with already-built assets.
+  `);
+};
+
 switch (cmd) {
   case 'start':
     start(false);
@@ -424,5 +505,9 @@ switch (cmd) {
 
   case 'create':
     create();
+    break;
+
+  default:
+    help();
     break;
 }
