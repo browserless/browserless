@@ -1,4 +1,4 @@
-# browserless.io SDK Project
+# Your Browserless.io SDK Project
 
 Welcome to your browserless.io SDK project! This readme will help you get started and running as quickly as possible. Below is a handy Table of Contents in order to find what you're looking for fastest.
 
@@ -9,7 +9,7 @@ Please note that, as of right now, breaking changes aren't yet reflected in our 
 - [About](#about)
 - [Routing](#routing)
 - [Utilities](#utilities)
-- [Extending Modules]()
+- [Extending Modules](#extending-modules)
 - [Building]()
 - [Docker]()
 - [Licensing]()
@@ -22,12 +22,13 @@ To start a new project, simply run this command in a folder of your choosing and
 npx @browserless.io/browserless create
 ```
 
-browserless will install a scaffolded project, install dependencies, and establish a simple "hello-world" REST API route. For more information see below!
+browserless will install a scaffolded project, install dependencies, and establish a simple "hello-world" REST API route. There's a lot you can do within this framework, so be sure to dive into all the details below!
 
 ## About
 
-The Browserless.io SDK and accompanying CLI were written with the hope that *you* can add and enhance functionality into browserless for your needs.
-When creating a new project, the scaffold will ask a series of questions and generate the project for you. Below is a list of files it creates and what they're used for:
+The Browserless.io SDK and accompanying CLI were written with intention that developers can add and enhance functionality into Browserless for your needs. This way you can get results into a database, third-party uploads, work within your enterprises requirements, all while using your favorite modern libraries. The Browserless platform simply ensure system stability, authorization, and the best developer experience.
+
+When creating a new project, the scaffold will ask a series of questions and generate the project for you. Once complete,  a list of files it created for you. Here's the list so far:
 
 ```
 ├── node_modules
@@ -101,45 +102,45 @@ import {
 // shown in the built-in documentation site.
 export type ResponseSchema = string;
 
-// Must be the default export
-export default {
+// Similar to React and other ecosystems, extend our basic HTTPRoute
+export default class HelloWorldRoute extends HTTPRoute {
   // Detail any content-types that this route should except. "contentTypes.any" here means any content-type.
   // If the content-type does not match then a 404 will be sent back
-  accepts: [contentTypes.any],
+  accepts = [contentTypes.any];
 
   // A boolean to indicate if authorization (token auth) is required to access this route. Can also be a function
   // that returns a boolean with the request object being the only argument.
-  auth: true,
+  auth = true;
 
   // If this route requires a browser. `null` indicates no browser needed.
-  browser: null,
+  browser = null;
 
   // Does this route need to be limited by the global concurrency limit? Set to "true" if so
-  concurrency: false,
+  concurrency = false;
 
   // The returned content-type of this route. Shown in the documentation site.
-  contentTypes: [contentTypes.text],
+  contentTypes = [contentTypes.text];
 
   // A description for this route and what it does. Gets displayed inside the documentation site.
-  description: `Returns a simple "Hello World!" response.`,
+  description = `Returns a simple "Hello World!" response.`;
+
+  // Define what method that this route will listen for. Other methods will 404.
+  method = Methods.get;
+
+  // The path that this route will listen on requests for.
+  path = '/hello';
+
+  // A list of arbitrary tags to group similar APIs with in the documentation site.
+  tags = [APITags.management];
 
   // Handler is a function, getting the request and response objects, and is where you'll write the
   // core logic behind this route. Use utilities like writeResponse or writeJSONResponse to help
   // return the appropriate response.
-  handler: async (_req, res): Promise<void> => {
+  handler = async (_req, res): Promise<void> => {
     const response: ResponseSchema = 'Hello World!';
     return writeResponse(res, 200, ResponseSchema, contentTypes.text);
-  },
-
-  // Define what method that this route will listen for. Other methods will 404.
-  method: Methods.get,
-
-  // The path that this route will listen on requests for.
-  path: '/hello',
-
-  // A list of arbitrary tags to group similar APIs with in the documentation site.
-  tags: [APITags.management],
-} as HTTPRoute
+  };
+}
 ```
 
 ### Chromium WebSocket Route
@@ -161,35 +162,35 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
 }
 
-export default {
+export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
   // This route requires a valid authorization token.
-  auth: true,
+  auth = true;
 
-  // This route uses the CDPChromium class (Chromium)
-  browser: CDPChromium,
+  // This route uses the built-in CDPChromium class (Chromium)
+  browser = CDPChromium;
 
   // This route is limited by the global concurrency limiter
-  concurrency: true,
+  concurrency = true;
 
   // Short description of the route and what it does shown on the documentation site
-  description: `Launch and connect to Chromium with a library like puppeteer or others that work over chrome-devtools-protocol.`,
+  description = `Launch and connect to Chromium with a library like puppeteer or others that work over chrome-devtools-protocol.`;
+
+  // This route is available on the '/' route
+  path = WebsocketRoutes['/'];
+
+  // This is a browser-based WebSocket route so we tag it as such
+  tags = [APITags.browserWS];
 
   // Routes with a browser type get a browser argument of the Browser instance, otherwise
   // request, socket, and head are the other 3 arguments. Here we pass them through
-  // and proxy the request into Chrome to handle.
-  handler: async (
-    req: Request,
-    socket: Duplex,
-    head: Buffer,
-    chrome: CDPChromium,
-  ): Promise<void> => chrome.proxyWebSocket(req, socket, head),
-
-  // This route is available on the '/' route
-  path: WebsocketRoutes['/'],
-
-  // This is a browser-based WebSocket route so we tag it as such
-  tags: [APITags.browserWS],
-} as BrowserWebsocketRoute;
+  // and proxy the request into Chromium to handle.
+  handler = async (
+    req,
+    socket,
+    head,
+    chromium,
+  ): Promise<void> => chromium.proxyWebSocket(req, socket, head);
+}
 ```
 
 Many more examples can be seen in `src/routes` as we use this same routing semantic internally.
@@ -233,12 +234,14 @@ Module extension is only recommended for core cases where things like routing do
 
 **Extending Config**
 
-The easiest module to extend is the Configuration module, as it's usage is pretty simple and straightforward. Here, we're going to add another property that we'll use later in a route.
+The easiest module to extend is the Configuration module, as it's usage is pretty simple and straightforward. Here, we're going to add another property that we'll use later in a route. Doing this makes properties available in all routes, and makes a more pleasant route authoring experience. Routes can load modules, look at process variables and more, so it's up to you to decide where you'd like to place things like configuration.
 
 ```ts
-// Config must be  and the default export
+// src/config.ts
 import { Config } from '@browserless.io/browserless';
 
+// Your config class must be the default export
+// and you can export the Class or an instance of it.
 export default class MyConfig extends Config {
   public getS3Bucket = (): string => {
     // Load from environment variables or default to some other named bucket.
@@ -247,13 +250,15 @@ export default class MyConfig extends Config {
 };
 ```
 
-Then, later, in your route you can define some functionality to load this configuration. Let's make a PDF route that generates a PDF from a URL and then saves the result to this S3 bucket.
+Then, later, in your route you can define some functionality and load the config object. Let's make a PDF route that generates a PDF from a URL and then saves the result to this S3 bucket.
 
 ```ts
+// src/pdf.http.ts
+import { BrowserHTTPRoute } from '@browserless.io/browserless';
 import MyConfig from './config';
 
 // Export the BodySchema for documentation site to parse, plus
-// browserless creates runtime validation with this body
+// browserless creates runtime validation with this as well!
 export interface BodySchema {
   /**
    * The URL of the PDF you want to generate. Comments of this style get
@@ -262,36 +267,52 @@ export interface BodySchema {
   url: string;
 }
 
-const pdfRoute: BrowserHTTPRoute = {
-  // Route accepts only JSON types
-  accepts: [contentTypes.json],
+export default class PDFToS3Route extends BrowserHTTPRoute {
+  // Our route only accepts JSON content-types, and the rest 404
+  accepts = [contentTypes.json];
 
-  // Route requires authorization
-  auth: true,
+  // Since we're launching a browser and saving something to S3
+  // we should have this route under authentication
+  auth = true;
 
-  // This route uses the Chromium to process.
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.pdf],
-  description: `Produces a PDF from a supplied "url" parameter and loads it to the configured S3 Bucket`,
+  // This route uses Chromium to process the PDF.
+  browser = CDPChromium;
 
-  handler: async (
-    req: Request,
-    res: ServerResponse,
-    browser: BrowserInstance,
+  // Generally, we recommend limiting concurrency when using
+  // browser routing
+  concurrency = true;
+
+  // This defines our content-type response when processed properly.
+  // We'll return a simple "ok" response if everything goes well.
+  contentTypes = [contentTypes.text];
+
+  // This description gets generated into the built-in documentation site.
+  description = `Produces a PDF from a supplied "url" parameter and loads it to the configured S3 Bucket`;
+
+  // We only accept POST'd payloads, else we 404
+  method = Methods.post;
+
+  // This route exists on the '/pdf-to-s3' route
+  path = '/pdf-to-s3';
+
+  // This a browser-based API so we tag it as such for documentation handling
+  tags = [APITags.browserAPI];
+
+  // Handler's are where we embed the logic that facilitates this route.
+  handler = async (
+    req,
+    res,
+    browser,
   ): Promise<void> => {
-    // getConfig() is injected at start-up and available inside of handlers.
-    const { getConfig: getConfig } = route;
-    const config = getConfig() as MyConfig;
+    // Modules like Config are injected via this internal methods.
+    // Use them to load core modules within the platform.
+    const config = this.config() as MyConfig;
     const s3Bucket = config.getS3Bucket();
+    const page = await browser.newPage();
 
-  },
-
-  method: Methods.post,
-  path: HTTPRoutes.pdf,
-  tags: [APITags.browserAPI],
-};
-
-// Don't forget to default export it!
-export default pdfRoute;
+    // ...Handle the rest!
+  };
+}
 ```
+
+With this approach you can effectively write, extend and author your own workflows within browserless!
