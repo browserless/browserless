@@ -16,6 +16,6 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "@browserless.io/browserless": "^2.0.0-beta-5"
+    "@browserless.io/browserless": "^2.0.0-beta-6"
   }
 }

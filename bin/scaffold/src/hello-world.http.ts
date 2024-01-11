@@ -2,6 +2,8 @@ import {
   APITags,
   HTTPRoute,
   Methods,
+  Request,
+  Response,
   contentTypes,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -18,7 +20,7 @@ export default class HelloWorldRoute extends HTTPRoute {
   method = Methods.get;
   path = '/hello';
   tags = [APITags.management];
-  handler = async (_req, res): Promise<void> => {
+  handler = async (_req: Request, res: Response): Promise<void> => {
     const response: ResponseSchema = 'Hello World!';
     return writeResponse(res, 200, response, contentTypes.text);
   };
