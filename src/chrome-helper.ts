@@ -411,6 +411,10 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
   return pages.find((session) => session.browserWSEndpoint.includes(pathname));
 };
 
+export const getBrowserBySession = async (session: ISession) => {
+  return runningBrowsers.find((b) => b._id === session.browserId);
+};
+
 export const getDebuggingPages = async (
   trackingId?: string,
 ): Promise<ISession[]> => {
@@ -430,7 +434,7 @@ export const getDebuggingPages = async (
 
         const sessions = await getTargets({ port }).catch((e) => {
           debug(
-            `Error fetching sessions from target: ${e.message} ${e.stack}.`,
+            `Error fetching sessions from http://127.0.0.1:${port}/json/list: ${e.message} ${e.stack}.`,
           );
           return [];
         });
