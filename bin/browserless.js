@@ -68,7 +68,7 @@ const importClassOverride = async (files, className) => {
   return (await import(classModuleFullFilePath)).default;
 };
 
-const installDependencies = async (workingDirectory) => {
+const installDependencies = async (workingDirectory) =>
   new Promise((resolve, reject) => {
     spawn('npm', ['i'], {
       cwd: workingDirectory,
@@ -83,7 +83,6 @@ const installDependencies = async (workingDirectory) => {
       );
     });
   });
-};
 
 const buildDockerImage = async (cmd) => {
   new Promise((resolve, reject) => {
@@ -418,6 +417,10 @@ const create = async () => {
 
   log(`Installing npm modules...`);
   await installDependencies(installPath);
+
+  log(
+    `Done! You can now open "${installPath}" in an editor of your choice. Make sure to check out the README and update the package.json file!`,
+  );
 };
 
 const help = () => {
