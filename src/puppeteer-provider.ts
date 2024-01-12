@@ -375,6 +375,23 @@ export class PuppeteerProvider {
     if (route.includes('/devtools/browser')) {
       const session = await chromeHelper.findSessionForBrowserUrl(route);
       if (session && session.port) {
+        // refresh timeout if necessary
+        if (req.parsed.query && req.parsed.query.keepalive) {
+          const browser = await chromeHelper.getBrowserBySession(session)!;
+          if (browser) {
+            browser._keepaliveTimeout &&
+              clearTimeout(browser._keepaliveTimeout);
+            jobdebug(
+              `Refreshing keep-alive flag, closing in ${req.parsed.query.keepalive}ms`,
+            );
+
+            browser._keepaliveTimeout = global.setTimeout(
+              () => this.stopChromeProcess(browser),
+              Number(req.parsed.query.keepalive) || this.config.connectionTimeout,
+            );
+          }
+        }
+
         const { port } = session;
         return this.proxyWsRequestToPort({ req, socket, head, port });
       }
@@ -582,18 +599,8 @@ export class PuppeteerProvider {
 
     const closeChrome = async () => {
       jobdebug(`${job.id}: Browser not needed, closing`);
-      chromeHelper.closeBrowser(browser);
-
+      this.stopChromeProcess(browser);
       jobdebug(`${job.id}: Browser cleanup complete.`);
-
-      if (this.config.prebootChrome && browser._prebooted) {
-        sysdebug(`Adding back Chrome swarm`);
-        const newBrowser = await this.launchChrome(
-          chromeHelper.defaultLaunchArgs,
-          true,
-        );
-        return this.chromeSwarm.push(newBrowser);
-      }
     };
 
     if (this.keepChromeInstance) {
@@ -625,6 +632,19 @@ export class PuppeteerProvider {
     }
 
     closeChrome();
+  }
+
+  private async stopChromeProcess(browser: IBrowser) {
+    chromeHelper.closeBrowser(browser);
+
+    if (this.config.prebootChrome && browser._prebooted) {
+      sysdebug(`Adding back Chrome swarm`);
+      const newBrowser = await this.launchChrome(
+        chromeHelper.defaultLaunchArgs,
+        true,
+      );
+      return this.chromeSwarm.push(newBrowser);
+    }
   }
 
   private async getChrome(opts: ILaunchOptions): Promise<IBrowser> {

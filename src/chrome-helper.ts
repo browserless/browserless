@@ -411,6 +411,10 @@ export const findSessionForBrowserUrl = async (pathname: string) => {
   return pages.find((session) => session.browserWSEndpoint.includes(pathname));
 };
 
+export const getBrowserBySession = async (session: ISession) => {
+  return runningBrowsers.find((b) => b._id === session.browserId);
+};
+
 export const getDebuggingPages = async (
   trackingId?: string,
 ): Promise<ISession[]> => {
