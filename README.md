@@ -24,8 +24,9 @@ If you've been struggling to deploy headless browsers without running into issue
 4. [Hosting](#hosting-providers)
 5. [Puppeteer](#puppeteer)
 6. [Playwright](#playwright)
-7. [Licensing](#licensing)
-8. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
+7. [Extending with NodeJS SDK](#extending-nodejs-skd)
+8. [Licensing](#licensing)
+9. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
 
 ## External links
 
@@ -101,6 +102,10 @@ const browser = await pw.chromium.connectOverCDP('ws://localhost:3000');
 ```
 
 After that, the rest of your code remains the same with no other changes required.
+
+# Extending (NodeJS SKD)
+
+Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
 
 # Usage with other libraries
 
