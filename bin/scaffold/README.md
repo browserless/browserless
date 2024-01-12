@@ -106,16 +106,16 @@ By default most commands are non-interactive, such as the `build` and `dev` comm
 
 ## Routing
 
-Routing is, simply, a plain-old JavaScript object with certain expected properties. Many of the features of Browserless are exposed as options on routes so you can define many types of functionality with just a route definition.
+Routing is based upon the JavaScript `class` fundamentals, and extends core classes inside of Browserless. Many of the features of Browserless are exposed as options on routes so you can define many types of functionality with just a simple route definition.
 
-Browserless has 4 different types of routes:
+Browserless has 4 different types of primitive routes:
 
-- HTTP Routes that don't need a browser to run.
-- HTTP Routes that do need a browser to run.
-- WebSocket routes that don't a browser.
-- WebSockets that need a browser.
+- HTTP Routes.
+- HTTP Routes that require a browser.
+- WebSockets Routes.
+- WebSocket Routes require a browser.
 
-We use this same semantic in our own codebase, so feel free to see how those work in our open-source projects. All routes are TypeScript and all our modules are documented, so you should be able to effectively write routes and modules with your code editor and not necessarily need these examples open. Below are a few examples:
+Internally, we use this same class-based system, so feel free to see how those work in our open-source repositories. All routes are TypeScript-based and all our modules are documented, so you should be able to effectively write routes and modules with your code editor and not necessarily need these examples open. Below are a few examples:
 
 ### Basic HTTP Route
 ```ts
