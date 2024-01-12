@@ -5,17 +5,17 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "DEBUG=browserless* browserless build",
-    "docker": "DEBUG=browserless* browserless docker",
     "clean": "rm -r build",
     "dev": "DEBUG=browserless*,-**:verbose browserless dev",
+    "docker": "DEBUG=browserless* browserless docker",
+    "prettier": "prettier 'src/**.{js,ts,json}' --log-level error --write",
     "start": "DEBUG=browserless*,-**:verbose browserless start",
-    "prettier": "prettier 'src/**.{js,ts,json}' --log-level error --write"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "",
   "dependencies": {
-    "@browserless.io/browserless": "^2.0.0-beta-6"
+    "@browserless.io/browserless": "^${BROWSERLESS_VERSION}"
   }
 }

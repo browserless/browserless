@@ -3,6 +3,7 @@
 'use strict';
 process.env.DEBUG = process.env.DEBUG || 'browserless*';
 
+import { readFile, writeFile } from 'fs/promises';
 import { Browserless } from '@browserless.io/browserless';
 import buildOpenAPI from '../scripts/build-open-api.js';
 import buildSchemas from '../scripts/build-schemas.js';
@@ -24,6 +25,9 @@ const subCMD = process.argv[3];
 const cwd = process.cwd();
 const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create', 'help'];
 const srcDir = path.join(cwd, 'build');
+const packageJSON = readFile(path.join(__dirname, '..', 'package.json')).then(
+  (r) => JSON.parse(r.toString()),
+);
 
 if (!allowedCMDs.includes(cmd)) {
   throw new Error(
@@ -397,8 +401,15 @@ const create = async () => {
   for (const sdkFile of sdkFiles) {
     const from = path.join(scaffoldLocation, sdkFile);
     const to = path.join(installPath, sdkFile);
-
-    if ((await fs.lstat(from)).isDirectory()) {
+    if (sdkFile === 'package.json') {
+      const sdkPackageJSONTemplate = (await readFile(from)).toString();
+      const { version } = await packageJSON;
+      const sdkPackageJSON = sdkPackageJSONTemplate.replace(
+        '${BROWSERLESS_VERSION}',
+        version,
+      );
+      await writeFile(to, sdkPackageJSON);
+    } else if ((await fs.lstat(from)).isDirectory()) {
       await fs.mkdir(to);
     } else {
       await fs.copyFile(from, to);
