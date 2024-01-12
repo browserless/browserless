@@ -1,8 +1,5 @@
+import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
 
 describe('/scrape API', function () {
   let browserless: Browserless;

@@ -1,20 +1,20 @@
+import {
+  Config,
+  IResourceLoad,
+  createLogger,
+} from '@browserless.io/browserless';
 import si from 'systeminformation';
 
-import { Config } from './config.js';
-import { IResourceLoad } from './types.js';
-import { createLogger } from './utils.js';
-
-const log = createLogger('hardware');
-
 export class Monitoring {
-  constructor(private config: Config) {}
+  protected log = createLogger('hardware');
+  constructor(protected config: Config) {}
 
   public getMachineStats = async (): Promise<IResourceLoad> => {
     const [cpuLoad, memLoad] = await Promise.all([
       si.currentLoad(),
       si.mem(),
     ]).catch((err) => {
-      log(`Error checking machine stats`, err);
+      this.log(`Error checking machine stats`, err);
       return [null, null];
     });
 
@@ -37,7 +37,7 @@ export class Monitoring {
     const cpuInt = cpu && Math.ceil(cpu * 100);
     const memoryInt = memory && Math.ceil(memory * 100);
 
-    log(`Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`);
+    this.log(`Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`);
 
     const cpuOverloaded = !!(cpuInt && cpuInt >= this.config.getCPULimit());
     const memoryOverloaded = !!(

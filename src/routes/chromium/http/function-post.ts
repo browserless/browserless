@@ -1,25 +1,21 @@
-import { ServerResponse } from 'http';
-import Stream from 'stream';
-
-import { fileTypeFromBuffer } from 'file-type';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPRoutes,
+  Methods,
+  Request,
+  SystemQueryParameters,
+  contentTypes,
+  dedent,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
+import Stream from 'stream';
+import { fileTypeFromBuffer } from 'file-type';
 import functionHandler from '../utils/function/handler.js';
 
 interface JSONSchema {
@@ -41,31 +37,28 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = unknown;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json, contentTypes.javascript],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.any],
-  description: util.dedent(`
+export default class FunctionPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json, contentTypes.javascript];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.any];
+  description = dedent(`
   A JSON or JavaScript content-type API for running puppeteer code in the browser's context.
   Browserless sets up a blank page, injects your puppeteer code, and runs it.
   You can optionally load external libraries via the "import" module that are meant for browser usage.
   Values returned from the function are checked and an appropriate content-type and response is sent back
-  to your HTTP call.`),
-  handler: async (
+  to your HTTP call.`);
+  method = Methods.post;
+  path = HTTPRoutes.function;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
   ): Promise<void> => {
-    const { _config: getConfig, _debug: getDebug } = route;
-
-    if (!getConfig || !getDebug) {
-      throw new util.ServerError(`Couldn't load configuration for request`);
-    }
-
-    const debug = getDebug();
-    const config = getConfig();
+    const debug = this.debug();
+    const config = this.config();
     const handler = functionHandler(config, debug);
     const { contentType, payload, page } = await handler(req, browser);
 
@@ -79,9 +72,7 @@ const route: BrowserHTTPRoute = {
         .mime;
 
       if (!type) {
-        throw new util.BadRequest(
-          `Couldn't determine function's response type.`,
-        );
+        throw new BadRequest(`Couldn't determine function's response type.`);
       } else {
         debug(`Sending file-type response of "${type}"`);
         const readStream = new Stream.PassThrough();
@@ -90,19 +81,9 @@ const route: BrowserHTTPRoute = {
         return new Promise((r) => readStream.pipe(res).once('close', r));
       }
     } else {
-      util.writeResponse(
-        res,
-        200,
-        payload as string,
-        contentType as contentTypes,
-      );
+      writeResponse(res, 200, payload as string, contentType as contentTypes);
     }
 
     return;
-  },
-  method: Methods.post,
-  path: HTTPRoutes.function,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+  };
+}

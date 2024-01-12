@@ -1,12 +1,14 @@
-import { expect } from 'chai';
-import { deleteAsync } from 'del';
+import {
+  Browserless,
+  Config,
+  Metrics,
+  exists,
+  sleep,
+} from '@browserless.io/browserless';
 import { chromium } from 'playwright-core';
+import { deleteAsync } from 'del';
+import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
-import { exists, sleep } from '../../../utils.js';
 
 describe('WebSocket API', function () {
   // Server shutdown can take a few seconds

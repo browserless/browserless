@@ -1,12 +1,13 @@
+import {
+  Config,
+  Limiter,
+  Metrics,
+  Monitoring,
+  WebHooks,
+  sleep,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 import { spy } from 'sinon';
-
-import { Config } from './config.js';
-import { Limiter } from './limiter.js';
-import { Metrics } from './metrics.js';
-import { Monitoring } from './monitoring.js';
-import { sleep } from './utils.js';
-import { WebHooks } from './webhooks.js';
 
 const asyncNoop = () => Promise.resolve(undefined);
 const noop = () => undefined;

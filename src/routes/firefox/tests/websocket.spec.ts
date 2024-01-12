@@ -1,10 +1,11 @@
+import {
+  Browserless,
+  Config,
+  Metrics,
+  sleep,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 import { firefox } from 'playwright-core';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
-import { sleep } from '../../../utils.js';
 
 describe('Firefox Websocket API', function () {
   // Server shutdown can take a few seconds

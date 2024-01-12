@@ -1,5 +1,8 @@
-import { CDPLaunchOptions } from './types';
-import { convertIfBase64, safeParse } from './utils.js';
+import {
+  CDPLaunchOptions,
+  convertIfBase64,
+  safeParse,
+} from '@browserless.io/browserless';
 
 const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
 

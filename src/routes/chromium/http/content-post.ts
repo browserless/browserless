@@ -1,32 +1,32 @@
-import { ServerResponse } from 'http';
-
-import { Page } from 'puppeteer-core';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
-  bestAttempt,
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-  rejectRequestPattern,
-  rejectResourceTypes,
-  requestInterceptors,
-  setJavaScriptEnabled,
+  HTTPRoutes,
+  Methods,
+  Request,
+  SystemQueryParameters,
   UnwrapPromise,
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  bestAttempt,
+  bestAttemptCatch,
+  contentTypes,
+  noop,
+  rejectRequestPattern,
+  rejectResourceTypes,
+  requestInterceptors,
+  setJavaScriptEnabled,
+  waitForEvent as waitForEvt,
+  waitForFunction as waitForFn,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { Page } from 'puppeteer-core';
+import { ServerResponse } from 'http';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -61,15 +61,17 @@ export type QuerySchema = SystemQueryParameters & {
   launch?: CDPLaunchOptions | string;
 };
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.html],
-  description: `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`,
-
-  handler: async (
+export default class ContentPostRoute extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.html];
+  description = `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`;
+  method = Methods.post;
+  path = HTTPRoutes.content;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -80,7 +82,7 @@ const route: BrowserHTTPRoute = {
         : req.headers.accept;
 
     if (!req.body) {
-      throw new util.BadRequest(`Couldn't parse JSON body`);
+      throw new BadRequest(`Couldn't parse JSON body`);
     }
 
     res.setHeader('Content-Type', contentType);
@@ -111,9 +113,7 @@ const route: BrowserHTTPRoute = {
     const content = url || html;
 
     if (!content) {
-      throw new util.BadRequest(
-        `One of "url" or "html" properties are required.`,
-      );
+      throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -186,32 +186,30 @@ const route: BrowserHTTPRoute = {
     }
 
     const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      util.bestAttemptCatch(bestAttempt),
+      bestAttemptCatch(bestAttempt),
     );
 
     if (waitForTimeout) {
       await page
         .waitForTimeout(waitForTimeout)
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForFunction) {
-      await util
-        .waitForFunction(page, waitForFunction)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForFn(page, waitForFunction).catch(
+        bestAttemptCatch(bestAttempt),
+      );
     }
 
     if (waitForSelector) {
       const { selector, hidden, timeout, visible } = waitForSelector;
       await page
         .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForEvent) {
-      await util
-        .waitForEvent(page, waitForEvent)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
     }
 
     const headers = {
@@ -230,13 +228,8 @@ const route: BrowserHTTPRoute = {
 
     const markup = await page.content();
 
-    page.close().catch(util.noop);
+    page.close().catch(noop);
 
-    return util.writeResponse(res, 200, markup, contentTypes.html);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.content,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+    return writeResponse(res, 200, markup, contentTypes.html);
+  };
+}

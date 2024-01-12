@@ -1,11 +1,8 @@
-// @ts-ignore no types :/
+import { Message, start } from './types.js';
+import { createLogger } from '@browserless.io/browserless';
 import lighthouse from 'lighthouse';
 
-import * as util from '../../../../utils.js';
-
-import { Message, start } from './types.js';
-
-const debug = util.createLogger('http:performance:child');
+const debug = createLogger('http:performance:child');
 
 debug(`Child init`);
 

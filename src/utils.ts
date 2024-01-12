@@ -1,30 +1,28 @@
-import crypto from 'crypto';
 import * as fs from 'fs/promises';
-import { ServerResponse } from 'http';
-import { homedir } from 'os';
-import path from 'path';
-import { Duplex } from 'stream';
-
-import debug from 'debug';
-import gradient from 'gradient-string';
-import playwright, { CDPSession } from 'playwright-core';
-import { Page } from 'puppeteer-core';
-
-import { CDPChromium } from './browsers/cdp-chromium.js';
-import { PlaywrightChromium } from './browsers/playwright-chromium.js';
-import { PlaywrightFirefox } from './browsers/playwright-firefox.js';
-import { PlaywrightWebkit } from './browsers/playwright-webkit.js';
-import { Config } from './config.js';
-import { encryptionAlgo, encryptionSep } from './constants.js';
-import { codes, contentTypes, encodings, Request } from './http.js';
 import {
-  BrowserHTTPRoute,
-  BrowserWebsocketRoute,
-  HTTPRoute,
+  CDPChromium,
+  Config,
+  PlaywrightChromium,
+  PlaywrightFirefox,
+  PlaywrightWebkit,
+  Request,
   WaitForEventOptions,
   WaitForFunctionOptions,
-  WebSocketRoute,
-} from './types.js';
+  codes,
+  contentTypes,
+  encodings,
+  encryptionAlgo,
+  encryptionSep,
+} from '@browserless.io/browserless';
+import playwright, { CDPSession } from 'playwright-core';
+import { Duplex } from 'stream';
+import { Page } from 'puppeteer-core';
+import { ServerResponse } from 'http';
+import crypto from 'crypto';
+import debug from 'debug';
+import gradient from 'gradient-string';
+import { homedir } from 'os';
+import path from 'path';
 
 const isHTTP = (
   writeable: ServerResponse | Duplex,
@@ -55,7 +53,7 @@ export const jsExtension = '.js';
 export const id = (): string => crypto.randomUUID();
 
 export const createLogger = (domain: string): debug.Debugger => {
-  return debug(`browserless:${domain}`);
+  return debug(`browserless.io:${domain}`);
 };
 
 const errorLog = createLogger('error');
@@ -183,27 +181,6 @@ export const getTokenFromRequest = (req: Request) => {
   const authHeader = req.headers['authorization'];
   const tokenParam = req.parsed.searchParams.get('token');
   return tokenParam ?? getAuthHeaderToken(authHeader || '');
-};
-
-export const isAuthorized = (
-  req: Request,
-  route: BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
-  token: string | null,
-): boolean => {
-  if (token === null) {
-    return true;
-  }
-
-  if (route.auth === false) {
-    return true;
-  }
-  const requestToken = getTokenFromRequest(req);
-
-  if (!requestToken) {
-    return false;
-  }
-
-  return token === requestToken;
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again

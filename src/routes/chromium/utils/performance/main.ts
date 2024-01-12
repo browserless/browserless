@@ -1,15 +1,13 @@
+import { Message, mainOptions } from './types.js';
+import { createLogger } from '@browserless.io/browserless';
 import { fork } from 'child_process';
 import path from 'path';
-
-import * as util from '../../../../utils.js';
-
-import { Message, mainOptions } from './types.js';
 
 const DEFAULT_AUDIT_CONFIG = {
   extends: 'lighthouse:default',
 };
 
-const debug = util.createLogger('http:performance:main');
+const debug = createLogger('http:performance:main');
 
 export default async ({
   browser,

@@ -1,10 +1,9 @@
-import { Config } from './config.js';
-import { fetchTimeout, noop } from './utils.js';
+import { Config, fetchTimeout, noop } from '@browserless.io/browserless';
 
 export class WebHooks {
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {}
 
-  private callURL(url: string | null) {
+  protected callURL(url: string | null) {
     if (url) {
       return fetchTimeout(url, {
         method: 'GET',

@@ -1,31 +1,32 @@
-import { ServerResponse } from 'http';
-
-import { Page } from 'puppeteer-core';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPRoutes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
+  BadRequest,
   BrowserHTTPRoute,
+  BrowserInstance,
+  CDPChromium,
+  CDPLaunchOptions,
+  HTTPRoutes,
+  Methods,
+  Request,
+  SystemQueryParameters,
+  UnwrapPromise,
+  WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
-  WaitForEventOptions,
-  CDPLaunchOptions,
   bestAttempt,
+  bestAttemptCatch,
+  contentTypes,
+  dedent,
+  noop,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
-  BrowserInstance,
-  UnwrapPromise,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  waitForEvent as waitForEvt,
+  waitForFunction as waitForFn,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { Page } from 'puppeteer-core';
+import { ServerResponse } from 'http';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -61,14 +62,22 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = string;
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.pdf],
-  description: `A JSON-based API for getting a PDF binary from either a supplied "url" or "html" payload in your request.`,
-  handler: async (
+export default class PDFPost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.pdf];
+  description = dedent(`
+    A JSON-based API for getting a PDF binary from either a supplied
+    "url" or "html" payload in your request. Many options exist for
+    injecting cookies, request interceptors, user-agents and waiting for
+    selectors, timers and more.
+  `);
+  method = Methods.post;
+  path = HTTPRoutes.pdf;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -79,7 +88,7 @@ const route: BrowserHTTPRoute = {
         : req.headers.accept;
 
     if (!req.body) {
-      util.writeResponse(res, 400, `Couldn't parse JSON body`);
+      writeResponse(res, 400, `Couldn't parse JSON body`);
       return;
     }
 
@@ -111,9 +120,7 @@ const route: BrowserHTTPRoute = {
     const content = url || html;
 
     if (!content) {
-      throw new util.BadRequest(
-        `One of "url" or "html" properties are required.`,
-      );
+      throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -186,26 +193,24 @@ const route: BrowserHTTPRoute = {
     }
 
     const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      util.bestAttemptCatch(bestAttempt),
+      bestAttemptCatch(bestAttempt),
     );
 
     if (waitForFunction) {
-      await util
-        .waitForFunction(page, waitForFunction)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForFn(page, waitForFunction).catch(
+        bestAttemptCatch(bestAttempt),
+      );
     }
 
     if (waitForSelector) {
       const { selector, hidden, timeout, visible } = waitForSelector;
       await page
         .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForEvent) {
-      await util
-        .waitForEvent(page, waitForEvent)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
     }
 
     const headers = {
@@ -228,11 +233,6 @@ const route: BrowserHTTPRoute = {
       return pdfStream.pipe(res).once('finish', resolve).once('error', reject);
     });
 
-    page.close().catch(util.noop);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.pdf,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+    page.close().catch(noop);
+  };
+}

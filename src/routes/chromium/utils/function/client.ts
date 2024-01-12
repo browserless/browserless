@@ -1,6 +1,6 @@
-import { Page, Browser } from 'puppeteer-core';
-import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
+import { Browser, Page } from 'puppeteer-core';
 import { BrowserWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/common/BrowserWebSocketTransport.js';
+import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
 
 type codeHandler = (params: {
   context: unknown;
@@ -8,8 +8,8 @@ type codeHandler = (params: {
 }) => Promise<unknown>;
 
 export class FunctionRunner {
-  private browser?: Browser;
-  private page?: Page;
+  protected browser?: Browser;
+  protected page?: Page;
 
   public log = () => console.log.bind(console);
 

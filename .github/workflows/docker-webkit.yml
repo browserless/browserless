@@ -15,4 +15,4 @@ jobs:
       run: docker build --build-arg VERSION=latest -f ./docker/webkit/Dockerfile -t ghcr.io/browserless/webkit:latest .
 
     - name: Test the Webkit image
-      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh ghcr.io/browserless/webkit:latest
+      run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/webkit:latest

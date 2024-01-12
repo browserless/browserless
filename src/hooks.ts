@@ -1,8 +1,12 @@
-import fs from 'fs';
+import {
+  AfterResponse,
+  BeforeRequest,
+  BrowserHook,
+  PageHook,
+} from '@browserless.io/browserless';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-
-import { AfterResponse, BeforeRequest, BrowserHook, PageHook } from './types';
+import fs from 'fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const beforeHookPath = path.join(__dirname, '..', 'external', 'before.js');

@@ -1,12 +1,39 @@
-import { writeFile, readFile } from 'fs/promises';
-
-import { Config } from './config.js';
-import { encrypt, decrypt } from './utils.js';
+import {
+  Config,
+  createLogger,
+  decrypt,
+  encrypt,
+} from '@browserless.io/browserless';
+import { readFile, writeFile } from 'fs/promises';
 
 export class FileSystem {
-  private fsMap: Map<string, string[]> = new Map();
+  protected fsMap: Map<string, string[]> = new Map();
+  protected currentAESKey: Buffer;
+  protected log = createLogger('file-system');
 
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {
+    this.currentAESKey = config.getAESKey();
+    this.config.on('token', this.handleTokenChange);
+  }
+
+  private handleTokenChange = async () => {
+    this.log(`Token has changed, updating file-system contents`);
+    const start = Date.now();
+    const newAESKey = this.config.getAESKey();
+    await Promise.all(
+      Array.from(this.fsMap).map(async ([filePath, contents]) => {
+        const newlyEncoded = encrypt(
+          contents.join('\n'),
+          Buffer.from(newAESKey),
+        );
+        return writeFile(filePath, newlyEncoded);
+      }),
+    ).catch((e) => {
+      this.log(`Error in setting new token: "${e}"`);
+    });
+    this.log(`Successfully updated file encodings in ${Date.now() - start}ms`);
+    this.currentAESKey = this.config.getAESKey();
+  };
 
   /**
    * Appends contents to a file-path for persistance. File contents are
@@ -22,9 +49,10 @@ export class FileSystem {
 
     contents.push(newContent);
     this.fsMap.set(path, contents);
-
-    const key = this.config.getAESKey();
-    const encoded = await encrypt(contents.join('\n'), Buffer.from(key));
+    const encoded = await encrypt(
+      contents.join('\n'),
+      Buffer.from(this.currentAESKey),
+    );
 
     return writeFile(path, encoded.toString());
   };
@@ -42,11 +70,9 @@ export class FileSystem {
     if (hasKey) {
       return this.fsMap.get(path) as string[];
     }
-
-    const key = this.config.getAESKey();
     const contents = (await readFile(path).catch(() => '')).toString();
     const splitContents = contents.length
-      ? (await decrypt(contents, Buffer.from(key))).split('\n')
+      ? (await decrypt(contents, Buffer.from(this.currentAESKey))).split('\n')
       : [];
 
     this.fsMap.set(path, splitContents);

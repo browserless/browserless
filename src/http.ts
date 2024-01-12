@@ -1,6 +1,9 @@
-import http from 'http';
+import {
+  BrowserServerOptions,
+  CDPLaunchOptions,
+} from '@browserless.io/browserless';
 
-import { BrowserServerOptions, CDPLaunchOptions } from './types';
+import http from 'http';
 
 export const errorCodes = {
   400: {
@@ -104,9 +107,9 @@ export enum HTTPManagementRoutes {
 }
 
 export enum APITags {
-  'browserAPI' = 'Browser APIs',
-  'browserWS' = 'Browser WebSockets',
-  'management' = 'Management APIs',
+  'browserAPI' = 'Browser REST APIs',
+  'browserWS' = 'Browser WebSocket APIs',
+  'management' = 'Management REST APIs',
 }
 
 export interface Request extends http.IncomingMessage {
