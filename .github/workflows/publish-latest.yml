@@ -3,7 +3,7 @@ name: Publish Latest Docker image
 on:
   push:
     branches:
-      - master
+      - v1
 
 jobs:
   push_to_registry:
