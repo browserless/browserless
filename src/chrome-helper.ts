@@ -434,7 +434,7 @@ export const getDebuggingPages = async (
 
         const sessions = await getTargets({ port }).catch((e) => {
           debug(
-            `Error fetching sessions from http://127.0.0.1:${port}/json/list: ${e.message} ${e.stack}.`,
+            `Error fetching sessions from target: ${e.message} ${e.stack}.`,
           );
           return [];
         });
