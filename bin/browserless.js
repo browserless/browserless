@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 'use strict';
-process.env.DEBUG = process.env.DEBUG || 'browserless*';
-
 import { readFile, writeFile } from 'fs/promises';
 import { Browserless } from '@browserless.io/browserless';
 import buildOpenAPI from '../scripts/build-open-api.js';
@@ -16,8 +14,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 
-const log = debug('browserless:sdk:log');
-const promptLog = debug('browserless:prompt');
+debug.enable('browserless*');
+
+const log = debug('browserless.io:sdk:log');
+const promptLog = debug('browserless.io:prompt');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];

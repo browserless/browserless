@@ -53,7 +53,7 @@ export const jsExtension = '.js';
 export const id = (): string => crypto.randomUUID();
 
 export const createLogger = (domain: string): debug.Debugger => {
-  return debug(`browserless:${domain}`);
+  return debug(`browserless.io:${domain}`);
 };
 
 const errorLog = createLogger('error');
