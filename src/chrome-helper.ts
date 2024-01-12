@@ -74,12 +74,11 @@ const {
 } = require('../env');
 
 const blacklist = require('../hosts.json');
+const packageLockFile = require('../package-lock.json');
 
-const {
-  dependencies: {
-    puppeteer: { version: puppeteerVersion },
-  },
-} = require('../package-lock.json');
+const puppeteerVersion = packageLockFile.dependencies ?
+  packageLockFile.dependencies.puppeteer.version :
+  packageLockFile.packages['node_modules/puppeteer'].version;
 
 let versionCache: object;
 let protocolCache: object;
