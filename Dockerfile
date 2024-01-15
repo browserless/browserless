@@ -51,6 +51,7 @@ RUN if [ "$USE_CHROME_STABLE" = "true" ]; then \
   else \
     export CHROMEDRIVER_SKIP_DOWNLOAD=true;\
   fi &&\
+  npm i &&\
   npm i puppeteer@$PUPPETEER_VERSION;\
   npm run postinstall &&\
   npm run build &&\
