@@ -88,7 +88,7 @@ RUN apt-get -y -qq --no-install-recommends install \
 
 # Install nvm with node and npm
 RUN mkdir -p $NVM_DIR &&\
-  curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
+  curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
