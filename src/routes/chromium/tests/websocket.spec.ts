@@ -1,12 +1,14 @@
-import { expect } from 'chai';
-import { deleteAsync } from 'del';
+import {
+  Browserless,
+  Config,
+  Metrics,
+  exists,
+  sleep,
+} from '@browserless.io/browserless';
 import { chromium } from 'playwright-core';
+import { deleteAsync } from 'del';
+import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
-
-import { Browserless } from '../../../browserless.js';
-import { Config } from '../../../config.js';
-import { Metrics } from '../../../metrics.js';
-import { exists, sleep } from '../../../utils.js';
 
 describe('WebSocket API', function () {
   // Server shutdown can take a few seconds
@@ -168,6 +170,33 @@ describe('WebSocket API', function () {
     expect(await exists(userDataDir)).to.be.false;
   });
 
+  it('allows specified user-data-dirs', async () => {
+    const dataDir = '/tmp/data-dir';
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const launch = JSON.stringify({
+      args: [`--user-data-dir=${dataDir}`],
+    });
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+    });
+
+    const [{ userDataDir }] = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    ).then((r) => r.json());
+
+    expect(await exists(userDataDir)).to.be.true;
+    expect(userDataDir).to.equal(dataDir);
+
+    await browser.disconnect();
+    await sleep(1000);
+
+    expect(await exists(userDataDir)).to.be.true;
+  });
+
   it('creates user-data-dirs with userDataDir options', async () => {
     const dataDirLocation = '/tmp/browserless-test-dir';
     const launch = JSON.stringify({
@@ -199,7 +228,7 @@ describe('WebSocket API', function () {
   it('creates user-data-dirs with CLI flags', async () => {
     const dataDirLocation = '/tmp/browserless-test-dir';
     const launch = JSON.stringify({
-      args: [`--user-data-dir==${dataDirLocation}`],
+      args: [`--user-data-dir=${dataDirLocation}`],
     });
     const config = new Config();
     config.setToken('browserless');

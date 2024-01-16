@@ -1,0 +1,14 @@
+# Built Assets
+node_modules/
+build/
+
+# MAC
+.DS_Store
+
+# Temp files
+.no-git/
+*.log
+.*cache*
+
+# Dev Files
+*.env*

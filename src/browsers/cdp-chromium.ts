@@ -1,35 +1,39 @@
-import { EventEmitter } from 'events';
-import path from 'path';
+import {
+  CDPLaunchOptions,
+  Config,
+  Request,
+  ServerError,
+  createLogger,
+  encrypt,
+  liveURLSep,
+  makeExternalURL,
+  noop,
+  once,
+} from '@browserless.io/browserless';
+import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
 import { Duplex } from 'stream';
-import { fileURLToPath } from 'url';
-
-import getPort from 'get-port';
-
-import httpProxy from 'http-proxy';
-import playwright from 'playwright-core';
-import puppeteer, { Page, Browser, Target } from 'puppeteer-core';
-import puppeteerStealth from 'puppeteer-extra';
+import { EventEmitter } from 'events';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-
-import { Config } from '../config.js';
-import { liveURLSep } from '../constants.js';
-import { Request } from '../http.js';
-import { CDPLaunchOptions } from '../types.js';
-import * as util from '../utils.js';
+import { fileURLToPath } from 'url';
+import getPort from 'get-port';
+import httpProxy from 'http-proxy';
+import path from 'path';
+import playwright from 'playwright-core';
+import puppeteerStealth from 'puppeteer-extra';
 
 puppeteerStealth.use(StealthPlugin());
 
 export class CDPChromium extends EventEmitter {
-  private config: Config;
-  private userDataDir: string | null;
-  private record: boolean;
-  private blockAds: boolean;
-  private running = false;
-  private browser: Browser | null = null;
-  private browserWSEndpoint: string | null = null;
-  private port?: number;
-  private debug = util.createLogger('browsers:cdp:chromium');
-  private proxy = httpProxy.createProxyServer();
+  protected config: Config;
+  protected userDataDir: string | null;
+  protected record: boolean;
+  protected blockAds: boolean;
+  protected running = false;
+  protected browser: Browser | null = null;
+  protected browserWSEndpoint: string | null = null;
+  protected port?: number;
+  protected debug = createLogger('browsers:cdp:chromium');
+  protected proxy = httpProxy.createProxyServer();
 
   constructor({
     userDataDir,
@@ -51,12 +55,12 @@ export class CDPChromium extends EventEmitter {
     this.debug(`Starting new browser instance`);
   }
 
-  private cleanListeners() {
+  protected cleanListeners() {
     this.browser?.removeAllListeners();
     this.removeAllListeners();
   }
 
-  private setUpEmbeddedAPI = async (
+  protected setUpEmbeddedAPI = async (
     page: Page,
     id: string,
     record: boolean,
@@ -179,13 +183,13 @@ export class CDPChromium extends EventEmitter {
     const serverAddress = this.config.getExternalAddress();
     const key = this.config.getAESKey();
     const path = `${browserId}${liveURLSep}${pageId}`;
-    const encoded = util.encrypt(path, key);
+    const encoded = encrypt(path, key);
     const query = `?id=${encoded}`;
 
-    return util.makeExternalURL(serverAddress, 'live', query);
+    return makeExternalURL(serverAddress, 'live', query);
   };
 
-  private onTargetCreated = async (target: Target) => {
+  protected onTargetCreated = async (target: Target) => {
     if (target.type() === 'page') {
       const page = await target.page().catch((e) => {
         this.debug(`Error in new page ${e}`);
@@ -198,7 +202,7 @@ export class CDPChromium extends EventEmitter {
           page.on('request', async (request) => {
             if (request.url().startsWith('file://')) {
               this.debug(`File protocol request found in request, terminating`);
-              page.close().catch(util.noop);
+              page.close().catch(noop);
               this.close();
             }
           });
@@ -208,7 +212,7 @@ export class CDPChromium extends EventEmitter {
               this.debug(
                 `File protocol request found in response, terminating`,
               );
-              page.close().catch(util.noop);
+              page.close().catch(noop);
               this.close();
             }
           });
@@ -224,7 +228,7 @@ export class CDPChromium extends EventEmitter {
 
   public newPage = async (): Promise<Page> => {
     if (!this.browser) {
-      throw new util.ServerError(`Browser hasn't been launched yet!`);
+      throw new ServerError(`Browser hasn't been launched yet!`);
     }
 
     return this.browser.newPage();
@@ -335,7 +339,7 @@ export class CDPChromium extends EventEmitter {
   ): Promise<void> =>
     new Promise(async (resolve, reject) => {
       if (!this.browserWSEndpoint || !this.browser) {
-        throw new util.ServerError(
+        throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
         );
       }
@@ -375,12 +379,12 @@ export class CDPChromium extends EventEmitter {
   ): Promise<void> =>
     new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
-        throw new util.ServerError(
+        throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
         );
       }
 
-      const close = util.once(() => {
+      const close = once(() => {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);

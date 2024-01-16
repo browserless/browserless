@@ -1,41 +1,49 @@
-import { mkdir } from 'fs/promises';
-import path, { join } from 'path';
-
-import { deleteAsync } from 'del';
-import getPort from 'get-port';
-
-import { Config } from '../config.js';
-import { browserHook, pageHook } from '../hooks.js';
-import { Request, HTTPManagementRoutes } from '../http.js';
 import {
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
-  BrowserlessSession,
-  BrowserlessSessionJSON,
   BrowserServerOptions,
   BrowserWebsocketRoute,
+  BrowserlessSession,
+  BrowserlessSessionJSON,
+  CDPChromium,
   CDPLaunchOptions,
-} from '../types.js';
+  Config,
+  HTTPManagementRoutes,
+  NotFound,
+  Request,
+  ServerError,
+  browserHook,
+  convertIfBase64,
+  createLogger,
+  exists,
+  id,
+  makeExternalURL,
+  noop,
+  pageHook,
+  parseBooleanParam,
+} from '@browserless.io/browserless';
+import path, { join } from 'path';
+import { deleteAsync } from 'del';
+import { mkdir } from 'fs/promises';
 
-import * as util from '../utils.js';
-
-import { CDPChromium } from './cdp-chromium.js';
-
-const debug = util.createLogger('browser-manager');
+import getPort from 'get-port';
 
 export class BrowserManager {
-  private browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
-  private launching: Map<string, Promise<unknown>> = new Map();
-  private timers: Map<string, number> = new Map();
-  private versionCache: object | undefined;
+  protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
+  protected launching: Map<string, Promise<unknown>> = new Map();
+  protected timers: Map<string, number> = new Map();
+  protected debug = createLogger('browser-manager');
 
-  constructor(private config: Config) {}
+  constructor(protected config: Config) {}
 
-  private removeUserDataDir = async (userDataDir: string | null) => {
-    if (userDataDir && (await util.exists(userDataDir))) {
-      debug(`Deleting data directory "${userDataDir}"`);
+  protected removeUserDataDir = async (userDataDir: string | null) => {
+    if (userDataDir && (await exists(userDataDir))) {
+      this.debug(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
-        debug(`Error cleaning up user-data-dir "${err}" at ${userDataDir}`);
+        this.debug(
+          `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
+        );
       });
     }
   };
@@ -49,8 +57,8 @@ export class BrowserManager {
    * @param sessionId The ID of the session
    * @returns Promise<string> of the fully-qualified path of the directory
    */
-  private generateDataDir = async (
-    sessionId: string = util.id(),
+  protected generateDataDir = async (
+    sessionId: string = id(),
   ): Promise<string> => {
     const baseDirectory = await this.config.getDataDir();
     const dataDirPath = join(
@@ -58,15 +66,17 @@ export class BrowserManager {
       `browserless-data-dir-${sessionId}`,
     );
 
-    if (await util.exists(dataDirPath)) {
-      debug(`Data directory already exists, not creating "${dataDirPath}"`);
+    if (await exists(dataDirPath)) {
+      this.debug(
+        `Data directory already exists, not creating "${dataDirPath}"`,
+      );
       return dataDirPath;
     }
 
-    debug(`Generating user-data-dir at ${dataDirPath}`);
+    this.debug(`Generating user-data-dir at ${dataDirPath}`);
 
     await mkdir(dataDirPath, { recursive: true }).catch((err) => {
-      throw new util.ServerError(
+      throw new ServerError(
         `Error creating data-directory "${dataDirPath}": ${err}`,
       );
     });
@@ -75,63 +85,81 @@ export class BrowserManager {
   };
 
   public getVersionJSON = async () => {
-    if (!this.versionCache) {
-      const port = await getPort();
-      const config = this.config;
-      config.setPort(port);
+    const port = await getPort();
+    const config = this.config;
+    config.setPort(port);
 
-      const browser = new CDPChromium({
-        blockAds: false,
-        config: config,
-        record: false,
-        userDataDir: null,
-      });
-      await browser.launch({
-        args: [ `--remote-debugging-port=${port}` ],
-      });
-  
-      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-      const meta = await res.json();
- 
-      browser.close();
+    const browser = new CDPChromium({
+      blockAds: false,
+      config: config,
+      record: false,
+      userDataDir: null,
+    });
+    await browser.launch({
+      args: [`--remote-debugging-port=${port}`],
+    });
 
-      const { 'WebKit-Version': webkitVersion } = meta;
-      delete meta.webSocketDebuggerUrl;
-      const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
-  
-      this.versionCache = {
-        ...meta,
-        'Debugger-Version': debuggerVersion,
-      };
-    }
-  
-    return this.versionCache;
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+    const meta = await res.json();
+
+    browser.close();
+
+    const { 'WebKit-Version': webkitVersion } = meta;
+    delete meta.webSocketDebuggerUrl;
+    const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+
+    return {
+      ...meta,
+      'Debugger-Version': debuggerVersion,
+    };
   };
 
-  private generateSessionJson = (
+  private generateSessionJson = async (
     browser: BrowserInstance,
     session: BrowserlessSession,
   ) => {
     const serverAddress = this.config.getExternalAddress();
 
-    return {
-      ...session,
-      browser: browser.constructor.name,
-      browserId: browser.wsEndpoint()?.split('/').pop(),
-      cdp: browser instanceof CDPChromium ? {
-        wsEndpoint: browser.wsEndpoint()
-      } : null,
-      initialConnectURL: new URL(session.initialConnectURL, serverAddress).href,
-      killURL: session.id
-        ? util.makeExternalURL(
-            serverAddress,
-            HTTPManagementRoutes.sessions,
-            session.id,
-          )
-        : null,
-      running: browser.isRunning(),
-      timeAliveMs: Date.now() - session.startedOn,
-    };
+    const sessions = [
+      {
+        ...session,
+        browser: browser.constructor.name,
+        browserId: browser.wsEndpoint()?.split('/').pop(),
+        initialConnectURL: new URL(session.initialConnectURL, serverAddress)
+          .href,
+        killURL: session.id
+          ? makeExternalURL(
+              serverAddress,
+              HTTPManagementRoutes.sessions,
+              session.id,
+            )
+          : null,
+        running: browser.isRunning(),
+        timeAliveMs: Date.now() - session.startedOn,
+        type: 'browser',
+      },
+    ];
+
+    const wsEndpoint = browser.wsEndpoint();
+    if (browser.constructor.name === 'CDPChromium' && wsEndpoint) {
+      const port = new URL(wsEndpoint).port;
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+        headers: {
+          Host: '127.0.0.1',
+        },
+      });
+      if (response.ok) {
+        const body = await response.json();
+        for (const page of body) {
+          sessions.push({
+            ...sessions[0],
+            ...page,
+            browserWSEndpoint: wsEndpoint,
+          });
+        }
+      }
+    }
+    return sessions;
   };
 
   public close = async (
@@ -139,13 +167,13 @@ export class BrowserManager {
     session: BrowserlessSession,
   ): Promise<void> => {
     const cleanupACtions: Array<() => Promise<void>> = [];
-    debug(`${session.numbConnected} Client(s) are currently connected`);
+    this.debug(`${session.numbConnected} Client(s) are currently connected`);
 
-    debug(`Closing browser session`);
+    this.debug(`Closing browser session`);
     cleanupACtions.push(() => browser.close());
 
     if (session.isTempDataDir) {
-      debug(
+      this.debug(
         `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
       );
       this.browsers.delete(browser);
@@ -155,26 +183,21 @@ export class BrowserManager {
     await Promise.all(cleanupACtions.map((a) => a()));
   };
 
-  public getAllSessions = async (
-    req: Request,
-  ): Promise<BrowserlessSessionJSON[]> => {
+  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
     const sessions = Array.from(this.browsers);
 
-    const requestToken = util.getTokenFromRequest(req);
-    const token = this.config.getToken();
-    if (token && !requestToken) {
-      throw new util.BadRequest(`Couldn't locate your API token`);
+    const formattedSessions: BrowserlessSessionJSON[] = [];
+    for (const [browser, session] of sessions) {
+      const formattedSession = await this.generateSessionJson(browser, session);
+      formattedSessions.push(...formattedSession);
     }
-
-    return sessions.map(([browser, session]) =>
-      this.generateSessionJson(browser, session),
-    );
+    return formattedSessions;
   };
 
   public complete = async (browser: BrowserInstance): Promise<void> => {
     const session = this.browsers.get(browser);
     if (!session) {
-      debug(`Couldn't locate session for browser, proceeding with close`);
+      this.debug(`Couldn't locate session for browser, proceeding with close`);
       return browser.close();
     }
 
@@ -195,17 +218,13 @@ export class BrowserManager {
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
   ): Promise<BrowserInstance> => {
     const { browser: Browser } = router;
-    const record = util.parseBooleanParam(
-      req.parsed.searchParams,
-      'record',
-      false,
-    );
-    const blockAds = util.parseBooleanParam(
+    const record = parseBooleanParam(req.parsed.searchParams, 'record', false);
+    const blockAds = parseBooleanParam(
       req.parsed.searchParams,
       'blockAds',
       false,
     );
-    const decodedLaunchOptions = util.convertIfBase64(
+    const decodedLaunchOptions = convertIfBase64(
       req.parsed.searchParams.get('launch') || '{}',
     );
     let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
@@ -219,11 +238,11 @@ export class BrowserManager {
       );
 
       if (browser) {
-        debug(`Located browser with ID ${id}`);
+        this.debug(`Located browser with ID ${id}`);
         return browser[0];
       }
 
-      throw new util.NotFound(
+      throw new NotFound(
         `Couldn't locate browser "${id}" for request "${req.parsed.pathname}"`,
       );
     }
@@ -231,15 +250,9 @@ export class BrowserManager {
     try {
       parsedLaunchOptions = JSON.parse(decodedLaunchOptions);
     } catch (err) {
-      throw new util.BadRequest(
+      throw new BadRequest(
         `Error parsing launch-options: ${err}. Launch options must be a JSON or base64-encoded JSON object`,
       );
-    }
-    const requestToken = util.getTokenFromRequest(req);
-    const token = this.config.getToken();
-
-    if (token && !requestToken) {
-      throw new util.ServerError(`Error locating authorization token`);
     }
 
     const routerOptions =
@@ -255,7 +268,7 @@ export class BrowserManager {
     const manualUserDataDir =
       launchOptions.args
         ?.find((arg) => arg.includes('--user-data-dir='))
-        ?.split('=')[2] || (launchOptions as CDPLaunchOptions).userDataDir;
+        ?.split('=')[1] || (launchOptions as CDPLaunchOptions).userDataDir;
 
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs
@@ -293,7 +306,7 @@ export class BrowserManager {
       isTempDataDir: !manualUserDataDir,
       launchOptions,
       numbConnected: 1,
-      resolver: util.noop,
+      resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
       ttl: 0,
@@ -307,14 +320,14 @@ export class BrowserManager {
 
     browser.on('newPage', async (page) => {
       await pageHook({ meta: req.parsed, page });
-      (router.onNewPage || util.noop)(req.parsed || '', page);
+      (router.onNewPage || noop)(req.parsed || '', page);
     });
 
     return browser;
   };
 
   public stop = async (): Promise<void> => {
-    debug(`Closing down browser instances`);
+    this.debug(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
     const timers = Array.from(this.timers);
@@ -323,6 +336,6 @@ export class BrowserManager {
     this.browsers = new Map();
     this.timers = new Map();
 
-    debug(`Shutdown complete`);
+    this.debug(`Shutdown complete`);
   };
 }

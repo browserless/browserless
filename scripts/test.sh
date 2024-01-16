@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Install devDependencies for tests
+# Install all dependencies for tests
 npm i --production=false
 
 # Setup env variables

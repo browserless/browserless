@@ -6,6 +6,9 @@ browser.json
 metrics.json
 extensions/ublock
 
+# npm pack
+browserless.io-browserless-*.tgz
+
 # MAC
 .DS_Store
 

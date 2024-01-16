@@ -1,36 +1,38 @@
-import { ServerResponse } from 'http';
-
-import { Page, Protocol } from 'puppeteer-core';
-
-import { CDPChromium } from '../../../browsers/cdp-chromium.js';
 import {
-  Request,
-  Methods,
-  HTTPRoutes,
-  contentTypes,
   APITags,
-  SystemQueryParameters,
-} from '../../../http.js';
-
-import {
-  bestAttempt,
+  BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  CDPChromium,
   CDPLaunchOptions,
-  debugScreenshotOpts,
+  HTTPRoutes,
   InBoundRequest,
+  Methods,
   OutBoundRequest,
-  rejectRequestPattern,
-  rejectResourceTypes,
-  requestInterceptors,
+  Request,
   ScrapeDebugOptions,
   ScrapeElementSelector,
+  SystemQueryParameters,
+  Timeout,
   UnwrapPromise,
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
-} from '../../../types.js';
-import * as util from '../../../utils.js';
+  bestAttempt,
+  bestAttemptCatch,
+  contentTypes,
+  debugScreenshotOpts,
+  dedent,
+  jsonResponse,
+  noop,
+  rejectRequestPattern,
+  rejectResourceTypes,
+  requestInterceptors,
+  waitForEvent as waitForEvt,
+  waitForFunction as waitForFn,
+} from '@browserless.io/browserless';
+import { Page, Protocol } from 'puppeteer-core';
+import { ServerResponse } from 'http';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -196,18 +198,21 @@ const scrape = async (elements: ScrapeElementSelector[]) => {
   });
 };
 
-const route: BrowserHTTPRoute = {
-  accepts: [contentTypes.json],
-  auth: true,
-  browser: CDPChromium,
-  concurrency: true,
-  contentTypes: [contentTypes.json],
-  description: util.dedent(`
+export default class ScrapePost extends BrowserHTTPRoute {
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = CDPChromium;
+  concurrency = true;
+  contentTypes = [contentTypes.json];
+  description = dedent(`
     A JSON-based API that returns text, html, and meta-data from a given list of selectors.
     Debugging information is available by sending in the appropriate flags in the "debugOpts"
     property. Responds with an array of JSON objects.
-  `),
-  handler: async (
+  `);
+  method = Methods.post;
+  path = HTTPRoutes.scrape;
+  tags = [APITags.browserAPI];
+  handler = async (
     req: Request,
     res: ServerResponse,
     browser: BrowserInstance,
@@ -218,7 +223,7 @@ const route: BrowserHTTPRoute = {
         : req.headers.accept;
 
     if (!req.body) {
-      throw new util.BadRequest(`Couldn't parse JSON body`);
+      throw new BadRequest(`Couldn't parse JSON body`);
     }
 
     res.setHeader('Content-Type', contentType);
@@ -251,9 +256,7 @@ const route: BrowserHTTPRoute = {
     const content = url || html;
 
     if (!content) {
-      throw new util.BadRequest(
-        `One of "url" or "html" properties are required.`,
-      );
+      throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -342,7 +345,7 @@ const route: BrowserHTTPRoute = {
     }
 
     const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      util.bestAttemptCatch(bestAttempt),
+      bestAttemptCatch(bestAttempt),
     );
 
     if (addStyleTag.length) {
@@ -360,26 +363,24 @@ const route: BrowserHTTPRoute = {
     if (waitForTimeout) {
       await page
         .waitForTimeout(waitForTimeout)
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForFunction) {
-      await util
-        .waitForFunction(page, waitForFunction)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForFn(page, waitForFunction).catch(
+        bestAttemptCatch(bestAttempt),
+      );
     }
 
     if (waitForSelector) {
       const { selector, hidden, timeout, visible } = waitForSelector;
       await page
         .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(util.bestAttemptCatch(bestAttempt));
+        .catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForEvent) {
-      await util
-        .waitForEvent(page, waitForEvent)
-        .catch(util.bestAttemptCatch(bestAttempt));
+      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
     }
 
     const headers = {
@@ -398,7 +399,7 @@ const route: BrowserHTTPRoute = {
 
     const data = await page.evaluate(scrape, elements).catch((e) => {
       if (e.message.includes('Timed out')) {
-        throw new util.Timeout(e);
+        throw new Timeout(e);
       }
       throw e;
     });
@@ -429,13 +430,8 @@ const route: BrowserHTTPRoute = {
       debug: debugData,
     };
 
-    page.close().catch(util.noop);
+    page.close().catch(noop);
 
-    return util.jsonResponse(res, 200, response, false);
-  },
-  method: Methods.post,
-  path: HTTPRoutes.scrape,
-  tags: [APITags.browserAPI],
-};
-
-export default route;
+    return jsonResponse(res, 200, response, false);
+  };
+}

@@ -1,44 +1,36 @@
-import { ServerResponse } from 'http';
-
 import {
-  contentTypes,
-  Methods,
-  HTTPManagementRoutes,
-  Request,
   APITags,
-} from '../../../http.js';
-
-import { HTTPRoute, IBrowserlessMetricTotals } from '../../../types.js';
-import * as util from '../../../utils.js';
+  HTTPManagementRoutes,
+  HTTPRoute,
+  IBrowserlessMetricTotals,
+  Methods,
+  Request,
+  contentTypes,
+  writeResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 export type ResponseSchema = IBrowserlessMetricTotals;
 
 const fiveMinuteIntervalsInAMonth = 8640;
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: true,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.json],
-  description: `Gets total metric details summed from the time the server started.`,
-  handler: async (_req: Request, res: ServerResponse): Promise<void> => {
-    const { _fileSystem, _config } = route;
-
-    if (!_fileSystem || !_config) {
-      throw new util.ServerError(
-        `Couldn't locate the file-system or config module`,
-      );
-    }
-
-    const fileSystem = _fileSystem();
-    const config = _config();
-
+export default class MetricsTotalGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = true;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.json];
+  description = `Gets total metric details summed from the time the server started.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.metricsTotal;
+  tags = [APITags.management];
+  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+    const fileSystem = this.fileSystem();
+    const config = this.config();
     const metrics = (await fileSystem.read(config.getMetricsJSONPath())).map(
       (m) => JSON.parse(m),
     );
     const availableMetrics = metrics.length;
-
     const totals: IBrowserlessMetricTotals = metrics.reduce(
       (accum, metric) => ({
         error: accum.error + metric.error,
@@ -81,16 +73,6 @@ const route: HTTPRoute = {
       totals.units / (availableMetrics / fiveMinuteIntervalsInAMonth),
     );
 
-    return util.writeResponse(
-      res,
-      200,
-      JSON.stringify(totals),
-      contentTypes.json,
-    );
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.metricsTotal,
-  tags: [APITags.management],
-};
-
-export default route;
+    return writeResponse(res, 200, JSON.stringify(totals), contentTypes.json);
+  };
+}

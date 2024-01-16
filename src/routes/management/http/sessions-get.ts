@@ -1,39 +1,31 @@
-import { ServerResponse } from 'http';
-
 import {
-  contentTypes,
-  Request,
-  Methods,
-  HTTPManagementRoutes,
   APITags,
-} from '../../../http.js';
-
-import { BrowserlessSessionJSON, HTTPRoute } from '../../../types.js';
-import * as util from '../../../utils.js';
+  BrowserlessSessionJSON,
+  HTTPManagementRoutes,
+  HTTPRoute,
+  Methods,
+  Request,
+  contentTypes,
+  jsonResponse,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
 
 export type ResponseSchema = BrowserlessSessionJSON[];
 
-const route: HTTPRoute = {
-  accepts: [contentTypes.any],
-  auth: true,
-  browser: null,
-  concurrency: false,
-  contentTypes: [contentTypes.json],
-  description: `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`,
-  handler: async (req: Request, res: ServerResponse): Promise<void> => {
-    const { _browserManager: browserManager } = route;
+export default class SessionsGetRoute extends HTTPRoute {
+  accepts = [contentTypes.any];
+  auth = true;
+  browser = null;
+  concurrency = false;
+  contentTypes = [contentTypes.json];
+  description = `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.sessions;
+  tags = [APITags.management];
+  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+    const browserManager = this.browserManager();
+    const response: ResponseSchema = await browserManager.getAllSessions();
 
-    if (!browserManager) {
-      throw new util.BadRequest(`Couldn't load browsers running`);
-    }
-
-    const response: ResponseSchema = await browserManager().getAllSessions(req);
-
-    return util.jsonResponse(res, 200, response);
-  },
-  method: Methods.get,
-  path: HTTPManagementRoutes.sessions,
-  tags: [APITags.management],
-};
-
-export default route;
+    return jsonResponse(res, 200, response);
+  };
+}

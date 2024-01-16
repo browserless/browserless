@@ -1,72 +1,57 @@
 {
-  "name": "browserless",
-  "version": "2.0.0",
+  "name": "@browserless.io/browserless",
+  "version": "2.0.0-beta-8",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
   "type": "module",
+  "types": "./src/exports.ts",
+  "main": "./build/exports.js",
+  "exports": {
+    ".": "./build/exports.js"
+  },
+  "bin": {
+    "browserless": "./bin/browserless.js"
+  },
   "scripts": {
-    "build": "npm run ts-gulp build",
-    "build:client": "npm run ts-gulp build:client",
-    "clean": "npm run ts-gulp clean",
-    "dev": "npm run ts-gulp build:dev && env-cmd -f ./.env npm run ts-gulp serve:dev",
-    "prettier": "npm run ts-gulp prettier",
+    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:openapi",
+    "build:dev": "npm run build && npm run build:function",
+    "build:function": "node scripts/build-function.js",
+    "build:schemas": "node scripts/build-schemas.js",
+    "build:openapi": "node scripts/build-open-api.js",
+    "build:selectors": "node scripts/build-selectors.js",
+    "build:ts": "tsc",
+    "clean": "node scripts/clean.js",
+    "dev": "npm run build:dev && env-cmd -f .env node build",
+    "install:adblock": "node scripts/install-adblock.js",
+    "install:browsers": "npx --yes playwright install chromium firefox webkit",
+    "install:cdp-json": "node scripts/install-cdp-json.js",
+    "install:dev": "npm run install:browsers && npm run install:cdp-json",
     "lint": "eslint . --ext .ts --fix",
-    "install:dev": "npm run ts-gulp install:dev",
-    "install:cdp-json": "npm run ts-gulp install:cdp-json",
-    "test": "cross-env DEBUG=quiet mocha",
-    "generate:schemas": "npm run ts-gulp generate:schemas",
-    "generate:selectors": "npm run ts-gulp generate:selectors",
-    "build:function": "npm run ts-gulp build:function",
-    "deploy": "sh ./scripts/deploy.sh",
-    "ts-gulp": "node --experimental-loader ts-node/esm --no-warnings node_modules/gulp/bin/gulp.js"
+    "prepack": "npm run build:dev",
+    "prettier": "prettier '{src,functions,scripts,bin,external,bin}/**/*.{js,ts,json}' --log-level error --write",
+    "test": "cross-env DEBUG=quiet mocha"
   },
-  "devDependencies": {
-    "@types/gulp-nodemon": "^0.0.37",
-    "@types/gulp-sourcemaps": "^0.0.38",
-    "@types/merge2": "^1.4.4",
-    "@types/chai": "^4.3.11",
-    "@types/debug": "^4.1.12",
-    "@types/gradient-string": "^1.1.5",
-    "@types/gulp": "^4.0.17",
-    "@types/http-proxy": "^1.17.14",
-    "@types/micromatch": "^4.0.6",
-    "@types/mocha": "^10.0.6",
-    "@types/node": "^20.10.5",
-    "@types/sinon": "^17.0.2",
-    "@typescript-eslint/eslint-plugin": "^6.16.0",
-    "@typescript-eslint/parser": "^6.16.0",
-    "assert": "^2.0.0",
-    "chai": "^4.3.6",
-    "cross-env": "^7.0.3",
-    "env-cmd": "^10.1.0",
-    "esbuild": "^0.19.10",
-    "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-typescript-sort-keys": "^3.1.0",
-    "extract-zip": "^2.0.1",
-    "gulp": "^4.0.2",
-    "gulp-nodemon": "^2.2.1",
-    "gulp-prettier": "^6.0.0",
-    "gulp-run-command": "^0.0.10",
-    "gulp-sourcemaps": "^3.0.0",
-    "gulp-typescript": "^6.0.0-alpha.1",
-    "marked": "^11.1.0",
-    "mocha": "^10.0.0",
-    "move-file": "^3.1.0",
-    "nodemon": "^3.0.2",
-    "prettier": "^3.1.1",
-    "sinon": "^17.0.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3",
-    "typescript-json-schema": "^0.62.0"
-  },
+  "files": [
+    "assets/*",
+    "bin/*",
+    "build/*",
+    "docker/*",
+    "extensions/*",
+    "external/*",
+    "fonts/*",
+    "scripts/*",
+    "src/*",
+    "static/*",
+    "browser.json",
+    "CHANGELOG.md",
+    "tsconfig.json"
+  ],
   "dependencies": {
     "debug": "^4.3.2",
     "del": "^7.0.0",
     "enjoi": "^9.0.1",
-    "file-type": "^18.7.0",
+    "file-type": "^19.0.0",
     "get-port": "^7.0.0",
     "gradient-string": "^2.0.0",
     "http-proxy": "^1.18.1",
@@ -77,7 +62,92 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.21.22"
+    "systeminformation": "^5.21.20"
+  },
+  "optionalDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/debug": "^4.1.12",
+    "@types/gradient-string": "^1.1.5",
+    "@types/http-proxy": "^1.17.14",
+    "@types/micromatch": "^4.0.6",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/sinon": "^17.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "assert": "^2.0.0",
+    "chai": "^5.0.0",
+    "cross-env": "^7.0.3",
+    "env-cmd": "^10.1.0",
+    "esbuild": "^0.19.11",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-typescript-sort-keys": "^3.1.0",
+    "extract-zip": "^2.0.1",
+    "marked": "^11.1.0",
+    "mocha": "^10.0.0",
+    "move-file": "^3.1.0",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.2.2",
+    "sinon": "^17.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "typescript-json-schema": "^0.62.0"
+  },
+  "eslintConfig": {
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint",
+      "typescript-sort-keys"
+    ],
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/eslint-recommended",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:typescript-sort-keys/recommended"
+    ],
+    "ignorePatterns": [
+      "node_modules/*",
+      "build/*",
+      ".DS_Store",
+      ".no-git/*",
+      "*.log"
+    ],
+    "rules": {
+      "sort-keys": [
+        "error",
+        "asc",
+        {
+          "caseSensitive": true,
+          "natural": false,
+          "minKeys": 2
+        }
+      ],
+      "semi": [
+        2,
+        "always"
+      ],
+      "no-async-promise-executor": 0,
+      "@typescript-eslint/ban-ts-comment": 0,
+      "@typescript-eslint/no-var-requires": 0,
+      "sort-imports": [
+        "error",
+        {
+          "ignoreCase": false,
+          "ignoreDeclarationSort": false,
+          "ignoreMemberSort": false,
+          "memberSyntaxSortOrder": [
+            "none",
+            "all",
+            "multiple",
+            "single"
+          ],
+          "allowSeparatedGroups": false
+        }
+      ]
+    }
   },
   "mocha": {
     "extension": [
@@ -87,18 +157,6 @@
     "spec": "src/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
-  },
-  "nodemonConfig": {
-    "ignoreRoot": [
-      ".git",
-      ".no-git"
-    ],
-    "watch": [
-      "src"
-    ],
-    "exec": "npx tsc && node ./build/index.js",
-    "ext": "ts json",
-    "signal": "SIGTERM"
   },
   "prettier": {
     "semi": true,

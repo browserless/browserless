@@ -1,6 +1,5 @@
+import { Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
-
-import { Metrics } from './metrics.js';
 
 describe('Metrics', () => {
   it('records successful sessions', () => {

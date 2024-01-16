@@ -29,7 +29,7 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
 RUN npx --yes playwright install chromium &&\
   npx --yes playwright install-deps chromium &&\
   npm run build &&\
-  npm run build:client &&\
+  npm run build:function &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
   fc-cache -f -v && \
@@ -37,4 +37,4 @@ RUN npx --yes playwright install chromium &&\
 
 USER blessuser
 
-CMD ["./start.sh"]
+CMD ["./scripts/start.sh"]

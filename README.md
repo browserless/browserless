@@ -8,14 +8,13 @@
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
 
 
-> [Looking for v1.x.x of browserless? Check it out here](https://github.com/browserless/chrome/tree/v1).
-> NOTE: Version 1 is the version we currently still have running on browserless' hosted services.
+> [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend migrating to v2.
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
 We take care of common issues such as missing system-fonts, missing external libraries, and performance improvements, along with edge-cases like downloading files and managing sessions. For details, check out the documentation site built into the project which includes Open API docs.
 
-If you've been struggling to deploy headless browsers without running into issues or bloated resource requirements, then Browserless was built for you. Run the browsers in [our cloud](https://browserless.io/) or your own, [free for non-commercial uses](https://github.com/browserless/browserless#licensing). 
+If you've been struggling to deploy headless browsers without running into issues or bloated resource requirements, then Browserless was built for you. Run the browsers in [our cloud](https://browserless.io/) or your own, [free for non-commercial uses](https://github.com/browserless/browserless#licensing).
 # Table of Contents
 
 1. [Features](#features)
@@ -24,8 +23,9 @@ If you've been struggling to deploy headless browsers without running into issue
 4. [Hosting](#hosting-providers)
 5. [Puppeteer](#puppeteer)
 6. [Playwright](#playwright)
-7. [Licensing](#licensing)
-8. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
+7. [Extending with NodeJS SDK](#extending-nodejs-skd)
+8. [Licensing](#licensing)
+9. [Changelog](https://github.com/browserless/chrome/blob/master/CHANGELOG.md)
 
 ## External links
 
@@ -101,6 +101,10 @@ const browser = await pw.chromium.connectOverCDP('ws://localhost:3000');
 ```
 
 After that, the rest of your code remains the same with no other changes required.
+
+# Extending (NodeJS SKD)
+
+Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
 
 # Usage with other libraries
 

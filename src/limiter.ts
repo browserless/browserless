@@ -1,14 +1,14 @@
+import {
+  AfterResponse,
+  Config,
+  Metrics,
+  Monitoring,
+  TooManyRequests,
+  WebHooks,
+  afterRequest,
+  createLogger,
+} from '@browserless.io/browserless';
 import q from 'queue';
-
-import { Config } from './config.js';
-import { afterRequest } from './hooks.js';
-import { Metrics } from './metrics.js';
-import { Monitoring } from './monitoring.js';
-import { AfterResponse } from './types.js';
-import { TooManyRequests, createLogger } from './utils.js';
-import { WebHooks } from './webhooks.js';
-
-const debug = createLogger('limiter');
 
 export type LimitFn<TArgs extends unknown[], TResult> = (
   ...args: TArgs
@@ -25,13 +25,14 @@ interface Job {
 }
 
 export class Limiter extends q {
-  private queued: number;
+  protected queued: number;
+  protected debug = createLogger('limiter');
 
   constructor(
-    private config: Config,
-    private metrics: Metrics,
-    private monitor: Monitoring,
-    private webhooks: WebHooks,
+    protected config: Config,
+    protected metrics: Metrics,
+    protected monitor: Monitoring,
+    protected webhooks: WebHooks,
   ) {
     super({
       autostart: true,
@@ -41,22 +42,22 @@ export class Limiter extends q {
 
     this.queued = config.getQueued();
 
-    debug(
+    this.debug(
       `Concurrency: ${this.concurrency} queue: ${this.queued} timeout: ${this.timeout}ms`,
     );
 
     config.on('concurrent', (concurrency: number) => {
-      debug(`Concurrency updated to ${concurrency}`);
+      this.debug(`Concurrency updated to ${concurrency}`);
       this.concurrency = concurrency;
     });
 
     config.on('queued', (queued: number) => {
-      debug(`Queue updated to ${queued}`);
+      this.debug(`Queue updated to ${queued}`);
       this.queued = queued;
     });
 
     config.on('timeout', (timeout: number) => {
-      debug(`Timeout updated to ${timeout}ms`);
+      this.debug(`Timeout updated to ${timeout}ms`);
       this.timeout = timeout <= 0 ? 0 : timeout;
     });
 
@@ -72,13 +73,13 @@ export class Limiter extends q {
     this.addEventListener('end', this.handleEnd);
   }
 
-  private handleEnd() {
+  protected handleEnd() {
     this.logQueue('All jobs complete.');
   }
 
-  private handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
+  protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
-    debug(
+    this.debug(
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
@@ -90,18 +91,18 @@ export class Limiter extends q {
     } as AfterResponse);
   }
 
-  private handleJobTimeout({
+  protected handleJobTimeout({
     detail: { next, job },
   }: {
     detail: { job: Job; next: Job };
   }) {
     const timeUsed = Date.now() - job.start;
-    debug(
+    this.debug(
       `Job has hit timeout after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addTimedout(Date.now() - job.start);
     this.webhooks.callTimeoutAlertURL();
-    debug(`Calling timeout handler`);
+    this.debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
     afterRequest({
       req: job.args[0],
@@ -112,12 +113,12 @@ export class Limiter extends q {
     next();
   }
 
-  private handleFail({
+  protected handleFail({
     detail: { error, job },
   }: {
     detail: { error: unknown; job: Job };
   }) {
-    debug(`Recording failed stat, cleaning up: "${error?.toString()}"`);
+    this.debug(`Recording failed stat, cleaning up: "${error?.toString()}"`);
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
     afterRequest({
@@ -127,8 +128,10 @@ export class Limiter extends q {
     } as AfterResponse);
   }
 
-  private logQueue(message: string) {
-    debug(`(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `);
+  protected logQueue(message: string) {
+    this.debug(
+      `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
+    );
   }
 
   get executing(): number {

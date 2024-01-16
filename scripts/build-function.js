@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+'use strict';
+
 import { build } from 'esbuild';
 import { polyfillNode } from 'esbuild-plugin-polyfill-node';
 

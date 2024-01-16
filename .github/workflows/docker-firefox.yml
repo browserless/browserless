@@ -15,4 +15,4 @@ jobs:
       run: docker build --build-arg VERSION=latest -f ./docker/firefox/Dockerfile -t ghcr.io/browserless/firefox:latest .
 
     - name: Test the Firefox image
-      run: docker run --ipc=host -e CI=true --entrypoint ./test.sh ghcr.io/browserless/firefox:latest
+      run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/firefox:latest

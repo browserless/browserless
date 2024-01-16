@@ -1,16 +1,15 @@
 {
   "compilerOptions": {
-    "rootDirs": ["./src"],
-    "outDir": "./build",
+    "rootDirs": ["src"],
+    "outDir": "build",
     "baseUrl": ".",
     "module": "es2022",
     "moduleResolution": "Node",
     "target": "es2022",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es2022"
-    ],
+    "paths": {
+      "@browserless.io/*": ["src/exports.ts"]
+    },
+    "lib": ["dom", "dom.iterable", "es2022"],
     "strict": true,
     "removeComments": false,
     "noImplicitAny": true,
@@ -25,7 +24,5 @@
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true
   },
-  "include": [
-    "./src/**/*"
-  ]
+  "include": ["./src/**/*"]
 }
