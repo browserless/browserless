@@ -144,7 +144,7 @@
             "multiple",
             "single"
           ],
-          "allowSeparatedGroups": false
+          "allowSeparatedGroups": true
         }
       ]
     }
