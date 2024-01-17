@@ -68,4 +68,28 @@ describe('Management APIs', function () {
       },
     );
   });
+
+  it('allows requests to /json/version', async () => {
+    await start();
+
+    await fetch('http://localhost:3000/json/version?token=6R0W53R135510').then(
+      async (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
+        expect(res.status).to.equal(200);
+
+        const data = await res.json();
+        expect(data).to.include.keys([
+          'Browser',
+          'Debugger-Version',
+          'Protocol-Version',
+          'User-Agent',
+          'V8-Version',
+          'WebKit-Version',
+          'webSocketDebuggerUrl',
+        ]);
+      },
+    );
+  });
 });
