@@ -31,7 +31,7 @@ If you've been struggling to deploy headless browsers without running into issue
 
 1. [Full documentation site](https://www.browserless.io/docs/start)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
-3. [Docker](https://github.com/browserless/chrome/pkgs/container/basic)
+3. [Docker](https://github.com/browserless/browserless/pkgs/container/base)
 4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
 
 # Features
@@ -57,7 +57,7 @@ You still execute the script itself which gives you total control over what libr
 
 1. `docker run -p 3000:3000 ghcr.io/browserless/chrome`
 2. Visit `http://localhost:3000/docs` to see the documentation site.
-3. See more at our [docker package](https://github.com/browserless/chrome/pkgs/container/basic).
+3. See more at our [docker package](https://github.com/browserless/browserless/pkgs/container/base).
 
 # Hosting Providers
 
