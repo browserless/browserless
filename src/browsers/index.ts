@@ -27,8 +27,6 @@ import path, { join } from 'path';
 import { deleteAsync } from 'del';
 import { mkdir } from 'fs/promises';
 
-import getPort from 'get-port';
-
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected launching: Map<string, Promise<unknown>> = new Map();
@@ -85,20 +83,18 @@ export class BrowserManager {
   };
 
   public getVersionJSON = async () => {
-    const port = await getPort();
-    const config = new Config();
-    config.setPort(port);
-
     const browser = new CDPChromium({
       blockAds: false,
-      config: config,
+      config: this.config,
       record: false,
       userDataDir: null,
     });
-    await browser.launch({
-      args: [`--remote-debugging-port=${port}`],
-    });
+    await browser.launch();
+    const wsEndpoint = browser.wsEndpoint();
+    if (!wsEndpoint)
+      throw new Error('There was an error launching the browser');
 
+    const port = new URL(wsEndpoint).port;
     const res = await fetch(`http://127.0.0.1:${port}/json/version`);
     const meta = await res.json();
 
