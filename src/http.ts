@@ -92,6 +92,7 @@ export enum HTTPRoutes {
   content = '/content',
   download = '/download',
   function = '/function',
+  jsonVersion = '/json/version',
   pdf = '/pdf',
   performance = '/performance',
   scrape = '/scrape',
@@ -100,7 +101,6 @@ export enum HTTPRoutes {
 
 export enum HTTPManagementRoutes {
   config = '/config',
-  jsonVersion = '/json/version',
   metrics = '/metrics',
   metricsTotal = '/metrics/total',
   sessions = '/sessions',

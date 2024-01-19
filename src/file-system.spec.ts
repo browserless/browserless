@@ -4,7 +4,7 @@ import { expect } from 'chai';
 
 const filePath = '/tmp/_browserless_test_fs_';
 
-describe.only('File-System', () => {
+describe('File-System', () => {
   afterEach(async () => unlink(filePath));
 
   it('saves and encodes files', async () => {

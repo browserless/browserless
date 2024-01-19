@@ -1,26 +1,18 @@
-import { ServerResponse } from 'http';
-
 import {
   APITags,
-  HTTPManagementRoutes,
+  BrowserManager,
+  HTTPRoutes,
+  HTTPRoute,
   Methods,
   Request,
+  Response,
+  UnwrapPromise,
   contentTypes,
-} from '../../../http.js';
+  jsonResponse,
+  writeResponse,
+} from '@browserless.io/browserless';
 
-import { HTTPRoute } from '../../../types.js';
-
-import * as util from '../../../utils.js';
-
-export type ResponseSchema = {
-  Browser: string;
-  'Debugger-Version': string;
-  'Protocol-Version': string;
-  'User-Agent': string;
-  'V8-Version': string;
-  'WebKit-Version': string;
-  webSocketDebuggerUrl: string;
-};
+export type ResponseSchema = UnwrapPromise<ReturnType<BrowserManager['getVersionJSON']>>;
 
 export default class GetJSONVersion extends HTTPRoute {
   accepts = [contentTypes.any];
@@ -30,30 +22,27 @@ export default class GetJSONVersion extends HTTPRoute {
   contentTypes = [contentTypes.json];
   description = `Returns a JSON payload that acts as a pass-through to the DevTools /json/version protocol in Chrome.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.jsonVersion;
-  tags = [APITags.management];
+  path = HTTPRoutes.jsonVersion;
+  tags = [APITags.browserAPI];
 
   private cachedJSON: ResponseSchema | undefined;
 
-  handler = async (req: Request, res: ServerResponse): Promise<void> => {
+  handler = async (req: Request, res: Response): Promise<void> => {
     const baseUrl = req.parsed.host;
     const protocol = req.parsed.protocol.includes('s') ? 'wss' : 'ws';
-
-    if (!this.browserManager()) {
-      throw new util.BadRequest(`Couldn't load browsers running`);
-    }
+    const browserManager = this.browserManager();
 
     try {
       if (!this.cachedJSON) {
         this.cachedJSON = {
-          ...(await this.browserManager().getVersionJSON()),
+          ...(await browserManager.getVersionJSON()),
           webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
         };
       }
 
-      return util.jsonResponse(res, 200, this.cachedJSON);
+      return jsonResponse(res, 200, this.cachedJSON);
     } catch (err) {
-      return util.writeResponse(
+      return writeResponse(
         res,
         500,
         'There was an error handling your request',

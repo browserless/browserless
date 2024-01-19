@@ -82,7 +82,15 @@ export class BrowserManager {
     return dataDirPath;
   };
 
-  public getVersionJSON = async () => {
+  public getVersionJSON = async (): Promise<{
+    Browser: string;
+    'Debugger-Version': string;
+    'Protocol-Version': string;
+    'User-Agent': string;
+    'V8-Version': string;
+    'WebKit-Version': string;
+    webSocketDebuggerUrl: string;
+  }> => {
     const browser = new CDPChromium({
       blockAds: false,
       config: this.config,
@@ -96,7 +104,7 @@ export class BrowserManager {
       throw new Error('There was an error launching the browser');
     }
 
-    const port = new URL(wsEndpoint).port;
+    const { port } = new URL(wsEndpoint);
     const res = await fetch(`http://127.0.0.1:${port}/json/version`);
     const meta = await res.json();
 
