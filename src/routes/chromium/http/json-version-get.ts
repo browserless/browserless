@@ -12,7 +12,9 @@ import {
   writeResponse,
 } from '@browserless.io/browserless';
 
-export type ResponseSchema = UnwrapPromise<ReturnType<BrowserManager['getVersionJSON']>>;
+export type ResponseSchema = UnwrapPromise<
+  ReturnType<BrowserManager['getVersionJSON']>
+>;
 
 export default class GetJSONVersion extends HTTPRoute {
   accepts = [contentTypes.any];

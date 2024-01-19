@@ -22,7 +22,9 @@ describe('/json/version API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/version?token=browserless');
+    const res = await fetch(
+      'http://localhost:3000/json/version?token=browserless',
+    );
     const resJSON = await res.json();
 
     [
@@ -42,7 +44,9 @@ describe('/json/version API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/version?token=imabadboi');
+    const res = await fetch(
+      'http://localhost:3000/json/version?token=imabadboi',
+    );
     expect(res.status).to.equal(401);
   });
 });

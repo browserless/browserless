@@ -116,7 +116,7 @@ export class BrowserManager {
     return {
       ...meta,
       'Debugger-Version': debuggerVersion,
-      webSocketDebuggerUrl: this.config.getExternalAddress(),
+      webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
     };
   };
 
