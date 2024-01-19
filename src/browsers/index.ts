@@ -91,8 +91,10 @@ export class BrowserManager {
     });
     await browser.launch();
     const wsEndpoint = browser.wsEndpoint();
-    if (!wsEndpoint)
+
+    if (!wsEndpoint) {
       throw new Error('There was an error launching the browser');
+    }
 
     const port = new URL(wsEndpoint).port;
     const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -101,12 +103,12 @@ export class BrowserManager {
     browser.close();
 
     const { 'WebKit-Version': webkitVersion } = meta;
-    delete meta.webSocketDebuggerUrl;
     const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
 
     return {
       ...meta,
       'Debugger-Version': debuggerVersion,
+      webSocketDebuggerUrl: this.config.getExternalAddress(),
     };
   };
 
