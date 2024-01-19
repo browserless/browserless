@@ -410,6 +410,23 @@ export class Config extends EventEmitter {
     this.external ?? this.getServerAddress();
 
   /**
+   * Returns the the fully-qualified WebSocket URL for the
+   * external address that browserless might be
+   * running behind *or* the server address if
+   * no external URL is provided.
+   *
+   * @returns {string} The URL to reach the server
+   */
+  public getExternalWebSocketAddress = (): string => {
+    const httpAddress = new URL(this.external ?? this.getServerAddress());
+    httpAddress.protocol = httpAddress.protocol.startsWith('https')
+      ? 'wss:'
+      : 'ws:';
+
+    return httpAddress.href;
+  };
+
+  /**
    * When CORS is enabled, returns relevant CORS headers
    * to requests and for the OPTIONS call. Values can be
    * overridden by specifying `CORS_ALLOW_METHODS`, `CORS_ALLOW_ORIGIN`,

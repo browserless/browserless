@@ -104,12 +104,11 @@ export class PlaywrightWebkit extends EventEmitter {
       return null;
     }
 
+    const serverURL = new URL(this.config.getExternalWebSocketAddress());
     const wsURL = new URL(this.browserWSEndpoint);
-    const serverURL = new URL(this.config.getExternalAddress());
-
     wsURL.hostname = serverURL.hostname;
     wsURL.port = serverURL.port;
-    wsURL.protocol = serverURL.protocol === 'https' ? 'wss' : 'ws';
+
     if (token) {
       wsURL.searchParams.set('token', token);
     }
