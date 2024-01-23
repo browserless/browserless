@@ -1,5 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.0.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v2.1.0...main)
 - Dependency updates.
+
+# [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
+- Dependency updates.
+- Name is now `@browserless.io/browserless` to reflect our npm package.
+- NEW: SDK is now live here: https://www.npmjs.com/package/@browserless.io/browserless.
+- Drops gulp and other gulp utilities in favor of our own. Move to modules in `scripts` dir.
+- Many private class properties now use `protected` so they can be referenced in SDK extensions.
+- Adds a `/json/version` route for older libraries that use it.
+- Merge startup/test scripts into `scripts` dir.
+- Moves installed browsers to `/usr/local/bin/playwright-browsers`.
+- Merge root files into package.json where possible.
+- README updates and fixes.
+- Numerous link and copyright fixes.
 
 # [v2.0.0](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
 browserless 2.0.0 represents the best body of work after running browserless for over 5 years. It contains mostly the same functionality and more, and is rebuilt to be more modular and offer a NodeJS SDK. It's also much lighter and faster than prior versions and includes a lot of semantic changes.
