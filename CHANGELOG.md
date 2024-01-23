@@ -1,5 +1,7 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.1.0...main)
 - Dependency updates.
+- Add `clean` command to `@browserless.io/browserless` CLI.
+- Only verify that internally managed browsers are installed when starting.
 
 # [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
 - Dependency updates.
