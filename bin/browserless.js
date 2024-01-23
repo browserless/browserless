@@ -22,9 +22,9 @@ const promptLog = debug('browserless.io:prompt');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];
 const subCMD = process.argv[3];
-const cwd = process.cwd();
-const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create', 'help'];
-const srcDir = path.join(cwd, 'build');
+const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create', 'help', 'clean'];
+const projectDir = process.cwd();
+const compiledDir = path.join(projectDir, 'build');
 const packageJSON = readFile(path.join(__dirname, '..', 'package.json')).then(
   (r) => JSON.parse(r.toString()),
 );
@@ -59,7 +59,7 @@ const importClassOverride = async (files, className) => {
     return;
   }
 
-  const classModuleFullFilePath = path.join(srcDir, classModuleFile);
+  const classModuleFullFilePath = path.join(compiledDir, classModuleFile);
 
   if (!classModuleFile) {
     return;
@@ -67,6 +67,11 @@ const importClassOverride = async (files, className) => {
   log(`Importing module override "${classModuleFullFilePath}"`);
   return (await import(classModuleFullFilePath)).default;
 };
+
+const clean = async() => fs.rm(path.join(compiledDir), {
+  force: true,
+  recursive: true,
+});
 
 const installDependencies = async (workingDirectory) =>
   new Promise((resolve, reject) => {
@@ -88,7 +93,7 @@ const buildDockerImage = async (cmd) => {
   new Promise((resolve, reject) => {
     const [docker, ...args] = cmd.split(' ');
     spawn(docker, args, {
-      cwd,
+      cwd: projectDir,
       stdio: 'inherit',
     }).once('close', (code) => {
       if (code === 0) {
@@ -105,7 +110,7 @@ const buildDockerImage = async (cmd) => {
 const buildTypeScript = async () =>
   new Promise((resolve, reject) => {
     spawn('npx', ['tsc', '--outDir', 'build'], {
-      cwd,
+      cwd: projectDir,
       stdio: 'inherit',
     }).once('close', (code) => {
       if (code === 0) {
@@ -118,16 +123,16 @@ const buildTypeScript = async () =>
   });
 
 const getSourceFiles = async () => {
-  const files = await fs.readdir(srcDir, { recursive: true });
+  const files = await fs.readdir(compiledDir, { recursive: true });
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
       const parsed = path.parse(file);
       if (parsed.name.endsWith('http')) {
-        httpRoutes.push(path.join(srcDir, file));
+        httpRoutes.push(path.join(compiledDir, file));
       }
 
       if (parsed.name.endsWith('ws')) {
-        webSocketRoutes.push(path.join(srcDir, file));
+        webSocketRoutes.push(path.join(compiledDir, file));
       }
 
       return [httpRoutes, webSocketRoutes];
@@ -177,6 +182,9 @@ const getArgSwitches = () => {
  * and validation. Doesn't start the HTTP server.
  */
 const build = async () => {
+  log(`Cleaning build directory`);
+  await clean();
+
   log(`Compiling TypeScript`);
   await buildTypeScript();
 
@@ -309,7 +317,7 @@ const start = async (dev = false) => {
 };
 
 const buildDocker = async () => {
-  const finalDockerPath = path.join(cwd, 'build', 'Dockerfile');
+  const finalDockerPath = path.join(projectDir, 'build', 'Dockerfile');
   const argSwitches = getArgSwitches();
 
   await build();
@@ -320,7 +328,7 @@ const buildDocker = async () => {
 
   log(`Generating Dockerfile at "${finalDockerPath}"`);
 
-  await fs.writeFile(path.join(cwd, 'build', 'Dockerfile'), dockerContents);
+  await fs.writeFile(path.join(projectDir, 'build', 'Dockerfile'), dockerContents);
 
   const from =
     argSwitches.from ||
@@ -391,7 +399,7 @@ const create = async () => {
     throw new Error(`Name must not include special characters.`);
   }
 
-  const installPath = path.join(cwd, directory);
+  const installPath = path.join(projectDir, directory);
   log(`Creating folder "${installPath}"...`);
   await fs.mkdir(installPath);
 
@@ -437,6 +445,15 @@ const help = () => {
         Description: Starts the HTTP server without building source.
           Useful for restarting a prior build, testing quickly, or
           running without packaging into a docker image.
+      `);
+        break;
+
+      case 'clean':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless clean
+
+        Description: Cleans the TypeScript generated JavaScript found
+          in the "build" directory and any other temporary assets.
       `);
         break;
 
@@ -492,6 +509,7 @@ const help = () => {
     Usage: npx @browserless.io/browserless [command] [arguments]
 
     Options:
+      clean     Removes build artifacts and other temporary directories.
       create    Creates a new scaffold project, installs dependencies, and exits.
       dev       Compiles TypeScript, generates build assets and starts the server.
       build     Compiles TypeScript, generates build assets and exits.
@@ -501,6 +519,10 @@ const help = () => {
 };
 
 switch (cmd) {
+  case 'clean':
+    clean();
+    break;
+
   case 'start':
     start(false);
     break;

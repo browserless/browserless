@@ -3,6 +3,7 @@ import {
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
+  CDPChromium,
   Config,
   FileSystem,
   HTTPRoute,
@@ -11,6 +12,9 @@ import {
   Limiter,
   Metrics,
   Monitoring,
+  PlaywrightChromium,
+  PlaywrightFirefox,
+  PlaywrightWebkit,
   Router,
   Token,
   WebHooks,
@@ -26,6 +30,7 @@ import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
+const internalBrowsers = [CDPChromium, PlaywrightFirefox, PlaywrightChromium, PlaywrightWebkit];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -254,11 +259,12 @@ export class Browserless {
       }
     }
 
-    // Validate that browsers are installed and route paths are unique
+    // Validate that we have the browsers they are asking for
     [...httpRoutes, ...wsRoutes].forEach((route) => {
       if (
         'browser' in route &&
         route.browser &&
+        internalBrowsers.includes(route.browser) &&
         !installedBrowsers.some((b) => b.name === route.browser?.name)
       ) {
         throw new Error(
