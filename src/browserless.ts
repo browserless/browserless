@@ -30,7 +30,6 @@ import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
-const internalBrowsers = [CDPChromium, PlaywrightFirefox, PlaywrightChromium, PlaywrightWebkit];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -163,6 +162,7 @@ export class Browserless {
   public async start() {
     const httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
     const wsRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
+    const internalBrowsers = [CDPChromium, PlaywrightFirefox, PlaywrightChromium, PlaywrightWebkit];
 
     const [[httpRouteFiles, wsRouteFiles], installedBrowsers] =
       await Promise.all([getRouteFiles(this.config), availableBrowsers]);
