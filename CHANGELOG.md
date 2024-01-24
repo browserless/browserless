@@ -1,6 +1,8 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.1.0...main)
 - Dependency updates.
 - Add `clean` command to `@browserless.io/browserless` CLI.
+- Adds support for `/json/list`, `/json/new` and `json/protocol` APIs (Chrome only).
+- Removes legacy `browser.json` files since browserless now generates those and caches when requested.
 - Only verify that internally managed browsers are installed when starting.
 
 # [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
