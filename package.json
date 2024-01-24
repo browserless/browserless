@@ -25,8 +25,7 @@
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
     "install:browsers": "npx --yes playwright install chromium firefox webkit",
-    "install:cdp-json": "node scripts/install-cdp-json.js",
-    "install:dev": "npm run install:browsers && npm run install:cdp-json",
+    "install:dev": "npm run install:browsers",
     "lint": "eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,bin}/**/*.{js,ts,json}' --log-level error --write",
@@ -43,7 +42,6 @@
     "scripts/*",
     "src/*",
     "static/*",
-    "browser.json",
     "CHANGELOG.md",
     "tsconfig.json"
   ],

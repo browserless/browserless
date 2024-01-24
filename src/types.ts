@@ -556,3 +556,41 @@ export interface IBrowserlessStats {
   unhealthy: number;
   units: number;
 }
+
+export interface CDPJSONPayload {
+  /**
+   * The description of the target. Generally the page's title.
+   */
+  description: string;
+
+  /**
+   * The fully-qualified URL of the Devtools inspector app.
+   */
+  devtoolsFrontendUrl: string;
+
+  /**
+   * A Unique Id for the underlying target.
+   */
+  id: string;
+
+  /**
+   * The title of the target. For pages this is the page's title.
+   */
+  title: string;
+
+  /**
+   * The type of target, generally "page" or "background_page".
+   */
+  type: string;
+
+  /**
+   * The current URL the target is consuming or visiting.
+   */
+  url: string;
+
+  /**
+   * The target or page's WebSocket Debugger URL. Primarily used for legacy
+   * libraries to connect and inspect or remote automate this target.
+   */
+  webSocketDebuggerUrl: string;
+}

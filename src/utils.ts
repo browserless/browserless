@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import {
+  BLESS_PAGE_IDENTIFIER,
   CDPChromium,
   Config,
   PlaywrightChromium,
@@ -51,6 +52,23 @@ export const jsonExtension = '.json';
 export const jsExtension = '.js';
 
 export const id = (): string => crypto.randomUUID();
+
+/**
+ * Generates a random, Chrome-compliant page ID with "BLESS"
+ * prepended. This prepended text signals to other parts of the
+ * system that this is a Browserless-created ID so it can be appropriately
+ * handled.
+ *
+ * @returns {string} A random Page ID
+ */
+export const pageID = (): string => {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const id = Array.from({ length: 32 - BLESS_PAGE_IDENTIFIER.length })
+    .map(() => chars[Math.floor(Math.random() * chars.length)])
+    .join('');
+
+  return `${BLESS_PAGE_IDENTIFIER}${id}`;
+};
 
 export const createLogger = (domain: string): debug.Debugger => {
   return debug(`browserless.io:${domain}`);
@@ -224,10 +242,14 @@ export const removeNullStringify = (
   json: unknown,
   allowNull = true,
 ): string => {
-  return JSON.stringify(json, (_key, value) => {
-    if (allowNull) return value;
-    if (value !== null) return value;
-  });
+  return JSON.stringify(
+    json,
+    (_key, value) => {
+      if (allowNull) return value;
+      if (value !== null) return value;
+    },
+    '  ',
+  );
 };
 
 export const jsonOrString = (maybeJson: string): unknown | string =>

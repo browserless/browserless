@@ -22,7 +22,15 @@ const promptLog = debug('browserless.io:prompt');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];
 const subCMD = process.argv[3];
-const allowedCMDs = ['build', 'dev', 'docker', 'start', 'create', 'help', 'clean'];
+const allowedCMDs = [
+  'build',
+  'dev',
+  'docker',
+  'start',
+  'create',
+  'help',
+  'clean',
+];
 const projectDir = process.cwd();
 const compiledDir = path.join(projectDir, 'build');
 const packageJSON = readFile(path.join(__dirname, '..', 'package.json')).then(
@@ -68,10 +76,11 @@ const importClassOverride = async (files, className) => {
   return (await import(classModuleFullFilePath)).default;
 };
 
-const clean = async() => fs.rm(path.join(compiledDir), {
-  force: true,
-  recursive: true,
-});
+const clean = async () =>
+  fs.rm(path.join(compiledDir), {
+    force: true,
+    recursive: true,
+  });
 
 const installDependencies = async (workingDirectory) =>
   new Promise((resolve, reject) => {
@@ -328,7 +337,10 @@ const buildDocker = async () => {
 
   log(`Generating Dockerfile at "${finalDockerPath}"`);
 
-  await fs.writeFile(path.join(projectDir, 'build', 'Dockerfile'), dockerContents);
+  await fs.writeFile(
+    path.join(projectDir, 'build', 'Dockerfile'),
+    dockerContents,
+  );
 
   const from =
     argSwitches.from ||

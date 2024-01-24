@@ -1,8 +1,8 @@
 import {
   APITags,
   BrowserManager,
-  HTTPRoutes,
   HTTPRoute,
+  HTTPRoutes,
   Methods,
   Request,
   Response,

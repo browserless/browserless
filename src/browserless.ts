@@ -162,7 +162,12 @@ export class Browserless {
   public async start() {
     const httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
     const wsRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
-    const internalBrowsers = [CDPChromium, PlaywrightFirefox, PlaywrightChromium, PlaywrightWebkit];
+    const internalBrowsers = [
+      CDPChromium,
+      PlaywrightFirefox,
+      PlaywrightChromium,
+      PlaywrightWebkit,
+    ];
 
     const [[httpRouteFiles, wsRouteFiles], installedBrowsers] =
       await Promise.all([getRouteFiles(this.config), availableBrowsers]);
