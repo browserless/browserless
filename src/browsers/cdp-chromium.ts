@@ -344,16 +344,14 @@ export class CDPChromium extends EventEmitter {
       }
       socket.once('close', resolve);
 
-      this.debug(
-        `Proxying ${req.parsed.href} to browser ${this.browserWSEndpoint}`,
-      );
-
       const [page] = await this.browser.pages();
       const pageLocation = `/devtools/page/${this.getPageId(page)}`;
 
       this.debug(`Proxying ${req.parsed.href} to page "${pageLocation}"`);
 
-      req.url = pageLocation;
+      const target = new URL(pageLocation, this.browserWSEndpoint).href;
+
+      req.url = '';
 
       this.proxy.ws(
         req,
@@ -361,7 +359,7 @@ export class CDPChromium extends EventEmitter {
         head,
         {
           changeOrigin: true,
-          target: this.browserWSEndpoint,
+          target,
         },
         (error) => {
           this.debug(`Error proxying session: ${error}`);

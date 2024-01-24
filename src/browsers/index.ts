@@ -82,6 +82,30 @@ export class BrowserManager {
     return dataDirPath;
   };
 
+  public getProtocolJSON = async (): Promise<object> => {
+    this.debug(`Launching Chrome to generate /json/protocol results`);
+    const browser = new CDPChromium({
+      blockAds: false,
+      config: this.config,
+      record: false,
+      userDataDir: null,
+    });
+    await browser.launch();
+    const wsEndpoint = browser.wsEndpoint();
+
+    if (!wsEndpoint) {
+      throw new Error('There was an error launching the browser');
+    }
+
+    const { port } = new URL(wsEndpoint);
+    const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
+    const protocolJSON = await res.json();
+
+    browser.close();
+
+    return protocolJSON;
+  };
+
   public getVersionJSON = async (): Promise<{
     Browser: string;
     'Debugger-Version': string;
@@ -91,6 +115,7 @@ export class BrowserManager {
     'WebKit-Version': string;
     webSocketDebuggerUrl: string;
   }> => {
+    this.debug(`Launching Chrome to generate /json/version results`);
     const browser = new CDPChromium({
       blockAds: false,
       config: this.config,

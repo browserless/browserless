@@ -2,7 +2,6 @@
 node_modules/
 build/
 external/*.js
-browser.json
 metrics.json
 extensions/ublock
 
