@@ -72,6 +72,14 @@
         "linux/arm64"
       ]
     },
+    "puppeteer-21.4.1": {
+      "puppeteer": "21.4.1",
+      "chromeRevision": "118.0.5993.70",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
     "puppeteer-21.9.0": {
       "puppeteer": "21.9.0",
       "chromeRevision": "121.0.6167.85",
@@ -114,6 +122,7 @@
   },
   "releaseVersions": [
     "puppeteer-21.9.0",
+    "puppeteer-21.4.1",
     "puppeteer-19.7.5",
     "puppeteer-16.2.0",
     "puppeteer-14.4.1",
