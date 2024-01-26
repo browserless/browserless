@@ -1,4 +1,4 @@
-FROM ubuntu:lunar
+FROM ubuntu:23.10
 
 ENV NODE_VERSION v18.19.0
 ENV NVM_DIR /usr/src/.nvm
