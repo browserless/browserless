@@ -1,4 +1,4 @@
-FROM ubuntu:23.10
+FROM ubuntu:22.04
 
 ENV NODE_VERSION v18.19.0
 ENV NVM_DIR /usr/src/.nvm
