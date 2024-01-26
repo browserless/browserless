@@ -72,17 +72,17 @@
         "linux/arm64"
       ]
     },
-    "puppeteer-21.7.0": {
-      "puppeteer": "21.7.0",
-      "chromeRevision": "119.0.6045.105",
+    "puppeteer-21.9.0": {
+      "puppeteer": "21.9.0",
+      "chromeRevision": "121.0.6167.85",
       "platforms": [
         "linux/amd64",
         "linux/arm64"
       ]
     },
     "chrome-stable": {
-      "puppeteer": "21.7.0",
-      "chromeRevision": "119.0.6045.105",
+      "puppeteer": "21.9.0",
+      "chromeRevision": "121.0.6167.85",
       "platforms": [
         "linux/amd64"
       ]
@@ -90,6 +90,7 @@
   },
   "playwrightVersions": {
     "default": "playwright-core",
+    "1.40": "playwright-1.40",
     "1.39": "playwright-1.39",
     "1.38": "playwright-1.38",
     "1.37": "playwright-1.37",
@@ -170,9 +171,10 @@
     "playwright-1.37": "npm:playwright-core@1.37.1",
     "playwright-1.38": "npm:playwright-core@1.38.1",
     "playwright-1.39": "npm:playwright-core@1.39.0",
-    "playwright-core": "^1.40.1",
+    "playwright-1.40": "npm:playwright-core@1.40.1",
+    "playwright-core": "^1.41.1",
     "prom-client": "^15.0.0",
-    "puppeteer": "21.7.0",
+    "puppeteer": "21.9.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^6.0.0",

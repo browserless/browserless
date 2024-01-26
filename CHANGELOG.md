@@ -1,5 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v1.61.0...master)
+# [Latest](https://github.com/browserless/chrome/compare/v1.61.1...master)
 - Dependency updates.
+
+# [v1.61.1](https://github.com/browserless/chrome/compare/v1.61.0...v1.61.1)
+- Dependency updates.
+- README fixes.
+- Update NodeJS to `v18.19.0`.
+- Drop support for puppeteer 1.20.0.
+- Support for puppeteer 21.9.0.
+- Support for playwright-core 1.41.1.
+- Fixes to the `keepalive` feature.
 
 # [v1.61.0](https://github.com/browserless/chrome/compare/v1.60.2...v1.61.0)
 - **FINAL of V1 for browserless/chrome. [See notes on V2 here](https://github.com/browserless/chrome/pull/3345)**
