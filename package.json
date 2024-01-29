@@ -83,7 +83,7 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-typescript-sort-keys": "^3.1.0",
     "extract-zip": "^2.0.1",
-    "marked": "^11.1.0",
+    "marked": "^11.2.0",
     "mocha": "^10.0.0",
     "move-file": "^3.1.0",
     "prettier": "^3.2.4",
