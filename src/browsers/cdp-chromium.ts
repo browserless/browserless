@@ -314,7 +314,7 @@ export class CDPChromium extends EventEmitter {
 
   public wsEndpoint = (): string | null => this.browserWSEndpoint;
 
-  public publicWSEndpoint = (token: string): string | null => {
+  public publicWSEndpoint = (token: string | null): string | null => {
     if (!this.browserWSEndpoint) {
       return null;
     }
