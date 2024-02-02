@@ -14,7 +14,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
 
-debug.enable('browserless*');
+if (typeof process.env.DEBUG === 'undefined') {
+  debug.enable('browserless*');
+}
 
 const log = debug('browserless.io:sdk:log');
 const promptLog = debug('browserless.io:prompt');
