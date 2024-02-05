@@ -338,6 +338,7 @@ export interface BrowserServerOptions {
   chromiumSandbox?: boolean;
   devtools?: boolean;
   downloadsPath?: string;
+  firefoxUserPrefs?: {[key: string]: string|number|boolean};
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
   proxy?: {
