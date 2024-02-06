@@ -362,8 +362,7 @@ export default class ScrapePost extends BrowserHTTPRoute {
     }
 
     if (waitForTimeout) {
-      await sleep(waitForTimeout)
-        .catch(bestAttemptCatch(bestAttempt));
+      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForFunction) {
