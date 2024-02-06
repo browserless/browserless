@@ -21,12 +21,14 @@ import {
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
+  sleep,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
   writeResponse,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
+import { Stream } from 'stream';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -50,7 +52,7 @@ export interface BodySchema {
   waitForEvent?: WaitForEventOptions;
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
-  waitForTimeout?: Parameters<Page['waitForTimeout']>[0];
+  waitForTimeout?: number;
 }
 
 export interface QuerySchema extends SystemQueryParameters {
@@ -111,9 +113,10 @@ export default class PDFPost extends BrowserHTTPRoute {
       setJavaScriptEnabled,
       userAgent,
       viewport,
+      waitForEvent,
       waitForFunction,
       waitForSelector,
-      waitForEvent,
+      waitForTimeout,
       bestAttempt = false,
     } = req.body as BodySchema;
 
@@ -196,6 +199,10 @@ export default class PDFPost extends BrowserHTTPRoute {
       bestAttemptCatch(bestAttempt),
     );
 
+    if (waitForTimeout) {
+      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+    }
+
     if (waitForFunction) {
       await waitForFn(page, waitForFunction).catch(
         bestAttemptCatch(bestAttempt),
@@ -227,11 +234,11 @@ export default class PDFPost extends BrowserHTTPRoute {
       }
     }
 
-    const pdfStream = await page.createPDFStream(options);
+    const pdfBuffer = await page.pdf(options);
+    const readStream = new Stream.PassThrough();
+    readStream.end(pdfBuffer);
 
-    await new Promise((resolve, reject) => {
-      return pdfStream.pipe(res).once('finish', resolve).once('error', reject);
-    });
+    await new Promise((r) => readStream.pipe(res).once('close', r));
 
     page.close().catch(noop);
   };

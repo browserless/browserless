@@ -28,10 +28,11 @@ import {
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
+  sleep,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
-import { Page, Protocol } from 'puppeteer-core';
+import { Cookie, Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 
 export interface BodySchema {
@@ -56,7 +57,7 @@ export interface BodySchema {
   waitForEvent?: WaitForEventOptions;
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
-  waitForTimeout?: Parameters<Page['waitForTimeout']>[0];
+  waitForTimeout?: number;
 }
 
 export type QuerySchema = SystemQueryParameters & {
@@ -135,7 +136,7 @@ export interface ResponseSchema {
     /**
      * List of cookies for the site or null
      */
-    cookies: Protocol.Network.Cookie[] | null;
+    cookies: Cookie[] | null;
 
     /**
      * The HTML string of the website or null
@@ -361,8 +362,7 @@ export default class ScrapePost extends BrowserHTTPRoute {
     }
 
     if (waitForTimeout) {
-      await page
-        .waitForTimeout(waitForTimeout)
+      await sleep(waitForTimeout)
         .catch(bestAttemptCatch(bestAttempt));
     }
 
