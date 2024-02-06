@@ -28,17 +28,16 @@ import {
 import { deleteAsync } from 'del';
 import path from 'path';
 
-const playwrightBrowserNames = [
-  PlaywrightChromium.name,
-  PlaywrightFirefox.name,
-  PlaywrightWebkit.name,
-];
-
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected launching: Map<string, Promise<unknown>> = new Map();
   protected timers: Map<string, number> = new Map();
   protected debug = createLogger('browser-manager');
+  protected playwrightBrowserNames = [
+    PlaywrightChromium.name,
+    PlaywrightFirefox.name,
+    PlaywrightWebkit.name,
+  ];
 
   constructor(protected config: Config) {}
 
@@ -276,7 +275,7 @@ export class BrowserManager {
     // unless it's playwright which takes care of its own data-dirs
     const userDataDir =
       manualUserDataDir ||
-      (!playwrightBrowserNames.includes(Browser.name)
+      (!this.playwrightBrowserNames.includes(Browser.name)
         ? await generateDataDir(undefined, this.config)
         : null);
 
