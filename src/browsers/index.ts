@@ -11,21 +11,28 @@ import {
   Config,
   HTTPManagementRoutes,
   NotFound,
+  PlaywrightChromium,
+  PlaywrightFirefox,
+  PlaywrightWebkit,
   Request,
-  ServerError,
   browserHook,
   convertIfBase64,
   createLogger,
   exists,
-  id,
+  generateDataDir,
   makeExternalURL,
   noop,
   pageHook,
   parseBooleanParam,
 } from '@browserless.io/browserless';
-import path, { join } from 'path';
 import { deleteAsync } from 'del';
-import { mkdir } from 'fs/promises';
+import path from 'path';
+
+const playwrightBrowserNames = [
+  PlaywrightChromium.name,
+  PlaywrightFirefox.name,
+  PlaywrightWebkit.name,
+];
 
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
@@ -44,42 +51,6 @@ export class BrowserManager {
         );
       });
     }
-  };
-
-  /**
-   * Generates a directory for the user-data-dir contents to be saved in. Uses
-   * the provided sessionId, or creates one when omitted,
-   * and appends it to the name of the directory. If the
-   * directory already exists then no action is taken, verified by run `stat`
-   *
-   * @param sessionId The ID of the session
-   * @returns Promise<string> of the fully-qualified path of the directory
-   */
-  protected generateDataDir = async (
-    sessionId: string = id(),
-  ): Promise<string> => {
-    const baseDirectory = await this.config.getDataDir();
-    const dataDirPath = join(
-      baseDirectory,
-      `browserless-data-dir-${sessionId}`,
-    );
-
-    if (await exists(dataDirPath)) {
-      this.debug(
-        `Data directory already exists, not creating "${dataDirPath}"`,
-      );
-      return dataDirPath;
-    }
-
-    this.debug(`Generating user-data-dir at ${dataDirPath}`);
-
-    await mkdir(dataDirPath, { recursive: true }).catch((err) => {
-      throw new ServerError(
-        `Error creating data-directory "${dataDirPath}": ${err}`,
-      );
-    });
-
-    return dataDirPath;
   };
 
   public getProtocolJSON = async (): Promise<object> => {
@@ -305,7 +276,9 @@ export class BrowserManager {
     // unless it's playwright which takes care of its own data-dirs
     const userDataDir =
       manualUserDataDir ||
-      (Browser.name === CDPChromium.name ? await this.generateDataDir() : null);
+      (!playwrightBrowserNames.includes(Browser.name)
+        ? await generateDataDir(undefined, this.config)
+        : null);
 
     const proxyServerArg = launchOptions.args?.find((arg) =>
       arg.includes('--proxy-server='),
