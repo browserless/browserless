@@ -323,7 +323,7 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   };
   devtools?: boolean;
   dumpio?: boolean;
-  headless?: boolean | 'new';
+  headless?: boolean | 'shell';
   ignoreDefaultArgs?: boolean | string[];
   ignoreHTTPSErrors?: boolean;
   slowMo?: number;
