@@ -21,6 +21,7 @@ import {
   rejectResourceTypes,
   requestInterceptors,
   setJavaScriptEnabled,
+  sleep,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
   writeResponse,
@@ -48,7 +49,7 @@ export interface BodySchema {
   waitForEvent?: WaitForEventOptions;
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
-  waitForTimeout?: Parameters<Page['waitForTimeout']>[0];
+  waitForTimeout?: number;
 }
 
 /**
@@ -190,9 +191,7 @@ export default class ContentPostRoute extends BrowserHTTPRoute {
     );
 
     if (waitForTimeout) {
-      await page
-        .waitForTimeout(waitForTimeout)
-        .catch(bestAttemptCatch(bestAttempt));
+      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
     }
 
     if (waitForFunction) {
