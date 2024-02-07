@@ -114,10 +114,10 @@ You may also optionally base64 encode these JSON stringified `launch` parameter 
 
 ### Headless flags:
 **Before**
-`ws://localhost:3000?token=ABCD&headless=new`
+`ws://localhost:3000?token=ABCD&headless=shell`
 
 **After**
-`ws://localhost:3000?token=ABCD&launch={"headless":"new"}`
+`ws://localhost:3000?token=ABCD&launch={"headless":"shell"}`
 
 # /function
 
