@@ -128,7 +128,7 @@ describe('WebSocket API', function () {
     expect(sessionsFinal).to.have.length(0);
   });
 
-  it.only('disconnects all clients when the timeout is reached', async () => {
+  it('disconnects all clients when the timeout is reached', async () => {
     const config = new Config();
     config.setToken('browserless');
     config.setTimeout(1000);
