@@ -1,8 +1,10 @@
 import {
   Browserless,
+  BrowserlessSessionJSON,
   Config,
   Metrics,
   exists,
+  fetchJson,
   sleep,
 } from '@browserless.io/browserless';
 import { chromium } from 'playwright-core';
@@ -83,6 +85,70 @@ describe('WebSocket API', function () {
     });
 
     await Promise.all([browser.disconnect(), browserTwo.disconnect()]);
+  });
+
+  it('does not close browsers when multiple clients are connected', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    // Single session
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+    });
+    const [session] = (await fetchJson(
+      'http://localhost:3000/sessions?token=browserless',
+    )) as BrowserlessSessionJSON[];
+    expect(session.numbConnected).to.equal(1);
+
+    // Two sessions
+    const browserTwo = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
+    });
+    const [twoSessions] = (await fetchJson(
+      'http://localhost:3000/sessions?token=browserless',
+    )) as BrowserlessSessionJSON[];
+    expect(twoSessions.numbConnected).to.equal(2);
+
+    // Back to a single session
+    await browser.disconnect();
+    await sleep(50);
+    const [oneSession] = (await fetchJson(
+      'http://localhost:3000/sessions?token=browserless',
+    )) as BrowserlessSessionJSON[];
+    expect(oneSession.numbConnected).to.equal(1);
+
+    // No sessions connected
+    await browserTwo.disconnect();
+    await sleep(50);
+    const sessionsFinal = (await fetchJson(
+      'http://localhost:3000/sessions?token=browserless',
+    )) as BrowserlessSessionJSON[];
+    expect(sessionsFinal).to.have.length(0);
+  });
+
+  it.only('disconnects all clients when the timeout is reached', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    config.setTimeout(1000);
+    config.setConcurrent(2);
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+    });
+    const [session] = (await fetchJson(
+      'http://localhost:3000/sessions?token=browserless',
+    )) as BrowserlessSessionJSON[];
+    const browserTwo = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
+    });
+    await sleep(3000);
+    expect(metrics.get().successful).to.equal(0);
+    expect(metrics.get().timedout).to.equal(2);
+    expect(browser.connected).to.be.false;
+    expect(browserTwo.connected).to.be.false;
   });
 
   it('rejects websocket requests', async () => {
@@ -261,13 +327,13 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?timeout=500&token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000?timeout=1000&token=browserless`,
     });
-
-    await sleep(750);
-    browser.disconnect();
+    expect(browser.connected).to.be.true;
+    await sleep(1200);
     expect(metrics.get().timedout).to.equal(1);
     expect(metrics.get().successful).to.equal(0);
+    expect(browser.connected).to.be.false;
   });
 
   it('allows the file-chooser', async () =>

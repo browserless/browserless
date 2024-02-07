@@ -365,6 +365,7 @@ export interface BrowserlessSession {
 
 export interface BrowserlessSessionJSON {
   browser: string;
+  browserId: string;
   id: string | null;
   initialConnectURL: string;
   killURL: string | null;

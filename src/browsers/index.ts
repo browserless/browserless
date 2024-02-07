@@ -125,7 +125,7 @@ export class BrowserManager {
       {
         ...session,
         browser: browser.constructor.name,
-        browserId: browser.wsEndpoint()?.split('/').pop(),
+        browserId: browser.wsEndpoint()?.split('/').pop() as string,
         initialConnectURL: new URL(session.initialConnectURL, serverAddress)
           .href,
         killURL: session.id
@@ -169,6 +169,11 @@ export class BrowserManager {
   ): Promise<void> => {
     const cleanupACtions: Array<() => Promise<void>> = [];
     this.debug(`${session.numbConnected} Client(s) are currently connected`);
+
+    // Don't close if there's clients still connected
+    if (session.numbConnected > 0) {
+      return;
+    }
 
     this.debug(`Closing browser session`);
     cleanupACtions.push(() => browser.close());
@@ -234,13 +239,15 @@ export class BrowserManager {
     if (req.parsed.pathname.includes('/devtools/browser')) {
       const sessions = Array.from(this.browsers);
       const id = req.parsed.pathname.split('/').pop() as string;
-      const browser = sessions.find(([b]) =>
+      const found = sessions.find(([b]) =>
         b.wsEndpoint()?.includes(req.parsed.pathname),
       );
 
-      if (browser) {
+      if (found) {
+        const [browser, session] = found;
+        ++session.numbConnected;
         this.debug(`Located browser with ID ${id}`);
-        return browser[0];
+        return browser;
       }
 
       throw new NotFound(
