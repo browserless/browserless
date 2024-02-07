@@ -303,6 +303,7 @@ export class CDPChromium extends EventEmitter {
       : puppeteer.launch.bind(puppeteer);
 
     this.debug(finalOptions, `Launching CDP Chrome Handler`);
+    // @ts-ignore mis-matched types from stealth...
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated);
     this.running = true;
