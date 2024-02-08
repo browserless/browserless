@@ -1,16 +1,8 @@
-// @todo figure out better types and handling here
 // @ts-ignore
-import afterRequest from '../external/after.js';
+export { default as beforeRequest } from '../external/before.js';
 // @ts-ignore
-import beforeRequest from '../external/before.js';
+export { default as afterRequest } from '../external/after.js';
 // @ts-ignore
-import browserHook from '../external/browser.js';
+export { default as pageHook } from '../external/page.js';
 // @ts-ignore
-import pageHook from '../external/page.js';
-
-export {
-  beforeRequest,
-  afterRequest,
-  pageHook,
-  browserHook,
-};
+export { default as browserHook } from '../external/browser.js';
