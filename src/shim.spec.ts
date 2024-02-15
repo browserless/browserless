@@ -19,17 +19,17 @@ describe('Request Shimming', () => {
       expect(decodeURIComponent(shimmed.href)).to.equal(final);
     });
 
-    it('converts headless new', () => {
-      const url = 'wss://localhost?headless=new';
-      const final = 'wss://localhost/?launch={"headless":"new"}';
+    it('converts headless shell', () => {
+      const url = 'wss://localhost?headless=shell';
+      const final = 'wss://localhost/?launch={"headless":"shell"}';
       const shimmed = shimLegacyRequests(new URL(url));
 
       expect(decodeURIComponent(shimmed.href)).to.equal(final);
     });
 
     it('does not convert headless options when already set in launch params', () => {
-      const url = 'wss://localhost?headless=false&launch={"headless":"new"}';
-      const final = 'wss://localhost/?launch={"headless":"new"}';
+      const url = 'wss://localhost?headless=false&launch={"headless":"shell"}';
+      const final = 'wss://localhost/?launch={"headless":"shell"}';
       const shimmed = shimLegacyRequests(new URL(url));
 
       expect(decodeURIComponent(shimmed.href)).to.equal(final);

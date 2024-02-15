@@ -323,7 +323,7 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   };
   devtools?: boolean;
   dumpio?: boolean;
-  headless?: boolean | 'new';
+  headless?: boolean | 'shell';
   ignoreDefaultArgs?: boolean | string[];
   ignoreHTTPSErrors?: boolean;
   slowMo?: number;
@@ -365,6 +365,7 @@ export interface BrowserlessSession {
 
 export interface BrowserlessSessionJSON {
   browser: string;
+  browserId: string;
   id: string | null;
   initialConnectURL: string;
   killURL: string | null;

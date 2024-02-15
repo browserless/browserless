@@ -1,7 +1,6 @@
 # Built Assets
 node_modules/
 build/
-external/*.js
 metrics.json
 extensions/ublock
 

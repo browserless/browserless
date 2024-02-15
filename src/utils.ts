@@ -255,6 +255,32 @@ export const removeNullStringify = (
 export const jsonOrString = (maybeJson: string): unknown | string =>
   safeParse(maybeJson) ?? maybeJson;
 
+export const generateDataDir = async (
+  sessionId: string = id(),
+  config: Config,
+): Promise<string> => {
+  const baseDirectory = await config.getDataDir();
+  const dataDirPath = path.join(
+    baseDirectory,
+    `browserless-data-dir-${sessionId}`,
+  );
+
+  if (await exists(dataDirPath)) {
+    debug(`Data directory already exists, not creating "${dataDirPath}"`);
+    return dataDirPath;
+  }
+
+  debug(`Generating user-data-dir at ${dataDirPath}`);
+
+  await fs.mkdir(dataDirPath, { recursive: true }).catch((err) => {
+    throw new ServerError(
+      `Error creating data-directory "${dataDirPath}": ${err}`,
+    );
+  });
+
+  return dataDirPath;
+};
+
 export const readBody = async (
   req: Request,
 ): Promise<ReturnType<typeof safeParse>> => {

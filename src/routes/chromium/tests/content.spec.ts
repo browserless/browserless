@@ -1,4 +1,4 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import { Browserless, Config, Metrics, sleep } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
 describe('/content API', function () {
@@ -41,6 +41,33 @@ describe('/content API', function () {
       );
       expect(res.status).to.equal(200);
     });
+  });
+
+  it('cancels request when they are closed early', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      url: 'https://cnn.com',
+    };
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const promise = fetch('http://localhost:3000/content', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+      signal,
+    }).catch(async (error) => {
+      await sleep(100);
+      expect(error).to.have.property('name', 'AbortError');
+      expect(metrics.get().error).to.equal(1);
+      expect(metrics.get().successful).to.equal(0);
+    });
+    await sleep(1000);
+    controller.abort();
+    return promise;
   });
 
   it('404s GET requests', async () => {

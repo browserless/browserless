@@ -80,17 +80,23 @@ export class Router {
         }
 
         if (!browser) {
-          return writeResponse(res, 500, `Error loading the browser.`);
-        }
-
-        if (!isConnected(res)) {
-          this.log(`HTTP Request has closed prior to running`);
-          return Promise.resolve();
+          return writeResponse(res, 500, `Error loading the browser`);
         }
 
         try {
           this.verbose(`Running found HTTP handler.`);
-          return await handler(req, res, browser);
+          return await Promise.race([
+            handler(req, res, browser),
+            new Promise((resolve, reject) => {
+              res.once('close', () => {
+                if (!res.writableEnded) {
+                  reject(new Error(`Request closed prior to writing results`));
+                }
+                this.verbose(`Response has been written, resolving`);
+                resolve(null);
+              });
+            }),
+          ]);
         } finally {
           this.verbose(`HTTP Request handler has finished.`);
           this.browserManager.complete(browser);

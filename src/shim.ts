@@ -36,7 +36,7 @@ export const shimLegacyRequests = (url: URL): URL => {
       typeof headless !== 'undefined' &&
       launchParams.headless === undefined
     ) {
-      launchParams.headless = headless === 'new' ? 'new' : headless !== 'false';
+      launchParams.headless = headless === 'shell' ? 'shell' : headless !== 'false';
     }
 
     if (typeof slowMo !== 'undefined' && launchParams.slowMo === undefined) {
