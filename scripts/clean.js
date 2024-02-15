@@ -3,5 +3,5 @@
 import { deleteAsync } from 'del';
 
 (async () => {
-  await deleteAsync(['build', 'static/function/*js*']);
+  await deleteAsync(['build', 'static/function/*js*', 'static/devtools*']);
 })();

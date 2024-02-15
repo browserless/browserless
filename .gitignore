@@ -18,6 +18,7 @@ browserless.io-browserless-*.tgz
 # Compiled Function Helper
 static/function/*js
 static/live/*js
+static/devtools/*
 
 # Swagger JSON
 static/docs/swagger.json
