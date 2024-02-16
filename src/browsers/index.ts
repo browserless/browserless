@@ -235,7 +235,7 @@ export class BrowserManager {
     );
     let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
 
-    // Handle re-connects here:
+    // Handle browser re-connects here
     if (req.parsed.pathname.includes('/devtools/browser')) {
       const sessions = Array.from(this.browsers);
       const id = req.parsed.pathname.split('/').pop() as string;
@@ -248,6 +248,43 @@ export class BrowserManager {
         ++session.numbConnected;
         this.debug(`Located browser with ID ${id}`);
         return browser;
+      }
+
+      throw new NotFound(
+        `Couldn't locate browser "${id}" for request "${req.parsed.pathname}"`,
+      );
+    }
+
+    // Handle page connections here
+    if (req.parsed.pathname.includes('/devtools/page')) {
+      const browsers = Array.from(this.browsers).map(([browser]) => browser);
+      const id = req.parsed.pathname.split('/').pop() as string;
+      const allPages = await Promise.all(
+        browsers
+          .filter((b) => !!b.wsEndpoint())
+          .map(async (browser) => {
+            const { port } = new URL(browser.wsEndpoint() as unknown as string);
+            const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+              headers: {
+                Host: '127.0.0.1',
+              },
+            }).catch(() => ({
+              json: () => Promise.resolve([]),
+              ok: false,
+            }));
+            if (response.ok) {
+              const body = await response.json();
+              // @ts-ignore
+              return body.map((b) => ({ ...b, browser }));
+            }
+            return null;
+          }),
+      );
+      const flattened = allPages.flat();
+      const found = flattened.find((b) => b.id === id);
+
+      if (found) {
+        return found.browser;
       }
 
       throw new NotFound(

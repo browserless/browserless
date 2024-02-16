@@ -1,4 +1,9 @@
-import { Browserless, Config, Metrics, sleep } from '@browserless.io/browserless';
+import {
+  Browserless,
+  Config,
+  Metrics,
+  sleep,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 
 describe('/content API', function () {
