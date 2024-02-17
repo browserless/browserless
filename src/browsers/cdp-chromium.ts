@@ -344,15 +344,12 @@ export class CDPChromium extends EventEmitter {
         );
       }
       socket.once('close', resolve);
-
-      const [page] = await this.browser.pages();
-      const pageLocation = `/devtools/page/${this.getPageId(page)}`;
-
-      this.debug(`Proxying ${req.parsed.href} to page "${pageLocation}"`);
-
-      const target = new URL(pageLocation, this.browserWSEndpoint).href;
-
+      this.debug(`Proxying ${req.parsed.href}`);
+      const target = new URL(req.parsed.pathname, this.browserWSEndpoint).href;
       req.url = '';
+
+      // Delete headers known to cause issues
+      delete req.headers.origin;
 
       this.proxy.ws(
         req,
