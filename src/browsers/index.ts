@@ -53,7 +53,7 @@ export class BrowserManager {
   };
 
   public getProtocolJSON = async (): Promise<object> => {
-    this.debug(`Launching Chrome to generate /json/protocol results`);
+    this.debug(`Launching Chromium to generate /json/protocol results`);
     const browser = new CDPChromium({
       blockAds: false,
       config: this.config,
@@ -85,7 +85,7 @@ export class BrowserManager {
     'WebKit-Version': string;
     webSocketDebuggerUrl: string;
   }> => {
-    this.debug(`Launching Chrome to generate /json/version results`);
+    this.debug(`Launching Chromium to generate /json/version results`);
     const browser = new CDPChromium({
       blockAds: false,
       config: this.config,

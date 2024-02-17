@@ -79,7 +79,7 @@ export class PlaywrightChromium extends EventEmitter {
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
-    this.debug(`Launching Chrome Handler`);
+    this.debug(`Launching Chromium Handler`);
 
     if (this.record) {
       throw new ServerError(`Recording is not yet available with this browser`);

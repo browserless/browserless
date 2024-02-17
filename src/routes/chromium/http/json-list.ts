@@ -12,7 +12,7 @@ import {
 import { getCDPJSONPayload } from '../utils/cdp.js';
 
 /*
-Example Payload from Chrome:
+Example Payload from Chromium:
   [{
     "description": "",
     "devtoolsFrontendUrl": "/devtools/inspector.html?ws=localhost:9222/devtools/page/6CA38A3E207BA534C674D1057B19E9CC",

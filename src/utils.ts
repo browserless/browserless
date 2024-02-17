@@ -54,7 +54,7 @@ export const jsExtension = '.js';
 export const id = (): string => crypto.randomUUID();
 
 /**
- * Generates a random, Chrome-compliant page ID with "BLESS"
+ * Generates a random, Chromium-compliant page ID with "BLESS"
  * prepended. This prepended text signals to other parts of the
  * system that this is a Browserless-created ID so it can be appropriately
  * handled.
@@ -419,10 +419,10 @@ export const availableBrowsers = Promise.all([
   exists(playwright.chromium.executablePath()),
   exists(playwright.firefox.executablePath()),
   exists(playwright.webkit.executablePath()),
-]).then(([chromeExists, firefoxExists, webkitExists]) => {
+]).then(([chromiumExists, firefoxExists, webkitExists]) => {
   const availableBrowsers = [];
 
-  if (chromeExists) {
+  if (chromiumExists) {
     availableBrowsers.push(...[CDPChromium, PlaywrightChromium]);
   }
 

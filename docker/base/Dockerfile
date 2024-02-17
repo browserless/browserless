@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-LABEL org.opencontainers.image.source https://github.com/browserless/chrome
+LABEL org.opencontainers.image.source https://github.com/browserless/browserless
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles

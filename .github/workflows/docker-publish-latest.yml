@@ -40,15 +40,15 @@ jobs:
             linux/amd64
             linux/arm64
 
-      - name: Publish the latest Chrome image
+      - name: Publish the latest Chromium image
         uses: docker/build-push-action@v5
         with:
           build-args: |
             VERSION=latest
           builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/chrome/Dockerfile
+          file: ./docker/chromium/Dockerfile
           tags: |
-            ghcr.io/browserless/chrome:latest
+            ghcr.io/browserless/chromium:latest
           context: .
           push: true
           platforms: |

@@ -19,7 +19,7 @@ export default class GetJSONVersion extends HTTPRoute {
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json];
-  description = `Returns Protocol JSON meta-data that Chrome comes with.`;
+  description = `Returns Protocol JSON meta-data that Chrome and Chromium come with.`;
   method = Methods.get;
   path = HTTPRoutes.jsonProtocol;
   tags = [APITags.browserAPI];

@@ -24,6 +24,6 @@ export default class CDPExistingBrowser extends BrowserWebsocketRoute {
     req: Request,
     socket: Duplex,
     head: Buffer,
-    chrome: CDPChromium,
-  ): Promise<void> => chrome.proxyWebSocket(req, socket, head);
+    browser: CDPChromium,
+  ): Promise<void> => browser.proxyWebSocket(req, socket, head);
 }

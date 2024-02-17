@@ -22,7 +22,7 @@ export default class GetJSONVersion extends HTTPRoute {
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json];
-  description = `Returns a JSON payload that acts as a pass-through to the DevTools /json/version protocol in Chrome.`;
+  description = `Returns a JSON payload that acts as a pass-through to the DevTools /json/version protocol in Chrome and Chromium.`;
   method = Methods.get;
   path = HTTPRoutes.jsonVersion;
   tags = [APITags.browserAPI];
