@@ -18,8 +18,7 @@ export default async ({
     const childPath = path.join(
       './',
       'build',
-      'routes',
-      'chromium',
+      'shared',
       'utils',
       'performance',
       'child.js',

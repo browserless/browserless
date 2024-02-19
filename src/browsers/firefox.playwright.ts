@@ -10,7 +10,7 @@ import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
 
-export class PlaywrightChromium extends EventEmitter {
+export class FirefoxPlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected record: boolean;
@@ -18,7 +18,7 @@ export class PlaywrightChromium extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:chromium');
+  protected debug = createLogger('browsers:playwright:firefox');
 
   constructor({
     config,
@@ -27,7 +27,7 @@ export class PlaywrightChromium extends EventEmitter {
   }: {
     config: Config;
     record: boolean;
-    userDataDir: PlaywrightChromium['userDataDir'];
+    userDataDir: FirefoxPlaywright['userDataDir'];
   }) {
     super();
 
@@ -63,43 +63,36 @@ export class PlaywrightChromium extends EventEmitter {
   };
 
   public makeLiveURL = (): void => {
-    throw new ServerError(
-      `Live URLs are not yet supported with this browser. In the future this will be at "${this.config.getExternalAddress()}"`,
-    );
+    throw new ServerError(`Live URLs are not yet supported with this browser.`);
   };
 
   public newPage = async (): Promise<Page> => {
-    if (!this.browser || !this.browserWSEndpoint) {
-      throw new ServerError(`Browser hasn't been launched yet!`);
-    }
-    const browser = await playwright.chromium.connect(this.browserWSEndpoint);
-    return await browser.newPage();
+    throw new ServerError(`Can't create new page with this browser`);
   };
 
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
-    this.debug(`Launching Chromium Handler`);
-
     if (this.record) {
       throw new ServerError(`Recording is not yet available with this browser`);
     }
 
-    this.browser = await playwright.chromium.launchServer({
+    this.debug(`Launching Firefox Handler`);
+
+    this.browser = await playwright.firefox.launchServer({
       ...options,
       args: [
-        `--no-sandbox`,
         ...(options.args || []),
-        this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
-      executablePath: playwright.chromium.executablePath(),
+      executablePath: playwright.firefox.executablePath(),
     });
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.debug(`Browser is running on ${browserWSEndpoint}`);
-    this.running = true;
     this.browserWSEndpoint = browserWSEndpoint;
+    this.running = true;
 
     return this.browser;
   };
@@ -113,7 +106,7 @@ export class PlaywrightChromium extends EventEmitter {
 
     const serverURL = new URL(this.config.getExternalWebSocketAddress());
     const wsURL = new URL(this.browserWSEndpoint);
-    wsURL.hostname = serverURL.hostname;
+    wsURL.host = serverURL.host;
     wsURL.port = serverURL.port;
 
     if (token) {

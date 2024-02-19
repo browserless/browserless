@@ -6,7 +6,7 @@ import {
 } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/content API', function () {
+describe('/chromium/content API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -30,7 +30,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -57,7 +57,7 @@ describe('/content API', function () {
     };
     const controller = new AbortController();
     const signal = controller.signal;
-    const promise = fetch('http://localhost:3000/content', {
+    const promise = fetch('http://localhost:3000/chromium/content', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -81,14 +81,14 @@ describe('/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/content?token=browserless').then(
-      (res) => {
-        expect(res.headers.get('content-type')).to.equal(
-          'text/plain; charset=UTF-8',
-        );
-        expect(res.status).not.to.equal(200);
-      },
-    );
+    await fetch(
+      'http://localhost:3000/chromium/content?token=browserless',
+    ).then((res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(res.status).not.to.equal(200);
+    });
   });
 
   it('handles `waitForFunction` properties', async () => {
@@ -103,7 +103,7 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -129,7 +129,7 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -155,7 +155,7 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -179,7 +179,7 @@ describe('/content API', function () {
       waitForTimeout: 500,
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -208,7 +208,7 @@ describe('/content API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -232,7 +232,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -255,13 +255,16 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/content?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -278,7 +281,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -311,7 +314,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -335,7 +338,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content?token=browserless', {
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -352,7 +355,7 @@ describe('/content API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/content', {
+    await fetch('http://localhost:3000/chromium/content', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

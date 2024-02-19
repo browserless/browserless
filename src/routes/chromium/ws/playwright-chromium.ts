@@ -3,7 +3,7 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
-  PlaywrightChromium,
+  ChromiumPlaywright,
   Request,
   SystemQueryParameters,
   WebsocketRoutes,
@@ -14,18 +14,21 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-export default class PlaywrightChromiumRoute extends BrowserWebsocketRoute {
+export default class ChromiumPlaywrightRoute extends BrowserWebsocketRoute {
   auth = true;
-  browser = PlaywrightChromium;
+  browser = ChromiumPlaywright;
   concurrency = true;
   description = `Connect to Chromium with any playwright style library.`;
-  path = WebsocketRoutes.playwrightChromium;
+  path = [
+    WebsocketRoutes.playwrightChromium,
+    WebsocketRoutes.chromiumPlaywright,
+  ];
   tags = [APITags.browserWS];
   handler = async (
     req: Request,
     socket: Duplex,
     head: Buffer,
-    browser: PlaywrightChromium,
+    browser: ChromiumPlaywright,
   ): Promise<void> => {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()

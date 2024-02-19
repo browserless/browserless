@@ -6,15 +6,19 @@ import {
   BrowserWebsocketRoute,
   BrowserlessSession,
   BrowserlessSessionJSON,
-  CDPChromium,
+  CDPJSONPayload,
   CDPLaunchOptions,
+  ChromeCDP,
+  ChromePlaywright,
+  ChromiumCDP,
+  ChromiumPlaywright,
   Config,
+  FirefoxPlaywright,
   HTTPManagementRoutes,
   NotFound,
-  PlaywrightChromium,
-  PlaywrightFirefox,
-  PlaywrightWebkit,
   Request,
+  WebkitPlaywright,
+  availableBrowsers,
   browserHook,
   convertIfBase64,
   createLogger,
@@ -33,10 +37,12 @@ export class BrowserManager {
   protected launching: Map<string, Promise<unknown>> = new Map();
   protected timers: Map<string, number> = new Map();
   protected debug = createLogger('browser-manager');
+  protected chromeBrowserNames = [ChromiumCDP.name, ChromeCDP.name];
   protected playwrightBrowserNames = [
-    PlaywrightChromium.name,
-    PlaywrightFirefox.name,
-    PlaywrightWebkit.name,
+    ChromiumPlaywright.name,
+    ChromePlaywright.name,
+    FirefoxPlaywright.name,
+    WebkitPlaywright.name,
   ];
 
   constructor(protected config: Config) {}
@@ -52,9 +58,20 @@ export class BrowserManager {
     }
   };
 
+  /**
+   * Returns the /json/protocol API contents from Chromium or Chrome, whichever is installed,
+   * and modifies URLs to set them to the appropriate addresses configured.
+   * When both Chrome and Chromium are installed, defaults to Chromium.
+   */
   public getProtocolJSON = async (): Promise<object> => {
-    this.debug(`Launching Chromium to generate /json/protocol results`);
-    const browser = new CDPChromium({
+    const browsers = await availableBrowsers;
+    const Browser = browsers.find((b) =>
+      this.chromeBrowserNames.includes(b.constructor.name),
+    );
+    if (!Browser) {
+      throw new Error(`No Chrome or Chromium browsers are installed!`);
+    }
+    const browser = new Browser({
       blockAds: false,
       config: this.config,
       record: false,
@@ -76,17 +93,21 @@ export class BrowserManager {
     return protocolJSON;
   };
 
-  public getVersionJSON = async (): Promise<{
-    Browser: string;
-    'Debugger-Version': string;
-    'Protocol-Version': string;
-    'User-Agent': string;
-    'V8-Version': string;
-    'WebKit-Version': string;
-    webSocketDebuggerUrl: string;
-  }> => {
+  /**
+   * Returns the /json/version API from Chromium or Chrome, whichever is installed,
+   * and modifies URLs to set them to the appropriate addresses configured.
+   * When both Chrome and Chromium are installed, defaults to Chromium.
+   */
+  public getVersionJSON = async (): Promise<CDPJSONPayload> => {
     this.debug(`Launching Chromium to generate /json/version results`);
-    const browser = new CDPChromium({
+    const browsers = await availableBrowsers;
+    const Browser = browsers.find((b) =>
+      this.chromeBrowserNames.includes(b.constructor.name),
+    );
+    if (!Browser) {
+      throw new Error(`No Chrome or Chromium browsers are installed!`);
+    }
+    const browser = new Browser({
       blockAds: false,
       config: this.config,
       record: false,
@@ -113,6 +134,73 @@ export class BrowserManager {
       'Debugger-Version': debuggerVersion,
       webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
     };
+  };
+
+  /**
+   * Returns a list of all Chrome-like browsers (both Chromium and Chrome) with
+   * their respective /json/list contents. URLs are modified so that subsequent
+   * calls can be forwarded to the appropriate destination
+   */
+  public getJSONList = async (): Promise<Array<CDPJSONPayload>> => {
+    const externalAddress = this.config.getExternalWebSocketAddress();
+    const externalURL = new URL(externalAddress);
+    const sessions = Array.from(this.browsers);
+
+    const cdpResponse = await Promise.all(
+      sessions.map(async ([browser]) => {
+        const wsEndpoint = browser.wsEndpoint();
+        if (
+          this.chromeBrowserNames.includes(browser.constructor.name) &&
+          wsEndpoint
+        ) {
+          const port = new URL(wsEndpoint).port;
+          const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
+            headers: {
+              Host: '127.0.0.1',
+            },
+          });
+          if (response.ok) {
+            const cdpJSON: Array<CDPJSONPayload> = await response.json();
+            return cdpJSON.map((c) => {
+              const webSocketDebuggerURL = new URL(c.webSocketDebuggerUrl);
+              const devtoolsFrontendURL = new URL(
+                c.devtoolsFrontendUrl,
+                externalAddress,
+              );
+              const wsQuery = devtoolsFrontendURL.searchParams.get('ws');
+
+              if (wsQuery) {
+                const paramName = externalURL.protocol.startsWith('wss')
+                  ? 'wss'
+                  : 'ws';
+                devtoolsFrontendURL.searchParams.set(
+                  paramName,
+                  path.join(
+                    webSocketDebuggerURL.host,
+                    webSocketDebuggerURL.pathname,
+                  ),
+                );
+              }
+
+              webSocketDebuggerURL.host = externalURL.host;
+              webSocketDebuggerURL.port = externalURL.port;
+              webSocketDebuggerURL.protocol = externalURL.protocol;
+
+              return {
+                ...c,
+                devtoolsFrontendUrl: devtoolsFrontendURL.href,
+                webSocketDebuggerUrl: webSocketDebuggerURL.href,
+              };
+            });
+          }
+        }
+        return null;
+      }),
+    );
+
+    return cdpResponse
+      .flat()
+      .filter((_) => _ !== null) as Array<CDPJSONPayload>;
   };
 
   private generateSessionJson = async (
@@ -142,7 +230,10 @@ export class BrowserManager {
     ];
 
     const wsEndpoint = browser.wsEndpoint();
-    if (browser.constructor.name === 'CDPChromium' && wsEndpoint) {
+    if (
+      browser.constructor.name === ChromiumCDP.constructor.name &&
+      wsEndpoint
+    ) {
       const port = new URL(wsEndpoint).port;
       const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
         headers: {

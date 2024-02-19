@@ -3,7 +3,7 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
-  PlaywrightFirefox,
+  FirefoxPlaywright,
   Request,
   SystemQueryParameters,
   WebsocketRoutes,
@@ -14,18 +14,18 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-export default class PlayWrightFirefoxRoute extends BrowserWebsocketRoute {
+export default class FirefoxPlayWrightRoute extends BrowserWebsocketRoute {
   auth = true;
-  browser = PlaywrightFirefox;
+  browser = FirefoxPlaywright;
   concurrency = true;
   description = `Connect to Firefox with any playwright-compliant library.`;
-  path = WebsocketRoutes.playwrightFirefox;
+  path = [WebsocketRoutes.playwrightFirefox, WebsocketRoutes.firefoxPlaywright];
   tags = [APITags.browserWS];
   handler = async (
     req: Request,
     socket: Duplex,
     head: Buffer,
-    browser: PlaywrightFirefox,
+    browser: FirefoxPlaywright,
   ): Promise<void> => {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()

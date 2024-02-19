@@ -1,14 +1,16 @@
 import * as fs from 'fs/promises';
 import {
   BLESS_PAGE_IDENTIFIER,
-  CDPChromium,
+  ChromeCDP,
+  ChromePlaywright,
+  ChromiumCDP,
+  ChromiumPlaywright,
   Config,
-  PlaywrightChromium,
-  PlaywrightFirefox,
-  PlaywrightWebkit,
+  FirefoxPlaywright,
   Request,
   WaitForEventOptions,
   WaitForFunctionOptions,
+  WebkitPlaywright,
   codes,
   contentTypes,
   encodings,
@@ -297,6 +299,17 @@ export const readBody = async (
     : body;
 };
 
+/**
+ * Lists the path of Chromes (stable) install since
+ * no library or utility out there does it including playwright.
+ */
+export const chromeExecutablePath =
+  process.platform === 'win32'
+    ? `%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe`
+    : process.platform === 'darwin'
+      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      : '/usr/bin/google-chrome-stable';
+
 export const getRouteFiles = async (config: Config): Promise<string[][]> => {
   const routes = config.getRoutes();
   const foundRoutes: string[] = await fs
@@ -310,13 +323,13 @@ export const getRouteFiles = async (config: Config): Promise<string[][]> => {
     .catch(() => []);
 
   const [httpRouteFolders, wsRouteFolders] = foundRoutes.reduce(
-    ([http, ws]: [string[], string[]], route) => {
-      if (route.endsWith('http')) {
-        http.push(route);
+    ([http, ws]: [string[], string[]], routePath) => {
+      if (routePath.endsWith('http')) {
+        http.push(routePath);
       }
 
-      if (route.endsWith('ws')) {
-        ws.push(route);
+      if (routePath.endsWith('ws')) {
+        ws.push(routePath);
       }
 
       return [http, ws];
@@ -419,19 +432,24 @@ export const availableBrowsers = Promise.all([
   exists(playwright.chromium.executablePath()),
   exists(playwright.firefox.executablePath()),
   exists(playwright.webkit.executablePath()),
-]).then(([chromiumExists, firefoxExists, webkitExists]) => {
+  exists(chromeExecutablePath),
+]).then(([chromiumExists, firefoxExists, webkitExists, chromeExists]) => {
   const availableBrowsers = [];
 
   if (chromiumExists) {
-    availableBrowsers.push(...[CDPChromium, PlaywrightChromium]);
+    availableBrowsers.push(...[ChromiumCDP, ChromiumPlaywright]);
+  }
+
+  if (chromeExists) {
+    availableBrowsers.push(ChromeCDP, ChromePlaywright);
   }
 
   if (firefoxExists) {
-    availableBrowsers.push(PlaywrightFirefox);
+    availableBrowsers.push(FirefoxPlaywright);
   }
 
   if (webkitExists) {
-    availableBrowsers.push(PlaywrightWebkit);
+    availableBrowsers.push(WebkitPlaywright);
   }
 
   return availableBrowsers;

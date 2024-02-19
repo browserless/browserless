@@ -10,7 +10,7 @@ import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
 
-export class PlaywrightFirefox extends EventEmitter {
+export class WebkitPlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected record: boolean;
@@ -18,7 +18,7 @@ export class PlaywrightFirefox extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:firefox');
+  protected debug = createLogger('browsers:playwright:webkit');
 
   constructor({
     config,
@@ -27,7 +27,7 @@ export class PlaywrightFirefox extends EventEmitter {
   }: {
     config: Config;
     record: boolean;
-    userDataDir: PlaywrightFirefox['userDataDir'];
+    userDataDir: WebkitPlaywright['userDataDir'];
   }) {
     super();
 
@@ -77,15 +77,15 @@ export class PlaywrightFirefox extends EventEmitter {
       throw new ServerError(`Recording is not yet available with this browser`);
     }
 
-    this.debug(`Launching Firefox Handler`);
+    this.debug(`Launching WebKit Handler`);
 
-    this.browser = await playwright.firefox.launchServer({
+    this.browser = await playwright.webkit.launchServer({
       ...options,
       args: [
         ...(options.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
-      executablePath: playwright.firefox.executablePath(),
+      executablePath: playwright.webkit.executablePath(),
     });
 
     const browserWSEndpoint = this.browser.wsEndpoint();
@@ -106,7 +106,7 @@ export class PlaywrightFirefox extends EventEmitter {
 
     const serverURL = new URL(this.config.getExternalWebSocketAddress());
     const wsURL = new URL(this.browserWSEndpoint);
-    wsURL.hostname = serverURL.hostname;
+    wsURL.host = serverURL.host;
     wsURL.port = serverURL.port;
 
     if (token) {

@@ -10,7 +10,7 @@ import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
 
-export class PlaywrightWebkit extends EventEmitter {
+export class ChromiumPlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected record: boolean;
@@ -18,7 +18,8 @@ export class PlaywrightWebkit extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:webkit');
+  protected debug = createLogger('browsers:playwright:chromium');
+  protected executablePath = playwright.chromium.executablePath();
 
   constructor({
     config,
@@ -27,7 +28,7 @@ export class PlaywrightWebkit extends EventEmitter {
   }: {
     config: Config;
     record: boolean;
-    userDataDir: PlaywrightWebkit['userDataDir'];
+    userDataDir: ChromiumPlaywright['userDataDir'];
   }) {
     super();
 
@@ -63,36 +64,43 @@ export class PlaywrightWebkit extends EventEmitter {
   };
 
   public makeLiveURL = (): void => {
-    throw new ServerError(`Live URLs are not yet supported with this browser.`);
+    throw new ServerError(
+      `Live URLs are not yet supported with this browser. In the future this will be at "${this.config.getExternalAddress()}"`,
+    );
   };
 
   public newPage = async (): Promise<Page> => {
-    throw new ServerError(`Can't create new page with this browser`);
+    if (!this.browser || !this.browserWSEndpoint) {
+      throw new ServerError(`Browser hasn't been launched yet!`);
+    }
+    const browser = await playwright.chromium.connect(this.browserWSEndpoint);
+    return await browser.newPage();
   };
 
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
+    this.debug(`Launching Chromium Handler`);
+
     if (this.record) {
       throw new ServerError(`Recording is not yet available with this browser`);
     }
 
-    this.debug(`Launching WebKit Handler`);
-
-    this.browser = await playwright.webkit.launchServer({
+    this.browser = await playwright.chromium.launchServer({
       ...options,
       args: [
+        `--no-sandbox`,
         ...(options.args || []),
-        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+        this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
-      executablePath: playwright.webkit.executablePath(),
+      executablePath: this.executablePath,
     });
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.debug(`Browser is running on ${browserWSEndpoint}`);
-    this.browserWSEndpoint = browserWSEndpoint;
     this.running = true;
+    this.browserWSEndpoint = browserWSEndpoint;
 
     return this.browser;
   };
@@ -106,7 +114,7 @@ export class PlaywrightWebkit extends EventEmitter {
 
     const serverURL = new URL(this.config.getExternalWebSocketAddress());
     const wsURL = new URL(this.browserWSEndpoint);
-    wsURL.hostname = serverURL.hostname;
+    wsURL.host = serverURL.host;
     wsURL.port = serverURL.port;
 
     if (token) {

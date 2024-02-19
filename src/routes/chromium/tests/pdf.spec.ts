@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/pdf API', function () {
+describe('/chromium/pdf API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -25,7 +25,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -47,12 +47,14 @@ describe('/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/pdf?token=browserless').then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/plain; charset=UTF-8',
-      );
-      expect(res.status).not.to.equal(200);
-    });
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless').then(
+      (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'text/plain; charset=UTF-8',
+        );
+        expect(res.status).not.to.equal(200);
+      },
+    );
   });
 
   it('handles `waitForFunction` properties', async () => {
@@ -67,7 +69,7 @@ describe('/pdf API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -91,7 +93,7 @@ describe('/pdf API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -115,7 +117,7 @@ describe('/pdf API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -142,7 +144,7 @@ describe('/pdf API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -164,7 +166,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -186,13 +188,16 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/pdf?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -210,7 +215,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -244,7 +249,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -268,7 +273,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -289,7 +294,7 @@ describe('/pdf API', function () {
       html: '<h1>Hello!</h1>',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -313,7 +318,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -339,7 +344,7 @@ describe('/pdf API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/pdf?token=browserless', {
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -357,7 +362,7 @@ describe('/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/pdf', {
+    await fetch('http://localhost:3000/chromium/pdf', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

@@ -12,7 +12,7 @@ import { deleteAsync } from 'del';
 import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
 
-describe('WebSocket API', function () {
+describe('Chromium WebSocket API', function () {
   // Server shutdown can take a few seconds
   // and so can these tests :/
   this.timeout(5000);
@@ -38,7 +38,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
     await browser.disconnect();
@@ -51,7 +51,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connectOverCDP(
-      `ws://localhost:3000?token=browserless`,
+      `ws://localhost:3000/chromium?token=browserless`,
     );
 
     await browser.close();
@@ -64,7 +64,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
     await browser.disconnect();
@@ -77,11 +77,11 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
     await Promise.all([browser.disconnect(), browserTwo.disconnect()]);
@@ -95,7 +95,7 @@ describe('WebSocket API', function () {
 
     // Single session
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
     const [session] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
@@ -104,7 +104,7 @@ describe('WebSocket API', function () {
 
     // Two sessions
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium/devtools/browser/${session.browserId}?token=browserless`,
     });
     const [twoSessions] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
@@ -136,13 +136,13 @@ describe('WebSocket API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
     const [session] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium/devtools/browser/${session.browserId}?token=browserless`,
     });
     await sleep(3000);
     expect(metrics.get().successful).to.equal(0);
@@ -159,7 +159,7 @@ describe('WebSocket API', function () {
 
     const didError = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://localhost:3000?token=bad`,
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=bad`,
       })
       .then(() => false)
       .catch(() => true);
@@ -175,7 +175,7 @@ describe('WebSocket API', function () {
 
     const didError = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
       })
       .then(async (b) => {
         const page = await b.newPage();
@@ -200,7 +200,7 @@ describe('WebSocket API', function () {
 
     const success = await puppeteer
       .connect({
-        browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${JSON.stringify(
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${JSON.stringify(
           args,
         )}`,
       })
@@ -222,7 +222,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
     const [{ userDataDir }] = await fetch(
@@ -247,7 +247,7 @@ describe('WebSocket API', function () {
     });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
     });
 
     const [{ userDataDir }] = await fetch(
@@ -274,7 +274,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
     });
 
     const [{ userDataDir }] = await fetch(
@@ -302,7 +302,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless&launch=${launch}`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
     });
 
     const [{ userDataDir }] = await fetch(
@@ -327,7 +327,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?timeout=1000&token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chromium?timeout=1000&token=browserless`,
     });
     expect(browser.connected).to.be.true;
     await sleep(1200);
@@ -344,7 +344,7 @@ describe('WebSocket API', function () {
       await start({ config, metrics });
       const job = async () => {
         const browser = await puppeteer.connect({
-          browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+          browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
         });
 
         const page = await browser.newPage();
@@ -377,7 +377,7 @@ describe('WebSocket API', function () {
 
     const job = async () => {
       const browser = await puppeteer.connect({
-        browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
       });
       await sleep(100);
 
@@ -403,7 +403,9 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     return puppeteer
-      .connect({ browserWSEndpoint: `ws://localhost:3000?token=browserless` })
+      .connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+      })
       .catch((error) => {
         const results = metrics.get();
         expect(results.successful).to.equal(0);
@@ -420,7 +422,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     return puppeteer
-      .connect({ browserWSEndpoint: `ws://localhost:3000` })
+      .connect({ browserWSEndpoint: `ws://localhost:3000/chromium` })
       .catch((error: Error) => {
         const results = metrics.get();
         expect(results.successful).to.equal(0);
@@ -437,7 +439,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connect(
-      `ws://localhost:3000/playwright/chromium?token=browserless`,
+      `ws://localhost:3000/chromium/playwright/chromium?token=browserless`,
     );
 
     await browser.close();
@@ -457,7 +459,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connectOverCDP(
-      `ws://localhost:3000?token=browserless`,
+      `ws://localhost:3000/chromium?token=browserless`,
     );
 
     await browser.close();
@@ -477,7 +479,7 @@ describe('WebSocket API', function () {
     await start({ config, metrics });
 
     await chromium
-      .connect(`ws://localhost:3000/playwright/chromium`)
+      .connect(`ws://localhost:3000/chromium/playwright/chromium`)
       .catch((e) => {
         const results = metrics.get();
         expect(e.message).to.include('Bad or missing authentication');
@@ -492,7 +494,7 @@ describe('WebSocket API', function () {
     await start();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000`,
+      browserWSEndpoint: `ws://localhost:3000/chromium`,
     });
 
     await browser.disconnect();

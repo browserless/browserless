@@ -23,7 +23,7 @@ import puppeteerStealth from 'puppeteer-extra';
 
 puppeteerStealth.use(StealthPlugin());
 
-export class CDPChromium extends EventEmitter {
+export class ChromiumCDP extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected record: boolean;
@@ -34,6 +34,7 @@ export class CDPChromium extends EventEmitter {
   protected port?: number;
   protected debug = createLogger('browsers:cdp:chromium');
   protected proxy = httpProxy.createProxyServer();
+  protected executablePath = playwright.chromium.executablePath();
 
   constructor({
     userDataDir,
@@ -44,7 +45,7 @@ export class CDPChromium extends EventEmitter {
     blockAds: boolean;
     config: Config;
     record: boolean;
-    userDataDir: CDPChromium['userDataDir'];
+    userDataDir: ChromiumCDP['userDataDir'];
   }) {
     super();
 
@@ -263,7 +264,7 @@ export class CDPChromium extends EventEmitter {
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
-      executablePath: playwright.chromium.executablePath(),
+      executablePath: this.executablePath,
     };
 
     if (this.record || this.blockAds) {
@@ -322,7 +323,7 @@ export class CDPChromium extends EventEmitter {
 
     const serverURL = new URL(this.config.getExternalWebSocketAddress());
     const wsURL = new URL(this.browserWSEndpoint);
-    wsURL.hostname = serverURL.hostname;
+    wsURL.host = serverURL.host;
     wsURL.port = serverURL.port;
 
     if (token) {

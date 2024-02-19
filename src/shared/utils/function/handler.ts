@@ -1,7 +1,7 @@
 import {
   BadRequest,
   BrowserInstance,
-  CDPChromium,
+  ChromiumCDP,
   Config,
   HTTPRoutes,
   Request,
@@ -76,7 +76,7 @@ export default (
 
     const functionCodeJS = `browserless-function-${id()}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<
-      ReturnType<CDPChromium['newPage']>
+      ReturnType<ChromiumCDP['newPage']>
     >;
     await page.setRequestInterception(true);
 

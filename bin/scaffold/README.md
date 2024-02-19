@@ -177,7 +177,7 @@ export default class HelloWorldRoute extends HTTPRoute {
 import {
   APITags,
   BrowserWebsocketRoute,
-  CDPChromium,
+  ChromiumCDP,
   CDPLaunchOptions,
   Request,
   SystemQueryParameters,
@@ -195,8 +195,8 @@ export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
   // This route requires a valid authorization token.
   auth = true;
 
-  // This route uses the built-in CDPChromium class (Chromium)
-  browser = CDPChromium;
+  // This route uses the built-in ChromiumCDP class (Chromium)
+  browser = ChromiumCDP;
 
   // This route is limited by the global concurrency limiter
   concurrency = true;
@@ -305,7 +305,7 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
   auth = true;
 
   // This route uses Chromium to process the PDF.
-  browser = CDPChromium;
+  browser = ChromiumCDP;
 
   // Generally, we recommend limiting concurrency when using
   // browser routing

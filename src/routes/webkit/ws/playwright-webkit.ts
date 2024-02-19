@@ -3,9 +3,9 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
-  PlaywrightWebkit,
   Request,
   SystemQueryParameters,
+  WebkitPlaywright,
   WebsocketRoutes,
 } from '@browserless.io/browserless';
 import { Duplex } from 'stream';
@@ -14,18 +14,18 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-export default class PlaywrightWebkitRoute extends BrowserWebsocketRoute {
+export default class WebkitPlaywrightRoute extends BrowserWebsocketRoute {
   auth = true;
-  browser = PlaywrightWebkit;
+  browser = WebkitPlaywright;
   concurrency = true;
   description = `Connect to Webkit with any playwright-compliant library.`;
-  path = WebsocketRoutes.playwrightWebkit;
+  path = [WebsocketRoutes.playwrightWebkit, WebsocketRoutes.webkitPlaywright];
   tags = [APITags.browserWS];
   handler = async (
     req: Request,
     socket: Duplex,
     head: Buffer,
-    browser: PlaywrightWebkit,
+    browser: WebkitPlaywright,
   ): Promise<void> => {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()

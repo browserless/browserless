@@ -3,22 +3,22 @@ import {
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
-  CDPChromium,
+  ChromiumCDP,
+  ChromiumPlaywright,
   Config,
   FileSystem,
+  FirefoxPlaywright,
   HTTPRoute,
   HTTPServer,
   IBrowserlessStats,
   Limiter,
   Metrics,
   Monitoring,
-  PlaywrightChromium,
-  PlaywrightFirefox,
-  PlaywrightWebkit,
   Router,
   Token,
   WebHooks,
   WebSocketRoute,
+  WebkitPlaywright,
   availableBrowsers,
   createLogger,
   getRouteFiles,
@@ -163,10 +163,10 @@ export class Browserless {
     const httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
     const wsRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
     const internalBrowsers = [
-      CDPChromium,
-      PlaywrightFirefox,
-      PlaywrightChromium,
-      PlaywrightWebkit,
+      ChromiumCDP,
+      FirefoxPlaywright,
+      ChromiumPlaywright,
+      WebkitPlaywright,
     ];
 
     const [[httpRouteFiles, wsRouteFiles], installedBrowsers] =
