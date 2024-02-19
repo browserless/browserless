@@ -55,6 +55,21 @@ jobs:
             linux/amd64
             linux/arm64
 
+      - name: Publish the latest Chrome image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/chrome/Dockerfile
+          tags: |
+            ghcr.io/browserless/chrome:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
       - name: Publish the latest FireFox image
         uses: docker/build-push-action@v5
         with:

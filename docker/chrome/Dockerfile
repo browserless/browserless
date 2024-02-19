@@ -4,10 +4,13 @@ LABEL org.opencontainers.image.source https://github.com/browserless/browserless
 
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
+RUN rm -r src/routes/
+COPY src/routes/management src/routes/management/
+COPY src/routes/chrome src/routes/chrome/
 
-RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
-  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
+  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-get -y -qq --no-install-recommends install \
     fontconfig \
     fonts-freefont-ttf \
@@ -23,13 +26,13 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN npx --yes playwright install chromium firefox webkit chrome &&\
-  npx --yes playwright install-deps chromium firefox webkit chrome &&\
+RUN npx --yes playwright install chrome &&\
+  npx --yes playwright install-deps chrome &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
-  fc-cache -f -v &&\
+  fc-cache -f -v && \
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 
 USER blessuser
