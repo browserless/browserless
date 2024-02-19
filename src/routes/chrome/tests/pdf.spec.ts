@@ -36,9 +36,7 @@ describe('/chrome/pdf API', function () {
       expect(res.headers.get('x-response-url')).to.not.be.undefined;
       expect(res.headers.get('x-response-ip')).to.not.be.undefined;
       expect(res.headers.get('x-response-por')).to.not.be.undefined;
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -78,9 +76,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -104,9 +100,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -130,9 +124,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -159,9 +151,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -183,9 +173,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -268,9 +256,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -294,9 +280,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -317,9 +301,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -343,9 +325,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -371,9 +351,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });
@@ -395,9 +373,7 @@ describe('/chrome/pdf API', function () {
       expect(res.headers.get('x-response-url')).to.not.be.undefined;
       expect(res.headers.get('x-response-ip')).to.not.be.undefined;
       expect(res.headers.get('x-response-por')).to.not.be.undefined;
-      expect(res.headers.get('content-type')).to.equal(
-        'application/chrome/pdf',
-      );
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
   });

@@ -1,6 +1,7 @@
+import { chromeExecutablePath, createLogger } from '@browserless.io/browserless';
 import { ChromiumPlaywright } from './chromium.playwright.js';
-import { chromeExecutablePath } from '@browserless.io/browserless';
 
 export class ChromePlaywright extends ChromiumPlaywright {
   protected executablePath = chromeExecutablePath;
+  protected debug = createLogger('browsers:chrome:playwright');
 }

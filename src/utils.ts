@@ -437,7 +437,7 @@ export const availableBrowsers = Promise.all([
   const availableBrowsers = [];
 
   if (chromiumExists) {
-    availableBrowsers.push(...[ChromiumCDP, ChromiumPlaywright]);
+    availableBrowsers.push(ChromiumCDP, ChromiumPlaywright);
   }
 
   if (chromeExists) {

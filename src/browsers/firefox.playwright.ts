@@ -18,7 +18,7 @@ export class FirefoxPlaywright extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:firefox');
+  protected debug = createLogger('browsers:firefox:playwright');
 
   constructor({
     config,
@@ -77,7 +77,7 @@ export class FirefoxPlaywright extends EventEmitter {
       throw new ServerError(`Recording is not yet available with this browser`);
     }
 
-    this.debug(`Launching Firefox Handler`);
+    this.debug(`Launching Playwright Handler`);
 
     this.browser = await playwright.firefox.launchServer({
       ...options,

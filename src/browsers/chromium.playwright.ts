@@ -18,7 +18,7 @@ export class ChromiumPlaywright extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:chromium');
+  protected debug = createLogger('browsers:chromium:playwright');
   protected executablePath = playwright.chromium.executablePath();
 
   constructor({
@@ -80,7 +80,7 @@ export class ChromiumPlaywright extends EventEmitter {
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
-    this.debug(`Launching Chromium Handler`);
+    this.debug(`Launching Playwright Handler`);
 
     if (this.record) {
       throw new ServerError(`Recording is not yet available with this browser`);

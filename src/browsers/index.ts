@@ -17,6 +17,7 @@ import {
   HTTPManagementRoutes,
   NotFound,
   Request,
+  ServerError,
   WebkitPlaywright,
   availableBrowsers,
   browserHook,
@@ -37,7 +38,7 @@ export class BrowserManager {
   protected launching: Map<string, Promise<unknown>> = new Map();
   protected timers: Map<string, number> = new Map();
   protected debug = createLogger('browser-manager');
-  protected chromeBrowserNames = [ChromiumCDP.name, ChromeCDP.name];
+  protected chromeBrowsers = [ChromiumCDP, ChromeCDP];
   protected playwrightBrowserNames = [
     ChromiumPlaywright.name,
     ChromePlaywright.name,
@@ -66,7 +67,7 @@ export class BrowserManager {
   public getProtocolJSON = async (): Promise<object> => {
     const browsers = await availableBrowsers;
     const Browser = browsers.find((b) =>
-      this.chromeBrowserNames.includes(b.constructor.name),
+      this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
     );
     if (!Browser) {
       throw new Error(`No Chrome or Chromium browsers are installed!`);
@@ -102,10 +103,11 @@ export class BrowserManager {
     this.debug(`Launching Chromium to generate /json/version results`);
     const browsers = await availableBrowsers;
     const Browser = browsers.find((b) =>
-      this.chromeBrowserNames.includes(b.constructor.name),
+      this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
     );
+
     if (!Browser) {
-      throw new Error(`No Chrome or Chromium browsers are installed!`);
+      throw new ServerError(`No Chrome or Chromium browsers are installed!`);
     }
     const browser = new Browser({
       blockAds: false,
@@ -117,7 +119,7 @@ export class BrowserManager {
     const wsEndpoint = browser.wsEndpoint();
 
     if (!wsEndpoint) {
-      throw new Error('There was an error launching the browser');
+      throw new ServerError('There was an error launching the browser');
     }
 
     const { port } = new URL(wsEndpoint);
@@ -145,14 +147,15 @@ export class BrowserManager {
     const externalAddress = this.config.getExternalWebSocketAddress();
     const externalURL = new URL(externalAddress);
     const sessions = Array.from(this.browsers);
+    const browsers = await availableBrowsers;
 
     const cdpResponse = await Promise.all(
       sessions.map(async ([browser]) => {
         const wsEndpoint = browser.wsEndpoint();
-        if (
-          this.chromeBrowserNames.includes(browser.constructor.name) &&
-          wsEndpoint
-        ) {
+        const Browser = browsers.find((b) =>
+          this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
+        );
+        if (Browser && wsEndpoint) {
           const port = new URL(wsEndpoint).port;
           const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
             headers: {

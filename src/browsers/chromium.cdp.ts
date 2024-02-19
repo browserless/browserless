@@ -32,7 +32,7 @@ export class ChromiumCDP extends EventEmitter {
   protected browser: Browser | null = null;
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
-  protected debug = createLogger('browsers:cdp:chromium');
+  protected debug = createLogger('browsers:chromium:cdp');
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
 
@@ -303,7 +303,7 @@ export class ChromiumCDP extends EventEmitter {
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
-    this.debug(finalOptions, `Launching CDP Chromium Handler`);
+    this.debug(finalOptions, `Launching CDP Handler`);
     // @ts-ignore mis-matched types from stealth...
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated);

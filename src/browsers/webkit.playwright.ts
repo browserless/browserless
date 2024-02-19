@@ -18,7 +18,7 @@ export class WebkitPlaywright extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:playwright:webkit');
+  protected debug = createLogger('browsers:webkit:playwright');
 
   constructor({
     config,
@@ -77,7 +77,7 @@ export class WebkitPlaywright extends EventEmitter {
       throw new ServerError(`Recording is not yet available with this browser`);
     }
 
-    this.debug(`Launching WebKit Handler`);
+    this.debug(`Launching Playwright Handler`);
 
     this.browser = await playwright.webkit.launchServer({
       ...options,
