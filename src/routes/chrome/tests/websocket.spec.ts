@@ -97,6 +97,7 @@ describe('Chrome WebSocket API', function () {
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
     });
+    await sleep(100);
     const [session] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
@@ -106,6 +107,7 @@ describe('Chrome WebSocket API', function () {
     const browserTwo = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
     });
+    await sleep(100);
     const [twoSessions] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
@@ -113,7 +115,7 @@ describe('Chrome WebSocket API', function () {
 
     // Back to a single session
     await browser.disconnect();
-    await sleep(50);
+    await sleep(100);
     const [oneSession] = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
@@ -121,7 +123,7 @@ describe('Chrome WebSocket API', function () {
 
     // No sessions connected
     await browserTwo.disconnect();
-    await sleep(50);
+    await sleep(100);
     const sessionsFinal = (await fetchJson(
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
