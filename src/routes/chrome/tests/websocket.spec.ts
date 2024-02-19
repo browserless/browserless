@@ -12,7 +12,7 @@ import { deleteAsync } from 'del';
 import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
 
-describe('WebSocket API', function () {
+describe('Chrome WebSocket API', function () {
   // Server shutdown can take a few seconds
   // and so can these tests :/
   this.timeout(5000);
