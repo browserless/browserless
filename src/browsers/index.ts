@@ -234,7 +234,8 @@ export class BrowserManager {
 
     const wsEndpoint = browser.wsEndpoint();
     if (
-      browser.constructor.name === ChromiumCDP.constructor.name &&
+      (browser.constructor.name === ChromiumCDP.constructor.name ||
+        browser.constructor.name === ChromeCDP.constructor.name) &&
       wsEndpoint
     ) {
       const port = new URL(wsEndpoint).port;
