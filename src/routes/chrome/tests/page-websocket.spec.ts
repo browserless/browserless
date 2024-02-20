@@ -53,9 +53,12 @@ describe('WebSocket Page API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const { webSocketDebuggerUrl } = await fetch('http://localhost:3000/json/new', {
-      method: 'PUT',
-    }).then((r) => r.json());
+    const { webSocketDebuggerUrl } = await fetch(
+      'http://localhost:3000/json/new',
+      {
+        method: 'PUT',
+      },
+    ).then((r) => r.json());
 
     // Connect to raw page target
     const cdp = new Connection(
