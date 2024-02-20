@@ -92,7 +92,7 @@ describe('Chromium WebSocket API', function () {
 
     // Two sessions
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chromium/devtools/browser/${session.browserId}?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
     });
     await sleep(100);
     const [twoSessions] = (await fetchJson(
@@ -131,7 +131,7 @@ describe('Chromium WebSocket API', function () {
       'http://localhost:3000/sessions?token=browserless',
     )) as BrowserlessSessionJSON[];
     const browserTwo = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chromium/devtools/browser/${session.browserId}?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/devtools/browser/${session.browserId}?token=browserless`,
     });
     await sleep(3000);
     expect(metrics.get().successful).to.equal(0);
