@@ -196,7 +196,7 @@ describe('Chrome WebSocket API', function () {
       .then(async (b) => {
         const page = await b.newPage();
         await page.close();
-        await b.close();
+        b.close();
         return true;
       })
       .catch(() => false);
