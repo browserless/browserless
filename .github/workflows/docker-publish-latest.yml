@@ -68,7 +68,6 @@ jobs:
           push: true
           platforms: |
             linux/amd64
-            linux/arm64
 
       - name: Publish the latest FireFox image
         uses: docker/build-push-action@v5

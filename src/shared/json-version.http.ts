@@ -17,6 +17,8 @@ export type ResponseSchema = UnwrapPromise<
 >;
 
 export default class GetJSONVersion extends HTTPRoute {
+  private cachedJSON: ResponseSchema | undefined;
+
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
@@ -27,21 +29,18 @@ export default class GetJSONVersion extends HTTPRoute {
   path = HTTPRoutes.jsonVersion;
   tags = [APITags.browserAPI];
 
-  private cachedJSON: ResponseSchema | undefined;
-
   handler = async (req: Request, res: Response): Promise<void> => {
     const baseUrl = req.parsed.host;
     const protocol = req.parsed.protocol.includes('s') ? 'wss' : 'ws';
-    const browserManager = this.browserManager();
 
     try {
       if (!this.cachedJSON) {
+        const browserManager = this.browserManager();
         this.cachedJSON = {
           ...(await browserManager.getVersionJSON()),
           webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
         };
       }
-
       return jsonResponse(res, 200, this.cachedJSON);
     } catch (err) {
       return writeResponse(

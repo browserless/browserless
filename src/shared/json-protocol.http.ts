@@ -9,11 +9,11 @@ import {
   jsonResponse,
 } from '@browserless.io/browserless';
 
-// @TODO Figure out how to parse the Protocol JSON into a TS definition
-// for our openapi docs.
 export type ResponseSchema = object;
 
 export default class GetJSONVersion extends HTTPRoute {
+  private cachedProtocol: object | undefined;
+
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
@@ -23,8 +23,6 @@ export default class GetJSONVersion extends HTTPRoute {
   method = Methods.get;
   path = HTTPRoutes.jsonProtocol;
   tags = [APITags.browserAPI];
-
-  private cachedProtocol: object | undefined;
 
   handler = async (_req: Request, res: Response): Promise<void> => {
     const browserManager = this.browserManager();

@@ -48,6 +48,27 @@ describe('WebSocket Page API', function () {
     expect(result);
   });
 
+  it('creates pages when interacting with /json/new', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const { webSocketDebuggerUrl } = await fetch('http://localhost:3000/json/new', {
+      method: 'PUT',
+    }).then((r) => r.json());
+
+    // Connect to raw page target
+    const cdp = new Connection(
+      webSocketDebuggerUrl,
+      await NodeWebSocketTransport.create(webSocketDebuggerUrl),
+    );
+
+    // Send a command
+    const result = await cdp.send('Page.enable');
+    cdp.dispose();
+    expect(result);
+  });
+
   it('rejects unauthorized page requests', async () => {
     const config = new Config();
     config.setToken('browserless');

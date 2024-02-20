@@ -1,4 +1,5 @@
 import {
+  BLESS_PAGE_IDENTIFIER,
   CDPLaunchOptions,
   Config,
   Request,
@@ -346,7 +347,11 @@ export class ChromiumCDP extends EventEmitter {
       }
       socket.once('close', resolve);
       this.debug(`Proxying ${req.parsed.href}`);
-      const target = new URL(req.parsed.pathname, this.browserWSEndpoint).href;
+
+      const shouldMakePage = req.parsed.pathname.includes(BLESS_PAGE_IDENTIFIER);
+      const page = shouldMakePage ? await this.browser.newPage() : null;
+      const pathname = page ? path.join('/devtools', '/page', this.getPageId(page)) : req.parsed.pathname;
+      const target = new URL(pathname, this.browserWSEndpoint).href;
       req.url = '';
 
       // Delete headers known to cause issues
