@@ -179,6 +179,9 @@ describe('Chrome WebSocket API', function () {
   });
 
   it('runs with ignored arguments', async () => {
+    // Chrome can take a while on stable with
+    // ignored arguments
+    this.timeout(10000);
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();

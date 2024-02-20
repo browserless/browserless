@@ -428,7 +428,7 @@ describe('Chromium WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connect(
-      `ws://localhost:3000/chromium/playwright/chromium?token=browserless`,
+      `ws://localhost:3000/chromium/playwright?token=browserless`,
     );
 
     await browser.close();
@@ -468,7 +468,7 @@ describe('Chromium WebSocket API', function () {
     await start({ config, metrics });
 
     await chromium
-      .connect(`ws://localhost:3000/chromium/playwright/chromium`)
+      .connect(`ws://localhost:3000/chromium/playwright`)
       .catch((e) => {
         const results = metrics.get();
         expect(e.message).to.include('Bad or missing authentication');
