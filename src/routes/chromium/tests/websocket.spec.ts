@@ -41,10 +41,10 @@ describe('Chromium WebSocket API', function () {
       browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
     });
 
-    await browser.disconnect();
+    await browser.close();
   });
 
-  it('runs chromium CDP requests', async () => {
+  it('runs chromium Playwright-CDP requests', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
@@ -55,19 +55,6 @@ describe('Chromium WebSocket API', function () {
     );
 
     await browser.close();
-  });
-
-  it('runs chromium websocket requests', async () => {
-    const config = new Config();
-    config.setToken('browserless');
-    const metrics = new Metrics();
-    await start({ config, metrics });
-
-    const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
-    });
-
-    await browser.disconnect();
   });
 
   it('runs multiple websocket requests', async () => {

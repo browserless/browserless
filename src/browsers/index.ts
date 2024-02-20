@@ -48,6 +48,9 @@ export class BrowserManager {
 
   constructor(protected config: Config) {}
 
+  private browserIsChromeLike = (b: BrowserInstance) =>
+    this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser);
+
   protected removeUserDataDir = async (userDataDir: string | null) => {
     if (userDataDir && (await exists(userDataDir))) {
       this.debug(`Deleting data directory "${userDataDir}"`);
@@ -67,7 +70,7 @@ export class BrowserManager {
   public getProtocolJSON = async (): Promise<object> => {
     const browsers = await availableBrowsers;
     const Browser = browsers.find((b) =>
-      this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
+      this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser),
     );
     if (!Browser) {
       throw new Error(`No Chrome or Chromium browsers are installed!`);
@@ -103,7 +106,7 @@ export class BrowserManager {
     this.debug(`Launching Chromium to generate /json/version results`);
     const browsers = await availableBrowsers;
     const Browser = browsers.find((b) =>
-      this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
+      this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser),
     );
 
     if (!Browser) {
@@ -147,15 +150,12 @@ export class BrowserManager {
     const externalAddress = this.config.getExternalWebSocketAddress();
     const externalURL = new URL(externalAddress);
     const sessions = Array.from(this.browsers);
-    const browsers = await availableBrowsers;
 
     const cdpResponse = await Promise.all(
       sessions.map(async ([browser]) => {
         const wsEndpoint = browser.wsEndpoint();
-        const Browser = browsers.find((b) =>
-          this.chromeBrowsers.some((chromeBrowser) => chromeBrowser === b),
-        );
-        if (Browser && wsEndpoint) {
+        const isChromeLike = this.browserIsChromeLike(browser);
+        if (isChromeLike && wsEndpoint) {
           const port = new URL(wsEndpoint).port;
           const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
             headers: {
@@ -233,11 +233,7 @@ export class BrowserManager {
     ];
 
     const wsEndpoint = browser.wsEndpoint();
-    if (
-      (browser.constructor.name === ChromiumCDP.constructor.name ||
-        browser.constructor.name === ChromeCDP.constructor.name) &&
-      wsEndpoint
-    ) {
+    if (this.browserIsChromeLike(browser) && wsEndpoint) {
       const port = new URL(wsEndpoint).port;
       const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
         headers: {

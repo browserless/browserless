@@ -28,7 +28,7 @@ describe('WebSocket Page API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000`,
+      browserWSEndpoint: `ws://localhost:3000/chrome`,
     });
     const page = await browser.newPage();
     await page.goto('https://example.com/');
@@ -55,7 +55,7 @@ describe('WebSocket Page API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
     });
     const page = await browser.newPage();
     await page.goto('https://example.com/');
@@ -83,7 +83,7 @@ describe('WebSocket Page API', function () {
     await start({ config, metrics });
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
     });
     const page = await browser.newPage();
     await page.goto('https://example.com/');

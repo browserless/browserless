@@ -41,10 +41,10 @@ describe('Chrome WebSocket API', function () {
       browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
     });
 
-    await browser.disconnect();
+    await browser.close();
   });
 
-  it('runs chrome CDP requests', async () => {
+  it('runs chrome Playwright-CDP requests', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
@@ -55,19 +55,6 @@ describe('Chrome WebSocket API', function () {
     );
 
     await browser.close();
-  });
-
-  it('runs chrome websocket requests', async () => {
-    const config = new Config();
-    config.setToken('browserless');
-    const metrics = new Metrics();
-    await start({ config, metrics });
-
-    const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
-    });
-
-    await browser.disconnect();
   });
 
   it('runs multiple websocket requests', async () => {
@@ -84,7 +71,7 @@ describe('Chrome WebSocket API', function () {
       browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless`,
     });
 
-    await Promise.all([browser.disconnect(), browserTwo.disconnect()]);
+    await Promise.all([browser.close(), browserTwo.close()]);
   });
 
   it('does not close browsers when multiple clients are connected', async () => {
@@ -209,7 +196,7 @@ describe('Chrome WebSocket API', function () {
       .then(async (b) => {
         const page = await b.newPage();
         await page.close();
-        await b.disconnect();
+        await b.close();
         return true;
       })
       .catch(() => false);
