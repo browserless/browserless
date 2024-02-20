@@ -38,7 +38,7 @@ const streamFile = (res: ServerResponse, file: string, contentType?: string) =>
           debug(`Error finding file ${file}, sending 404`);
           pathMap.delete(file);
           return reject(
-            new NotFound(`No handler or file found for resource ${file}`),
+            new NotFound(`Request for file "${file}" was not found`),
           );
         }
       })
@@ -78,7 +78,7 @@ export default class StaticGetRoute extends HTTPRoute {
     ).find((_) => !!_);
 
     if (!filePath) {
-      throw new NotFound(`No handler or file found for resource ${pathname}`);
+      throw new NotFound(`No route or file found for resource ${req.method}: ${pathname}`);
     }
 
     verbose(`Found new file "${filePath}", caching path and serving`);
