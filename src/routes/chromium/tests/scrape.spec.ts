@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/scrape API', function () {
+describe('/chromium/scrape API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -30,7 +30,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -50,7 +50,7 @@ describe('/scrape API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/scrape?token=browserless').then(
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless').then(
       (res) => {
         expect(res.headers.get('content-type')).to.equal(
           'text/plain; charset=UTF-8',
@@ -77,7 +77,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -110,7 +110,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -139,7 +139,7 @@ describe('/scrape API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -170,7 +170,7 @@ describe('/scrape API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -201,7 +201,7 @@ describe('/scrape API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -230,7 +230,7 @@ describe('/scrape API', function () {
       waitForTimeout: 500,
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -265,7 +265,7 @@ describe('/scrape API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -294,7 +294,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -322,13 +322,16 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/scrape?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -350,7 +353,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -376,7 +379,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape?token=browserless', {
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -398,7 +401,7 @@ describe('/scrape API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/scrape', {
+    await fetch('http://localhost:3000/chromium/scrape', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

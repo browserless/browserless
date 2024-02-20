@@ -1,8 +1,4 @@
-import {
-  Browserless,
-  Config,
-  Metrics,
-} from '@browserless.io/browserless';
+import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import puppeteer, { Connection } from 'puppeteer-core';
 import { NodeWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/node/NodeWebSocketTransport.js';
 import { expect } from 'chai';
@@ -49,6 +45,30 @@ describe('WebSocket Page API', function () {
     // Send a command
     const result = await cdp.send('Page.enable');
     await browser.close();
+    expect(result);
+  });
+
+  it('creates pages when interacting with /json/new', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const { webSocketDebuggerUrl } = await fetch(
+      'http://localhost:3000/json/new',
+      {
+        method: 'PUT',
+      },
+    ).then((r) => r.json());
+
+    // Connect to raw page target
+    const cdp = new Connection(
+      webSocketDebuggerUrl,
+      await NodeWebSocketTransport.create(webSocketDebuggerUrl),
+    );
+
+    // Send a command
+    const result = await cdp.send('Page.enable');
+    cdp.dispose();
     expect(result);
   });
 

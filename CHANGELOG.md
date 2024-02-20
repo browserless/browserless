@@ -1,9 +1,28 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.1.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.2.0...main)
 - Dependency updates.
+
+# [v2.2.0](https://github.com/browserless/chrome/compare/v2.1.0...v2.2.0)
+**Potentially Breaking**
+- `ghcr.io/browserless/chrome` now runs actual Chrome and not Chromium! If you were using this tag please update to use `ghcr.io/browserless/chromium`!
+  - This Chrome tag uses the new routing convention below. If you get random 404's, please add `/chrome` to the start of the route. EG, `/pdf` becomes `/chrome/pdf`.
+  - Websocket connections follow a similar breakage in that the URL will go from something like `ws://localhost:3000` to `ws://localhost:3000/chrome`.
+- Adds a new `ghcr.io/browserless/chromium`, and updates `ghcr.io/browserless/chrome` to use actual Chrome.
+- New and current APIs now follow a routing convention of `/$BROWSER/$ACTION`. In our Chrome image, you'll see `/chrome/pdf` for the PDF route as opposed to `/pdf`.
+  - To keep things backwards compatible, all our prior REST APIs still have the same path as well as the new semantic, but only in the `multi` and `chromium` tags.
+  - These backwards compatible routes are ONLY available in `ghcr.io/browserless/chromium` and `ghcr.io/browserless/multi`.
+- Refer to the embedded documentation site for any and all updates on API differences.
+
+**Other Changes**
+- HTTPRoutes and WebSocket routes can now have multiple paths to listen on.
 - Add `clean` command to `@browserless.io/browserless` CLI.
-- Adds support for `/json/list`, `/json/new` and `json/protocol` APIs (Chrome only).
+- Adds support for `/json/list`, `/json/new`, `/json/version` and `json/protocol` APIs (Chrome and Chromium only).
+  - When both Chrome and Chromium are present (in the case of the multi image), browserless opts for Chromium for these requests.
 - Removes legacy `browser.json` files since browserless now generates those and caches when requested.
+- Stable docker images are coming! Please be sure to see our packages page for stable tags.
 - Only verify that internally managed browsers are installed when starting.
+- Preliminary support for `--headless=shell`.
+- More unit-tests for the Chrome /json APIs.
+- Dependency updates.
 
 # [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
 - Dependency updates.

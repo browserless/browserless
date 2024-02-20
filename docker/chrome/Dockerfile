@@ -1,12 +1,12 @@
 ARG VERSION=latest
 FROM ghcr.io/browserless/base:$VERSION
-LABEL org.opencontainers.image.source https://github.com/browserless/chrome
+LABEL org.opencontainers.image.source https://github.com/browserless/browserless
 
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
 RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
-COPY src/routes/chromium src/routes/chromium/
+COPY src/routes/chrome src/routes/chrome/
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
@@ -26,8 +26,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN npx --yes playwright install chromium &&\
-  npx --yes playwright install-deps chromium &&\
+RUN npx --yes playwright install chrome &&\
+  npx --yes playwright install-deps chrome &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\

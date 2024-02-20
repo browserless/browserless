@@ -7,6 +7,7 @@ import {
   HTTPRoute,
   Limiter,
   Methods,
+  PathTypes,
   Request,
   Response,
   WebSocketRoute,
@@ -163,7 +164,13 @@ export class Router {
           this.getTimeout,
         )
       : wrapped;
+    route.path = Array.isArray(route.path) ? route.path : [route.path];
+    const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
+    const duplicatePaths = registeredPaths.filter((path) => route.path.includes(path));
 
+    if (duplicatePaths.length) {
+      this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
+    }
     this.httpRoutes.push(route);
 
     return route;
@@ -185,9 +192,14 @@ export class Router {
           this.getTimeout,
         )
       : wrapped;
+    route.path = Array.isArray(route.path) ? route.path : [route.path];
+    const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
+    const duplicatePaths = registeredPaths.filter((path) => route.path.includes(path));
 
+    if (duplicatePaths.length) {
+      this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
+    }
     this.webSocketRoutes.push(route);
-
     return route;
   }
 
@@ -199,8 +211,8 @@ export class Router {
   }
 
   public getStaticHandler() {
-    return this.httpRoutes.find(
-      (route) => route.path === HTTPManagementRoutes.static,
+    return this.httpRoutes.find((route) =>
+      route.path.includes(HTTPManagementRoutes.static),
     ) as HTTPRoute;
   }
 
@@ -213,7 +225,10 @@ export class Router {
     return (
       this.httpRoutes.find(
         (r) =>
-          micromatch.isMatch(req.parsed.pathname, r.path) &&
+          // Once registered, paths are always an array here.
+          (r.path as Array<PathTypes>).some((p) =>
+            micromatch.isMatch(req.parsed.pathname, p),
+          ) &&
           r.method === (req.method?.toLocaleLowerCase() as Methods) &&
           (accepts.some((a) => a.startsWith('*/*')) ||
             r.contentTypes.some((contentType) =>
@@ -230,7 +245,8 @@ export class Router {
     const { pathname } = req.parsed;
 
     return this.webSocketRoutes.find((r) =>
-      micromatch.isMatch(pathname, r.path),
+      // Once registered, paths are always an array here.
+      (r.path as Array<PathTypes>).some((p) => micromatch.isMatch(pathname, p)),
     );
   }
 }

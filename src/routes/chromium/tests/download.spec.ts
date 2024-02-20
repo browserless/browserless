@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/download API', function () {
+describe('/chromium/download API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -22,7 +22,7 @@ describe('/download API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/download?token=browserless', {
+    await fetch('http://localhost:3000/chromium/download?token=browserless', {
       body: `export default async ({ page }) => {
         await page.evaluate(() => {
           const txtContent = "data:text/plain;charset=utf-8,Hello world!";
@@ -50,7 +50,7 @@ describe('/download API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
 
-    await fetch('http://localhost:3000/download', {
+    await fetch('http://localhost:3000/chromium/download', {
       body: `export default async ({ page }) => {
         await page.evaluate(() => {
           const txtContent = "data:text/plain;charset=utf-8,Hello world!";

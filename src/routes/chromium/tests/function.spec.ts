@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/function API', function () {
+describe('/chromium/function API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -31,7 +31,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -58,7 +58,7 @@ describe('/function API', function () {
       });
     }`;
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body,
       headers: { 'Content-Type': 'application/javascript' },
       method: 'POST',
@@ -87,7 +87,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -119,7 +119,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -151,13 +151,16 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless&timeout=10', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/function?token=browserless&timeout=10',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -180,7 +183,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'joelson',
@@ -209,7 +212,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=browserless', {
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -236,7 +239,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function?token=bless', {
+    await fetch('http://localhost:3000/chromium/function?token=bless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -262,7 +265,7 @@ describe('/function API', function () {
       context: {},
     };
 
-    await fetch('http://localhost:3000/function', {
+    await fetch('http://localhost:3000/chromium/function', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

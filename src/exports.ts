@@ -19,7 +19,9 @@ export * from './webhooks.js';
 
 // Browsers and Helpers
 export * from './browsers/index.js';
-export * from './browsers/cdp-chromium.js';
-export * from './browsers/playwright-chromium.js';
-export * from './browsers/playwright-firefox.js';
-export * from './browsers/playwright-webkit.js';
+export * from './browsers/chrome.cdp.js';
+export * from './browsers/chrome.playwright.js';
+export * from './browsers/chromium.cdp.js';
+export * from './browsers/chromium.playwright.js';
+export * from './browsers/firefox.playwright.js';
+export * from './browsers/webkit.playwright.js';
