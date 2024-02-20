@@ -157,7 +157,7 @@ export default class HelloWorldRoute extends HTTPRoute {
   method = Methods.get;
 
   // The path that this route will listen on requests for.
-  path = '/hello';
+  path = ['/hello'];
 
   // A list of arbitrary tags to group similar APIs with in the documentation site.
   tags = [APITags.management];
@@ -205,7 +205,7 @@ export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
   description = `Launch and connect to Chromium with a library like puppeteer or others that work over chrome-devtools-protocol.`;
 
   // This route is available on the '/' route
-  path = WebsocketRoutes['/'];
+  path = [WebsocketRoutes['/']];
 
   // This is a browser-based WebSocket route so we tag it as such
   tags = [APITags.browserWS];
@@ -322,7 +322,8 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
   method = Methods.post;
 
   // This route exists on the '/pdf-to-s3' route
-  path = '/pdf-to-s3';
+  // routes can have several paths, or just one.
+  path = ['/pdf-to-s3'];
 
   // This a browser-based API so we tag it as such for documentation handling
   tags = [APITags.browserAPI];
