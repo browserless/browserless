@@ -1,6 +1,9 @@
 ARG VERSION=latest
 FROM ghcr.io/browserless/base:$VERSION
-LABEL org.opencontainers.image.source https://github.com/browserless/chrome
+LABEL org.opencontainers.image.source https://github.com/browserless/browserless
+
+ARG TARGETPLATFORM
+ENV TARGETPLATFORM=${TARGETPLATFORM}
 
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
@@ -22,6 +25,15 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-thai-tlwg \
     fonts-ubuntu \
     fonts-wqy-zenhei
+
+# Chrome stable is only supported on non-ARM builds
+# so it's installation is conditional on whether or not amd64
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+    npx --yes playwright install-deps chrome &&\
+    npx --yes playwright install chrome; \
+  else \
+    rm -rf ./src/routes/chrome; \
+  fi
 
 RUN npx --yes playwright install chromium firefox webkit &&\
   npx --yes playwright install-deps chromium firefox webkit &&\

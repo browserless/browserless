@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/performance API', function () {
+describe('/chromium/performance API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -25,13 +25,16 @@ describe('/performance API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/performance?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/performance?token=browserless',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.headers.get('content-type')).to.equal(
         'application/json; charset=UTF-8',
       );
@@ -45,14 +48,14 @@ describe('/performance API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/performance?token=browserless').then(
-      (res) => {
-        expect(res.headers.get('content-type')).to.equal(
-          'text/plain; charset=UTF-8',
-        );
-        expect(res.status).not.to.equal(200);
-      },
-    );
+    await fetch(
+      'http://localhost:3000/chromium/performance?token=browserless',
+    ).then((res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(res.status).not.to.equal(200);
+    });
   });
 
   it('allows setting config', async () => {
@@ -70,13 +73,16 @@ describe('/performance API', function () {
       url: 'https://browserless.io',
     };
 
-    await fetch('http://localhost:3000/performance?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/performance?token=browserless',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then(async (res) => {
+    ).then(async (res) => {
       expect(res.headers.get('content-type')).to.equal(
         'application/json; charset=UTF-8',
       );
@@ -99,13 +105,16 @@ describe('/performance API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/performance?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/performance?token=browserless',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(408);
     });
   });
@@ -122,13 +131,16 @@ describe('/performance API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/performance?token=browserless', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/chromium/performance?token=browserless',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then((res) => {
+    ).then((res) => {
       expect(res.status).to.equal(429);
     });
   });
@@ -139,7 +151,7 @@ describe('/performance API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/performance', {
+    await fetch('http://localhost:3000/chromium/performance', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

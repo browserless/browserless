@@ -3,22 +3,23 @@ import {
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
-  CDPChromium,
+  ChromeCDP,
+  ChromiumCDP,
+  ChromiumPlaywright,
   Config,
   FileSystem,
+  FirefoxPlaywright,
   HTTPRoute,
   HTTPServer,
   IBrowserlessStats,
   Limiter,
   Metrics,
   Monitoring,
-  PlaywrightChromium,
-  PlaywrightFirefox,
-  PlaywrightWebkit,
   Router,
   Token,
   WebHooks,
   WebSocketRoute,
+  WebkitPlaywright,
   availableBrowsers,
   createLogger,
   getRouteFiles,
@@ -163,10 +164,11 @@ export class Browserless {
     const httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
     const wsRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
     const internalBrowsers = [
-      CDPChromium,
-      PlaywrightFirefox,
-      PlaywrightChromium,
-      PlaywrightWebkit,
+      ChromiumCDP,
+      ChromeCDP,
+      FirefoxPlaywright,
+      ChromiumPlaywright,
+      WebkitPlaywright,
     ];
 
     const [[httpRouteFiles, wsRouteFiles], installedBrowsers] =
@@ -273,7 +275,7 @@ export class Browserless {
         !installedBrowsers.some((b) => b.name === route.browser?.name)
       ) {
         throw new Error(
-          `Couldn't load route "${route.path}" due to missing browser of "${route.browser?.name}"`,
+          `Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}"`,
         );
       }
     });

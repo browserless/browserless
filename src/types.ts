@@ -3,16 +3,16 @@ import * as stream from 'stream';
 import {
   APITags,
   Browserless,
-  CDPChromium,
+  ChromiumCDP,
+  ChromiumPlaywright,
   Config,
+  FirefoxPlaywright,
   HTTPManagementRoutes,
   HTTPRoutes,
   Methods,
   Metrics,
-  PlaywrightChromium,
-  PlaywrightFirefox,
-  PlaywrightWebkit,
   Request,
+  WebkitPlaywright,
   WebsocketRoutes,
   contentTypes,
 } from '@browserless.io/browserless';
@@ -22,6 +22,12 @@ import {
   ResponseForRequest,
   ScreenshotOptions,
 } from 'puppeteer-core';
+
+export type PathTypes =
+  | HTTPRoutes
+  | WebsocketRoutes
+  | HTTPManagementRoutes
+  | string;
 
 export interface BeforeRequest {
   head?: Buffer;
@@ -38,10 +44,10 @@ export interface AfterResponse {
 
 export interface BrowserHook {
   browser:
-    | CDPChromium
-    | PlaywrightChromium
-    | PlaywrightFirefox
-    | PlaywrightWebkit;
+    | ChromiumCDP
+    | ChromiumPlaywright
+    | FirefoxPlaywright
+    | WebkitPlaywright;
   meta: URL;
 }
 
@@ -60,16 +66,16 @@ export interface RouteParams {
  * The type of browser required to run this route or handler.
  */
 export type BrowserClasses =
-  | typeof CDPChromium
-  | typeof PlaywrightChromium
-  | typeof PlaywrightFirefox
-  | typeof PlaywrightWebkit;
+  | typeof ChromiumCDP
+  | typeof ChromiumPlaywright
+  | typeof FirefoxPlaywright
+  | typeof WebkitPlaywright;
 
 export type BrowserInstance =
-  | CDPChromium
-  | PlaywrightChromium
-  | PlaywrightFirefox
-  | PlaywrightWebkit;
+  | ChromiumCDP
+  | ChromiumPlaywright
+  | FirefoxPlaywright
+  | WebkitPlaywright;
 
 export interface BrowserJSON {
   Browser: string;
@@ -184,9 +190,10 @@ abstract class Route {
   monitoring = () => this._monitoring;
 
   /**
-   * The HTTP path that this route handles, eg '/my-route'
+   * The HTTP path that this route handles, eg '/my-route' OR an
+   * array of paths that this route can handle.
    */
-  abstract path: HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
+  abstract path: PathTypes | Array<PathTypes>;
 
   /**
    * The tag(s) for the route to categorize it in the
@@ -357,7 +364,7 @@ export interface BrowserlessSession {
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
   resolver: (val: unknown) => void;
-  routePath: string;
+  routePath: string | string[];
   startedOn: number;
   ttl: number;
   userDataDir: string | null;
@@ -371,7 +378,7 @@ export interface BrowserlessSessionJSON {
   killURL: string | null;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
-  routePath: string;
+  routePath: string | string[];
   startedOn: number;
   timeAliveMs: number;
   userDataDir: string | null;

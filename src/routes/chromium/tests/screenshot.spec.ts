@@ -1,7 +1,7 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { expect } from 'chai';
 
-describe('/screenshot API', function () {
+describe('/chromium/screenshot API', function () {
   let browserless: Browserless;
 
   const start = ({
@@ -25,7 +25,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -43,14 +43,14 @@ describe('/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch('http://localhost:3000/screenshot?token=browserless').then(
-      (res) => {
-        expect(res.headers.get('content-type')).to.equal(
-          'text/plain; charset=UTF-8',
-        );
-        expect(res.status).not.to.equal(200);
-      },
-    );
+    await fetch(
+      'http://localhost:3000/chromium/screenshot?token=browserless',
+    ).then((res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(res.status).not.to.equal(200);
+    });
   });
 
   it('allows custom viewports', async () => {
@@ -67,7 +67,7 @@ describe('/screenshot API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -89,7 +89,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -110,7 +110,7 @@ describe('/screenshot API', function () {
       html: '<h1>Hello!</h1>',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -145,7 +145,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -169,7 +169,7 @@ describe('/screenshot API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -193,7 +193,7 @@ describe('/screenshot API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -217,7 +217,7 @@ describe('/screenshot API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -239,7 +239,7 @@ describe('/screenshot API', function () {
       waitForTimeout: 500,
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -266,7 +266,7 @@ describe('/screenshot API', function () {
       },
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -288,7 +288,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -310,7 +310,7 @@ describe('/screenshot API', function () {
     };
 
     await fetch(
-      'http://localhost:3000/screenshot?token=browserless&timeout=10',
+      'http://localhost:3000/chromium/screenshot?token=browserless&timeout=10',
       {
         body: JSON.stringify(body),
         headers: {
@@ -335,7 +335,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -356,7 +356,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot?token=browserless', {
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
@@ -373,7 +373,7 @@ describe('/screenshot API', function () {
       url: 'https://example.com',
     };
 
-    await fetch('http://localhost:3000/screenshot', {
+    await fetch('http://localhost:3000/chromium/screenshot', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',

@@ -25,7 +25,7 @@
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
-    "install:browsers": "npx --yes playwright install chromium firefox webkit",
+    "install:browsers": "npx --yes playwright install chromium firefox webkit chrome",
     "install:dev": "npm run install:browsers",
     "lint": "eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",

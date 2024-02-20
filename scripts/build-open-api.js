@@ -98,12 +98,13 @@ const buildOpenAPI = async (
         const query = routeModule.replace('.js', '.query.json');
         const response = routeModule.replace('.js', '.response.json');
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
-
+        const path = Array.isArray(route.path)
+          ? route.path.join(' ')
+          : [route.path];
         const {
           tags,
           description,
           auth,
-          path,
           method,
           accepts,
           contentTypes,

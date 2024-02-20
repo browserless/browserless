@@ -1,6 +1,6 @@
 ARG VERSION=latest
 FROM ghcr.io/browserless/base:$VERSION
-LABEL org.opencontainers.image.source https://github.com/browserless/chrome
+LABEL org.opencontainers.image.source https://github.com/browserless/browserless
 
 # Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/

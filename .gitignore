@@ -19,6 +19,7 @@ browserless.io-browserless-*.tgz
 static/function/*js
 static/live/*js
 static/devtools/*
+static/debugger/*
 
 # Swagger JSON
 static/docs/swagger.json

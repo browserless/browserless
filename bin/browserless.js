@@ -501,7 +501,7 @@ const help = () => {
         Options:
           --from        The Browserless docker image to extend from (ghcr.io/browserless/multi:latest).
           --action      One of "push" or "load" to load or push to a registry.
-          --tag         The full tag, including version, to name the image (IE: my-bless/chrome:latest).
+          --tag         The full tag, including version, to name the image (IE: my-bless/chromium:latest).
           --platform    A comma-separated list of platforms to build for.
           --proceed     Proceed with building the image without prompting.
       `);
