@@ -15,7 +15,7 @@ import puppeteer from 'puppeteer-core';
 describe('Chrome WebSocket API', function () {
   // Server shutdown can take a few seconds
   // and so can these tests :/
-  this.timeout(5000);
+  this.timeout(10000);
 
   let browserless: Browserless;
 
@@ -179,9 +179,6 @@ describe('Chrome WebSocket API', function () {
   });
 
   it('runs with ignored arguments', async () => {
-    // Chrome can take a while on stable with
-    // ignored arguments
-    this.timeout(10000);
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();

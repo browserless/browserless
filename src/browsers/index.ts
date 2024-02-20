@@ -1,4 +1,5 @@
 import {
+  BLESS_PAGE_IDENTIFIER,
   BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
@@ -350,39 +351,45 @@ export class BrowserManager {
 
     // Handle page connections here
     if (req.parsed.pathname.includes('/devtools/page')) {
-      const browsers = Array.from(this.browsers).map(([browser]) => browser);
       const id = req.parsed.pathname.split('/').pop() as string;
-      const allPages = await Promise.all(
-        browsers
-          .filter((b) => !!b.wsEndpoint())
-          .map(async (browser) => {
-            const { port } = new URL(browser.wsEndpoint() as unknown as string);
-            const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
-              headers: {
-                Host: '127.0.0.1',
-              },
-            }).catch(() => ({
-              json: () => Promise.resolve([]),
-              ok: false,
-            }));
-            if (response.ok) {
-              const body = await response.json();
-              // @ts-ignore
-              return body.map((b) => ({ ...b, browser }));
-            }
-            return null;
-          }),
-      );
-      const flattened = allPages.flat();
-      const found = flattened.find((b) => b.id === id);
+      if (!id.includes(BLESS_PAGE_IDENTIFIER)) {
+        const browsers = Array.from(this.browsers).map(([browser]) => browser);
+        const allPages = await Promise.all(
+          browsers
+            .filter((b) => !!b.wsEndpoint())
+            .map(async (browser) => {
+              const { port } = new URL(
+                browser.wsEndpoint() as unknown as string,
+              );
+              const response = await fetch(
+                `http://127.0.0.1:${port}/json/list`,
+                {
+                  headers: {
+                    Host: '127.0.0.1',
+                  },
+                },
+              ).catch(() => ({
+                json: () => Promise.resolve([]),
+                ok: false,
+              }));
+              if (response.ok) {
+                const body = await response.json();
+                // @ts-ignore
+                return body.map((b) => ({ ...b, browser }));
+              }
+              return null;
+            }),
+        );
+        const found = allPages.flat().find((b) => b.id === id);
 
-      if (found) {
-        return found.browser;
+        if (found) {
+          return found.browser;
+        }
+
+        throw new NotFound(
+          `Couldn't locate browser "${id}" for request "${req.parsed.pathname}"`,
+        );
       }
-
-      throw new NotFound(
-        `Couldn't locate browser "${id}" for request "${req.parsed.pathname}"`,
-      );
     }
 
     try {
