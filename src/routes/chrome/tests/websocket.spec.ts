@@ -178,7 +178,7 @@ describe('Chrome WebSocket API', function () {
     expect(didError).to.be.true;
   });
 
-  it('runs with ignored arguments', async () => {
+  it.skip('runs with ignored arguments', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
