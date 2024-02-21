@@ -11,7 +11,9 @@ import {
 import { Duplex } from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
-  launch?: BrowserServerOptions | string;
+  launch?: BrowserServerOptions & {
+    firefoxUserPrefs?: { [key: string]: string | number | boolean };
+  };
 }
 
 export default class FirefoxPlayWrightRoute extends BrowserWebsocketRoute {

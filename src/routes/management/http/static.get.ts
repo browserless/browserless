@@ -78,7 +78,9 @@ export default class StaticGetRoute extends HTTPRoute {
     ).find((_) => !!_);
 
     if (!filePath) {
-      throw new NotFound(`No route or file found for resource ${req.method}: ${pathname}`);
+      throw new NotFound(
+        `No route or file found for resource ${req.method}: ${pathname}`,
+      );
     }
 
     verbose(`Found new file "${filePath}", caching path and serving`);

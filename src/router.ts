@@ -166,7 +166,9 @@ export class Router {
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
-    const duplicatePaths = registeredPaths.filter((path) => route.path.includes(path));
+    const duplicatePaths = registeredPaths.filter((path) =>
+      route.path.includes(path),
+    );
 
     if (duplicatePaths.length) {
       this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
@@ -194,7 +196,9 @@ export class Router {
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
-    const duplicatePaths = registeredPaths.filter((path) => route.path.includes(path));
+    const duplicatePaths = registeredPaths.filter((path) =>
+      route.path.includes(path),
+    );
 
     if (duplicatePaths.length) {
       this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
