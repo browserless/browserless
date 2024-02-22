@@ -239,6 +239,7 @@ const start = async (dev = false) => {
     Router,
     Token,
     Webhooks,
+    disabledRoutes,
   ] = await Promise.all([
     importClassOverride(files, 'browser-manager'),
     importClassOverride(files, 'config'),
@@ -249,6 +250,7 @@ const start = async (dev = false) => {
     importClassOverride(files, 'router'),
     importClassOverride(files, 'token'),
     importClassOverride(files, 'webhooks'),
+    importClassOverride(files, 'disabled-routes'),
   ]);
 
   log(`Starting Browserless`);
@@ -284,6 +286,10 @@ const start = async (dev = false) => {
     token,
     webhooks,
   });
+
+  if (disabledRoutes && disabledRoutes.length) {
+    disabledRoutes.forEach((d) => browserless.blockRoute(d));
+  }
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));
   webSocketRoutes.forEach((r) => browserless.addWebSocketRoute(r));

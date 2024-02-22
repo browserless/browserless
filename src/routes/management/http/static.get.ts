@@ -6,16 +6,12 @@ import {
   NotFound,
   Request,
   contentTypes,
-  createLogger,
   fileExists,
   mimeTypes,
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 import { createReadStream } from 'fs';
 import path from 'path';
-
-const debug = createLogger('http:static');
-const verbose = createLogger('http:static:verbose');
 
 const pathMap: Map<
   string,
@@ -25,10 +21,15 @@ const pathMap: Map<
   }
 > = new Map();
 
-const streamFile = (res: ServerResponse, file: string, contentType?: string) =>
+const streamFile = (
+  debug: debug.Debugger,
+  res: ServerResponse,
+  file: string,
+  contentType?: string,
+) =>
   new Promise((resolve, reject) => {
     if (contentType) {
-      verbose(`Setting content-type ${contentType}`);
+      debug(`Setting content-type ${contentType}`);
       res.setHeader('Content-Type', contentType);
     }
 
@@ -59,9 +60,11 @@ export default class StaticGetRoute extends HTTPRoute {
   handler = async (req: Request, res: ServerResponse): Promise<unknown> => {
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
+    const debug = this.debug();
+    const verbose = debug.extend('verbose');
 
     if (fileCache) {
-      return streamFile(res, fileCache.path, fileCache.contentType);
+      return streamFile(verbose, res, fileCache.path, fileCache.contentType);
     }
 
     const config = this.config();
@@ -98,6 +101,6 @@ export default class StaticGetRoute extends HTTPRoute {
       path: filePath,
     });
 
-    return streamFile(res, filePath, contentType);
+    return streamFile(verbose, res, filePath, contentType);
   };
 }

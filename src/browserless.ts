@@ -36,6 +36,12 @@ type Implements<T> = {
   new (...args: unknown[]): T;
 };
 
+type RouteTypes =
+  | typeof HTTPRoute
+  | typeof BrowserHTTPRoute
+  | typeof WebSocketRoute
+  | typeof BrowserWebsocketRoute;
+
 export class Browserless {
   protected debug: debug.Debugger = createLogger('index');
   protected browserManager: BrowserManager;
@@ -48,6 +54,7 @@ export class Browserless {
   protected token: Token;
   protected webhooks: WebHooks;
 
+  disabledRoutes: RouteTypes[] = [];
   webSocketRouteFiles: string[] = [];
   httpRouteFiles: string[] = [];
   server?: HTTPServer;
@@ -138,6 +145,15 @@ export class Browserless {
     );
   };
 
+  private routeIsDisables(route: RouteTypes) {
+    const stringified = route.toString();
+    return this.disabledRoutes.some((r) => r.toString() === stringified);
+  }
+
+  public blockRoute(route: RouteTypes) {
+    this.disabledRoutes.push(route);
+  }
+
   public addHTTPRoute(httpRouteFilePath: string) {
     this.httpRouteFiles.push(httpRouteFilePath);
   }
@@ -171,7 +187,7 @@ export class Browserless {
       WebkitPlaywright,
     ];
 
-    const [[httpRouteFiles, wsRouteFiles], installedBrowsers] =
+    const [[internalHttpRouteFiles, internalWsRouteFiles], installedBrowsers] =
       await Promise.all([getRouteFiles(this.config), availableBrowsers]);
 
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
@@ -180,7 +196,10 @@ export class Browserless {
     this.debug(`Running as user "${userInfo().username}"`);
     this.debug('Starting import of HTTP Routes');
 
-    for (const httpRoute of [...httpRouteFiles, ...this.httpRouteFiles]) {
+    for (const httpRoute of [
+      ...internalHttpRouteFiles,
+      ...this.httpRouteFiles,
+    ]) {
       if (httpRoute.endsWith('js')) {
         const { name } = path.parse(httpRoute);
         const [bodySchema, querySchema] = await Promise.all(
@@ -201,28 +220,33 @@ export class Browserless {
           default: Route,
         }: { default: Implements<HTTPRoute> | Implements<BrowserHTTPRoute> } =
           await import(routeImport + `?cb=${Date.now()}`);
-        const route = new Route(
-          this.browserManager,
-          this.config,
-          this.fileSystem,
-          logger,
-          this.metrics,
-          this.monitoring,
-        );
-        route.bodySchema = safeParse(bodySchema);
-        route.querySchema = safeParse(querySchema);
-        route.config = () => this.config;
-        route.metrics = () => this.metrics;
-        route.monitoring = () => this.monitoring;
-        route.fileSystem = () => this.fileSystem;
-        route.debug = () => logger;
+        if (!this.routeIsDisables(Route)) {
+          const route = new Route(
+            this.browserManager,
+            this.config,
+            this.fileSystem,
+            logger,
+            this.metrics,
+            this.monitoring,
+          );
+          route.bodySchema = safeParse(bodySchema);
+          route.querySchema = safeParse(querySchema);
+          route.config = () => this.config;
+          route.metrics = () => this.metrics;
+          route.monitoring = () => this.monitoring;
+          route.fileSystem = () => this.fileSystem;
+          route.debug = () => logger;
 
-        httpRoutes.push(route);
+          httpRoutes.push(route);
+        }
       }
     }
 
     this.debug('Starting import of WebSocket Routes');
-    for (const wsRoute of [...wsRouteFiles, ...this.webSocketRouteFiles]) {
+    for (const wsRoute of [
+      ...internalWsRouteFiles,
+      ...this.webSocketRouteFiles,
+    ]) {
       if (wsRoute.endsWith('js')) {
         const { name } = path.parse(wsRoute);
         const [, querySchema] = await Promise.all(
@@ -246,23 +270,24 @@ export class Browserless {
             | Implements<WebSocketRoute>
             | Implements<BrowserWebsocketRoute>;
         } = await import(wsImport + `?cb=${Date.now()}`);
+        if (!this.routeIsDisables(Route)) {
+          const route = new Route(
+            this.browserManager,
+            this.config,
+            this.fileSystem,
+            logger,
+            this.metrics,
+            this.monitoring,
+          );
+          route.querySchema = safeParse(querySchema);
+          route.config = () => this.config;
+          route.metrics = () => this.metrics;
+          route.monitoring = () => this.monitoring;
+          route.fileSystem = () => this.fileSystem;
+          route.debug = () => logger;
 
-        const route = new Route(
-          this.browserManager,
-          this.config,
-          this.fileSystem,
-          logger,
-          this.metrics,
-          this.monitoring,
-        );
-        route.querySchema = safeParse(querySchema);
-        route.config = () => this.config;
-        route.metrics = () => this.metrics;
-        route.monitoring = () => this.monitoring;
-        route.fileSystem = () => this.fileSystem;
-        route.debug = () => logger;
-
-        wsRoutes.push(route);
+          wsRoutes.push(route);
+        }
       }
     }
 
