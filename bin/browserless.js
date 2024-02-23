@@ -209,7 +209,8 @@ const build = async () => {
   );
 
   log(`Generating OpenAPI JSON file`);
-  await buildOpenAPI(httpRoutes, webSocketRoutes);
+  const DisabledRoutes = await importDefault(files, 'disabled-routes');
+  await buildOpenAPI(httpRoutes, webSocketRoutes, DisabledRoutes);
 
   log(`All built assets complete`);
 

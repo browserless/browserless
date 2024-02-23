@@ -13,6 +13,7 @@ Finally, this SDK and Browserless.io are built to support businesses and enterpr
 - [Routing](#routing)
 - [Utilities](#utilities)
 - [Extending Modules](#extending-modules)
+- [Disabling Routes](#dis)
 - [Running in Development](#running-in-development)
 - [Building for Production](#building-for-production)
 - [Running without Building](#running-without-building)
@@ -346,6 +347,40 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
 ```
 
 With this approach you can effectively write, extend and author your own workflows within browserless!
+
+## Disabling Routes
+
+You can disable access to core routes by specifying the route classes you want to disable in a file named `disabled-routes.ts`. Browserless will scan all directories for a file named as such, and disable the named classes exported by this file.
+
+For example, if you want to disable all metrics, config, and session information your `src/disabled-routes.ts` file would look like this:
+
+```ts
+import {
+  ConfigGetRoute,
+  SessionsGetGetRoute,
+  MetricsGetRoute,
+  MetricsTotalGetRoute,
+} from '@browserless.io/browserless';
+
+export default [
+  ConfigGetRoute,
+  SessionsGetGetRoute,
+  MetricsGetRoute,
+  MetricsTotalGetRoute,
+];
+```
+
+In order for route-disabling to work, you must have a `default` export that's an array of RouteClasses. Browserless exports every route that it builds and runs internally, meaning you simply need to pass them through this `disabled-routes.ts` file after importing them.
+
+Disabling a route will do several things:
+
+- Return a `404` HTTP response when trying to call any of these routes.
+- Remove them from the embedded documentation site that is auto-generated.
+- Removes them from the OpenAPI JSON Schematic.
+- Prevents their type information from being converted from TypeScript to runtime validation.
+- It doesn't, however, remove them from Node's Module cache.
+
+All of Browserless' internal routes are side-effect free, meaning their largely state-less and don't do exhibit kind of behavior aside from route handling and metrics reporting. Having them in Node's module cache is fine since they're never mounted in the router and set up as a potential route.
 
 ## Running in Development
 
