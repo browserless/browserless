@@ -54,7 +54,7 @@ export class Browserless {
   protected token: Token;
   protected webhooks: WebHooks;
 
-  disabledRoutes: RouteTypes[] = [];
+  DisabledRoutes: RouteTypes[] = [];
   webSocketRouteFiles: string[] = [];
   httpRouteFiles: string[] = [];
   server?: HTTPServer;
@@ -145,13 +145,13 @@ export class Browserless {
     );
   };
 
-  private routeIsDisables(route: RouteTypes) {
-    const stringified = route.toString();
-    return this.disabledRoutes.some((r) => r.toString() === stringified);
+  private routeIsDisabled(Route: RouteTypes) {
+    const Stringified = Route.toString();
+    return this.DisabledRoutes.some((r) => r.toString() === Stringified);
   }
 
-  public blockRoute(route: RouteTypes) {
-    this.disabledRoutes.push(route);
+  public disableRoute(Route: RouteTypes) {
+    this.DisabledRoutes.push(Route);
   }
 
   public addHTTPRoute(httpRouteFilePath: string) {
@@ -220,7 +220,7 @@ export class Browserless {
           default: Route,
         }: { default: Implements<HTTPRoute> | Implements<BrowserHTTPRoute> } =
           await import(routeImport + `?cb=${Date.now()}`);
-        if (!this.routeIsDisables(Route)) {
+        if (!this.routeIsDisabled(Route)) {
           const route = new Route(
             this.browserManager,
             this.config,
@@ -270,7 +270,7 @@ export class Browserless {
             | Implements<WebSocketRoute>
             | Implements<BrowserWebsocketRoute>;
         } = await import(wsImport + `?cb=${Date.now()}`);
-        if (!this.routeIsDisables(Route)) {
+        if (!this.routeIsDisabled(Route)) {
           const route = new Route(
             this.browserManager,
             this.config,

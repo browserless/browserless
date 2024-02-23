@@ -60,22 +60,22 @@ const prompt = async (question) => {
   });
 };
 
-const importClassOverride = async (files, className) => {
+const importDefault = async (files, fileName) => {
   const classModuleFile = files.find((f) =>
-    path.parse(f).name.endsWith(className),
+    path.parse(f).name.endsWith(fileName),
   );
 
   if (!classModuleFile) {
     return;
   }
 
-  const classModuleFullFilePath = path.join(compiledDir, classModuleFile);
+  const fullFilePath = path.join(compiledDir, classModuleFile);
 
   if (!classModuleFile) {
     return;
   }
-  log(`Importing module override "${classModuleFullFilePath}"`);
-  return (await import(classModuleFullFilePath)).default;
+  log(`Importing module "${fullFilePath}"`);
+  return (await import(fullFilePath)).default;
 };
 
 const clean = async () =>
@@ -239,18 +239,18 @@ const start = async (dev = false) => {
     Router,
     Token,
     Webhooks,
-    disabledRoutes,
+    DisabledRoutes,
   ] = await Promise.all([
-    importClassOverride(files, 'browser-manager'),
-    importClassOverride(files, 'config'),
-    importClassOverride(files, 'file-system'),
-    importClassOverride(files, 'limiter'),
-    importClassOverride(files, 'metrics'),
-    importClassOverride(files, 'monitoring'),
-    importClassOverride(files, 'router'),
-    importClassOverride(files, 'token'),
-    importClassOverride(files, 'webhooks'),
-    importClassOverride(files, 'disabled-routes'),
+    importDefault(files, 'browser-manager'),
+    importDefault(files, 'config'),
+    importDefault(files, 'file-system'),
+    importDefault(files, 'limiter'),
+    importDefault(files, 'metrics'),
+    importDefault(files, 'monitoring'),
+    importDefault(files, 'router'),
+    importDefault(files, 'token'),
+    importDefault(files, 'webhooks'),
+    importDefault(files, 'disabled-routes'),
   ]);
 
   log(`Starting Browserless`);
@@ -287,8 +287,13 @@ const start = async (dev = false) => {
     webhooks,
   });
 
-  if (disabledRoutes && disabledRoutes.length) {
-    disabledRoutes.forEach((d) => browserless.blockRoute(d));
+  if (DisabledRoutes !== undefined) {
+    if (!Array.isArray(DisabledRoutes)) {
+      throw new Error(
+        `The "disabled-routes.ts" default export should be an array of Route classes.`,
+      );
+    }
+    DisabledRoutes.forEach((R) => browserless.disableRoute(R));
   }
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));

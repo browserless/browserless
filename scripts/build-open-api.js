@@ -3,9 +3,12 @@
 'use strict';
 
 import { join, parse } from 'path';
+import { Config } from '../build/config.js';
 import { dirname } from 'path';
+import { errorCodes } from '../build/http.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import { getRouteFiles } from '../build/utils.js';
 import { marked } from 'marked';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,17 +42,17 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
   return Number(otherProp.required) - Number(prop.required);
 };
 
+const routeIsDisabled = (Route, DisabledRoutes) => {
+  const stringified = Route.toString();
+  return DisabledRoutes.some((r) => r.toString() === stringified);
+};
+
 const buildOpenAPI = async (
   externalHTTPRoutes = [],
   externalWebSocketRoutes = [],
+  DisabledRoutes = [],
 ) => {
-  const [{ getRouteFiles }, { Config }, { errorCodes }, packageJSON] =
-    await Promise.all([
-      import('../build/utils.js'),
-      import('../build/config.js'),
-      import('../build/http.js'),
-      fs.readFile(packageJSONPath),
-    ]);
+  const packageJSON = await fs.readFile(packageJSONPath);
 
   const isWin = process.platform === 'win32';
   const readme = (await fs.readFile('README.md').catch(() => '')).toString();
@@ -90,7 +93,12 @@ const buildOpenAPI = async (
         const routeImport = `${isWin ? 'file:///' : ''}${routeModule}`;
         const { default: Route } = await import(routeImport);
         if (!Route) {
-          throw new Error(`Invalid route file to import docs ${routeModule}`);
+          throw new Error(
+            `Invalid route file found while building OpenAPI JSON: "${routeModule}"`,
+          );
+        }
+        if (routeIsDisabled(Route, DisabledRoutes)) {
+          return null;
         }
         const route = new Route();
         const { name } = parse(routeModule);
@@ -127,7 +135,8 @@ const buildOpenAPI = async (
           tags,
           title,
         };
-      }),
+      })
+      .filter((r) => r !== null),
   );
 
   const paths = routeMetaData.reduce((accum, r) => {
