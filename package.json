@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.2.0",
+  "version": "2.3.0-beta-1",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -81,7 +81,6 @@
     "esbuild": "^0.20.1",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.56.0",
-
     "eslint-plugin-typescript-sort-keys": "^3.1.0",
     "extract-zip": "^2.0.1",
     "marked": "^12.0.0",
