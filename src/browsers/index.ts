@@ -63,6 +63,10 @@ export class BrowserManager {
     }
   };
 
+  protected onNewPage = async (req: Request, page: unknown) => {
+    await pageHook({ meta: req.parsed, page });
+  };
+
   /**
    * Returns the /json/protocol API contents from Chromium or Chrome, whichever is installed,
    * and modifies URLs to set them to the appropriate addresses configured.
@@ -466,7 +470,7 @@ export class BrowserManager {
     await browserHook({ browser, meta: req.parsed });
 
     browser.on('newPage', async (page) => {
-      await pageHook({ meta: req.parsed, page });
+      await this.onNewPage(req, page);
       (router.onNewPage || noop)(req.parsed || '', page);
     });
 
