@@ -102,8 +102,7 @@ We tried to keep library changes as little as possible since the compromise the 
 
 browserless 2.xx shims old launch options query parameters internally, so it'll fix 1.xx requests for you. Here's a few examples of this so you can make any changes in code.
 
-You may also optionally base64 encode these JSON stringified `launch` parameter as well.
-
+It is *highly recommended* the parameters after `launch=` be base64 for proper recognition. Failure to base64 encode will nearly guarantee these parameters are not accepted if they have characters such as curly braces or brackets.
 
 ### Launch flags:
 **Before**
