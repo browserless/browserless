@@ -82,7 +82,7 @@
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-typescript-sort-keys": "^3.1.0",
+    "eslint-plugin-typescript-sort-keys": "^3.2.0",
     "extract-zip": "^2.0.1",
     "marked": "^12.0.0",
     "mocha": "^10.3.0",
