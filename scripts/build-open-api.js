@@ -106,7 +106,7 @@ const buildOpenAPI = async (
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
         const path = Array.isArray(route.path)
           ? route.path.join(' ')
-          : [route.path];
+          : route.path;
         const {
           tags,
           description,
