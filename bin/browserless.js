@@ -325,7 +325,7 @@ const start = async (dev = false) => {
         `The "disabled-routes.ts" default export should be an array of Route classes.`,
       );
     }
-    disabledRoutes.forEach((R) => browserless.disableRoute(R));
+    browserless.disableRoutes(...disabledRoutes);
   }
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));

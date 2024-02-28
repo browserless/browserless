@@ -149,8 +149,8 @@ export class Browserless {
     return this.disabledRouteNames.some((name) => name === route.name);
   }
 
-  public disableRoute(routeName: string) {
-    this.disabledRouteNames.push(routeName);
+  public disableRoutes(...routeNames: string[]) {
+    this.disabledRouteNames.push(...routeNames);
   }
 
   public addHTTPRoute(httpRouteFilePath: string) {

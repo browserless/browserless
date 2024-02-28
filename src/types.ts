@@ -609,23 +609,23 @@ export interface CDPJSONPayload {
   webSocketDebuggerUrl: string;
 }
 
-export enum BrowserlessChromeRoutes {
-  ChromeBrowserWebSocketRoute = 'ChromeBrowserWebSocketRoute',
-  ChromeCDPWebSocketRoute = 'ChromeCDPWebSocketRoute',
-  ChromeContentPostRoute = 'ChromeContentPostRoute',
-  ChromeDownloadPostRoute = 'ChromeDownloadPostRoute',
-  ChromeFunctionPostRoute = 'ChromeFunctionPostRoute',
-  ChromeJSONListGetRoute = 'ChromeJSONListGetRoute',
-  ChromeJSONNewPutRoute = 'ChromeJSONNewPutRoute',
-  ChromeJSONProtocolGetRoute = 'ChromeJSONProtocolGetRoute',
-  ChromeJSONVersionGetRoute = 'ChromeJSONVersionGetRoute',
-  ChromePDFPostRoute = 'ChromePDFPostRoute',
-  ChromePageWebSocketRoute = 'ChromePageWebSocketRoute',
-  ChromePerformancePostRoute = 'ChromePerformancePostRoute',
-  ChromePlaywrightWebSocketRoute = 'ChromePlaywrightWebSocketRoute',
-  ChromeScrapePostRoute = 'ChromeScrapePostRoute',
-  ChromeScreenshotPostRoute = 'ChromeScreenshotPostRoute',
-}
+export const BrowserlessChromeRoutes = {
+  ChromeBrowserWebSocketRoute: 'ChromeBrowserWebSocketRoute',
+  ChromeCDPWebSocketRoute: 'ChromeCDPWebSocketRoute',
+  ChromeContentPostRoute: 'ChromeContentPostRoute',
+  ChromeDownloadPostRoute: 'ChromeDownloadPostRoute',
+  ChromeFunctionPostRoute: 'ChromeFunctionPostRoute',
+  ChromeJSONListGetRoute: 'ChromeJSONListGetRoute',
+  ChromeJSONNewPutRoute: 'ChromeJSONNewPutRoute',
+  ChromeJSONProtocolGetRoute: 'ChromeJSONProtocolGetRoute',
+  ChromeJSONVersionGetRoute: 'ChromeJSONVersionGetRoute',
+  ChromePDFPostRoute: 'ChromePDFPostRoute',
+  ChromePageWebSocketRoute: 'ChromePageWebSocketRoute',
+  ChromePerformancePostRoute: 'ChromePerformancePostRoute',
+  ChromePlaywrightWebSocketRoute: 'ChromePlaywrightWebSocketRoute',
+  ChromeScrapePostRoute: 'ChromeScrapePostRoute',
+  ChromeScreenshotPostRoute: 'ChromeScreenshotPostRoute',
+};
 
 export const BrowserlessChromiumRoutes = {
   ChromiumBrowserWebSocketRoute: 'ChromiumBrowserWebSocketRoute',
