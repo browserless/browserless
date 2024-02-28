@@ -23,6 +23,7 @@ static/debugger/*
 
 # Swagger JSON
 static/docs/swagger.json
+static/docs/swagger.min.json
 
 # Coverage
 coverage

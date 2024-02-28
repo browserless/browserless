@@ -11,6 +11,13 @@ import { marked } from 'marked';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const moduleMain = import.meta.url.endsWith(process.argv[1]);
 const swaggerJSONPath = join(__dirname, '..', 'static', 'docs', 'swagger.json');
+const swaggerJSONMinimal = join(
+  __dirname,
+  '..',
+  'static',
+  'docs',
+  'swagger.min.json',
+);
 const packageJSONPath = join(__dirname, '..', 'package.json');
 
 const readFileOrNull = async (path) => {
@@ -63,8 +70,6 @@ const buildOpenAPI = async (
     customSiteTitle: 'Browserless Documentation',
     definitions: {},
     info: {
-      // Concatenation necessary for Changelog to show up in sidebar
-      description: readme + `\n# Changelog\n` + changelog,
       title: 'Browserless',
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
@@ -276,7 +281,12 @@ const buildOpenAPI = async (
       return accum;
     }, {});
   swaggerJSON.paths = paths;
-  fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
+  await fs.writeFile(
+    swaggerJSONMinimal,
+    JSON.stringify(swaggerJSON, null, '  '),
+  );
+  swaggerJSON.info.description = readme + `\n# Changelog\n` + changelog;
+  await fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
 };
 
 export default buildOpenAPI;
