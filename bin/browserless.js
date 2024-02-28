@@ -33,17 +33,27 @@ const allowedCMDs = [
   'help',
   'clean',
 ];
-const projectDir = process.cwd();
-const compiledDir = path.join(projectDir, 'build');
-const packageJSON = readFile(path.join(__dirname, '..', 'package.json')).then(
-  (r) => JSON.parse(r.toString()),
-);
 
 if (!allowedCMDs.includes(cmd)) {
   throw new Error(
     `Unknown command of "${cmd}". Is your @browserless.io/browserless package up to date?`,
   );
 }
+
+const projectDir = process.cwd();
+const buildDir = 'build';
+const srcDir = 'src';
+const compiledDir = path.join(projectDir, buildDir);
+
+const projectPackageJSON = readFile(path.join(projectDir, 'package.json'))
+  .then((r) => JSON.parse(r.toString()))
+  .catch(() => null);
+
+const browserlessPackageJSON = readFile(
+  path.join(__dirname, '..', 'package.json'),
+).then((r) => JSON.parse(r.toString()));
+
+const camelCase = (str) => str.replace(/-([a-z])/g, (_, w) => w.toUpperCase());
 
 const prompt = async (question) => {
   const rl = createInterface({
@@ -60,22 +70,43 @@ const prompt = async (question) => {
   });
 };
 
-const importClassOverride = async (files, className) => {
+const translateSrcToBuild = (directory) => {
+  const srcToBuild = directory.replace(srcDir, '');
+  const pathParsed = path.parse(srcToBuild);
+  return path.format({ ...pathParsed, base: '', ext: '.js' });
+};
+
+const importDefault = async (files, fileName) => {
+  const pJSON = await projectPackageJSON;
+  // Check first if overrides are manually specified in the project's package.json
+  if (pJSON && pJSON.browserless && typeof pJSON.browserless === 'object') {
+    const camelCaseFileName = camelCase(fileName);
+    const relativePath = pJSON.browserless[camelCaseFileName];
+    if (relativePath) {
+      const fullFilePath = path.join(
+        compiledDir,
+        translateSrcToBuild(relativePath),
+      );
+      log(`Importing module from package.json: "${fullFilePath}"`);
+      return (await import(fullFilePath)).default;
+    }
+  }
+
   const classModuleFile = files.find((f) =>
-    path.parse(f).name.endsWith(className),
+    path.parse(f).name.endsWith(fileName),
   );
 
   if (!classModuleFile) {
     return;
   }
 
-  const classModuleFullFilePath = path.join(compiledDir, classModuleFile);
+  const fullFilePath = path.join(compiledDir, classModuleFile);
 
   if (!classModuleFile) {
     return;
   }
-  log(`Importing module override "${classModuleFullFilePath}"`);
-  return (await import(classModuleFullFilePath)).default;
+  log(`Importing module from found files: "${fullFilePath}"`);
+  return (await import(fullFilePath)).default;
 };
 
 const clean = async () =>
@@ -120,7 +151,7 @@ const buildDockerImage = async (cmd) => {
 
 const buildTypeScript = async () =>
   new Promise((resolve, reject) => {
-    spawn('npx', ['tsc', '--outDir', 'build'], {
+    spawn('npx', ['tsc', '--outDir', buildDir], {
       cwd: projectDir,
       stdio: 'inherit',
     }).once('close', (code) => {
@@ -209,7 +240,8 @@ const build = async () => {
   );
 
   log(`Generating OpenAPI JSON file`);
-  await buildOpenAPI(httpRoutes, webSocketRoutes);
+  const disabledRoutes = await importDefault(files, 'disabled-routes');
+  await buildOpenAPI(httpRoutes, webSocketRoutes, disabledRoutes);
 
   log(`All built assets complete`);
 
@@ -239,16 +271,18 @@ const start = async (dev = false) => {
     Router,
     Token,
     Webhooks,
+    disabledRoutes,
   ] = await Promise.all([
-    importClassOverride(files, 'browser-manager'),
-    importClassOverride(files, 'config'),
-    importClassOverride(files, 'file-system'),
-    importClassOverride(files, 'limiter'),
-    importClassOverride(files, 'metrics'),
-    importClassOverride(files, 'monitoring'),
-    importClassOverride(files, 'router'),
-    importClassOverride(files, 'token'),
-    importClassOverride(files, 'webhooks'),
+    importDefault(files, 'browser-manager'),
+    importDefault(files, 'config'),
+    importDefault(files, 'file-system'),
+    importDefault(files, 'limiter'),
+    importDefault(files, 'metrics'),
+    importDefault(files, 'monitoring'),
+    importDefault(files, 'router'),
+    importDefault(files, 'token'),
+    importDefault(files, 'webhooks'),
+    importDefault(files, 'disabled-routes'),
   ]);
 
   log(`Starting Browserless`);
@@ -284,6 +318,15 @@ const start = async (dev = false) => {
     token,
     webhooks,
   });
+
+  if (disabledRoutes !== undefined) {
+    if (!Array.isArray(disabledRoutes)) {
+      throw new Error(
+        `The "disabled-routes.ts" default export should be an array of Route classes.`,
+      );
+    }
+    browserless.disableRoutes(...disabledRoutes);
+  }
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));
   webSocketRoutes.forEach((r) => browserless.addWebSocketRoute(r));
@@ -328,7 +371,7 @@ const start = async (dev = false) => {
 };
 
 const buildDocker = async () => {
-  const finalDockerPath = path.join(projectDir, 'build', 'Dockerfile');
+  const finalDockerPath = path.join(compiledDir, 'Dockerfile');
   const argSwitches = getArgSwitches();
 
   await build();
@@ -339,10 +382,7 @@ const buildDocker = async () => {
 
   log(`Generating Dockerfile at "${finalDockerPath}"`);
 
-  await fs.writeFile(
-    path.join(projectDir, 'build', 'Dockerfile'),
-    dockerContents,
-  );
+  await fs.writeFile(compiledDir, dockerContents);
 
   const from =
     argSwitches.from ||
@@ -424,7 +464,7 @@ const create = async () => {
     const to = path.join(installPath, sdkFile);
     if (sdkFile === 'package.json') {
       const sdkPackageJSONTemplate = (await readFile(from)).toString();
-      const { version } = await packageJSON;
+      const { version } = await browserlessPackageJSON;
       const sdkPackageJSON = sdkPackageJSONTemplate.replace(
         '${BROWSERLESS_VERSION}',
         version,

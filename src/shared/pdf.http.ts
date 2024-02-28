@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
@@ -64,7 +65,8 @@ export interface QuerySchema extends SystemQueryParameters {
  */
 export type ResponseSchema = string;
 
-export default class PDFPost extends BrowserHTTPRoute {
+export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
+  name = BrowserlessRoutes.ChromiumPDFPostRoute;
   accepts = [contentTypes.json];
   auth = true;
   browser = ChromiumCDP;

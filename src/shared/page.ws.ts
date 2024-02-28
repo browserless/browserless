@@ -1,6 +1,7 @@
 import {
   APITags,
   BrowserWebsocketRoute,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   Request,
@@ -14,7 +15,8 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
 }
 
-export default class PageWebSocketRoute extends BrowserWebsocketRoute {
+export default class ChromiumPageWebSocketRoute extends BrowserWebsocketRoute {
+  name = BrowserlessRoutes.ChromiumPageWebSocketRoute;
   auth = true;
   browser = ChromiumCDP;
   concurrency = false;

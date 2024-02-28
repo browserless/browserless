@@ -7,14 +7,13 @@ const DEFAULT_AUDIT_CONFIG = {
   extends: 'lighthouse:default',
 };
 
-const debug = createLogger('http:performance:main');
-
 export default async ({
   browser,
   context,
   timeout,
 }: mainOptions): Promise<unknown> => {
   return new Promise((resolve, reject) => {
+    const debug = createLogger('http:performance:main');
     const childPath = path.join(
       './',
       'build',

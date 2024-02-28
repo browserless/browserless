@@ -4,9 +4,14 @@ import {
   QuerySchema,
   ResponseSchema,
 } from '../../../shared/pdf.http.js';
-import { ChromeCDP, HTTPRoutes } from '@browserless.io/browserless';
+import {
+  BrowserlessRoutes,
+  ChromeCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
 
-export default class ChromePDF extends PDF {
+export default class ChromePDFPostRoute extends PDF {
+  name = BrowserlessRoutes.ChromePDFPostRoute;
   browser = ChromeCDP;
   path = [HTTPRoutes.chromePdf];
 }

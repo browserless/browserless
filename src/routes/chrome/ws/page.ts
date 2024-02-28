@@ -1,7 +1,8 @@
+import { BrowserlessRoutes, ChromeCDP } from '@browserless.io/browserless';
 import { default as Page, QuerySchema } from '../../../shared/page.ws.js';
-import { ChromeCDP } from '@browserless.io/browserless';
 
-export default class ChromePage extends Page {
+export default class ChromePageWebSocketRoute extends Page {
+  name = BrowserlessRoutes.ChromePageWebSocketRoute;
   browser = ChromeCDP;
 }
 

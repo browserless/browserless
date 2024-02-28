@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.2.0",
+  "version": "2.3.0-beta-2",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -30,7 +30,8 @@
     "lint": "eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,bin}/**/*.{js,ts,json}' --log-level error --write",
-    "test": "cross-env DEBUG=quiet mocha"
+    "test": "cross-env DEBUG=quiet mocha",
+    "start": "env-cmd -f .env node build"
   },
   "files": [
     "assets/*",
@@ -81,7 +82,6 @@
     "esbuild": "^0.20.1",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-typescript-sort-keys": "^3.2.0",
     "extract-zip": "^2.0.1",
     "marked": "^12.0.0",

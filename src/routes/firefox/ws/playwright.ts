@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
+  BrowserlessRoutes,
   FirefoxPlaywright,
   Request,
   SystemQueryParameters,
@@ -16,7 +17,8 @@ export interface QuerySchema extends SystemQueryParameters {
   };
 }
 
-export default class FirefoxPlayWrightRoute extends BrowserWebsocketRoute {
+export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRoute {
+  name = BrowserlessRoutes.FirefoxPlaywrightWebSocketRoute;
   auth = true;
   browser = FirefoxPlaywright;
   concurrency = true;

@@ -105,6 +105,12 @@ abstract class Route {
   ) {}
 
   /**
+   * A unique name to identify this route. Used in downstream
+   * SDKs to potentially remove or disable.
+   */
+  abstract name: string;
+
+  /**
    * A boolean, or a function that returns a boolean, on
    * whether the route requires an API token to access.
    */
@@ -602,3 +608,63 @@ export interface CDPJSONPayload {
    */
   webSocketDebuggerUrl: string;
 }
+
+export const BrowserlessChromeRoutes = {
+  ChromeBrowserWebSocketRoute: 'ChromeBrowserWebSocketRoute',
+  ChromeCDPWebSocketRoute: 'ChromeCDPWebSocketRoute',
+  ChromeContentPostRoute: 'ChromeContentPostRoute',
+  ChromeDownloadPostRoute: 'ChromeDownloadPostRoute',
+  ChromeFunctionPostRoute: 'ChromeFunctionPostRoute',
+  ChromeJSONListGetRoute: 'ChromeJSONListGetRoute',
+  ChromeJSONNewPutRoute: 'ChromeJSONNewPutRoute',
+  ChromeJSONProtocolGetRoute: 'ChromeJSONProtocolGetRoute',
+  ChromeJSONVersionGetRoute: 'ChromeJSONVersionGetRoute',
+  ChromePDFPostRoute: 'ChromePDFPostRoute',
+  ChromePageWebSocketRoute: 'ChromePageWebSocketRoute',
+  ChromePerformancePostRoute: 'ChromePerformancePostRoute',
+  ChromePlaywrightWebSocketRoute: 'ChromePlaywrightWebSocketRoute',
+  ChromeScrapePostRoute: 'ChromeScrapePostRoute',
+  ChromeScreenshotPostRoute: 'ChromeScreenshotPostRoute',
+};
+
+export const BrowserlessChromiumRoutes = {
+  ChromiumBrowserWebSocketRoute: 'ChromiumBrowserWebSocketRoute',
+  ChromiumCDPWebSocketRoute: 'ChromiumCDPWebSocketRoute',
+  ChromiumContentPostRoute: 'ChromiumContentPostRoute',
+  ChromiumDownloadPostRoute: 'ChromiumDownloadPostRoute',
+  ChromiumFunctionPostRoute: 'ChromiumFunctionPostRoute',
+  ChromiumJSONListGetRoute: 'ChromiumJSONListGetRoute',
+  ChromiumJSONNewPutRoute: 'ChromiumJSONNewPutRoute',
+  ChromiumJSONProtocolGetRoute: 'ChromiumJSONProtocolGetRoute',
+  ChromiumJSONVersionGetRoute: 'ChromiumJSONVersionGetRoute',
+  ChromiumPDFPostRoute: 'ChromiumPDFPostRoute',
+  ChromiumPageWebSocketRoute: 'ChromiumPageWebSocketRoute',
+  ChromiumPerformancePostRoute: 'ChromiumPerformancePostRoute',
+  ChromiumPlaywrightWebSocketRoute: 'ChromiumPlaywrightWebSocketRoute',
+  ChromiumScrapePostRoute: 'ChromiumScrapePostRoute',
+  ChromiumScreenshotPostRoute: 'ChromiumScreenshotPostRoute',
+};
+
+export const BrowserlessFirefoxRoutes = {
+  FirefoxPlaywrightWebSocketRoute: 'FirefoxPlaywrightWebSocketRoute',
+};
+
+export const BrowserlessWebKitRoutes = {
+  WebKitPlaywrightWebSocketRoute: 'WebKitPlaywrightWebSocketRoute',
+};
+
+export const BrowserlessManagementRoutes = {
+  ConfigGetRoute: 'ConfigGetRoute',
+  MetricsGetRoute: 'MetricsGetRoute',
+  MetricsTotalGetRoute: 'MetricsTotalGetRoute',
+  SessionsGetRoute: 'SessionsGetRoute',
+  StaticGetRoute: 'StaticGetRoute',
+};
+
+export const BrowserlessRoutes = {
+  ...BrowserlessChromeRoutes,
+  ...BrowserlessChromiumRoutes,
+  ...BrowserlessFirefoxRoutes,
+  ...BrowserlessWebKitRoutes,
+  ...BrowserlessManagementRoutes,
+};

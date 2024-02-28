@@ -26,8 +26,7 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN npx --yes playwright install firefox &&\
-  npx --yes playwright install-deps firefox &&\
+RUN ./node_modules/.bin/playwright-core install --with-deps firefox &&\
   npm run build &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\

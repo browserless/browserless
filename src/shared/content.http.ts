@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
@@ -62,7 +63,8 @@ export type QuerySchema = SystemQueryParameters & {
   launch?: CDPLaunchOptions | string;
 };
 
-export default class ContentPostRoute extends BrowserHTTPRoute {
+export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
+  name = BrowserlessRoutes.ChromiumContentPostRoute;
   accepts = [contentTypes.json];
   auth = true;
   browser = ChromiumCDP;
