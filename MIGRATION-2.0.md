@@ -1,6 +1,12 @@
 ## Browserless 2.0 Migration Guide
 
-Browserless 2.0 is finally here! It's a complete rewrite of the core of browserless, and many things have changed. To keep things short, this rewrite allows us to support many new things which you can read about here: [https://www.browserless.io/blog/2023/12/06/browserless-2-0/](https://www.browserless.io/blog/2023/12/06/browserless-2-0/).
+Browserless 2.0 is finally here! It's a complete rewrite of the core of browserless, and many things have changed. To keep things short, this rewrite allows us to support many new things which you can read about in these articles: 
+
+[Announcing v2](https://www.browserless.io/blog/2023/12/06/browserless-2-0/)
+
+[How and why we rebuilt Browserless](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
+
+[How to use the v2 SDK](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
 
 This document serves as a guide to migrate existing systems from browserless 1.x to 2.x. New features are not covered in this guide, but we do recommend checking the new things outBelow is a table of contents from which you can pick to better aide in migrating your existing codebase or REST calls.
 
