@@ -134,6 +134,9 @@ export type ResponseSchema = string;
 
 // Similar to React and other ecosystems, extend our basic HTTPRoute
 export default class HelloWorldRoute extends HTTPRoute {
+  // Must have a unique name for things like disabling to work if desired
+  name = 'PDFToS3Route';
+
   // Detail any content-types that this route should except. "contentTypes.any" here means any content-type.
   // If the content-type does not match then a 404 will be sent back
   accepts = [contentTypes.any];
@@ -193,6 +196,9 @@ export interface QuerySchema extends SystemQueryParameters {
 }
 
 export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
+  // Must have a unique name for things like disabling to work if desired
+  name = 'ChromiumWebSocketRoute';
+
   // This route requires a valid authorization token.
   auth = true;
 
@@ -298,6 +304,9 @@ export interface BodySchema {
 }
 
 export default class PDFToS3Route extends BrowserHTTPRoute {
+  // Must have a unique name for things like disabling to work if desired
+  name = 'PDFToS3Route';
+
   // Our route only accepts JSON content-types, and the rest 404
   accepts = [contentTypes.json];
 
@@ -350,7 +359,7 @@ With this approach you can effectively write, extend and author your own workflo
 
 ## Disabling Routes
 
-You can disable access to core routes by specifying the route names you want to disable in a file named `disabled-routes.ts`. Browserless will scan all directories for a file named as such, and disable the named classes exported by this file.
+You can disable access to core routes by specifying the route names you want to disable in a file named `disabled-routes.ts`. Browserless will scan all directories for a file named as such, and disable the named classes exported by this file. The alternative is to create a `browserless` property in your package.json file that contains a `disabledRoutes` string pointing to the relative path of your disabled routes file.
 
 For example, if you want to disable all metrics, config, and session information your `src/disabled-routes.ts` file would look like this:
 
@@ -363,6 +372,17 @@ export default [
   BrowserlessRoutes.MetricsGetRoute,
   BrowserlessRoutes.MetricsTotalGetRoute,
 ];
+```
+
+And in the package.json file, it'd look like this:
+
+```json
+{
+  // ... lots of package.json stuff
+  "browserless": {
+    "disabledRoutes": "./src/disabled-routes.ts"
+  }
+}
 ```
 
 In order for route-disabling to work, you must have a `default` export that's an array of names. Browserless exports every route name it builds and runs internally, meaning you simply need to pass them through this `disabled-routes.ts` file after importing them.
