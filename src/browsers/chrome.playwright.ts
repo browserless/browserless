@@ -5,6 +5,6 @@ import {
 import { ChromiumPlaywright } from './chromium.playwright.js';
 
 export class ChromePlaywright extends ChromiumPlaywright {
-  protected executablePath = chromeExecutablePath;
+  protected executablePath = chromeExecutablePath();
   protected debug = createLogger('browsers:chrome:playwright');
 }
