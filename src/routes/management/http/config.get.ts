@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   HTTPManagementRoutes,
   HTTPRoute,
   Methods,
@@ -33,6 +34,7 @@ export interface ResponseSchema {
 }
 
 export default class ConfigGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ConfigGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

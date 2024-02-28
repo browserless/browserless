@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   HTTPManagementRoutes,
   HTTPRoute,
   Methods,
@@ -48,6 +49,7 @@ const streamFile = (
   });
 
 export default class StaticGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.StaticGetRoute;
   accepts = [contentTypes.any];
   auth = false;
   browser = null;

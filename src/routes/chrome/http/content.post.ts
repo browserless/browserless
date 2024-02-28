@@ -4,9 +4,14 @@ import {
   QuerySchema,
   ResponseSchema,
 } from '../../../shared/content.http.js';
-import { ChromeCDP, HTTPRoutes } from '@browserless.io/browserless';
+import {
+  BrowserlessRoutes,
+  ChromeCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
 
-export default class ChromeContentRoute extends Content {
+export default class ChromeContentPostRoute extends Content {
+  name = BrowserlessRoutes.ChromeContentPostRoute;
   browser = ChromeCDP;
   path = [HTTPRoutes.chromeContent];
 }

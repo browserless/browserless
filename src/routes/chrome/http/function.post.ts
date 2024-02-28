@@ -4,9 +4,14 @@ import {
   QuerySchema,
   ResponseSchema,
 } from '../../../shared/function.http.js';
-import { ChromeCDP, HTTPRoutes } from '@browserless.io/browserless';
+import {
+  BrowserlessRoutes,
+  ChromeCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
 
-export default class ChromeFunctionRoute extends Function {
+export default class ChromeFunctionPostRoute extends Function {
+  name = BrowserlessRoutes.ChromeFunctionPostRoute;
   browser = ChromeCDP;
   path = [HTTPRoutes.chromeFunction];
 }

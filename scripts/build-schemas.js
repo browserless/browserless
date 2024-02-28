@@ -2,8 +2,6 @@
 /* global console, process */
 'use strict';
 
-import { getRouteFiles, tsExtension } from '../build/utils.js';
-import { Config } from '../build/config.js';
 import TJS from 'typescript-json-schema';
 import fs from 'fs/promises';
 import path from 'path';
@@ -14,6 +12,8 @@ const buildSchemas = async (
   externalHTTPRoutes = [],
   externalWebSocketRoutes = [],
 ) => {
+  const { getRouteFiles, tsExtension } = await import('../build/utils.js');
+
   const schemas = ['BodySchema', 'QuerySchema', 'ResponseSchema'];
   const settings = {
     ignoreErrors: true,
@@ -25,6 +25,7 @@ const buildSchemas = async (
     await fs.readFile('tsconfig.json', 'utf-8'),
   );
 
+  const { Config } = await import('../build/config.js');
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
 
   // Depending on if we're parsing an external projects routes,

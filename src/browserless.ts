@@ -36,11 +36,11 @@ type Implements<T> = {
   new (...args: unknown[]): T;
 };
 
-type RouteTypes =
-  | typeof HTTPRoute
-  | typeof BrowserHTTPRoute
-  | typeof WebSocketRoute
-  | typeof BrowserWebsocketRoute;
+type routeInstances =
+  | HTTPRoute
+  | BrowserHTTPRoute
+  | WebSocketRoute
+  | BrowserWebsocketRoute;
 
 export class Browserless {
   protected debug: debug.Debugger = createLogger('index');
@@ -54,7 +54,7 @@ export class Browserless {
   protected token: Token;
   protected webhooks: WebHooks;
 
-  DisabledRoutes: RouteTypes[] = [];
+  disabledRouteNames: string[] = [];
   webSocketRouteFiles: string[] = [];
   httpRouteFiles: string[] = [];
   server?: HTTPServer;
@@ -145,13 +145,12 @@ export class Browserless {
     );
   };
 
-  private routeIsDisabled(Route: RouteTypes) {
-    const Stringified = Route.toString();
-    return this.DisabledRoutes.some((r) => r.toString() === Stringified);
+  private routeIsDisabled(route: routeInstances) {
+    return this.disabledRouteNames.some((name) => name === route.name);
   }
 
-  public disableRoute(Route: RouteTypes) {
-    this.DisabledRoutes.push(Route);
+  public disableRoute(routeName: string) {
+    this.disabledRouteNames.push(routeName);
   }
 
   public addHTTPRoute(httpRouteFilePath: string) {
@@ -220,15 +219,16 @@ export class Browserless {
           default: Route,
         }: { default: Implements<HTTPRoute> | Implements<BrowserHTTPRoute> } =
           await import(routeImport + `?cb=${Date.now()}`);
-        if (!this.routeIsDisabled(Route)) {
-          const route = new Route(
-            this.browserManager,
-            this.config,
-            this.fileSystem,
-            logger,
-            this.metrics,
-            this.monitoring,
-          );
+        const route = new Route(
+          this.browserManager,
+          this.config,
+          this.fileSystem,
+          logger,
+          this.metrics,
+          this.monitoring,
+        );
+
+        if (!this.routeIsDisabled(route)) {
           route.bodySchema = safeParse(bodySchema);
           route.querySchema = safeParse(querySchema);
           route.config = () => this.config;
@@ -270,15 +270,16 @@ export class Browserless {
             | Implements<WebSocketRoute>
             | Implements<BrowserWebsocketRoute>;
         } = await import(wsImport + `?cb=${Date.now()}`);
-        if (!this.routeIsDisabled(Route)) {
-          const route = new Route(
-            this.browserManager,
-            this.config,
-            this.fileSystem,
-            logger,
-            this.metrics,
-            this.monitoring,
-          );
+        const route = new Route(
+          this.browserManager,
+          this.config,
+          this.fileSystem,
+          logger,
+          this.metrics,
+          this.monitoring,
+        );
+
+        if (!this.routeIsDisabled(route)) {
           route.querySchema = safeParse(querySchema);
           route.config = () => this.config;
           route.metrics = () => this.metrics;
@@ -291,8 +292,9 @@ export class Browserless {
       }
     }
 
+    const allRoutes = [...httpRoutes, ...wsRoutes];
     // Validate that we have the browsers they are asking for
-    [...httpRoutes, ...wsRoutes].forEach((route) => {
+    allRoutes.forEach((route) => {
       if (
         'browser' in route &&
         route.browser &&
@@ -304,6 +306,17 @@ export class Browserless {
         );
       }
     });
+
+    const duplicateNamedRoutes = allRoutes
+      .filter((e, i, a) => a.findIndex((r) => r.name === e.name) !== i)
+      .map((r) => r.name);
+
+    if (duplicateNamedRoutes.length) {
+      this.debug(
+        `Found duplicate routing names. Route names must be unique:`,
+        duplicateNamedRoutes,
+      );
+    }
 
     httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));

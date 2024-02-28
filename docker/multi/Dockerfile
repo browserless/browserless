@@ -7,8 +7,6 @@ ENV TARGETPLATFORM=${TARGETPLATFORM}
 
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
-# Only use core as exports since routes are lazy loaded and not always present
-COPY src/exports.core.ts src/exports.ts
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
   apt-get -y -qq install software-properties-common &&\

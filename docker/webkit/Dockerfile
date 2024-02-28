@@ -5,8 +5,6 @@ LABEL org.opencontainers.image.source https://github.com/browserless/browserless
 # Install Fonts
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
-# Only use core as exports since routes are lazy loaded and not always present
-COPY src/exports.core.ts src/exports.ts
 RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
 COPY src/routes/webkit src/routes/webkit/

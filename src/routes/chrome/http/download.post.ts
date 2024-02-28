@@ -4,9 +4,14 @@ import {
   QuerySchema,
   ResponseSchema,
 } from '../../../shared/download.http.js';
-import { ChromeCDP, HTTPRoutes } from '@browserless.io/browserless';
+import {
+  BrowserlessRoutes,
+  ChromeCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
 
-export default class ChromeDownloadRoute extends Download {
+export default class ChromeDownloadPostRoute extends Download {
+  name = BrowserlessRoutes.ChromeDownloadPostRoute;
   browser = ChromeCDP;
   path = [HTTPRoutes.chromeDownload];
 }

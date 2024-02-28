@@ -209,8 +209,8 @@ const build = async () => {
   );
 
   log(`Generating OpenAPI JSON file`);
-  const DisabledRoutes = await importDefault(files, 'disabled-routes');
-  await buildOpenAPI(httpRoutes, webSocketRoutes, DisabledRoutes);
+  const disabledRoutes = await importDefault(files, 'disabled-routes');
+  await buildOpenAPI(httpRoutes, webSocketRoutes, disabledRoutes);
 
   log(`All built assets complete`);
 
@@ -240,7 +240,7 @@ const start = async (dev = false) => {
     Router,
     Token,
     Webhooks,
-    DisabledRoutes,
+    disabledRoutes,
   ] = await Promise.all([
     importDefault(files, 'browser-manager'),
     importDefault(files, 'config'),
@@ -288,13 +288,13 @@ const start = async (dev = false) => {
     webhooks,
   });
 
-  if (DisabledRoutes !== undefined) {
-    if (!Array.isArray(DisabledRoutes)) {
+  if (disabledRoutes !== undefined) {
+    if (!Array.isArray(disabledRoutes)) {
       throw new Error(
         `The "disabled-routes.ts" default export should be an array of Route classes.`,
       );
     }
-    DisabledRoutes.forEach((R) => browserless.disableRoute(R));
+    disabledRoutes.forEach((R) => browserless.disableRoute(R));
   }
 
   httpRoutes.forEach((r) => browserless.addHTTPRoute(r));

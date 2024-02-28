@@ -350,27 +350,22 @@ With this approach you can effectively write, extend and author your own workflo
 
 ## Disabling Routes
 
-You can disable access to core routes by specifying the route classes you want to disable in a file named `disabled-routes.ts`. Browserless will scan all directories for a file named as such, and disable the named classes exported by this file.
+You can disable access to core routes by specifying the route names you want to disable in a file named `disabled-routes.ts`. Browserless will scan all directories for a file named as such, and disable the named classes exported by this file.
 
 For example, if you want to disable all metrics, config, and session information your `src/disabled-routes.ts` file would look like this:
 
 ```ts
-import {
-  ConfigGetRoute,
-  SessionsGetGetRoute,
-  MetricsGetRoute,
-  MetricsTotalGetRoute,
-} from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '@browserless.io/browserless';
 
 export default [
-  ConfigGetRoute,
-  SessionsGetGetRoute,
-  MetricsGetRoute,
-  MetricsTotalGetRoute,
+  BrowserlessRoutes.ConfigGetRoute,
+  BrowserlessRoutes.SessionsGetGetRoute,
+  BrowserlessRoutes.MetricsGetRoute,
+  BrowserlessRoutes.MetricsTotalGetRoute,
 ];
 ```
 
-In order for route-disabling to work, you must have a `default` export that's an array of RouteClasses. Browserless exports every route that it builds and runs internally, meaning you simply need to pass them through this `disabled-routes.ts` file after importing them.
+In order for route-disabling to work, you must have a `default` export that's an array of names. Browserless exports every route name it builds and runs internally, meaning you simply need to pass them through this `disabled-routes.ts` file after importing them.
 
 Disabling a route will do several things:
 

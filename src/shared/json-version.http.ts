@@ -1,6 +1,7 @@
 import {
   APITags,
   BrowserManager,
+  BrowserlessRoutes,
   HTTPRoute,
   HTTPRoutes,
   Methods,
@@ -16,9 +17,10 @@ export type ResponseSchema = UnwrapPromise<
   ReturnType<BrowserManager['getVersionJSON']>
 >;
 
-export default class GetJSONVersion extends HTTPRoute {
+export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
   private cachedJSON: ResponseSchema | undefined;
 
+  name = BrowserlessRoutes.ChromiumJSONVersionGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
