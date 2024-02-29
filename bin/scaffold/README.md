@@ -14,7 +14,7 @@ Finally, this SDK and Browserless.io are built to support businesses and enterpr
 - [Utilities](#utilities)
 - [Extending Modules](#extending-modules)
 - [Disabling Routes](#disabling-routes)
-- [Serving Static Files]()
+- [Serving Static Files](#serving-static-files)
 - [Running in Development](#running-in-development)
 - [Building for Production](#building-for-production)
 - [Running without Building](#running-without-building)
