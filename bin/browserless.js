@@ -319,6 +319,8 @@ const start = async (dev = false) => {
     webhooks,
   });
 
+  browserless.setStaticSDKDir(path.join(projectDir, 'static'));
+
   if (disabledRoutes !== undefined) {
     if (!Array.isArray(disabledRoutes)) {
       throw new Error(

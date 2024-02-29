@@ -70,39 +70,49 @@ export default class StaticGetRoute extends HTTPRoute {
     }
 
     const config = this.config();
+    const sdkDir = this.staticSDKDir();
     const file = path.join(config.getStatic(), pathname);
     const indexFile = path.join(file, 'index.html');
+    const locations = [file, indexFile];
 
-    const filePath = (
-      await Promise.all([
-        fileExists(file).then((exists) => (exists ? file : undefined)),
-        fileExists(indexFile).then((exists) =>
-          exists ? indexFile : undefined,
-        ),
-      ])
-    ).find((_) => !!_);
+    if (sdkDir) {
+      const sdkPath = path.join(sdkDir, pathname);
+      locations.push(...[sdkPath, path.join(sdkPath, 'index.html')]);
+    }
 
-    if (!filePath) {
+    const foundFilePaths = (
+      await Promise.all(
+        locations.map((l) => fileExists(l).then((e) => (e ? l : undefined))),
+      )
+    ).filter((_) => !!_) as string[];
+
+    if (!foundFilePaths.length) {
       throw new NotFound(
         `No route or file found for resource ${req.method}: ${pathname}`,
       );
     }
 
-    verbose(`Found new file "${filePath}", caching path and serving`);
+    if (foundFilePaths.length > 1) {
+      debug(
+        `Multiple files found for request ${pathname}. Only the first is returned, please name your files uniquely.`,
+      );
+    }
 
-    const contentType = mimeTypes.get(path.extname(filePath));
+    const [foundFilePath] = foundFilePaths;
+    verbose(`Found new file "${foundFilePath}", caching path and serving`);
+
+    const contentType = mimeTypes.get(path.extname(foundFilePath));
 
     if (contentType) {
       res.setHeader('Content-Type', contentType);
     }
 
-    // Cache the assets location so we don't have to
-    // do stat checks again when requests come back
+    // Cache the file as being found so we don't have to call 'stat'
     pathMap.set(pathname, {
       contentType,
-      path: filePath,
+      path: foundFilePath,
     });
 
-    return streamFile(verbose, res, filePath, contentType);
+    return streamFile(verbose, res, foundFilePath, contentType);
   };
 }

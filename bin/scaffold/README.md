@@ -13,7 +13,8 @@ Finally, this SDK and Browserless.io are built to support businesses and enterpr
 - [Routing](#routing)
 - [Utilities](#utilities)
 - [Extending Modules](#extending-modules)
-- [Disabling Routes](#dis)
+- [Disabling Routes](#disabling-routes)
+- [Serving Static Files]()
 - [Running in Development](#running-in-development)
 - [Building for Production](#building-for-production)
 - [Running without Building](#running-without-building)
@@ -396,6 +397,28 @@ Disabling a route will do several things:
 - It doesn't, however, remove them from Node's Module cache.
 
 All of Browserless' internal routes are side-effect free, meaning their largely state-less and don't do exhibit kind of behavior aside from route handling and metrics reporting. Having them in Node's module cache is fine since they're never mounted in the router and set up as a potential route.
+
+## Serving Static Files
+
+Aside from the static files Browserless serves for documentation, and a few other APIs, SDK projects can also provide static files to be served. To do so, simply create a "static" directory in the root of your project with the files you wish to serve. These will then be served based upon their location in the directory and the file name. Unless that is, of course, you've disabled the static route. Don't be silly.
+
+Care should be taken _not_ to create the same filenames that Browserless serves and uses as internal static files takes precedence over SDK files. In short, the list is:
+
+- `assets/*`
+- `devtools/*`
+- `docs/*`
+- `function/*`
+- `favicon-32x32.png`
+
+Anything else is fair game and will be served properly. An easy way to "scope" files into a path is to simply create a subpath, for instance:
+
+`static/enterprise/docs`
+
+Will be available to be served under:
+
+`http://YOUR-HOST:YOUR-PORT/enterprise/docs`
+
+Which prevents this route from colliding with our internal `/docs` route.
 
 ## Running in Development
 
