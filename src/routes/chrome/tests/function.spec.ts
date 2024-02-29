@@ -46,6 +46,41 @@ describe('/chrome/function API', function () {
     });
   });
 
+  it('runs functions with "context"', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page, context }) {
+        if (!!context.ok) {
+          return Promise.resolve({
+            data: "ok",
+            type: "application/text",
+          });
+        }
+        return Promise.reject(new Error('Bad context!'));
+      }`,
+      context: {
+        ok: true,
+      },
+    };
+
+    await fetch('http://localhost:3000/chrome/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
+
   it('runs "application/javascript" functions', async () => {
     const config = new Config();
     config.setToken('browserless');
