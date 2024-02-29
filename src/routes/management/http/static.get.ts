@@ -94,7 +94,7 @@ export default class StaticGetRoute extends HTTPRoute {
 
     if (foundFilePaths.length > 1) {
       debug(
-        `Multiple files found for request ${pathname}. Only the first is returned, please name your files uniquely.`,
+        `Multiple files found for request to "${pathname}". Only the first file is served, so please name your files uniquely.`,
       );
     }
 
