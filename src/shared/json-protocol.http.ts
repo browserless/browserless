@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   HTTPRoute,
   HTTPRoutes,
   Methods,
@@ -11,9 +12,10 @@ import {
 
 export type ResponseSchema = object;
 
-export default class GetJSONVersion extends HTTPRoute {
+export default class ChromiumJSONProtocolGetRoute extends HTTPRoute {
   private cachedProtocol: object | undefined;
 
+  name = BrowserlessRoutes.ChromiumJSONProtocolGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

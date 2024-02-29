@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
+  BrowserlessRoutes,
   ChromiumPlaywright,
   Request,
   SystemQueryParameters,
@@ -14,7 +15,8 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-export default class PlaywrightChromiumRoute extends BrowserWebsocketRoute {
+export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRoute {
+  name = BrowserlessRoutes.ChromiumPlaywrightWebSocketRoute;
   auth = true;
   browser = ChromiumPlaywright;
   concurrency = true;

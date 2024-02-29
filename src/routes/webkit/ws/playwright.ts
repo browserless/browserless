@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserServerOptions,
   BrowserWebsocketRoute,
+  BrowserlessRoutes,
   Request,
   SystemQueryParameters,
   WebkitPlaywright,
@@ -14,7 +15,8 @@ export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;
 }
 
-export default class WebkitPlaywrightRoute extends BrowserWebsocketRoute {
+export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRoute {
+  name = BrowserlessRoutes.WebKitPlaywrightWebSocketRoute;
   auth = true;
   browser = WebkitPlaywright;
   concurrency = true;

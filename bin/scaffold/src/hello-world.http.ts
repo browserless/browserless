@@ -10,7 +10,8 @@ import {
 
 export type ResponseSchema = string;
 
-export default class HelloWorldRoute extends HTTPRoute {
+export default class HelloWorldHTTPRoute extends HTTPRoute {
+  name = 'HelloWorldHTTPRoute';
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   BrowserlessSessionJSON,
   HTTPManagementRoutes,
   HTTPRoute,
@@ -13,6 +14,7 @@ import { ServerResponse } from 'http';
 export type ResponseSchema = BrowserlessSessionJSON[];
 
 export default class SessionsGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.SessionsGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

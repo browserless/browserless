@@ -77,6 +77,10 @@ export class Limiter extends q {
     this.logQueue('All jobs complete.');
   }
 
+  protected jobEnd(jobInfo: AfterResponse) {
+    afterRequest(jobInfo);
+  }
+
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
     this.debug(
@@ -84,7 +88,7 @@ export class Limiter extends q {
     );
     this.metrics.addSuccessful(Date.now() - job.start);
     // @TODO Figure out a better argument handling for jobs
-    afterRequest({
+    this.jobEnd({
       req: job.args[0],
       start: job.start,
       status: 'successful',
@@ -104,7 +108,7 @@ export class Limiter extends q {
     this.webhooks.callTimeoutAlertURL();
     this.debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
-    afterRequest({
+    this.jobEnd({
       req: job.args[0],
       start: job.start,
       status: 'timedout',
@@ -121,7 +125,7 @@ export class Limiter extends q {
     this.debug(`Recording failed stat, cleaning up: "${error?.toString()}"`);
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
-    afterRequest({
+    this.jobEnd({
       req: job.args[0],
       start: job.start,
       status: 'error',

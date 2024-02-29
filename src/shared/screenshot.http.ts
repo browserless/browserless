@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
@@ -67,6 +68,7 @@ export interface BodySchema {
 }
 
 export default class ScreenshotPost extends BrowserHTTPRoute {
+  name = BrowserlessRoutes.ChromiumScreenshotPostRoute;
   accepts = [contentTypes.json];
   auth = true;
   browser = ChromiumCDP;

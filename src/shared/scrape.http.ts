@@ -3,6 +3,7 @@ import {
   BadRequest,
   BrowserHTTPRoute,
   BrowserInstance,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
@@ -199,7 +200,8 @@ const scrape = async (elements: ScrapeElementSelector[]) => {
   });
 };
 
-export default class ScrapePost extends BrowserHTTPRoute {
+export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
+  name = BrowserlessRoutes.ChromiumScrapePostRoute;
   accepts = [contentTypes.json];
   auth = true;
   browser = ChromiumCDP;

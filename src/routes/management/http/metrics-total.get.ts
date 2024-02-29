@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   HTTPManagementRoutes,
   HTTPRoute,
   IBrowserlessMetricTotals,
@@ -15,6 +16,7 @@ export type ResponseSchema = IBrowserlessMetricTotals;
 const fiveMinuteIntervalsInAMonth = 8640;
 
 export default class MetricsTotalGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.MetricsTotalGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

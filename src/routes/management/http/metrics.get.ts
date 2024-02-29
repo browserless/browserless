@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   HTTPManagementRoutes,
   HTTPRoute,
   IBrowserlessStats,
@@ -13,6 +14,7 @@ import { ServerResponse } from 'http';
 export type ResponseSchema = Array<IBrowserlessStats>;
 
 export default class MetricsGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.MetricsGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

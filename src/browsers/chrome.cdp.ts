@@ -5,6 +5,6 @@ import {
 import { ChromiumCDP } from './chromium.cdp.js';
 
 export class ChromeCDP extends ChromiumCDP {
-  protected executablePath = chromeExecutablePath;
+  protected executablePath = chromeExecutablePath();
   protected debug = createLogger('browsers:chrome:cdp');
 }

@@ -303,12 +303,18 @@ export const readBody = async (
  * Lists the path of Chromes (stable) install since
  * no library or utility out there does it including playwright.
  */
-export const chromeExecutablePath =
-  process.platform === 'win32'
-    ? `%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe`
-    : process.platform === 'darwin'
-      ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-      : '/usr/bin/google-chrome-stable';
+export const chromeExecutablePath = () => {
+  if (process.platform === 'win32') {
+    // Windows always includes the ProgramFiles variable in the environment
+    return `${process.env['ProgramFiles']}\\Google\\Chrome\\Application\\chrome.exe`;
+  }
+
+  if (process.platform === 'darwin') {
+    return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  }
+
+  return '/usr/bin/google-chrome-stable';
+};
 
 export const getRouteFiles = async (config: Config): Promise<string[][]> => {
   const routes = config.getRoutes();
@@ -432,7 +438,7 @@ export const availableBrowsers = Promise.all([
   exists(playwright.chromium.executablePath()),
   exists(playwright.firefox.executablePath()),
   exists(playwright.webkit.executablePath()),
-  exists(chromeExecutablePath),
+  exists(chromeExecutablePath()),
 ]).then(([chromiumExists, firefoxExists, webkitExists, chromeExists]) => {
   const availableBrowsers = [];
 

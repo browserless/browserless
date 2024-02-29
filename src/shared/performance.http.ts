@@ -2,6 +2,7 @@ import {
   APITags,
   BrowserHTTPRoute,
   BrowserInstance,
+  BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
@@ -33,6 +34,7 @@ export interface QuerySchema extends SystemQueryParameters {
 export type ResponseSchema = object;
 
 export default class PerformancePost extends BrowserHTTPRoute {
+  name = BrowserlessRoutes.ChromiumPerformancePostRoute;
   accepts = [contentTypes.json];
   auth = true;
   browser = ChromiumCDP;

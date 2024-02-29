@@ -1,4 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.2.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.3.0...main)
+- Dependency updates.
+
+# [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
+**Potentially Breaking**
+- Routes must define a unique `name` property in order to remove them in SDK projects.
+- A new `browserless` object in the SDK `package.json` file can specify module overrides, in camelCase, instead of using a path-based semantic.
+- Fixes issues with `npx playwright-core install...` potentially installing other browser versions than what is a dependency of Browserless.
+- Fixes and other general improvements.
 - Dependency updates.
 
 # [v2.2.0](https://github.com/browserless/chrome/compare/v2.1.0...v2.2.0)

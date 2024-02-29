@@ -1,5 +1,6 @@
 import {
   APITags,
+  BrowserlessRoutes,
   CDPJSONPayload,
   HTTPRoute,
   HTTPRoutes,
@@ -27,7 +28,8 @@ Example Payload from Chromium:
 */
 export type ResponseSchema = CDPJSONPayload;
 
-export default class GetJSONList extends HTTPRoute {
+export default class ChromiumJSONNewPutRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ChromiumJSONNewPutRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;

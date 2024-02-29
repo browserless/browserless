@@ -11,6 +11,13 @@ import { marked } from 'marked';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const moduleMain = import.meta.url.endsWith(process.argv[1]);
 const swaggerJSONPath = join(__dirname, '..', 'static', 'docs', 'swagger.json');
+const swaggerJSONMinimal = join(
+  __dirname,
+  '..',
+  'static',
+  'docs',
+  'swagger.min.json',
+);
 const packageJSONPath = join(__dirname, '..', 'package.json');
 
 const readFileOrNull = async (path) => {
@@ -42,6 +49,7 @@ const sortSwaggerRequiredAlpha = (prop, otherProp) => {
 const buildOpenAPI = async (
   externalHTTPRoutes = [],
   externalWebSocketRoutes = [],
+  disabledRoutes = [],
 ) => {
   const [{ getRouteFiles }, { Config }, { errorCodes }, packageJSON] =
     await Promise.all([
@@ -62,8 +70,6 @@ const buildOpenAPI = async (
     customSiteTitle: 'Browserless Documentation',
     definitions: {},
     info: {
-      // Concatenation necessary for Changelog to show up in sidebar
-      description: readme + `\n# Changelog\n` + changelog,
       title: 'Browserless',
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
@@ -93,6 +99,11 @@ const buildOpenAPI = async (
           throw new Error(`Invalid route file to import docs ${routeModule}`);
         }
         const route = new Route();
+
+        if (disabledRoutes.includes(route.name)) {
+          return null;
+        }
+
         const { name } = parse(routeModule);
         const body = routeModule.replace('.js', '.body.json');
         const query = routeModule.replace('.js', '.query.json');
@@ -100,7 +111,7 @@ const buildOpenAPI = async (
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
         const path = Array.isArray(route.path)
           ? route.path.join(' ')
-          : [route.path];
+          : route.path;
         const {
           tags,
           description,
@@ -130,145 +141,152 @@ const buildOpenAPI = async (
       }),
   );
 
-  const paths = routeMetaData.reduce((accum, r) => {
-    const swaggerRoute = {
-      definitions: {},
-      description: r.description,
-      parameters: [],
-      requestBody: {
-        content: {},
-      },
-      responses: {
-        ...errorCodes,
-      },
-      summary: r.path,
-      tags: r.tags,
-    };
-
-    r.method = r.isWebSocket ? 'get' : r.method;
-
-    // Find all the swagger definitions and merge them into the
-    // definitions object
-    const allDefs = {
-      ...(r?.body?.definitions || {}),
-      ...(r?.query?.definitions || {}),
-      ...(r?.response?.definitions || {}),
-    };
-
-    Object.entries(allDefs).forEach(([defName, definition]) => {
-      // @ts-ignore
-      swaggerJSON.definitions[defName] =
-        // @ts-ignore
-        swaggerJSON.definitions[defName] ?? definition;
-    });
-
-    if (r.isWebSocket) {
-      swaggerRoute.responses['101'] = {
-        description: 'Indicates successful WebSocket upgrade.',
+  const paths = routeMetaData
+    .filter((_) => !!_)
+    .reduce((accum, r) => {
+      const swaggerRoute = {
+        definitions: {},
+        description: r.description,
+        parameters: [],
+        requestBody: {
+          content: {},
+        },
+        responses: {
+          ...errorCodes,
+        },
+        summary: r.path,
+        tags: r.tags,
       };
-    }
 
-    // Does a best-attempt at configuring multiple response types
-    // Won't figure out APIs that return mixed response types like
-    // JSON and binary blobs
-    if (r.response) {
-      if (r.contentTypes.length === 1) {
-        const [type] = r.contentTypes;
-        swaggerRoute.responses['200'] = {
-          content: {
-            [type]: {
-              schema: r.response,
-            },
-          },
-          description: r.response.description,
-        };
-      } else {
-        const okResponses = r.contentTypes.reduce(
-          (accum, c) => {
-            // @ts-ignore
-            accum.content[c] = {
-              schema: {
-                type: 'text',
-              },
-            };
-            return accum;
-          },
-          {
-            content: {},
-            description: r.response.description,
-          },
-        );
-        swaggerRoute.responses['200'] = okResponses;
-      }
-    }
+      r.method = r.isWebSocket ? 'get' : r.method;
 
-    // Does a best-attempt at configuring multiple body types and
-    // ignores the "accepts" properties on routes since we can't
-    // yet correlate the accepted types to the proper body
-    if (r.body) {
-      const { properties, type, anyOf } = r.body;
-      if (anyOf) {
+      // Find all the swagger definitions and merge them into the
+      // definitions object
+      const allDefs = {
+        ...(r?.body?.definitions || {}),
+        ...(r?.query?.definitions || {}),
+        ...(r?.response?.definitions || {}),
+      };
+
+      Object.entries(allDefs).forEach(([defName, definition]) => {
         // @ts-ignore
-        anyOf.forEach((anyType) => {
-          if (anyType.type === 'string') {
-            const type = r.accepts.filter(
-              // @ts-ignore
-              (accept) => accept !== 'application/json',
-            );
-            swaggerRoute.requestBody.content[type] = {
-              schema: {
-                type: 'string',
-              },
-            };
-          }
+        swaggerJSON.definitions[defName] =
+          // @ts-ignore
+          swaggerJSON.definitions[defName] ?? definition;
+      });
 
-          if (anyType['$ref']) {
-            swaggerRoute.requestBody.content['application/json'] = {
-              schema: {
-                $ref: anyType['$ref'],
-              },
-            };
-          }
-        });
-      }
-
-      // Handle JSON
-      if (type === 'object') {
-        swaggerRoute.requestBody.content['application/json'] = {
-          schema: {
-            properties,
-            type: 'object',
-          },
+      if (r.isWebSocket) {
+        swaggerRoute.responses['101'] = {
+          description: 'Indicates successful WebSocket upgrade.',
         };
       }
-    }
 
-    // Queries are easy in comparison, but still have to be iterated
-    // over and made open-api-able
-    if (r.query) {
-      const { properties, required } = r.query;
-      const props = Object.keys(properties || {});
-      if (props.length) {
-        swaggerRoute.parameters = props
-          .map((prop) => ({
-            in: 'query',
-            name: prop,
-            required: required?.includes(prop),
-            schema: properties[prop],
-          }))
-          .sort(sortSwaggerRequiredAlpha);
+      // Does a best-attempt at configuring multiple response types
+      // Won't figure out APIs that return mixed response types like
+      // JSON and binary blobs
+      if (r.response) {
+        if (r.contentTypes.length === 1) {
+          const [type] = r.contentTypes;
+          swaggerRoute.responses['200'] = {
+            content: {
+              [type]: {
+                schema: r.response,
+              },
+            },
+            description: r.response.description,
+          };
+        } else {
+          const okResponses = r.contentTypes.reduce(
+            (accum, c) => {
+              // @ts-ignore
+              accum.content[c] = {
+                schema: {
+                  type: 'text',
+                },
+              };
+              return accum;
+            },
+            {
+              content: {},
+              description: r.response.description,
+            },
+          );
+          swaggerRoute.responses['200'] = okResponses;
+        }
       }
-    }
 
-    // @ts-ignore
-    accum[r.path] = accum[r.path] || {};
-    // @ts-ignore
-    accum[r.path][r.method] = swaggerRoute;
+      // Does a best-attempt at configuring multiple body types and
+      // ignores the "accepts" properties on routes since we can't
+      // yet correlate the accepted types to the proper body
+      if (r.body) {
+        const { properties, type, anyOf } = r.body;
+        if (anyOf) {
+          // @ts-ignore
+          anyOf.forEach((anyType) => {
+            if (anyType.type === 'string') {
+              const type = r.accepts.filter(
+                // @ts-ignore
+                (accept) => accept !== 'application/json',
+              );
+              swaggerRoute.requestBody.content[type] = {
+                schema: {
+                  type: 'string',
+                },
+              };
+            }
 
-    return accum;
-  }, {});
+            if (anyType['$ref']) {
+              swaggerRoute.requestBody.content['application/json'] = {
+                schema: {
+                  $ref: anyType['$ref'],
+                },
+              };
+            }
+          });
+        }
+
+        // Handle JSON
+        if (type === 'object') {
+          swaggerRoute.requestBody.content['application/json'] = {
+            schema: {
+              properties,
+              type: 'object',
+            },
+          };
+        }
+      }
+
+      // Queries are easy in comparison, but still have to be iterated
+      // over and made open-api-able
+      if (r.query) {
+        const { properties, required } = r.query;
+        const props = Object.keys(properties || {});
+        if (props.length) {
+          swaggerRoute.parameters = props
+            .map((prop) => ({
+              in: 'query',
+              name: prop,
+              required: required?.includes(prop),
+              schema: properties[prop],
+            }))
+            .sort(sortSwaggerRequiredAlpha);
+        }
+      }
+
+      // @ts-ignore
+      accum[r.path] = accum[r.path] || {};
+      // @ts-ignore
+      accum[r.path][r.method] = swaggerRoute;
+
+      return accum;
+    }, {});
   swaggerJSON.paths = paths;
-  fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
+  await fs.writeFile(
+    swaggerJSONMinimal,
+    JSON.stringify(swaggerJSON, null, '  '),
+  );
+  swaggerJSON.info.description = readme + `\n# Changelog\n` + changelog;
+  await fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
 };
 
 export default buildOpenAPI;
