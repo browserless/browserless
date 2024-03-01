@@ -102,6 +102,7 @@ abstract class Route {
     protected _debug: Browserless['debug'],
     protected _metrics: Browserless['metrics'],
     protected _monitoring: Browserless['monitoring'],
+    protected _staticSDKDir: Browserless['staticSDKDir'],
   ) {}
 
   /**
@@ -194,6 +195,14 @@ abstract class Route {
    * @returns Monitor
    */
   monitoring = () => this._monitoring;
+
+  /**
+   * When running in an SDK environment, this returns the fully-qualified
+   * directory of that static directory. When "null" then no SDK directory
+   * has been set.
+   * @returns {string | null} The full path location of the SDK's static directory
+   */
+  staticSDKDir = () => this._staticSDKDir;
 
   /**
    * The HTTP path that this route handles, eg '/my-route' OR an

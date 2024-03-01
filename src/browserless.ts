@@ -53,6 +53,7 @@ export class Browserless {
   protected router: Router;
   protected token: Token;
   protected webhooks: WebHooks;
+  protected staticSDKDir: string | null = null;
 
   disabledRouteNames: string[] = [];
   webSocketRouteFiles: string[] = [];
@@ -149,6 +150,10 @@ export class Browserless {
     return this.disabledRouteNames.some((name) => name === route.name);
   }
 
+  public setStaticSDKDir(dir: string) {
+    this.staticSDKDir = dir;
+  }
+
   public disableRoutes(...routeNames: string[]) {
     this.disabledRouteNames.push(...routeNames);
   }
@@ -226,6 +231,7 @@ export class Browserless {
           logger,
           this.metrics,
           this.monitoring,
+          this.staticSDKDir,
         );
 
         if (!this.routeIsDisabled(route)) {
@@ -236,6 +242,7 @@ export class Browserless {
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
           route.debug = () => logger;
+          route.staticSDKDir = () => this.staticSDKDir;
 
           httpRoutes.push(route);
         }
@@ -277,6 +284,7 @@ export class Browserless {
           logger,
           this.metrics,
           this.monitoring,
+          this.staticSDKDir,
         );
 
         if (!this.routeIsDisabled(route)) {
@@ -286,6 +294,7 @@ export class Browserless {
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
           route.debug = () => logger;
+          route.staticSDKDir = () => this.staticSDKDir;
 
           wsRoutes.push(route);
         }
