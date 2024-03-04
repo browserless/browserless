@@ -1,6 +1,6 @@
 ## Browserless 2.0 Migration Guide
 
-Browserless 2.0 is finally here! It's a complete rewrite of the core of browserless, and many things have changed. To keep things short, this rewrite allows us to support many new things which you can read about in these articles: 
+Browserless 2.0 is finally here! It's a complete rewrite of the core of browserless, and many things have changed. To keep things short, this rewrite allows us to support many new things which you can read about in these articles:
 
 [Announcing v2](https://www.browserless.io/blog/2023/12/06/browserless-2-0/)
 
@@ -219,7 +219,7 @@ The /stats API has been moved to /performance now to better reflect the action i
 
 # /screencast
 
-The /screencast API has been removed in favor of a library-based approach. browserless 2.xx now ships with what we call an "embedded" API which you can use to initiate a recording of a page and get the response back (with audio!).
+The /screencast API has been removed in favor of a library-based approach.
 
 Please refer to the built-in doc-site for how to do screencasting or consult your library of choice for how to screencast.
 

@@ -478,19 +478,6 @@ export const debugScreenshotOpts: ScreenshotOptions = {
   type: 'jpeg',
 };
 
-declare global {
-  interface Window {
-    browserless: BrowserlessEmbeddedAPI;
-  }
-}
-
-export interface BrowserlessEmbeddedAPI {
-  getRecording: () => Promise<string>;
-  liveUrl: () => string;
-  saveRecording: () => Promise<boolean>;
-  startRecording: () => void;
-}
-
 /**
  * When bestAttempt is set to true, browserless attempt to proceed
  * when "awaited" events fail or timeout. This includes things like
