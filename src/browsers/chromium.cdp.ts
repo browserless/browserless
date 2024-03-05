@@ -5,9 +5,6 @@ import {
   Request,
   ServerError,
   createLogger,
-  encrypt,
-  liveURLSep,
-  makeExternalURL,
   noop,
   once,
 } from '@browserless.io/browserless';
@@ -61,16 +58,6 @@ export class ChromiumCDP extends EventEmitter {
   public getPageId = (page: Page): string => {
     // @ts-ignore
     return page.target()._targetId;
-  };
-
-  public makeLiveURL = (browserId: string, pageId: string) => {
-    const serverAddress = this.config.getExternalAddress();
-    const key = this.config.getAESKey();
-    const path = `${browserId}${liveURLSep}${pageId}`;
-    const encoded = encrypt(path, key);
-    const query = `?id=${encoded}`;
-
-    return makeExternalURL(serverAddress, 'live', query);
   };
 
   protected onTargetCreated = async (target: Target) => {
