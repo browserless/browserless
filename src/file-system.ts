@@ -5,13 +5,15 @@ import {
   encrypt,
 } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
+import { EventEmitter } from 'events';
 
-export class FileSystem {
+export class FileSystem extends EventEmitter {
   protected fsMap: Map<string, string[]> = new Map();
   protected currentAESKey: Buffer;
   protected log = createLogger('file-system');
 
   constructor(protected config: Config) {
+    super();
     this.currentAESKey = config.getAESKey();
     this.config.on('token', this.handleTokenChange);
   }
