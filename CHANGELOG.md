@@ -1,6 +1,9 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.3.0...main)
 **Potentially Breaking**
 - Drops support for recording and screencasting in favor of library-based approaches.
+
+**Other Changes**
+- Adds support for user-specified `stop` methods in SDK Module extensions.
 - Dependency updates.
 
 # [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
