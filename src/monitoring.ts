@@ -3,11 +3,14 @@ import {
   IResourceLoad,
   createLogger,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 import si from 'systeminformation';
 
-export class Monitoring {
+export class Monitoring extends EventEmitter {
   protected log = createLogger('hardware');
-  constructor(protected config: Config) {}
+  constructor(protected config: Config) {
+    super();
+  }
 
   public getMachineStats = async (): Promise<IResourceLoad> => {
     const [cpuLoad, memLoad] = await Promise.all([
@@ -50,4 +53,17 @@ export class Monitoring {
       memoryOverloaded,
     };
   };
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async () => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

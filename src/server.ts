@@ -23,6 +23,7 @@ import {
   shimLegacyRequests,
   writeResponse,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 
 // @ts-ignore
 import Enjoi from 'enjoi';
@@ -35,7 +36,7 @@ export interface HTTPServerOptions {
   timeout: number;
 }
 
-export class HTTPServer {
+export class HTTPServer extends EventEmitter {
   protected server: http.Server = http.createServer();
   protected port: number;
   protected host?: string;
@@ -48,6 +49,7 @@ export class HTTPServer {
     protected token: Token,
     protected router: Router,
   ) {
+    super();
     this.host = config.getHost();
     this.port = config.getPort();
 
@@ -98,21 +100,6 @@ export class HTTPServer {
         },
       );
     });
-  }
-
-  public async stop(): Promise<void> {
-    this.log(`HTTP Server is shutting down`);
-    await new Promise((r) => this.server.close(r));
-    await Promise.all([this.tearDown(), this.router.teardown()]);
-    this.log(`HTTP Server shutdown complete`);
-  }
-
-  protected tearDown() {
-    this.log(`Tearing down all listeners and internal routes`);
-    this.server && this.server.removeAllListeners();
-
-    // @ts-ignore garbage collect this reference
-    this.server = null;
   }
 
   protected handleRequest = async (
@@ -410,4 +397,19 @@ export class HTTPServer {
     this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
     return writeResponse(socket, 404, 'Not Found');
   };
+
+  public async shutdown(): Promise<void> {
+    this.log(`HTTP Server is shutting down`);
+    await new Promise((r) => this.server.close(r));
+    this.server && this.server.removeAllListeners();
+
+    // @ts-ignore garbage collect this reference
+    this.server = null;
+    this.log(`HTTP Server shutdown complete`);
+  }
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

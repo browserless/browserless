@@ -139,7 +139,13 @@ export class ChromiumCDP extends EventEmitter {
       // Necessary to load extensions
       finalOptions.headless = false;
 
-      const loadExtensionPaths: string = path.join(__dirname, '..', '..', 'extensions', 'ublock');
+      const loadExtensionPaths: string = path.join(
+        __dirname,
+        '..',
+        '..',
+        'extensions',
+        'ublock',
+      );
 
       finalOptions.args.push(
         '--load-extension=' + loadExtensionPaths,

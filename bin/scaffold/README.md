@@ -356,6 +356,8 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
 }
 ```
 
+On shutdown (SIGTERM, SIGINT, SIGHUP, SIGUSR2, process.on('exit'), `uncaughtException`) browserless will call a `stop` method on all modules. This method is intentionally left blank for SDK extensions to implement. This allows for you to implement any teardown, cleanup, timer clearing, or event unbinding. You don't need to copy over any browserless-core specific teardown as these are handled elsewhere.
+
 With this approach you can effectively write, extend and author your own workflows within browserless!
 
 ## Disabling Routes

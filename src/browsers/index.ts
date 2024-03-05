@@ -473,7 +473,7 @@ export class BrowserManager {
     return browser;
   };
 
-  public stop = async (): Promise<void> => {
+  public shutdown = async (): Promise<void> => {
     this.debug(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
@@ -482,7 +482,12 @@ export class BrowserManager {
     this.timers.forEach((t) => clearTimeout(t));
     this.browsers = new Map();
     this.timers = new Map();
-
+    await this.stop();
     this.debug(`Shutdown complete`);
   };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

@@ -7,9 +7,12 @@ import {
   WebSocketRoute,
   getTokenFromRequest,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 
-export class Token {
-  constructor(protected config: Config) {}
+export class Token extends EventEmitter {
+  constructor(protected config: Config) {
+    super();
+  }
 
   public isAuthorized = async (
     req: Request,
@@ -37,4 +40,17 @@ export class Token {
 
     return (Array.isArray(token) ? token : [token]).includes(requestToken);
   };
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async () => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

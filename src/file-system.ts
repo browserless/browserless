@@ -5,13 +5,15 @@ import {
   encrypt,
 } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
+import { EventEmitter } from 'events';
 
-export class FileSystem {
+export class FileSystem extends EventEmitter {
   protected fsMap: Map<string, string[]> = new Map();
   protected currentAESKey: Buffer;
   protected log = createLogger('file-system');
 
   constructor(protected config: Config) {
+    super();
     this.currentAESKey = config.getAESKey();
     this.config.on('token', this.handleTokenChange);
   }
@@ -79,4 +81,17 @@ export class FileSystem {
 
     return splitContents;
   };
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async () => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

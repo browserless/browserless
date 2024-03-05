@@ -441,4 +441,17 @@ export class Config extends EventEmitter {
     'Access-Control-Allow-Origin': this.corsOrigin,
     'Access-Control-Max-Age': this.corsMaxAge,
   });
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async () => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

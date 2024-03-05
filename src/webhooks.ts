@@ -1,7 +1,10 @@
 import { Config, fetchTimeout, noop } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 
-export class WebHooks {
-  constructor(protected config: Config) {}
+export class WebHooks extends EventEmitter {
+  constructor(protected config: Config) {
+    super();
+  }
 
   protected callURL(url: string | null) {
     if (url) {
@@ -47,4 +50,17 @@ export class WebHooks {
       );
     }
   }
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async () => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

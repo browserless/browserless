@@ -27,6 +27,7 @@ import {
   printLogo,
   safeParse,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
@@ -42,7 +43,7 @@ type routeInstances =
   | WebSocketRoute
   | BrowserWebsocketRoute;
 
-export class Browserless {
+export class Browserless extends EventEmitter {
   protected debug: debug.Debugger = createLogger('index');
   protected browserManager: BrowserManager;
   protected config: Config;
@@ -83,6 +84,7 @@ export class Browserless {
     token?: Browserless['token'];
     webhooks?: Browserless['webhooks'];
   } = {}) {
+    super();
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
@@ -177,7 +179,18 @@ export class Browserless {
 
   public async stop() {
     clearInterval(this.metricsSaveIntervalID as unknown as number);
-    return Promise.all([this.server?.stop()]);
+    return Promise.all([
+      this.server?.shutdown(),
+      this.browserManager.shutdown(),
+      this.config.shutdown(),
+      this.fileSystem.shutdown(),
+      this.limiter.shutdown(),
+      this.metrics.shutdown(),
+      this.monitoring.shutdown(),
+      this.router.shutdown(),
+      this.token.shutdown(),
+      this.webhooks.shutdown(),
+    ]);
   }
 
   public async start() {
