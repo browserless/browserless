@@ -4,6 +4,7 @@
 
 **Other Changes**
 - Adds support for user-specified `stop` methods in SDK Module extensions.
+- Makes `FileSystem` module extend `EventEmitter`. Possibly more modules will do so soon.
 - Dependency updates.
 
 # [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
