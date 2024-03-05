@@ -207,13 +207,6 @@ export class Router {
     return route;
   }
 
-  public teardown() {
-    this.httpRoutes = [];
-    this.webSocketRoutes = [];
-
-    return this.browserManager.stop();
-  }
-
   public getStaticHandler() {
     return this.httpRoutes.find((route) =>
       route.path.includes(HTTPManagementRoutes.static),
@@ -253,4 +246,19 @@ export class Router {
       (r.path as Array<PathTypes>).some((p) => micromatch.isMatch(pathname, p)),
     );
   }
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async() => {
+    this.httpRoutes = [];
+    this.webSocketRoutes = [];
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

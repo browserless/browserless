@@ -47,4 +47,17 @@ export class WebHooks {
       );
     }
   }
+
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
+  public shutdown = async() => {
+    await this.stop();
+  };
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }

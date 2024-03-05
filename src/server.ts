@@ -103,7 +103,7 @@ export class HTTPServer {
   public async stop(): Promise<void> {
     this.log(`HTTP Server is shutting down`);
     await new Promise((r) => this.server.close(r));
-    await Promise.all([this.tearDown(), this.router.teardown()]);
+    this.tearDown();
     this.log(`HTTP Server shutdown complete`);
   }
 
