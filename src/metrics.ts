@@ -1,6 +1,8 @@
 import { IBrowserlessStats } from '@browserless.io/browserless';
 
-export class Metrics {
+import { EventEmitter } from 'events';
+
+export class Metrics extends EventEmitter {
   protected sessionTimes: number[] = [];
   protected successful = 0;
   protected queued = 0;
@@ -110,7 +112,7 @@ export class Metrics {
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async() => {
+  public shutdown = async () => {
     await this.stop();
   };
 

@@ -446,7 +446,7 @@ export class Config extends EventEmitter {
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async() => {
+  public shutdown = async () => {
     await this.stop();
   };
 

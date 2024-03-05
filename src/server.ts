@@ -23,6 +23,7 @@ import {
   shimLegacyRequests,
   writeResponse,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 
 // @ts-ignore
 import Enjoi from 'enjoi';
@@ -35,7 +36,7 @@ export interface HTTPServerOptions {
   timeout: number;
 }
 
-export class HTTPServer {
+export class HTTPServer extends EventEmitter {
   protected server: http.Server = http.createServer();
   protected port: number;
   protected host?: string;
@@ -48,6 +49,7 @@ export class HTTPServer {
     protected token: Token,
     protected router: Router,
   ) {
+    super();
     this.host = config.getHost();
     this.port = config.getPort();
 

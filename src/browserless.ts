@@ -27,6 +27,7 @@ import {
   printLogo,
   safeParse,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
@@ -42,7 +43,7 @@ type routeInstances =
   | WebSocketRoute
   | BrowserWebsocketRoute;
 
-export class Browserless {
+export class Browserless extends EventEmitter {
   protected debug: debug.Debugger = createLogger('index');
   protected browserManager: BrowserManager;
   protected config: Config;
@@ -83,6 +84,7 @@ export class Browserless {
     token?: Browserless['token'];
     webhooks?: Browserless['webhooks'];
   } = {}) {
+    super();
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
