@@ -178,6 +178,7 @@ export class Browserless {
   public async stop() {
     clearInterval(this.metricsSaveIntervalID as unknown as number);
     return Promise.all([
+      this.server?.shutdown(),
       this.browserManager.shutdown(),
       this.config.shutdown(),
       this.fileSystem.shutdown(),

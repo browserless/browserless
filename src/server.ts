@@ -100,21 +100,6 @@ export class HTTPServer {
     });
   }
 
-  public async stop(): Promise<void> {
-    this.log(`HTTP Server is shutting down`);
-    await new Promise((r) => this.server.close(r));
-    this.tearDown();
-    this.log(`HTTP Server shutdown complete`);
-  }
-
-  protected tearDown() {
-    this.log(`Tearing down all listeners and internal routes`);
-    this.server && this.server.removeAllListeners();
-
-    // @ts-ignore garbage collect this reference
-    this.server = null;
-  }
-
   protected handleRequest = async (
     request: http.IncomingMessage,
     res: http.ServerResponse,
@@ -410,4 +395,19 @@ export class HTTPServer {
     this.log(`No matching WebSocket route handler for "${req.parsed.href}"`);
     return writeResponse(socket, 404, 'Not Found');
   };
+
+  public async shutdown(): Promise<void> {
+    this.log(`HTTP Server is shutting down`);
+    await new Promise((r) => this.server.close(r));
+    this.server && this.server.removeAllListeners();
+
+    // @ts-ignore garbage collect this reference
+    this.server = null;
+    this.log(`HTTP Server shutdown complete`);
+  }
+
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
+  public stop = () => {};
 }
