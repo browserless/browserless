@@ -5,9 +5,6 @@ import {
   Request,
   ServerError,
   createLogger,
-  encrypt,
-  liveURLSep,
-  makeExternalURL,
   noop,
   once,
 } from '@browserless.io/browserless';
@@ -27,7 +24,6 @@ puppeteerStealth.use(StealthPlugin());
 export class ChromiumCDP extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
-  protected record: boolean;
   protected blockAds: boolean;
   protected running = false;
   protected browser: Browser | null = null;
@@ -38,21 +34,18 @@ export class ChromiumCDP extends EventEmitter {
   protected executablePath = playwright.chromium.executablePath();
 
   constructor({
-    userDataDir,
-    config,
-    record,
     blockAds,
+    config,
+    userDataDir,
   }: {
     blockAds: boolean;
     config: Config;
-    record: boolean;
     userDataDir: ChromiumCDP['userDataDir'];
   }) {
     super();
 
     this.userDataDir = userDataDir;
     this.config = config;
-    this.record = record;
     this.blockAds = blockAds;
     this.debug(`Starting new browser instance`);
   }
@@ -62,133 +55,9 @@ export class ChromiumCDP extends EventEmitter {
     this.removeAllListeners();
   }
 
-  protected setUpEmbeddedAPI = async (
-    page: Page,
-    id: string,
-    record: boolean,
-  ): Promise<void> => {
-    const pageId = this.getPageId(page);
-    const liveUrl = this.makeLiveURL(id, pageId);
-    const embeddedAPI = (pageId: string, liveUrl: string, record: boolean) => {
-      Object.defineProperty(window, 'browserless', {
-        configurable: false,
-        enumerable: false,
-        value: {},
-        writable: false,
-      });
-
-      Object.defineProperties(window.browserless, {
-        liveUrl: {
-          configurable: false,
-          enumerable: false,
-          value: () => liveUrl,
-          writable: false,
-        },
-        pageId: {
-          configurable: false,
-          enumerable: false,
-          value: () => pageId,
-          writable: false,
-        },
-        startRecording: {
-          configurable: false,
-          enumerable: false,
-          value: (params: object) =>
-            new Promise((resolve, reject) => {
-              if (!record) {
-                throw new Error(
-                  `Must connect with a record query-param set to "true" in order to use recording`,
-                );
-              }
-              const start = () =>
-                window.postMessage(
-                  { ...params, id: pageId, type: 'REC_START' },
-                  '*',
-                );
-              const onStart = (event: MessageEvent) => {
-                if (event.data.id !== pageId) return;
-                if (event.data.message === 'REC_STARTED') {
-                  window.removeEventListener('message', onStart);
-                  return resolve(undefined);
-                }
-                if (event.data.message === 'REC_START_FAIL') {
-                  window.removeEventListener('message', onStart);
-                  return reject(new Error(event.data.error));
-                }
-              };
-
-              window.addEventListener('message', onStart);
-
-              return document.readyState == 'complete'
-                ? start()
-                : window.addEventListener('load', start);
-            }),
-          writable: false,
-        },
-        stopRecording: {
-          configurable: false,
-          enumerable: false,
-          value: () =>
-            new Promise((resolve, reject) => {
-              if (!record) {
-                return reject(
-                  new Error(
-                    `Must connect with a record query-param set to "true" in order to use recording`,
-                  ),
-                );
-              }
-              const onStop = (event: MessageEvent) => {
-                if (event.data.id !== pageId) return;
-                if (event.data.message === 'REC_FILE') {
-                  window.removeEventListener('message', onStop);
-                  return resolve(event.data.file);
-                }
-
-                if (event.data.message === 'REC_STOP_FAIL') {
-                  window.removeEventListener('message', onStop);
-                  return reject(new Error(event.data.error));
-                }
-
-                if (event.data.message === 'REC_NOT_STARTED') {
-                  window.removeEventListener('message', onStop);
-                  return reject(
-                    new Error(
-                      `Recording hasn't started, did you forget to start it?`,
-                    ),
-                  );
-                }
-              };
-
-              window.addEventListener('message', onStop);
-              return window.postMessage({ id: pageId, type: 'REC_STOP' }, '*');
-            }),
-          writable: false,
-        },
-      });
-    };
-
-    // Setup the browserless embedded API
-    await Promise.all([
-      page.evaluate(embeddedAPI, pageId, liveUrl, record),
-      page.evaluateOnNewDocument(embeddedAPI, pageId, liveUrl, record),
-    ]).catch((err) =>
-      this.debug(`Error setting up embedded API:`, err.message),
-    );
-  };
-
   public getPageId = (page: Page): string => {
     // @ts-ignore
     return page.target()._targetId;
-  };
-
-  public makeLiveURL = (browserId: string, pageId: string) => {
-    const serverAddress = this.config.getExternalAddress();
-    const key = this.config.getAESKey();
-    const path = `${browserId}${liveURLSep}${pageId}`;
-    const encoded = encrypt(path, key);
-    const query = `?id=${encoded}`;
-
-    return makeExternalURL(serverAddress, 'live', query);
   };
 
   protected onTargetCreated = async (target: Target) => {
@@ -219,8 +88,6 @@ export class ChromiumCDP extends EventEmitter {
             }
           });
         }
-        const browserId = this.wsEndpoint()?.split('/').pop() as string;
-        await this.setUpEmbeddedAPI(page, browserId, this.record);
         this.emit('newPage', page);
       }
     }
@@ -268,33 +135,13 @@ export class ChromiumCDP extends EventEmitter {
       executablePath: this.executablePath,
     };
 
-    if (this.record || this.blockAds) {
-      const requiredExtensionArgs: string[] = [];
+    if (this.blockAds) {
       // Necessary to load extensions
       finalOptions.headless = false;
 
-      if (this.record) {
-        finalOptions.ignoreDefaultArgs = ['--enable-automation'];
-        requiredExtensionArgs.push(
-          '--enable-usermedia-screen-capturing',
-          '--enable-blink-features=GetUserMedia',
-          '--allow-http-screen-capture',
-          '--auto-select-desktop-capture-source=browserless-screencast',
-          '--disable-infobars',
-        );
-      }
-
-      const loadExtensionPaths: string = [
-        ...(this.record
-          ? [path.join(__dirname, '..', '..', 'extensions', 'screencast')]
-          : []),
-        ...(this.blockAds
-          ? [path.join(__dirname, '..', '..', 'extensions', 'ublock')]
-          : []),
-      ].join(',');
+      const loadExtensionPaths: string = path.join(__dirname, '..', '..', 'extensions', 'ublock');
 
       finalOptions.args.push(
-        ...requiredExtensionArgs,
         '--load-extension=' + loadExtensionPaths,
         '--disable-extensions-except=' + loadExtensionPaths,
       );

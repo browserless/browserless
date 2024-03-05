@@ -162,14 +162,6 @@ export interface SystemQueryParameters {
   launch?: CDPLaunchOptions | BrowserServerOptions | string;
 
   /**
-   * Whether or nor to record the session. The browser will run
-   * in "head-full" mode, and recording is started and closed
-   * via the embedded browserless API. Please refer to the "Recording"
-   * section in the live documentation site for more details.
-   */
-  record?: boolean;
-
-  /**
    * Override the system-level timeout for this request.
    * Accepts a value in milliseconds.
    */

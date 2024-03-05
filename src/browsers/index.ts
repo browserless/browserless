@@ -84,7 +84,6 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds: false,
       config: this.config,
-      record: false,
       userDataDir: null,
     });
     await browser.launch();
@@ -122,7 +121,6 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds: false,
       config: this.config,
-      record: false,
       userDataDir: null,
     });
     await browser.launch();
@@ -322,7 +320,6 @@ export class BrowserManager {
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
   ): Promise<BrowserInstance> => {
     const { browser: Browser } = router;
-    const record = parseBooleanParam(req.parsed.searchParams, 'record', false);
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
       'blockAds',
@@ -446,7 +443,6 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds,
       config: this.config,
-      record,
       userDataDir,
     });
 

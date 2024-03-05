@@ -13,7 +13,6 @@ import httpProxy from 'http-proxy';
 export class ChromiumPlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
-  protected record: boolean;
   protected running = false;
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
@@ -24,17 +23,14 @@ export class ChromiumPlaywright extends EventEmitter {
   constructor({
     config,
     userDataDir,
-    record,
   }: {
     config: Config;
-    record: boolean;
     userDataDir: ChromiumPlaywright['userDataDir'];
   }) {
     super();
 
     this.userDataDir = userDataDir;
     this.config = config;
-    this.record = record;
 
     this.debug(`Starting new browser instance`);
   }
@@ -81,10 +77,6 @@ export class ChromiumPlaywright extends EventEmitter {
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
     this.debug(`Launching Playwright Handler`);
-
-    if (this.record) {
-      throw new ServerError(`Recording is not yet available with this browser`);
-    }
 
     this.browser = await playwright.chromium.launchServer({
       ...options,
