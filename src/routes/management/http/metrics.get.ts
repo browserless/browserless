@@ -20,7 +20,7 @@ export default class MetricsGetRoute extends HTTPRoute {
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json];
-  description = `Gets total metric details from the time the server started.`;
+  description = `Returns a list of metric details as far back as possible.`;
   method = Methods.get;
   path = HTTPManagementRoutes.metrics;
   tags = [APITags.management];
@@ -28,7 +28,7 @@ export default class MetricsGetRoute extends HTTPRoute {
     const fileSystem = this.fileSystem();
     const config = this.config();
 
-    const stats = await fileSystem.read(config.getMetricsJSONPath());
+    const stats = await fileSystem.read(config.getMetricsJSONPath(), false);
     const response = `[${stats.join(',')}]`;
 
     return writeResponse(res, 200, response, contentTypes.json);

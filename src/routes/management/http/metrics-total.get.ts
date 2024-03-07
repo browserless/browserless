@@ -29,7 +29,7 @@ export default class MetricsTotalGetRoute extends HTTPRoute {
   handler = async (_req: Request, res: ServerResponse): Promise<void> => {
     const fileSystem = this.fileSystem();
     const config = this.config();
-    const metrics = (await fileSystem.read(config.getMetricsJSONPath())).map(
+    const metrics = (await fileSystem.read(config.getMetricsJSONPath(), false)).map(
       (m) => JSON.parse(m),
     );
     const availableMetrics = metrics.length;
