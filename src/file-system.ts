@@ -37,7 +37,7 @@ export class FileSystem extends EventEmitter {
     this.fsMap.set(path, contents);
 
     const encoded = shouldEncode
-      ? await encrypt(contents.join('\n'), Buffer.from(this.currentAESKey))
+      ? await encrypt(contents.join('\n'), this.currentAESKey)
       : contents.join('\n');
 
     return writeFile(path, encoded.toString());
@@ -57,10 +57,10 @@ export class FileSystem extends EventEmitter {
       return this.fsMap.get(path) as string[];
     }
     const contents = (await readFile(path).catch(() => '')).toString();
-    const decoded = encoded
-      ? await decrypt(contents, Buffer.from(this.currentAESKey))
+    const decoded = encoded && contents.length
+      ? await decrypt(contents, this.currentAESKey)
       : contents;
-    const splitContents = contents.length ? decoded.split('\n') : [];
+    const splitContents = decoded.length ? decoded.split('\n') : [];
 
     this.fsMap.set(path, splitContents);
 

@@ -1,11 +1,11 @@
-import { Config, FileSystem } from '@browserless.io/browserless';
+import { Config, FileSystem, noop } from '@browserless.io/browserless';
 import { readFile, unlink } from 'fs/promises';
 import { expect } from 'chai';
 
 const filePath = '/tmp/_browserless_test_fs_';
 
 describe('File-System', () => {
-  afterEach(async () => unlink(filePath));
+  afterEach(async () => unlink(filePath).catch(noop));
 
   it('saves and encodes files', async () => {
     const mySecretContents = 'pony-foo';
