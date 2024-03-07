@@ -36,7 +36,6 @@ export interface BodySchema {
   addStyleTag?: Array<Parameters<Page['addStyleTag']>[0]>;
   authenticate?: Parameters<Page['authenticate']>[0];
   bestAttempt?: bestAttempt;
-  blockModals?: boolean;
   cookies?: Array<Parameters<Page['setCookie']>[0]>;
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
@@ -185,6 +184,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       });
     }
 
+    const gotoResponse = await gotoCall(content, gotoOptions).catch(
+      bestAttemptCatch(bestAttempt),
+    );
+
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
         await page.addStyleTag(addStyleTag[tag]);
@@ -196,10 +199,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
         await page.addScriptTag(addScriptTag[tag]);
       }
     }
-
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
 
     if (waitForTimeout) {
       await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
