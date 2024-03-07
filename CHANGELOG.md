@@ -1,11 +1,17 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.3.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.4.0...main)
+- Dependency updates.
+
+# [v2.4.0](https://github.com/browserless/chrome/compare/v2.3.0...v2.4.0)
 **Potentially Breaking**
 - Drops support for recording and screencasting in favor of library-based approaches.
+- `playwright@1.42.1` and `puppeteer@22.4.0`.
 
 **Other Changes**
-- Adds support for user-specified `stop` methods in SDK Module extensions.
 - SDK routes now take precedence over core routes when a path-collision occurs.
+- Support SDK projects with their own `static` directories.
+- Adds support for user-specified `stop` methods in SDK Module extensions.
 - Core modules now extend `EventEmitter`, making them able to publish events.
+- Fixes issues with `addStyleTag` happening before `goto` calls in REST APIs.
 - Dependency updates.
 
 # [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
