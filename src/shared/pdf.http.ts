@@ -185,6 +185,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       });
     }
 
+    const gotoResponse = await gotoCall(content, gotoOptions).catch(
+      bestAttemptCatch(bestAttempt),
+    );
+
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
         await page.addStyleTag(addStyleTag[tag]);
@@ -196,10 +200,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
         await page.addScriptTag(addScriptTag[tag]);
       }
     }
-
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
 
     if (waitForTimeout) {
       await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
