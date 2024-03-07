@@ -15,27 +15,7 @@ export class FileSystem extends EventEmitter {
   constructor(protected config: Config) {
     super();
     this.currentAESKey = config.getAESKey();
-    this.config.on('token', this.handleTokenChange);
   }
-
-  private handleTokenChange = async () => {
-    this.log(`Token has changed, updating file-system contents`);
-    const start = Date.now();
-    const newAESKey = this.config.getAESKey();
-    await Promise.all(
-      Array.from(this.fsMap).map(async ([filePath, contents]) => {
-        const newlyEncoded = encrypt(
-          contents.join('\n'),
-          Buffer.from(newAESKey),
-        );
-        return writeFile(filePath, newlyEncoded);
-      }),
-    ).catch((e) => {
-      this.log(`Error in setting new token: "${e}"`);
-    });
-    this.log(`Successfully updated file encodings in ${Date.now() - start}ms`);
-    this.currentAESKey = this.config.getAESKey();
-  };
 
   /**
    * Appends contents to a file-path for persistance. File contents are
@@ -46,15 +26,19 @@ export class FileSystem extends EventEmitter {
    * @param newContent A string of new content to add to the file
    * @returns void
    */
-  append = async (path: string, newContent: string): Promise<void> => {
-    const contents = await this.read(path);
+  append = async (
+    path: string,
+    newContent: string,
+    shouldEncode: boolean,
+  ): Promise<void> => {
+    const contents = await this.read(path, shouldEncode);
 
     contents.push(newContent);
     this.fsMap.set(path, contents);
-    const encoded = await encrypt(
-      contents.join('\n'),
-      Buffer.from(this.currentAESKey),
-    );
+
+    const encoded = shouldEncode
+      ? await encrypt(contents.join('\n'), this.currentAESKey)
+      : contents.join('\n');
 
     return writeFile(path, encoded.toString());
   };
@@ -66,16 +50,17 @@ export class FileSystem extends EventEmitter {
    * @param path The filepath of the contents to read
    * @returns Promise of the contents separated by newlines
    */
-  read = async (path: string): Promise<string[]> => {
+  read = async (path: string, encoded: boolean): Promise<string[]> => {
     const hasKey = this.fsMap.has(path);
 
     if (hasKey) {
       return this.fsMap.get(path) as string[];
     }
     const contents = (await readFile(path).catch(() => '')).toString();
-    const splitContents = contents.length
-      ? (await decrypt(contents, Buffer.from(this.currentAESKey))).split('\n')
-      : [];
+    const decoded = encoded && contents.length
+      ? await decrypt(contents, this.currentAESKey)
+      : contents;
+    const splitContents = decoded.length ? decoded.split('\n') : [];
 
     this.fsMap.set(path, splitContents);
 

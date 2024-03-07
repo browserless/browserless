@@ -129,7 +129,11 @@ export class Browserless extends EventEmitter {
 
     if (metricsPath) {
       this.debug(`Saving metrics to "${metricsPath}"`);
-      this.fileSystem.append(metricsPath, JSON.stringify(aggregatedStats));
+      this.fileSystem.append(
+        metricsPath,
+        JSON.stringify(aggregatedStats),
+        false,
+      );
     }
   };
 
