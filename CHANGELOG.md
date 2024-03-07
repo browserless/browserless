@@ -4,6 +4,7 @@
 
 **Other Changes**
 - Adds support for user-specified `stop` methods in SDK Module extensions.
+- SDK routes now take precedence over core routes when a path-collision occurs.
 - Core modules now extend `EventEmitter`, making them able to publish events.
 - Dependency updates.
 

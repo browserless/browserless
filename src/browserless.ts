@@ -214,8 +214,8 @@ export class Browserless extends EventEmitter {
     this.debug('Starting import of HTTP Routes');
 
     for (const httpRoute of [
-      ...internalHttpRouteFiles,
       ...this.httpRouteFiles,
+      ...internalHttpRouteFiles,
     ]) {
       if (httpRoute.endsWith('js')) {
         const { name } = path.parse(httpRoute);
@@ -264,8 +264,8 @@ export class Browserless extends EventEmitter {
 
     this.debug('Starting import of WebSocket Routes');
     for (const wsRoute of [
-      ...internalWsRouteFiles,
       ...this.webSocketRouteFiles,
+      ...internalWsRouteFiles,
     ]) {
       if (wsRoute.endsWith('js')) {
         const { name } = path.parse(wsRoute);
