@@ -180,7 +180,6 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
       bestAttemptCatch(bestAttempt),
     );
 
-
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
         await page.addStyleTag(addStyleTag[tag]);
