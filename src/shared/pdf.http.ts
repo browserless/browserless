@@ -36,7 +36,6 @@ export interface BodySchema {
   addStyleTag?: Array<Parameters<Page['addStyleTag']>[0]>;
   authenticate?: Parameters<Page['authenticate']>[0];
   bestAttempt?: bestAttempt;
-  blockModals?: boolean;
   cookies?: Array<Parameters<Page['setCookie']>[0]>;
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
