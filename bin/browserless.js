@@ -1,25 +1,30 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 'use strict';
+import {
+  Browserless,
+  buildTypeScript,
+  camelCase,
+  getArgSwitches,
+  getSourceFiles,
+  installDependencies,
+  prompt,
+} from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
-import { Browserless } from '@browserless.io/browserless';
 import buildOpenAPI from '../scripts/build-open-api.js';
 import buildSchemas from '../scripts/build-schemas.js';
 
-import { createInterface } from 'readline';
 import debug from 'debug';
 import { dedent } from '../build/utils.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn } from 'child_process';
 
 if (typeof process.env.DEBUG === 'undefined') {
   debug.enable('browserless*');
 }
 
 const log = debug('browserless.io:sdk:log');
-const promptLog = debug('browserless.io:prompt');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2];
@@ -52,23 +57,6 @@ const projectPackageJSON = readFile(path.join(projectDir, 'package.json'))
 const browserlessPackageJSON = readFile(
   path.join(__dirname, '..', 'package.json'),
 ).then((r) => JSON.parse(r.toString()));
-
-const camelCase = (str) => str.replace(/-([a-z])/g, (_, w) => w.toUpperCase());
-
-const prompt = async (question) => {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    promptLog(question);
-    rl.question('  > ', (a) => {
-      rl.close();
-      resolve(a.trim());
-    });
-  });
-};
 
 const translateSrcToBuild = (directory) => {
   const srcToBuild = directory.replace(srcDir, '');
@@ -115,109 +103,6 @@ const clean = async () =>
     recursive: true,
   });
 
-const installDependencies = async (workingDirectory) =>
-  new Promise((resolve, reject) => {
-    spawn('npm', ['i'], {
-      cwd: workingDirectory,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        log(`Successfully installed Dependencies.`);
-        return resolve();
-      }
-      return reject(
-        `Error when installing dependencies, see output for more details`,
-      );
-    });
-  });
-
-const buildDockerImage = async (cmd) => {
-  new Promise((resolve, reject) => {
-    const [docker, ...args] = cmd.split(' ');
-    spawn(docker, args, {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        log(`Successfully built the docker image.`);
-        return resolve();
-      }
-      return reject(
-        `Error when building Docker image, see output for more details`,
-      );
-    });
-  });
-};
-
-const buildTypeScript = async () =>
-  new Promise((resolve, reject) => {
-    spawn('npx', ['tsc', '--outDir', buildDir], {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-      return reject(
-        `Error in building TypeScript, see output for more details`,
-      );
-    });
-  });
-
-const getSourceFiles = async () => {
-  const files = await fs.readdir(compiledDir, { recursive: true });
-  const [httpRoutes, webSocketRoutes] = files.reduce(
-    ([httpRoutes, webSocketRoutes], file) => {
-      const parsed = path.parse(file);
-      if (parsed.name.endsWith('http')) {
-        httpRoutes.push(path.join(compiledDir, file));
-      }
-
-      if (parsed.name.endsWith('ws')) {
-        webSocketRoutes.push(path.join(compiledDir, file));
-      }
-
-      return [httpRoutes, webSocketRoutes];
-    },
-    [[], []],
-  );
-
-  return {
-    files,
-    httpRoutes,
-    webSocketRoutes,
-  };
-};
-
-const getArgSwitches = () => {
-  return process.argv.reduce((accum, arg, idx) => {
-    if (!arg.startsWith('--')) {
-      return accum;
-    }
-
-    if (arg.includes('=')) {
-      const [parameter, value] = arg.split('=');
-      accum[parameter.replace(/-/gi, '')] = value || true;
-      return accum;
-    }
-
-    const nextSwitchOrParameter = process.argv[idx + 1];
-    const param = arg.replace(/-/gi, '');
-
-    if (
-      typeof nextSwitchOrParameter === 'undefined' ||
-      nextSwitchOrParameter?.startsWith('--')
-    ) {
-      accum[param] = true;
-      return accum;
-    }
-
-    accum[param] = nextSwitchOrParameter;
-
-    return accum;
-  }, {});
-};
-
 /**
  * Build
  * Responsible for compiling TypeScript, generating routes meta-data
@@ -228,10 +113,11 @@ const build = async () => {
   await clean();
 
   log(`Compiling TypeScript`);
-  await buildTypeScript();
+  await buildTypeScript(buildDir, projectDir);
 
   log(`Building custom routes`);
-  const { files, httpRoutes, webSocketRoutes } = await getSourceFiles();
+  const { files, httpRoutes, webSocketRoutes } =
+    await getSourceFiles(projectDir);
 
   log(`Building route runtime schema validation`);
   await buildSchemas(
@@ -433,7 +319,7 @@ const buildDocker = async () => {
 
   if (proceed || !proceed.includes('n')) {
     log(`Starting docker build`);
-    await buildDockerImage(cmd);
+    await buildDockerImage(cmd, projectDir);
     process.exit(0);
   }
 };
