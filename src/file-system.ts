@@ -57,9 +57,10 @@ export class FileSystem extends EventEmitter {
       return this.fsMap.get(path) as string[];
     }
     const contents = (await readFile(path).catch(() => '')).toString();
-    const decoded = encoded && contents.length
-      ? await decrypt(contents, this.currentAESKey)
-      : contents;
+    const decoded =
+      encoded && contents.length
+        ? await decrypt(contents, this.currentAESKey)
+        : contents;
     const splitContents = decoded.length ? decoded.split('\n') : [];
 
     this.fsMap.set(path, splitContents);
