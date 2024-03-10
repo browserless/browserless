@@ -7,6 +7,7 @@ Please note that, as of right now, breaking changes aren't yet reflected in our 
 Finally, this SDK and Browserless.io are built to support businesses and enterprise clients. If you're looking to use our code and modules in a production environment, [please contact us to get appropriately licensed](https://www.browserless.io/contact).
 
 ## Table of Contents
+
 - [Quick Start](#quick-start)
 - [About](#about)
 - [The CLI](#the-cli)
@@ -35,7 +36,7 @@ browserless will install a scaffolded project, install dependencies, and establi
 
 The Browserless.io SDK and accompanying CLI were written with intention that developers can add and enhance functionality into Browserless for your needs. This way you can get results into a database, third-party uploads, work within your enterprises requirements, all while using your favorite modern libraries. The Browserless platform simply ensure system stability, authorization, and the best developer experience.
 
-When creating a new project, the scaffold will ask a series of questions and generate the project for you. Once complete,  a list of files it created for you. Here's the list so far:
+When creating a new project, the scaffold will ask a series of questions and generate the project for you. Once complete, a list of files it created for you. Here's the list so far:
 
 ```
 ├── node_modules
@@ -120,6 +121,7 @@ Browserless has 4 different types of primitive routes:
 Internally, we use this same class-based system, so feel free to see how those work in our open-source repositories. All routes are TypeScript-based and all our modules are documented, so you should be able to effectively write routes and modules with your code editor and not necessarily need these examples open. Below are a few examples:
 
 ### Basic HTTP Route
+
 ```ts
 import {
   APITags,
@@ -178,6 +180,7 @@ export default class HelloWorldRoute extends HTTPRoute {
 ```
 
 ### Chromium WebSocket Route
+
 ```ts
 import {
   APITags,
@@ -221,12 +224,8 @@ export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
   // Routes with a browser type get a browser argument of the Browser instance, otherwise
   // request, socket, and head are the other 3 arguments. Here we pass them through
   // and proxy the request into Chromium to handle.
-  handler = async (
-    req,
-    socket,
-    head,
-    chromium,
-  ): Promise<void> => chromium.proxyWebSocket(req, socket, head);
+  handler = async (req, socket, head, chromium): Promise<void> =>
+    chromium.proxyWebSocket(req, socket, head);
 }
 ```
 
@@ -256,6 +255,7 @@ Browserless comes out-of-the-box with many utilities and functions to help with 
 - `untildify(path)` Remove `~` characters from a path and returns the full filepath.
 
 ### Error helpers:
+
 - `BadRequest` An error that will cause browserless to return a `400` response with the error text being the message.
 - `TooManyRequests` When thrown causes browserless to return a `429` with the error as the message.
 - `ServerError` Returns a `500` code and shows the corresponding message.
@@ -284,7 +284,7 @@ export default class MyConfig extends Config {
     // Load from environment variables or default to some other named bucket.
     return process.env.S3_BUCKET ?? 'my-fun-s3-bucket';
   };
-};
+}
 ```
 
 Then, later, in your route you can define some functionality and load the config object. Let's make a PDF route that generates a PDF from a URL and then saves the result to this S3 bucket.
@@ -340,11 +340,7 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
   tags = [APITags.browserAPI];
 
   // Handler's are where we embed the logic that facilitates this route.
-  handler = async (
-    req,
-    res,
-    browser,
-  ): Promise<void> => {
+  handler = async (req, res, browser): Promise<void> => {
     // Modules like Config are injected via this internal methods.
     // Use them to load core modules within the platform.
     const config = this.config() as MyConfig;
@@ -443,7 +439,7 @@ While the end-goal is a docker image being built, you can simply do a complete b
 $ npm run build
 ```
 
-Similar to development builds, this will compile all assets, generate OpenAPI JSON, and build out the runtime validation files, but *won't start the http server*.
+Similar to development builds, this will compile all assets, generate OpenAPI JSON, and build out the runtime validation files, but _won't start the http server_.
 
 If you wish to simply run the server without having to rebuild assets, then read more below.
 
