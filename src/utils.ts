@@ -463,16 +463,14 @@ export const availableBrowsers = Promise.all([
 
 export const queryParamsToObject = (
   params: URLSearchParams,
-): Record<string, unknown> => {
-  const entries = params.entries();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = {};
-  for (const [key, value] of entries) {
-    result[key] = value === '' ? true : jsonOrString(value);
-  }
-  return result;
-};
+): Record<string, unknown> =>
+  [...params.entries()].reduce(
+    (accum, [key, value]) => {
+      accum[key] = value;
+      return accum;
+    },
+    {} as Record<string, string>,
+  );
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;

@@ -477,7 +477,7 @@ export class Hooks extends EventEmitter {
   // Can be used to inject behaviors or add events to a page's lifecycle.
   // "meta" property is a parsed URL of the original incoming request.
   // No return value or type required.
-  page(args: { meta: URL, page: puppeteer.Page }): Promise<void> {
+  page(args: { meta: URL; page: puppeteer.Page }): Promise<void> {
     return Promise.resolve(undefined);
   }
 
