@@ -30,6 +30,7 @@ import {
   noop,
   parseBooleanParam,
 } from '@browserless.io/browserless';
+import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
 import path from 'path';
 
@@ -65,7 +66,7 @@ export class BrowserManager {
     }
   };
 
-  protected onNewPage = async (req: Request, page: unknown) => {
+  protected onNewPage = async (req: Request, page: Page) => {
     await this.hooks.page({ meta: req.parsed, page });
   };
 
