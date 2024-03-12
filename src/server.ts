@@ -4,6 +4,7 @@ import {
   BadRequest,
   Config,
   HTTPRoute,
+  Hooks,
   Metrics,
   NotFound,
   Request,
@@ -14,7 +15,6 @@ import {
   TooManyRequests,
   Unauthorized,
   WebSocketRoute,
-  beforeRequest,
   contentTypes,
   convertPathToURL,
   createLogger,
@@ -48,6 +48,7 @@ export class HTTPServer extends EventEmitter {
     protected metrics: Metrics,
     protected token: Token,
     protected router: Router,
+    protected hooks: Hooks,
   ) {
     super();
     this.host = config.getHost();
@@ -111,7 +112,7 @@ export class HTTPServer extends EventEmitter {
     );
 
     const req = request as Request;
-    const proceed = await beforeRequest({ req, res });
+    const proceed = await this.hooks.before({ req, res });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 
@@ -297,7 +298,7 @@ export class HTTPServer extends EventEmitter {
     this.verbose(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
-    const proceed = await beforeRequest({ head, req, socket });
+    const proceed = await this.hooks.before({ head, req, socket });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 

@@ -16,19 +16,18 @@ import {
   Config,
   FirefoxPlaywright,
   HTTPManagementRoutes,
+  Hooks,
   NotFound,
   Request,
   ServerError,
   WebkitPlaywright,
   availableBrowsers,
-  browserHook,
   convertIfBase64,
   createLogger,
   exists,
   generateDataDir,
   makeExternalURL,
   noop,
-  pageHook,
   parseBooleanParam,
 } from '@browserless.io/browserless';
 import { deleteAsync } from 'del';
@@ -47,7 +46,10 @@ export class BrowserManager {
     WebkitPlaywright.name,
   ];
 
-  constructor(protected config: Config) {}
+  constructor(
+    protected config: Config,
+    protected hooks: Hooks,
+  ) {}
 
   private browserIsChrome = (b: BrowserInstance) =>
     this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser);
@@ -64,7 +66,7 @@ export class BrowserManager {
   };
 
   protected onNewPage = async (req: Request, page: unknown) => {
-    await pageHook({ meta: req.parsed, page });
+    await this.hooks.page({ meta: req.parsed, page });
   };
 
   /**
@@ -463,7 +465,7 @@ export class BrowserManager {
     this.browsers.set(browser, connectionMeta);
 
     await browser.launch(launchOptions as object);
-    await browserHook({ browser, meta: req.parsed });
+    await this.hooks.browser({ browser, meta: req.parsed });
 
     browser.on('newPage', async (page) => {
       await this.onNewPage(req, page);
