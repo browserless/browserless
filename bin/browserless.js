@@ -158,6 +158,7 @@ const start = async (dev = false) => {
     Token,
     Webhooks,
     disabledRoutes,
+    Hooks,
   ] = await Promise.all([
     importDefault(files, 'browser-manager'),
     importDefault(files, 'config'),
@@ -169,6 +170,7 @@ const start = async (dev = false) => {
     importDefault(files, 'token'),
     importDefault(files, 'webhooks'),
     importDefault(files, 'disabled-routes'),
+    importDefault(files,' hooks'),
   ]);
 
   log(`Starting Browserless`);
@@ -177,6 +179,7 @@ const start = async (dev = false) => {
   const metrics = isConstructor(Metrics) ? new Metrics() : Metrics;
   const token = isConstructor(Token) ? new Token(config) : Token;
   const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : Webhooks;
+  const hooks = isConstructor(Hooks) ? new Hooks() : Hooks;
   const browserManager = isConstructor(BrowserManager)
     ? new BrowserManager(config)
     : BrowserManager;
@@ -197,6 +200,7 @@ const start = async (dev = false) => {
     browserManager,
     config,
     fileSystem,
+    hooks,
     limiter,
     metrics,
     monitoring,

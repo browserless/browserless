@@ -1,13 +1,13 @@
+// @ts-nocheck Unknown external files
 import { EventEmitter } from 'events';
 
-// @ts-ignore
-import { default as beforeRequest } from '../external/before.js';
-// @ts-ignore
+// KEPT for backwards compatibility reasons since some downstream
+// docker images will override these files to inject their own hook
+// behaviors
 import { default as afterRequest } from '../external/after.js';
-// @ts-ignore
-import { default as pageHook } from '../external/page.js';
-// @ts-ignore
+import { default as beforeRequest } from '../external/before.js';
 import { default as browserHook } from '../external/browser.js';
+import { default as pageHook } from '../external/page.js';
 
 export class Hooks extends EventEmitter {
   constructor() {

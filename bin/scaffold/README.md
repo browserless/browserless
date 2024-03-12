@@ -16,6 +16,7 @@ Finally, this SDK and Browserless.io are built to support businesses and enterpr
 - [Extending Modules](#extending-modules)
 - [Disabling Routes](#disabling-routes)
 - [Serving Static Files](#serving-static-files)
+- [Implementing Hooks](#implementing-hooks)
 - [Running in Development](#running-in-development)
 - [Building for Production](#building-for-production)
 - [Running without Building](#running-without-building)
@@ -68,6 +69,7 @@ Aside form scaffolding the project, Browserless also looks for the following:
 - `*.websocket.ts` Files with this naming convention are treated as WebSocket routes.
 - `config.ts` Loads the default export here as a config override.
 - `file-system.ts` Loads the default export here as a file-system override.
+- `hooks.ts` Loads the default export as a Hooks override.
 - `limiter.ts` Loads the default export here as a limiter override (concurrency).
 - `metrics.ts` Loads the default export as a metrics override.
 - `monitoring.ts` Loads the default export as a monitoring override.
@@ -417,6 +419,89 @@ Will be available to be served under:
 `http://YOUR-HOST:YOUR-PORT/enterprise/docs`
 
 Which prevents this route from colliding with our internal `/docs` route.
+
+## Implementing Hooks
+
+Browserless support writing a custom hooks module, where you can run or do custom checks during lifecycle events in Browserless. There are 4 events you can write custom functions for, which are detailed below. By default these hooks are benign and do nothing, so implementing them will alter how Browserless functions. Here's the default class written out with types:
+
+```ts
+// src/hooks.ts file
+import {
+  Request,
+  Response,
+  ChromiumCDP,
+  FirefoxPlaywright,
+  ChromiumPlaywright,
+  WebkitPlaywright,
+} from '@browserless.io/browserless';
+import * as stream from 'stream';
+import puppeteer from 'puppeteer-core';
+
+export class Hooks extends EventEmitter {
+  constructor() {
+    super();
+  }
+
+  // Called in src/server.ts for incoming HTTP and WebSocket requests, which
+  // is why certain arguments might not be present -- only the Request is
+  // guaranteed to be present as it is shared in both WS and HTTP requests.
+  // MUST return a true/false indicating if Browserless should continue
+  // handling the request or not.
+  before({
+    req,
+    res,
+    socket,
+    head,
+  }: {
+    req: Request;
+    res?: Response;
+    socket?: stream.Duplex;
+    head?: Buffer;
+  }): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+
+  // Called in src/limiter.ts and provides details regarding the result of the
+  // session and a "start" time (Date.now()) of when the session started to run.
+  // No return value or type required.
+  after(args: {
+    status: 'successful' | 'error' | 'timedout';
+    start: number;
+    req: Request;
+  }): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  // Called in src/browsers/index.ts
+  // Called for every new CDP or Puppeteer-like "Page" creation in a browser.
+  // Can be used to inject behaviors or add events to a page's lifecycle.
+  // "meta" property is a parsed URL of the original incoming request.
+  // No return value or type required.
+  page(args: { meta: URL, page: puppeteer.Page }): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  // Called in src/browsers/index.ts
+  // Called for every new Browser creation in browserless, regardless of type.
+  // Can be used to inject behaviors or add events to a browser's lifecycle.
+  // "meta" property is a parsed URL of the original incoming request.
+  // No return value or type required.
+  browser(args: {
+    browser:
+      | ChromiumCDP
+      | FirefoxPlaywright
+      | ChromiumPlaywright
+      | WebkitPlaywright;
+    meta: URL;
+  }): Promise<unknown> {
+    return Promise.resolve(undefined);
+  }
+}
+```
+
+Of these hooks only `before` needs to return a true/false condition on whether or not to allow the request to proceed. If `false` Browserless does NOT write a response and simply closes the connection. Your `before` function should take care of any writing, closing, or streaming responses back before returning a `boolean`.
+
+Otherwise all other hooks are there for injecting side-effect like behaviors and don't necessarily need to return any kind of value. If a certain value is returned, Browserless simply ignores it.
 
 ## Running in Development
 
