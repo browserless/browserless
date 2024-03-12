@@ -744,7 +744,6 @@ export const encrypt = (text: string, secret: Buffer) => {
 
 export const decrypt = (encryptedText: string, secret: Buffer) => {
   const [encrypted, iv] = encryptedText.toString().split(encryptionSep);
-  console.log('>>', encryptedText.toString());
   if (!iv) throw new ServerError('Bad or invalid encrypted format');
   const decipher = crypto.createDecipheriv(
     encryptionAlgo,
