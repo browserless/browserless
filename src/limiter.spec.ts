@@ -1,23 +1,19 @@
 import {
   Config,
+  Hooks,
   Limiter,
   Metrics,
   Monitoring,
   WebHooks,
   sleep,
 } from '@browserless.io/browserless';
+import Sinon, { spy } from 'sinon';
 import { expect } from 'chai';
-import { spy } from 'sinon';
 
 const asyncNoop = () => Promise.resolve(undefined);
 const noop = () => undefined;
-const webHooks = {
-  callErrorAlertURL: spy(),
-  callFailedHealthURL: spy(),
-  callQueueAlertURL: spy(),
-  callRejectAlertURL: spy(),
-  callTimeoutAlertURL: spy(),
-};
+const webHooks = Sinon.createStubInstance(WebHooks);
+const hooks = Sinon.createStubInstance(Hooks);
 
 describe(`Limiter`, () => {
   afterEach(() => {
@@ -26,9 +22,13 @@ describe(`Limiter`, () => {
     webHooks.callRejectAlertURL.resetHistory();
     webHooks.callTimeoutAlertURL.resetHistory();
     webHooks.callErrorAlertURL.resetHistory();
+    hooks.before.resetHistory();
+    hooks.after.resetHistory();
+    hooks.browser.resetHistory();
+    hooks.page.resetHistory();
   });
 
-  it('limits and queues function calls and calls queue alert urls', async () => {
+  it('limits and queues function calls, calls hooks, and calls queue alert urls', async () => {
     return new Promise((resolve, reject) => {
       const config = new Config();
       config.setQueueAlertURL('https://example.com');
@@ -40,12 +40,7 @@ describe(`Limiter`, () => {
       config.setQueued(1);
       config.setTimeout(-1);
 
-      const limiter = new Limiter(
-        config,
-        metrics,
-        monitoring,
-        webHooks as unknown as WebHooks,
-      );
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
       const handler = spy();
       const job = limiter.limit(handler, asyncNoop, asyncNoop, noop);
 
@@ -56,6 +51,7 @@ describe(`Limiter`, () => {
 
       limiter.addEventListener('end', () => {
         try {
+          expect(hooks.after.called).to.be.true;
           expect(handler.calledTwice).to.be.true;
           expect(webHooks.callQueueAlertURL.calledOnce).to.be.true;
           expect(metrics.get().queued).to.equal(1);
@@ -69,27 +65,36 @@ describe(`Limiter`, () => {
     });
   }).timeout(5000);
 
-  it('passes through arguments', () => {
-    const args = ['one', 'two', 'three'];
-    const config = new Config();
-    const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
-    config.setConcurrent(1);
-    config.setQueued(0);
-    config.setTimeout(-1);
+  it('passes through arguments', () =>
+    new Promise((resolve, reject) => {
+      const args = ['one', 'two', 'three'];
+      const config = new Config();
+      const metrics = new Metrics();
+      const monitoring = new Monitoring(config);
+      config.setConcurrent(1);
+      config.setQueued(0);
+      config.setTimeout(-1);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
-    const handler = spy();
-    const job = limiter.limit(handler, asyncNoop, asyncNoop, noop);
-    // @ts-ignore will fix later
-    job(...args);
-    expect(handler.args[0]).to.eql(args);
-  });
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const handler = spy();
+      const job = limiter.limit(handler, asyncNoop, asyncNoop, noop);
+      // @ts-ignore will fix later
+      job(...args);
+      expect(handler.args[0]).to.eql(args);
+
+      limiter.addEventListener('end', () => {
+        try {
+          expect(hooks.after.args[0][0]).to.have.property('start');
+          expect(hooks.after.args[0][0]).to.have.property(
+            'status',
+            'successful',
+          );
+        } catch (e) {
+          return reject(e);
+        }
+        resolve(undefined);
+      });
+    }));
 
   it('waits to run jobs until the first are done', async () => {
     const config = new Config();
@@ -99,12 +104,7 @@ describe(`Limiter`, () => {
     config.setQueued(1);
     config.setTimeout(-1);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
     const handlerOne = () => new Promise((r) => setTimeout(r, 50));
     const handlerTwo = spy();
 
@@ -129,12 +129,7 @@ describe(`Limiter`, () => {
     config.setQueued(1);
     config.setTimeout(-1);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
     const spy = () => new Promise((_r, rej) => rej(error));
 
     const job = limiter.limit(spy, asyncNoop, asyncNoop, noop);
@@ -150,6 +145,7 @@ describe(`Limiter`, () => {
           error,
         );
         expect(webHooks.callErrorAlertURL.calledOnce).to.be.true;
+        expect(hooks.after.args[0][0]).to.have.property('status', 'error');
       });
     });
   });
@@ -163,12 +159,7 @@ describe(`Limiter`, () => {
     config.setQueued(0);
     config.setTimeout(-1);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
 
     const handler = spy();
     const onError = spy();
@@ -184,37 +175,41 @@ describe(`Limiter`, () => {
     expect(onError.args[0]).to.eql(args);
   });
 
-  it('calls a timeout handler with arguments if a job takes too long', (r) => {
-    const args = ['one', 'two', 'three'];
-    const config = new Config();
-    const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
-    config.setConcurrent(1);
-    config.setQueued(0);
-    config.setTimeout(10);
+  it('calls a timeout handler with arguments if a job takes too long', () =>
+    new Promise((resolve, reject) => {
+      const args = ['one', 'two', 'three'];
+      const config = new Config();
+      const metrics = new Metrics();
+      const monitoring = new Monitoring(config);
+      config.setConcurrent(1);
+      config.setQueued(0);
+      config.setTimeout(10);
 
-    let timer: NodeJS.Timer;
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
-    const handler = () =>
-      new Promise((d) => (timer = global.setTimeout(d, 1000)));
+      let timer: NodeJS.Timer;
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const handler = () =>
+        new Promise((d) => (timer = global.setTimeout(d, 1000)));
 
-    const onTimeout = (...calledArgs: unknown[]) => {
-      clearTimeout(timer as unknown as number);
-      expect(calledArgs).to.eql(args);
-      expect(webHooks.callTimeoutAlertURL.calledOnce).to.be.true;
-      r(null);
-    };
+      const onTimeout = (...calledArgs: unknown[]) => {
+        clearTimeout(timer as unknown as number);
+        expect(calledArgs).to.eql(args);
+        expect(webHooks.callTimeoutAlertURL.calledOnce).to.be.true;
+      };
 
-    const job = limiter.limit(handler, noop, onTimeout, noop);
+      const job = limiter.limit(handler, noop, onTimeout, noop);
 
-    // @ts-ignore
-    job(...args);
-  });
+      // @ts-ignore
+      job(...args);
+
+      limiter.addEventListener('end', () => {
+        try {
+          expect(hooks.after.args[0][0]).to.have.property('status', 'timedout');
+        } catch (e) {
+          return reject(e);
+        }
+        resolve(undefined);
+      });
+    }));
 
   it('allows overriding the timeouts', async () => {
     const config = new Config();
@@ -224,12 +219,7 @@ describe(`Limiter`, () => {
     config.setQueued(0);
     config.setTimeout(1);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
     const onTimeout = spy();
     const handler = async () => new Promise((r) => setTimeout(r, 10));
 
@@ -252,12 +242,7 @@ describe(`Limiter`, () => {
     config.setQueued(0);
     config.setTimeout(20);
 
-    const limiter = new Limiter(
-      config,
-      metrics,
-      monitoring,
-      webHooks as unknown as WebHooks,
-    );
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
     const handler = () => new Promise((r) => setTimeout(r, 1));
     const timeout = spy();
     const job = limiter.limit(handler, noop, timeout, noop);
@@ -276,12 +261,7 @@ describe(`Limiter`, () => {
       config.setQueued(0);
       config.setTimeout(-1);
 
-      const limiter = new Limiter(
-        config,
-        metrics,
-        monitoring,
-        webHooks as unknown as WebHooks,
-      );
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
 
       const handler = spy();
       const job = limiter.limit(handler, noop, noop, noop);
@@ -312,12 +292,7 @@ describe(`Limiter`, () => {
       config.setQueued(10);
       config.setTimeout(-1);
 
-      const limiter = new Limiter(
-        config,
-        metrics,
-        monitoring,
-        webHooks as unknown as WebHooks,
-      );
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
 
       const handler = spy();
       const job = limiter.limit(handler, noop, noop, noop);
@@ -343,12 +318,7 @@ describe(`Limiter`, () => {
       config.setQueued(10);
       config.setTimeout(-1);
 
-      const limiter = new Limiter(
-        config,
-        metrics,
-        monitoring,
-        webHooks as unknown as WebHooks,
-      );
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
 
       const handler = spy();
       const job = limiter.limit(handler, noop, noop, noop);

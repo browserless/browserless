@@ -1,11 +1,11 @@
 import {
   AfterResponse,
   Config,
+  Hooks,
   Metrics,
   Monitoring,
   TooManyRequests,
   WebHooks,
-  afterRequest,
   createLogger,
 } from '@browserless.io/browserless';
 import q from 'queue';
@@ -33,13 +33,13 @@ export class Limiter extends q {
     protected metrics: Metrics,
     protected monitor: Monitoring,
     protected webhooks: WebHooks,
+    protected hooks: Hooks,
   ) {
     super({
       autostart: true,
       concurrency: config.getConcurrent(),
       timeout: config.getTimeout(),
     });
-
     this.queued = config.getQueued();
 
     this.debug(
@@ -78,7 +78,7 @@ export class Limiter extends q {
   }
 
   protected jobEnd(jobInfo: AfterResponse) {
-    afterRequest(jobInfo);
+    this.hooks.after(jobInfo);
   }
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {

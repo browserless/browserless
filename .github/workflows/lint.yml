@@ -6,8 +6,8 @@ jobs:
   Lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Install modules
-      run: npm i
-    - name: Run ESLint
-      run: npm run lint
+      - uses: actions/checkout@v2
+      - name: Install modules
+        run: npm i
+      - name: Run ESLint
+        run: npm run lint

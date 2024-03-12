@@ -1,4 +1,11 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.4.0...main)
+- Support for a new "Hooks" module for setting up SDK hooks in a more SDK-friendly manner.
+- Adds new exports for building downstream SDK projects more easily, versus using our CLI:
+  - `getArgSwitches`
+  - `getSourceFiles`
+  - `installDependencies`
+  - `buildDockerImage`
+  - `buildTypeScript`
 - Dependency updates.
 
 # [v2.4.0](https://github.com/browserless/chrome/compare/v2.3.0...v2.4.0)

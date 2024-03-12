@@ -11,6 +11,7 @@ import {
   FirefoxPlaywright,
   HTTPRoute,
   HTTPServer,
+  Hooks,
   IBrowserlessStats,
   Limiter,
   Metrics,
@@ -48,6 +49,7 @@ export class Browserless extends EventEmitter {
   protected browserManager: BrowserManager;
   protected config: Config;
   protected fileSystem: FileSystem;
+  protected hooks: Hooks;
   protected limiter: Limiter;
   protected metrics: Metrics;
   protected monitoring: Monitoring;
@@ -67,6 +69,7 @@ export class Browserless extends EventEmitter {
     browserManager,
     config,
     fileSystem,
+    hooks,
     limiter,
     metrics,
     monitoring,
@@ -77,6 +80,7 @@ export class Browserless extends EventEmitter {
     browserManager?: Browserless['browserManager'];
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
+    hooks?: Browserless['hooks'];
     limiter?: Browserless['limiter'];
     metrics?: Browserless['metrics'];
     monitoring?: Browserless['monitoring'];
@@ -88,13 +92,21 @@ export class Browserless extends EventEmitter {
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
+    this.hooks = hooks || new Hooks();
     this.webhooks = webhooks || new WebHooks(this.config);
-    this.browserManager = browserManager || new BrowserManager(this.config);
+    this.browserManager =
+      browserManager || new BrowserManager(this.config, this.hooks);
     this.monitoring = monitoring || new Monitoring(this.config);
     this.fileSystem = fileSystem || new FileSystem(this.config);
     this.limiter =
       limiter ||
-      new Limiter(this.config, this.metrics, this.monitoring, this.webhooks);
+      new Limiter(
+        this.config,
+        this.metrics,
+        this.monitoring,
+        this.webhooks,
+        this.hooks,
+      );
     this.router =
       router || new Router(this.config, this.browserManager, this.limiter);
   }
@@ -354,6 +366,7 @@ export class Browserless extends EventEmitter {
       this.metrics,
       this.token,
       this.router,
+      this.hooks,
     );
 
     await this.server.start();
