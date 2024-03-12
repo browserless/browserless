@@ -1,1 +1,1 @@
-export default () => Promise.resolve(true);
+export default async () => {};

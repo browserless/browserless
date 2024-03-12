@@ -31,13 +31,13 @@ export type PathTypes =
 
 export interface BeforeRequest {
   head?: Buffer;
-  req: Request;
+  req: http.IncomingMessage;
   res?: http.ServerResponse;
   socket?: stream.Duplex;
 }
 
 export interface AfterResponse {
-  req: http.IncomingMessage;
+  req: Request;
   start: number;
   status: 'successful' | 'error' | 'timedout';
 }

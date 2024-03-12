@@ -206,6 +206,7 @@ export class Browserless extends EventEmitter {
       this.router.shutdown(),
       this.token.shutdown(),
       this.webhooks.shutdown(),
+      this.hooks.shutdown(),
     ]);
   }
 

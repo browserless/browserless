@@ -170,7 +170,7 @@ const start = async (dev = false) => {
     importDefault(files, 'token'),
     importDefault(files, 'webhooks'),
     importDefault(files, 'disabled-routes'),
-    importDefault(files,' hooks'),
+    importDefault(files, 'hooks'),
   ]);
 
   log(`Starting Browserless`);
