@@ -111,7 +111,7 @@ const getDebug = () => {
 export class Config extends EventEmitter {
   protected readonly debug = getDebug();
   protected readonly host = process.env.HOST ?? 'localhost';
-  protected readonly external = process.env.PROXY_URL ?? process.env.EXTERNAL;
+  protected external = process.env.PROXY_URL ?? process.env.EXTERNAL;
   protected readonly isWin = process.platform === 'win32';
 
   protected port = +(process.env.PORT ?? '3000');
@@ -408,6 +408,16 @@ export class Config extends EventEmitter {
    */
   public getExternalAddress = (): string =>
     this.external ?? this.getServerAddress();
+
+  /**
+   * Set the external URL, which Browserless uses for encoding
+   * URLs over the HOST:PORT that it's bound to.
+   *
+   * @param address The fully-qualified URL, eg https://www.example.com/
+   * @returns {string} The address
+   */
+  public setExternalAddress = (address: string) =>
+    this.external = address;
 
   /**
    * Returns the the fully-qualified WebSocket URL for the
