@@ -29,7 +29,7 @@ describe('/chrome/content API', function () {
     const body = {
       url: 'https://example.com',
     };
-
+    expect(false).to.be.true;
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {
