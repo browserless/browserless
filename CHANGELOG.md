@@ -1,12 +1,16 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.4.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.5.0...main)
+- Dependency updates.
+
+# [v2.5.0](https://github.com/browserless/chrome/compare/v2.4.0...v2.5.0)
 - `Config` now allows for programmatic getting and setting of the external address.
-- Support for a new "Hooks" module for setting up SDK hooks in a more SDK-friendly manner.
+- Support for a new `Hooks` module for setting up hooks in a more SDK-friendly manner.
 - Adds new exports for building downstream SDK projects more easily, versus using our CLI:
   - `getArgSwitches`
   - `getSourceFiles`
   - `installDependencies`
   - `buildDockerImage`
   - `buildTypeScript`
+- `README.md` updates.
 - Dependency updates.
 
 # [v2.4.0](https://github.com/browserless/chrome/compare/v2.3.0...v2.4.0)
