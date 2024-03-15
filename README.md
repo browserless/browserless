@@ -36,6 +36,8 @@ If you've been struggling to deploy headless browsers without running into issue
 
 # Features
 
+### General
+
 - Parallelism and request-queueing are built-in + configurable.
 - Fonts and emoji's working out-of-the-box.
 - Debug Viewer for actively viewing/debugging running sessions.
@@ -44,6 +46,16 @@ If you've been struggling to deploy headless browsers without running into issue
 - Configurable session timers and health-checks to keep things running smoothly.
 - Error tolerant: if Chrome dies it won't.
 - [Support for running and development on Apple's M1 machines](#building-for-arm64-apple-m1-machines)
+
+### Cloud
+
+Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
+
+- Inbuilt [residential proxy](https://www.browserless.io/blog/2023/09/24/residential-proxying/)
+- [/unblock API](https://www.browserless.io/blog/2024/02/26/unblock-api/) for avoiding detectors
+- Hybrid automations for including user inputs
+- Ability to upload and run extensions *(coming soon)*
+- SSO, tokens and user roles
 
 # How it works
 
