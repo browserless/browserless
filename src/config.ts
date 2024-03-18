@@ -416,8 +416,7 @@ export class Config extends EventEmitter {
    * @param address The fully-qualified URL, eg https://www.example.com/
    * @returns {string} The address
    */
-  public setExternalAddress = (address: string) =>
-    this.external = address;
+  public setExternalAddress = (address: string) => (this.external = address);
 
   /**
    * Returns the the fully-qualified WebSocket URL for the

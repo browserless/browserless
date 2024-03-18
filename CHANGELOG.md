@@ -1,4 +1,5 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.5.0...main)
+- Adds a `GET /active` route that responds with no message and a `204` http code.
 - Dependency updates.
 
 # [v2.5.0](https://github.com/browserless/chrome/compare/v2.4.0...v2.5.0)
