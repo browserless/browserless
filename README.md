@@ -10,7 +10,7 @@
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
 
 > [!NOTE]  
-> [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend migrating to v2.
+> [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend [migrating](/MIGRATION-2.0.md) to v2.
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
@@ -127,7 +127,7 @@ docker run -p 3000:3000 ghcr.io/browserless/firefox
 import pw from "playwright-core";
 
 const browser = await pw.firefox.connect(
-  'ws://localhost:3000/playwright/firefox',
+  'ws://localhost:3000/firefox/playwright',
 );
 ```
 
