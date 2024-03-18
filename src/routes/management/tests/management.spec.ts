@@ -75,7 +75,7 @@ describe('Management APIs', function () {
     await fetch('http://localhost:3000/active?token=6R0W53R135510').then(
       async (res) => {
         expect(res.headers.get('content-type')).to.equal(
-          'application/text; charset=UTF-8',
+          'text/plain; charset=UTF-8',
         );
         expect(res.status).to.equal(204);
       },
