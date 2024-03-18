@@ -124,6 +124,7 @@ export enum HTTPRoutes {
 }
 
 export enum HTTPManagementRoutes {
+  active = '/active',
   config = '/config',
   metrics = '/metrics',
   metricsTotal = '/metrics/total',

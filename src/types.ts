@@ -650,6 +650,7 @@ export const BrowserlessWebKitRoutes = {
 };
 
 export const BrowserlessManagementRoutes = {
+  ActiveGetRoute: 'ActiveGetRoute',
   ConfigGetRoute: 'ConfigGetRoute',
   MetricsGetRoute: 'MetricsGetRoute',
   MetricsTotalGetRoute: 'MetricsTotalGetRoute',
