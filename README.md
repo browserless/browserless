@@ -9,6 +9,7 @@
 ![Webkit CI](https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg)
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
 
+> [!NOTE]  
 > [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend migrating to v2.
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
@@ -69,6 +70,7 @@ You still execute the script itself which gives you total control over what libr
 
 ### Docker
 
+> [!TIP]  
 > See more options on our [full documentation site](https://docs.browserless.io/Docker/docker-quickstart).
 
 1. `docker run -p 3000:3000 ghcr.io/browserless/chromium`
