@@ -1,32 +1,39 @@
-## Browserless 2.0 Migration Guide
+<!-- markdownlint-disable no-emphasis-as-heading -->
+
+# Browserless 2.0 Migration Guide
 
 Browserless 2.0 is finally here! It's a complete rewrite of the core of browserless, and many things have changed. To keep things short, this rewrite allows us to support many new things which you can read about in these articles:
 
-[Announcing v2](https://www.browserless.io/blog/2023/12/06/browserless-2-0/)
-
-[How and why we rebuilt Browserless](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
-
-[How to use the v2 SDK](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
+- [Announcing v2](https://www.browserless.io/blog/2023/12/06/browserless-2-0/)
+- [How and why we rebuilt Browserless](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
+- [How to use the v2 SDK](https://www.browserless.io/blog/2024/02/28/v2-sdk/)
 
 This document serves as a guide to migrate existing systems from browserless 1.x to 2.x. New features are not covered in this guide, but we do recommend checking the new things outBelow is a table of contents from which you can pick to better aide in migrating your existing codebase or REST calls.
 
 For the most comprehensive documentation, feel free to visit the built-in doc-site located at `/docs` route. Browserless also logs this on startup for help.
 
 ## Table of Contents
-- [Design Changes](#design-changes-and-overall-goals)
-- [List of Major Changes](#list-of-major-and-potentially-breaking-changes)
-- [Docker](#docker)
-- [Libraries (Playwright, Puppeteer, etc.)](#libraries)
-- [/function API](#function)
-- [/pdf API](#pdf)
-- [/screenshot API](#screenshot)
-- [/scrape API](#scrape)
-- [/stats API](#stats)
-- [/screencast API](#screencast)
-- [/sessions API](#sessions)
-- [/config API](#config)
 
-# Design Changes and overall goals
+- [Design Changes and overall goals](#design-changes-and-overall-goals)
+- [List of Major and Potentially Breaking Changes](#list-of-major-and-potentially-breaking-changes)
+- [Docker](#docker)
+  - [Removed parameters (no replacements)](#removed-parameters-no-replacements)
+  - [Changed Parameters](#changed-parameters)
+  - [Other Changes](#other-changes)
+- [Libraries](#libraries)
+  - [Launch flags](#launch-flags)
+  - [Headless flags](#headless-flags)
+- [/function](#function)
+  - [Basic Request](#basic-request)
+  - [Request with requires](#request-with-requires)
+- [/pdf](#pdf)
+- [/screenshot](#screenshot)
+- [/scrape](#scrape)
+- [/stats](#stats)
+- [/screencast](#screencast)
+- [/config](#config)
+
+## Design Changes and overall goals
 
 browserless 2.xx was designed and developed for the sole purpose of making browser behavior more deterministic. We want to make the process of operating a headless browser stack more developer-friendly since these workflows can often be frustrating to work with. What do we mean by this? Here's a few points
 
@@ -41,26 +48,27 @@ This, in combination with the past 5+ years experience in headless, means there'
 
 Finally, browserless does its best to be friendly and helpful by logging things like out-of-date parameters and configuration. Please be sure to read through logs when migrating existing workflows over and we'll continue to improve these messages as time goes on.
 
-# List of Major and Potentially Breaking Changes
+## List of Major and Potentially Breaking Changes
+
 - Drop support for Selenium and Webdriver.
 - Many docker environment variable changes (see below).
 - Drop support for DEFAULT_* arguments.
 - Drop support for pre-booting and keep-alive.
 - TOKEN is now randomly generated when none is present to enforce some authentication.
 - When using custom launch flags for APIs and Libraries: please update to the new format which is a consolidated `&launch` parameter.
-- Playwright's Chromium path is now `/playwright/chromium` in order to reflect other browsers in different paths.
+- Playwright's Chromium path is now `/chromium/playwright` in order to reflect other browsers in different paths.
 - Unknown query parameters or JSON POST parameters will now respond with a 4xx error.
 - New `/function` API environment and uses Ecmascript modules. We no longer run /function calls in the NodeJS environment, and instead run inside the browser's JavaScript runtime. `import` does work and loads modules over HTTP instead of locally.
 - `blockAds` now uses Ublock Origin to facilitate ad-blocking. No more request interception.
 - The prior `/stats` API is now located at `/performance`.
 
-# Docker
+## Docker
 
 Multiple environment variables have changed for simplicity and clarity in 2.0, but act similar in functionality to prior environment variables. We did remove a few due to their ability to cause issues, bad performance, and non-deterministic behavior.
 
 browserless does it's best to log these old or deprecated environment variables, so be sure to read those out when using the new 2.0 builds.
 
-### Removed parameters (no replacements):
+### Removed parameters (no replacements)
 
 - CHROME_REFRESH_TIME: No longer support pre-booted chrome.
 - DEFAULT_BLOCK_ADS: Use `blockAds` in your API or library connect calls.
@@ -101,30 +109,31 @@ Browserless will log these and replace them for you internally, but feel free to
 
 We have changed where we serve our Docker images from docker hub to Github's container registry. Please use the `ghcr.io/browserless` or look at our open our [Packages page](https://github.com/orgs/browserless/packages).
 
+## Libraries
 
-# Libraries
-
-We tried to keep library changes as little as possible since the compromise the core of the platform. However, one change is the consolidation of _all_ launch options into a single query string parameter of a JSON-stringified "launch". Connect calls are now more strict with query parameters. Any unknown parameter will cause connect calls to fail since they aren't supported by browserless. In version 1.xx unknown parameters were simply ignored.
+We tried to keep library changes as little as possible since the compromise the core of the platform. However, one change is the consolidation of *all* launch options into a single query string parameter of a JSON-stringified "launch". Connect calls are now more strict with query parameters. Any unknown parameter will cause connect calls to fail since they aren't supported by browserless. In version 1.xx unknown parameters were simply ignored.
 
 browserless 2.xx shims old launch options query parameters internally, so it'll fix 1.xx requests for you. Here's a few examples of this so you can make any changes in code.
 
 It is *highly recommended* the parameters after `launch=` be base64 for proper recognition. Failure to base64 encode will nearly guarantee these parameters are not accepted if they have characters such as curly braces or brackets.
 
-### Launch flags:
+### Launch flags
+
 **Before**
 `ws://localhost:3000?token=ABCD&--window-size=1920,1080`
 
 **After**
 `ws://localhost:3000?token=ABCD&launch={"args":["--window-size=1920,108"]}`
 
-### Headless flags:
+### Headless flags
+
 **Before**
 `ws://localhost:3000?token=ABCD&headless=shell`
 
 **After**
 `ws://localhost:3000?token=ABCD&launch={"headless":"shell"}`
 
-# /function
+## /function
 
 The biggest difference in the function API is that it no longer operates inside of the NodeJS runtime, but in the browser. It also supports ECMAScript modules, so you'll have to tweak existing code to work inside 2.xx. This is a fairly large change, and any /function calls should be well tested prior to deploying them into production.
 
@@ -135,7 +144,9 @@ Browserless also now infers the appropriate response type so you no longer need 
 browserless 2.xx shims old launch options query parameters internally, so it'll fix 1.xx-style requests for you.
 
 ### Basic Request
+
 **Before**
+
 ```js
 // CommonJS no longer supported
 module.exports = async({ page }) => {
@@ -150,6 +161,7 @@ module.exports = async({ page }) => {
 ```
 
 **After**
+
 ```js
 // Use the "export default" keywords
 export default async({ page }) => {
@@ -160,7 +172,9 @@ export default async({ page }) => {
 ```
 
 ### Request with requires
+
 **Before**
+
 ```js
 // npm packages are no longer supported
 const url = require('url');
@@ -178,6 +192,7 @@ module.exports = async({ page }) => {
 ```
 
 **After**
+
 ```js
 export default async({ page }) => {
   await page.goto('https://example.com');
@@ -191,7 +206,7 @@ export default async({ page }) => {
 }
 ```
 
-# /pdf
+## /pdf
 
 The PDF API operates in a similar fashion as the in browserless 1.xx. The biggest difference is how launch flags are handled, which now use a consolidated `launch` object to hold all CLI arguments and flags.
 
@@ -199,7 +214,7 @@ The PDF API operates in a similar fashion as the in browserless 1.xx. The bigges
 
 `rotate` has been removed due to lack of usage and included 3rd party dependencies. `safeMode` has also been removed in favor of using puppeteer's streaming capabilities that are much less error-prone.
 
-# /screenshot
+## /screenshot
 
 The /screenshot API operates very similarly to how it did in browserless 1.xx. A few properties and options have been removed due to their infrequent usage and 3rd party dependencies.
 
@@ -207,22 +222,22 @@ The /screenshot API operates very similarly to how it did in browserless 1.xx. A
 
 `manipulate` has also been removed since it was infrequently used and required numerous other dependencies in order to run properly.
 
-# /scrape
+## /scrape
 
 The /scrape API operates similarly to how it did in browserless 1.xx. A few properties and options have been removed due to their infrequent usage and 3rd party dependencies.
 
 `waitFor` has now been removed and deprecated in favor of puppeteer's discrete API methods: `waitForEvent`, `waitForFunction`, `waitForSelector` and `waitForTimeout`.
 
-# /stats
+## /stats
 
 The /stats API has been moved to /performance now to better reflect the action its doing since the word "stats" in this context can be ambiguous. Internally, it still runs lighthouse reports and you can provide various configurations to it.
 
-# /screencast
+## /screencast
 
 The /screencast API has been removed in favor of a library-based approach.
 
 Please refer to the built-in doc-site for how to do screencasting or consult your library of choice for how to screencast.
 
-# /config
+## /config
 
 The /config API now returns more meta-data about the instance including more parameters. Please visit the internal doc-site page to see the JSON response and all the properties.
