@@ -68,4 +68,17 @@ describe('Management APIs', function () {
       },
     );
   });
+
+  it('allows requests to /active', async () => {
+    await start();
+
+    await fetch('http://localhost:3000/active?token=6R0W53R135510').then(
+      async (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'text/plain; charset=UTF-8',
+        );
+        expect(res.status).to.equal(204);
+      },
+    );
+  });
 });
