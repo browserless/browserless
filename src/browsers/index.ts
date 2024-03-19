@@ -387,6 +387,8 @@ export class BrowserManager {
         const found = allPages.flat().find((b) => b.id === id);
 
         if (found) {
+          const session = this.browsers.get(found.browser)!;
+          ++session.numbConnected;
           return found.browser;
         }
 
