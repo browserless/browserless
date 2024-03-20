@@ -5,6 +5,8 @@ on: [pull_request]
 jobs:
   build-and-pr:
     runs-on: ubuntu-latest
+    env:
+      accesToken: ${{ secrets.ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v2
 
@@ -21,11 +23,11 @@ jobs:
         run: |
           git config --global user.email "eng@browserless.io"
           git config --global user.name "OpenAPI Bot"
+          git config --global --add --bool push.autoSetupRemote true
 
       - name: Clone Target Repository
         run: |
-          git clone https://github.com/browserless/browserless-docs.git ./docs-repo
-
+          git clone https://${{ env.accesToken }}@github.com/browserless/browserless-docs.git ./docs-repo
       - name: Copy File to Target Repository
         run: |
           cp ./static/docs/swagger.json ./docs-repo
@@ -36,12 +38,6 @@ jobs:
           git checkout -b docs/openapi
           git add .
           git commit -m "chore: update openapi"
-          git push --set-upstream origin docs/openapi
-
+          git push
       - name: Create Pull Request
-        uses: repo-sync/pull-request@v2
-        with:
-          source_branch: "docs/openapi"
-          destination_branch: "main"
-          pr_title: "OpenAPI Bot: Update OpenAPI Spec"
-          pr_body: "Updates OpenAPI json"
+        run: gh pr create -B main -H docst/openapi --title 'Update OpenAPI' --body 'Created by Github action'
