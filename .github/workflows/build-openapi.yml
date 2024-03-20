@@ -1,0 +1,47 @@
+name: OpenAPI
+
+on: [pull_request]
+
+jobs:
+  build-and-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Modules
+        run: npm i
+
+      - name: Compile TS
+        run: npm run build:ts
+
+      - name: Build OpenAPI
+        run: npm run build:openapi
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "eng@browserless.io"
+          git config --global user.name "OpenAPI Bot"
+
+      - name: Clone Target Repository
+        run: |
+          git clone https://github.com/browserless/browserless-docs.git ./docs-repo
+
+      - name: Copy File to Target Repository
+        run: |
+          cp ./static/docs/swagger.json ./docs-repo
+
+      - name: Commit and Push
+        run: |
+          cd ./docs-repo
+          git checkout -b docs/openapi
+          git add .
+          git commit -m "chore: update openapi"
+          git push --set-upstream origin docs/openapi
+
+      - name: Create Pull Request
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: "docs/openapi"
+          destination_branch: "main"
+          pr_title: "OpenAPI Bot: Update OpenAPI Spec"
+          pr_body: "Updates OpenAPI json"
