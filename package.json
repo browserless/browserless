@@ -65,7 +65,7 @@
     "systeminformation": "^5.22.6"
   },
   "optionalDependencies": {
-    "@types/chai": "^4.3.12",
+    "@types/chai": "^4.3.14",
     "@types/debug": "^4.1.12",
     "@types/gradient-string": "^1.1.5",
     "@types/http-proxy": "^1.17.14",
