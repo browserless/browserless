@@ -58,7 +58,7 @@ Our [cloud accounts](https://www.browserless.io/pricing/) include all the genera
 
 - Inbuilt [residential proxy](https://www.browserless.io/blog/2023/09/24/residential-proxying/)
 - [/unblock API](https://www.browserless.io/blog/2024/02/26/unblock-api/) for avoiding detectors
-- Hybrid automations for including user inputs
+- [Hybrid automations](https://www.browserless.io/blog/2024/03/21/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
 - Ability to upload and run extensions _(coming soon)_
 - SSO, tokens and user roles
 
