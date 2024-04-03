@@ -1,11 +1,18 @@
 name: Chrome
 
-on: [pull_request]
-
+on: [push, pull_request]
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  Test:
-    runs-on: ubuntu-latest
-    steps:
+ build:
+  runs-on: ubuntu-latest
+  strategy: 
+    max-parallel: 20 
+    fail-fast: false
+    matrix:
+     go: [1.2, 1.3, 1.4, 1.5] 
+     flag: [A, B, C, D, E]
+  timeout-minutes: 300
+  steps:
       - uses: actions/checkout@v2
 
       - name: Build the base layer
