@@ -67,7 +67,7 @@
   "optionalDependencies": {
     "@types/chai": "^4.3.14",
     "@types/debug": "^4.1.12",
-    "@types/gradient-string": "^1.1.5",
+    "@types/gradient-string": "^1.1.6",
     "@types/http-proxy": "^1.17.14",
     "@types/micromatch": "^4.0.6",
     "@types/mocha": "^10.0.6",
