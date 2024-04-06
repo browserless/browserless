@@ -231,7 +231,7 @@ abstract class BasicHTTPRoute extends Route {
   abstract accepts: Array<contentTypes>;
 
   /**
-   * The Content-Types that this route will will respond with, and must match the Accepts
+   * The Content-Types that this route will respond with, and must match the Accepts
    * Header from a client if present. If a request comes in with an Accepts of "application/json"
    * then the contentTypes here would need to include ["application/json"] in order to not 404.
    */

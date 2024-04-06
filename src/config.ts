@@ -399,7 +399,7 @@ export class Config extends EventEmitter {
         : `http://${this.host}:${this.port}`;
 
   /**
-   * Returns the the fully-qualified URL for the
+   * Returns the fully-qualified URL for the
    * external address that browserless might be
    * running behind *or* the server address if
    * no external URL is provided.
@@ -419,7 +419,7 @@ export class Config extends EventEmitter {
   public setExternalAddress = (address: string) => (this.external = address);
 
   /**
-   * Returns the the fully-qualified WebSocket URL for the
+   * Returns the fully-qualified WebSocket URL for the
    * external address that browserless might be
    * running behind *or* the server address if
    * no external URL is provided.
