@@ -96,16 +96,17 @@ export class WebkitPlaywright extends EventEmitter {
       return null;
     }
 
-    const serverURL = new URL(this.config.getExternalWebSocketAddress());
-    const wsURL = new URL(this.browserWSEndpoint);
-    wsURL.host = serverURL.host;
-    wsURL.port = serverURL.port;
+    const externalURL = new URL(this.config.getExternalWebSocketAddress());
+    const internalURL = new URL(this.browserWSEndpoint);
+    internalURL.host = externalURL.host;
+    internalURL.port = externalURL.port;
+    internalURL.protocol = externalURL.protocol;
 
     if (token) {
-      wsURL.searchParams.set('token', token);
+      internalURL.searchParams.set('token', token);
     }
 
-    return wsURL.href;
+    return internalURL.href;
   };
 
   public proxyPageWebSocket = async () => {
