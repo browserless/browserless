@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.5.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.6.0...main)
+- Dependency updates.
+
+# [v2.6.0](https://github.com/browserless/chrome/compare/v2.5.0...v2.6.0)
 - Adds a `GET /active` route that responds with no message and a `204` http code.
+- Move to NodeJS 20.12.0.
+- README, CHANGELOG, Migration and spelling fixes.
+- New `/active` route for determining if server is able to handle requests.
+- Better logging around 404'd HTTP requests.
 - Dependency updates.
 
 # [v2.5.0](https://github.com/browserless/chrome/compare/v2.4.0...v2.5.0)
