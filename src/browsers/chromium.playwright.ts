@@ -9,6 +9,7 @@ import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
+import path from 'path';
 
 export class ChromiumPlaywright extends EventEmitter {
   protected config: Config;
@@ -105,16 +106,15 @@ export class ChromiumPlaywright extends EventEmitter {
     }
 
     const externalURL = new URL(this.config.getExternalWebSocketAddress());
-    const internalURL = new URL(this.browserWSEndpoint);
-    internalURL.host = externalURL.host;
-    internalURL.port = externalURL.port;
-    internalURL.protocol = externalURL.protocol;
+    const { pathname } = new URL(this.browserWSEndpoint);
+
+    externalURL.pathname = path.join(externalURL.pathname, pathname);
 
     if (token) {
-      internalURL.searchParams.set('token', token);
+      externalURL.searchParams.set('token', token);
     }
 
-    return internalURL.href;
+    return externalURL.href;
   };
 
   public proxyPageWebSocket = async () => {
