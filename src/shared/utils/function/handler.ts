@@ -88,7 +88,7 @@ export default (
      */
     page.on('request', async (request) => {
       const requestUrl = request.url();
-      debug(`/function.js: Page Request: "${requestUrl}"`);
+      debug(`Outbound Page Request: "${requestUrl}"`);
       if (requestUrl.startsWith(functionRequestPath)) {
         const filename = path.basename(requestUrl);
         if (filename === functionCodeJS) {
@@ -116,11 +116,11 @@ export default (
           status: 404,
         });
       }
+      debug(`Request: "${requestUrl}" no responder found, continuing...`);
       return request.continue();
     });
 
     page.on('response', (res) => {
-      debug(`/function.js: Page Response: "${res.url()}"`);
       if (res.status() !== 200) {
         debug(`Received a non-200 response for request "${res.url()}"`);
       }
@@ -144,6 +144,9 @@ export default (
             import('./' + functionCodeJS),
           ]);
           console.log('/function.js: imported successfully.');
+          console.log(
+            `/function.js: BrowserlessFunctionRunner: ${typeof window.BrowserlessFunctionRunner}`,
+          );
           const helper = new window.BrowserlessFunctionRunner();
           const options = JSON.parse(serializedOptions);
           console.log('/function.js: executing puppeteer code.');

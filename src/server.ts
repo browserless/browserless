@@ -143,7 +143,9 @@ export class HTTPServer extends EventEmitter {
     const route = await this.router.getRouteForHTTPRequest(req);
 
     if (!route) {
-      this.log(`No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`);
+      this.log(
+        `No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`,
+      );
       writeResponse(res, 404, 'Not Found');
       return Promise.resolve();
     }
