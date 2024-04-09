@@ -16,8 +16,7 @@ browserless.io-browserless-*.tgz
 .*cache*
 
 # Compiled Function Helper
-static/function/*js
-static/live/*js
+static/function/*
 static/devtools/*
 static/debugger/*
 
