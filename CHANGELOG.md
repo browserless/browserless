@@ -1,4 +1,6 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.7.1...main)
+**Potentially Breaking**
+- New `Logger` class and SDK primitives in support of that.
 - Dependency updates.
 
 # [v2.7.1](https://github.com/browserless/chrome/compare/v2.7.0...v2.7.1)

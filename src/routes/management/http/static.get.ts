@@ -38,7 +38,7 @@ const streamFile = (
     return createReadStream(file)
       .on('error', (error) => {
         if (error) {
-          logger.log(`Error finding file ${file}, sending 404`);
+          logger.error(`Error finding file ${file}, sending 404`);
           pathMap.delete(file);
           return reject(
             new NotFound(`Request for file "${file}" was not found`),
@@ -67,10 +67,9 @@ export default class StaticGetRoute extends HTTPRoute {
   ): Promise<unknown> => {
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
-    const verbose = logger.extend('verbose');
 
     if (fileCache) {
-      return streamFile(verbose, res, fileCache.path, fileCache.contentType);
+      return streamFile(logger, res, fileCache.path, fileCache.contentType);
     }
 
     const config = this.config();
@@ -103,7 +102,9 @@ export default class StaticGetRoute extends HTTPRoute {
     }
 
     const [foundFilePath] = foundFilePaths;
-    verbose.log(`Found new file "${foundFilePath}", caching path and serving`);
+    logger.verbose(
+      `Found new file "${foundFilePath}", caching path and serving`,
+    );
 
     const contentType = mimeTypes.get(path.extname(foundFilePath));
 
@@ -117,6 +118,6 @@ export default class StaticGetRoute extends HTTPRoute {
       path: foundFilePath,
     });
 
-    return streamFile(verbose, res, foundFilePath, contentType);
+    return streamFile(logger, res, foundFilePath, contentType);
   };
 }

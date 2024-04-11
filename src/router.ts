@@ -31,6 +31,7 @@ export class Router extends EventEmitter {
     protected config: Config,
     protected browserManager: BrowserManager,
     protected limiter: Limiter,
+    protected logger: typeof Logger,
   ) {
     super();
   }
@@ -71,7 +72,7 @@ export class Router extends EventEmitter {
         this.log(`HTTP Request has closed prior to running`);
         return Promise.resolve();
       }
-      const logger = new Logger(route.name, req);
+      const logger = new this.logger(route.name, req);
       if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
@@ -121,7 +122,7 @@ export class Router extends EventEmitter {
         this.log(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
       }
-      const logger = new Logger(route.name, req);
+      const logger = new this.logger(route.name, req);
       if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,

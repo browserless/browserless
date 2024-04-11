@@ -1,5 +1,6 @@
 import * as path from 'path';
 import {
+  Logger as BlessLogger,
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
@@ -51,6 +52,7 @@ export class Browserless extends EventEmitter {
   protected fileSystem: FileSystem;
   protected hooks: Hooks;
   protected limiter: Limiter;
+  protected Logger: typeof BlessLogger;
   protected metrics: Metrics;
   protected monitoring: Monitoring;
   protected router: Router;
@@ -71,12 +73,14 @@ export class Browserless extends EventEmitter {
     fileSystem,
     hooks,
     limiter,
+    Logger: LoggerOverride,
     metrics,
     monitoring,
     router,
     token,
     webhooks,
   }: {
+    Logger?: Browserless['Logger'];
     browserManager?: Browserless['browserManager'];
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
@@ -89,6 +93,7 @@ export class Browserless extends EventEmitter {
     webhooks?: Browserless['webhooks'];
   } = {}) {
     super();
+    this.Logger = LoggerOverride ?? BlessLogger;
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
@@ -108,7 +113,8 @@ export class Browserless extends EventEmitter {
         this.hooks,
       );
     this.router =
-      router || new Router(this.config, this.browserManager, this.limiter);
+      router ||
+      new Router(this.config, this.browserManager, this.limiter, this.Logger);
   }
 
   protected saveMetrics = async (): Promise<void> => {
@@ -360,6 +366,7 @@ export class Browserless extends EventEmitter {
       this.token,
       this.router,
       this.hooks,
+      this.Logger,
     );
 
     await this.server.start();

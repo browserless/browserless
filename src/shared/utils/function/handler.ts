@@ -84,7 +84,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
      */
     page.on('request', async (request) => {
       const requestUrl = request.url();
-      logger.log(`Outbound Page Request: "${requestUrl}"`);
+      logger._log(`Outbound Page Request: "${requestUrl}"`);
       if (requestUrl.startsWith(functionRequestPath)) {
         const filename = path.basename(requestUrl);
         if (filename === functionCodeJS) {
@@ -103,7 +103,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
             status: 200,
           });
         }
-        logger.log(
+        logger._log(
           `Static asset request to "${requestUrl}" couldn't be found, 404-ing`,
         );
         return request.respond({
@@ -112,18 +112,18 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
           status: 404,
         });
       }
-      logger.log(`Request: "${requestUrl}" no responder found, continuing...`);
+      logger._log(`Request: "${requestUrl}" no responder found, continuing...`);
       return request.continue();
     });
 
     page.on('response', (res) => {
       if (res.status() !== 200) {
-        logger.log(`Received a non-200 response for request "${res.url()}"`);
+        logger._log(`Received a non-200 response for request "${res.url()}"`);
       }
     });
 
     page.on('console', (event) => {
-      logger.log(`${event.type()}: ${event.text()}`);
+      logger._log(`${event.type()}: ${event.text()}`);
     });
 
     await page.goto(functionIndexHTML);
@@ -160,7 +160,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
         JSON.stringify(options),
       )
       .catch((e) => {
-        logger.log(`Error running code: ${e}`);
+        logger._log(`Error running code: ${e}`);
         throw new BadRequest(e.message);
       });
 
