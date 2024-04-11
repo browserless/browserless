@@ -152,6 +152,7 @@ const start = async (dev = false) => {
     Config,
     FileSystem,
     Limiter,
+    Logger,
     Metrics,
     Monitoring,
     Router,
@@ -164,6 +165,7 @@ const start = async (dev = false) => {
     importDefault(files, 'config'),
     importDefault(files, 'file-system'),
     importDefault(files, 'limiter'),
+    importDefault(files, 'logger'),
     importDefault(files, 'metrics'),
     importDefault(files, 'monitoring'),
     importDefault(files, 'router'),
@@ -197,6 +199,7 @@ const start = async (dev = false) => {
     : Router;
 
   const browserless = new Browserless({
+    Logger,
     browserManager,
     config,
     fileSystem,

@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as stream from 'stream';
 import {
   BadRequest,
+  Logger as BlessLogger,
   Config,
   HTTPRoute,
   Hooks,
@@ -49,6 +50,7 @@ export class HTTPServer extends EventEmitter {
     protected token: Token,
     protected router: Router,
     protected hooks: Hooks,
+    protected Logger: typeof BlessLogger,
   ) {
     super();
     this.host = config.getHost();
@@ -263,7 +265,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     return (route as HTTPRoute)
-      .handler(req, res)
+      .handler(req, res, new this.Logger(route.name, req))
       .then(() => {
         this.verbose('HTTP connection complete');
       })
@@ -368,7 +370,7 @@ export class HTTPServer extends EventEmitter {
       }
 
       return (route as WebSocketRoute)
-        .handler(req, socket, head)
+        .handler(req, socket, head, new this.Logger(route.name, req))
         .then(() => {
           this.verbose('Websocket connection complete');
         })

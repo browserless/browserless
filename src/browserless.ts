@@ -1,5 +1,6 @@
 import * as path from 'path';
 import {
+  Logger as BlessLogger,
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
@@ -51,6 +52,7 @@ export class Browserless extends EventEmitter {
   protected fileSystem: FileSystem;
   protected hooks: Hooks;
   protected limiter: Limiter;
+  protected Logger: typeof BlessLogger;
   protected metrics: Metrics;
   protected monitoring: Monitoring;
   protected router: Router;
@@ -71,12 +73,14 @@ export class Browserless extends EventEmitter {
     fileSystem,
     hooks,
     limiter,
+    Logger: LoggerOverride,
     metrics,
     monitoring,
     router,
     token,
     webhooks,
   }: {
+    Logger?: Browserless['Logger'];
     browserManager?: Browserless['browserManager'];
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
@@ -89,6 +93,7 @@ export class Browserless extends EventEmitter {
     webhooks?: Browserless['webhooks'];
   } = {}) {
     super();
+    this.Logger = LoggerOverride ?? BlessLogger;
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
@@ -108,7 +113,8 @@ export class Browserless extends EventEmitter {
         this.hooks,
       );
     this.router =
-      router || new Router(this.config, this.browserManager, this.limiter);
+      router ||
+      new Router(this.config, this.browserManager, this.limiter, this.Logger);
   }
 
   protected saveMetrics = async (): Promise<void> => {
@@ -235,7 +241,6 @@ export class Browserless extends EventEmitter {
       ...internalHttpRouteFiles,
     ]) {
       if (httpRoute.endsWith('js')) {
-        const { name } = path.parse(httpRoute);
         const [bodySchema, querySchema] = await Promise.all(
           routeSchemas.map(async (schemaType) => {
             const schemaPath = path.parse(httpRoute);
@@ -249,7 +254,6 @@ export class Browserless extends EventEmitter {
         const routeImport = `${
           this.config.getIsWin() ? 'file:///' : ''
         }${httpRoute}`;
-        const logger = createLogger(`http:${name}`);
         const {
           default: Route,
         }: { default: Implements<HTTPRoute> | Implements<BrowserHTTPRoute> } =
@@ -258,7 +262,6 @@ export class Browserless extends EventEmitter {
           this.browserManager,
           this.config,
           this.fileSystem,
-          logger,
           this.metrics,
           this.monitoring,
           this.staticSDKDir,
@@ -271,7 +274,6 @@ export class Browserless extends EventEmitter {
           route.metrics = () => this.metrics;
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
-          route.debug = () => logger;
           route.staticSDKDir = () => this.staticSDKDir;
 
           httpRoutes.push(route);
@@ -285,7 +287,6 @@ export class Browserless extends EventEmitter {
       ...internalWsRouteFiles,
     ]) {
       if (wsRoute.endsWith('js')) {
-        const { name } = path.parse(wsRoute);
         const [, querySchema] = await Promise.all(
           routeSchemas.map(async (schemaType) => {
             const schemaPath = path.parse(wsRoute);
@@ -299,7 +300,6 @@ export class Browserless extends EventEmitter {
         const wsImport = `${
           this.config.getIsWin() ? 'file:///' : ''
         }${wsRoute}`;
-        const logger = createLogger(`ws:${name}`);
         const {
           default: Route,
         }: {
@@ -311,7 +311,6 @@ export class Browserless extends EventEmitter {
           this.browserManager,
           this.config,
           this.fileSystem,
-          logger,
           this.metrics,
           this.monitoring,
           this.staticSDKDir,
@@ -323,7 +322,6 @@ export class Browserless extends EventEmitter {
           route.metrics = () => this.metrics;
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
-          route.debug = () => logger;
           route.staticSDKDir = () => this.staticSDKDir;
 
           wsRoutes.push(route);
@@ -368,6 +366,7 @@ export class Browserless extends EventEmitter {
       this.token,
       this.router,
       this.hooks,
+      this.Logger,
     );
 
     await this.server.start();

@@ -9,6 +9,7 @@ import {
   FirefoxPlaywright,
   HTTPManagementRoutes,
   HTTPRoutes,
+  Logger,
   Methods,
   Metrics,
   Request,
@@ -99,7 +100,6 @@ abstract class Route {
     protected _browserManager: Browserless['browserManager'],
     protected _config: Browserless['config'],
     protected _fileSystem: Browserless['fileSystem'],
-    protected _debug: Browserless['debug'],
     protected _metrics: Browserless['metrics'],
     protected _monitoring: Browserless['monitoring'],
     protected _staticSDKDir: Browserless['staticSDKDir'],
@@ -163,14 +163,6 @@ abstract class Route {
    * @returns Config
    */
   config = () => this._config;
-
-  /**
-   * Helper function that loads the debug module, useful
-   * for logging messages scoped to the routes path. Defined
-   * and injected by browserless after initialization.
-   * @returns Debug
-   */
-  debug = () => this._debug;
 
   /**
    * Helper function that loads the file-system module
@@ -254,6 +246,7 @@ export abstract class HTTPRoute extends BasicHTTPRoute {
   abstract handler: (
     req: Request,
     res: http.ServerResponse,
+    logger: Logger,
   ) => Promise<unknown>;
 }
 
@@ -274,6 +267,7 @@ export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
   abstract handler: (
     req: Request,
     res: http.ServerResponse,
+    logger: Logger,
     browser: BrowserInstance,
   ) => Promise<unknown>;
 
@@ -298,6 +292,7 @@ export abstract class WebSocketRoute extends Route {
     req: Request,
     socket: stream.Duplex,
     head: Buffer,
+    logger: Logger,
   ) => Promise<unknown>;
 }
 
@@ -319,6 +314,7 @@ export abstract class BrowserWebsocketRoute extends Route {
     req: Request,
     socket: stream.Duplex,
     head: Buffer,
+    logger: Logger,
     browser: BrowserInstance,
   ): Promise<unknown>;
 

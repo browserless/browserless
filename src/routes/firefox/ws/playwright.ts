@@ -5,6 +5,7 @@ import {
   BrowserWebsocketRoute,
   BrowserlessRoutes,
   FirefoxPlaywright,
+  Logger,
   Request,
   SystemQueryParameters,
   WebsocketRoutes,
@@ -29,6 +30,7 @@ export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRou
     req: Request,
     socket: Duplex,
     head: Buffer,
+    _logger: Logger,
     browser: FirefoxPlaywright,
   ): Promise<void> => {
     const isPlaywright = req.headers['user-agent']
