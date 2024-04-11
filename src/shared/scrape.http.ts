@@ -8,6 +8,7 @@ import {
   ChromiumCDP,
   HTTPRoutes,
   InBoundRequest,
+  Logger,
   Methods,
   OutBoundRequest,
   Request,
@@ -218,6 +219,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
+    _logger: Logger,
     browser: BrowserInstance,
   ) => {
     const contentType =

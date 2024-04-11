@@ -6,6 +6,7 @@ import {
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
+  Logger,
   Methods,
   NotFound,
   Request,
@@ -61,21 +62,21 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
+    logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> =>
     new Promise(async (resolve, reject) => {
-      const debug = this.debug();
       const config = this.config();
       const downloadPath = path.join(
         await config.getDownloadsDir(),
         `.browserless.download.${id()}`,
       );
 
-      debug(`Generating a download directory at "${downloadPath}"`);
+      logger.log(`Generating a download directory at "${downloadPath}"`);
       await mkdir(downloadPath);
-      const handler = functionHandler(config, debug, { downloadPath });
+      const handler = functionHandler(config, logger, { downloadPath });
       const response = await handler(req, browser).catch((e) => {
-        debug(`Error running download code handler: "${e}"`);
+        logger.log(`Error running download code handler: "${e}"`);
         reject(e);
         return null;
       });
@@ -85,10 +86,12 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       }
 
       const { page } = response;
-      debug(`Download function has returned, finding downloads...`);
+      logger.log(`Download function has returned, finding downloads...`);
       async function checkIfDownloadComplete(): Promise<string | null> {
         if (res.headersSent) {
-          debug(`Request headers have been sent, terminating download watch.`);
+          logger.log(
+            `Request headers have been sent, terminating download watch.`,
+          );
           return null;
         }
         const [fileName] = await readdir(downloadPath);
@@ -97,13 +100,13 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           return checkIfDownloadComplete();
         }
 
-        debug(`All files have finished downloading`);
+        logger.log(`All files have finished downloading`);
 
         return path.join(downloadPath, fileName);
       }
 
       const filePath = await checkIfDownloadComplete();
-      debug(`Closing pages.`);
+      logger.log(`Closing pages.`);
       page.close();
       page.removeAllListeners();
 
@@ -112,12 +115,12 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           filePath &&
           deleteAsync(filePath, { force: true })
             .then(() => {
-              debug(
+              logger.log(
                 `Successfully deleted downloads from disk at "${filePath}"`,
               );
             })
             .catch((err) => {
-              debug(
+              logger.log(
                 `Error cleaning up downloaded files: "${err}" at "${filePath}"`,
               );
             }),
@@ -144,7 +147,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           }
         })
         .on('end', () => {
-          debug(`Downloads successfully sent`);
+          logger.log(`Downloads successfully sent`);
           rmDownload();
           return resolve();
         })

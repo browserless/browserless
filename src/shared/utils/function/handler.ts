@@ -4,6 +4,7 @@ import {
   ChromiumCDP,
   Config,
   HTTPRoutes,
+  Logger,
   Request,
   UnwrapPromise,
   contentTypes,
@@ -16,7 +17,6 @@ import {
 } from '@browserless.io/browserless';
 import { FunctionRunner } from './client.js';
 import { Page } from 'puppeteer-core';
-import debug from 'debug';
 import fs from 'fs';
 import path from 'path';
 
@@ -35,11 +35,7 @@ interface HandlerOptions {
   downloadPath?: string;
 }
 
-export default (
-    config: Config,
-    debug: debug.Debugger,
-    options: HandlerOptions = {},
-  ) =>
+export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
   async (
     req: Request,
     browser: BrowserInstance,
@@ -88,7 +84,7 @@ export default (
      */
     page.on('request', async (request) => {
       const requestUrl = request.url();
-      debug(`Outbound Page Request: "${requestUrl}"`);
+      logger.log(`Outbound Page Request: "${requestUrl}"`);
       if (requestUrl.startsWith(functionRequestPath)) {
         const filename = path.basename(requestUrl);
         if (filename === functionCodeJS) {
@@ -107,7 +103,7 @@ export default (
             status: 200,
           });
         }
-        debug(
+        logger.log(
           `Static asset request to "${requestUrl}" couldn't be found, 404-ing`,
         );
         return request.respond({
@@ -116,18 +112,18 @@ export default (
           status: 404,
         });
       }
-      debug(`Request: "${requestUrl}" no responder found, continuing...`);
+      logger.log(`Request: "${requestUrl}" no responder found, continuing...`);
       return request.continue();
     });
 
     page.on('response', (res) => {
       if (res.status() !== 200) {
-        debug(`Received a non-200 response for request "${res.url()}"`);
+        logger.log(`Received a non-200 response for request "${res.url()}"`);
       }
     });
 
     page.on('console', (event) => {
-      debug(`${event.type()}: ${event.text()}`);
+      logger.log(`${event.type()}: ${event.text()}`);
     });
 
     await page.goto(functionIndexHTML);
@@ -164,7 +160,7 @@ export default (
         JSON.stringify(options),
       )
       .catch((e) => {
-        debug(`Error running code: ${e}`);
+        logger.log(`Error running code: ${e}`);
         throw new BadRequest(e.message);
       });
 

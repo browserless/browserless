@@ -5,6 +5,7 @@ import {
   Config,
   HTTPRoute,
   Hooks,
+  Logger,
   Metrics,
   NotFound,
   Request,
@@ -263,7 +264,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     return (route as HTTPRoute)
-      .handler(req, res)
+      .handler(req, res, new Logger(route.name, req))
       .then(() => {
         this.verbose('HTTP connection complete');
       })
@@ -368,7 +369,7 @@ export class HTTPServer extends EventEmitter {
       }
 
       return (route as WebSocketRoute)
-        .handler(req, socket, head)
+        .handler(req, socket, head, new Logger(route.name, req))
         .then(() => {
           this.verbose('Websocket connection complete');
         })

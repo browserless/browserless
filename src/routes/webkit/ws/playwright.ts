@@ -4,6 +4,7 @@ import {
   BrowserServerOptions,
   BrowserWebsocketRoute,
   BrowserlessRoutes,
+  Logger,
   Request,
   SystemQueryParameters,
   WebkitPlaywright,
@@ -27,6 +28,7 @@ export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRout
     req: Request,
     socket: Duplex,
     head: Buffer,
+    _logger: Logger,
     browser: WebkitPlaywright,
   ): Promise<void> => {
     const isPlaywright = req.headers['user-agent']

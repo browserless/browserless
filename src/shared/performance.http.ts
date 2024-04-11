@@ -6,6 +6,7 @@ import {
   CDPLaunchOptions,
   ChromiumCDP,
   HTTPRoutes,
+  Logger,
   Methods,
   Request,
   SystemQueryParameters,
@@ -47,6 +48,7 @@ export default class PerformancePost extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
+    _logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> => {
     const config = this.config();

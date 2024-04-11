@@ -4,6 +4,7 @@ import {
   BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
+  Logger,
   Request,
   SystemQueryParameters,
   WebsocketRoutes,
@@ -31,6 +32,7 @@ export default class ChromiumBrowserWebSocketRoute extends BrowserWebsocketRoute
     req: Request,
     socket: Duplex,
     head: Buffer,
+    _logger: Logger,
     browser: ChromiumCDP,
   ): Promise<void> => browser.proxyWebSocket(req, socket, head);
 }

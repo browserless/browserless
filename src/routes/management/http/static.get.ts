@@ -3,6 +3,7 @@ import {
   BrowserlessRoutes,
   HTTPManagementRoutes,
   HTTPRoute,
+  Logger,
   Methods,
   NotFound,
   Request,
@@ -23,21 +24,21 @@ const pathMap: Map<
 > = new Map();
 
 const streamFile = (
-  debug: debug.Debugger,
+  logger: Logger,
   res: ServerResponse,
   file: string,
   contentType?: string,
 ) =>
   new Promise((resolve, reject) => {
     if (contentType) {
-      debug(`Setting content-type ${contentType}`);
+      logger.log(`Setting content-type ${contentType}`);
       res.setHeader('Content-Type', contentType);
     }
 
     return createReadStream(file)
       .on('error', (error) => {
         if (error) {
-          debug(`Error finding file ${file}, sending 404`);
+          logger.log(`Error finding file ${file}, sending 404`);
           pathMap.delete(file);
           return reject(
             new NotFound(`Request for file "${file}" was not found`),
@@ -59,11 +60,14 @@ export default class StaticGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.static;
   tags = [APITags.management];
-  handler = async (req: Request, res: ServerResponse): Promise<unknown> => {
+  handler = async (
+    req: Request,
+    res: ServerResponse,
+    logger: Logger,
+  ): Promise<unknown> => {
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
-    const debug = this.debug();
-    const verbose = debug.extend('verbose');
+    const verbose = logger.extend('verbose');
 
     if (fileCache) {
       return streamFile(verbose, res, fileCache.path, fileCache.contentType);
@@ -93,13 +97,13 @@ export default class StaticGetRoute extends HTTPRoute {
     }
 
     if (foundFilePaths.length > 1) {
-      debug(
+      logger.log(
         `Multiple files found for request to "${pathname}". Only the first file is served, so please name your files uniquely.`,
       );
     }
 
     const [foundFilePath] = foundFilePaths;
-    verbose(`Found new file "${foundFilePath}", caching path and serving`);
+    verbose.log(`Found new file "${foundFilePath}", caching path and serving`);
 
     const contentType = mimeTypes.get(path.extname(foundFilePath));
 

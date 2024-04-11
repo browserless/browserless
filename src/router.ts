@@ -6,6 +6,7 @@ import {
   HTTPManagementRoutes,
   HTTPRoute,
   Limiter,
+  Logger,
   Methods,
   PathTypes,
   Request,
@@ -70,7 +71,7 @@ export class Router extends EventEmitter {
         this.log(`HTTP Request has closed prior to running`);
         return Promise.resolve();
       }
-
+      const logger = new Logger(route.name, req);
       if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
@@ -90,7 +91,7 @@ export class Router extends EventEmitter {
         try {
           this.verbose(`Running found HTTP handler.`);
           return await Promise.race([
-            handler(req, res, browser),
+            handler(req, res, logger, browser),
             new Promise((resolve, reject) => {
               res.once('close', () => {
                 if (!res.writableEnded) {
@@ -107,7 +108,7 @@ export class Router extends EventEmitter {
         }
       }
 
-      return (handler as HTTPRoute['handler'])(req, res);
+      return (handler as HTTPRoute['handler'])(req, res, logger);
     };
 
   protected wrapWebSocketHandler =
@@ -120,7 +121,7 @@ export class Router extends EventEmitter {
         this.log(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
       }
-
+      const logger = new Logger(route.name, req);
       if ('browser' in route && route.browser) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
@@ -139,14 +140,14 @@ export class Router extends EventEmitter {
 
         try {
           this.verbose(`Running found WebSocket handler.`);
-          await handler(req, socket, head, browser);
+          await handler(req, socket, head, logger, browser);
         } finally {
           this.verbose(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);
         }
         return;
       }
-      return (handler as WebSocketRoute['handler'])(req, socket, head);
+      return (handler as WebSocketRoute['handler'])(req, socket, head, logger);
     };
 
   public registerHTTPRoute(
@@ -230,7 +231,7 @@ export class Router extends EventEmitter {
             micromatch.isMatch(req.parsed.pathname, p),
           ) &&
           r.method === (req.method?.toLocaleLowerCase() as Methods) &&
-          (accepts.some((a) => a.startsWith('*/*')) ||
+          (accepts.some((a) => a.includes('*/*')) ||
             r.contentTypes.some((contentType) =>
               accepts.includes(contentType),
             )) &&
