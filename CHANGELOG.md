@@ -1,4 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.6.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.7.0...main)
+- Dependency updates.
+
+# [v2.7.0](https://github.com/browserless/chrome/compare/v2.6.1...v2.7.0)
+- Support for Running GPUs
+- Dependency updates.
+
+# [v2.6.1](https://github.com/browserless/chrome/compare/v2.6.0...v2.6.1)
+- Fixes for function API calls when behind an external URL.
 - Dependency updates.
 
 # [v2.6.0](https://github.com/browserless/chrome/compare/v2.5.0...v2.6.0)
