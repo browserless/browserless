@@ -1,4 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.7.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.7.1...main)
+- Dependency updates.
+
+# [v2.7.1](https://github.com/browserless/chrome/compare/v2.7.0...v2.7.1)
+**April 11, 2024**
+- Fixes a boot-looping issue due to bad startup script. Adds tests for this as well.
 - Dependency updates.
 
 # [v2.7.0](https://github.com/browserless/chrome/compare/v2.6.1...v2.7.0)
