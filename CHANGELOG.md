@@ -1,6 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.7.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.8.0...main)
+- Dependency updates.
+
+# [v2.8.0](https://github.com/browserless/chrome/compare/v2.7.1...v2.8.0)
+**April 12, 2024**
 **Potentially Breaking**
 - New `Logger` class and SDK primitives in support of that.
+- Routes now get an instance of `Logger`, before the `browser` argument or as the last argument for HTTP routes.
+
+**Updates**
+- Numerous SDK fixes and updates in the CLI.
 - Dependency updates.
 
 # [v2.7.1](https://github.com/browserless/chrome/compare/v2.7.0...v2.7.1)
