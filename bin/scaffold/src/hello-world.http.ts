@@ -22,11 +22,7 @@ export default class HelloWorldHTTPRoute extends HTTPRoute {
   method = Methods.get;
   path = '/hello';
   tags = [APITags.management];
-  handler = async (
-    _req: Request,
-    _logger: Logger,
-    res: Response,
-  ): Promise<void> => {
+  handler = async (_req: Request, res: Response, _logger: Logger): Promise<void> => {
     const response: ResponseSchema = 'Hello World!';
     return writeResponse(res, 200, response, contentTypes.text);
   };
