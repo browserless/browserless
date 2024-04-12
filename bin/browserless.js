@@ -27,7 +27,7 @@ if (typeof process.env.DEBUG === 'undefined') {
 const log = debug('browserless.io:sdk:log');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cmd = process.argv[2];
+const cmd = process.argv[2] ?? 'help';
 const subCMD = process.argv[3];
 const allowedCMDs = [
   'build',
@@ -143,7 +143,7 @@ const isConstructor = (reference) => typeof reference === 'function';
 const start = async (dev = false) => {
   const { httpRoutes, webSocketRoutes, files } = dev
     ? await build()
-    : await getSourceFiles();
+    : await getSourceFiles(projectDir);
 
   log(`Importing all class overrides if present`);
 
@@ -372,7 +372,7 @@ const create = async () => {
     }
   }
 
-  log(`Installing npm modules...`);
+  log(`Installing browsers and npm modules, this might take a few minutes...`);
   await installDependencies(installPath);
 
   log(
@@ -380,7 +380,8 @@ const create = async () => {
   );
 };
 
-const help = () => {
+const help = async () => {
+  console.log(`Version: ${(await browserlessPackageJSON).version}`);
   if (subCMD) {
     if (!allowedCMDs.includes(subCMD)) {
       throw new Error(`Unknown command of "${subCMD}" passed.`);

@@ -83,8 +83,8 @@ export const prompt = async (question: string) => {
 
 export const installDependencies = async (
   workingDirectory: string,
-): Promise<void> =>
-  new Promise((resolve, reject) => {
+): Promise<void> => {
+  await new Promise<void>((resolve, reject) => {
     spawn('npm', ['i'], {
       cwd: workingDirectory,
       stdio: 'inherit',
@@ -97,6 +97,24 @@ export const installDependencies = async (
       );
     });
   });
+  await new Promise<void>((resolve, reject) => {
+    spawn(
+      'npx',
+      'playwright-core install --with-deps chromium firefox webkit'.split(' '),
+      {
+        cwd: workingDirectory,
+        stdio: 'inherit',
+      },
+    ).once('close', (code) => {
+      if (code === 0) {
+        return resolve();
+      }
+      return reject(
+        `Error when installing dependencies, see output for more details`,
+      );
+    });
+  });
+};
 
 export const buildDockerImage = async (
   cmd: string,
