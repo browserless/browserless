@@ -170,7 +170,7 @@ export class Browserless extends EventEmitter {
     );
   };
 
-  private routeIsDisabled(route: routeInstances) {
+  protected routeIsDisabled(route: routeInstances) {
     return this.disabledRouteNames.some((name) => name === route.name);
   }
 

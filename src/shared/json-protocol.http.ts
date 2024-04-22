@@ -13,7 +13,7 @@ import {
 export type ResponseSchema = object;
 
 export default class ChromiumJSONProtocolGetRoute extends HTTPRoute {
-  private cachedProtocol: object | undefined;
+  protected cachedProtocol: object | undefined;
 
   name = BrowserlessRoutes.ChromiumJSONProtocolGetRoute;
   accepts = [contentTypes.any];
