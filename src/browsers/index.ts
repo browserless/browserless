@@ -52,7 +52,7 @@ export class BrowserManager {
     protected hooks: Hooks,
   ) {}
 
-  private browserIsChrome = (b: BrowserInstance) =>
+  protected browserIsChrome = (b: BrowserInstance) =>
     this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser);
 
   protected removeUserDataDir = async (userDataDir: string | null) => {
@@ -214,7 +214,7 @@ export class BrowserManager {
       .filter((_) => _ !== null) as Array<CDPJSONPayload>;
   };
 
-  private generateSessionJson = async (
+  protected generateSessionJson = async (
     browser: BrowserInstance,
     session: BrowserlessSession,
   ) => {
@@ -387,6 +387,8 @@ export class BrowserManager {
         const found = allPages.flat().find((b) => b.id === id);
 
         if (found) {
+          const session = this.browsers.get(found.browser)!;
+          ++session.numbConnected;
           return found.browser;
         }
 

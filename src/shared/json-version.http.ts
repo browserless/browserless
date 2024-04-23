@@ -18,7 +18,7 @@ export type ResponseSchema = UnwrapPromise<
 >;
 
 export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
-  private cachedJSON: ResponseSchema | undefined;
+  protected cachedJSON: ResponseSchema | undefined;
 
   name = BrowserlessRoutes.ChromiumJSONVersionGetRoute;
   accepts = [contentTypes.any];
