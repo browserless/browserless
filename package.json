@@ -55,7 +55,7 @@
     "get-port": "^7.1.0",
     "gradient-string": "^2.0.0",
     "http-proxy": "^1.18.1",
-    "lighthouse": "^11.1.0",
+    "lighthouse": "^12.0.0",
     "micromatch": "^4.0.4",
     "playwright-core": "1.43.1",
     "puppeteer-core": "^22.6.5",
