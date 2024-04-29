@@ -65,7 +65,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     const handler = functionHandler(config, logger);
     const { contentType, payload, page } = await handler(req, browser);
 
-    logger.log(`Got function response of "${contentType}"`);
+    logger.info(`Got function response of "${contentType}"`);
     page.close();
     page.removeAllListeners();
 
@@ -77,7 +77,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
       if (!type) {
         throw new BadRequest(`Couldn't determine function's response type.`);
       } else {
-        logger.log(`Sending file-type response of "${type}"`);
+        logger.info(`Sending file-type response of "${type}"`);
         const readStream = new Stream.PassThrough();
         readStream.end(response);
         res.setHeader('Content-Type', type);

@@ -77,6 +77,7 @@ export class Router extends EventEmitter {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
+          logger,
         );
 
         if (!isConnected(res)) {
@@ -127,6 +128,7 @@ export class Router extends EventEmitter {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
+          logger,
         );
 
         if (!isConnected(socket)) {

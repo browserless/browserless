@@ -31,7 +31,7 @@ const streamFile = (
 ) =>
   new Promise((resolve, reject) => {
     if (contentType) {
-      logger.log(`Setting content-type ${contentType}`);
+      logger.debug(`Setting content-type ${contentType}`);
       res.setHeader('Content-Type', contentType);
     }
 
@@ -96,13 +96,13 @@ export default class StaticGetRoute extends HTTPRoute {
     }
 
     if (foundFilePaths.length > 1) {
-      logger.log(
+      logger.warn(
         `Multiple files found for request to "${pathname}". Only the first file is served, so please name your files uniquely.`,
       );
     }
 
     const [foundFilePath] = foundFilePaths;
-    logger.verbose(
+    logger.info(
       `Found new file "${foundFilePath}", caching path and serving`,
     );
 

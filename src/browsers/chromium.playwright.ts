@@ -1,9 +1,9 @@
 import {
   BrowserServerOptions,
   Config,
+  Logger,
   Request,
   ServerError,
-  createLogger,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -15,25 +15,28 @@ export class ChromiumPlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected running = false;
+  protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:chromium:playwright');
   protected executablePath = playwright.chromium.executablePath();
 
   constructor({
     config,
     userDataDir,
+    logger,
   }: {
     config: Config;
+    logger: Logger;
     userDataDir: ChromiumPlaywright['userDataDir'];
   }) {
     super();
 
     this.userDataDir = userDataDir;
     this.config = config;
+    this.logger = logger;
 
-    this.debug(`Starting new browser instance`);
+    this.logger.info(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
@@ -44,7 +47,7 @@ export class ChromiumPlaywright extends EventEmitter {
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.debug(`Closing browser process and all listeners`);
+      this.logger.info(`Closing ${this.constructor.name} process and all listeners`);
       this.emit('close');
       this.cleanListeners();
       this.browser.close();
@@ -57,18 +60,18 @@ export class ChromiumPlaywright extends EventEmitter {
   public pages = async (): Promise<[]> => [];
 
   public getPageId = (): string => {
-    throw new ServerError(`#getPageId is not yet supported with this browser.`);
+    throw new ServerError(`#getPageId is not yet supported with ${this.constructor.name}.`);
   };
 
   public makeLiveURL = (): void => {
     throw new ServerError(
-      `Live URLs are not yet supported with this browser. In the future this will be at "${this.config.getExternalAddress()}"`,
+      `Live URLs are not yet supported with ${this.constructor.name}. In the future this will be at "${this.config.getExternalAddress()}"`,
     );
   };
 
   public newPage = async (): Promise<Page> => {
     if (!this.browser || !this.browserWSEndpoint) {
-      throw new ServerError(`Browser hasn't been launched yet!`);
+      throw new ServerError(`${this.constructor.name} hasn't been launched yet!`);
     }
     const browser = await playwright.chromium.connect(this.browserWSEndpoint);
     return await browser.newPage();
@@ -77,7 +80,7 @@ export class ChromiumPlaywright extends EventEmitter {
   public launch = async (
     options: BrowserServerOptions = {},
   ): Promise<playwright.BrowserServer> => {
-    this.debug(`Launching Playwright Handler`);
+    this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     this.browser = await playwright.chromium.launchServer({
       ...options,
@@ -91,7 +94,7 @@ export class ChromiumPlaywright extends EventEmitter {
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 
-    this.debug(`Browser is running on ${browserWSEndpoint}`);
+    this.logger.info(`${this.constructor.name} is running on ${browserWSEndpoint}`);
     this.running = true;
     this.browserWSEndpoint = browserWSEndpoint;
 
@@ -118,7 +121,7 @@ export class ChromiumPlaywright extends EventEmitter {
   };
 
   public proxyPageWebSocket = async () => {
-    console.warn(`Not yet implemented`);
+    this.logger.warn(`${this.constructor.name} Not yet implemented`);
   };
 
   public proxyWebSocket = async (
@@ -134,8 +137,8 @@ export class ChromiumPlaywright extends EventEmitter {
       }
       socket.once('close', resolve);
 
-      this.debug(
-        `Proxying ${req.parsed.href} to browser ${this.browserWSEndpoint}`,
+      this.logger.info(
+        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       // Delete headers known to cause issues
@@ -152,7 +155,7 @@ export class ChromiumPlaywright extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.debug(`Error proxying session: ${error}`);
+          this.logger.error(`Error proxying session to ${this.constructor.name}: ${error}`);
           this.close();
           return reject(error);
         },

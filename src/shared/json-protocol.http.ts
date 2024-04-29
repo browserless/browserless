@@ -3,6 +3,7 @@ import {
   BrowserlessRoutes,
   HTTPRoute,
   HTTPRoutes,
+  Logger,
   Methods,
   Request,
   Response,
@@ -26,11 +27,11 @@ export default class ChromiumJSONProtocolGetRoute extends HTTPRoute {
   path = HTTPRoutes.jsonProtocol;
   tags = [APITags.browserAPI];
 
-  handler = async (_req: Request, res: Response): Promise<void> => {
+  handler = async (_req: Request, res: Response, logger: Logger): Promise<void> => {
     const browserManager = this.browserManager();
 
     if (!this.cachedProtocol) {
-      this.cachedProtocol = await browserManager.getProtocolJSON();
+      this.cachedProtocol = await browserManager.getProtocolJSON(logger);
     }
 
     return jsonResponse(res, 200, this.cachedProtocol);
