@@ -29,6 +29,7 @@ import {
   makeExternalURL,
   noop,
   parseBooleanParam,
+  pwVersionRegex,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
@@ -322,6 +323,7 @@ export class BrowserManager {
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
   ): Promise<BrowserInstance> => {
+    console.log('Getting browser for request');
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
@@ -433,16 +435,17 @@ export class BrowserManager {
       arg.includes('--proxy-server='),
     );
 
-    if (
-      launchOptions.args &&
-      proxyServerArg &&
-      req.parsed.pathname.startsWith('/playwright')
-    ) {
-      (launchOptions as BrowserServerOptions).proxy = {
-        server: proxyServerArg.split('=')[1],
-      };
-      const argIndex = launchOptions.args.indexOf(proxyServerArg);
-      launchOptions.args.splice(argIndex, 1);
+    /**
+     * If it is a playwright request
+     */
+    if (req.parsed.pathname.startsWith('/playwright')) {
+      if (launchOptions.args && proxyServerArg) {
+        (launchOptions as BrowserServerOptions).proxy = {
+          server: proxyServerArg.split('=')[1],
+        };
+        const argIndex = launchOptions.args.indexOf(proxyServerArg);
+        launchOptions.args.splice(argIndex, 1);
+      }
     }
 
     const browser = new Browser({
@@ -467,7 +470,12 @@ export class BrowserManager {
 
     this.browsers.set(browser, connectionMeta);
 
-    await browser.launch(launchOptions as object);
+    const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
+    const pwVersion = match ? match[1] : 'default';
+
+    console.log("pwVersion: " + pwVersion);
+
+    await browser.launch(launchOptions as object, pwVersion);
     await this.hooks.browser({ browser, meta: req.parsed });
 
     browser.on('newPage', async (page) => {

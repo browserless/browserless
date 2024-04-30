@@ -37,6 +37,7 @@ export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRou
       ?.toLowerCase()
       .includes('playwright');
 
+    console.log(req.headers);
     if (!isPlaywright) {
       throw new BadRequest(
         `Only playwright is allowed to work with this route`,

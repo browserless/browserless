@@ -8,6 +8,7 @@ import {
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
+import fs from 'fs';
 import httpProxy from 'http-proxy';
 import path from 'path';
 
@@ -69,17 +70,29 @@ export class FirefoxPlaywright extends EventEmitter {
 
   public launch = async (
     options: BrowserServerOptions = {},
+    version?: string,
   ): Promise<playwright.BrowserServer> => {
     this.debug(`Launching Playwright Handler`);
-
-    this.browser = await playwright.firefox.launchServer({
+    const opts = {
       ...options,
       args: [
         ...(options.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
       executablePath: playwright.firefox.executablePath(),
-    });
+    };
+
+    const { playwrightVersions } = JSON.parse(
+      fs.readFileSync('.../../package.json').toString(),
+    );
+
+    const versionedPw: typeof playwright = await import(
+      playwrightVersions[version || 'default']
+    ).catch((err) => this.debug('Error importing Playwright', err));
+
+    console.log("Playwright version: ", versionedPw);
+
+    this.browser = await (versionedPw || playwright).firefox.launchServer(opts);
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 

@@ -14,7 +14,7 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
+    "build": "npm run clean && npm run build:ts && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
@@ -57,6 +57,7 @@
     "http-proxy": "^1.18.1",
     "lighthouse": "^12.0.0",
     "micromatch": "^4.0.4",
+    "playwright-1.42": "npm:playwright-core@^1.42.1",
     "playwright-core": "1.43.1",
     "puppeteer-core": "^22.7.1",
     "puppeteer-extra": "^3.3.6",
@@ -92,6 +93,11 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "typescript-json-schema": "^0.63.0"
+  },
+  "playwrightVersions": {
+    "default": "playwright-core",
+    "1.43": "playwright-core",
+    "1.42": "playwright-1.42"
   },
   "eslintConfig": {
     "root": true,
