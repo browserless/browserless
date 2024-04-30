@@ -1,20 +1,60 @@
-import { cp } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import path from 'path';
+/* global fetch, console, process */
+import { Readable } from 'stream';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import os from 'os';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { deleteAsync } from 'del';
+import gunzip from 'gunzip-maybe';
+import { moveFile } from 'move-file';
+import tar from 'tar-fs';
 
-const from = path.join(
-  __dirname,
-  '..',
-  'node_modules',
-  'browserless-debugger',
-  'static',
-);
-const to = path.join(__dirname, '..', 'static', 'debugger');
+const registryURL = 'https://registry.npmjs.org/browserless-debugger/';
+const tmp = join(os.tmpdir(), 'browserless-debugger');
+const untarDir = join(tmp, 'package', 'static');
+const debuggerDir = join(process.cwd(), 'static', 'debugger');
+
+const lastFromArr = (arr) => arr[arr.length - 1];
+const dlAndExtract = (url) =>
+  fetch(url).then(
+    (response) =>
+      new Promise((resolve, reject) => {
+        // @ts-ignore
+        Readable.fromWeb(response.body)
+          .pipe(gunzip())
+          .pipe(tar.extract(tmp))
+          .on('error', reject)
+          .on('finish', resolve);
+      }),
+  );
+
+const getLatestVersion = async () => {
+  const response = await fetch(registryURL);
+  const json = await response.json();
+  const latest = lastFromArr(Object.keys(json.versions));
+  return json.versions[latest];
+};
 
 (async () => {
-  await cp(from, to, {
-    recursive: true,
+  if (existsSync(debuggerDir)) {
+    await deleteAsync(debuggerDir);
+  }
+
+  const dist = await getLatestVersion()
+    .then((version) => version.dist.tarball)
+    .catch((error) => {
+      console.error(`Couldn't fetch latest debugger version: ${error.message}`);
+      process.exit(1);
+    });
+
+  await dlAndExtract(dist).catch((error) => {
+    console.error(`Couldn't download debugger: ${error.message}`);
+    process.exit(1);
   });
-})();
+
+  await moveFile(untarDir, debuggerDir);
+  await deleteAsync(tmp, { force: true });
+})().catch((error) => {
+  console.error(`An error occurred: ${error.message}`);
+  process.exit(1);
+});
