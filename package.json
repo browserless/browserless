@@ -14,7 +14,7 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
+    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run install:debugger && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
@@ -25,6 +25,7 @@
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
+    "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "npx --yes playwright install chromium firefox webkit chrome",
     "install:dev": "npm run install:browsers",
     "lint": "eslint . --ext .ts --fix",
