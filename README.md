@@ -28,6 +28,8 @@ If you've been struggling to deploy headless browsers without running into issue
   - [Puppeteer](#puppeteer)
   - [Playwright](#playwright)
 - [Extending (NodeJS SDK)](#extending-nodejs-sdk)
+- [Debugger](#debugger)
+  - [Install debugger](#install-debugger)
 - [Usage with other libraries](#usage-with-other-libraries)
 - [Motivations](#motivations)
 - [Licensing](#licensing)
