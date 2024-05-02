@@ -26,7 +26,6 @@ import {
   sleep,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
-  writeResponse,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
@@ -87,14 +86,14 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     _logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> => {
+    _logger.info('PDF API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'application/pdf'
         : req.headers.accept;
 
     if (!req.body) {
-      writeResponse(res, 400, `Couldn't parse JSON body`);
-      return;
+      throw new BadRequest(`Couldn't parse JSON body`);
     }
 
     res.setHeader('Content-Type', contentType);
@@ -174,6 +173,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
           !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
           rejectResourceTypes.includes(req.resourceType())
         ) {
+          _logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
         }
         const interceptor = requestInterceptors.find((r) =>
@@ -244,5 +244,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     await new Promise((r) => readStream.pipe(res).once('close', r));
 
     page.close().catch(noop);
+
+    _logger.info('PDF API request completed');
   };
 }

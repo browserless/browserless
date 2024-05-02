@@ -1,13 +1,13 @@
 import {
   Config,
   IResourceLoad,
-  createLogger,
+  Logger,
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import si from 'systeminformation';
 
 export class Monitoring extends EventEmitter {
-  protected log = createLogger('hardware');
+  protected log = new Logger('hardware');
   constructor(protected config: Config) {
     super();
   }
@@ -17,7 +17,7 @@ export class Monitoring extends EventEmitter {
       si.currentLoad(),
       si.mem(),
     ]).catch((err) => {
-      this.log(`Error checking machine stats`, err);
+      this.log.error(`Error checking machine stats`, err);
       return [null, null];
     });
 
@@ -40,7 +40,7 @@ export class Monitoring extends EventEmitter {
     const cpuInt = cpu && Math.ceil(cpu * 100);
     const memoryInt = memory && Math.ceil(memory * 100);
 
-    this.log(`Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`);
+    this.log.info(`Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`);
 
     const cpuOverloaded = !!(cpuInt && cpuInt >= this.config.getCPULimit());
     const memoryOverloaded = !!(

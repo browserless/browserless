@@ -1,5 +1,4 @@
 import { Message, mainOptions } from './types.js';
-import { createLogger } from '@browserless.io/browserless';
 import { fork } from 'child_process';
 import path from 'path';
 
@@ -10,10 +9,10 @@ const DEFAULT_AUDIT_CONFIG = {
 export default async ({
   browser,
   context,
+  logger,
   timeout,
 }: mainOptions): Promise<unknown> => {
   return new Promise((resolve, reject) => {
-    const debug = createLogger('http:performance:main');
     const childPath = path.join(
       './',
       'build',
@@ -23,7 +22,7 @@ export default async ({
       'child.js',
     );
 
-    debug(`Starting up child at ${childPath}`);
+    logger.trace(`Starting up child at ${childPath}`);
 
     const child = fork(childPath);
     const port = new URL(browser.wsEndpoint() || '').port;
@@ -54,14 +53,14 @@ export default async ({
     };
 
     child.on('error', (err) => {
-      debug(`Error in child process`, err);
+      logger.error(`Error in child process`, err);
       reject('Performance run error: ' + err.message);
       close(child.pid);
     });
 
     child.on('message', (payload: Message) => {
       if (payload.event === 'created') {
-        debug(`Child process is up, sending performance request`);
+        logger.info(`Child process is up, sending performance request`);
         return child.send({
           config,
           event: 'start',
@@ -71,7 +70,7 @@ export default async ({
       }
 
       if (payload.event === 'complete') {
-        debug(`Performance gathered, closing and resolving request`);
+        logger.info(`Performance gathered, closing and resolving request`);
         close(child.pid);
         return resolve({
           data: payload.data,

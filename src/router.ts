@@ -13,7 +13,6 @@ import {
   Response,
   WebSocketRoute,
   contentTypes,
-  createLogger,
   isConnected,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -22,8 +21,7 @@ import micromatch from 'micromatch';
 import stream from 'stream';
 
 export class Router extends EventEmitter {
-  protected log = createLogger('router');
-  protected verbose = createLogger('router:verbose');
+  protected log = new Logger('router');
   protected httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
   protected webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
 
@@ -43,22 +41,22 @@ export class Router extends EventEmitter {
   }
 
   protected onQueueFullHTTP = (_req: Request, res: Response) => {
-    this.log(`Queue is full, sending 429 response`);
+    this.log.warn(`Queue is full, sending 429 response`);
     return writeResponse(res, 429, 'Too many requests');
   };
 
   protected onQueueFullWebSocket = (_req: Request, socket: stream.Duplex) => {
-    this.log(`Queue is full, sending 429 response`);
+    this.log.warn(`Queue is full, sending 429 response`);
     return writeResponse(socket, 429, 'Too many requests');
   };
 
   protected onHTTPTimeout = (_req: Request, res: Response) => {
-    this.log(`HTTP job has timedout, sending 429 response`);
+    this.log.error(`HTTP job has timedout, sending 429 response`);
     return writeResponse(res, 408, 'Request has timed out');
   };
 
   protected onWebsocketTimeout = (_req: Request, socket: stream.Duplex) => {
-    this.log(`Websocket job has timedout, sending 429 response`);
+    this.log.error(`Websocket job has timedout, sending 429 response`);
     return writeResponse(socket, 408, 'Request has timed out');
   };
 
@@ -69,7 +67,7 @@ export class Router extends EventEmitter {
     ) =>
     async (req: Request, res: Response) => {
       if (!isConnected(res)) {
-        this.log(`HTTP Request has closed prior to running`);
+        this.log.warn(`HTTP Request has closed prior to running`);
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
@@ -81,7 +79,7 @@ export class Router extends EventEmitter {
         );
 
         if (!isConnected(res)) {
-          this.log(`HTTP Request has closed prior to running`);
+          this.log.warn(`HTTP Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }
@@ -91,7 +89,7 @@ export class Router extends EventEmitter {
         }
 
         try {
-          this.verbose(`Running found HTTP handler.`);
+          this.log.verbose(`Running found HTTP handler.`);
           return await Promise.race([
             handler(req, res, logger, browser),
             new Promise((resolve, reject) => {
@@ -99,13 +97,13 @@ export class Router extends EventEmitter {
                 if (!res.writableEnded) {
                   reject(new Error(`Request closed prior to writing results`));
                 }
-                this.verbose(`Response has been written, resolving`);
+                this.log.verbose(`Response has been written, resolving`);
                 resolve(null);
               });
             }),
           ]);
         } finally {
-          this.verbose(`HTTP Request handler has finished.`);
+          this.log.verbose(`HTTP Request handler has finished.`);
           this.browserManager.complete(browser);
         }
       }
@@ -120,7 +118,7 @@ export class Router extends EventEmitter {
     ) =>
     async (req: Request, socket: stream.Duplex, head: Buffer) => {
       if (!isConnected(socket)) {
-        this.log(`WebSocket Request has closed prior to running`);
+        this.log.warn(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
@@ -132,7 +130,7 @@ export class Router extends EventEmitter {
         );
 
         if (!isConnected(socket)) {
-          this.log(`WebSocket Request has closed prior to running`);
+          this.log.warn(`WebSocket Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }
@@ -142,10 +140,10 @@ export class Router extends EventEmitter {
         }
 
         try {
-          this.verbose(`Running found WebSocket handler.`);
+          this.log.verbose(`Running found WebSocket handler.`);
           await handler(req, socket, head, logger, browser);
         } finally {
-          this.verbose(`WebSocket Request handler has finished.`);
+          this.log.verbose(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);
         }
         return;
@@ -156,7 +154,7 @@ export class Router extends EventEmitter {
   public registerHTTPRoute(
     route: HTTPRoute | BrowserHTTPRoute,
   ): HTTPRoute | BrowserHTTPRoute {
-    this.verbose(
+    this.log.verbose(
       `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
     );
 
@@ -178,7 +176,7 @@ export class Router extends EventEmitter {
     );
 
     if (duplicatePaths.length) {
-      this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
+      this.log.warn(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
     }
     this.httpRoutes.push(route);
 
@@ -188,7 +186,7 @@ export class Router extends EventEmitter {
   public registerWebSocketRoute(
     route: WebSocketRoute | BrowserWebsocketRoute,
   ): WebSocketRoute | BrowserWebsocketRoute {
-    this.verbose(`Registering WebSocket "${route.path}"`);
+    this.log.verbose(`Registering WebSocket "${route.path}"`);
 
     const bound = route.handler.bind(route);
     const wrapped = this.wrapWebSocketHandler(route, bound);
@@ -208,7 +206,7 @@ export class Router extends EventEmitter {
     );
 
     if (duplicatePaths.length) {
-      this.log(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
+      this.log.warn(`Found duplicate routes: ${duplicatePaths.join(', ')}`);
     }
     this.webSocketRoutes.push(route);
     return route;

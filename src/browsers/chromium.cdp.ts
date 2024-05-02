@@ -91,7 +91,7 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('requestfailed', (req) => {
-          this.logger.warn(`"${req.failure()}": ${req.url()}`);
+          this.logger.warn(`"${req.failure()?.errorText}": ${req.url()}`);
         });
 
         page.on('request', async (request) => {

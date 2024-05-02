@@ -1,6 +1,6 @@
 import {
   Config,
-  createLogger,
+  Logger,
   decrypt,
   encrypt,
 } from '@browserless.io/browserless';
@@ -10,7 +10,7 @@ import { EventEmitter } from 'events';
 export class FileSystem extends EventEmitter {
   protected fsMap: Map<string, string[]> = new Map();
   protected currentAESKey: Buffer;
-  protected log = createLogger('file-system');
+  protected logger = new Logger('file-system');
 
   constructor(protected config: Config) {
     super();

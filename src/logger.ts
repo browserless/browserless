@@ -1,6 +1,7 @@
 import { Request, createLogger } from '@browserless.io/browserless';
 
 export class Logger {
+  protected _verbose: (...args: unknown[]) => void;
   protected _trace: (...args: unknown[]) => void;
   protected _debug: (...args: unknown[]) => void;
   protected _info: (...args: unknown[]) => void;
@@ -10,10 +11,11 @@ export class Logger {
 
   constructor(
     protected prefix: string,
-    protected request: Request,
+    protected request?: Request,
   ) {
     const logger = createLogger(prefix);
 
+    this._verbose = logger.extend('verbose');
     this._trace = logger.extend('trace');
     this._debug = logger.extend('debug');
     this._info = logger.extend('info');
@@ -23,8 +25,12 @@ export class Logger {
   }
 
   protected get reqInfo() {
-    return this.request.socket.remoteAddress ?? 'Unknown';
+    return this.request ? this.request.socket.remoteAddress ?? 'Unknown' : '' ;
   }
+
+  public verbose = (...messages: unknown[]) => {
+    this._verbose(this.reqInfo, ...messages);
+  };
 
   public trace = (...messages: unknown[]) => {
     this._trace(this.reqInfo, ...messages);

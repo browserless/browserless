@@ -2,11 +2,11 @@ import {
   AfterResponse,
   Config,
   Hooks,
+  Logger,
   Metrics,
   Monitoring,
   TooManyRequests,
   WebHooks,
-  createLogger,
 } from '@browserless.io/browserless';
 import q from 'queue';
 
@@ -26,7 +26,7 @@ interface Job {
 
 export class Limiter extends q {
   protected queued: number;
-  protected debug = createLogger('limiter');
+  protected logger = new Logger('limiter');
 
   constructor(
     protected config: Config,
@@ -42,22 +42,22 @@ export class Limiter extends q {
     });
     this.queued = config.getQueued();
 
-    this.debug(
+    this.logger.info(
       `Concurrency: ${this.concurrency} queue: ${this.queued} timeout: ${this.timeout}ms`,
     );
 
     config.on('concurrent', (concurrency: number) => {
-      this.debug(`Concurrency updated to ${concurrency}`);
+      this.logger.info(`Concurrency updated to ${concurrency}`);
       this.concurrency = concurrency;
     });
 
     config.on('queued', (queued: number) => {
-      this.debug(`Queue updated to ${queued}`);
+      this.logger.info(`Queue updated to ${queued}`);
       this.queued = queued;
     });
 
     config.on('timeout', (timeout: number) => {
-      this.debug(`Timeout updated to ${timeout}ms`);
+      this.logger.info(`Timeout updated to ${timeout}ms`);
       this.timeout = timeout <= 0 ? 0 : timeout;
     });
 
@@ -83,7 +83,7 @@ export class Limiter extends q {
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
-    this.debug(
+    this.logger.info(
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
@@ -101,12 +101,12 @@ export class Limiter extends q {
     detail: { job: Job; next: Job };
   }) {
     const timeUsed = Date.now() - job.start;
-    this.debug(
+    this.logger.warn(
       `Job has hit timeout after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addTimedout(Date.now() - job.start);
     this.webhooks.callTimeoutAlertURL();
-    this.debug(`Calling timeout handler`);
+    this.logger.info(`Calling timeout handler`);
     job?.onTimeoutFn(job);
     this.jobEnd({
       req: job.args[0],
@@ -122,7 +122,7 @@ export class Limiter extends q {
   }: {
     detail: { error: unknown; job: Job };
   }) {
-    this.debug(`Recording failed stat, cleaning up: "${error?.toString()}"`);
+    this.logger.info(`Recording failed stat, cleaning up: "${error?.toString()}"`);
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
     this.jobEnd({
@@ -133,7 +133,7 @@ export class Limiter extends q {
   }
 
   protected logQueue(message: string) {
-    this.debug(
+    this.logger.info(
       `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
     );
   }
