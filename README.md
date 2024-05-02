@@ -1,4 +1,4 @@
-<!-- markdownlint-disable first-line-h1 no-emphasis-as-heading -->
+<!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading -->
 
 ![browserless.io logo](/assets/logo.png)
 
@@ -70,7 +70,7 @@ You still execute the script itself which gives you total control over what libr
 
 ### Docker
 
-> [!TIP]  
+> [!TIP]
 > See more options on our [full documentation site](https://docs.browserless.io/Docker/docker-quickstart).
 
 1. `docker run -p 3000:3000 ghcr.io/browserless/chromium`
@@ -136,6 +136,42 @@ After that, the rest of your code remains the same with no other changes require
 ## Extending (NodeJS SDK)
 
 Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
+
+## Debugger
+
+You can install a first-party interactive debugger for Browserless, that makes writing scripts faster and interactive. You can take advantage of things like `debugger;` calls and the page's console output to see what's happening on the page while your script is running. All of the Chrome devtools are there at your disposal.
+
+![browserless.io logo](/assets/debugger.png)
+
+A small list of features includes:
+
+- Running `debugger;` and `console.log` calls
+- Errors in the script are caught and show up in the console tab
+- DOM inspection, watch network requests, and even see how the page is rendering
+- Exporting you debugging script as a Node project
+- Everything included in Chrome DevTools
+
+### Install debugger
+
+Installing the debugger is as simple as running the `install:debugger` script _after_ the project has been built. This way:
+
+```sh
+$ npm run build
+$ npm run install:debugger #or npm install:dev
+```
+
+You will then see the debugger url during the startup process.
+
+```log
+---------------------------------------------------------
+| browserless.io
+| To read documentation and more, load in your browser:
+|
+| OpenAPI: http://localhost:3000/docs
+| Full Documentation: https://docs.browserless.io/
+| Debbuger: http://localhost:3000/debugger/?token=6R0W53R135510
+---------------------------------------------------------
+```
 
 ## Usage with other libraries
 
