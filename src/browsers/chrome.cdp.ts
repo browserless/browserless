@@ -1,10 +1,7 @@
-import {
-  chromeExecutablePath,
-  createLogger,
-} from '@browserless.io/browserless';
+import { Logger, chromeExecutablePath } from '@browserless.io/browserless';
 import { ChromiumCDP } from './chromium.cdp.js';
 
 export class ChromeCDP extends ChromiumCDP {
   protected executablePath = chromeExecutablePath();
-  protected debug = createLogger('browsers:chrome:cdp');
+  protected logger = new Logger('browsers:chrome:cdp');
 }

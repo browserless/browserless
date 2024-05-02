@@ -46,7 +46,9 @@ export class WebkitPlaywright extends EventEmitter {
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.logger.info(`Closing ${this.constructor.name} process and all listeners`);
+      this.logger.info(
+        `Closing ${this.constructor.name} process and all listeners`,
+      );
       this.emit('close');
       this.cleanListeners();
       this.browser.close();
@@ -59,15 +61,21 @@ export class WebkitPlaywright extends EventEmitter {
   public pages = async (): Promise<[]> => [];
 
   public getPageId = (): string => {
-    throw new ServerError(`#getPageId is not yet supported with ${this.constructor.name}.`);
+    throw new ServerError(
+      `#getPageId is not yet supported with ${this.constructor.name}.`,
+    );
   };
 
   public makeLiveURL = (): void => {
-    throw new ServerError(`Live URLs are not yet supported with ${this.constructor.name}.`);
+    throw new ServerError(
+      `Live URLs are not yet supported with ${this.constructor.name}.`,
+    );
   };
 
   public newPage = async (): Promise<Page> => {
-    throw new ServerError(`Can't create new page with ${this.constructor.name}`);
+    throw new ServerError(
+      `Can't create new page with ${this.constructor.name}`,
+    );
   };
 
   public launch = async (
@@ -86,7 +94,9 @@ export class WebkitPlaywright extends EventEmitter {
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 
-    this.logger.info(`${this.constructor.name} is running on ${browserWSEndpoint}`);
+    this.logger.info(
+      `${this.constructor.name} is running on ${browserWSEndpoint}`,
+    );
     this.browserWSEndpoint = browserWSEndpoint;
     this.running = true;
 
@@ -147,7 +157,9 @@ export class WebkitPlaywright extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.logger.error(`Error proxying session to ${this.constructor.name}: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },

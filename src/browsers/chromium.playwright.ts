@@ -47,7 +47,9 @@ export class ChromiumPlaywright extends EventEmitter {
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.logger.info(`Closing ${this.constructor.name} process and all listeners`);
+      this.logger.info(
+        `Closing ${this.constructor.name} process and all listeners`,
+      );
       this.emit('close');
       this.cleanListeners();
       this.browser.close();
@@ -60,7 +62,9 @@ export class ChromiumPlaywright extends EventEmitter {
   public pages = async (): Promise<[]> => [];
 
   public getPageId = (): string => {
-    throw new ServerError(`#getPageId is not yet supported with ${this.constructor.name}.`);
+    throw new ServerError(
+      `#getPageId is not yet supported with ${this.constructor.name}.`,
+    );
   };
 
   public makeLiveURL = (): void => {
@@ -71,7 +75,9 @@ export class ChromiumPlaywright extends EventEmitter {
 
   public newPage = async (): Promise<Page> => {
     if (!this.browser || !this.browserWSEndpoint) {
-      throw new ServerError(`${this.constructor.name} hasn't been launched yet!`);
+      throw new ServerError(
+        `${this.constructor.name} hasn't been launched yet!`,
+      );
     }
     const browser = await playwright.chromium.connect(this.browserWSEndpoint);
     return await browser.newPage();
@@ -94,7 +100,9 @@ export class ChromiumPlaywright extends EventEmitter {
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 
-    this.logger.info(`${this.constructor.name} is running on ${browserWSEndpoint}`);
+    this.logger.info(
+      `${this.constructor.name} is running on ${browserWSEndpoint}`,
+    );
     this.running = true;
     this.browserWSEndpoint = browserWSEndpoint;
 
@@ -155,7 +163,9 @@ export class ChromiumPlaywright extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.logger.error(`Error proxying session to ${this.constructor.name}: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },

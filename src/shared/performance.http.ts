@@ -55,6 +55,7 @@ export default class PerformancePost extends BrowserHTTPRoute {
     const response = await main({
       browser,
       context: req.body as BodySchema,
+      logger: _logger,
       timeout: config.getTimeout(),
     });
 

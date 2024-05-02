@@ -10,7 +10,7 @@ export class Logger {
 
   constructor(
     protected prefix: string,
-    protected request: Request,
+    protected request?: Request,
   ) {
     const logger = createLogger(prefix);
 
@@ -23,7 +23,7 @@ export class Logger {
   }
 
   protected get reqInfo() {
-    return this.request.socket.remoteAddress ?? 'Unknown';
+    return this.request ? this.request.socket.remoteAddress ?? 'Unknown' : '';
   }
 
   public trace = (...messages: unknown[]) => {

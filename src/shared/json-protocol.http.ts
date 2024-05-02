@@ -27,7 +27,11 @@ export default class ChromiumJSONProtocolGetRoute extends HTTPRoute {
   path = HTTPRoutes.jsonProtocol;
   tags = [APITags.browserAPI];
 
-  handler = async (_req: Request, res: Response, logger: Logger): Promise<void> => {
+  handler = async (
+    _req: Request,
+    res: Response,
+    logger: Logger,
+  ): Promise<void> => {
     const browserManager = this.browserManager();
 
     if (!this.cachedProtocol) {
