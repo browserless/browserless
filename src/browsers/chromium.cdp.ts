@@ -96,8 +96,13 @@ export class ChromiumCDP extends EventEmitter {
 
         page.on('request', async (request) => {
           this.logger.trace(`${request.method()}: ${request.url()}`);
-          if (!this.config.getAllowFileProtocol() && request.url().startsWith('file://')) {
-            this.logger.error(`File protocol request found in request to ${this.constructor.name}, terminating`);
+          if (
+            !this.config.getAllowFileProtocol() &&
+            request.url().startsWith('file://')
+          ) {
+            this.logger.error(
+              `File protocol request found in request to ${this.constructor.name}, terminating`,
+            );
             page.close().catch(noop);
             this.close();
           }
@@ -106,7 +111,10 @@ export class ChromiumCDP extends EventEmitter {
         page.on('response', async (response) => {
           this.logger.trace(`${response.status()}: ${response.url()}`);
 
-          if (!this.config.getAllowFileProtocol() && response.url().startsWith('file://')) {
+          if (
+            !this.config.getAllowFileProtocol() &&
+            response.url().startsWith('file://')
+          ) {
             this.logger.error(
               `File protocol request found in response to ${this.constructor.name}, terminating`,
             );
@@ -124,7 +132,9 @@ export class ChromiumCDP extends EventEmitter {
 
   public newPage = async (): Promise<Page> => {
     if (!this.browser) {
-      throw new ServerError(`${this.constructor.name} hasn't been launched yet!`);
+      throw new ServerError(
+        `${this.constructor.name} hasn't been launched yet!`,
+      );
     }
 
     return this.browser.newPage();
@@ -132,7 +142,9 @@ export class ChromiumCDP extends EventEmitter {
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.logger.info(`Closing ${this.constructor.name} process and all listeners`);
+      this.logger.info(
+        `Closing ${this.constructor.name} process and all listeners`,
+      );
       this.emit('close');
       this.cleanListeners();
       this.browser.removeAllListeners();
@@ -184,12 +196,17 @@ export class ChromiumCDP extends EventEmitter {
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
-    this.logger.info(finalOptions, `Launching ${this.constructor.name} Handler`);
+    this.logger.info(
+      finalOptions,
+      `Launching ${this.constructor.name} Handler`,
+    );
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated);
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
-    this.logger.info(`${this.constructor.name} is running on ${this.browserWSEndpoint}`);
+    this.logger.info(
+      `${this.constructor.name} is running on ${this.browserWSEndpoint}`,
+    );
 
     return this.browser;
   };
@@ -225,7 +242,9 @@ export class ChromiumCDP extends EventEmitter {
         );
       }
       socket.once('close', resolve);
-      this.logger.info(`Proxying ${req.parsed.href} to ${this.constructor.name}`);
+      this.logger.info(
+        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+      );
 
       const shouldMakePage = req.parsed.pathname.includes(
         BLESS_PAGE_IDENTIFIER,
@@ -249,7 +268,9 @@ export class ChromiumCDP extends EventEmitter {
           target,
         },
         (error) => {
-          this.logger.error(`Error proxying session to ${this.constructor.name}: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },
@@ -297,7 +318,9 @@ export class ChromiumCDP extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.logger.error(`Error proxying session to ${this.constructor.name}: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },

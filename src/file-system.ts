@@ -1,9 +1,4 @@
-import {
-  Config,
-  Logger,
-  decrypt,
-  encrypt,
-} from '@browserless.io/browserless';
+import { Config, Logger, decrypt, encrypt } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
 import { EventEmitter } from 'events';
 

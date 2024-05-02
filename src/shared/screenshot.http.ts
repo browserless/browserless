@@ -86,10 +86,10 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
-    _logger: Logger,
+    logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> => {
-    _logger.info('Screenshot API invoked with body:', req.body);
+    logger.info('Screenshot API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'image/png'
@@ -182,7 +182,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
           !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
           rejectResourceTypes.includes(req.resourceType())
         ) {
-          _logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
         }
         const interceptor = requestInterceptors.find((r) =>
@@ -266,6 +266,6 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     await new Promise((r) => readStream.pipe(res).once('close', r));
 
     page.close().catch(noop);
-    _logger.info('Screenshot API request completed');
+    logger.info('Screenshot API request completed');
   };
 }

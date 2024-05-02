@@ -358,7 +358,9 @@ export class Browserless extends EventEmitter {
     httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
-    this.logger.info(`Imported and validated all route files, starting up server.`);
+    this.logger.info(
+      `Imported and validated all route files, starting up server.`,
+    );
 
     this.server = new HTTPServer(
       this.config,

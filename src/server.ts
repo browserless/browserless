@@ -62,7 +62,9 @@ export class HTTPServer extends EventEmitter {
   }
 
   protected onHTTPUnauthorized = (_req: Request, res: Response) => {
-    this.logger.error(`HTTP request is not properly authorized, responding with 401`);
+    this.logger.error(
+      `HTTP request is not properly authorized, responding with 401`,
+    );
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
   };
@@ -107,7 +109,7 @@ export class HTTPServer extends EventEmitter {
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) => {
-    this.logger.verbose(
+    this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
     );
 
@@ -150,10 +152,10 @@ export class HTTPServer extends EventEmitter {
       return Promise.resolve();
     }
 
-    this.logger.verbose(`Found matching HTTP route handler "${route.path}"`);
+    this.logger.trace(`Found matching HTTP route handler "${route.path}"`);
 
     if (route?.auth) {
-      this.logger.verbose(`Authorizing HTTP request to "${request.url}"`);
+      this.logger.trace(`Authorizing HTTP request to "${request.url}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
@@ -177,7 +179,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (route.querySchema) {
-      this.logger.verbose(`Validating route query-params with QUERY schema`);
+      this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
         const schema = Enjoi.schema(route.querySchema);
         const valid = schema.validate(req.queryParams, {
@@ -222,7 +224,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (route.bodySchema) {
-      this.logger.verbose(`Validating route payload with BODY schema`);
+      this.logger.trace(`Validating route payload with BODY schema`);
       try {
         const schema = Enjoi.schema(route.bodySchema);
         const valid = schema.validate(body, { abortEarly: false });
@@ -240,7 +242,9 @@ export class HTTPServer extends EventEmitter {
             )
             .join('\n');
 
-          this.logger.error(`HTTP body contain errors sending 400:${errorDetails}`);
+          this.logger.error(
+            `HTTP body contain errors sending 400:${errorDetails}`,
+          );
 
           writeResponse(
             res,
@@ -265,7 +269,7 @@ export class HTTPServer extends EventEmitter {
     return (route as HTTPRoute)
       .handler(req, res, new this.Logger(route.name, req))
       .then(() => {
-        this.logger.verbose('HTTP connection complete');
+        this.logger.trace('HTTP connection complete');
       })
       .catch((e) => {
         if (e instanceof BadRequest) {
@@ -297,7 +301,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) => {
-    this.logger.verbose(`Handling inbound WebSocket request on "${request.url}"`);
+    this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
     const proceed = await this.hooks.before({ head, req, socket });
@@ -311,10 +315,14 @@ export class HTTPServer extends EventEmitter {
     const route = await this.router.getRouteForWebSocketRequest(req);
 
     if (route) {
-      this.logger.verbose(`Found matching WebSocket route handler "${route.path}"`);
+      this.logger.trace(
+        `Found matching WebSocket route handler "${route.path}"`,
+      );
 
       if (route?.auth) {
-        this.logger.verbose(`Authorizing WebSocket request to "${req.parsed.href}"`);
+        this.logger.trace(
+          `Authorizing WebSocket request to "${req.parsed.href}"`,
+        );
         const isPermitted = await this.token.isAuthorized(req, route);
 
         if (!isPermitted) {
@@ -323,7 +331,7 @@ export class HTTPServer extends EventEmitter {
       }
 
       if (route.querySchema) {
-        this.logger.verbose(`Validating route query-params with QUERY schema`);
+        this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
           const schema = Enjoi.schema(route.querySchema);
           const valid = schema.validate(req.queryParams, {
@@ -370,7 +378,7 @@ export class HTTPServer extends EventEmitter {
       return (route as WebSocketRoute)
         .handler(req, socket, head, new this.Logger(route.name, req))
         .then(() => {
-          this.logger.verbose('Websocket connection complete');
+          this.logger.trace('Websocket connection complete');
         })
         .catch((e) => {
           if (e instanceof BadRequest) {
@@ -397,7 +405,9 @@ export class HTTPServer extends EventEmitter {
         });
     }
 
-    this.logger.error(`No matching WebSocket route handler for "${req.parsed.href}"`);
+    this.logger.error(
+      `No matching WebSocket route handler for "${req.parsed.href}"`,
+    );
     return writeResponse(socket, 404, 'Not Found');
   };
 

@@ -83,10 +83,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
-    _logger: Logger,
+    logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> => {
-    _logger.info('PDF API invoked with body:', req.body);
+    logger.info('PDF API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'application/pdf'
@@ -173,7 +173,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
           !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
           rejectResourceTypes.includes(req.resourceType())
         ) {
-          _logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
         }
         const interceptor = requestInterceptors.find((r) =>
@@ -245,6 +245,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
 
     page.close().catch(noop);
 
-    _logger.info('PDF API request completed');
+    logger.info('PDF API request completed');
   };
 }

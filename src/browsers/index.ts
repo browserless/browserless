@@ -304,7 +304,9 @@ export class BrowserManager {
   public complete = async (browser: BrowserInstance): Promise<void> => {
     const session = this.browsers.get(browser);
     if (!session) {
-      this.log.info(`Couldn't locate session for browser, proceeding with close`);
+      this.log.info(
+        `Couldn't locate session for browser, proceeding with close`,
+      );
       return browser.close();
     }
 

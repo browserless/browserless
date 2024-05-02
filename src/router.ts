@@ -89,7 +89,7 @@ export class Router extends EventEmitter {
         }
 
         try {
-          this.log.verbose(`Running found HTTP handler.`);
+          this.log.trace(`Running found HTTP handler.`);
           return await Promise.race([
             handler(req, res, logger, browser),
             new Promise((resolve, reject) => {
@@ -97,13 +97,13 @@ export class Router extends EventEmitter {
                 if (!res.writableEnded) {
                   reject(new Error(`Request closed prior to writing results`));
                 }
-                this.log.verbose(`Response has been written, resolving`);
+                this.log.trace(`Response has been written, resolving`);
                 resolve(null);
               });
             }),
           ]);
         } finally {
-          this.log.verbose(`HTTP Request handler has finished.`);
+          this.log.trace(`HTTP Request handler has finished.`);
           this.browserManager.complete(browser);
         }
       }
@@ -140,10 +140,10 @@ export class Router extends EventEmitter {
         }
 
         try {
-          this.log.verbose(`Running found WebSocket handler.`);
+          this.log.trace(`Running found WebSocket handler.`);
           await handler(req, socket, head, logger, browser);
         } finally {
-          this.log.verbose(`WebSocket Request handler has finished.`);
+          this.log.trace(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);
         }
         return;
@@ -154,7 +154,7 @@ export class Router extends EventEmitter {
   public registerHTTPRoute(
     route: HTTPRoute | BrowserHTTPRoute,
   ): HTTPRoute | BrowserHTTPRoute {
-    this.log.verbose(
+    this.log.trace(
       `Registering HTTP ${route.method.toUpperCase()} ${route.path}`,
     );
 
@@ -186,7 +186,7 @@ export class Router extends EventEmitter {
   public registerWebSocketRoute(
     route: WebSocketRoute | BrowserWebsocketRoute,
   ): WebSocketRoute | BrowserWebsocketRoute {
-    this.log.verbose(`Registering WebSocket "${route.path}"`);
+    this.log.trace(`Registering WebSocket "${route.path}"`);
 
     const bound = route.handler.bind(route);
     const wrapped = this.wrapWebSocketHandler(route, bound);

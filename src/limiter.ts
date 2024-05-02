@@ -122,7 +122,9 @@ export class Limiter extends q {
   }: {
     detail: { error: unknown; job: Job };
   }) {
-    this.logger.info(`Recording failed stat, cleaning up: "${error?.toString()}"`);
+    this.logger.info(
+      `Recording failed stat, cleaning up: "${error?.toString()}"`,
+    );
     this.metrics.addError(Date.now() - job.start);
     this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
     this.jobEnd({
