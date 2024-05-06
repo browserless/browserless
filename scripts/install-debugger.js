@@ -9,8 +9,7 @@ import gunzip from 'gunzip-maybe';
 import { moveFile } from 'move-file';
 import tar from 'tar-fs';
 
-// @TODO: Replace this URL when @browserless.io/debugger v2 is available
-const registryURL = 'https://registry.npmjs.org/browserless-debugger/';
+const registryURL = 'https://registry.npmjs.org/@browserless.io/debugger/';
 const tmp = join(os.tmpdir(), 'browserless-debugger');
 const untarDir = join(tmp, 'package', 'static');
 const debuggerDir = join(process.cwd(), 'static', 'debugger');
