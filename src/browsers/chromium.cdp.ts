@@ -2,9 +2,9 @@ import {
   BLESS_PAGE_IDENTIFIER,
   CDPLaunchOptions,
   Config,
+  Logger,
   Request,
   ServerError,
-  createLogger,
   noop,
   once,
 } from '@browserless.io/browserless';
@@ -29,7 +29,7 @@ export class ChromiumCDP extends EventEmitter {
   protected browser: Browser | null = null;
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
-  protected debug = createLogger('browsers:chromium:cdp');
+  protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
 
@@ -37,9 +37,11 @@ export class ChromiumCDP extends EventEmitter {
     blockAds,
     config,
     userDataDir,
+    logger,
   }: {
     blockAds: boolean;
     config: Config;
+    logger: Logger;
     userDataDir: ChromiumCDP['userDataDir'];
   }) {
     super();
@@ -47,7 +49,9 @@ export class ChromiumCDP extends EventEmitter {
     this.userDataDir = userDataDir;
     this.config = config;
     this.blockAds = blockAds;
-    this.debug(`Starting new browser instance`);
+    this.logger = logger;
+
+    this.logger.info(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
@@ -63,31 +67,62 @@ export class ChromiumCDP extends EventEmitter {
   protected onTargetCreated = async (target: Target) => {
     if (target.type() === 'page') {
       const page = await target.page().catch((e) => {
-        this.debug(`Error in new page ${e}`);
+        this.logger.error(`Error in ${this.constructor.name} new page ${e}`);
         return null;
       });
 
       if (page) {
-        if (!this.config.getAllowFileProtocol()) {
-          this.debug(`Setting up file:// protocol request rejection`);
-          page.on('request', async (request) => {
-            if (request.url().startsWith('file://')) {
-              this.debug(`File protocol request found in request, terminating`);
-              page.close().catch(noop);
-              this.close();
-            }
-          });
+        this.logger.trace(`Setting up file:// protocol request rejection`);
 
-          page.on('response', async (response) => {
-            if (response.url().startsWith('file://')) {
-              this.debug(
-                `File protocol request found in response, terminating`,
-              );
-              page.close().catch(noop);
-              this.close();
-            }
-          });
-        }
+        page.on('error', (err) => {
+          this.logger.error(err);
+        });
+
+        page.on('pageerror', (err) => {
+          this.logger.warn(err);
+        });
+
+        page.on('framenavigated', (frame) => {
+          this.logger.trace(`Navigation to ${frame.url()}`);
+        });
+
+        page.on('console', (message) => {
+          this.logger.trace(`${message.type()}: ${message.text()}`);
+        });
+
+        page.on('requestfailed', (req) => {
+          this.logger.warn(`"${req.failure()?.errorText}": ${req.url()}`);
+        });
+
+        page.on('request', async (request) => {
+          this.logger.trace(`${request.method()}: ${request.url()}`);
+          if (
+            !this.config.getAllowFileProtocol() &&
+            request.url().startsWith('file://')
+          ) {
+            this.logger.error(
+              `File protocol request found in request to ${this.constructor.name}, terminating`,
+            );
+            page.close().catch(noop);
+            this.close();
+          }
+        });
+
+        page.on('response', async (response) => {
+          this.logger.trace(`${response.status()}: ${response.url()}`);
+
+          if (
+            !this.config.getAllowFileProtocol() &&
+            response.url().startsWith('file://')
+          ) {
+            this.logger.error(
+              `File protocol request found in response to ${this.constructor.name}, terminating`,
+            );
+            page.close().catch(noop);
+            this.close();
+          }
+        });
+
         this.emit('newPage', page);
       }
     }
@@ -97,7 +132,9 @@ export class ChromiumCDP extends EventEmitter {
 
   public newPage = async (): Promise<Page> => {
     if (!this.browser) {
-      throw new ServerError(`Browser hasn't been launched yet!`);
+      throw new ServerError(
+        `${this.constructor.name} hasn't been launched yet!`,
+      );
     }
 
     return this.browser.newPage();
@@ -105,7 +142,9 @@ export class ChromiumCDP extends EventEmitter {
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.debug(`Closing browser process and all listeners`);
+      this.logger.info(
+        `Closing ${this.constructor.name} process and all listeners`,
+      );
       this.emit('close');
       this.cleanListeners();
       this.browser.removeAllListeners();
@@ -122,7 +161,7 @@ export class ChromiumCDP extends EventEmitter {
 
   public launch = async (options: CDPLaunchOptions = {}): Promise<Browser> => {
     this.port = await getPort();
-    this.debug(`Got open port ${this.port}`);
+    this.logger.info(`${this.constructor.name} got open port ${this.port}`);
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
     const finalOptions = {
       ...options,
@@ -157,13 +196,17 @@ export class ChromiumCDP extends EventEmitter {
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
-    this.debug(finalOptions, `Launching CDP Handler`);
-    // @ts-ignore mis-matched types from stealth...
+    this.logger.info(
+      finalOptions,
+      `Launching ${this.constructor.name} Handler`,
+    );
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated);
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
-    this.debug(`Browser is running on ${this.browserWSEndpoint}`);
+    this.logger.info(
+      `${this.constructor.name} is running on ${this.browserWSEndpoint}`,
+    );
 
     return this.browser;
   };
@@ -199,7 +242,9 @@ export class ChromiumCDP extends EventEmitter {
         );
       }
       socket.once('close', resolve);
-      this.debug(`Proxying ${req.parsed.href}`);
+      this.logger.info(
+        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+      );
 
       const shouldMakePage = req.parsed.pathname.includes(
         BLESS_PAGE_IDENTIFIER,
@@ -223,7 +268,9 @@ export class ChromiumCDP extends EventEmitter {
           target,
         },
         (error) => {
-          this.debug(`Error proxying session: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },
@@ -253,8 +300,8 @@ export class ChromiumCDP extends EventEmitter {
       this.browser?.process()?.once('close', close);
       socket.once('close', close);
 
-      this.debug(
-        `Proxying ${req.parsed.href} to browser ${this.browserWSEndpoint}`,
+      this.logger.info(
+        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       req.url = '';
@@ -271,7 +318,9 @@ export class ChromiumCDP extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.debug(`Error proxying session: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },

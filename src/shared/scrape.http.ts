@@ -219,9 +219,10 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
-    _logger: Logger,
+    logger: Logger,
     browser: BrowserInstance,
   ) => {
+    logger.info('Scrape API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html
@@ -337,6 +338,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
           !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
           rejectResourceTypes.includes(req.resourceType())
         ) {
+          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
         }
         const interceptor = requestInterceptors.find((r) =>
@@ -434,6 +436,8 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     };
 
     page.close().catch(noop);
+
+    logger.info('Scrape API request completed');
 
     return jsonResponse(res, 200, response, false);
   };

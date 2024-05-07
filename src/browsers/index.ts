@@ -17,13 +17,13 @@ import {
   FirefoxPlaywright,
   HTTPManagementRoutes,
   Hooks,
+  Logger,
   NotFound,
   Request,
   ServerError,
   WebkitPlaywright,
   availableBrowsers,
   convertIfBase64,
-  createLogger,
   exists,
   generateDataDir,
   makeExternalURL,
@@ -38,7 +38,7 @@ export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected launching: Map<string, Promise<unknown>> = new Map();
   protected timers: Map<string, number> = new Map();
-  protected debug = createLogger('browser-manager');
+  protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP];
   protected playwrightBrowserNames = [
     ChromiumPlaywright.name,
@@ -57,9 +57,9 @@ export class BrowserManager {
 
   protected removeUserDataDir = async (userDataDir: string | null) => {
     if (userDataDir && (await exists(userDataDir))) {
-      this.debug(`Deleting data directory "${userDataDir}"`);
+      this.log.info(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
-        this.debug(
+        this.log.error(
           `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
         );
       });
@@ -75,7 +75,7 @@ export class BrowserManager {
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getProtocolJSON = async (): Promise<object> => {
+  public getProtocolJSON = async (logger: Logger): Promise<object> => {
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -87,6 +87,7 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds: false,
       config: this.config,
+      logger,
       userDataDir: null,
     });
     await browser.launch();
@@ -110,8 +111,8 @@ export class BrowserManager {
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getVersionJSON = async (): Promise<CDPJSONPayload> => {
-    this.debug(`Launching Chromium to generate /json/version results`);
+  public getVersionJSON = async (logger: Logger): Promise<CDPJSONPayload> => {
+    this.log.info(`Launching Chromium to generate /json/version results`);
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -124,6 +125,7 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds: false,
       config: this.config,
+      logger,
       userDataDir: null,
     });
     await browser.launch();
@@ -267,18 +269,18 @@ export class BrowserManager {
     session: BrowserlessSession,
   ): Promise<void> => {
     const cleanupACtions: Array<() => Promise<void>> = [];
-    this.debug(`${session.numbConnected} Client(s) are currently connected`);
+    this.log.info(`${session.numbConnected} Client(s) are currently connected`);
 
     // Don't close if there's clients still connected
     if (session.numbConnected > 0) {
       return;
     }
 
-    this.debug(`Closing browser session`);
+    this.log.info(`Closing browser session`);
     cleanupACtions.push(() => browser.close());
 
     if (session.isTempDataDir) {
-      this.debug(
+      this.log.info(
         `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
       );
       this.browsers.delete(browser);
@@ -302,7 +304,9 @@ export class BrowserManager {
   public complete = async (browser: BrowserInstance): Promise<void> => {
     const session = this.browsers.get(browser);
     if (!session) {
-      this.debug(`Couldn't locate session for browser, proceeding with close`);
+      this.log.info(
+        `Couldn't locate session for browser, proceeding with close`,
+      );
       return browser.close();
     }
 
@@ -321,6 +325,7 @@ export class BrowserManager {
   public getBrowserForRequest = async (
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
+    logger: Logger,
   ): Promise<BrowserInstance> => {
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
@@ -344,7 +349,7 @@ export class BrowserManager {
       if (found) {
         const [browser, session] = found;
         ++session.numbConnected;
-        this.debug(`Located browser with ID ${id}`);
+        this.log.debug(`Located browser with ID ${id}`);
         return browser;
       }
 
@@ -448,6 +453,7 @@ export class BrowserManager {
     const browser = new Browser({
       blockAds,
       config: this.config,
+      logger,
       userDataDir,
     });
 
@@ -479,7 +485,7 @@ export class BrowserManager {
   };
 
   public shutdown = async (): Promise<void> => {
-    this.debug(`Closing down browser instances`);
+    this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
     const timers = Array.from(this.timers);
@@ -488,7 +494,7 @@ export class BrowserManager {
     this.browsers = new Map();
     this.timers = new Map();
     await this.stop();
-    this.debug(`Shutdown complete`);
+    this.log.info(`Shutdown complete`);
   };
 
   /**
