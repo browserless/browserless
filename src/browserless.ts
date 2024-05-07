@@ -23,7 +23,6 @@ import {
   WebSocketRoute,
   WebkitPlaywright,
   availableBrowsers,
-  createLogger,
   getRouteFiles,
   makeExternalURL,
   printLogo,
@@ -46,7 +45,7 @@ type routeInstances =
   | BrowserWebsocketRoute;
 
 export class Browserless extends EventEmitter {
-  protected debug: debug.Debugger = createLogger('index');
+  protected logger: BlessLogger;
   protected browserManager: BrowserManager;
   protected config: Config;
   protected fileSystem: FileSystem;
@@ -94,6 +93,7 @@ export class Browserless extends EventEmitter {
   } = {}) {
     super();
     this.Logger = LoggerOverride ?? BlessLogger;
+    this.logger = new this.Logger('index');
     this.config = config || new Config();
     this.metrics = metrics || new Metrics();
     this.token = token || new Token(this.config);
@@ -129,7 +129,7 @@ export class Browserless extends EventEmitter {
 
     this.metrics.reset();
 
-    this.debug(
+    this.logger.info(
       `Current period usage: ${JSON.stringify({
         date: aggregatedStats.date,
         error: aggregatedStats.error,
@@ -146,7 +146,7 @@ export class Browserless extends EventEmitter {
     );
 
     if (metricsPath) {
-      this.debug(`Saving metrics to "${metricsPath}"`);
+      this.logger.info(`Saving metrics to "${metricsPath}"`);
       this.fileSystem.append(
         metricsPath,
         JSON.stringify(aggregatedStats),
@@ -232,9 +232,9 @@ export class Browserless extends EventEmitter {
 
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
 
-    this.debug(printLogo(docsLink));
-    this.debug(`Running as user "${userInfo().username}"`);
-    this.debug('Starting import of HTTP Routes');
+    this.logger.info(printLogo(docsLink));
+    this.logger.info(`Running as user "${userInfo().username}"`);
+    this.logger.info('Starting import of HTTP Routes');
 
     for (const httpRoute of [
       ...this.httpRouteFiles,
@@ -281,7 +281,7 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    this.debug('Starting import of WebSocket Routes');
+    this.logger.info('Starting import of WebSocket Routes');
     for (const wsRoute of [
       ...this.webSocketRouteFiles,
       ...internalWsRouteFiles,
@@ -349,7 +349,7 @@ export class Browserless extends EventEmitter {
       .map((r) => r.name);
 
     if (duplicateNamedRoutes.length) {
-      this.debug(
+      this.logger.warn(
         `Found duplicate routing names. Route names must be unique:`,
         duplicateNamedRoutes,
       );
@@ -358,7 +358,9 @@ export class Browserless extends EventEmitter {
     httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
-    this.debug(`Imported and validated all route files, starting up server.`);
+    this.logger.info(
+      `Imported and validated all route files, starting up server.`,
+    );
 
     this.server = new HTTPServer(
       this.config,
@@ -370,7 +372,7 @@ export class Browserless extends EventEmitter {
     );
 
     await this.server.start();
-    this.debug(`Starting metrics collection.`);
+    this.logger.info(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
       () => this.saveMetrics(),
       this.metricsSaveInterval,

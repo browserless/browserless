@@ -4,6 +4,7 @@ import {
   BrowserlessRoutes,
   HTTPRoute,
   HTTPRoutes,
+  Logger,
   Methods,
   Request,
   Response,
@@ -30,8 +31,11 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPRoutes.jsonVersion;
   tags = [APITags.browserAPI];
-
-  handler = async (req: Request, res: Response): Promise<void> => {
+  handler = async (
+    req: Request,
+    res: Response,
+    logger: Logger,
+  ): Promise<void> => {
     const baseUrl = req.parsed.host;
     const protocol = req.parsed.protocol.includes('s') ? 'wss' : 'ws';
 
@@ -39,7 +43,7 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
       if (!this.cachedJSON) {
         const browserManager = this.browserManager();
         this.cachedJSON = {
-          ...(await browserManager.getVersionJSON()),
+          ...(await browserManager.getVersionJSON(logger)),
           webSocketDebuggerUrl: `${protocol}://${baseUrl}`,
         };
       }

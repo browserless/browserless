@@ -1,16 +1,16 @@
 import { Message, start } from './types.js';
-import { createLogger } from '@browserless.io/browserless';
+import { Logger } from '@browserless.io/browserless';
 import lighthouse from 'lighthouse';
 
-const debug = createLogger('http:performance:child');
+const logger = new Logger('http:performance:child');
 
-debug(`Child init`);
+logger.info(`Child init`);
 
 const send = (msg: Message) => process.send && process.send(msg);
 
 const start = async ({ url, config, options }: start) => {
   try {
-    debug(`Child got payload, starting lighthouse`);
+    logger.info(`Child got payload, starting lighthouse`);
     const results = await lighthouse(url, options, config);
 
     send({

@@ -1,8 +1,8 @@
-import { Browserless, createLogger } from '@browserless.io/browserless';
+import { Browserless, Logger } from '@browserless.io/browserless';
 
 (async () => {
   const browserless = new Browserless();
-  const debug = createLogger('index.js');
+  const logger = new Logger('index.js');
   browserless.start();
 
   process
@@ -15,27 +15,27 @@ import { Browserless, createLogger } from '@browserless.io/browserless';
       process.exit(1);
     })
     .once('SIGTERM', async () => {
-      debug(`SIGTERM received, saving and closing down`);
+      logger.info(`SIGTERM received, saving and closing down`);
       await browserless.stop();
       process.exit(0);
     })
     .once('SIGINT', async () => {
-      debug(`SIGINT received, saving and closing down`);
+      logger.info(`SIGINT received, saving and closing down`);
       await browserless.stop();
       process.exit(0);
     })
     .once('SIGHUP', async () => {
-      debug(`SIGHUP received, saving and closing down`);
+      logger.info(`SIGHUP received, saving and closing down`);
       await browserless.stop();
       process.exit(0);
     })
     .once('SIGUSR2', async () => {
-      debug(`SIGUSR2 received, saving and closing down`);
+      logger.info(`SIGUSR2 received, saving and closing down`);
       await browserless.stop();
       process.exit(0);
     })
     .once('exit', () => {
-      debug(`Process is finished, exiting`);
+      logger.info(`Process is finished, exiting`);
       process.exit(0);
     });
 })();
