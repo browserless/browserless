@@ -131,6 +131,11 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
+    if (req.method?.toLowerCase() === 'head') {
+      this.logger.debug(`Inbound HEAD request, setting to GET`);
+      req.method = 'GET';
+    }
+
     if (
       this.config.getAllowGetCalls() &&
       req.method === 'GET' &&
