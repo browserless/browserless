@@ -230,9 +230,16 @@ export class Browserless extends EventEmitter {
     const [[internalHttpRouteFiles, internalWsRouteFiles], installedBrowsers] =
       await Promise.all([getRouteFiles(this.config), availableBrowsers]);
 
+    const hasDebugger = await this.config.hasDebugger();
+    const debuggerURL =
+      hasDebugger &&
+      makeExternalURL(
+        this.config.getExternalAddress(),
+        `/debugger/?token=${this.config.getToken()}`,
+      );
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
 
-    this.logger.info(printLogo(docsLink));
+    this.logger.info(printLogo(docsLink, debuggerURL));
     this.logger.info(`Running as user "${userInfo().username}"`);
     this.logger.info('Starting import of HTTP Routes');
 

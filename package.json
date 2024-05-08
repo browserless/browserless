@@ -25,8 +25,9 @@
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
+    "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "npx --yes playwright install chromium firefox webkit chrome",
-    "install:dev": "npm run install:browsers",
+    "install:dev": "npm run install:browsers && npm run install:debugger",
     "lint": "eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,.github}/**/*.{js,ts,json,yml,yaml,md}' --log-level error --write",
@@ -62,7 +63,8 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.22.8"
+    "systeminformation": "^5.22.8",
+    "tar-fs": "^3.0.6"
   },
   "optionalDependencies": {
     "@types/chai": "^4.3.16",
@@ -84,6 +86,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-typescript-sort-keys": "^3.2.0",
     "extract-zip": "^2.0.1",
+    "gunzip-maybe": "^1.4.2",
     "marked": "^12.0.2",
     "mocha": "^10.4.0",
     "move-file": "^3.1.0",
