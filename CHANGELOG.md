@@ -1,7 +1,7 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
+# [Latest](https://github.com/browserless/chrome/compare/v2.9.0...main)
 - Dependency updates.
 
-# [v2.9.0](https://github.com/browserless/chrome/compare/v2.9.0...v2.8.0)
+# [v2.9.0](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
 - Dependency updates.
 - Debugger is now included and mounted under the `/debugger` path.
 - Browserless now uses the `Logger` utility internally. Better logs for certain classes as well.
