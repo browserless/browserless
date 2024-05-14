@@ -56,6 +56,19 @@ describe('Management APIs', function () {
     );
   });
 
+  it('allows requests to /pressure', async () => {
+    await start();
+
+    await fetch('http://localhost:3000/pressure?token=6R0W53R135510').then(
+      async (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
+        expect(res.status).to.equal(200);
+      },
+    );
+  });
+
   it('allows requests to /sessions', async () => {
     await start();
 
@@ -87,13 +100,11 @@ describe('Management APIs', function () {
 
     await fetch('http://localhost:3000/active?token=6R0W53R135510', {
       method: 'HEAD',
-    }).then(
-      async (res) => {
-        expect(res.headers.get('content-type')).to.equal(
-          'text/plain; charset=UTF-8',
-        );
-        expect(res.status).to.equal(204);
-      },
-    );
+    }).then(async (res) => {
+      expect(res.headers.get('content-type')).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(res.status).to.equal(204);
+    });
   });
 });

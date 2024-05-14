@@ -103,6 +103,7 @@ abstract class Route {
     protected _metrics: Browserless['metrics'],
     protected _monitoring: Browserless['monitoring'],
     protected _staticSDKDir: Browserless['staticSDKDir'],
+    protected _limiter: Browserless['limiter'],
   ) {}
 
   /**
@@ -195,6 +196,13 @@ abstract class Route {
    * @returns {string | null} The full path location of the SDK's static directory
    */
   staticSDKDir = () => this._staticSDKDir;
+
+  /**
+   * Helper function that loads the limiter module into the router's
+   * handler scope.
+   * @returns Limiter
+   */
+  limiter = () => this._limiter;
 
   /**
    * The HTTP path that this route handles, eg '/my-route' OR an
@@ -650,6 +658,7 @@ export const BrowserlessManagementRoutes = {
   ConfigGetRoute: 'ConfigGetRoute',
   MetricsGetRoute: 'MetricsGetRoute',
   MetricsTotalGetRoute: 'MetricsTotalGetRoute',
+  PressureGetRoute: 'PressureGetRoute',
   SessionsGetRoute: 'SessionsGetRoute',
   StaticGetRoute: 'StaticGetRoute',
 };
