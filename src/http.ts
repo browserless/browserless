@@ -128,6 +128,7 @@ export enum HTTPManagementRoutes {
   config = '/config',
   metrics = '/metrics',
   metricsTotal = '/metrics/total',
+  pressure = '/pressure',
   sessions = '/sessions',
   static = '/',
 }

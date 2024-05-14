@@ -1,5 +1,6 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.9.0...main)
 - Dependency updates.
+- Adds in the v1 `/pressure` APIs.
 
 # [v2.9.0](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
 - Dependency updates.

@@ -272,12 +272,14 @@ export class Browserless extends EventEmitter {
           this.metrics,
           this.monitoring,
           this.staticSDKDir,
+          this.limiter,
         );
 
         if (!this.routeIsDisabled(route)) {
           route.bodySchema = safeParse(bodySchema);
           route.querySchema = safeParse(querySchema);
           route.config = () => this.config;
+          route.limiter = () => this.limiter;
           route.metrics = () => this.metrics;
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
@@ -321,11 +323,13 @@ export class Browserless extends EventEmitter {
           this.metrics,
           this.monitoring,
           this.staticSDKDir,
+          this.limiter,
         );
 
         if (!this.routeIsDisabled(route)) {
           route.querySchema = safeParse(querySchema);
           route.config = () => this.config;
+          route.limiter = () => this.limiter;
           route.metrics = () => this.metrics;
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
