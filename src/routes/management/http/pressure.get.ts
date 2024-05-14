@@ -95,7 +95,7 @@ export default class PressureGetRoute extends HTTPRoute {
     const hasCapacity = limiter.hasCapacity;
     const queued = limiter.waiting;
     const isAvailable = hasCapacity && !cpuOverloaded && !memoryOverloaded;
-    const running = limiter.running;
+    const running = limiter.executing;
     const recentlyRejected = metrics.get().rejected;
     const maxConcurrent = config.getConcurrent();
     const maxQueued = config.getQueued();

@@ -136,11 +136,11 @@ export class Limiter extends q {
 
   protected logQueue(message: string) {
     this.logger.info(
-      `(Running: ${this.running}, Pending: ${this.waiting}) ${message} `,
+      `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
     );
   }
 
-  get running(): number {
+  get executing(): number {
     return this.length > this.concurrency ? this.concurrency : this.length;
   }
 
