@@ -93,7 +93,7 @@ export default class PressureGetRoute extends HTTPRoute {
     } = await monitoring.overloaded();
     const date = Date.now();
     const hasCapacity = limiter.hasCapacity;
-    const queued = limiter.waiting;
+    const queued = limiter.pending;
     const isAvailable = hasCapacity && !cpuOverloaded && !memoryOverloaded;
     const running = limiter.running;
     const recentlyRejected = metrics.get().rejected;
