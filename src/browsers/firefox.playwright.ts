@@ -90,9 +90,7 @@ export class FirefoxPlaywright extends EventEmitter {
       playwrightVersions[version || 'default']
     ).catch((err) => this.debug('Error importing Playwright', err));
 
-    console.log("Playwright version: ", versionedPw);
-
-    this.browser = await (versionedPw || playwright).firefox.launchServer(opts);
+    this.browser = await versionedPw.firefox.launchServer(opts);
 
     const browserWSEndpoint = this.browser.wsEndpoint();
 

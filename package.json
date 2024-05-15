@@ -57,7 +57,8 @@
     "http-proxy": "^1.18.1",
     "lighthouse": "^12.0.0",
     "micromatch": "^4.0.4",
-    "playwright-1.42": "npm:playwright-core@^1.42.1",
+    "playwright-1.41": "npm:playwright-core@1.41.2",
+    "playwright-1.42": "npm:playwright-core@1.42.1",
     "playwright-core": "1.43.1",
     "puppeteer-core": "^22.7.1",
     "puppeteer-extra": "^3.3.6",
@@ -97,7 +98,8 @@
   "playwrightVersions": {
     "default": "playwright-core",
     "1.43": "playwright-core",
-    "1.42": "playwright-1.42"
+    "1.42": "playwright-1.42",
+    "1.41": "playwright-1.41"
   },
   "eslintConfig": {
     "root": true,
