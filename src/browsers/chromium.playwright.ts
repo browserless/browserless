@@ -43,6 +43,10 @@ export class ChromiumPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
+  public keepUntil() {
+    return 0;
+  }
+
   public isRunning = (): boolean => this.running;
 
   public close = async (): Promise<void> => {

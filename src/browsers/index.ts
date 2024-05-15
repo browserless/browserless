@@ -36,7 +36,6 @@ import path from 'path';
 
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
-  protected launching: Map<string, Promise<unknown>> = new Map();
   protected timers: Map<string, number> = new Map();
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP];
@@ -268,11 +267,12 @@ export class BrowserManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
   ): Promise<void> => {
+    const now = Date.now();
     const cleanupACtions: Array<() => Promise<void>> = [];
     this.log.info(`${session.numbConnected} Client(s) are currently connected`);
 
     // Don't close if there's clients still connected
-    if (session.numbConnected > 0) {
+    if (session.numbConnected > 0 || browser.keepUntil() > now) {
       return;
     }
 
@@ -314,7 +314,6 @@ export class BrowserManager {
 
     if (id && resolver) {
       resolver(null);
-      this.launching.delete(id);
     }
 
     --session.numbConnected;
@@ -457,7 +456,7 @@ export class BrowserManager {
       userDataDir,
     });
 
-    const connectionMeta: BrowserlessSession = {
+    const session: BrowserlessSession = {
       id: null,
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
@@ -471,7 +470,7 @@ export class BrowserManager {
       userDataDir,
     };
 
-    this.browsers.set(browser, connectionMeta);
+    this.browsers.set(browser, session);
 
     await browser.launch(launchOptions as object);
     await this.hooks.browser({ browser, meta: req.parsed });
