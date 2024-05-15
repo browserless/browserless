@@ -43,8 +43,8 @@ export class ChromiumPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepUntil() {
-    return 0;
+  public keepAlive() {
+    return false;
   }
 
   public isRunning = (): boolean => this.running;

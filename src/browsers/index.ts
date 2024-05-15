@@ -267,12 +267,11 @@ export class BrowserManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
   ): Promise<void> => {
-    const now = Date.now();
     const cleanupACtions: Array<() => Promise<void>> = [];
     this.log.info(`${session.numbConnected} Client(s) are currently connected`);
 
     // Don't close if there's clients still connected
-    if (session.numbConnected > 0 || browser.keepUntil() > now) {
+    if (session.numbConnected > 0 || browser.keepAlive()) {
       return;
     }
 

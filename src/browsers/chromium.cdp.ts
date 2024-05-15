@@ -59,8 +59,8 @@ export class ChromiumCDP extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepUntil() {
-    return 0;
+  public keepAlive() {
+    return false;
   }
 
   public getPageId = (page: Page): string => {
