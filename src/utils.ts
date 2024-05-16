@@ -799,12 +799,17 @@ export const untildify = (path: string) => {
   return homeDir ? path.replace(/^~(?=$|\/|\\)/, homeDir) : path;
 };
 
-export const printLogo = (docsLink: string) => `
+export const printLogo = (docsLink: string, debugURL?: string | boolean) => `
 ---------------------------------------------------------
 | browserless.io
 | To read documentation and more, load in your browser:
 |
-| ${docsLink}
+| OpenAPI: ${docsLink}
+| Full Documentation: https://docs.browserless.io/ ${
+  /*prettier-ignore*/
+  debugURL ? `
+| Debbuger: ${debugURL}`  : ""
+}
 ---------------------------------------------------------
 ${gradient(
   '#ff1a8c',

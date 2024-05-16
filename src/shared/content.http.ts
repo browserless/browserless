@@ -78,9 +78,10 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
   handler = async (
     req: Request,
     res: ServerResponse,
-    _logger: Logger,
+    logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> => {
+    logger.info('Content API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html
@@ -166,6 +167,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
           !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
           rejectResourceTypes.includes(req.resourceType())
         ) {
+          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
         }
         const interceptor = requestInterceptors.find((r) =>
@@ -232,6 +234,8 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
     const markup = await page.content();
 
     page.close().catch(noop);
+
+    logger.info('Content API request completed');
 
     return writeResponse(res, 200, markup, contentTypes.html);
   };

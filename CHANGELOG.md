@@ -1,5 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.8.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.11.0...main)
 - Dependency updates.
+
+# [v2.11.0](https://github.com/browserless/chrome/compare/v2.10.0...v2.11.0)
+- Wrap the pressure response in a pressure key.
+- New `keepAlive` property on browser objects for downstream SDK projects to flag.
+- Dependency updates.
+
+# [v2.10.0](https://github.com/browserless/chrome/compare/v2.9.0...v2.10.0)
+- Adds back in the `/pressure` API from V1.
+- Dependency updates.
+
+# [v2.9.0](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
+- Dependency updates.
+- Debugger is now included and mounted under the `/debugger` path.
+- Browserless now uses the `Logger` utility internally. Better logs for certain classes as well.
+- Fix number of connected clients when using the Page websocket route.
+- Allows "HEAD" requests for most "GET"-based APIs.
+-
 
 # [v2.8.0](https://github.com/browserless/chrome/compare/v2.7.1...v2.8.0)
 **April 12, 2024**

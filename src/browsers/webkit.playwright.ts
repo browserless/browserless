@@ -1,9 +1,9 @@
 import {
   BrowserServerOptions,
   Config,
+  Logger,
   Request,
   ServerError,
-  createLogger,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -18,32 +18,41 @@ export class WebkitPlaywright extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected debug = createLogger('browsers:webkit:playwright');
+  protected logger: Logger;
 
   constructor({
     config,
     userDataDir,
+    logger,
   }: {
     config: Config;
+    logger: Logger;
     userDataDir: WebkitPlaywright['userDataDir'];
   }) {
     super();
 
     this.userDataDir = userDataDir;
     this.config = config;
+    this.logger = logger;
 
-    this.debug(`Starting new browser instance`);
+    this.logger.info(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
     this.removeAllListeners();
   }
 
+  public keepAlive() {
+    return false;
+  }
+
   public isRunning = (): boolean => this.running;
 
   public close = async (): Promise<void> => {
     if (this.browser) {
-      this.debug(`Closing browser process and all listeners`);
+      this.logger.info(
+        `Closing ${this.constructor.name} process and all listeners`,
+      );
       this.emit('close');
       this.cleanListeners();
       this.browser.close();
@@ -56,22 +65,28 @@ export class WebkitPlaywright extends EventEmitter {
   public pages = async (): Promise<[]> => [];
 
   public getPageId = (): string => {
-    throw new ServerError(`#getPageId is not yet supported with this browser.`);
+    throw new ServerError(
+      `#getPageId is not yet supported with ${this.constructor.name}.`,
+    );
   };
 
   public makeLiveURL = (): void => {
-    throw new ServerError(`Live URLs are not yet supported with this browser.`);
+    throw new ServerError(
+      `Live URLs are not yet supported with ${this.constructor.name}.`,
+    );
   };
 
   public newPage = async (): Promise<Page> => {
-    throw new ServerError(`Can't create new page with this browser`);
+    throw new ServerError(
+      `Can't create new page with ${this.constructor.name}`,
+    );
   };
 
   public launch = async (
     options: BrowserServerOptions = {},
     version?: string,
   ): Promise<playwright.BrowserServer> => {
-    this.debug(`Launching Playwright Handler`);
+    this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     const opts = ({
       ...options,
@@ -87,7 +102,9 @@ export class WebkitPlaywright extends EventEmitter {
     this.browser = await versionedPw.webkit.launchServer(opts);
     const browserWSEndpoint = this.browser.wsEndpoint();
 
-    this.debug(`Browser is running on ${browserWSEndpoint}`);
+    this.logger.info(
+      `${this.constructor.name} is running on ${browserWSEndpoint}`,
+    );
     this.browserWSEndpoint = browserWSEndpoint;
     this.running = true;
 
@@ -114,7 +131,7 @@ export class WebkitPlaywright extends EventEmitter {
   };
 
   public proxyPageWebSocket = async () => {
-    console.warn(`Not yet implemented`);
+    this.logger.warn(`Not yet implemented`);
   };
 
   public proxyWebSocket = async (
@@ -130,8 +147,8 @@ export class WebkitPlaywright extends EventEmitter {
       }
       socket.once('close', resolve);
 
-      this.debug(
-        `Proxying ${req.parsed.href} to browser ${this.browserWSEndpoint}`,
+      this.logger.info(
+        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       // Delete headers known to cause issues
@@ -148,7 +165,9 @@ export class WebkitPlaywright extends EventEmitter {
           target: this.browserWSEndpoint,
         },
         (error) => {
-          this.debug(`Error proxying session: ${error}`);
+          this.logger.error(
+            `Error proxying session to ${this.constructor.name}: ${error}`,
+          );
           this.close();
           return reject(error);
         },

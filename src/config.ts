@@ -149,6 +149,7 @@ export class Config extends EventEmitter {
     '30000'
   );
   protected static = process.env.STATIC ?? path.join(__dirname, '..', 'static');
+  protected debuggerDir = path.join(this.static, 'debugger');
   protected retries = +(process.env.RETRIES ?? '5');
   protected allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
   protected allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');
@@ -190,6 +191,7 @@ export class Config extends EventEmitter {
   public getQueued = (): number => this.queued;
   public getTimeout = (): number => this.timeout;
   public getStatic = (): string => this.static;
+  public getDebuggerDir = (): string => this.debuggerDir;
   public getRetries = (): number => this.retries;
   public getAllowFileProtocol = (): boolean => this.allowFileProtocol;
   public getCPULimit = (): number => this.maxCpu;
@@ -200,6 +202,8 @@ export class Config extends EventEmitter {
   public getRejectAlertURL = () => this.rejectAlertURL;
   public getTimeoutAlertURL = () => this.timeoutAlertURL;
   public getErrorAlertURL = () => this.errorAlertURL;
+
+  public hasDebugger = (): Promise<boolean> => exists(this.debuggerDir);
 
   /**
    * If true, allows GET style calls on our browser-based APIs, using
