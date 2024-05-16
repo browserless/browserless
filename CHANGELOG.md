@@ -1,4 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.10.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.11.0...main)
+- Dependency updates.
+
+# [v2.11.0](https://github.com/browserless/chrome/compare/v2.10.0...v2.11.0)
+- Wrap the pressure response in a pressure key.
+- New `keepAlive` property on browser objects for downstream SDK projects to flag.
 - Dependency updates.
 
 # [v2.10.0](https://github.com/browserless/chrome/compare/v2.9.0...v2.10.0)
