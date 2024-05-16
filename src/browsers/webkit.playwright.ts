@@ -42,6 +42,10 @@ export class WebkitPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
+  public keepAlive() {
+    return false;
+  }
+
   public isRunning = (): boolean => this.running;
 
   public close = async (): Promise<void> => {
