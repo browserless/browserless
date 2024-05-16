@@ -461,6 +461,31 @@ describe('Chromium WebSocket API', function () {
     expect(results.queued).to.equal(0);
   });
 
+  it('runs multiple versions of playwright', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const pwVersions = Object.keys(config.getPwVersions());
+
+    for (const version of pwVersions) {
+      const pw = await import(config.getPwVersions()[version]);
+      const browser = await pw.chromium.connect(
+        `ws://localhost:3000/playwright/chromium?token=browserless`,
+      );
+  
+      await browser.close();
+      await sleep(100);  
+    }
+
+    const results = metrics.get();
+    expect(results.timedout).to.equal(0);
+    expect(results.successful).to.equal(pwVersions.length);
+    expect(results.rejected).to.equal(0);
+    expect(results.queued).to.equal(0);
+  });
+
   it('rejects playwright without tokens', async () => {
     const config = new Config();
     config.setToken('browserless');

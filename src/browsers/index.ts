@@ -323,7 +323,6 @@ export class BrowserManager {
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
   ): Promise<BrowserInstance> => {
-    console.log('Getting browser for request');
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
@@ -472,8 +471,6 @@ export class BrowserManager {
 
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
-
-    console.log("pwVersion: " + pwVersion);
 
     await browser.launch(launchOptions as object, pwVersion);
     await this.hooks.browser({ browser, meta: req.parsed });

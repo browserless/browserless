@@ -69,10 +69,11 @@ export class WebkitPlaywright extends EventEmitter {
 
   public launch = async (
     options: BrowserServerOptions = {},
+    version?: string,
   ): Promise<playwright.BrowserServer> => {
     this.debug(`Launching Playwright Handler`);
 
-    this.browser = await playwright.webkit.launchServer({
+    const opts = ({
       ...options,
       args: [
         ...(options.args || []),
@@ -81,6 +82,9 @@ export class WebkitPlaywright extends EventEmitter {
       executablePath: playwright.webkit.executablePath(),
     });
 
+    const versionedPw = await this.config.loadPwVersion(version!);
+
+    this.browser = await versionedPw.webkit.launchServer(opts);
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.debug(`Browser is running on ${browserWSEndpoint}`);
