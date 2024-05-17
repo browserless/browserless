@@ -27,8 +27,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN ./node_modules/.bin/playwright-core install --with-deps webkit &&\
-  npm run build &&\
+RUN npx --yes playwright install webkit &&\
+  npx --yes playwright install-deps webkit &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
   fc-cache -f -v && \
