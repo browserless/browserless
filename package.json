@@ -167,7 +167,7 @@
       "ts"
     ],
     "loader": "ts-node/esm",
-    "spec": "src/**/*chrome*/**/*.spec.ts",
+    "spec": "src/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
   },
