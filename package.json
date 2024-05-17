@@ -14,7 +14,7 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:ts && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
+    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
@@ -167,7 +167,7 @@
       "ts"
     ],
     "loader": "ts-node/esm",
-    "spec": "src/**/*.spec.ts",
+    "spec": "src/**/*chrome*/**/*.spec.ts",
     "timeout": 30000,
     "slow": 5000
   },

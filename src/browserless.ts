@@ -119,7 +119,7 @@ export class Browserless extends EventEmitter {
       new Router(this.config, this.browserManager, this.limiter, this.Logger);
   }
 
-  private loadPwVersions = async (): Promise<void> => {
+  protected loadPwVersions = async (): Promise<void> => {
     const { playwrightVersions } = JSON.parse(
       (await fs.readFile('package.json')).toString(),
     );
