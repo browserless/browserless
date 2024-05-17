@@ -440,14 +440,16 @@ export class BrowserManager {
     /**
      * If it is a playwright request
      */
-    if (req.parsed.pathname.startsWith('/playwright')) {
-      if (launchOptions.args && proxyServerArg) {
-        (launchOptions as BrowserServerOptions).proxy = {
-          server: proxyServerArg.split('=')[1],
-        };
-        const argIndex = launchOptions.args.indexOf(proxyServerArg);
-        launchOptions.args.splice(argIndex, 1);
-      }
+    if (
+      launchOptions.args &&
+      proxyServerArg &&
+      req.parsed.pathname.startsWith('/playwright')
+    ) {
+      (launchOptions as BrowserServerOptions).proxy = {
+        server: proxyServerArg.split('=')[1],
+      };
+      const argIndex = launchOptions.args.indexOf(proxyServerArg);
+      launchOptions.args.splice(argIndex, 1);
     }
 
     const browser = new Browser({
