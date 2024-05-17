@@ -428,7 +428,7 @@ describe('Chrome WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connect(
-      `ws://localhost:3000/playwright/chromium?token=browserless`,
+      `ws://localhost:3000/playwright/chrome?token=browserless`,
     );
 
     await browser.close();
@@ -472,7 +472,7 @@ describe('Chrome WebSocket API', function () {
     for (const version of pwVersions) {
       const pw = await import(config.getPwVersions()[version]);
       const browser = await pw.chromium.connect(
-        `ws://localhost:3000/playwright/chromium?token=browserless`,
+        `ws://localhost:3000/playwright/chrome?token=browserless`,
       );
   
       await browser.close();

@@ -29,6 +29,7 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
 
 RUN npx --yes playwright install webkit &&\
   npx --yes playwright install-deps webkit &&\
+  npm run build &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
   fc-cache -f -v && \
