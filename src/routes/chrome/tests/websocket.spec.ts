@@ -13,10 +13,6 @@ import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
 
 describe('Chrome WebSocket API', function () {
-  // Server shutdown can take a few seconds
-  // and so can these tests :/
-  this.timeout(10000);
-
   let browserless: Browserless;
 
   const start = ({
@@ -428,7 +424,7 @@ describe('Chrome WebSocket API', function () {
     await start({ config, metrics });
 
     const browser = await chromium.connect(
-      `ws://localhost:3000/playwright/chrome?token=browserless`,
+      `ws://localhost:3000/chrome/playwright?token=browserless`,
     );
 
     await browser.close();
@@ -472,7 +468,7 @@ describe('Chrome WebSocket API', function () {
     for (const version of pwVersions) {
       const pw = await import(config.getPwVersions()[version]);
       const browser = await pw.chromium.connect(
-        `ws://localhost:3000/playwright/chrome?token=browserless`,
+        `ws://localhost:3000/chrome/playwright?token=browserless`,
       );
   
       await browser.close();
