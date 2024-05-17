@@ -84,18 +84,22 @@ export class FirefoxPlaywright extends EventEmitter {
 
   public launch = async (
     options: BrowserServerOptions = {},
+    version?: string,
   ): Promise<playwright.BrowserServer> => {
-    this.logger.info(`Launching ${this.constructor.name} Handler`);
 
-    this.browser = await playwright.firefox.launchServer({
+    this.logger.info(`Launching ${this.constructor.name} Handler`);
+    const opts = {
       ...options,
       args: [
         ...(options.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
       executablePath: playwright.firefox.executablePath(),
-    });
+    };
 
+    const versionedPw = await this.config.loadPwVersion(version!);
+
+    this.browser = await versionedPw.firefox.launchServer(opts);
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.logger.info(

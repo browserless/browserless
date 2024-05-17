@@ -26,7 +26,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN ./node_modules/.bin/playwright-core install --with-deps chromium &&\
+RUN npx --yes playwright install chromium &&\
+  npx --yes playwright install-deps chromium &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\

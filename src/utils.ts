@@ -48,6 +48,15 @@ const getAuthHeaderToken = (header: string) => {
   return null;
 };
 
+/**
+ * RegEx to match the Playwright version from the innitial request header.
+ * 
+ * @example
+ * const userAgent = "Playwright/1.43.1 (x64; windows 10.0) node/20.11";
+ * userAgent.match(pwVersionRegex);
+ * // ["Playwright/1.43", "1.43"]
+ */
+export const pwVersionRegex = /Playwright\/(\d+\.\d+)/;
 export const buildDir: string = path.join(path.resolve(), 'build');
 export const tsExtension = '.d.ts';
 export const jsonExtension = '.json';

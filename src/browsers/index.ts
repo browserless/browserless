@@ -29,6 +29,7 @@ import {
   makeExternalURL,
   noop,
   parseBooleanParam,
+  pwVersionRegex,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
@@ -436,6 +437,9 @@ export class BrowserManager {
       arg.includes('--proxy-server='),
     );
 
+    /**
+     * If it is a playwright request
+     */
     if (
       launchOptions.args &&
       proxyServerArg &&
@@ -471,7 +475,10 @@ export class BrowserManager {
 
     this.browsers.set(browser, session);
 
-    await browser.launch(launchOptions as object);
+    const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
+    const pwVersion = match ? match[1] : 'default';
+
+    await browser.launch(launchOptions as object, pwVersion);
     await this.hooks.browser({ browser, meta: req.parsed });
 
     browser.on('newPage', async (page) => {

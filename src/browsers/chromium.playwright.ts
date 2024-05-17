@@ -89,10 +89,11 @@ export class ChromiumPlaywright extends EventEmitter {
 
   public launch = async (
     options: BrowserServerOptions = {},
+    version?: string,
   ): Promise<playwright.BrowserServer> => {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
-    this.browser = await playwright.chromium.launchServer({
+    const opts = {
       ...options,
       args: [
         `--no-sandbox`,
@@ -100,8 +101,11 @@ export class ChromiumPlaywright extends EventEmitter {
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath,
-    });
+    };
 
+    const versionedPw = await this.config.loadPwVersion(version!);
+
+    this.browser = await versionedPw.chromium.launchServer(opts);
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.logger.info(
