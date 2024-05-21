@@ -13,10 +13,6 @@ import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
 
 describe('Chrome WebSocket API', function () {
-  // Server shutdown can take a few seconds
-  // and so can these tests :/
-  this.timeout(10000);
-
   let browserless: Browserless;
 
   const start = ({
@@ -457,6 +453,31 @@ describe('Chrome WebSocket API', function () {
     const results = metrics.get();
     expect(results.timedout).to.equal(0);
     expect(results.successful).to.equal(1);
+    expect(results.rejected).to.equal(0);
+    expect(results.queued).to.equal(0);
+  });
+
+  it('runs multiple versions of playwright', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const pwVersions = Object.keys(config.getPwVersions());
+
+    for (const version of pwVersions) {
+      const pw = await import(config.getPwVersions()[version]);
+      const browser = await pw.chromium.connect(
+        `ws://localhost:3000/chrome/playwright?token=browserless`,
+      );
+  
+      await browser.close();
+      await sleep(100);  
+    }
+
+    const results = metrics.get();
+    expect(results.timedout).to.equal(0);
+    expect(results.successful).to.equal(pwVersions.length);
     expect(results.rejected).to.equal(0);
     expect(results.queued).to.equal(0);
   });

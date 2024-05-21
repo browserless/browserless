@@ -4,6 +4,7 @@ import debug from 'debug';
 import { fileURLToPath } from 'url';
 import { mkdir } from 'fs/promises';
 import path from 'path';
+import playwright from 'playwright-core';
 import { tmpdir } from 'os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -165,6 +166,7 @@ export class Config extends EventEmitter {
   protected rejectAlertURL = process.env.REJECT_ALERT_URL ?? null;
   protected timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
   protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
+  protected pwVersions: { [key: string]: string } = {};
 
   public getRoutes = (): string => this.routes;
   public getHost = (): string => this.host;
@@ -172,6 +174,7 @@ export class Config extends EventEmitter {
   public getIsWin = (): boolean => this.isWin;
   public getToken = (): string | null => this.token;
   public getDebug = (): string => this.debug;
+  public getPwVersions = () => this.pwVersions;
 
   /**
    * The maximum number of concurrent sessions allowed. Set
@@ -260,6 +263,23 @@ export class Config extends EventEmitter {
   };
 
   public getMetricsJSONPath = () => this.metricsJSONPath;
+
+  public setPwVersions = (versions: { [key: string]: string }) => {
+    this.pwVersions = versions;
+  };
+
+  public loadPwVersion = async (
+    version: string,
+  ): Promise<typeof playwright> => {
+    const versions = this.getPwVersions();
+
+    try {
+      return await import(versions[version] || versions['default']);
+    } catch (err) {
+      debug.log('Error importing Playwright. Using default version', err);
+      return playwright;
+    }
+  };
 
   public setDataDir = async (newDataDir: string): Promise<string> => {
     if (!(await exists(newDataDir))) {

@@ -1,4 +1,6 @@
+import * as fs from 'fs/promises';
 import * as path from 'path';
+
 import {
   Logger as BlessLogger,
   BrowserHTTPRoute,
@@ -116,6 +118,14 @@ export class Browserless extends EventEmitter {
       router ||
       new Router(this.config, this.browserManager, this.limiter, this.Logger);
   }
+
+  protected loadPwVersions = async (): Promise<void> => {
+    const { playwrightVersions } = JSON.parse(
+      (await fs.readFile('package.json')).toString(),
+    );
+
+    this.config.setPwVersions(playwrightVersions);
+  };
 
   protected saveMetrics = async (): Promise<void> => {
     const metricsPath = this.config.getMetricsJSONPath();
@@ -382,6 +392,7 @@ export class Browserless extends EventEmitter {
       this.Logger,
     );
 
+    await this.loadPwVersions();
     await this.server.start();
     this.logger.info(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
