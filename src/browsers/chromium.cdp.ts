@@ -21,8 +21,6 @@ import puppeteerStealth from 'puppeteer-extra';
 
 puppeteerStealth.use(StealthPlugin());
 
-const keepUntil = Date.now() + 30000;
-
 export class ChromiumCDP extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
@@ -62,7 +60,7 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   public keepUntil() {
-    return keepUntil;
+    return 0;
   }
 
   public getPageId = (page: Page): string => {
