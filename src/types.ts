@@ -377,7 +377,7 @@ export interface BrowserServerOptions {
 }
 
 export interface BrowserlessSession {
-  id: string | null;
+  id: string;
   initialConnectURL: string;
   isTempDataDir: boolean;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;

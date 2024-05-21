@@ -42,8 +42,8 @@ export class WebkitPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepAlive() {
-    return false;
+  public keepUntil() {
+    return 0;
   }
 
   public isRunning = (): boolean => this.running;
@@ -88,14 +88,14 @@ export class WebkitPlaywright extends EventEmitter {
   ): Promise<playwright.BrowserServer> => {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
-    const opts = ({
+    const opts = {
       ...options,
       args: [
         ...(options.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
       executablePath: playwright.webkit.executablePath(),
-    });
+    };
 
     const versionedPw = await this.config.loadPwVersion(version!);
 

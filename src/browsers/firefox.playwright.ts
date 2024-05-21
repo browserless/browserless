@@ -42,8 +42,8 @@ export class FirefoxPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepAlive() {
-    return false;
+  public keepUntil() {
+    return 0;
   }
 
   public isRunning = (): boolean => this.running;
@@ -86,7 +86,6 @@ export class FirefoxPlaywright extends EventEmitter {
     options: BrowserServerOptions = {},
     version?: string,
   ): Promise<playwright.BrowserServer> => {
-
     this.logger.info(`Launching ${this.constructor.name} Handler`);
     const opts = {
       ...options,

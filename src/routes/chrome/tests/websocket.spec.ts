@@ -470,9 +470,9 @@ describe('Chrome WebSocket API', function () {
       const browser = await pw.chromium.connect(
         `ws://localhost:3000/chrome/playwright?token=browserless`,
       );
-  
+
       await browser.close();
-      await sleep(100);  
+      await sleep(100);
     }
 
     const results = metrics.get();

@@ -39,7 +39,6 @@ describe('Webkit Websocket API', function () {
     await browser.close();
   });
 
-    
   it('runs multiple versions of playwright', async () => {
     const config = new Config();
     config.setToken('browserless');
@@ -53,9 +52,9 @@ describe('Webkit Websocket API', function () {
       const browser = await pw.webkit.connect(
         `ws://localhost:3000/playwright/webkit?token=browserless`,
       );
-  
+
       await browser.close();
-      await sleep(100);  
+      await sleep(100);
     }
 
     const results = metrics.get();
