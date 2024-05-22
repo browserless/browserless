@@ -21,11 +21,11 @@ export class FileSystem extends EventEmitter {
    * @param newContent A string of new content to add to the file
    * @returns void
    */
-  append = async (
+  public async append(
     path: string,
     newContent: string,
     shouldEncode: boolean,
-  ): Promise<void> => {
+  ): Promise<void> {
     const contents = await this.read(path, shouldEncode);
 
     contents.push(newContent);
@@ -36,7 +36,7 @@ export class FileSystem extends EventEmitter {
       : contents.join('\n');
 
     return writeFile(path, encoded.toString());
-  };
+  }
 
   /**
    * Reads contents from the local map, if any exist, or loads
@@ -45,7 +45,7 @@ export class FileSystem extends EventEmitter {
    * @param path The filepath of the contents to read
    * @returns Promise of the contents separated by newlines
    */
-  read = async (path: string, encoded: boolean): Promise<string[]> => {
+  public async read(path: string, encoded: boolean): Promise<string[]> {
     const hasKey = this.fsMap.has(path);
 
     if (hasKey) {
@@ -61,18 +61,18 @@ export class FileSystem extends EventEmitter {
     this.fsMap.set(path, splitContents);
 
     return splitContents;
-  };
+  }
 
   /**
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
-    await this.stop();
-  };
+  public async shutdown() {
+    return await this.stop();
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

@@ -14,7 +14,7 @@ const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
  *
  * @param req A parsed user requests
  */
-export const shimLegacyRequests = (url: URL): URL => {
+export function shimLegacyRequests(url: URL): URL {
   const { searchParams } = url;
   const params = [...searchParams];
   const names = params.map(([k]) => k);
@@ -76,4 +76,4 @@ export const shimLegacyRequests = (url: URL): URL => {
   }
 
   return url;
-};
+}

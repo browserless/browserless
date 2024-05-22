@@ -26,27 +26,27 @@ export class Logger {
     return this.request ? this.request.socket.remoteAddress ?? 'Unknown' : '';
   }
 
-  public trace = (...messages: unknown[]) => {
+  public trace(...messages: unknown[]) {
     this._trace(this.reqInfo, ...messages);
-  };
+  }
 
-  public debug = (...messages: unknown[]) => {
+  public debug(...messages: unknown[]) {
     this._debug(this.reqInfo, ...messages);
-  };
+  }
 
-  public info = (...messages: unknown[]) => {
+  public info(...messages: unknown[]) {
     this._info(this.reqInfo, ...messages);
-  };
+  }
 
-  public warn = (...messages: unknown[]) => {
+  public warn(...messages: unknown[]) {
     this._warn(this.reqInfo, ...messages);
-  };
+  }
 
-  public error = (...messages: unknown[]) => {
+  public error(...messages: unknown[]) {
     this._error(this.reqInfo, ...messages);
-  };
+  }
 
-  public fatal = (...messages: unknown[]) => {
+  public fatal(...messages: unknown[]) {
     this._fatal(this.reqInfo, ...messages);
-  };
+  }
 }

@@ -11,7 +11,9 @@ export class FunctionRunner {
   protected browser?: Browser;
   protected page?: Page;
 
-  public log = () => console.log.bind(console);
+  public log() {
+    return console.log.bind(console);
+  }
 
   public async start(data: {
     browserWSEndpoint: string;

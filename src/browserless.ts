@@ -119,15 +119,15 @@ export class Browserless extends EventEmitter {
       new Router(this.config, this.browserManager, this.limiter, this.Logger);
   }
 
-  protected loadPwVersions = async (): Promise<void> => {
+  protected async loadPwVersions(): Promise<void> {
     const { playwrightVersions } = JSON.parse(
       (await fs.readFile('package.json')).toString(),
     );
 
     this.config.setPwVersions(playwrightVersions);
-  };
+  }
 
-  protected saveMetrics = async (): Promise<void> => {
+  protected async saveMetrics(): Promise<void> {
     const metricsPath = this.config.getMetricsJSONPath();
     const { cpu, memory } = await this.monitoring.getMachineStats();
     const metrics = await this.metrics.get();
@@ -163,9 +163,9 @@ export class Browserless extends EventEmitter {
         false,
       );
     }
-  };
+  }
 
-  public setMetricsSaveInterval = (interval: number) => {
+  public setMetricsSaveInterval(interval: number) {
     if (interval <= 0) {
       return console.warn(
         `Interval value of "${interval}" must be greater than 1. Ignoring`,
@@ -178,7 +178,7 @@ export class Browserless extends EventEmitter {
       this.saveMetrics,
       this.metricsSaveInterval,
     );
-  };
+  }
 
   protected routeIsDisabled(route: routeInstances) {
     return this.disabledRouteNames.some((name) => name === route.name);

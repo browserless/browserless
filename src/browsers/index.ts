@@ -52,10 +52,13 @@ export class BrowserManager {
     protected hooks: Hooks,
   ) {}
 
-  protected browserIsChrome = (b: BrowserInstance) =>
-    this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser);
+  protected browserIsChrome(b: BrowserInstance) {
+    return this.chromeBrowsers.some(
+      (chromeBrowser) => b instanceof chromeBrowser,
+    );
+  }
 
-  protected removeUserDataDir = async (userDataDir: string | null) => {
+  protected async removeUserDataDir(userDataDir: string | null) {
     if (userDataDir && (await exists(userDataDir))) {
       this.log.info(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
@@ -64,18 +67,18 @@ export class BrowserManager {
         );
       });
     }
-  };
+  }
 
-  protected onNewPage = async (req: Request, page: Page) => {
-    await this.hooks.page({ meta: req.parsed, page });
-  };
+  protected async onNewPage(req: Request, page: Page) {
+    return await this.hooks.page({ meta: req.parsed, page });
+  }
 
   /**
    * Returns the /json/protocol API contents from Chromium or Chrome, whichever is installed,
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getProtocolJSON = async (logger: Logger): Promise<object> => {
+  public async getProtocolJSON(logger: Logger): Promise<object> {
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -104,14 +107,14 @@ export class BrowserManager {
     browser.close();
 
     return protocolJSON;
-  };
+  }
 
   /**
    * Returns the /json/version API from Chromium or Chrome, whichever is installed,
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getVersionJSON = async (logger: Logger): Promise<CDPJSONPayload> => {
+  public async getVersionJSON(logger: Logger): Promise<CDPJSONPayload> {
     this.log.info(`Launching Chromium to generate /json/version results`);
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
@@ -149,14 +152,14 @@ export class BrowserManager {
       'Debugger-Version': debuggerVersion,
       webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
     };
-  };
+  }
 
   /**
    * Returns a list of all Chrome-like browsers (both Chromium and Chrome) with
    * their respective /json/list contents. URLs are modified so that subsequent
    * calls can be forwarded to the appropriate destination
    */
-  public getJSONList = async (): Promise<Array<CDPJSONPayload>> => {
+  public async getJSONList(): Promise<Array<CDPJSONPayload>> {
     const externalAddress = this.config.getExternalWebSocketAddress();
     const externalURL = new URL(externalAddress);
     const sessions = Array.from(this.browsers);
@@ -214,12 +217,12 @@ export class BrowserManager {
     return cdpResponse
       .flat()
       .filter((_) => _ !== null) as Array<CDPJSONPayload>;
-  };
+  }
 
-  protected generateSessionJson = async (
+  protected async generateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
-  ) => {
+  ) {
     const serverAddress = this.config.getExternalAddress();
 
     const sessions = [
@@ -262,12 +265,12 @@ export class BrowserManager {
       }
     }
     return sessions;
-  };
+  }
 
-  public close = async (
+  public async close(
     browser: BrowserInstance,
     session: BrowserlessSession,
-  ): Promise<void> => {
+  ): Promise<void> {
     const now = Date.now();
     const keepUntil = browser.keepUntil();
     const connected = session.numbConnected;
@@ -316,9 +319,9 @@ export class BrowserManager {
 
       await Promise.all(cleanupACtions.map((a) => a()));
     }
-  };
+  }
 
-  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
+  public async getAllSessions(): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
 
     const formattedSessions: BrowserlessSessionJSON[] = [];
@@ -327,9 +330,9 @@ export class BrowserManager {
       formattedSessions.push(...formattedSession);
     }
     return formattedSessions;
-  };
+  }
 
-  public complete = async (browser: BrowserInstance): Promise<void> => {
+  public async complete(browser: BrowserInstance): Promise<void> {
     const session = this.browsers.get(browser);
     if (!session) {
       this.log.info(
@@ -347,13 +350,13 @@ export class BrowserManager {
     --session.numbConnected;
 
     this.close(browser, session);
-  };
+  }
 
-  public getBrowserForRequest = async (
+  public async getBrowserForRequest(
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
-  ): Promise<BrowserInstance> => {
+  ): Promise<BrowserInstance> {
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
@@ -515,9 +518,9 @@ export class BrowserManager {
     });
 
     return browser;
-  };
+  }
 
-  public shutdown = async (): Promise<void> => {
+  public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
@@ -528,10 +531,10 @@ export class BrowserManager {
     this.timers = new Map();
     await this.stop();
     this.log.info(`Shutdown complete`);
-  };
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

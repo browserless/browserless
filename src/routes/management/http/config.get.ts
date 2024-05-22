@@ -44,7 +44,7 @@ export default class ConfigGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.config;
   tags = [APITags.management];
-  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+  async handler(_req: Request, res: ServerResponse): Promise<void> {
     const config = this.config();
 
     const response: ResponseSchema = {
@@ -71,5 +71,5 @@ export default class ConfigGetRoute extends HTTPRoute {
     };
 
     return jsonResponse(res, 200, response);
-  };
+  }
 }

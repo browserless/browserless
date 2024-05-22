@@ -45,12 +45,12 @@ export default class PerformancePost extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.performance, HTTPRoutes.chromiumPerformance];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     _logger: Logger,
     browser: BrowserInstance,
-  ): Promise<void> => {
+  ): Promise<void> {
     const config = this.config();
     const response = await main({
       browser,
@@ -60,5 +60,5 @@ export default class PerformancePost extends BrowserHTTPRoute {
     });
 
     return jsonResponse(res, 200, response);
-  };
+  }
 }

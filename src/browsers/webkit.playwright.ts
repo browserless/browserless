@@ -46,9 +46,11 @@ export class WebkitPlaywright extends EventEmitter {
     return 0;
   }
 
-  public isRunning = (): boolean => this.running;
+  public isRunning(): boolean {
+    return this.running;
+  }
 
-  public close = async (): Promise<void> => {
+  public async close(): Promise<void> {
     if (this.browser) {
       this.logger.info(
         `Closing ${this.constructor.name} process and all listeners`,
@@ -60,32 +62,34 @@ export class WebkitPlaywright extends EventEmitter {
       this.browser = null;
       this.browserWSEndpoint = null;
     }
-  };
+  }
 
-  public pages = async (): Promise<[]> => [];
+  public async pages(): Promise<[]> {
+    return [];
+  }
 
-  public getPageId = (): string => {
+  public getPageId(): string {
     throw new ServerError(
       `#getPageId is not yet supported with ${this.constructor.name}.`,
     );
-  };
+  }
 
-  public makeLiveURL = (): void => {
+  public makeLiveURL(): void {
     throw new ServerError(
       `Live URLs are not yet supported with ${this.constructor.name}.`,
     );
-  };
+  }
 
-  public newPage = async (): Promise<Page> => {
+  public async newPage(): Promise<Page> {
     throw new ServerError(
       `Can't create new page with ${this.constructor.name}`,
     );
-  };
+  }
 
-  public launch = async (
+  public async launch(
     options: BrowserServerOptions = {},
     version?: string,
-  ): Promise<playwright.BrowserServer> => {
+  ): Promise<playwright.BrowserServer> {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     const opts = {
@@ -109,11 +113,13 @@ export class WebkitPlaywright extends EventEmitter {
     this.running = true;
 
     return this.browser;
-  };
+  }
 
-  public wsEndpoint = (): string | null => this.browserWSEndpoint;
+  public wsEndpoint(): string | null {
+    return this.browserWSEndpoint;
+  }
 
-  public publicWSEndpoint = (token: string | null): string | null => {
+  public publicWSEndpoint(token: string | null): string | null {
     if (!this.browserWSEndpoint) {
       return null;
     }
@@ -128,18 +134,18 @@ export class WebkitPlaywright extends EventEmitter {
     }
 
     return externalURL.href;
-  };
+  }
 
-  public proxyPageWebSocket = async () => {
-    this.logger.warn(`Not yet implemented`);
-  };
+  public async proxyPageWebSocket() {
+    return this.logger.warn(`Not yet implemented`);
+  }
 
-  public proxyWebSocket = async (
+  public async proxyWebSocket(
     req: Request,
     socket: Duplex,
     head: Buffer,
-  ): Promise<void> =>
-    new Promise((resolve, reject) => {
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
@@ -173,4 +179,5 @@ export class WebkitPlaywright extends EventEmitter {
         },
       );
     });
+  }
 }

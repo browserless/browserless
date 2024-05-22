@@ -60,11 +60,11 @@ export default class StaticGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.static;
   tags = [APITags.management];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
-  ): Promise<unknown> => {
+  ): Promise<unknown> {
     const { pathname } = req.parsed;
     const fileCache = pathMap.get(pathname);
 
@@ -117,5 +117,5 @@ export default class StaticGetRoute extends HTTPRoute {
     });
 
     return streamFile(logger, res, foundFilePath, contentType);
-  };
+  }
 }

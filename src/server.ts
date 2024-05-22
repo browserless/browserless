@@ -61,24 +61,21 @@ export class HTTPServer extends EventEmitter {
     );
   }
 
-  protected onHTTPUnauthorized = (_req: Request, res: Response) => {
+  protected onHTTPUnauthorized(_req: Request, res: Response) {
     this.logger.error(
       `HTTP request is not properly authorized, responding with 401`,
     );
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
-  };
+  }
 
-  protected onWebsocketUnauthorized = (
-    _req: Request,
-    socket: stream.Duplex,
-  ) => {
+  protected onWebsocketUnauthorized(_req: Request, socket: stream.Duplex) {
     this.logger.error(
       `Websocket request is not properly authorized, responding with 401`,
     );
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
-  };
+  }
 
   public async start(): Promise<void> {
     this.logger.info(`HTTP Server is starting`);
@@ -105,10 +102,10 @@ export class HTTPServer extends EventEmitter {
     });
   }
 
-  protected handleRequest = async (
+  protected async handleRequest(
     request: http.IncomingMessage,
     res: http.ServerResponse,
-  ) => {
+  ) {
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
     );
@@ -299,13 +296,13 @@ export class HTTPServer extends EventEmitter {
 
         return writeResponse(res, 500, e.toString());
       });
-  };
+  }
 
-  protected handleWebSocket = async (
+  protected async handleWebSocket(
     request: http.IncomingMessage,
     socket: stream.Duplex,
     head: Buffer,
-  ) => {
+  ) {
     this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
@@ -414,7 +411,7 @@ export class HTTPServer extends EventEmitter {
       `No matching WebSocket route handler for "${req.parsed.href}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
-  };
+  }
 
   public async shutdown(): Promise<void> {
     this.logger.info(`HTTP Server is shutting down`);
@@ -429,5 +426,5 @@ export class HTTPServer extends EventEmitter {
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

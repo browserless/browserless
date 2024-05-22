@@ -81,7 +81,7 @@ export default class PressureGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.pressure;
   tags = [APITags.management];
-  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+  async handler(_req: Request, res: ServerResponse): Promise<void> {
     const monitoring = this.monitoring();
     const config = this.config();
     const limiter = this.limiter();
@@ -135,5 +135,5 @@ export default class PressureGetRoute extends HTTPRoute {
     };
 
     return jsonResponse(res, 200, response);
-  };
+  }
 }

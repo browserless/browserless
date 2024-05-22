@@ -30,8 +30,8 @@ export default class ChromiumJSONListGetRoute extends HTTPRoute {
   path = HTTPRoutes.jsonList;
   tags = [APITags.browserAPI];
 
-  handler = async (_req: Request, res: Response): Promise<void> => {
+  async handler(_req: Request, res: Response): Promise<void> {
     const browserManage = this.browserManager();
     return jsonResponse(res, 200, await browserManage.getJSONList());
-  };
+  }
 }

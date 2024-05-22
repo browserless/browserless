@@ -26,13 +26,13 @@ export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRou
   description = `Connect to Firefox with any playwright-compliant library.`;
   path = [WebsocketRoutes.playwrightFirefox, WebsocketRoutes.firefoxPlaywright];
   tags = [APITags.browserWS];
-  handler = async (
+  async handler(
     req: Request,
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
     browser: FirefoxPlaywright,
-  ): Promise<void> => {
+  ): Promise<void> {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()
       .includes('playwright');
@@ -44,5 +44,5 @@ export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRou
     }
 
     return browser.proxyWebSocket(req, socket, head);
-  };
+  }
 }

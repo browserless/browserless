@@ -24,10 +24,10 @@ export default class SessionsGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.sessions;
   tags = [APITags.management];
-  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+  async handler(_req: Request, res: ServerResponse): Promise<void> {
     const browserManager = this.browserManager();
     const response: ResponseSchema = await browserManager.getAllSessions();
 
     return jsonResponse(res, 200, response);
-  };
+  }
 }

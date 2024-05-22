@@ -14,41 +14,41 @@ export class Metrics extends EventEmitter {
   protected unhealthy = 0;
   protected error = 0;
 
-  addSuccessful = (sessionTime: number): number => {
+  addSuccessful(sessionTime: number): number {
     --this.running;
     this.sessionTimes.push(sessionTime);
     return ++this.successful;
-  };
+  }
 
-  addTimedout = (sessionTime: number): number => {
+  addTimedout(sessionTime: number): number {
     --this.running;
     this.sessionTimes.push(sessionTime);
     return ++this.timedout;
-  };
+  }
 
-  addError = (sessionTime: number): number => {
+  addError(sessionTime: number): number {
     --this.running;
     this.sessionTimes.push(sessionTime);
     return ++this.error;
-  };
+  }
 
-  addQueued = (): number => {
+  addQueued(): number {
     return ++this.queued;
-  };
+  }
 
-  addRejected = (): number => {
+  addRejected(): number {
     return ++this.rejected;
-  };
+  }
 
-  addUnhealthy = (): number => {
+  addUnhealthy(): number {
     return ++this.unhealthy;
-  };
+  }
 
-  addUnauthorized = (): number => {
+  addUnauthorized(): number {
     return ++this.unauthorized;
-  };
+  }
 
-  addRunning = (): number => {
+  addRunning(): number {
     ++this.running;
 
     if (this.concurrent < this.running) {
@@ -56,9 +56,9 @@ export class Metrics extends EventEmitter {
     }
 
     return this.running;
-  };
+  }
 
-  public get = (): Omit<IBrowserlessStats, 'cpu' | 'memory'> => {
+  public get(): Omit<IBrowserlessStats, 'cpu' | 'memory'> {
     const currentStat = {
       error: this.error,
       maxConcurrent: this.concurrent,
@@ -77,9 +77,9 @@ export class Metrics extends EventEmitter {
       ...this.calculateStats(currentStat.sessionTimes),
       date: Date.now(),
     };
-  };
+  }
 
-  public reset = () => {
+  public reset() {
     this.successful = 0;
     this.error = 0;
     this.queued = 0;
@@ -90,7 +90,7 @@ export class Metrics extends EventEmitter {
     this.running = 0;
     this.unhealthy = 0;
     this.sessionTimes = [];
-  };
+  }
 
   protected calculateStats(sessionTimes: number[]) {
     return {
@@ -112,12 +112,12 @@ export class Metrics extends EventEmitter {
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
+  public async shutdown() {
     await this.stop();
-  };
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

@@ -44,7 +44,7 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
   path = HTTPRoutes.jsonNew;
   tags = [APITags.browserAPI];
 
-  handler = async (_req: Request, res: Response): Promise<void> => {
+  async handler(_req: Request, res: Response): Promise<void> {
     const config = this.config();
     const externalAddress = config.getExternalWebSocketAddress();
     const id = pageID();
@@ -64,5 +64,5 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
       url: 'about:blank',
       webSocketDebuggerUrl: href,
     });
-  };
+  }
 }

@@ -55,12 +55,12 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.function, HTTPRoutes.chromiumFunction];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ): Promise<void> => {
+  ): Promise<void> {
     const config = this.config();
     const handler = functionHandler(config, logger);
     const { contentType, payload, page } = await handler(req, browser);
@@ -88,5 +88,5 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     }
 
     return;
-  };
+  }
 }

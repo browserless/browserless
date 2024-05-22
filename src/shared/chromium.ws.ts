@@ -23,11 +23,13 @@ export default class ChromiumCDPWebSocketRoute extends BrowserWebsocketRoute {
   description = `Launch and connect to Chromium with a library like puppeteer or others that work over chrome-devtools-protocol.`;
   path = [WebsocketRoutes['/'], WebsocketRoutes.chromium];
   tags = [APITags.browserWS];
-  handler = async (
+  async handler(
     req: Request,
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
     browser: ChromiumCDP,
-  ): Promise<void> => browser.proxyWebSocket(req, socket, head);
+  ): Promise<void> {
+    return browser.proxyWebSocket(req, socket, head);
+  }
 }

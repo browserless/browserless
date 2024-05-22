@@ -40,32 +40,31 @@ export class Router extends EventEmitter {
     return timer ? +timer : undefined;
   }
 
-  protected onQueueFullHTTP = (_req: Request, res: Response) => {
+  protected onQueueFullHTTP(_req: Request, res: Response) {
     this.log.warn(`Queue is full, sending 429 response`);
     return writeResponse(res, 429, 'Too many requests');
-  };
+  }
 
-  protected onQueueFullWebSocket = (_req: Request, socket: stream.Duplex) => {
+  protected onQueueFullWebSocket(_req: Request, socket: stream.Duplex) {
     this.log.warn(`Queue is full, sending 429 response`);
     return writeResponse(socket, 429, 'Too many requests');
-  };
+  }
 
-  protected onHTTPTimeout = (_req: Request, res: Response) => {
+  protected onHTTPTimeout(_req: Request, res: Response) {
     this.log.error(`HTTP job has timedout, sending 429 response`);
     return writeResponse(res, 408, 'Request has timed out');
-  };
+  }
 
-  protected onWebsocketTimeout = (_req: Request, socket: stream.Duplex) => {
+  protected onWebsocketTimeout(_req: Request, socket: stream.Duplex) {
     this.log.error(`Websocket job has timedout, sending 429 response`);
     return writeResponse(socket, 408, 'Request has timed out');
-  };
+  }
 
-  protected wrapHTTPHandler =
-    (
-      route: HTTPRoute | BrowserHTTPRoute,
-      handler: HTTPRoute['handler'] | BrowserHTTPRoute['handler'],
-    ) =>
-    async (req: Request, res: Response) => {
+  protected wrapHTTPHandler(
+    route: HTTPRoute | BrowserHTTPRoute,
+    handler: HTTPRoute['handler'] | BrowserHTTPRoute['handler'],
+  ) {
+    return async (req: Request, res: Response) => {
       if (!isConnected(res)) {
         this.log.warn(`HTTP Request has closed prior to running`);
         return Promise.resolve();
@@ -110,13 +109,13 @@ export class Router extends EventEmitter {
 
       return (handler as HTTPRoute['handler'])(req, res, logger);
     };
+  }
 
-  protected wrapWebSocketHandler =
-    (
-      route: WebSocketRoute | BrowserWebsocketRoute,
-      handler: WebSocketRoute['handler'] | BrowserWebsocketRoute['handler'],
-    ) =>
-    async (req: Request, socket: stream.Duplex, head: Buffer) => {
+  protected wrapWebSocketHandler(
+    route: WebSocketRoute | BrowserWebsocketRoute,
+    handler: WebSocketRoute['handler'] | BrowserWebsocketRoute['handler'],
+  ) {
+    return async (req: Request, socket: stream.Duplex, head: Buffer) => {
       if (!isConnected(socket)) {
         this.log.warn(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
@@ -150,6 +149,7 @@ export class Router extends EventEmitter {
       }
       return (handler as WebSocketRoute['handler'])(req, socket, head, logger);
     };
+  }
 
   public registerHTTPRoute(
     route: HTTPRoute | BrowserHTTPRoute,
@@ -256,14 +256,14 @@ export class Router extends EventEmitter {
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
+  public async shutdown() {
     this.httpRoutes = [];
     this.webSocketRoutes = [];
-    await this.stop();
-  };
+    return await this.stop();
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

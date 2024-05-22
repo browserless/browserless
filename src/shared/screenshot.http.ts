@@ -83,12 +83,12 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.screenshot, HTTPRoutes.chromiumScreenshot];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ): Promise<void> => {
+  ): Promise<void> {
     logger.info('Screenshot API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
@@ -267,5 +267,5 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
 
     page.close().catch(noop);
     logger.info('Screenshot API request completed');
-  };
+  }
 }

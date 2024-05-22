@@ -24,7 +24,7 @@ export default class MetricsGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.metrics;
   tags = [APITags.management];
-  handler = async (_req: Request, res: ServerResponse): Promise<void> => {
+  async handler(_req: Request, res: ServerResponse): Promise<void> {
     const fileSystem = this.fileSystem();
     const config = this.config();
 
@@ -32,5 +32,5 @@ export default class MetricsGetRoute extends HTTPRoute {
     const response = `[${stats.join(',')}]`;
 
     return writeResponse(res, 200, response, contentTypes.json);
-  };
+  }
 }

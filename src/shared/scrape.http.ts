@@ -216,12 +216,12 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.scrape, HTTPRoutes.chromiumScrape];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ) => {
+  ) {
     logger.info('Scrape API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
@@ -440,5 +440,5 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     logger.info('Scrape API request completed');
 
     return jsonResponse(res, 200, response, false);
-  };
+  }
 }

@@ -59,13 +59,13 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.download, HTTPRoutes.chromiumDownload];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ): Promise<void> =>
-    new Promise(async (resolve, reject) => {
+  ): Promise<void> {
+    return new Promise(async (resolve, reject) => {
       const config = this.config();
       const downloadPath = path.join(
         await config.getDownloadsDir(),
@@ -153,4 +153,5 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
         })
         .pipe(res);
     });
+  }
 }

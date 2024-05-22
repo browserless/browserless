@@ -19,7 +19,7 @@ export type ErrorFn<TArgs extends unknown[]> = (...args: TArgs) => void;
 interface Job {
   (): Promise<unknown>;
   args: unknown[];
-  onTimeoutFn: (job: Job) => unknown;
+  onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
 }
@@ -160,12 +160,12 @@ export class Limiter extends q {
     return this.length < this.concurrency + this.queued;
   }
 
-  public limit = <TArgs extends unknown[], TResult>(
+  public limit<TArgs extends unknown[], TResult>(
     limitFn: LimitFn<TArgs, TResult>,
     overCapacityFn: ErrorFn<TArgs>,
     onTimeoutFn: ErrorFn<TArgs>,
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
-  ): LimitFn<TArgs, unknown> => {
+  ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise(async (res, rej) => {
         const timeout = timeoutOverrideFn(...args) ?? this.timeout;
@@ -227,18 +227,18 @@ export class Limiter extends q {
 
         return bound;
       });
-  };
+  }
 
   /**
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
-    await this.stop();
-  };
+  public async shutdown() {
+    return await this.stop();
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }
