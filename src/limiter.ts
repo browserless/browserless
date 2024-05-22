@@ -62,15 +62,15 @@ export class Limiter extends q {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.addEventListener('timeout', this.handleJobTimeout as any);
+    this.addEventListener('timeout', this.handleJobTimeout.bind(this) as any);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.addEventListener('success', this.handleSuccess as any);
+    this.addEventListener('success', this.handleSuccess.bind(this) as any);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.addEventListener('error', this.handleFail as any);
+    this.addEventListener('error', this.handleFail.bind(this) as any);
 
-    this.addEventListener('end', this.handleEnd);
+    this.addEventListener('end', this.handleEnd.bind(this));
   }
 
   protected handleEnd() {

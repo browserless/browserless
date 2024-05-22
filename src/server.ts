@@ -80,8 +80,9 @@ export class HTTPServer extends EventEmitter {
   public async start(): Promise<void> {
     this.logger.info(`HTTP Server is starting`);
 
-    this.server.on('request', this.handleRequest);
-    this.server.on('upgrade', this.handleWebSocket);
+    this.server.on('request', this.handleRequest.bind(this));
+    this.server.on('upgrade', this.handleWebSocket.bind(this));
+
     const listenMessage = [
       `HTTP Server is listening on ${this.config.getServerAddress()}`,
       `Use ${this.config.getExternalAddress()} for API and connect calls`,
@@ -303,6 +304,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
+    console.log(this);
     this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;

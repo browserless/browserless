@@ -211,7 +211,7 @@ export class ChromiumCDP extends EventEmitter {
       `Launching ${this.constructor.name} Handler`,
     );
     this.browser = (await launch(finalOptions)) as Browser;
-    this.browser.on('targetcreated', this.onTargetCreated);
+    this.browser.on('targetcreated', this.onTargetCreated.bind(this));
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
     this.logger.info(
