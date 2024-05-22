@@ -164,9 +164,9 @@ export class Router extends EventEmitter {
     route.handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
-          this.onQueueFullHTTP,
-          this.onHTTPTimeout,
-          this.getTimeout,
+          this.onQueueFullHTTP.bind(this),
+          this.onHTTPTimeout.bind(this),
+          this.getTimeout.bind(this),
         )
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];
@@ -194,9 +194,9 @@ export class Router extends EventEmitter {
     route.handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
-          this.onQueueFullWebSocket,
-          this.onWebsocketTimeout,
-          this.getTimeout,
+          this.onQueueFullWebSocket.bind(this),
+          this.onWebsocketTimeout.bind(this),
+          this.getTimeout.bind(this),
         )
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];

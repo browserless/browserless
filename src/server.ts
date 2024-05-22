@@ -304,7 +304,6 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
-    console.log(this);
     this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
