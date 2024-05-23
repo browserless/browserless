@@ -175,7 +175,7 @@ export default class HelloWorldRoute extends HTTPRoute {
   // Handler is a function, getting the request and response objects, and is where you'll write the
   // core logic behind this route. Use utilities like writeResponse or writeJSONResponse to help
   // return the appropriate response.
-  handler = async (_req, res, _logger: Logger): Promise<void> => {
+  async handler (_req, res, _logger: Logger): Promise<void> {
     const response: ResponseSchema = 'Hello World!';
     return writeResponse(res, 200, ResponseSchema, contentTypes.text);
   };
@@ -228,8 +228,9 @@ export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
   // Routes with a browser type get a browser argument of the Browser instance, otherwise
   // request, socket, and head are the other 3 arguments. Here we pass them through
   // and proxy the request into Chromium to handle.
-  handler = async (req, socket, head, logger, chromium): Promise<void> =>
-    chromium.proxyWebSocket(req, socket, head);
+  async handler (req, socket, head, logger, chromium): Promise<void> {
+    return chromium.proxyWebSocket(req, socket, head);
+  }
 }
 ```
 
@@ -284,7 +285,7 @@ import { Config } from '@browserless.io/browserless';
 // Your config class must be the default export
 // and you can export the Class or an instance of it.
 export default class MyConfig extends Config {
-  public getS3Bucket = (): string => {
+  public getS3Bucket(): string {
     // Load from environment variables or default to some other named bucket.
     return process.env.S3_BUCKET ?? 'my-fun-s3-bucket';
   };
@@ -344,7 +345,7 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
   tags = [APITags.browserAPI];
 
   // Handler's are where we embed the logic that facilitates this route.
-  handler = async (req, res, logger, browser): Promise<void> => {
+  async handler (req, res, logger, browser): Promise<void> {
     // Modules like Config are injected via this internal methods.
     // Use them to load core modules within the platform.
     const config = this.config() as MyConfig;
