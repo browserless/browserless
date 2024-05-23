@@ -1,6 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.11.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.12.0...main)
+- Dependency updates.
+
+# [v2.12.0](https://github.com/browserless/chrome/compare/v2.11.0...v2.12.0)
 **Potentially Breaking**
-- SDK projects should now use standard Class method properties versus the "fat-arrow" style instance methods.
+- SDK projects should now use conventional class method properties versus the "fat-arrow" style instance methods.
 
 **Updates**
 - Support for multi-version playwright (puppeteer coming soon). Browserless now checks the version in the User-Agent header and loads the appropriate playwright server for it.
