@@ -37,7 +37,7 @@ import path from 'path';
 
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
-  protected timers: Map<string, number> = new Map();
+  protected timers: Map<string, NodeJS.Timeout> = new Map();
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP];
   protected playwrightBrowserNames = [
@@ -52,10 +52,13 @@ export class BrowserManager {
     protected hooks: Hooks,
   ) {}
 
-  protected browserIsChrome = (b: BrowserInstance) =>
-    this.chromeBrowsers.some((chromeBrowser) => b instanceof chromeBrowser);
+  protected browserIsChrome(b: BrowserInstance) {
+    return this.chromeBrowsers.some(
+      (chromeBrowser) => b instanceof chromeBrowser,
+    );
+  }
 
-  protected removeUserDataDir = async (userDataDir: string | null) => {
+  protected async removeUserDataDir(userDataDir: string | null) {
     if (userDataDir && (await exists(userDataDir))) {
       this.log.info(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
@@ -64,18 +67,18 @@ export class BrowserManager {
         );
       });
     }
-  };
+  }
 
-  protected onNewPage = async (req: Request, page: Page) => {
-    await this.hooks.page({ meta: req.parsed, page });
-  };
+  protected async onNewPage(req: Request, page: Page) {
+    return await this.hooks.page({ meta: req.parsed, page });
+  }
 
   /**
    * Returns the /json/protocol API contents from Chromium or Chrome, whichever is installed,
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getProtocolJSON = async (logger: Logger): Promise<object> => {
+  public async getProtocolJSON(logger: Logger): Promise<object> {
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -104,14 +107,14 @@ export class BrowserManager {
     browser.close();
 
     return protocolJSON;
-  };
+  }
 
   /**
    * Returns the /json/version API from Chromium or Chrome, whichever is installed,
    * and modifies URLs to set them to the appropriate addresses configured.
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
-  public getVersionJSON = async (logger: Logger): Promise<CDPJSONPayload> => {
+  public async getVersionJSON(logger: Logger): Promise<CDPJSONPayload> {
     this.log.info(`Launching Chromium to generate /json/version results`);
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
@@ -149,14 +152,14 @@ export class BrowserManager {
       'Debugger-Version': debuggerVersion,
       webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
     };
-  };
+  }
 
   /**
    * Returns a list of all Chrome-like browsers (both Chromium and Chrome) with
    * their respective /json/list contents. URLs are modified so that subsequent
    * calls can be forwarded to the appropriate destination
    */
-  public getJSONList = async (): Promise<Array<CDPJSONPayload>> => {
+  public async getJSONList(): Promise<Array<CDPJSONPayload>> {
     const externalAddress = this.config.getExternalWebSocketAddress();
     const externalURL = new URL(externalAddress);
     const sessions = Array.from(this.browsers);
@@ -214,19 +217,19 @@ export class BrowserManager {
     return cdpResponse
       .flat()
       .filter((_) => _ !== null) as Array<CDPJSONPayload>;
-  };
+  }
 
-  protected generateSessionJson = async (
+  protected async generateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
-  ) => {
+  ) {
     const serverAddress = this.config.getExternalAddress();
 
     const sessions = [
       {
         ...session,
         browser: browser.constructor.name,
-        browserId: browser.wsEndpoint()?.split('/').pop() as string,
+        browserId: session.id,
         initialConnectURL: new URL(session.initialConnectURL, serverAddress)
           .href,
         killURL: session.id
@@ -262,35 +265,63 @@ export class BrowserManager {
       }
     }
     return sessions;
-  };
+  }
 
-  public close = async (
+  public async close(
     browser: BrowserInstance,
     session: BrowserlessSession,
-  ): Promise<void> => {
+  ): Promise<void> {
+    const now = Date.now();
+    const keepUntil = browser.keepUntil();
+    const connected = session.numbConnected;
+    const hasKeepUntil = keepUntil > now;
+    const keepOpen = connected > 0 || hasKeepUntil;
     const cleanupACtions: Array<() => Promise<void>> = [];
-    this.log.info(`${session.numbConnected} Client(s) are currently connected`);
+    const priorTimer = this.timers.get(session.id);
 
-    // Don't close if there's clients still connected
-    if (session.numbConnected > 0 || browser.keepAlive()) {
-      return;
+    if (priorTimer) {
+      this.log.info(`Deleting prior keep-until timer for "${session.id}"`);
+      global.clearTimeout(priorTimer);
     }
 
-    this.log.info(`Closing browser session`);
-    cleanupACtions.push(() => browser.close());
+    this.log.info(
+      `${session.numbConnected} Client(s) are currently connected, Keep-until: ${keepUntil}`,
+    );
 
-    if (session.isTempDataDir) {
-      this.log.info(
-        `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+    if (hasKeepUntil) {
+      const timeout = keepUntil - now;
+      this.log.trace(
+        `Setting timer ${timeout.toLocaleString()} for "${session.id}"`,
       );
-      this.browsers.delete(browser);
-      cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
+      this.timers.set(
+        session.id,
+        global.setTimeout(() => {
+          const session = this.browsers.get(browser);
+          if (session) {
+            this.log.trace(`Timer hit for "${session.id}"`),
+              this.close(browser, session);
+          }
+        }, timeout),
+      );
     }
 
-    await Promise.all(cleanupACtions.map((a) => a()));
-  };
+    if (!keepOpen) {
+      this.log.info(`Closing browser session`);
+      cleanupACtions.push(() => browser.close());
 
-  public getAllSessions = async (): Promise<BrowserlessSessionJSON[]> => {
+      if (session.isTempDataDir) {
+        this.log.info(
+          `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+        );
+        this.browsers.delete(browser);
+        cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
+      }
+
+      await Promise.all(cleanupACtions.map((a) => a()));
+    }
+  }
+
+  public async getAllSessions(): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
 
     const formattedSessions: BrowserlessSessionJSON[] = [];
@@ -299,9 +330,9 @@ export class BrowserManager {
       formattedSessions.push(...formattedSession);
     }
     return formattedSessions;
-  };
+  }
 
-  public complete = async (browser: BrowserInstance): Promise<void> => {
+  public async complete(browser: BrowserInstance): Promise<void> {
     const session = this.browsers.get(browser);
     if (!session) {
       this.log.info(
@@ -319,13 +350,13 @@ export class BrowserManager {
     --session.numbConnected;
 
     this.close(browser, session);
-  };
+  }
 
-  public getBrowserForRequest = async (
+  public async getBrowserForRequest(
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
-  ): Promise<BrowserInstance> => {
+  ): Promise<BrowserInstance> {
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
@@ -459,8 +490,14 @@ export class BrowserManager {
       userDataDir,
     });
 
+    const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
+    const pwVersion = match ? match[1] : 'default';
+
+    await browser.launch(launchOptions as object, pwVersion);
+    await this.hooks.browser({ browser, meta: req.parsed });
+
     const session: BrowserlessSession = {
-      id: null,
+      id: browser.wsEndpoint()?.split('/').pop() as string,
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
       isTempDataDir: !manualUserDataDir,
@@ -475,21 +512,15 @@ export class BrowserManager {
 
     this.browsers.set(browser, session);
 
-    const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
-    const pwVersion = match ? match[1] : 'default';
-
-    await browser.launch(launchOptions as object, pwVersion);
-    await this.hooks.browser({ browser, meta: req.parsed });
-
     browser.on('newPage', async (page) => {
       await this.onNewPage(req, page);
       (router.onNewPage || noop)(req.parsed || '', page);
     });
 
     return browser;
-  };
+  }
 
-  public shutdown = async (): Promise<void> => {
+  public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
     await Promise.all(sessions.map(([b]) => b.close()));
@@ -500,10 +531,10 @@ export class BrowserManager {
     this.timers = new Map();
     await this.stop();
     this.log.info(`Shutdown complete`);
-  };
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

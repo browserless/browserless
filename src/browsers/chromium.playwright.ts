@@ -43,13 +43,15 @@ export class ChromiumPlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepAlive() {
-    return false;
+  public keepUntil() {
+    return 0;
   }
 
-  public isRunning = (): boolean => this.running;
+  public isRunning(): boolean {
+    return this.running;
+  }
 
-  public close = async (): Promise<void> => {
+  public async close(): Promise<void> {
     if (this.browser) {
       this.logger.info(
         `Closing ${this.constructor.name} process and all listeners`,
@@ -61,23 +63,25 @@ export class ChromiumPlaywright extends EventEmitter {
       this.browser = null;
       this.browserWSEndpoint = null;
     }
-  };
+  }
 
-  public pages = async (): Promise<[]> => [];
+  public async pages(): Promise<[]> {
+    return [];
+  }
 
-  public getPageId = (): string => {
+  public getPageId(): string {
     throw new ServerError(
       `#getPageId is not yet supported with ${this.constructor.name}.`,
     );
-  };
+  }
 
-  public makeLiveURL = (): void => {
+  public makeLiveURL(): void {
     throw new ServerError(
       `Live URLs are not yet supported with ${this.constructor.name}. In the future this will be at "${this.config.getExternalAddress()}"`,
     );
-  };
+  }
 
-  public newPage = async (): Promise<Page> => {
+  public async newPage(): Promise<Page> {
     if (!this.browser || !this.browserWSEndpoint) {
       throw new ServerError(
         `${this.constructor.name} hasn't been launched yet!`,
@@ -85,12 +89,12 @@ export class ChromiumPlaywright extends EventEmitter {
     }
     const browser = await playwright.chromium.connect(this.browserWSEndpoint);
     return await browser.newPage();
-  };
+  }
 
-  public launch = async (
+  public async launch(
     options: BrowserServerOptions = {},
     version?: string,
-  ): Promise<playwright.BrowserServer> => {
+  ): Promise<playwright.BrowserServer> {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     const opts = {
@@ -115,11 +119,13 @@ export class ChromiumPlaywright extends EventEmitter {
     this.browserWSEndpoint = browserWSEndpoint;
 
     return this.browser;
-  };
+  }
 
-  public wsEndpoint = (): string | null => this.browserWSEndpoint;
+  public wsEndpoint(): string | null {
+    return this.browserWSEndpoint;
+  }
 
-  public publicWSEndpoint = (token: string | null): string | null => {
+  public publicWSEndpoint(token: string | null): string | null {
     if (!this.browserWSEndpoint) {
       return null;
     }
@@ -134,18 +140,18 @@ export class ChromiumPlaywright extends EventEmitter {
     }
 
     return externalURL.href;
-  };
+  }
 
-  public proxyPageWebSocket = async () => {
+  public async proxyPageWebSocket() {
     this.logger.warn(`${this.constructor.name} Not yet implemented`);
-  };
+  }
 
-  public proxyWebSocket = async (
+  public async proxyWebSocket(
     req: Request,
     socket: Duplex,
     head: Buffer,
-  ): Promise<void> =>
-    new Promise((resolve, reject) => {
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
@@ -179,4 +185,5 @@ export class ChromiumPlaywright extends EventEmitter {
         },
       );
     });
+  }
 }

@@ -29,11 +29,13 @@ export default class ChromiumPageWebSocketRoute extends BrowserWebsocketRoute {
   );
   path = WebsocketRoutes.page;
   tags = [APITags.browserWS];
-  handler = async (
+  async handler(
     req: Request,
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
     browser: ChromiumCDP,
-  ): Promise<void> => browser.proxyPageWebSocket(req, socket, head);
+  ): Promise<void> {
+    return browser.proxyPageWebSocket(req, socket, head);
+  }
 }

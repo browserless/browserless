@@ -59,16 +59,16 @@ export class ChromiumCDP extends EventEmitter {
     this.removeAllListeners();
   }
 
-  public keepAlive() {
-    return false;
+  public keepUntil() {
+    return 0;
   }
 
-  public getPageId = (page: Page): string => {
+  public getPageId(page: Page): string {
     // @ts-ignore
     return page.target()._targetId;
-  };
+  }
 
-  protected onTargetCreated = async (target: Target) => {
+  protected async onTargetCreated(target: Target) {
     if (target.type() === 'page') {
       const page = await target.page().catch((e) => {
         this.logger.error(`Error in ${this.constructor.name} new page ${e}`);
@@ -130,11 +130,13 @@ export class ChromiumCDP extends EventEmitter {
         this.emit('newPage', page);
       }
     }
-  };
+  }
 
-  public isRunning = (): boolean => this.running;
+  public isRunning(): boolean {
+    return this.running;
+  }
 
-  public newPage = async (): Promise<Page> => {
+  public async newPage(): Promise<Page> {
     if (!this.browser) {
       throw new ServerError(
         `${this.constructor.name} hasn't been launched yet!`,
@@ -142,9 +144,9 @@ export class ChromiumCDP extends EventEmitter {
     }
 
     return this.browser.newPage();
-  };
+  }
 
-  public close = async (): Promise<void> => {
+  public async close(): Promise<void> {
     if (this.browser) {
       this.logger.info(
         `Closing ${this.constructor.name} process and all listeners`,
@@ -157,13 +159,17 @@ export class ChromiumCDP extends EventEmitter {
       this.browser = null;
       this.browserWSEndpoint = null;
     }
-  };
+  }
 
-  public pages = async (): Promise<Page[]> => this.browser?.pages() || [];
+  public async pages(): Promise<Page[]> {
+    return this.browser?.pages() || [];
+  }
 
-  public process = () => this.browser?.process() || null;
+  public process() {
+    return this.browser?.process() || null;
+  }
 
-  public launch = async (options: CDPLaunchOptions = {}): Promise<Browser> => {
+  public async launch(options: CDPLaunchOptions = {}): Promise<Browser> {
     this.port = await getPort();
     this.logger.info(`${this.constructor.name} got open port ${this.port}`);
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -205,7 +211,7 @@ export class ChromiumCDP extends EventEmitter {
       `Launching ${this.constructor.name} Handler`,
     );
     this.browser = (await launch(finalOptions)) as Browser;
-    this.browser.on('targetcreated', this.onTargetCreated);
+    this.browser.on('targetcreated', this.onTargetCreated.bind(this));
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
     this.logger.info(
@@ -213,11 +219,13 @@ export class ChromiumCDP extends EventEmitter {
     );
 
     return this.browser;
-  };
+  }
 
-  public wsEndpoint = (): string | null => this.browserWSEndpoint;
+  public wsEndpoint(): string | null {
+    return this.browserWSEndpoint;
+  }
 
-  public publicWSEndpoint = (token: string | null): string | null => {
+  public publicWSEndpoint(token: string | null): string | null {
     if (!this.browserWSEndpoint) {
       return null;
     }
@@ -232,14 +240,14 @@ export class ChromiumCDP extends EventEmitter {
     }
 
     return externalURL.href;
-  };
+  }
 
-  public proxyPageWebSocket = async (
+  public async proxyPageWebSocket(
     req: Request,
     socket: Duplex,
     head: Buffer,
-  ): Promise<void> =>
-    new Promise(async (resolve, reject) => {
+  ): Promise<void> {
+    return new Promise(async (resolve, reject) => {
       if (!this.browserWSEndpoint || !this.browser) {
         throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
@@ -280,13 +288,14 @@ export class ChromiumCDP extends EventEmitter {
         },
       );
     });
+  }
 
-  public proxyWebSocket = async (
+  public async proxyWebSocket(
     req: Request,
     socket: Duplex,
     head: Buffer,
-  ): Promise<void> =>
-    new Promise((resolve, reject) => {
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(
           `No browserWSEndpoint found, did you launch first?`,
@@ -330,4 +339,5 @@ export class ChromiumCDP extends EventEmitter {
         },
       );
     });
+  }
 }

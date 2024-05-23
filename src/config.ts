@@ -168,55 +168,111 @@ export class Config extends EventEmitter {
   protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
   protected pwVersions: { [key: string]: string } = {};
 
-  public getRoutes = (): string => this.routes;
-  public getHost = (): string => this.host;
-  public getPort = (): number => this.port;
-  public getIsWin = (): boolean => this.isWin;
-  public getToken = (): string | null => this.token;
-  public getDebug = (): string => this.debug;
-  public getPwVersions = () => this.pwVersions;
+  public getRoutes(): string {
+    return this.routes;
+  }
+
+  public getHost(): string {
+    return this.host;
+  }
+
+  public getPort(): number {
+    return this.port;
+  }
+
+  public getIsWin(): boolean {
+    return this.isWin;
+  }
+
+  public getToken(): string | null {
+    return this.token;
+  }
+
+  public getDebug(): string {
+    return this.debug;
+  }
+
+  public getPwVersions() {
+    return this.pwVersions;
+  }
 
   /**
    * The maximum number of concurrent sessions allowed. Set
    * to "-1" or "Infinity" for no limit.
    * @returns number
    */
-  public getConcurrent = (): number => this.concurrent;
+  public getConcurrent(): number {
+    return this.concurrent;
+  }
 
   /**
    * The maximum number of queued sessions allowed. Set to
    * "-1" or "Infinity" for no limit.
    * @returns number
    */
-  public getQueued = (): number => this.queued;
-  public getTimeout = (): number => this.timeout;
-  public getStatic = (): string => this.static;
-  public getDebuggerDir = (): string => this.debuggerDir;
-  public getRetries = (): number => this.retries;
-  public getAllowFileProtocol = (): boolean => this.allowFileProtocol;
-  public getCPULimit = (): number => this.maxCpu;
-  public getMemoryLimit = (): number => this.maxMemory;
-  public getHealthChecksEnabled = (): boolean => this.healthCheck;
-  public getFailedHealthURL = () => this.failedHealthURL;
-  public getQueueAlertURL = () => this.queueAlertURL;
-  public getRejectAlertURL = () => this.rejectAlertURL;
-  public getTimeoutAlertURL = () => this.timeoutAlertURL;
-  public getErrorAlertURL = () => this.errorAlertURL;
+  public getQueued(): number {
+    return this.queued;
+  }
+  public getTimeout(): number {
+    return this.timeout;
+  }
+  public getStatic(): string {
+    return this.static;
+  }
+  public getDebuggerDir(): string {
+    return this.debuggerDir;
+  }
+  public getRetries(): number {
+    return this.retries;
+  }
+  public getAllowFileProtocol(): boolean {
+    return this.allowFileProtocol;
+  }
+  public getCPULimit(): number {
+    return this.maxCpu;
+  }
+  public getMemoryLimit(): number {
+    return this.maxMemory;
+  }
+  public getHealthChecksEnabled(): boolean {
+    return this.healthCheck;
+  }
+  public getFailedHealthURL() {
+    return this.failedHealthURL;
+  }
+  public getQueueAlertURL() {
+    return this.queueAlertURL;
+  }
+  public getRejectAlertURL() {
+    return this.rejectAlertURL;
+  }
+  public getTimeoutAlertURL() {
+    return this.timeoutAlertURL;
+  }
+  public getErrorAlertURL() {
+    return this.errorAlertURL;
+  }
 
-  public hasDebugger = (): Promise<boolean> => exists(this.debuggerDir);
+  public hasDebugger(): Promise<boolean> {
+    return exists(this.debuggerDir);
+  }
 
   /**
    * If true, allows GET style calls on our browser-based APIs, using
    * ?body=JSON format.
    */
-  public getAllowGetCalls = (): boolean => this.allowGet;
+  public getAllowGetCalls(): boolean {
+    return this.allowGet;
+  }
 
   /**
    * Determines if CORS is allowed
    */
-  public getAllowCORS = (): boolean => this.allowCors;
+  public getAllowCORS(): boolean {
+    return this.allowCors;
+  }
 
-  public getDataDir = async (): Promise<string> => {
+  public async getDataDir(): Promise<string> {
     if (this.createDataDir && !(await exists(this.dataDir))) {
       await mkdir(this.dataDir, { recursive: true }).catch((err) => {
         throw new Error(`Error in creating the data directory ${err}, exiting`);
@@ -231,9 +287,9 @@ export class Config extends EventEmitter {
     }
 
     return this.dataDir;
-  };
+  }
 
-  public getDownloadsDir = async (): Promise<string> => {
+  public async getDownloadsDir(): Promise<string> {
     if (this.createDownloadsDir && !(await exists(this.downloadsDir))) {
       await mkdir(this.downloadsDir, { recursive: true }).catch((err) => {
         throw new Error(
@@ -250,27 +306,27 @@ export class Config extends EventEmitter {
     }
 
     return this.downloadsDir;
-  };
+  }
 
   /**
    * Repeats the TOKEN parameter up to 24 characters so we can
    * do AES encoding for saving things to disk and generating
    * secure links.
    */
-  public getAESKey = () => {
+  public getAESKey() {
     const aesToken = this.token || 'browserless';
     return Buffer.from(aesToken.repeat(keyLength).substring(0, keyLength));
-  };
+  }
 
-  public getMetricsJSONPath = () => this.metricsJSONPath;
+  public getMetricsJSONPath() {
+    return this.metricsJSONPath;
+  }
 
-  public setPwVersions = (versions: { [key: string]: string }) => {
-    this.pwVersions = versions;
-  };
+  public setPwVersions(versions: { [key: string]: string }) {
+    return (this.pwVersions = versions);
+  }
 
-  public loadPwVersion = async (
-    version: string,
-  ): Promise<typeof playwright> => {
+  public async loadPwVersion(version: string): Promise<typeof playwright> {
     const versions = this.getPwVersions();
 
     try {
@@ -279,9 +335,9 @@ export class Config extends EventEmitter {
       debug.log('Error importing Playwright. Using default version', err);
       return playwright;
     }
-  };
+  }
 
-  public setDataDir = async (newDataDir: string): Promise<string> => {
+  public async setDataDir(newDataDir: string): Promise<string> {
     if (!(await exists(newDataDir))) {
       throw new Error(
         `New data-directory "${newDataDir}" doesn't exist, did you forget to mount or create it?`,
@@ -290,121 +346,121 @@ export class Config extends EventEmitter {
     this.dataDir = newDataDir;
     this.emit('data-dir', newDataDir);
     return this.dataDir;
-  };
+  }
 
-  public setRoutes = (newRoutePath: string): string => {
+  public setRoutes(newRoutePath: string): string {
     this.emit('routes', newRoutePath);
     return (this.routes = newRoutePath);
-  };
+  }
 
-  public setConcurrent = (newConcurrent: number): number => {
+  public setConcurrent(newConcurrent: number): number {
     this.emit('concurrent', newConcurrent);
     return (this.concurrent = newConcurrent);
-  };
+  }
 
-  public setQueued = (newQueued: number): number => {
+  public setQueued(newQueued: number): number {
     this.emit('queued', newQueued);
     return (this.queued = newQueued);
-  };
+  }
 
-  public setToken = (newToken: string | null): string | null => {
+  public setToken(newToken: string | null): string | null {
     this.emit('token', newToken);
     return (this.token = newToken);
-  };
+  }
 
-  public setTimeout = (newTimeout: number): number => {
+  public setTimeout(newTimeout: number): number {
     this.emit('timeout', newTimeout);
     return (this.timeout = newTimeout);
-  };
+  }
 
-  public setStatic = (newStatic: string): string => {
+  public setStatic(newStatic: string): string {
     this.emit('static', newStatic);
     return (this.static = newStatic);
-  };
+  }
 
-  public setRetries = (newRetries: number): number => {
+  public setRetries(newRetries: number): number {
     this.emit('retries', newRetries);
     return (this.retries = newRetries);
-  };
+  }
 
-  public setCPULimit = (limit: number): number => {
+  public setCPULimit(limit: number): number {
     this.emit('cpuLimit', limit);
     return (this.maxCpu = limit);
-  };
+  }
 
-  public setMemoryLimit = (limit: number): number => {
+  public setMemoryLimit(limit: number): number {
     this.emit('memoryLimit', limit);
     return (this.maxMemory = limit);
-  };
+  }
 
-  public enableHealthChecks = (enable: boolean): boolean => {
+  public enableHealthChecks(enable: boolean): boolean {
     this.emit('healthCheck', enable);
     return (this.healthCheck = enable);
-  };
+  }
 
-  public enableGETRequests = (enable: boolean): boolean => {
+  public enableGETRequests(enable: boolean): boolean {
     this.emit('getRequests', enable);
     return (this.allowGet = enable);
-  };
+  }
 
-  public enableCORS = (enable: boolean): boolean => {
+  public enableCORS(enable: boolean): boolean {
     this.emit('cors', enable);
     return (this.allowCors = enable);
-  };
+  }
 
-  public setCORSMethods = (methods: string): string => {
+  public setCORSMethods(methods: string): string {
     this.emit('corsMethods', methods);
     return (this.corsMethods = methods);
-  };
+  }
 
-  public setCORSOrigin = (origin: string): string => {
+  public setCORSOrigin(origin: string): string {
     this.emit('corsOrigin', origin);
     return (this.corsOrigin = origin);
-  };
+  }
 
-  public setCORSMaxAge = (maxAge: number): number => {
+  public setCORSMaxAge(maxAge: number): number {
     this.emit('corsMaxAge', maxAge);
     return (this.corsMaxAge = maxAge);
-  };
-  public setFailedHealthURL = (url: string | null): string | null => {
+  }
+  public setFailedHealthURL(url: string | null): string | null {
     this.emit('failedHealthURL');
     return (this.failedHealthURL = url);
-  };
+  }
 
-  public setQueueAlertURL = (url: string | null): string | null => {
+  public setQueueAlertURL(url: string | null): string | null {
     this.emit('queueAlertURL');
     return (this.queueAlertURL = url);
-  };
+  }
 
-  public setRejectAlertURL = (url: string | null): string | null => {
+  public setRejectAlertURL(url: string | null): string | null {
     this.emit('rejectAlertURL');
     return (this.rejectAlertURL = url);
-  };
+  }
 
-  public setTimeoutAlertURL = (url: string | null): string | null => {
+  public setTimeoutAlertURL(url: string | null): string | null {
     this.emit('timeoutAlertURL');
     return (this.timeoutAlertURL = url);
-  };
+  }
 
-  public setErrorAlertURL = (url: string | null): string | null => {
+  public setErrorAlertURL(url: string | null): string | null {
     this.emit('errorAlertURL');
     return (this.errorAlertURL = url);
-  };
+  }
 
-  public setMetricsJSONPath = (path: string) => {
+  public setMetricsJSONPath(path: string) {
     this.emit('metricsJSONPath', path);
     return (this.metricsJSONPath = path);
-  };
+  }
 
-  public setPort = (port: number) => {
+  public setPort(port: number) {
     this.emit('port', port);
     return (this.port = port);
-  };
+  }
 
-  public setAllowFileProtocol = (allow: boolean): boolean => {
+  public setAllowFileProtocol(allow: boolean): boolean {
     this.emit('allowFileProtocol', allow);
     return (this.allowFileProtocol = allow);
-  };
+  }
 
   /**
    * Returns the fully-qualified server address, which
@@ -415,12 +471,13 @@ export class Config extends EventEmitter {
    *
    * @returns Fully-qualified server address
    */
-  public getServerAddress = (): string =>
-    this.port === 443
+  public getServerAddress(): string {
+    return this.port === 443
       ? `https://${this.host}:${this.port}`
       : this.port === 80
         ? `http://${this.host}`
         : `http://${this.host}:${this.port}`;
+  }
 
   /**
    * Returns the fully-qualified URL for the
@@ -430,8 +487,9 @@ export class Config extends EventEmitter {
    *
    * @returns {string} The URL to reach the server
    */
-  public getExternalAddress = (): string =>
-    this.external ?? this.getServerAddress();
+  public getExternalAddress(): string {
+    return this.external ?? this.getServerAddress();
+  }
 
   /**
    * Set the external URL, which Browserless uses for encoding
@@ -440,7 +498,9 @@ export class Config extends EventEmitter {
    * @param address The fully-qualified URL, eg https://www.example.com/
    * @returns {string} The address
    */
-  public setExternalAddress = (address: string) => (this.external = address);
+  public setExternalAddress(address: string) {
+    return (this.external = address);
+  }
 
   /**
    * Returns the fully-qualified WebSocket URL for the
@@ -450,14 +510,14 @@ export class Config extends EventEmitter {
    *
    * @returns {string} The URL to reach the server
    */
-  public getExternalWebSocketAddress = (): string => {
+  public getExternalWebSocketAddress(): string {
     const httpAddress = new URL(this.external ?? this.getServerAddress());
     httpAddress.protocol = httpAddress.protocol.startsWith('https')
       ? 'wss:'
       : 'ws:';
 
     return httpAddress.href;
-  };
+  }
 
   /**
    * When CORS is enabled, returns relevant CORS headers
@@ -465,26 +525,28 @@ export class Config extends EventEmitter {
    * overridden by specifying `CORS_ALLOW_METHODS`, `CORS_ALLOW_ORIGIN`,
    * and `CORS_MAX_AGE`
    */
-  public getCORSHeaders = (): {
+  public getCORSHeaders(): {
     'Access-Control-Allow-Methods': string;
     'Access-Control-Allow-Origin': string;
     'Access-Control-Max-Age': number;
-  } => ({
-    'Access-Control-Allow-Methods': this.corsMethods,
-    'Access-Control-Allow-Origin': this.corsOrigin,
-    'Access-Control-Max-Age': this.corsMaxAge,
-  });
+  } {
+    return {
+      'Access-Control-Allow-Methods': this.corsMethods,
+      'Access-Control-Allow-Origin': this.corsOrigin,
+      'Access-Control-Max-Age': this.corsMaxAge,
+    };
+  }
 
   /**
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
+  public async shutdown() {
     await this.stop();
-  };
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

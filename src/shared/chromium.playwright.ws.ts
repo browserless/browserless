@@ -27,13 +27,13 @@ export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRo
     WebsocketRoutes.chromiumPlaywright,
   ];
   tags = [APITags.browserWS];
-  handler = async (
+  async handler(
     req: Request,
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
     browser: ChromiumPlaywright,
-  ): Promise<void> => {
+  ): Promise<void> {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()
       .includes('playwright');
@@ -45,5 +45,5 @@ export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRo
     }
 
     return browser.proxyWebSocket(req, socket, head);
-  };
+  }
 }

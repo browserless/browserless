@@ -251,11 +251,11 @@ export abstract class HTTPRoute extends BasicHTTPRoute {
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
-  abstract handler: (
+  abstract handler(
     req: Request,
     res: http.ServerResponse,
     logger: Logger,
-  ) => Promise<unknown>;
+  ): Promise<unknown>;
 }
 
 /**
@@ -272,12 +272,12 @@ export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
    * Handles an inbound HTTP request with a 3rd param of the predefined
    * browser used for the route -- only Chrome CDP is support currently.
    */
-  abstract handler: (
+  abstract handler(
     req: Request,
     res: http.ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ) => Promise<unknown>;
+  ): Promise<unknown>;
 
   /**
    * An optional function to automatically set up or handle new page
@@ -296,12 +296,12 @@ export abstract class WebSocketRoute extends Route {
   /**
    * Handles an inbound Websocket request, and handles the connection
    */
-  abstract handler: (
+  abstract handler(
     req: Request,
     socket: stream.Duplex,
     head: Buffer,
     logger: Logger,
-  ) => Promise<unknown>;
+  ): Promise<unknown>;
 }
 
 /**
@@ -377,12 +377,12 @@ export interface BrowserServerOptions {
 }
 
 export interface BrowserlessSession {
-  id: string | null;
+  id: string;
   initialConnectURL: string;
   isTempDataDir: boolean;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
-  resolver: (val: unknown) => void;
+  resolver(val: unknown): void;
   routePath: string | string[];
   startedOn: number;
   ttl: number;

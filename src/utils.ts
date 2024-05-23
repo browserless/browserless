@@ -50,7 +50,7 @@ const getAuthHeaderToken = (header: string) => {
 
 /**
  * RegEx to match the Playwright version from the innitial request header.
- * 
+ *
  * @example
  * const userAgent = "Playwright/1.43.1 (x64; windows 10.0) node/20.11";
  * userAgent.match(pwVersionRegex);

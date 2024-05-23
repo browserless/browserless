@@ -8,7 +8,7 @@ export class Monitoring extends EventEmitter {
     super();
   }
 
-  public getMachineStats = async (): Promise<IResourceLoad> => {
+  public async getMachineStats(): Promise<IResourceLoad> {
     const [cpuLoad, memLoad] = await Promise.all([
       si.currentLoad(),
       si.mem(),
@@ -24,14 +24,14 @@ export class Monitoring extends EventEmitter {
       cpu,
       memory,
     };
-  };
+  }
 
-  public overloaded = async (): Promise<{
+  public async overloaded(): Promise<{
     cpuInt: number | null;
     cpuOverloaded: boolean;
     memoryInt: number | null;
     memoryOverloaded: boolean;
-  }> => {
+  }> {
     const { cpu, memory } = await this.getMachineStats();
     const cpuInt = cpu && Math.ceil(cpu * 100);
     const memoryInt = memory && Math.ceil(memory * 100);
@@ -50,18 +50,18 @@ export class Monitoring extends EventEmitter {
       memoryInt,
       memoryOverloaded,
     };
-  };
+  }
 
   /**
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
-    await this.stop();
-  };
+  public async shutdown() {
+    return await this.stop();
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

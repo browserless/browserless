@@ -75,12 +75,12 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.content, HTTPRoutes.chromiumContent];
   tags = [APITags.browserAPI];
-  handler = async (
+  async handler(
     req: Request,
     res: ServerResponse,
     logger: Logger,
     browser: BrowserInstance,
-  ): Promise<void> => {
+  ): Promise<void> {
     logger.info('Content API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
@@ -238,5 +238,5 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
     logger.info('Content API request completed');
 
     return writeResponse(res, 200, markup, contentTypes.html);
-  };
+  }
 }

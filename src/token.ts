@@ -14,14 +14,14 @@ export class Token extends EventEmitter {
     super();
   }
 
-  public isAuthorized = async (
+  public async isAuthorized(
     req: Request,
     route:
       | BrowserHTTPRoute
       | BrowserWebsocketRoute
       | HTTPRoute
       | WebSocketRoute,
-  ): Promise<boolean> => {
+  ): Promise<boolean> {
     const token = this.config.getToken();
 
     if (token === null) {
@@ -39,18 +39,18 @@ export class Token extends EventEmitter {
     }
 
     return (Array.isArray(token) ? token : [token]).includes(requestToken);
-  };
+  }
 
   /**
    * Implement any browserless-core-specific shutdown logic here.
    * Calls the empty-SDK stop method for downstream implementations.
    */
-  public shutdown = async () => {
-    await this.stop();
-  };
+  public async shutdown() {
+    return await this.stop();
+  }
 
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop = () => {};
+  public stop() {}
 }

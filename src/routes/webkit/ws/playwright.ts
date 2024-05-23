@@ -24,13 +24,13 @@ export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRout
   description = `Connect to Webkit with any playwright-compliant library.`;
   path = [WebsocketRoutes.playwrightWebkit, WebsocketRoutes.webkitPlaywright];
   tags = [APITags.browserWS];
-  handler = async (
+  async handler(
     req: Request,
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
     browser: WebkitPlaywright,
-  ): Promise<void> => {
+  ): Promise<void> {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()
       .includes('playwright');
@@ -42,5 +42,5 @@ export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRout
     }
 
     return browser.proxyWebSocket(req, socket, head);
-  };
+  }
 }

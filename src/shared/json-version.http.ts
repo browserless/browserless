@@ -31,11 +31,7 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPRoutes.jsonVersion;
   tags = [APITags.browserAPI];
-  handler = async (
-    req: Request,
-    res: Response,
-    logger: Logger,
-  ): Promise<void> => {
+  async handler(req: Request, res: Response, logger: Logger): Promise<void> {
     const baseUrl = req.parsed.host;
     const protocol = req.parsed.protocol.includes('s') ? 'wss' : 'ws';
 
@@ -56,5 +52,5 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
         contentTypes.text,
       );
     }
-  };
+  }
 }
