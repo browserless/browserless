@@ -385,6 +385,7 @@ export interface BrowserlessSession {
   resolver(val: unknown): void;
   routePath: string | string[];
   startedOn: number;
+  trackingId?: string;
   ttl: number;
   userDataDir: string | null;
 }

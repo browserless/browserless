@@ -29,6 +29,7 @@ import {
   makeExternalURL,
   noop,
   parseBooleanParam,
+  parseStringParam,
   pwVersionRegex,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
@@ -363,6 +364,34 @@ export class BrowserManager {
       'blockAds',
       false,
     );
+    const trackingId =
+      parseStringParam(req.parsed.searchParams, 'trackingId', '') || undefined;
+
+    // Handle trackingId
+    if (trackingId) {
+      this.browsers.forEach((b) => {
+        if (b.trackingId === trackingId) {
+          throw new BadRequest(
+            `A browser session with trackingId "${trackingId}" already exists`,
+          );
+        }
+      });
+
+      if (trackingId.length > 32) {
+        throw new BadRequest(
+          `TrackingId "${trackingId}" must be less than 32 characters`,
+        );
+      }
+
+      if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
+        throw new BadRequest(
+          `trackingId contains invalid characters`,
+        );
+      }
+
+      this.log.info(`Assigning session trackingId "${trackingId}"`);
+    }
+
     const decodedLaunchOptions = convertIfBase64(
       req.parsed.searchParams.get('launch') || '{}',
     );
@@ -506,6 +535,7 @@ export class BrowserManager {
       resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
+      trackingId,
       ttl: 0,
       userDataDir,
     };
