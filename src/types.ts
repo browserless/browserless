@@ -401,6 +401,7 @@ export interface BrowserlessSessionJSON {
   routePath: string | string[];
   startedOn: number;
   timeAliveMs: number;
+  trackingId?: string;
   userDataDir: string | null;
 }
 

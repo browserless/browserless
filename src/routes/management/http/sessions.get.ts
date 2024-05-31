@@ -11,6 +11,10 @@ import {
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
+export interface QuerySchema {
+  trackingId?: string;
+}
+
 export type ResponseSchema = BrowserlessSessionJSON[];
 
 export default class SessionsGetRoute extends HTTPRoute {
@@ -24,9 +28,11 @@ export default class SessionsGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPManagementRoutes.sessions;
   tags = [APITags.management];
-  async handler(_req: Request, res: ServerResponse): Promise<void> {
+  async handler(req: Request, res: ServerResponse): Promise<void> {
+    const trackingId = (req.queryParams.trackingId as string) || undefined;
     const browserManager = this.browserManager();
-    const response: ResponseSchema = await browserManager.getAllSessions();
+    const response: ResponseSchema =
+      await browserManager.getAllSessions(trackingId);
 
     return jsonResponse(res, 200, response);
   }
