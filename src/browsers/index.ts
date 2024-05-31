@@ -322,14 +322,23 @@ export class BrowserManager {
     }
   }
 
-  public async getAllSessions(): Promise<BrowserlessSessionJSON[]> {
+  public async getAllSessions(
+    trackingId?: string,
+  ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
 
-    const formattedSessions: BrowserlessSessionJSON[] = [];
+    let formattedSessions: BrowserlessSessionJSON[] = [];
     for (const [browser, session] of sessions) {
       const formattedSession = await this.generateSessionJson(browser, session);
       formattedSessions.push(...formattedSession);
     }
+
+    if (trackingId) {
+      formattedSessions = formattedSessions.filter(
+        (s) => s.trackingId && s.trackingId === trackingId,
+      );
+    }
+
     return formattedSessions;
   }
 
@@ -383,10 +392,10 @@ export class BrowserManager {
         );
       }
 
-      if (['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))) {
-        throw new BadRequest(
-          `trackingId contains invalid characters`,
-        );
+      if (
+        ['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))
+      ) {
+        throw new BadRequest(`trackingId contains invalid characters`);
       }
 
       this.log.info(`Assigning session trackingId "${trackingId}"`);
