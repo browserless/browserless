@@ -6,12 +6,14 @@ import {
   HTTPRoute,
   Methods,
   Request,
+  SystemQueryParameters,
   contentTypes,
   jsonResponse,
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
-export interface QuerySchema {
+export interface QuerySchema extends SystemQueryParameters {
+  token: string;
   trackingId?: string;
 }
 
