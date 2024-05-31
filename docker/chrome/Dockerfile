@@ -31,6 +31,7 @@ RUN npx --yes playwright install chrome &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
+  npm run install:debugger &&\
   chown -R blessuser:blessuser $APP_DIR &&\
   fc-cache -f -v && \
   apt-get -qq clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
