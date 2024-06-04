@@ -532,7 +532,7 @@ export class BrowserManager {
     const pwVersion = match ? match[1] : 'default';
 
     await browser.launch(launchOptions as object, pwVersion);
-    await this.hooks.browser({ browser, meta: req.parsed });
+    await this.hooks.browser({ browser, req });
 
     const session: BrowserlessSession = {
       id: browser.wsEndpoint()?.split('/').pop() as string,
