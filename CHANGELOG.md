@@ -1,4 +1,6 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.12.0...main)
+**Potentially Breaking**
+- The `browser` hook now gets the `req` property for the full request instead of `meta`.
 - Dependency updates.
 
 # [v2.12.0](https://github.com/browserless/chrome/compare/v2.11.0...v2.12.0)
