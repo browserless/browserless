@@ -49,7 +49,7 @@ export interface BrowserHook {
     | ChromiumPlaywright
     | FirefoxPlaywright
     | WebkitPlaywright;
-  meta: URL;
+  req: Request;
 }
 
 export interface PageHook {
