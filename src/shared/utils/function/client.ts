@@ -53,7 +53,11 @@ export class FunctionRunner {
       });
     }
 
-    const response = await code({ context, page: this.page });
+    const response = await code({ context, page: this.page }).catch((e) => {
+      console.error(`Error running code: ${e}`);
+      this.browser?.disconnect();
+      throw e;
+    });
     console.debug(
       `_browserless_function_client_: Code is finished executing, closing page.`,
     );
