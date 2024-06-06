@@ -12,6 +12,7 @@ import {
 import { Duplex } from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
+  ignoreHTTPSErrors?: boolean;
   launch?: CDPLaunchOptions | string;
 }
 
