@@ -22,8 +22,8 @@ import {
   Router,
   Token,
   WebHooks,
+  WebKitPlaywright,
   WebSocketRoute,
-  WebkitPlaywright,
   availableBrowsers,
   getRouteFiles,
   makeExternalURL,
@@ -234,7 +234,7 @@ export class Browserless extends EventEmitter {
       ChromeCDP,
       FirefoxPlaywright,
       ChromiumPlaywright,
-      WebkitPlaywright,
+      WebKitPlaywright,
     ];
 
     const [[internalHttpRouteFiles, internalWsRouteFiles], installedBrowsers] =

@@ -10,7 +10,7 @@ import {
   Request,
   WaitForEventOptions,
   WaitForFunctionOptions,
-  WebkitPlaywright,
+  WebKitPlaywright,
   codes,
   contentTypes,
   encodings,
@@ -464,7 +464,7 @@ export const availableBrowsers = Promise.all([
   }
 
   if (webkitExists) {
-    availableBrowsers.push(WebkitPlaywright);
+    availableBrowsers.push(WebKitPlaywright);
   }
 
   return availableBrowsers;
