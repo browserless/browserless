@@ -1,4 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.12.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.13.0...main)
+- Merged duplicative code in browsers and fixed name `WebkitPlaywright` to `WebKitPlaywright` (capitalized "K").
+- Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
+**Potentially Breaking**
+- The `browser` hook now gets the `req` property for the full request instead of `meta`.
+- Now embeds the debugger located at `/debugger`.
+- Preliminary support for `trackingId`.
+- Bug fixes when dealing with ignoreHTTPSError parameters.
+- Bug fixes to the /function API when it throws errors.
+- Prettier fixes.
 - Dependency updates.
 
 # [v2.12.0](https://github.com/browserless/chrome/compare/v2.11.0...v2.12.0)

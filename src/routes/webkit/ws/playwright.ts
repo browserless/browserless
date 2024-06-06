@@ -7,7 +7,7 @@ import {
   Logger,
   Request,
   SystemQueryParameters,
-  WebkitPlaywright,
+  WebKitPlaywright,
   WebsocketRoutes,
 } from '@browserless.io/browserless';
 import { Duplex } from 'stream';
@@ -19,7 +19,7 @@ export interface QuerySchema extends SystemQueryParameters {
 export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRoute {
   name = BrowserlessRoutes.WebKitPlaywrightWebSocketRoute;
   auth = true;
-  browser = WebkitPlaywright;
+  browser = WebKitPlaywright;
   concurrency = true;
   description = `Connect to Webkit with any playwright-compliant library.`;
   path = [WebsocketRoutes.playwrightWebkit, WebsocketRoutes.webkitPlaywright];
@@ -29,7 +29,7 @@ export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRout
     socket: Duplex,
     head: Buffer,
     _logger: Logger,
-    browser: WebkitPlaywright,
+    browser: WebKitPlaywright,
   ): Promise<void> {
     const isPlaywright = req.headers['user-agent']
       ?.toLowerCase()

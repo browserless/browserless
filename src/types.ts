@@ -13,7 +13,7 @@ import {
   Methods,
   Metrics,
   Request,
-  WebkitPlaywright,
+  WebKitPlaywright,
   WebsocketRoutes,
   contentTypes,
 } from '@browserless.io/browserless';
@@ -44,12 +44,8 @@ export interface AfterResponse {
 }
 
 export interface BrowserHook {
-  browser:
-    | ChromiumCDP
-    | ChromiumPlaywright
-    | FirefoxPlaywright
-    | WebkitPlaywright;
-  meta: URL;
+  browser: BrowserInstance;
+  req: Request;
 }
 
 export interface PageHook {
@@ -70,13 +66,13 @@ export type BrowserClasses =
   | typeof ChromiumCDP
   | typeof ChromiumPlaywright
   | typeof FirefoxPlaywright
-  | typeof WebkitPlaywright;
+  | typeof WebKitPlaywright;
 
 export type BrowserInstance =
   | ChromiumCDP
   | ChromiumPlaywright
   | FirefoxPlaywright
-  | WebkitPlaywright;
+  | WebKitPlaywright;
 
 export interface BrowserJSON {
   Browser: string;

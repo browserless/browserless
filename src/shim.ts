@@ -28,6 +28,8 @@ export function shimLegacyRequests(url: URL): URL {
       safeParse(convertIfBase64(searchParams.get('launch') || '{}')) || {};
     const ignoreDefaultArgs =
       searchParams.get('ignoreDefaultArgs') ?? launchParams.ignoreDefaultArgs;
+    const ignoreHTTPSErrors =
+      searchParams.get('ignoreHTTPSErrors') ?? launchParams.ignoreHTTPSErrors;
     const stealth = searchParams.get('stealth') ?? launchParams.stealth;
     const slowMo = searchParams.get('slowMo') ?? launchParams.slowMo;
     const headless = searchParams.get('headless') ?? launchParams.headless;
@@ -48,8 +50,11 @@ export function shimLegacyRequests(url: URL): URL {
       launchParams.stealth = stealth !== 'false';
     }
 
-    if (typeof stealth !== 'undefined' && launchParams.stealth === undefined) {
-      launchParams.stealth = stealth !== 'false';
+    if (
+      typeof ignoreHTTPSErrors !== 'undefined' &&
+      launchParams.ignoreHTTPSErrors === undefined
+    ) {
+      launchParams.ignoreHTTPSErrors = ignoreHTTPSErrors !== 'false';
     }
 
     if (

@@ -21,7 +21,7 @@ import {
   NotFound,
   Request,
   ServerError,
-  WebkitPlaywright,
+  WebKitPlaywright,
   availableBrowsers,
   convertIfBase64,
   exists,
@@ -45,7 +45,7 @@ export class BrowserManager {
     ChromiumPlaywright.name,
     ChromePlaywright.name,
     FirefoxPlaywright.name,
-    WebkitPlaywright.name,
+    WebKitPlaywright.name,
   ];
 
   constructor(
@@ -532,7 +532,7 @@ export class BrowserManager {
     const pwVersion = match ? match[1] : 'default';
 
     await browser.launch(launchOptions as object, pwVersion);
-    await this.hooks.browser({ browser, meta: req.parsed });
+    await this.hooks.browser({ browser, req });
 
     const session: BrowserlessSession = {
       id: browser.wsEndpoint()?.split('/').pop() as string,
@@ -551,7 +551,7 @@ export class BrowserManager {
 
     this.browsers.set(browser, session);
 
-    browser.on('newPage', async (page) => {
+    browser.on('newPage', async (page: Page) => {
       await this.onNewPage(req, page);
       (router.onNewPage || noop)(req.parsed || '', page);
     });
