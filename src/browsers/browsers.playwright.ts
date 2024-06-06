@@ -115,19 +115,20 @@ class BasePlaywright extends EventEmitter {
     version?: string,
   ): Promise<playwright.BrowserServer> {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
+
     const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(version!);
-
-    this.browser = await versionedPw[this.playwrightBrowserType].launchServer(opts);
-    const browserWSEndpoint = this.browser.wsEndpoint();
+    const browser = await versionedPw[this.playwrightBrowserType].launchServer(opts);
+    const browserWSEndpoint = browser.wsEndpoint();
 
     this.logger.info(
       `${this.constructor.name} is running on ${browserWSEndpoint}`,
     );
     this.running = true;
     this.browserWSEndpoint = browserWSEndpoint;
+    this.browser = browser;
 
-    return this.browser;
+    return browser;
   }
 
   public wsEndpoint(): string | null {
