@@ -1,4 +1,5 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.13.0...main)
+- Merged duplicative code in browsers and fixed name `WebkitPlaywright` to `WebKitPlaywright` (capitalized "K").
 - Dependency updates.
 
 # [Latest](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)

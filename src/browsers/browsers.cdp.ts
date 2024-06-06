@@ -5,6 +5,7 @@ import {
   Logger,
   Request,
   ServerError,
+  chromeExecutablePath,
   noop,
   once,
 } from '@browserless.io/browserless';
@@ -340,4 +341,8 @@ export class ChromiumCDP extends EventEmitter {
       );
     });
   }
+}
+
+export class ChromeCDP extends ChromiumCDP {
+  protected executablePath = chromeExecutablePath();
 }

@@ -4,6 +4,7 @@ import {
   Logger,
   Request,
   ServerError,
+  chromeExecutablePath,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -11,14 +12,22 @@ import { EventEmitter } from 'events';
 import httpProxy from 'http-proxy';
 import path from 'path';
 
-export class WebkitPlaywright extends EventEmitter {
+enum PlaywrightBrowserTypes {
+  chromium = 'chromium',
+  firefox = 'firefox',
+  webkit = 'webkit',
+}
+
+class BasePlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
   protected running = false;
+  protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected logger: Logger;
+  protected playwrightBrowserType: PlaywrightBrowserTypes = PlaywrightBrowserTypes.chromium;
+  protected executablePath = playwright[this.playwrightBrowserType].executablePath();
 
   constructor({
     config,
@@ -27,7 +36,7 @@ export class WebkitPlaywright extends EventEmitter {
   }: {
     config: Config;
     logger: Logger;
-    userDataDir: WebkitPlaywright['userDataDir'];
+    userDataDir: BasePlaywright['userDataDir'];
   }) {
     super();
 
@@ -40,6 +49,17 @@ export class WebkitPlaywright extends EventEmitter {
 
   protected cleanListeners() {
     this.removeAllListeners();
+  }
+
+  protected makeLaunchOptions(opts: BrowserServerOptions) {
+    return {
+      ...opts,
+      args: [
+        ...(opts.args || []),
+        this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
+      ],
+      executablePath: this.executablePath,
+    };
   }
 
   public keepUntil() {
@@ -76,14 +96,18 @@ export class WebkitPlaywright extends EventEmitter {
 
   public makeLiveURL(): void {
     throw new ServerError(
-      `Live URLs are not yet supported with ${this.constructor.name}.`,
+      `Live URLs are not yet supported with ${this.constructor.name}. In the future this will be at "${this.config.getExternalAddress()}"`,
     );
   }
 
   public async newPage(): Promise<Page> {
-    throw new ServerError(
-      `Can't create new page with ${this.constructor.name}`,
-    );
+    if (!this.browser || !this.browserWSEndpoint) {
+      throw new ServerError(
+        `${this.constructor.name} hasn't been launched yet!`,
+      );
+    }
+    const browser = await playwright[this.playwrightBrowserType].connect(this.browserWSEndpoint);
+    return await browser.newPage();
   }
 
   public async launch(
@@ -91,26 +115,17 @@ export class WebkitPlaywright extends EventEmitter {
     version?: string,
   ): Promise<playwright.BrowserServer> {
     this.logger.info(`Launching ${this.constructor.name} Handler`);
-
-    const opts = {
-      ...options,
-      args: [
-        ...(options.args || []),
-        this.userDataDir ? `-profile=${this.userDataDir}` : '',
-      ],
-      executablePath: playwright.webkit.executablePath(),
-    };
-
+    const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(version!);
 
-    this.browser = await versionedPw.webkit.launchServer(opts);
+    this.browser = await versionedPw[this.playwrightBrowserType].launchServer(opts);
     const browserWSEndpoint = this.browser.wsEndpoint();
 
     this.logger.info(
       `${this.constructor.name} is running on ${browserWSEndpoint}`,
     );
-    this.browserWSEndpoint = browserWSEndpoint;
     this.running = true;
+    this.browserWSEndpoint = browserWSEndpoint;
 
     return this.browser;
   }
@@ -137,7 +152,7 @@ export class WebkitPlaywright extends EventEmitter {
   }
 
   public async proxyPageWebSocket() {
-    return this.logger.warn(`Not yet implemented`);
+    this.logger.error(`Not yet implemented in ${this.constructor.name}`);
   }
 
   public async proxyWebSocket(
@@ -179,5 +194,44 @@ export class WebkitPlaywright extends EventEmitter {
         },
       );
     });
+  }
+}
+
+export class ChromiumPlaywright extends BasePlaywright {
+  protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+}
+
+export class ChromePlaywright extends ChromiumPlaywright {
+  protected executablePath = chromeExecutablePath();
+  protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+}
+
+export class FirefoxPlaywright extends BasePlaywright {
+  protected playwrightBrowserType = PlaywrightBrowserTypes.firefox;
+
+  protected makeLaunchOptions(opts: BrowserServerOptions) {
+    return {
+      ...opts,
+      args: [
+        ...(opts.args || []),
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+      ],
+      executablePath: this.executablePath,
+    };
+  }
+}
+
+export class WebKitPlaywright extends BasePlaywright {
+  protected playwrightBrowserType = PlaywrightBrowserTypes.webkit;
+
+  protected makeLaunchOptions(opts: BrowserServerOptions) {
+    return {
+      ...opts,
+      args: [
+        ...(opts.args || []),
+        this.userDataDir ? `-profile=${this.userDataDir}` : '',
+      ],
+      executablePath: this.executablePath,
+    };
   }
 }
