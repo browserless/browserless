@@ -27,7 +27,7 @@ class BasePlaywright extends EventEmitter {
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
   protected playwrightBrowserType: PlaywrightBrowserTypes = PlaywrightBrowserTypes.chromium;
-  protected executablePath = playwright[this.playwrightBrowserType].executablePath();
+  protected executablePath = () => playwright[this.playwrightBrowserType].executablePath();
 
   constructor({
     config,
@@ -58,7 +58,7 @@ class BasePlaywright extends EventEmitter {
         ...(opts.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
-      executablePath: this.executablePath,
+      executablePath: this.executablePath(),
     };
   }
 
@@ -203,7 +203,7 @@ export class ChromiumPlaywright extends BasePlaywright {
 }
 
 export class ChromePlaywright extends ChromiumPlaywright {
-  protected executablePath = chromeExecutablePath();
+  protected executablePath = () => chromeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
 }
 
@@ -217,7 +217,7 @@ export class FirefoxPlaywright extends BasePlaywright {
         ...(opts.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
-      executablePath: this.executablePath,
+      executablePath: this.executablePath(),
     };
   }
 }
@@ -232,7 +232,7 @@ export class WebKitPlaywright extends BasePlaywright {
         ...(opts.args || []),
         this.userDataDir ? `-profile=${this.userDataDir}` : '',
       ],
-      executablePath: this.executablePath,
+      executablePath: this.executablePath(),
     };
   }
 }
