@@ -14,13 +14,12 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:selectors && npm run build:devtools && npm run build:openapi",
+    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function && npm run install:debugger",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
     "build:schemas": "node scripts/build-schemas.js",
     "build:openapi": "node scripts/build-open-api.js",
-    "build:selectors": "node scripts/build-selectors.js",
     "build:ts": "tsc",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
