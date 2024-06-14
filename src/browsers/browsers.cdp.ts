@@ -1,6 +1,6 @@
 import {
   BLESS_PAGE_IDENTIFIER,
-  CDPLaunchOptions,
+  BrowserLauncherOptions,
   Config,
   Logger,
   Request,
@@ -170,7 +170,8 @@ export class ChromiumCDP extends EventEmitter {
     return this.browser?.process() || null;
   }
 
-  public async launch(options: CDPLaunchOptions = {}): Promise<Browser> {
+  public async launch(laucherOpts: BrowserLauncherOptions): Promise<Browser> {
+    const { options, stealth } = laucherOpts;
     this.port = await getPort();
     this.logger.info(`${this.constructor.name} got open port ${this.port}`);
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -203,7 +204,7 @@ export class ChromiumCDP extends EventEmitter {
       );
     }
 
-    const launch = options.stealth
+    const launch = stealth
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
