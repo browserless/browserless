@@ -355,6 +355,13 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   waitForInitialPage?: boolean;
 }
 
+export interface BrowserLauncherOptions {
+  options: BrowserServerOptions;
+  pwVersion?: string;
+  req?: Request;
+  stealth?: boolean;
+}
+
 export interface BrowserServerOptions {
   args?: string[];
   chromiumSandbox?: boolean;

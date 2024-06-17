@@ -94,7 +94,7 @@ export class BrowserManager {
       logger,
       userDataDir: null,
     });
-    await browser.launch();
+    await browser.launch({ options: {} });
     const wsEndpoint = browser.wsEndpoint();
 
     if (!wsEndpoint) {
@@ -132,7 +132,7 @@ export class BrowserManager {
       logger,
       userDataDir: null,
     });
-    await browser.launch();
+    await browser.launch({ options: {} });
     const wsEndpoint = browser.wsEndpoint();
 
     if (!wsEndpoint) {
@@ -531,7 +531,12 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
-    await browser.launch(launchOptions as object, pwVersion);
+    await browser.launch({
+      options: launchOptions as BrowserServerOptions,
+      pwVersion,
+      req,
+      stealth: launchOptions?.stealth
+    });
     await this.hooks.browser({ browser, req });
 
     const session: BrowserlessSession = {

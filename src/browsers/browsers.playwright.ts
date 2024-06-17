@@ -1,4 +1,5 @@
 import {
+  BrowserLauncherOptions,
   BrowserServerOptions,
   Config,
   Logger,
@@ -110,14 +111,12 @@ class BasePlaywright extends EventEmitter {
     return await browser.newPage();
   }
 
-  public async launch(
-    options: BrowserServerOptions = {},
-    version?: string,
-  ): Promise<playwright.BrowserServer> {
+  public async launch(laucherOpts: BrowserLauncherOptions): Promise<playwright.BrowserServer> {
+    const { options, pwVersion } = laucherOpts;
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     const opts = this.makeLaunchOptions(options);
-    const versionedPw = await this.config.loadPwVersion(version!);
+    const versionedPw = await this.config.loadPwVersion(pwVersion!);
     const browser = await versionedPw[this.playwrightBrowserType].launchServer(opts);
     const browserWSEndpoint = browser.wsEndpoint();
 
