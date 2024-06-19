@@ -1,8 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.13.0...main)
-- Merged duplicative code in browsers and fixed name `WebkitPlaywright` to `WebKitPlaywright` (capitalized "K").
+# [Latest](https://github.com/browserless/chrome/compare/v2.14.0...main)
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
+# [v2.14.0](https://github.com/browserless/chrome/compare/v2.13.0...v2.14.0)
+**Potentially Breaking**
+- Merged duplicate code in browsers and fixed name `WebkitPlaywright` to `WebKitPlaywright` (capitalized "K").
+- Devtools now bundled into the repository at build-time for the `/debugger` route.
+-
+- Dependency updates.
+
+# [v2.13.0](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
 **Potentially Breaking**
 - The `browser` hook now gets the `req` property for the full request instead of `meta`.
 - Now embeds the debugger located at `/debugger`.
