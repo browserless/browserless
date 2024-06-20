@@ -33,6 +33,7 @@ import { ServerResponse } from 'http';
 import Stream from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
+  blockAds?: boolean;
   launch?: CDPLaunchOptions | string;
 }
 

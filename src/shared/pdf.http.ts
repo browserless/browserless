@@ -56,6 +56,7 @@ export interface BodySchema {
 }
 
 export interface QuerySchema extends SystemQueryParameters {
+  blockAds?: boolean;
   launch?: CDPLaunchOptions | string;
 }
 
