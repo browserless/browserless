@@ -72,7 +72,7 @@ export class Limiter extends q {
 
     this.addEventListener('end', this.handleEnd.bind(this));
   }
-  
+
   protected _errorHandler({
     detail: { error },
   }: {
