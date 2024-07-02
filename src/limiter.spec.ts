@@ -135,7 +135,7 @@ describe(`Limiter`, () => {
     const job = limiter.limit(spy, asyncNoop, asyncNoop, noop);
     await job().catch(noop);
 
-    limiter.addEventListener('end', (res) => {
+    limiter.addEventListener('error', (res) => {
       // 'end' callback fires before the failed callback hooks do, so nextTick to wait
       process.nextTick(() => {
         expect(res.detail.error).to.eql(error);
