@@ -73,6 +73,14 @@ export class Limiter extends q {
     this.addEventListener('end', this.handleEnd.bind(this));
   }
 
+  protected _errorHandler({
+    detail: { error },
+  }: {
+    detail: { error: unknown };
+  }) {
+    this.logger.error(error);
+  }
+
   protected handleEnd() {
     this.logQueue('All jobs complete.');
   }
