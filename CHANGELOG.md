@@ -1,11 +1,14 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.14.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.15.0...main)
+- Dependency updates.
+
+# [v2.15.0](https://github.com/browserless/chrome/compare/v2.14.0...v2.15.0)
+- Bug fix to avoid removing healthy jobs from limiter when a job fails
 - Dependency updates.
 
 # [v2.14.0](https://github.com/browserless/chrome/compare/v2.13.0...v2.14.0)
 **Potentially Breaking**
 - Merged duplicate code in browsers and fixed name `WebkitPlaywright` to `WebKitPlaywright` (capitalized "K").
 - Devtools now bundled into the repository at build-time for the `/debugger` route.
--
 - Dependency updates.
 
 # [v2.13.0](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
