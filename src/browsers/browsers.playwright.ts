@@ -27,8 +27,10 @@ class BasePlaywright extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
-  protected playwrightBrowserType: PlaywrightBrowserTypes = PlaywrightBrowserTypes.chromium;
-  protected executablePath = () => playwright[this.playwrightBrowserType].executablePath();
+  protected playwrightBrowserType: PlaywrightBrowserTypes =
+    PlaywrightBrowserTypes.chromium;
+  protected executablePath = () =>
+    playwright[this.playwrightBrowserType].executablePath();
 
   constructor({
     config,
@@ -107,17 +109,22 @@ class BasePlaywright extends EventEmitter {
         `${this.constructor.name} hasn't been launched yet!`,
       );
     }
-    const browser = await playwright[this.playwrightBrowserType].connect(this.browserWSEndpoint);
+    const browser = await playwright[this.playwrightBrowserType].connect(
+      this.browserWSEndpoint,
+    );
     return await browser.newPage();
   }
 
-  public async launch(laucherOpts: BrowserLauncherOptions): Promise<playwright.BrowserServer> {
+  public async launch(
+    laucherOpts: BrowserLauncherOptions,
+  ): Promise<playwright.BrowserServer> {
     const { options, pwVersion } = laucherOpts;
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
     const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
-    const browser = await versionedPw[this.playwrightBrowserType].launchServer(opts);
+    const browser =
+      await versionedPw[this.playwrightBrowserType].launchServer(opts);
     const browserWSEndpoint = browser.wsEndpoint();
 
     this.logger.info(
