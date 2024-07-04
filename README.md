@@ -58,7 +58,7 @@ If you've been struggling to deploy headless browsers without running into issue
 Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
 
 - Inbuilt [residential proxy](https://www.browserless.io/blog/residential-proxying/)
-- [/unblock API](https://www.browserless.io/unblock-api/) for avoiding detectors
+- [/unblock API](https://www.browserless.io/blog/unblock-api) for avoiding detectors
 - [Automated captcha solving](https://www.browserless.io/blog/captcha-solving) for getting past mandatory checks
 - [Hybrid automations](https://www.browserless.io/blog/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
 - [/reconnect API](https://www.browserless.io/blog/reconnect-api) for keeping browsers alive for reuse
