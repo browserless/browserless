@@ -39,7 +39,6 @@ If you've been struggling to deploy headless browsers without running into issue
 1. [Full documentation site](https://docs.browserless.io/)
 2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
 3. [Docker](https://github.com/browserless/browserless/pkgs/container/base)
-4. [Slack](https://join.slack.com/t/browserless/shared_invite/enQtMzA3OTMwNjA3MzY1LTRmMWU5NjQ0MTQ2YTE2YmU3MzdjNmVlMmU4MThjM2UxODNmNzNlZjVkY2U2NjdkMzYyNTgyZTBiMmE3Nzg0MzY)
 
 ## Features
 
@@ -54,14 +53,16 @@ If you've been struggling to deploy headless browsers without running into issue
 - Error tolerant: if Chrome dies it won't.
 - Support for running and development on Apple's M1 machines
 
-### Cloud
+### Cloud-only
 
 Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
 
-- Inbuilt [residential proxy](https://www.browserless.io/blog/2023/09/24/residential-proxying/)
-- [/unblock API](https://www.browserless.io/blog/2024/02/26/unblock-api/) for avoiding detectors
-- [Hybrid automations](https://www.browserless.io/blog/2024/03/21/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
-- Ability to upload and run extensions _(coming soon)_
+- Inbuilt [residential proxy](https://www.browserless.io/blog/residential-proxying/)
+- [/unblock API](https://www.browserless.io/blog/unblock-api) for avoiding detectors
+- [Automated captcha solving](https://www.browserless.io/blog/captcha-solving) for getting past mandatory checks
+- [Hybrid automations](https://www.browserless.io/blog/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
+- [/reconnect API](https://www.browserless.io/blog/reconnect-api) for keeping browsers alive for reuse
+- [REST APIs](https://www.browserless.io/feature/rest-apis) for tasks such as retrieving HTML, PDFs or Lighthouse metrics
 - SSO, tokens and user roles
 
 ## How it works
