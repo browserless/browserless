@@ -22,6 +22,7 @@ describe(`Limiter`, () => {
     webHooks.callRejectAlertURL.resetHistory();
     webHooks.callTimeoutAlertURL.resetHistory();
     webHooks.callErrorAlertURL.resetHistory();
+
     hooks.before.resetHistory();
     hooks.after.resetHistory();
     hooks.browser.resetHistory();
@@ -117,6 +118,32 @@ describe(`Limiter`, () => {
     expect(handlerTwo.calledOnce).to.be.false;
     await wait;
     expect(handlerTwo.calledOnce).to.be.true;
+  });
+
+  it('continues to process jobs even if an earlier job errors', (d) => {
+    const config = new Config();
+    const monitoring = new Monitoring(config);
+    const metrics = new Metrics();
+
+    config.setConcurrent(1);
+    config.setQueued(1);
+    config.setTimeout(-1);
+
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    const errorJob = () =>
+      Promise.reject(new Error('Danger, danger. High voltage!'));
+    const okJob = spy();
+
+    const jobOne = limiter.limit(errorJob, asyncNoop, asyncNoop, noop);
+    const jobTwo = limiter.limit(okJob, asyncNoop, asyncNoop, noop);
+
+    jobOne();
+    jobTwo();
+
+    limiter.addEventListener('end', () => {
+      expect(okJob.calledOnce).to.be.true;
+      d(undefined);
+    });
   });
 
   it('bubbles up errors', async () => {

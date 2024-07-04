@@ -535,7 +535,7 @@ export class BrowserManager {
       options: launchOptions as BrowserServerOptions,
       pwVersion,
       req,
-      stealth: launchOptions?.stealth
+      stealth: launchOptions?.stealth,
     });
     await this.hooks.browser({ browser, req });
 

@@ -12,7 +12,7 @@ const moduleMain = path.normalize(import.meta.url).endsWith(process.argv[1]);
 
 /**
  * Find an exported interface in a TypeScript AST
- * 
+ *
  * @param {ts.Node} node The node to search for the exported interface
  * @param {string} interfaceName The name of the interface to search for
  * @returns {ts.InterfaceDeclaration | ts.Identifier | null}
@@ -29,7 +29,11 @@ const findExportedInterface = (node, interfaceName) => {
   }
 
   // Check for re-exported interfaces
-  if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
+  if (
+    ts.isExportDeclaration(node) &&
+    node.exportClause &&
+    ts.isNamedExports(node.exportClause)
+  ) {
     const elements = node.exportClause.elements;
     for (const element of elements) {
       if (element.name.text === interfaceName) {
@@ -50,7 +54,7 @@ const findExportedInterface = (node, interfaceName) => {
 
 /**
  * Creates an standard JSON schema file for each route (see https://json-schema.org/specification)
- * 
+ *
  * @param {string[]} externalHTTPRoutes Additional HTTP routes to parse
  * @param {string[]} externalWebSocketRoutes Additional WS routes to parse
  */
