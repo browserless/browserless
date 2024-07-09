@@ -8,12 +8,12 @@ import {
   chromeExecutablePath,
   noop,
   once,
+  ublockPath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { fileURLToPath } from 'url';
 import getPort from 'get-port';
 import httpProxy from 'http-proxy';
 import path from 'path';
@@ -170,11 +170,29 @@ export class ChromiumCDP extends EventEmitter {
     return this.browser?.process() || null;
   }
 
-  public async launch(laucherOpts: BrowserLauncherOptions): Promise<Browser> {
-    const { options, stealth } = laucherOpts;
+  public async launch({
+    options,
+    stealth,
+  }: BrowserLauncherOptions): Promise<Browser> {
     this.port = await getPort();
     this.logger.info(`${this.constructor.name} got open port ${this.port}`);
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+    const extensionLaunchArgs = options.args?.find((a) =>
+      a.startsWith('--load-extension'),
+    );
+
+    // Remove extension flags as we recompile them below with our own
+    options.args = options.args?.filter(
+      (a) =>
+        !a.startsWith('--load-extension') &&
+        !a.startsWith('--disable-extensions-except'),
+    );
+
+    const extensions = [
+      this.blockAds ? ublockPath : null,
+      extensionLaunchArgs ? extensionLaunchArgs.split('=')[1] : null,
+    ].filter((_) => !!_);
+
     const finalOptions = {
       ...options,
       args: [
@@ -186,21 +204,10 @@ export class ChromiumCDP extends EventEmitter {
       executablePath: this.executablePath,
     };
 
-    if (this.blockAds) {
-      // Necessary to load extensions
-      finalOptions.headless = false;
-
-      const loadExtensionPaths: string = path.join(
-        __dirname,
-        '..',
-        '..',
-        'extensions',
-        'ublock',
-      );
-
+    if (extensions.length) {
       finalOptions.args.push(
-        '--load-extension=' + loadExtensionPaths,
-        '--disable-extensions-except=' + loadExtensionPaths,
+        '--load-extension=' + extensions.join(','),
+        '--disable-extensions-except=' + extensions.join(','),
       );
     }
 
