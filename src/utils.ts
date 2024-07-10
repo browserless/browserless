@@ -23,6 +23,7 @@ import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 import crypto from 'crypto';
 import debug from 'debug';
+import { fileURLToPath } from 'url';
 import gradient from 'gradient-string';
 import { homedir } from 'os';
 import path from 'path';
@@ -32,6 +33,8 @@ const isHTTP = (
 ): writeable is ServerResponse => {
   return (writeable as ServerResponse).writeHead !== undefined;
 };
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const getAuthHeaderToken = (header: string) => {
   if (header.startsWith('Basic')) {
@@ -475,10 +478,11 @@ export const queryParamsToObject = (
 ): Record<string, unknown> =>
   [...params.entries()].reduce(
     (accum, [key, value]) => {
-      accum[key] = value;
+      accum[key] =
+        value === '' || value === undefined || value === null ? true : value;
       return accum;
     },
-    {} as Record<string, string>,
+    {} as ReturnType<typeof queryParamsToObject>,
   );
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -844,3 +848,5 @@ export const getCDPClient = (page: Page): CDPSession => {
 
   return typeof c === 'function' ? c.call(page) : c;
 };
+
+export const ublockPath = path.join(__dirname, '..', 'extensions', 'ublock');
