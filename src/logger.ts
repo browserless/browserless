@@ -23,7 +23,7 @@ export class Logger {
   }
 
   protected get reqInfo() {
-    return this.request ? this.request.socket.remoteAddress ?? 'Unknown' : '';
+    return this.request ? (this.request.socket.remoteAddress ?? 'Unknown') : '';
   }
 
   public trace(...messages: unknown[]) {
