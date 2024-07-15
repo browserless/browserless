@@ -1,5 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.15.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.16.0...main)
 - Dependency updates.
+
+# [v2.16.0](https://github.com/browserless/chrome/compare/v2.15.0...v2.16.0)
+- Dependency updates.
+- Better extension handling and merging when passing in custom extensions.
+- Fixes a bug where a failed job (error thrown) causes the internal queue to drain.
+- Prettier and other source improvements.
 
 # [v2.15.0](https://github.com/browserless/chrome/compare/v2.14.0...v2.15.0)
 - Bug fix to avoid removing healthy jobs from limiter when a job fails
