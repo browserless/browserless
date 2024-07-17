@@ -66,6 +66,7 @@ export interface BodySchema {
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
   waitForTimeout?: number;
+  only200sResponse?: boolean;
 }
 
 export default class ScreenshotPost extends BrowserHTTPRoute {
@@ -83,6 +84,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
   method = Methods.post;
   path = [HTTPRoutes.screenshot, HTTPRoutes.chromiumScreenshot];
   tags = [APITags.browserAPI];
+
   async handler(
     req: Request,
     res: ServerResponse,
@@ -198,6 +200,21 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     const gotoResponse = await gotoCall(content, gotoOptions).catch(
       bestAttemptCatch(bestAttempt),
     );
+
+    if (
+      options?.only200sResponse &&
+      (gotoResponse.status() < 200 || gotoResponse.status() >= 300)
+    ) {
+      return res
+        .writeHead(gotoResponse.status(), {
+          'Content-Type': 'application/json',
+        })
+        .end(
+          JSON.stringify({
+            error: `The response status code is ${gotoResponse.status()}`,
+          }),
+        );
+    }
 
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
