@@ -277,7 +277,7 @@ const buildDocker = async () => {
 
   log(`Generating Dockerfile at "${finalDockerPath}"`);
 
-  await fs.writeFile(compiledDir, dockerContents);
+  await fs.writeFile(finalDockerPath, dockerContents);
 
   const from =
     argSwitches.from ||
