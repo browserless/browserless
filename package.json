@@ -73,7 +73,7 @@
     "@types/chai": "^4.3.17",
     "@types/debug": "^4.1.12",
     "@types/gradient-string": "^1.1.6",
-    "@types/http-proxy": "^1.17.14",
+    "@types/http-proxy": "^1.17.15",
     "@types/micromatch": "^4.0.9",
     "@types/mocha": "^10.0.7",
     "@types/node": "^22.1.0",
