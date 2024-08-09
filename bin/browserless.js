@@ -11,14 +11,16 @@ import {
   prompt,
 } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
-import buildOpenAPI from '../scripts/build-open-api.js';
-import buildSchemas from '../scripts/build-schemas.js';
 
 import debug from 'debug';
-import { dedent } from '../build/utils.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import path from 'path';
+
+import { buildDockerImage } from '../build/sdk-utils.js';
+import buildOpenAPI from '../scripts/build-open-api.js';
+import buildSchemas from '../scripts/build-schemas.js';
+import { dedent } from '../build/utils.js';
 
 if (typeof process.env.DEBUG === 'undefined') {
   debug.enable('browserless*');
