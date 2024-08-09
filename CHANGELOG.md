@@ -1,5 +1,9 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.16.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.16.1...main)
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v2.16.0...v2.16.1)
+- Dependency updates.
+- Fixes numerous SDK issues when creating and building new projects.
 
 # [v2.16.0](https://github.com/browserless/chrome/compare/v2.15.0...v2.16.0)
 - Dependency updates.
