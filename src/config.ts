@@ -158,6 +158,8 @@ export class Config extends EventEmitter {
     process.env.CORS_ALLOW_METHODS ?? 'OPTIONS, POST, GET';
   protected corsOrigin = process.env.CORS_ALLOW_ORIGIN ?? '*';
   protected corsHeaders = process.env.CORS_ALLOW_HEADERS ?? '*';
+  protected corsCredentials = process.env.CORS_ALLOW_CREDENTIALS ?? 'true';
+  protected corsExposeHeaders = process.env.CORS_EXPOSE_HEADERS ?? '*';
   protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
   protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
   protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
@@ -527,15 +529,19 @@ export class Config extends EventEmitter {
    * and `CORS_MAX_AGE`
    */
   public getCORSHeaders(): {
+    'Access-Control-Allow-Credentials': string;
     'Access-Control-Allow-Headers': string;
     'Access-Control-Allow-Methods': string;
     'Access-Control-Allow-Origin': string;
+    'Access-Control-Expose-Headers': string;
     'Access-Control-Max-Age': number;
   } {
     return {
+      'Access-Control-Allow-Credentials': this.corsCredentials,
       'Access-Control-Allow-Headers': this.corsHeaders,
       'Access-Control-Allow-Methods': this.corsMethods,
       'Access-Control-Allow-Origin': this.corsOrigin,
+      'Access-Control-Expose-Headers': this.corsExposeHeaders,
       'Access-Control-Max-Age': this.corsMaxAge,
     };
   }
