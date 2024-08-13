@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.16.1",
+  "version": "2.17.0-beta-1",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
