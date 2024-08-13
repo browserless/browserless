@@ -245,7 +245,7 @@ export class Browserless extends EventEmitter {
       hasDebugger &&
       makeExternalURL(
         this.config.getExternalAddress(),
-        `/debugger/?token=${this.config.getToken()}`,
+        `/debugger/?token=xxx`,
       );
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
 
