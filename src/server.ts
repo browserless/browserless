@@ -55,9 +55,7 @@ export class HTTPServer extends EventEmitter {
     this.port = config.getPort();
 
     this.logger.info(
-      `Server instantiated with host "${this.host}" on port "${
-        this.port
-      }`,
+      `Server instantiated with host "${this.host}" on port "${this.port}`,
     );
   }
 
