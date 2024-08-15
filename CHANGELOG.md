@@ -5,7 +5,7 @@
 - Dependency updates.
 - Hide token in logs on startup.
 - Fixes an issue where using `--proxy-server` now works with /function-API calls.
-- Adds support for the following CORS headers via env variables (headers and their corresponding config names are below). *Please note that these are very permissive and only set when `ENABLE_CORS` is `true`*
+- Adds support for the following CORS headers via env variables (headers and their corresponding config names are below). *Please note that these are very permissive by default, but only set when `ENABLE_CORS` is `true`!
     - 'Access-Control-Allow-Credentials': CORS_ALLOW_CREDENTIALS (default '*')
     - 'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS (default: '*')
     - 'Access-Control-Allow-Methods': CORS_ALLOW_METHODS (default: 'OPTIONS, POST, GET')
