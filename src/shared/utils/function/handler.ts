@@ -41,15 +41,15 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     browser: BrowserInstance,
   ): Promise<{ contentType: string; page: Page; payload: unknown }> => {
     const isJson = req.headers['content-type']?.includes('json');
-
+    const functionPath = HTTPRoutes.function.replace('?(/)', '');
     const functionAssetLocation = path.join(config.getStatic(), 'function');
     const functionRequestPath = makeExternalURL(
       config.getExternalAddress(),
-      HTTPRoutes.function,
+      functionPath,
     );
     const functionIndexHTML = makeExternalURL(
       config.getExternalAddress(),
-      HTTPRoutes.function,
+      functionPath,
       '/index.html',
     );
 
