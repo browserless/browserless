@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.17.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.18.0...main)
 - Dependency updates.
+
+# [v2.18.0](https://github.com/browserless/chrome/compare/v2.17.0...v2.18.0)
+- Dependency updates.
+- Supports `puppeteer-core@23.1.1`.
+- Supports `playwright-core@1.46.1, 1.44.1, 1.43.1, 1.42.1, 1.41.2`.
+- Trailing slashes on routes now won't 404, so `/chrome` and `/chrome/` are treated as the same and will route properly.
+- `/function` API now works properly when applying a 3rd-party proxy.
 
 # [v2.17.0](https://github.com/browserless/chrome/compare/v2.16.1...v2.17.0)
 - Dependency updates.
