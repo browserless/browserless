@@ -56,7 +56,7 @@
     "gradient-string": "^2.0.0",
     "http-proxy": "^1.18.1",
     "lighthouse": "^12.2.0",
-    "micromatch": "^4.0.7",
+    "micromatch": "^4.0.8",
     "playwright-1.41": "npm:playwright-core@1.41.2",
     "playwright-1.42": "npm:playwright-core@1.42.1",
     "playwright-1.43": "npm:playwright-core@1.43.1",
