@@ -78,8 +78,8 @@
     "@types/mocha": "^10.0.7",
     "@types/node": "^22.5.0",
     "@types/sinon": "^17.0.3",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.3.0",
+    "@typescript-eslint/parser": "^8.3.0",
     "assert": "^2.0.0",
     "chai": "^5.1.1",
     "cross-env": "^7.0.3",
@@ -87,7 +87,6 @@
     "esbuild": "^0.23.1",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-typescript-sort-keys": "^3.2.0",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^14.0.0",
@@ -111,32 +110,23 @@
     "root": true,
     "parser": "@typescript-eslint/parser",
     "plugins": [
-      "@typescript-eslint",
-      "typescript-sort-keys"
+      "@typescript-eslint"
     ],
     "extends": [
       "eslint:recommended",
       "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended",
-      "plugin:typescript-sort-keys/recommended"
+      "plugin:@typescript-eslint/recommended"
     ],
     "ignorePatterns": [
       "node_modules/*",
+      "static/*",
+      "**.spec.ts",
       "build/*",
       ".DS_Store",
       ".no-git/*",
       "*.log"
     ],
     "rules": {
-      "sort-keys": [
-        "error",
-        "asc",
-        {
-          "caseSensitive": true,
-          "natural": false,
-          "minKeys": 2
-        }
-      ],
       "semi": [
         2,
         "always"
