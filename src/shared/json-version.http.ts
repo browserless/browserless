@@ -45,6 +45,7 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
       }
       return jsonResponse(res, 200, this.cachedJSON);
     } catch (err) {
+      logger.warn(`Error handling request`, err);
       return writeResponse(
         res,
         500,

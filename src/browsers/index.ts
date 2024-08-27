@@ -299,8 +299,8 @@ export class BrowserManager {
         global.setTimeout(() => {
           const session = this.browsers.get(browser);
           if (session) {
-            this.log.trace(`Timer hit for "${session.id}"`),
-              this.close(browser, session);
+            this.log.trace(`Timer hit for "${session.id}"`);
+            this.close(browser, session);
           }
         }, timeout),
       );

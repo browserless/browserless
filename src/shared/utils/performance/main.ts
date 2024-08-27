@@ -38,7 +38,7 @@ export default async ({
     const close = (pid?: number) => {
       if (closed) return;
       if (pid) process.kill(pid, 'SIGINT');
-      timeoutId && clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       closed = true;
       timeoutId = null;
     };
