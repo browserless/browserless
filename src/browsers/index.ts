@@ -255,12 +255,16 @@ export class BrowserManager {
         },
       });
       if (response.ok) {
+        const externalUrl = new URL(serverAddress);
+        const protocol = externalUrl.protocol === 'https:' ? 'wss' : 'ws';
         const body = await response.json();
         for (const page of body) {
+          const devtoolsFrontendUrl = `/devtools/inspector.html?${protocol}=${externalUrl.host}${externalUrl.pathname}/devtools/page/${page.id}`;
           sessions.push({
             ...sessions[0],
             ...page,
             browserWSEndpoint: wsEndpoint,
+            devtoolsFrontendUrl,
           });
         }
       }
