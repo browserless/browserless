@@ -1,5 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.18.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.19.0...main)
 - Dependency updates.
+
+# [v2.19.0](https://github.com/browserless/chrome/compare/v2.18.0...v2.19.0)
+- Dependency updates.
+- Drop `sort-keys` for eslint integrations.
+- Fix devtools URLs when `PROXY` is set and contains a path.
+- Disable `auth` when using Chrome's internal `/page` APIs.
+- Small fixes for new eslint rules.
 
 # [v2.18.0](https://github.com/browserless/chrome/compare/v2.17.0...v2.18.0)
 - Dependency updates.
