@@ -89,7 +89,7 @@
     "eslint": "^8.57.0",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
-    "marked": "^14.1.0",
+    "marked": "^14.1.1",
     "mocha": "^10.7.3",
     "move-file": "^3.1.0",
     "prettier": "^3.3.3",
