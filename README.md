@@ -74,7 +74,7 @@ You still execute the script itself which gives you total control over what libr
 ### Docker
 
 > [!TIP]
-> See more options on our [full documentation site](https://docs.browserless.io/Docker/docker-quickstart).
+> See more options on our [full documentation site](https://docs.browserless.io/docker/quickstart).
 
 1. `docker run -p 3000:3000 ghcr.io/browserless/chromium`
 2. Visit `http://localhost:3000/docs` to see the documentation site.
@@ -180,7 +180,7 @@ You will then see the debugger url during the startup process.
 
 Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless. Please note that in V2 we no longer support selenium or webdriver integrations.
 
-You can find a much larger list of supported libraries [on our documentation site](https://docs.browserless.io/Libraries/puppeteer-library).
+You can find a much larger list of supported libraries [on our documentation site](https://docs.browserless.io/libraries/puppeteer).
 
 ## Motivations
 
