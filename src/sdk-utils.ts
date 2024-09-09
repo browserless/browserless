@@ -6,7 +6,20 @@ import { promisify } from 'util';
 
 import { exec } from 'child_process';
 
-export const execAsync = promisify(exec);
+const execAsync = promisify(exec);
+
+const waitForCommand = async (cmd: string, workingDirectory: string) =>
+  new Promise<void>((resolve, reject) =>
+    execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
+      if (stderr) {
+        return reject(
+          `Error when installing dependencies: ${stderr}, see output for more details`,
+        );
+      }
+
+      return resolve();
+    }),
+  );
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
@@ -91,67 +104,23 @@ export const prompt = async (question: string) => {
   });
 };
 
+// Exceptions are not caught, since any error would result in a crash regardless
 export const installDependencies = async (
   workingDirectory: string,
 ): Promise<void> => {
-  await new Promise<void>((resolve, reject) => {
-    execAsync('npm i', { cwd: workingDirectory }).then(({ stderr }) => {
-      if (stderr) {
-        return reject(
-          `Error when installing dependencies: ${stderr}, see output for more details`,
-        );
-      }
-
-      return resolve();
-    });
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    execAsync(
-      'npx playwright-core install --with-deps chromium firefox webkit',
-      { cwd: workingDirectory },
-    ).then(({ stderr }) => {
-      if (stderr) {
-        return reject(
-          `Error when installing dependencies: ${stderr}, see output for more details`,
-        );
-      }
-
-      return resolve();
-    });
-  });
+  await waitForCommand('npm install', workingDirectory);
+  await waitForCommand(
+    'npx playwright-core install --with-deps chromium firefox webkit',
+    workingDirectory,
+  );
 };
 
 export const buildDockerImage = async (
   cmd: string,
   projectDir: string,
-): Promise<void> =>
-  new Promise((resolve, reject) => {
-    execAsync(cmd, { cwd: projectDir }).then(({ stderr }) => {
-      if (stderr) {
-        return reject(
-          `Error when building Docker image: ${stderr}, see output for more details`,
-        );
-      }
-
-      return resolve();
-    });
-  });
+): Promise<void> => waitForCommand(cmd, projectDir);
 
 export const buildTypeScript = async (
   buildDir: string,
   projectDir: string,
-): Promise<void> =>
-  new Promise((resolve, reject) => {
-    execAsync(`npx tsc --outDir ${buildDir}`, { cwd: projectDir }).then(
-      ({ stderr }) => {
-        if (stderr) {
-          return reject(
-            `Error when building Docker image: ${stderr}, see output for more details`,
-          );
-        }
-
-        return resolve();
-      },
-    );
-  });
+): Promise<void> => waitForCommand(`npx tsc --outDir ${buildDir}`, projectDir);
