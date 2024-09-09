@@ -2,7 +2,11 @@ import { createInterface } from 'readline';
 import debug from 'debug';
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn } from 'child_process';
+import { promisify } from 'util';
+
+import { exec } from 'child_process';
+
+export const execAsync = promisify(exec);
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
@@ -85,33 +89,29 @@ export const installDependencies = async (
   workingDirectory: string,
 ): Promise<void> => {
   await new Promise<void>((resolve, reject) => {
-    spawn('npm', ['i'], {
-      cwd: workingDirectory,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
+    execAsync('npm i', { cwd: workingDirectory }).then(({ stderr }) => {
+      if (stderr) {
+        return reject(
+          `Error when installing dependencies: ${stderr}, see output for more details`,
+        );
       }
-      return reject(
-        `Error when installing dependencies, see output for more details`,
-      );
+
+      return resolve();
     });
   });
+
   await new Promise<void>((resolve, reject) => {
-    spawn(
-      'npx',
-      'playwright-core install --with-deps chromium firefox webkit'.split(' '),
-      {
-        cwd: workingDirectory,
-        stdio: 'inherit',
-      },
-    ).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
+    execAsync(
+      'npx playwright-core install --with-deps chromium firefox webkit',
+      { cwd: workingDirectory },
+    ).then(({ stderr }) => {
+      if (stderr) {
+        return reject(
+          `Error when installing dependencies: ${stderr}, see output for more details`,
+        );
       }
-      return reject(
-        `Error when installing dependencies, see output for more details`,
-      );
+
+      return resolve();
     });
   });
 };
@@ -121,17 +121,14 @@ export const buildDockerImage = async (
   projectDir: string,
 ): Promise<void> =>
   new Promise((resolve, reject) => {
-    const [docker, ...args] = cmd.split(' ');
-    spawn(docker, args, {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
+    execAsync(cmd, { cwd: projectDir }).then(({ stderr }) => {
+      if (stderr) {
+        return reject(
+          `Error when building Docker image: ${stderr}, see output for more details`,
+        );
       }
-      return reject(
-        `Error when building Docker image, see output for more details`,
-      );
+
+      return resolve();
     });
   });
 
@@ -140,15 +137,15 @@ export const buildTypeScript = async (
   projectDir: string,
 ): Promise<void> =>
   new Promise((resolve, reject) => {
-    spawn('npx', ['tsc', '--outDir', buildDir], {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
+    execAsync(`npx tsc --outDir ${buildDir}`, { cwd: projectDir }).then(
+      ({ stderr }) => {
+        if (stderr) {
+          return reject(
+            `Error when building Docker image: ${stderr}, see output for more details`,
+          );
+        }
+
         return resolve();
-      }
-      return reject(
-        `Error in building TypeScript, see output for more details`,
-      );
-    });
+      },
+    );
   });
