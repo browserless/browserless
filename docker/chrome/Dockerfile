@@ -28,7 +28,7 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
 
 # NOTE it's important to not use npx playwright-core here since it'll likely install
 # a more recent version than we potentially have in our own package.json
-RUN ./node_modules/.bin/playwright-core install --with-deps chrome &&\
+RUN ./node_modules/playwright-core/cli.js install --with-deps chrome &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
