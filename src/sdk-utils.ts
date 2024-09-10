@@ -2,7 +2,24 @@ import { createInterface } from 'readline';
 import debug from 'debug';
 import fs from 'fs/promises';
 import path from 'path';
-import { spawn } from 'child_process';
+import { promisify } from 'util';
+
+import { exec } from 'child_process';
+
+const execAsync = promisify(exec);
+
+const waitForCommand = async (cmd: string, workingDirectory: string) =>
+  new Promise<void>((resolve, reject) =>
+    execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
+      if (stderr) {
+        return reject(
+          `Error running ${cmd}. See output for more details: \n${stderr}`,
+        );
+      }
+
+      return resolve();
+    }),
+  );
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
@@ -41,7 +58,13 @@ export const getSourceFiles = async (cwd: string) => {
   const files = await fs.readdir(buildDir, { recursive: true });
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
+      const isInRootDir = !file.includes(path.sep);
       const parsed = path.parse(file);
+
+      if (isInRootDir) {
+        return [httpRoutes, webSocketRoutes];
+      }
+
       if (parsed.name.endsWith('http')) {
         httpRoutes.push(path.join(buildDir, file));
       }
@@ -81,74 +104,23 @@ export const prompt = async (question: string) => {
   });
 };
 
+// Exceptions are not caught, since any error would result in a crash regardless
 export const installDependencies = async (
   workingDirectory: string,
 ): Promise<void> => {
-  await new Promise<void>((resolve, reject) => {
-    spawn('npm', ['i'], {
-      cwd: workingDirectory,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-      return reject(
-        `Error when installing dependencies, see output for more details`,
-      );
-    });
-  });
-  await new Promise<void>((resolve, reject) => {
-    spawn(
-      'npx',
-      'playwright-core install --with-deps chromium firefox webkit'.split(' '),
-      {
-        cwd: workingDirectory,
-        stdio: 'inherit',
-      },
-    ).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-      return reject(
-        `Error when installing dependencies, see output for more details`,
-      );
-    });
-  });
+  await waitForCommand('npm install', workingDirectory);
+  await waitForCommand(
+    'npx playwright-core install --with-deps chromium firefox webkit',
+    workingDirectory,
+  );
 };
 
 export const buildDockerImage = async (
   cmd: string,
   projectDir: string,
-): Promise<void> =>
-  new Promise((resolve, reject) => {
-    const [docker, ...args] = cmd.split(' ');
-    spawn(docker, args, {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-      return reject(
-        `Error when building Docker image, see output for more details`,
-      );
-    });
-  });
+): Promise<void> => waitForCommand(cmd, projectDir);
 
 export const buildTypeScript = async (
   buildDir: string,
   projectDir: string,
-): Promise<void> =>
-  new Promise((resolve, reject) => {
-    spawn('npx', ['tsc', '--outDir', buildDir], {
-      cwd: projectDir,
-      stdio: 'inherit',
-    }).once('close', (code) => {
-      if (code === 0) {
-        return resolve();
-      }
-      return reject(
-        `Error in building TypeScript, see output for more details`,
-      );
-    });
-  });
+): Promise<void> => waitForCommand(`npx tsc --outDir ${buildDir}`, projectDir);
