@@ -25,6 +25,7 @@ import {
   WebKitPlaywright,
   WebSocketRoute,
   availableBrowsers,
+  dedent,
   getRouteFiles,
   makeExternalURL,
   normalizeFileProtocol,
@@ -356,7 +357,8 @@ export class Browserless extends EventEmitter {
         !installedBrowsers.some((b) => b.name === route.browser?.name)
       ) {
         throw new Error(
-          `Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}"`,
+          dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
+            Installed Browsers: ${installedBrowsers.join(', ')}`),
         );
       }
     });

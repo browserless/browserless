@@ -26,8 +26,9 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN npx --yes playwright install chromium &&\
-  npx --yes playwright install-deps chromium &&\
+# NOTE it's important to not use npx playwright-core here since it'll likely install
+# a more recent version than we potentially have in our own package.json
+RUN ./node_modules/playwright-core/cli.js install --with-deps chromium &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
