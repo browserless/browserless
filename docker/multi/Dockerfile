@@ -34,7 +34,9 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
     rm -rf ./src/routes/chrome; \
   fi
 
-RUN npx --yes playwright install --with-deps chromium firefox webkit &&\
+# NOTE it's important to not use npx playwright-core here since it'll likely install
+# a more recent version than we potentially have in our own package.json
+RUN ./node_modules/.bin/playwright-core install --with-deps chromium firefox webkit &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\

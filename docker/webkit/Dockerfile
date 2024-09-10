@@ -27,8 +27,10 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-ubuntu \
     fonts-wqy-zenhei
 
-RUN npx --yes playwright install webkit &&\
-  npx --yes playwright install-deps webkit &&\
+# NOTE it's important to not use npx playwright-core here since it'll likely install
+# a more recent version than we potentially have in our own package.json
+RUN ./node_modules/.bin/playwright-core install webkit &&\
+  ./node_modules/.bin/playwright-core install-deps webkit &&\
   npm run build &&\
   npm prune production &&\
   chown -R blessuser:blessuser $APP_DIR &&\
