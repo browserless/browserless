@@ -136,6 +136,14 @@ const browser = await pw.firefox.connect(
 
 After that, the rest of your code remains the same with no other changes required.
 
+## Self-Hosting Options
+
+### Elestio
+
+You can deploy browserless on Elestio using one-click deployment.
+
+[![Deploy on Elestio](https://elest.io/images/logos/deploy-to-elestio-btn.png)](https://elest.io/open-source/browserless)
+
 ## Extending (NodeJS SDK)
 
 Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
