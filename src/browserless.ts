@@ -28,6 +28,7 @@ import {
   dedent,
   getRouteFiles,
   makeExternalURL,
+  normalizeFileProtocol,
   printLogo,
   safeParse,
 } from '@browserless.io/browserless';
@@ -314,9 +315,7 @@ export class Browserless extends EventEmitter {
           }),
         );
 
-        const wsImport = `${
-          this.config.getIsWin() ? 'file:///' : ''
-        }${wsRoute}`;
+        const wsImport = normalizeFileProtocol(wsRoute);
         const {
           default: Route,
         }: {
