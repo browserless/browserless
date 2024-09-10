@@ -12,7 +12,7 @@ jobs:
         run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
 
       - name: Build the Chromium image
-        run: docker build --build-arg VERSION=latest -f ./docker/chromium/Dockerfile -t ghcr.io/browserless/chromium:latest .
+        run: docker build --build-arg VERSION=latest -f ./docker/chromium/Dockerfile -t chromium:latest .
 
       - name: Test the Chromium image
-        run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/chromium:latest
+        run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh chromium:latest
