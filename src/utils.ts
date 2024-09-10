@@ -64,8 +64,25 @@ export const buildDir: string = path.join(path.resolve(), 'build');
 export const tsExtension = '.d.ts';
 export const jsonExtension = '.json';
 export const jsExtension = '.js';
+export const isWin = process.platform === 'win32';
 
 export const id = (): string => crypto.randomUUID();
+
+/**
+ * Normalizes a full-path by adding the `file://` protocol if needed.
+ * 
+ * @param filepath - The file path to normalize.
+ * @returns The normalized file path.
+ */
+export const normalizeFileProtocol = (filepath: string) => {
+  if (isWin) {
+    if (filepath.startsWith('file:///')) return filepath;
+
+    return 'file:///' + filepath;
+  }
+
+  return filepath;
+};
 
 /**
  * Generates a random, Chromium-compliant page ID with "BLESS"

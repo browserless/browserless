@@ -1,4 +1,4 @@
-import { exists, keyLength, untildify } from '@browserless.io/browserless';
+import { exists, isWin as isWindows, keyLength, untildify } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import debug from 'debug';
 import { fileURLToPath } from 'url';
@@ -112,8 +112,8 @@ const getDebug = () => {
 export class Config extends EventEmitter {
   protected readonly debug = getDebug();
   protected readonly host = process.env.HOST ?? 'localhost';
+  protected readonly isWin = isWindows;
   protected external = process.env.PROXY_URL ?? process.env.EXTERNAL;
-  protected readonly isWin = process.platform === 'win32';
 
   protected port = +(process.env.PORT ?? '3000');
 

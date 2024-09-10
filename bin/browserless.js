@@ -8,6 +8,7 @@ import {
   getArgSwitches,
   getSourceFiles,
   installDependencies,
+  normalizeFileProtocol,
   prompt,
 } from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
@@ -27,7 +28,6 @@ if (typeof process.env.DEBUG === 'undefined') {
 }
 
 const log = debug('browserless.io:sdk:log');
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2] ?? 'help';
 const subCMD = process.argv[3];
@@ -90,7 +90,7 @@ const importDefault = async (files, fileName) => {
     return;
   }
 
-  const fullFilePath = path.join(compiledDir, classModuleFile);
+  const fullFilePath = normalizeFileProtocol(path.join(compiledDir, classModuleFile));
 
   if (!classModuleFile) {
     return;
