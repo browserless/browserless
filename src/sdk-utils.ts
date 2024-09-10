@@ -13,7 +13,7 @@ const waitForCommand = async (cmd: string, workingDirectory: string) =>
     execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
       if (stderr) {
         return reject(
-          `Error when installing dependencies: ${stderr}, see output for more details`,
+          `Error running ${cmd}. See output for more details: \n${stderr}`,
         );
       }
 
