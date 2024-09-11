@@ -33,27 +33,22 @@ process
   })
   .once('uncaughtException', async (err, origin) => {
     console.error('Unhandled exception at:', origin, 'error:', err);
-    await browserless.stop();
     process.exit(1);
   })
   .once('SIGTERM', async () => {
     logger.info(`SIGTERM received, saving and closing down`);
-    await browserless.stop();
     process.exit(0);
   })
   .once('SIGINT', async () => {
     logger.info(`SIGINT received, saving and closing down`);
-    await browserless.stop();
     process.exit(0);
   })
   .once('SIGHUP', async () => {
     logger.info(`SIGHUP received, saving and closing down`);
-    await browserless.stop();
     process.exit(0);
   })
   .once('SIGUSR2', async () => {
     logger.info(`SIGUSR2 received, saving and closing down`);
-    await browserless.stop();
     process.exit(0);
   })
   .once('exit', () => {
