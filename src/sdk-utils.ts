@@ -8,18 +8,19 @@ import { exec } from 'child_process';
 
 const execAsync = promisify(exec);
 
-const waitForCommand = async (cmd: string, workingDirectory: string) =>
-  new Promise<void>((resolve, reject) =>
-    execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
-      if (stderr) {
-        return reject(
-          `Error running ${cmd}. See output for more details: \n${stderr}`,
-        );
-      }
+const waitForCommand = async (
+  cmd: string,
+  workingDirectory: string,
+): Promise<void> =>
+  execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
+    if (stderr) {
+      console.warn(
+        `Command produced the following stderr entries: \n${stderr}`,
+      );
+    }
 
-      return resolve();
-    }),
-  );
+    return;
+  });
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
