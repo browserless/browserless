@@ -27,6 +27,35 @@ if (typeof process.env.DEBUG === 'undefined') {
   debug.enable('browserless*');
 }
 
+process
+  .on('unhandledRejection', async (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  })
+  .once('uncaughtException', async (err, origin) => {
+    console.error('Unhandled exception at:', origin, 'error:', err);
+    process.exit(1);
+  })
+  .once('SIGTERM', async () => {
+    console.debug(`SIGTERM received, saving and closing down`);
+    process.exit(0);
+  })
+  .once('SIGINT', async () => {
+    console.debug(`SIGINT received, saving and closing down`);
+    process.exit(0);
+  })
+  .once('SIGHUP', async () => {
+    console.debug(`SIGHUP received, saving and closing down`);
+    process.exit(0);
+  })
+  .once('SIGUSR2', async () => {
+    console.debug(`SIGUSR2 received, saving and closing down`);
+    process.exit(0);
+  })
+  .once('exit', () => {
+    console.debug(`Process is finished, exiting`);
+    process.exit(0);
+  });
+
 const log = debug('browserless.io:sdk:log');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmd = process.argv[2] ?? 'help';
@@ -90,7 +119,9 @@ const importDefault = async (files, fileName) => {
     return;
   }
 
-  const fullFilePath = normalizeFileProtocol(path.join(compiledDir, classModuleFile));
+  const fullFilePath = normalizeFileProtocol(
+    path.join(compiledDir, classModuleFile),
+  );
 
   if (!classModuleFile) {
     return;

@@ -8,18 +8,19 @@ import { exec } from 'child_process';
 
 const execAsync = promisify(exec);
 
-const waitForCommand = async (cmd: string, workingDirectory: string) =>
-  new Promise<void>((resolve, reject) =>
-    execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
-      if (stderr) {
-        return reject(
-          `Error running ${cmd}. See output for more details: \n${stderr}`,
-        );
-      }
+const waitForCommand = async (
+  cmd: string,
+  workingDirectory: string,
+): Promise<void> =>
+  execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
+    if (stderr) {
+      console.warn(
+        `Command produced the following stderr entries: \n${stderr}`,
+      );
+    }
 
-      return resolve();
-    }),
-  );
+    return;
+  });
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
@@ -58,13 +59,7 @@ export const getSourceFiles = async (cwd: string) => {
   const files = await fs.readdir(buildDir, { recursive: true });
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
-      const isInRootDir = !file.includes(path.sep);
       const parsed = path.parse(file);
-
-      if (isInRootDir) {
-        return [httpRoutes, webSocketRoutes];
-      }
-
       if (parsed.name.endsWith('http')) {
         httpRoutes.push(path.join(buildDir, file));
       }
@@ -110,7 +105,7 @@ export const installDependencies = async (
 ): Promise<void> => {
   await waitForCommand('npm install', workingDirectory);
   await waitForCommand(
-    'npx playwright-core install --with-deps chromium firefox webkit',
+    './node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit',
     workingDirectory,
   );
 };

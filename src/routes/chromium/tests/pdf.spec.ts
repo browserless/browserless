@@ -28,7 +28,7 @@ describe('/chromium/pdf API', function () {
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
       body: JSON.stringify(body),
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/json; charset=utf-8',
       },
       method: 'POST',
     }).then((res) => {
