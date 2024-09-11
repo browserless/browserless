@@ -110,7 +110,7 @@ export const installDependencies = async (
 ): Promise<void> => {
   await waitForCommand('npm install', workingDirectory);
   await waitForCommand(
-    'npx playwright-core install --with-deps chromium firefox webkit',
+    './node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit',
     workingDirectory,
   );
 };
