@@ -9,6 +9,7 @@
 - Support `playwright@1.47.0`.
 - Use installed playwright-core for downloading browser binaries instead of `npx`, ensuring the appropriate browsers are installed.
 - Fix JSON routes 404-ing when charset is specified in the content-type header.
+- Disable the built-in debugger by setting `ENABLE_DEBUGGER=false`.
 - Automatically run prettier on file save in VS Code.
 - Windows fixes for SDK projects.
 - README link fixes.

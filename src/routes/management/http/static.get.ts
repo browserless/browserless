@@ -83,6 +83,12 @@ export default class StaticGetRoute extends HTTPRoute {
       locations.push(...[sdkPath, path.join(sdkPath, 'index.html')]);
     }
 
+    if (pathname.includes('/debugger/') && !(await config.hasDebugger())) {
+      throw new NotFound(
+        `No route or file found for resource ${req.method}: ${pathname}`,
+      );
+    }
+
     const foundFilePaths = (
       await Promise.all(
         locations.map((l) => fileExists(l).then((e) => (e ? l : undefined))),
