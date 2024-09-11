@@ -48,6 +48,33 @@ describe('/chromium/content API', function () {
     });
   });
 
+  it('allows requests with content-type charsets', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      url: 'https://example.com',
+    };
+
+    await fetch('http://localhost:3000/chromium/content?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('x-response-code')).to.not.be.undefined;
+      expect(res.headers.get('x-response-url')).to.not.be.undefined;
+      expect(res.headers.get('x-response-ip')).to.not.be.undefined;
+      expect(res.headers.get('x-response-por')).to.not.be.undefined;
+      expect(res.headers.get('content-type')).to.equal(
+        'text/html; charset=UTF-8',
+      );
+      expect(res.status).to.equal(200);
+    });
+  });
+
   it('cancels request when they are closed early', async () => {
     const config = new Config();
     const metrics = new Metrics();

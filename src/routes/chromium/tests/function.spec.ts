@@ -34,7 +34,7 @@ describe('/chromium/function API', function () {
     await fetch('http://localhost:3000/chromium/function?token=browserless', {
       body: JSON.stringify(body),
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/json; charset=utf-8',
       },
       method: 'POST',
     }).then(async (res) => {
