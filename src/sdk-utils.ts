@@ -59,13 +59,7 @@ export const getSourceFiles = async (cwd: string) => {
   const files = await fs.readdir(buildDir, { recursive: true });
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
-      const isInRootDir = !file.includes(path.sep);
       const parsed = path.parse(file);
-
-      if (isInRootDir) {
-        return [httpRoutes, webSocketRoutes];
-      }
-
       if (parsed.name.endsWith('http')) {
         httpRoutes.push(path.join(buildDir, file));
       }
