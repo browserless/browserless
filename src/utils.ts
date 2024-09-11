@@ -70,7 +70,7 @@ export const id = (): string => crypto.randomUUID();
 
 /**
  * Normalizes a full-path by adding the `file://` protocol if needed.
- * 
+ *
  * @param filepath - The file path to normalize.
  * @returns The normalized file path.
  */

@@ -1,4 +1,9 @@
-import { exists, isWin as isWindows, keyLength, untildify } from '@browserless.io/browserless';
+import {
+  exists,
+  isWin as isWindows,
+  keyLength,
+  untildify,
+} from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import debug from 'debug';
 import { fileURLToPath } from 'url';
