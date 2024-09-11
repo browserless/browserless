@@ -1,5 +1,4 @@
 {
-  "editor.formatOnSave": false,
   "cSpell.words": [
     "chrome",
     "ihttp",
@@ -44,5 +43,11 @@
     "typescriptreact",
     "yaml",
     "yml"
-  ]
+  ],
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
