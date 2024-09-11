@@ -175,6 +175,7 @@ export class Config extends EventEmitter {
   protected timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
   protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
   protected pwVersions: { [key: string]: string } = {};
+  protected enableDebugger = !!parseEnvVars(true, 'ENABLE_DEBUGGER');
 
   public getRoutes(): string {
     return this.routes;
@@ -261,8 +262,8 @@ export class Config extends EventEmitter {
     return this.errorAlertURL;
   }
 
-  public hasDebugger(): Promise<boolean> {
-    return exists(this.debuggerDir);
+  public async hasDebugger(): Promise<boolean> {
+    return this.enableDebugger && (await exists(this.debuggerDir));
   }
 
   /**
