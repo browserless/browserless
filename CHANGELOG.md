@@ -2,6 +2,11 @@
 
 - Dependency updates.
 
+# [v2.20.1](https://github.com/browserless/chrome/compare/v2.20.0...v2.20.1)
+
+- Dependency updates.
+- Fix issues where connecting to a bad /devtools/page route can cause 500's.
+
 # [v2.20.0](https://github.com/browserless/chrome/compare/v2.19.0...v2.20.)
 
 - Dependency updates.
