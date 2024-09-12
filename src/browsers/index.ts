@@ -454,11 +454,10 @@ export class BrowserManager {
                 ok: false,
               }));
               if (response.ok) {
-                const body = await response.json();
-                // @ts-ignore
+                const body: Array<CDPJSONPayload> = await response.json();
                 return body.map((b) => ({ ...b, browser }));
               }
-              return null;
+              return [];
             }),
         );
         const found = allPages.flat().find((b) => b.id === id);
