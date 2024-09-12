@@ -1,4 +1,4 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.20.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.20.1...main)
 
 - Dependency updates.
 
