@@ -1,6 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.20.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.20.2...main)
 
 - Dependency updates.
+
+# [v2.20.2](https://github.com/browserless/chrome/compare/v2.20.1...v2.20.2)
+
+- Dependency updates.
+- Adds a fix to SDK routes that might not require a browser but browserless will still make one.
 
 # [v2.20.1](https://github.com/browserless/chrome/compare/v2.20.0...v2.20.1)
 
