@@ -75,7 +75,7 @@
     "@types/gradient-string": "^1.1.6",
     "@types/http-proxy": "^1.17.15",
     "@types/micromatch": "^4.0.9",
-    "@types/mocha": "^10.0.7",
+    "@types/mocha": "^10.0.8",
     "@types/node": "^22.5.4",
     "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "^8.5.0",
