@@ -70,7 +70,11 @@ export class Router extends EventEmitter {
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
-      if ('browser' in route && route.browser) {
+      if (
+        Object.getPrototypeOf(route) instanceof BrowserHTTPRoute &&
+        'browser' in route &&
+        route.browser
+      ) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
@@ -121,7 +125,11 @@ export class Router extends EventEmitter {
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
-      if ('browser' in route && route.browser) {
+      if (
+        Object.getPrototypeOf(route) instanceof BrowserWebsocketRoute &&
+        'browser' in route &&
+        route.browser
+      ) {
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
