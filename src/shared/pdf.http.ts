@@ -29,7 +29,6 @@ import {
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
-import { Stream } from 'stream';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -237,11 +236,16 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       }
     }
 
-    const pdfBuffer = await page.pdf(options);
-    const readStream = new Stream.PassThrough();
-    readStream.end(pdfBuffer);
-
-    await new Promise((r) => readStream.pipe(res).once('close', r));
+    const pdfStream = await page.createPDFStream(options);
+    const writableStream = new WritableStream({
+      write(chunk) {
+        res.write(chunk);
+      },
+      close() {
+        res.end();
+      },
+    });
+    await pdfStream.pipeTo(writableStream);
 
     page.close().catch(noop);
 
