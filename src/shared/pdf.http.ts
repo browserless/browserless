@@ -240,10 +240,12 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     const writableStream = new WritableStream({
       write(chunk) {
         res.write(chunk);
+      }, 
+      close() {
+        res.end();
       }
     });
     await pdfStream.pipeTo(writableStream);
-    res.end();
     
     page.close().catch(noop);
 
