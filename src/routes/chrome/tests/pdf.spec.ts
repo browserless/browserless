@@ -32,7 +32,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('x-response-code')).to.not.be.undefined;
       expect(res.headers.get('x-response-url')).to.not.be.undefined;
       expect(res.headers.get('x-response-ip')).to.not.be.undefined;
@@ -77,7 +77,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -102,7 +102,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -127,7 +127,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -155,7 +155,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -178,7 +178,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -262,7 +262,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -287,7 +287,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -309,7 +309,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -334,7 +334,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -361,7 +361,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
     });
@@ -380,7 +380,7 @@ describe('/chrome/pdf API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      await res.body?.pipeTo(new WritableStream({ }));
+      await res.body?.pipeTo(new WritableStream({}));
       expect(res.headers.get('x-response-code')).to.not.be.undefined;
       expect(res.headers.get('x-response-url')).to.not.be.undefined;
       expect(res.headers.get('x-response-ip')).to.not.be.undefined;
