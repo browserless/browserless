@@ -1,6 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.20.2...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.21.0...main)
 
 - Dependency updates.
+
+# [v2.21.0](https://github.com/browserless/chrome/compare/v2.20.2...v2.21.0)
+
+- Dependency updates.
+- Supports:
+  - puppeteer-core: 23.4.1
+  - playwright-core: 1.47.2, 1.46.1, 1.45.3, 1.44, and 1.43.
+- Stream PDF using createPDFStream() in the PDF APIs.
+- Inject file-system managers in browser-manager.
 
 # [v2.20.2](https://github.com/browserless/chrome/compare/v2.20.1...v2.20.2)
 
