@@ -318,7 +318,7 @@ const buildDocker = async () => {
     (await prompt(
       'Which docker image do you want to use (defaults to: ghcr.io/browserless/multi)?',
     )) ||
-    `ghcr.io/browserless/multi:${version}`;
+    `ghcr.io/browserless/multi:v${version}`;
 
   const action =
     argSwitches.action ||
