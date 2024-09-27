@@ -299,6 +299,7 @@ const start = async (dev = false) => {
 };
 
 const buildDocker = async () => {
+  const { version } = await browserlessPackageJSON;
   const finalDockerPath = path.join(compiledDir, 'Dockerfile');
   const argSwitches = getArgSwitches();
 
@@ -317,7 +318,7 @@ const buildDocker = async () => {
     (await prompt(
       'Which docker image do you want to use (defaults to: ghcr.io/browserless/multi)?',
     )) ||
-    'ghcr.io/browserless/multi';
+    `ghcr.io/browserless/multi:${version}`;
 
   const action =
     argSwitches.action ||
