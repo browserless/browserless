@@ -14,6 +14,7 @@ import {
   ChromiumCDP,
   ChromiumPlaywright,
   Config,
+  FileSystem,
   FirefoxPlaywright,
   HTTPManagementRoutes,
   Hooks,
@@ -51,6 +52,7 @@ export class BrowserManager {
   constructor(
     protected config: Config,
     protected hooks: Hooks,
+    protected fileSystem: FileSystem,
   ) {}
 
   protected browserIsChrome(b: BrowserInstance) {

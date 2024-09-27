@@ -103,10 +103,11 @@ export class Browserless extends EventEmitter {
     this.token = token || new Token(this.config);
     this.hooks = hooks || new Hooks();
     this.webhooks = webhooks || new WebHooks(this.config);
-    this.browserManager =
-      browserManager || new BrowserManager(this.config, this.hooks);
     this.monitoring = monitoring || new Monitoring(this.config);
     this.fileSystem = fileSystem || new FileSystem(this.config);
+    this.browserManager =
+      browserManager ||
+      new BrowserManager(this.config, this.hooks, this.fileSystem);
     this.limiter =
       limiter ||
       new Limiter(
