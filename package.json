@@ -53,7 +53,7 @@
     "enjoi": "^9.0.1",
     "file-type": "^19.5.0",
     "get-port": "^7.1.0",
-    "gradient-string": "^2.0.0",
+    "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
     "lighthouse": "^12.2.1",
     "micromatch": "^4.0.8",
