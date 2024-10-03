@@ -1,6 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.21.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.21.1...main)
 
 - Dependency updates.
+
+# [v2.21.1](https://github.com/browserless/chrome/compare/v2.21.0...v2.21.1)
+
+- Dependency updates.
+- Ensure we don't load Chrome routes for SDK projects running linux/arm64.
 
 # [v2.21.0](https://github.com/browserless/chrome/compare/v2.20.2...v2.21.0)
 
