@@ -122,6 +122,30 @@ describe('/chrome/screenshot API', function () {
     });
   });
 
+  it('allows setting jpg type', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      url: 'https://example.com',
+      options: {
+        type: 'jpeg',
+      },
+    };
+
+    await fetch('http://localhost:3000/chrome/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/jpeg');
+      expect(res.status).to.equal(200);
+    });
+  });
+
   it('allows for providing http response payloads', async () => {
     const config = new Config();
     const metrics = new Metrics();
