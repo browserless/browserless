@@ -7,6 +7,7 @@ import {
   camelCase,
   getArgSwitches,
   getSourceFiles,
+  installBrowsers,
   installDependencies,
   normalizeFileProtocol,
   prompt,
