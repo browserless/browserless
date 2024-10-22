@@ -104,6 +104,10 @@ export const installDependencies = async (
   workingDirectory: string,
 ): Promise<void> => {
   await waitForCommand('npm install', workingDirectory);
+  await installBrowsers(workingDirectory);
+};
+
+export const installBrowsers = async (workingDirectory: string) => {
   await waitForCommand(
     './node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit',
     workingDirectory,

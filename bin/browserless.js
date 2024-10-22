@@ -68,6 +68,7 @@ const allowedCMDs = [
   'create',
   'help',
   'clean',
+  'install',
 ];
 
 if (!allowedCMDs.includes(cmd)) {
@@ -365,6 +366,10 @@ const buildDocker = async () => {
   }
 };
 
+const install = async() => {
+  await installBrowsers(projectDir);
+};
+
 const create = async () => {
   const validNameRegex = /^[a-zA-Z0-9-_]+$/gi;
   const directory = (
@@ -461,6 +466,14 @@ const help = async () => {
       `);
         break;
 
+      case 'install':
+        console.log(dedent`
+        Usage: npx @browserless.io/browserless install
+
+        Description: Installs the required browsers for all routes to work.
+      `);
+        break;
+
       case 'docker':
         console.log(dedent`
         Usage: npx @browserless.io/browserless docker
@@ -499,6 +512,7 @@ const help = async () => {
       build     Compiles TypeScript, generates build assets and exits.
       docker    Generates a docker image.
       start     Starts the http server with already-built assets.
+      install   Installs the necessary browser binaries.
   `);
 };
 
@@ -525,6 +539,10 @@ switch (cmd) {
 
   case 'create':
     create();
+    break;
+
+  case 'install':
+    install();
     break;
 
   default:
