@@ -69,7 +69,7 @@ const allowedCMDs = [
   'create',
   'help',
   'clean',
-  'install',
+  'install-browsers',
 ];
 
 if (!allowedCMDs.includes(cmd)) {
@@ -367,7 +367,7 @@ const buildDocker = async () => {
   }
 };
 
-const install = async() => {
+const installBrowser = async() => {
   await installBrowsers(projectDir);
 };
 
@@ -467,9 +467,9 @@ const help = async () => {
       `);
         break;
 
-      case 'install':
+      case 'install-browsers':
         console.log(dedent`
-        Usage: npx @browserless.io/browserless install
+        Usage: npx @browserless.io/browserless install-browsers
 
         Description: Installs the required browsers for all routes to work.
       `);
@@ -507,13 +507,13 @@ const help = async () => {
     Usage: npx @browserless.io/browserless [command] [arguments]
 
     Options:
-      clean     Removes build artifacts and other temporary directories.
-      create    Creates a new scaffold project, installs dependencies, and exits.
-      dev       Compiles TypeScript, generates build assets and starts the server.
-      build     Compiles TypeScript, generates build assets and exits.
-      docker    Generates a docker image.
-      start     Starts the http server with already-built assets.
-      install   Installs the necessary browser binaries.
+      build               Compiles TypeScript, generates build assets and exits.
+      clean               Removes build artifacts and other temporary directories.
+      create              Creates a new scaffold project, installs dependencies, and exits.
+      dev                 Compiles TypeScript, generates build assets and starts the server.
+      docker              Generates a docker image.
+      install-browsers    Installs the necessary browser binaries.
+      start               Starts the http server with already-built assets.
   `);
 };
 
@@ -542,8 +542,8 @@ switch (cmd) {
     create();
     break;
 
-  case 'install':
-    install();
+  case 'install-browsers':
+    installBrowser();
     break;
 
   default:
