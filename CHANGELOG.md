@@ -1,6 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.21.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.22.0...main)
 
 - Dependency updates.
+
+# [v2.22.0](https://github.com/browserless/chrome/compare/v2.21.1...v2.22.0)
+
+- Dependency updates.
+- New SDK project command of `npm run install:browsers` to help with browser management.
+- SDK projects now appropriately handle routes when only certain browsers are available.
 
 # [v2.21.1](https://github.com/browserless/chrome/compare/v2.21.0...v2.21.1)
 
