@@ -24,7 +24,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-roboto \
     fonts-thai-tlwg \
     fonts-ubuntu \
-    fonts-wqy-zenhei
+    fonts-wqy-zenhei \
+    fonts-open-sans
 
 # Chrome stable is only supported on non-ARM builds
 # so it's installation is conditional on whether or not amd64
