@@ -24,7 +24,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-roboto \
     fonts-thai-tlwg \
     fonts-ubuntu \
-    fonts-wqy-zenhei
+    fonts-wqy-zenhei \
+    fonts-open-sans
 
 # NOTE it's important to not use npx playwright-core here since it'll likely install
 # a more recent version than we potentially have in our own package.json
