@@ -1,6 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.22.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.23.0...main)
 
 - Dependency updates.
+
+# [v2.23.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.22.0)
+
+- Dependency updates.
+- Addition of `fonts-open-sans` to image.
 
 # [v2.22.0](https://github.com/browserless/chrome/compare/v2.21.1...v2.22.0)
 
