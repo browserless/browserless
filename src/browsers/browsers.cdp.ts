@@ -205,10 +205,9 @@ export class ChromiumCDP extends EventEmitter {
       if (bypassProxyListIdx !== -1) {
         options.args[bypassProxyListIdx] =
           `--proxy-bypass-list=` +
-          [
-            options.args[bypassProxyListIdx].split('=')[1],
-            ...defaultBypassList,
-          ].join(';');
+          [options.args[bypassProxyListIdx].split('=')[1], ...defaultBypassList]
+            .filter((_) => !!_)
+            .join(';');
       } else {
         options.args.push(`--proxy-bypass-list=${defaultBypassList.join(';')}`);
       }
