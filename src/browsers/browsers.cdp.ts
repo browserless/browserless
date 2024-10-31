@@ -195,11 +195,22 @@ export class ChromiumCDP extends EventEmitter {
 
     // Bypass the host we bind to so things like /function can work with proxies
     if (options.args?.some((arg) => arg.includes('--proxy-server'))) {
-      const bypassList = [
+      const defaultBypassList = [
         this.config.getHost(),
         new URL(this.config.getExternalAddress()).hostname,
       ];
-      options.args.push(`--proxy-bypass-list=${bypassList.join(',')}`);
+      const bypassProxyListIdx = options.args?.findIndex((arg) =>
+        arg.includes('--proxy-bypass-list'),
+      );
+      if (bypassProxyListIdx !== -1) {
+        options.args[bypassProxyListIdx] =
+          `--proxy-bypass-list=` +
+          [options.args[bypassProxyListIdx].split('=')[1], ...defaultBypassList]
+            .filter((_) => !!_)
+            .join(';');
+      } else {
+        options.args.push(`--proxy-bypass-list=${defaultBypassList.join(';')}`);
+      }
     }
 
     const finalOptions = {
