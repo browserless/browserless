@@ -8,7 +8,7 @@
 ![Firefox CI](https://github.com/browserless/chrome/actions/workflows/docker-firefox.yml/badge.svg)
 ![Webkit CI](https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg)
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
-![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Browserless%20Guru-006BFF)](https://gurubase.io/g/browserless)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Browserless%20Guru-006BFF)](https://gurubase.io/g/browserless)
 
 > [!NOTE]  
 > [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend [migrating](/MIGRATION-2.0.md) to v2.
