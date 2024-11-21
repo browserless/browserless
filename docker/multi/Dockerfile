@@ -8,8 +8,6 @@ ENV TARGETPLATFORM=${TARGETPLATFORM}
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
 
-RUN apt-get install -y -qq libwebp-dev
-
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
@@ -27,7 +25,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-thai-tlwg \
     fonts-ubuntu \
     fonts-wqy-zenhei \
-    fonts-open-sans
+    fonts-open-sans \
+    libwebp-dev
 
 # Chrome stable is only supported on non-ARM builds
 # so it's installation is conditional on whether or not amd64

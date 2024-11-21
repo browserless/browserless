@@ -9,8 +9,6 @@ RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
 COPY src/routes/webkit src/routes/webkit/
 
-RUN apt-get install -y -qq libwebp-dev
-
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
@@ -27,7 +25,8 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
     fonts-roboto \
     fonts-thai-tlwg \
     fonts-ubuntu \
-    fonts-wqy-zenhei
+    fonts-wqy-zenhei \
+    libwebp-dev
 
 # NOTE it's important to not use npx playwright-core here since it'll likely install
 # a more recent version than we potentially have in our own package.json
