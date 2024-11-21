@@ -8,6 +8,8 @@ ENV TARGETPLATFORM=${TARGETPLATFORM}
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
 
+RUN apt-get install libwebp-dev
+
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
   apt-get -y -qq install software-properties-common &&\
   apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" &&\
