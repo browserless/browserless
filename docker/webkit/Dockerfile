@@ -9,7 +9,7 @@ RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
 COPY src/routes/webkit src/routes/webkit/
 
-RUN apt-get install libwebp-dev
+RUN apt-get install -y -qq libwebp-dev
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
