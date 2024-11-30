@@ -537,6 +537,7 @@ export const waitForEvent = async (
   const awaitEvent = async (event: string) => {
     await new Promise<void>((resolve) => {
       document.addEventListener(event, () => resolve(), { once: true });
+      window.addEventListener(event, () => resolve(), { once: true });
     });
   };
 
@@ -545,7 +546,7 @@ export const waitForEvent = async (
   await Promise.race([
     page.evaluate(awaitEvent, opts.event),
     sleep(timeout).then(() => {
-      throw new Error('Event awaiting timeout');
+      throw new Timeout(`Timed out waiting for event "${opts.event}"'`);
     }),
   ]);
 };
