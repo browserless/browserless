@@ -6,6 +6,7 @@ import {
   HTTPRoutes,
   Logger,
   Request,
+  ServerError,
   UnwrapPromise,
   contentTypes,
   convertIfBase64,
@@ -67,7 +68,9 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     );
 
     if (!browserWSEndpoint) {
-      throw new Error(`No browser endpoint was found, is the browser running?`);
+      throw new ServerError(
+        `No browser endpoint was found, is the browser running?`,
+      );
     }
 
     const functionCodeJS = `browserless-function-${id()}.js`;
