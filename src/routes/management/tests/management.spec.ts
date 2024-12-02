@@ -30,6 +30,19 @@ describe('Management APIs', function () {
     );
   });
 
+  it('allows requests to /meta', async () => {
+    await start();
+
+    await fetch('http://localhost:3000/meta?token=6R0W53R135510').then(
+      async (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'application/json; charset=UTF-8',
+        );
+        expect(res.status).to.equal(200);
+      },
+    );
+  });
+
   it('allows requests to /metrics', async () => {
     await start();
 
