@@ -47,7 +47,7 @@ export interface ResponseSchema {
   puppeteer: string[];
 }
 
-const semverReg = /(\*|\^|\>|\=|\<|~)/gi;
+const semverReg = /(\*|\^|>|=|<|~)/gi;
 const require = createRequire(import.meta.url);
 const blessPackageJSON = require('../../../../package.json');
 const { browsers } =
