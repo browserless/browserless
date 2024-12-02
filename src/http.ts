@@ -126,6 +126,7 @@ export enum HTTPRoutes {
 export enum HTTPManagementRoutes {
   active = '/active?(/)',
   config = '/config?(/)',
+  meta = '/meta?(/)',
   metrics = '/metrics?(/)',
   metricsTotal = '/metrics/total?(/)',
   pressure = '/pressure?(/)',
