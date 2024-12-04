@@ -14,6 +14,7 @@ import {
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 import { createRequire } from 'module';
+import path from 'path';
 
 export interface ResponseSchema {
   /**
@@ -49,16 +50,17 @@ export interface ResponseSchema {
 
 const semverReg = /(\*|\^|>|=|<|~)/gi;
 const require = createRequire(import.meta.url);
-const blessPackageJSON = require('../../../../package.json');
-const { browsers } =
-  require('../../../../node_modules/playwright-core/browsers.json') as {
-    browsers: [
-      {
-        name: string;
-        browserVersion: string;
-      },
-    ];
-  };
+const blessPackageJSON = require(path.join(process.cwd(), 'package.json'));
+const { browsers } = require(
+  path.join(process.cwd(), 'node_modules', 'playwright-core', 'browsers.json'),
+) as {
+  browsers: [
+    {
+      name: string;
+      browserVersion: string;
+    },
+  ];
+};
 const chromium = browsers.find((b) => b.name === 'chromium')!.browserVersion;
 const firefox = browsers.find((b) => b.name === 'firefox')!.browserVersion;
 const webkit = browsers.find((b) => b.name === 'webkit')!.browserVersion;
