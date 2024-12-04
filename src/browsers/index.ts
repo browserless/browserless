@@ -32,10 +32,10 @@ import {
   parseStringParam,
   pwVersionRegex,
 } from '@browserless.io/browserless';
+import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
-import { Page } from 'puppeteer-core';
 
 export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
