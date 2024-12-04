@@ -367,7 +367,7 @@ const buildDocker = async () => {
   }
 };
 
-const installBrowser = async() => {
+const installBrowser = async () => {
   await installBrowsers(projectDir);
 };
 

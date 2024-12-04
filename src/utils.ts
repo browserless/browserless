@@ -743,23 +743,14 @@ export const parseStringParam = (
   params: URLSearchParams,
   name: string,
   defaultValue: string,
-) => {
+): string => {
   const value = params.get(name);
 
   if (value === null) {
     return defaultValue;
   }
 
-  // ?param format (no specified value)
-  if (value === '') {
-    return true;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
+  return value;
 };
 
 export const encrypt = (text: string, secret: Buffer) => {
