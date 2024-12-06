@@ -34,7 +34,7 @@ export default class KillGetRoute extends HTTPRoute {
   async handler(req: Request, res: ServerResponse): Promise<void> {
     const target = req.parsed.pathname.split('/')[2];
     const browserManager = this.browserManager();
-    browserManager.killSessions(target);
+    await browserManager.killSessions(target);
     return writeResponse(res, 204, '');
   }
 }

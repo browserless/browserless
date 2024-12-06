@@ -328,6 +328,7 @@ export class BrowserManager {
   public async killSessions(target: string): Promise<void> {
     this.log.info(`killSessions invoked target: "${target}"`);
     const sessions = Array.from(this.browsers);
+    let closed = 0;
     for (const [browser, session] of sessions) {
       if (
         session.trackingId === target ||
@@ -338,7 +339,11 @@ export class BrowserManager {
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
         this.close(browser, session, true);
+        closed++;
       }
+    }
+    if (closed === 0 && target !== 'all') {
+      throw new NotFound(`Couldn't locate session for id: "${target}"`);
     }
   }
 
@@ -414,6 +419,10 @@ export class BrowserManager {
 
       if (!micromatch.isMatch(trackingId, '+([0-9a-zA-Z-_])')) {
         throw new BadRequest(`trackingId contains invalid characters`);
+      }
+
+      if (trackingId === 'all') {
+        throw new BadRequest(`trackingId cannot be the reserved word "all"`);
       }
 
       this.log.info(`Assigning session trackingId "${trackingId}"`);

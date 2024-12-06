@@ -513,4 +513,33 @@ describe('Chromium WebSocket API', function () {
 
     await browser.disconnect();
   });
+
+  it('Throws an error while creating a session with invalid trackingId', async () => {
+    await start();
+
+    const didError = await puppeteer
+      .connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?trackingId=all`,
+      })
+      .then(() => false)
+      .catch(() => true);
+
+    expect(didError).to.be.true;
+  });
+
+  it('Throws an error while creating a session with duplicated trackingId', async () => {
+    await start();
+
+    await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?trackingId=duplicated`,
+    });
+    const didError = await puppeteer
+      .connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?trackingId=duplicated`,
+      })
+      .then(() => false)
+      .catch(() => true);
+
+    expect(didError).to.be.true;
+  });
 });
