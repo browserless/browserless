@@ -126,6 +126,7 @@ export enum HTTPRoutes {
 export enum HTTPManagementRoutes {
   active = '/active?(/)',
   config = '/config?(/)',
+  kill = '/kill/+([0-9a-zA-Z-_])?(/)',
   meta = '/meta?(/)',
   metrics = '/metrics?(/)',
   metricsTotal = '/metrics/total?(/)',
@@ -174,4 +175,9 @@ export interface SystemQueryParameters {
    * The authorization token
    */
   token?: string;
+
+  /**
+   * Custom session identifier
+   */
+  trackingId?: string;
 }

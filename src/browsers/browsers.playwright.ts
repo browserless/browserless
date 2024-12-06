@@ -24,6 +24,7 @@ class BasePlaywright extends EventEmitter {
   protected userDataDir: string | null;
   protected running = false;
   protected logger: Logger;
+  protected socket: Duplex | null = null;
   protected proxy = httpProxy.createProxyServer();
   protected browser: playwright.BrowserServer | null = null;
   protected browserWSEndpoint: string | null = null;
@@ -78,6 +79,7 @@ class BasePlaywright extends EventEmitter {
       this.logger.info(
         `Closing ${this.constructor.name} process and all listeners`,
       );
+      this.socket?.destroy();
       this.emit('close');
       this.cleanListeners();
       this.browser.close();
@@ -167,6 +169,7 @@ class BasePlaywright extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
+    this.socket = socket;
     return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(

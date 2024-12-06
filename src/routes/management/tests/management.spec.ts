@@ -120,4 +120,23 @@ describe('Management APIs', function () {
       expect(res.status).to.equal(204);
     });
   });
+
+  it('allows requests to /kill', async () => {
+    await start();
+
+    await fetch('http://localhost:3000/kill/all?token=6R0W53R135510').then(
+      async (res) => {
+        expect(res.status).to.equal(204);
+      },
+    );
+  });
+  it('Throws an error trying to kill invalid session', async () => {
+    await start();
+
+    await fetch(
+      `http://localhost:3000/kill/invalid-session?token=6R0W53R135510`,
+    ).then(async (res) => {
+      expect(res.status).to.equal(404);
+    });
+  });
 });

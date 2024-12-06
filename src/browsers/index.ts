@@ -16,7 +16,6 @@ import {
   Config,
   FileSystem,
   FirefoxPlaywright,
-  HTTPManagementRoutes,
   Hooks,
   Logger,
   NotFound,
@@ -35,6 +34,7 @@ import {
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
+import micromatch from 'micromatch';
 import path from 'path';
 
 export class BrowserManager {
@@ -236,11 +236,7 @@ export class BrowserManager {
         initialConnectURL: new URL(session.initialConnectURL, serverAddress)
           .href,
         killURL: session.id
-          ? makeExternalURL(
-              serverAddress,
-              HTTPManagementRoutes.sessions,
-              session.id,
-            )
+          ? makeExternalURL(serverAddress, '/kill/', session.id)
           : null,
         running: browser.isRunning(),
         timeAliveMs: Date.now() - session.startedOn,
@@ -277,12 +273,13 @@ export class BrowserManager {
   public async close(
     browser: BrowserInstance,
     session: BrowserlessSession,
+    force = false,
   ): Promise<void> {
     const now = Date.now();
     const keepUntil = browser.keepUntil();
     const connected = session.numbConnected;
     const hasKeepUntil = keepUntil > now;
-    const keepOpen = connected > 0 || hasKeepUntil;
+    const keepOpen = (connected > 0 || hasKeepUntil) && !force;
     const cleanupACtions: Array<() => Promise<void>> = [];
     const priorTimer = this.timers.get(session.id);
 
@@ -292,10 +289,10 @@ export class BrowserManager {
     }
 
     this.log.info(
-      `${session.numbConnected} Client(s) are currently connected, Keep-until: ${keepUntil}`,
+      `${session.numbConnected} Client(s) are currently connected, Keep-until: ${keepUntil}, force: ${force}`,
     );
 
-    if (hasKeepUntil) {
+    if (!force && hasKeepUntil) {
       const timeout = keepUntil - now;
       this.log.trace(
         `Setting timer ${timeout.toLocaleString()} for "${session.id}"`,
@@ -325,6 +322,28 @@ export class BrowserManager {
       }
 
       await Promise.all(cleanupACtions.map((a) => a()));
+    }
+  }
+
+  public async killSessions(target: string): Promise<void> {
+    this.log.info(`killSessions invoked target: "${target}"`);
+    const sessions = Array.from(this.browsers);
+    let closed = 0;
+    for (const [browser, session] of sessions) {
+      if (
+        session.trackingId === target ||
+        session.id === target ||
+        target === 'all'
+      ) {
+        this.log.info(
+          `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
+        );
+        this.close(browser, session, true);
+        closed++;
+      }
+    }
+    if (closed === 0 && target !== 'all') {
+      throw new NotFound(`Couldn't locate session for id: "${target}"`);
     }
   }
 
@@ -398,10 +417,12 @@ export class BrowserManager {
         );
       }
 
-      if (
-        ['/', '.', '\\'].some((routeLike) => trackingId.includes(routeLike))
-      ) {
+      if (!micromatch.isMatch(trackingId, '+([0-9a-zA-Z-_])')) {
         throw new BadRequest(`trackingId contains invalid characters`);
+      }
+
+      if (trackingId === 'all') {
+        throw new BadRequest(`trackingId cannot be the reserved word "all"`);
       }
 
       this.log.info(`Assigning session trackingId "${trackingId}"`);
