@@ -1,6 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.23.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.24.0...main)
 
 - Dependency updates.
+
+# [v2.24.0](https://github.com/browserless/chrome/compare/v2.24.0...v2.23.0)
+
+- Dependency updates.
+- Supports:
+  - puppeteer-core: 23.10.1.
+  - playwright-core: 1.49.0, 1.48.2, 1.47.2, 1.46.1, 1.45.3 and 1.44.1.
+  - Chromium: 131.0.6778.33.
+  - Chrome: 131.0.6778.109.
+  - Firefox: 132.0.
+  - Webkit: 18.2.
+- New `/meta` API route for getting details about the container (versions, etc).
+- Bump NodeJS to `v22.11.0`.
+- Add `libwebp-dev` for Webkit.
+- Add support for `trackingId` and `/kill/{id}` and `/kill/all`.
+- Prettier, internal fixes and improvements.
 
 # [v2.23.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.22.0)
 
