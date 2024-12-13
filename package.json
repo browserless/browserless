@@ -66,7 +66,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.23.9",
+    "systeminformation": "^5.23.11",
     "tar-fs": "^3.0.6"
   },
   "optionalDependencies": {
