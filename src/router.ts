@@ -228,10 +228,11 @@ export class Router extends EventEmitter {
 
   public async getRouteForHTTPRequest(req: Request) {
     const accepts = (req.headers['accept']?.toLowerCase() || '*/*').split(',');
-    const contentType = req.headers['content-type']
-      ?.toLowerCase()
-      ?.split(';')
-      .shift() as contentTypes | undefined;
+    const contentType =
+      (req.headers['content-type']
+        ?.toLowerCase()
+        ?.split(';')
+        .shift() as contentTypes) ?? 'application/json';
 
     return (
       this.httpRoutes.find(
