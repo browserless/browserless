@@ -10,7 +10,6 @@ permissions:
 jobs:
   dependabot:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'browserless/browserless'
     steps:
       - uses: hmarr/auto-approve-action@v4
       - name: Dependabot metadata
@@ -20,7 +19,6 @@ jobs:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
       - name: Enable auto-merge for Dependabot PRs
         # Playwright updates should be manually reviewed
-        if: "!contains(steps.metadata.outputs.dependency-names, 'playwright-core')"
         run: gh pr merge --auto --merge "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
