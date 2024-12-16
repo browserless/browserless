@@ -1,0 +1,14 @@
+name: PR Workflow
+
+on: [pull_request]
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml@main
+
+  codeql:
+    uses: ./.github/workflows/codeql-analysis.yml@main
+
+  automerge:
+    needs: [lint, codeql]
+    uses: ./.github/workflows/merge-dependabot.yml@main
