@@ -1,0 +1,26 @@
+name: Pull Request Checks
+
+on: [pull_request]
+
+jobs:
+  lint:
+    uses: browserless/browserless/.github/workflows/lint.yml@main
+
+  test-chrome:
+    uses: browserless/browserless/.github/workflows/docker-chrome.yml@main
+  
+  test-chromium:
+    uses: browserless/browserless/.github/workflows/docker-chromium.yml@main
+
+  test-firefox:
+    uses: browserless/browserless/.github/workflows/docker-firefox.yml@main
+
+  test-webkit:
+    uses: browserless/browserless/.github/workflows/docker-webkit.yml@main
+  
+  test-multi:
+    uses: browserless/browserless/.github/workflows/docker-multi.yml@main
+
+  automerge:
+    needs: [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
+    uses: browserless/browserless/.github/workflows/merge-dependabot.yml@main

@@ -1,6 +1,6 @@
 name: Webkit
 
-on: [pull_request]
+on: [workflow_call]
 
 jobs:
   Test:
