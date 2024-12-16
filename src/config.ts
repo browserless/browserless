@@ -290,9 +290,9 @@ export class Config extends EventEmitter {
     }
 
     if (!(await exists(this.dataDir))) {
-      throw new Error(
-        `"${this.dataDir}" Directory doesn't exist, did you forget to mount or make it?`,
-      );
+  throw new Error(
+    `"${this.dataDir}" Directory doesn't exist, did you forget to mount or make it?`,
+  );
     }
 
     return this.dataDir;
