@@ -12,6 +12,8 @@
 > [!NOTE]  
 > [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend [migrating](/MIGRATION-2.0.md) to v2.
 
+:)
+
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
 We take care of common issues such as missing system-fonts, missing external libraries, and performance improvements, along with edge-cases like downloading files and managing sessions. For details, check out the documentation site built into the project which includes Open API docs.
