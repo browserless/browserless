@@ -2,7 +2,7 @@
 
 name: Dependabot auto-merge
 on:
-  repository_dispatch:
+  workflow_call:
 
 
 permissions:
