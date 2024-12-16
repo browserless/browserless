@@ -1,7 +1,8 @@
 # See https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#approve-a-pull-request
 
 name: Dependabot auto-merge
-on: pull_request
+on: 
+  pull_request_target:  # Use pull_request_target to gain access to a token with write permissions
 
 permissions:
   contents: write
