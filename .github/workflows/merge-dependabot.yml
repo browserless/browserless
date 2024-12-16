@@ -14,7 +14,6 @@ jobs:
       - uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
-          approve-comment: ":+1: This PR looks great - auto-approving"
       - name: Enable auto-merge for Dependabot PRs
         # Playwright updates should be manually reviewed
         run: gh pr merge --auto --merge "$PR_URL"
