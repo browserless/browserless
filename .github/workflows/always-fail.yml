@@ -1,0 +1,13 @@
+name: Always Fail
+
+on: [push, pull_request]
+
+jobs:
+  always-fail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Always fail step
+        run: exit 1

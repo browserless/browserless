@@ -358,7 +358,7 @@ export class Config extends EventEmitter {
   }
 
   public setRoutes(newRoutePath: string): string {
-    this.emit('routes', newRoutePath);
+    this.emit("routes", newRoutePath);
     return (this.routes = newRoutePath);
   }
 
