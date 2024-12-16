@@ -4,11 +4,11 @@ on: [pull_request]
 
 jobs:
   lint:
-    uses: lint.yml@main
+    uses: andyMrtnzP/browserless-test/.github/workflows/lint.yml@main
 
   codeql:
-    uses: codeql-analysis.yml@main
+    uses: andyMrtnzP/browserless-test/.github/workflows/codeql-analysis.yml@main
 
   automerge:
     needs: [lint, codeql]
-    uses: merge-dependabot.yml@main
+    uses: andyMrtnzP/browserless-test/.github/workflows/merge-dependabot.yml@main
