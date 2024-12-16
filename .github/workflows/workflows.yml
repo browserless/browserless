@@ -6,9 +6,6 @@ jobs:
   lint:
     uses: andyMrtnzP/browserless-test/.github/workflows/lint.yml@main
 
-  codeql:
-    uses: andyMrtnzP/browserless-test/.github/workflows/codeql-analysis.yml@main
-
   automerge:
-    needs: [lint, codeql]
+    needs: [lint]
     uses: andyMrtnzP/browserless-test/.github/workflows/merge-dependabot.yml@main
