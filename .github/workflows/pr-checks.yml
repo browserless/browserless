@@ -1,0 +1,27 @@
+name: Pull Request Checks
+
+on: [pull_request]
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  test-chrome:
+    uses: ./.github/workflows/docker-chrome.yml
+  
+  test-chromium:
+    uses: ./.github/workflows/docker-chromium.yml
+
+  test-firefox:
+    uses: ./.github/workflows/docker-firefox.yml
+
+  test-webkit:
+    uses: ./.github/workflows/docker-webkit.yml
+  
+  test-multi:
+    uses: ./.github/workflows/docker-multi.yml
+
+  automerge:
+    needs: [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
+    uses: ./.github/workflows/merge-dependabot.yml
+
