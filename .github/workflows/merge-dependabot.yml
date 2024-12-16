@@ -12,11 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: hmarr/auto-approve-action@v4
-      - name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v2
         with:
-          github-token: '${{ secrets.GH_TOKEN }}'
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          approve-comment: ":+1: This PR looks great - auto-approving"
       - name: Enable auto-merge for Dependabot PRs
         # Playwright updates should be manually reviewed
         run: gh pr merge --auto --merge "$PR_URL"
