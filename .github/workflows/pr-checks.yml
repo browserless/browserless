@@ -4,23 +4,23 @@ on: [pull_request]
 
 jobs:
   lint:
-    uses: browserless/browserless/.github/workflows/lint.yml@main
+    uses: ./.github/workflowslint.yml@main
 
   test-chrome:
-    uses: browserless/browserless/.github/workflows/docker-chrome.yml@main
+    uses: ./.github/workflowsdocker-chrome.yml@main
   
   test-chromium:
-    uses: browserless/browserless/.github/workflows/docker-chromium.yml@main
+    uses: ./.github/workflowsdocker-chromium.yml@main
 
   test-firefox:
-    uses: browserless/browserless/.github/workflows/docker-firefox.yml@main
+    uses: ./.github/workflowsdocker-firefox.yml@main
 
   test-webkit:
-    uses: browserless/browserless/.github/workflows/docker-webkit.yml@main
+    uses: ./.github/workflowsdocker-webkit.yml@main
   
   test-multi:
-    uses: browserless/browserless/.github/workflows/docker-multi.yml@main
+    uses: ./.github/workflowsdocker-multi.yml@main
 
   automerge:
     needs: [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
-    uses: browserless/browserless/.github/workflows/merge-dependabot.yml@main
+    uses: ./.github/workflowsmerge-dependabot.yml@main
