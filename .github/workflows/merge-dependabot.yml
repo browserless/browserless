@@ -16,7 +16,7 @@ jobs:
         id: metadata
         uses: dependabot/fetch-metadata@v2
         with:
-          github-token: '${{ secrets.GITHUB_PAT }}'
+          github-token: '${{ secrets.GH_TOKEN }}'
       - name: Enable auto-merge for Dependabot PRs
         # Playwright updates should be manually reviewed
         run: gh pr merge --auto --merge "$PR_URL"
