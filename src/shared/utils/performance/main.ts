@@ -2,6 +2,7 @@ import { Message, mainOptions } from './types.js';
 import { fork } from 'child_process';
 import path from 'path';
 
+const __dirname = import.meta.dirname;
 const DEFAULT_AUDIT_CONFIG = {
   extends: 'lighthouse:default',
 };
@@ -13,14 +14,7 @@ export default async ({
   timeout,
 }: mainOptions): Promise<unknown> => {
   return new Promise((resolve, reject) => {
-    const childPath = path.join(
-      './',
-      'build',
-      'shared',
-      'utils',
-      'performance',
-      'child.js',
-    );
+    const childPath = path.join(__dirname, 'child.js');
 
     logger.trace(`Starting up child at ${childPath}`);
 
