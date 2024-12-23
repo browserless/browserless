@@ -1,6 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.24.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.24.1...main)
 
 - Dependency updates.
+
+# [v2.24.1](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.0)
+
+- Dependency updates.
+- Fixes for /performance API in SDK projects.
 
 # [v2.24.0](https://github.com/browserless/chrome/compare/v2.24.0...v2.23.0)
 
