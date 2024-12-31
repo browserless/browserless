@@ -538,7 +538,7 @@ export class BrowserManager {
     if (
       launchOptions.args &&
       proxyServerArg &&
-      req.parsed.pathname.startsWith('/playwright')
+      req.parsed.pathname.includes('/playwright')
     ) {
       (launchOptions as BrowserServerOptions).proxy = {
         server: proxyServerArg.split('=')[1],
