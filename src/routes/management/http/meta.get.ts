@@ -14,8 +14,8 @@ import {
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 import { createRequire } from 'module';
-import path from 'path';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
