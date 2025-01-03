@@ -15,6 +15,9 @@ import {
 import { ServerResponse } from 'http';
 import { createRequire } from 'module';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface ResponseSchema {
   /**
@@ -50,7 +53,9 @@ export interface ResponseSchema {
 
 const semverReg = /(\*|\^|>|=|<|~)/gi;
 const require = createRequire(import.meta.url);
-const blessPackageJSON = require(path.join(process.cwd(), 'package.json'));
+const blessPackageJSON = require(
+  path.join(__dirname, '..', '..', '..', '..', 'package.json'),
+);
 const { browsers } = require(
   path.join(process.cwd(), 'node_modules', 'playwright-core', 'browsers.json'),
 ) as {
