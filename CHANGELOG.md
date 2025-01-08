@@ -1,13 +1,21 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.24.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.24.2...main)
 
 - Dependency updates.
 
-# [v2.24.1](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.0)
+# [Latest](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.2)
+
+- Dependency updates.
+- Fix issues with Firefox when using a proxy.
+- Fixes for the `/meta` API in SDK projects.
+- Lint fixes.
+- Link fixes in this CHANGELOG.md file.
+
+# [v2.24.1](https://github.com/browserless/chrome/compare/v2.24.0...v2.24.1)
 
 - Dependency updates.
 - Fixes for /performance API in SDK projects.
 
-# [v2.24.0](https://github.com/browserless/chrome/compare/v2.24.0...v2.23.0)
+# [v2.24.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.24.0)
 
 - Dependency updates.
 - Supports:
@@ -23,7 +31,7 @@
 - Add support for `trackingId` and `/kill/{id}` and `/kill/all`.
 - Prettier, internal fixes and improvements.
 
-# [v2.23.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.22.0)
+# [v2.23.0](https://github.com/browserless/chrome/compare/v2.22.0...v2.23.0)
 
 - Dependency updates.
 - Fixes `--proxy-bypass-list` CLI arguments not being passed through with function API.

@@ -8,7 +8,7 @@ jobs:
 
   test-chrome:
     uses: ./.github/workflows/docker-chrome.yml
-  
+
   test-chromium:
     uses: ./.github/workflows/docker-chromium.yml
 
@@ -17,11 +17,11 @@ jobs:
 
   test-webkit:
     uses: ./.github/workflows/docker-webkit.yml
-  
+
   test-multi:
     uses: ./.github/workflows/docker-multi.yml
 
   automerge:
-    needs: [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
+    needs:
+      [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
     uses: ./.github/workflows/merge-dependabot.yml
-
