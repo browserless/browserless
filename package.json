@@ -67,7 +67,7 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
     "systeminformation": "^5.25.9",
-    "tar-fs": "^3.0.6"
+    "tar-fs": "^3.0.7"
   },
   "optionalDependencies": {
     "@types/chai": "^5.0.1",
