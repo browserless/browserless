@@ -10,7 +10,7 @@
 ![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
 
 > [!NOTE]  
-> [Looking for v1.x.x of browserless? You can find it here](https://github.com/browserless/chrome/tree/v1), although we recommend [migrating](/MIGRATION-2.0.md) to v2.
+> Looking to bypass bot detectors and solve captchas? [We would recommend using BrowserQL as our stealthiest option](https://www.browserless.io/feature/browserql).
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
 
@@ -57,12 +57,11 @@ If you've been struggling to deploy headless browsers without running into issue
 
 Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
 
-- Inbuilt [residential proxy](https://www.browserless.io/blog/residential-proxying/)
-- [/unblock API](https://www.browserless.io/blog/unblock-api) for avoiding detectors
-- [Automated captcha solving](https://www.browserless.io/blog/captcha-solving) for getting past mandatory checks
+- [BrowserQL](https://www.browserless.io/feature/browserql) for avoiding detectors and solving captchas
 - [Hybrid automations](https://www.browserless.io/blog/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
 - [/reconnect API](https://www.browserless.io/blog/reconnect-api) for keeping browsers alive for reuse
 - [REST APIs](https://www.browserless.io/feature/rest-apis) for tasks such as retrieving HTML, PDFs or Lighthouse metrics
+- Inbuilt [residential proxy](https://www.browserless.io/blog/residential-proxying/)
 - SSO, tokens and user roles
 
 ## How it works
