@@ -14,6 +14,8 @@ import {
   ChromiumCDP,
   ChromiumPlaywright,
   Config,
+  EdgeCDP,
+  EdgePlaywright,
   FileSystem,
   FirefoxPlaywright,
   Hooks,
@@ -41,10 +43,11 @@ export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   protected log = new Logger('browser-manager');
-  protected chromeBrowsers = [ChromiumCDP, ChromeCDP];
+  protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
     ChromiumPlaywright.name,
     ChromePlaywright.name,
+    EdgePlaywright.name,
     FirefoxPlaywright.name,
     WebKitPlaywright.name,
   ];

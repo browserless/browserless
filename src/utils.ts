@@ -6,6 +6,8 @@ import {
   ChromiumCDP,
   ChromiumPlaywright,
   Config,
+  EdgeCDP,
+  EdgePlaywright,
   FirefoxPlaywright,
   Request,
   WaitForEventOptions,
@@ -345,6 +347,19 @@ export const chromeExecutablePath = () => {
   return '/usr/bin/google-chrome-stable';
 };
 
+export const edgeExecutablePath = () => {
+  if (process.platform === 'win32') {
+    // Windows always includes the ProgramFiles variable in the environment
+    return `${process.env['ProgramFiles']}\\Microsoft\\Edge\\Application\\msedge.exe`;
+  }
+
+  if (process.platform === 'darwin') {
+    return '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+  }
+
+  return '/usr/bin/microsoft-edge-stable';
+};
+
 export const getRouteFiles = async (config: Config): Promise<string[][]> => {
   const routes = config.getRoutes();
   const foundRoutes: string[] = await fs
@@ -468,7 +483,8 @@ export const availableBrowsers = Promise.all([
   exists(playwright.firefox.executablePath()),
   exists(playwright.webkit.executablePath()),
   exists(chromeExecutablePath()),
-]).then(([chromiumExists, firefoxExists, webkitExists, chromeExists]) => {
+  exists(edgeExecutablePath()),
+]).then(([chromiumExists, firefoxExists, webkitExists, chromeExists, edgeExists]) => {
   const availableBrowsers = [];
 
   if (chromiumExists) {
@@ -485,6 +501,10 @@ export const availableBrowsers = Promise.all([
 
   if (webkitExists) {
     availableBrowsers.push(WebKitPlaywright);
+  }
+
+  if(edgeExists) {
+    availableBrowsers.push(EdgeCDP, EdgePlaywright);
   }
 
   return availableBrowsers;
