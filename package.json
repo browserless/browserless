@@ -62,12 +62,12 @@
     "playwright-1.47": "npm:playwright-core@1.47.2",
     "playwright-1.48": "npm:playwright-core@1.48.2",
     "playwright-core": "^1.49.1",
-    "puppeteer-core": "^24.0.0",
+    "puppeteer-core": "^23.11.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.25.11",
-    "tar-fs": "^3.0.7"
+    "systeminformation": "^5.25.5",
+    "tar-fs": "^3.0.6"
   },
   "optionalDependencies": {
     "@types/chai": "^5.0.1",
@@ -76,17 +76,17 @@
     "@types/http-proxy": "^1.17.15",
     "@types/micromatch": "^4.0.9",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.10.6",
+    "@types/node": "^22.10.5",
     "@types/sinon": "^17.0.3",
-    "@typescript-eslint/eslint-plugin": "^8.20.0",
-    "@typescript-eslint/parser": "^8.20.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
     "assert": "^2.0.0",
     "chai": "^5.1.2",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0",
     "esbuild": "^0.24.2",
     "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^9.18.0",
+    "eslint": "^9.17.0",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^15.0.6",
@@ -95,14 +95,16 @@
     "prettier": "^3.4.2",
     "sinon": "^19.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.3",
+    "typescript": "^5.7.2",
     "typescript-json-schema": "^0.65.1"
   },
   "playwrightVersions": {
     "default": "playwright-core",
     "1.49": "playwright-core",
     "1.48": "playwright-1.48",
-    "1.47": "playwright-1.47"
+    "1.47": "playwright-1.47",
+    "1.46": "playwright-1.46",
+    "1.45": "playwright-1.45"
   },
   "eslintConfig": {
     "root": true,

@@ -125,8 +125,10 @@ class BasePlaywright extends EventEmitter {
 
     const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
-    const browser =
-      await versionedPw[this.playwrightBrowserType].launchServer(opts);
+    const browser = await versionedPw[this.playwrightBrowserType].launchServer({
+      ...opts,
+      headless: opts.headless ?? true,
+    });
     const browserWSEndpoint = browser.wsEndpoint();
 
     this.logger.info(
