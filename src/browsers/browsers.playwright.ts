@@ -61,6 +61,7 @@ class BasePlaywright extends EventEmitter {
       args: [
         ...(opts.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
+        '--headless=new',
       ],
       executablePath: this.executablePath(),
     };
@@ -125,10 +126,8 @@ class BasePlaywright extends EventEmitter {
 
     const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
-    const browser = await versionedPw[this.playwrightBrowserType].launchServer({
-      ...opts,
-      headless: opts.headless ?? true,
-    });
+    const browser =
+      await versionedPw[this.playwrightBrowserType].launchServer(opts);
     const browserWSEndpoint = browser.wsEndpoint();
 
     this.logger.info(
