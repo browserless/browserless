@@ -56,12 +56,18 @@ class BasePlaywright extends EventEmitter {
   }
 
   protected makeLaunchOptions(opts: BrowserServerOptions) {
+    // Strip headless=old as it'll cause issues with newer Chromium
+    const args = (opts.args ?? []).filter((a) => !a.includes('--headless=old'));
+
+    if (!args.some((a) => a.startsWith('--headless'))) {
+      args.push('--headless=new');
+    }
+
     return {
       ...opts,
       args: [
-        ...(opts.args || []),
+        ...args,
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
-        '--headless=new',
       ],
       executablePath: this.executablePath(),
     };
