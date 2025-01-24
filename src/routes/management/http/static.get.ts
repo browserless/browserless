@@ -28,7 +28,7 @@ const streamFile = (
   res: ServerResponse,
   file: string,
   contentType?: string,
-) =>
+): Promise<void> =>
   new Promise((resolve, reject) => {
     if (contentType) {
       logger.debug(`Setting content-type ${contentType}`);
