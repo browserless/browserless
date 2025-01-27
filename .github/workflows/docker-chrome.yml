@@ -4,7 +4,7 @@ on: [workflow_call]
 
 jobs:
   Test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
 
