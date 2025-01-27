@@ -1,8 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.24.2...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.24.3...main)
 
 - Dependency updates.
 
-# [Latest](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.2)
+# [v2.24.3](https://github.com/browserless/chrome/compare/v2.24.2...v2.24.3)
+
+- Dependency updates.
+- Pins Ubuntu@22.04 in Github Actions.
+- Fixes `headless` types to use `--headless=new` when prior libraries attempt to do `--headless=old` (older playwright).
+- Typing fixes.
+
+# [v2.24.2](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.2)
 
 - Dependency updates.
 - Fix issues with Firefox when using a proxy.
