@@ -101,7 +101,7 @@
   "playwrightVersions": {
     "default": "playwright-core",
     "1.50": "playwright-core",
-    "1.49": "playwright-49",
+    "1.49": "playwright-1.49",
     "1.48": "playwright-1.48",
     "1.47": "playwright-1.47",
     "1.46": "playwright-1.46"
