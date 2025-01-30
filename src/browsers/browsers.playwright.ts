@@ -6,6 +6,7 @@ import {
   Request,
   ServerError,
   chromeExecutablePath,
+  edgeExecutablePath,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -220,6 +221,11 @@ export class ChromiumPlaywright extends BasePlaywright {
 
 export class ChromePlaywright extends ChromiumPlaywright {
   protected executablePath = () => chromeExecutablePath();
+  protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+}
+
+export class EdgePlaywright extends ChromiumPlaywright {
+  protected executablePath = () => edgeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
 }
 

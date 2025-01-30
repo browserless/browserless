@@ -10,6 +10,8 @@ import {
   ChromiumCDP,
   ChromiumPlaywright,
   Config,
+  EdgeCDP,
+  EdgePlaywright,
   FileSystem,
   FirefoxPlaywright,
   HTTPRoute,
@@ -235,7 +237,9 @@ export class Browserless extends EventEmitter {
     const internalBrowsers = [
       ChromiumCDP,
       ChromeCDP,
+      EdgeCDP,
       FirefoxPlaywright,
+      EdgePlaywright,
       ChromiumPlaywright,
       WebKitPlaywright,
     ];
