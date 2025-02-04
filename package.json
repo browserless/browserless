@@ -79,7 +79,7 @@
     "@types/node": "^22.13.0",
     "@types/sinon": "^17.0.3",
     "@typescript-eslint/eslint-plugin": "^8.22.0",
-    "@typescript-eslint/parser": "^8.22.0",
+    "@typescript-eslint/parser": "^8.23.0",
     "assert": "^2.0.0",
     "chai": "^5.1.2",
     "cross-env": "^7.0.3",
