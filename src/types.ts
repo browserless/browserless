@@ -632,6 +632,24 @@ export const BrowserlessChromeRoutes = {
   ChromeScreenshotPostRoute: 'ChromeScreenshotPostRoute',
 };
 
+export const BrowserlessEdgeRoutes = {
+  EdgeBrowserWebSocketRoute: 'EdgeBrowserWebSocketRoute',
+  EdgeCDPWebSocketRoute: 'EdgeCDPWebSocketRoute',
+  EdgeContentPostRoute: 'EdgeContentPostRoute',
+  EdgeDownloadPostRoute: 'EdgeDownloadPostRoute',
+  EdgeFunctionPostRoute: 'EdgeFunctionPostRoute',
+  EdgeJSONListGetRoute: 'EdgeJSONListGetRoute',
+  EdgeJSONNewPutRoute: 'EdgeJSONNewPutRoute',
+  EdgeJSONProtocolGetRoute: 'EdgeJSONProtocolGetRoute',
+  EdgeJSONVersionGetRoute: 'EdgeJSONVersionGetRoute',
+  EdgePDFPostRoute: 'EdgePDFPostRoute',
+  EdgePageWebSocketRoute: 'EdgePageWebSocketRoute',
+  EdgePerformancePostRoute: 'EdgePerformancePostRoute',
+  EdgePlaywrightWebSocketRoute: 'EdgePlaywrightWebSocketRoute',
+  EdgeScrapePostRoute: 'EdgeScrapePostRoute',
+  EdgeScreenshotPostRoute: 'EdgeScreenshotPostRoute',
+};
+
 export const BrowserlessChromiumRoutes = {
   ChromiumBrowserWebSocketRoute: 'ChromiumBrowserWebSocketRoute',
   ChromiumCDPWebSocketRoute: 'ChromiumCDPWebSocketRoute',
@@ -673,6 +691,7 @@ export const BrowserlessManagementRoutes = {
 export const BrowserlessRoutes = {
   ...BrowserlessChromeRoutes,
   ...BrowserlessChromiumRoutes,
+  ...BrowserlessEdgeRoutes,
   ...BrowserlessFirefoxRoutes,
   ...BrowserlessWebKitRoutes,
   ...BrowserlessManagementRoutes,
