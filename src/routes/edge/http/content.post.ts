@@ -1,8 +1,9 @@
 import {
   BrowserlessRoutes,
   EdgeCDP,
-  HTTPRoutes
+  HTTPRoutes,
 } from '@browserless.io/browserless';
+
 import {
   BodySchema,
   default as Content,

@@ -43,14 +43,14 @@ describe('/edge/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await fetch(
-      'http://localhost:3000/edge/screenshot?token=browserless',
-    ).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'text/plain; charset=UTF-8',
-      );
-      expect(res.status).not.to.equal(200);
-    });
+    await fetch('http://localhost:3000/edge/screenshot?token=browserless').then(
+      (res) => {
+        expect(res.headers.get('content-type')).to.equal(
+          'text/plain; charset=UTF-8',
+        );
+        expect(res.status).not.to.equal(200);
+      },
+    );
   });
 
   it('allows custom viewports', async () => {

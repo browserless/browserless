@@ -194,16 +194,13 @@ describe('/edge/pdf API', function () {
       url: 'https://example.com',
     };
 
-    await fetch(
-      'http://localhost:3000/edge/pdf?token=browserless&timeout=10',
-      {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
-        },
-        method: 'POST',
+    await fetch('http://localhost:3000/edge/pdf?token=browserless&timeout=10', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
       },
-    ).then((res) => {
+      method: 'POST',
+    }).then((res) => {
       expect(res.status).to.equal(408);
     });
   });

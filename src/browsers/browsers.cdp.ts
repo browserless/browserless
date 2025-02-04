@@ -377,5 +377,5 @@ export class ChromeCDP extends ChromiumCDP {
 }
 
 export class EdgeCDP extends ChromiumCDP {
-  protected executablePath = edgeExecutablePath(); 
+  protected executablePath = edgeExecutablePath();
 }

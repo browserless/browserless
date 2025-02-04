@@ -488,16 +488,14 @@ describe('Edge WebSocket API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    await chromium
-      .connect(`ws://localhost:3000/edge/playwright`)
-      .catch((e) => {
-        const results = metrics.get();
-        expect(e.message).to.include('Bad or missing authentication');
-        expect(results.timedout).to.equal(0);
-        expect(results.successful).to.equal(0);
-        expect(results.unauthorized).to.equal(1);
-        expect(results.queued).to.equal(0);
-      });
+    await chromium.connect(`ws://localhost:3000/edge/playwright`).catch((e) => {
+      const results = metrics.get();
+      expect(e.message).to.include('Bad or missing authentication');
+      expect(results.timedout).to.equal(0);
+      expect(results.successful).to.equal(0);
+      expect(results.unauthorized).to.equal(1);
+      expect(results.queued).to.equal(0);
+    });
   });
 
   it('allows requests without token when auth token is not set', async () => {
