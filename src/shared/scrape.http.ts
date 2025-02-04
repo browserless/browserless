@@ -282,7 +282,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
 
       page.on('request', (req) => {
         outbound.push({
-          headers: req.headers,
+          headers: req.headers(),
           method: req.method(),
           url: req.url(),
         });
@@ -291,7 +291,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
 
       page.on('response', (res) => {
         inbound.push({
-          headers: res.headers,
+          headers: res.headers(),
           status: res.status(),
           url: res.url(),
         });
