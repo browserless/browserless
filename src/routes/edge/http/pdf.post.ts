@@ -12,7 +12,7 @@ import {
 } from '../../../shared/pdf.http.js';
 
 export default class EdgePDFPostRoute extends PDF {
-  name = BrowserlessRoutes.ChromePDFPostRoute;
+  name = BrowserlessRoutes.EdgePDFPostRoute;
   browser = EdgeCDP;
   path = [HTTPRoutes.edgePdf];
 }

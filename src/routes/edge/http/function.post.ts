@@ -12,7 +12,7 @@ import {
 } from '../../../shared/function.http.js';
 
 export default class EdgeFunctionPostRoute extends Function {
-  name = BrowserlessRoutes.ChromeFunctionPostRoute;
+  name = BrowserlessRoutes.EdgeFunctionPostRoute;
   browser = EdgeCDP;
   path = [HTTPRoutes.edgeFunction];
 }

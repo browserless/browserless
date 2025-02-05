@@ -350,7 +350,7 @@ export const chromeExecutablePath = () => {
 export const edgeExecutablePath = () => {
   if (process.platform === 'win32') {
     // Windows always includes the ProgramFiles variable in the environment
-    return `${process.env['ProgramFiles']}\\Microsoft\\Edge\\Application\\msedge.exe`;
+    return `${process.env['ProgramFiles(x86)']}\\Microsoft\\Edge\\Application\\msedge.exe`;
   }
 
   if (process.platform === 'darwin') {
