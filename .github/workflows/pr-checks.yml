@@ -12,6 +12,9 @@ jobs:
   test-chromium:
     uses: ./.github/workflows/docker-chromium.yml
 
+  test-edge:
+    uses: ./.github/workflows/docker-edge.yml
+
   test-firefox:
     uses: ./.github/workflows/docker-firefox.yml
 

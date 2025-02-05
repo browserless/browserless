@@ -6,7 +6,7 @@ COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
 RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
-COPY src/routes/chrome src/routes/chrome/
+COPY src/routes/edge src/routes/edge/
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
@@ -29,7 +29,7 @@ RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula sele
 
 # NOTE it's important to not use npx playwright-core here since it'll likely install
 # a more recent version than we potentially have in our own package.json
-RUN ./node_modules/playwright-core/cli.js install --with-deps chrome &&\
+RUN ./node_modules/playwright-core/cli.js install --with-deps msedge &&\
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
