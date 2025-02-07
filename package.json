@@ -78,7 +78,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.13.1",
     "@types/sinon": "^17.0.3",
-    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/eslint-plugin": "^8.23.0",
     "@typescript-eslint/parser": "^8.23.0",
     "assert": "^2.0.0",
     "chai": "^5.1.2",
