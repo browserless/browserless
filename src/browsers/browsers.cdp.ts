@@ -6,6 +6,7 @@ import {
   Request,
   ServerError,
   chromeExecutablePath,
+  edgeExecutablePath,
   noop,
   once,
   ublockPath,
@@ -373,4 +374,8 @@ export class ChromiumCDP extends EventEmitter {
 
 export class ChromeCDP extends ChromiumCDP {
   protected executablePath = chromeExecutablePath();
+}
+
+export class EdgeCDP extends ChromiumCDP {
+  protected executablePath = edgeExecutablePath();
 }

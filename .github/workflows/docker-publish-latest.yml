@@ -69,6 +69,20 @@ jobs:
           platforms: |
             linux/amd64
 
+      - name: Publish the latest Edge image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=latest
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/edge/Dockerfile
+          tags: |
+            ghcr.io/browserless/edge:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+
       - name: Publish the latest FireFox image
         uses: docker/build-push-action@v5
         with:

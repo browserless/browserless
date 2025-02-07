@@ -40,23 +40,33 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 # Delete unsupported routes
 RUN if  [ -z "${FROM##*chrome*}" ]; then \
   rm -rf $BLESS_ROUTES/chromium;\
+  rm -rf $BLESS_ROUTES/edge;\
   rm -rf $BLESS_ROUTES/firefox;\
   rm -rf $BLESS_ROUTES/webkit;\
   fi
 RUN if  [ -z "${FROM##*chromium*}" ]; then \
   rm -rf $BLESS_ROUTES/chrome;\
+  rm -rf $BLESS_ROUTES/edge;\
   rm -rf $BLESS_ROUTES/firefox;\
   rm -rf $BLESS_ROUTES/webkit;\
   fi
 RUN if  [ -z "${FROM##*firefox*}" ]; then \
   rm -rf $BLESS_ROUTES/chrome;\
   rm -rf $BLESS_ROUTES/chromium;\
+  rm -rf $BLESS_ROUTES/edge;\
   rm -rf $BLESS_ROUTES/webkit;\
   fi
 RUN if  [ -z "${FROM##*webkit*}" ]; then \
   rm -rf $BLESS_ROUTES/chrome;\
   rm -rf $BLESS_ROUTES/chromium;\
+  rm -rf $BLESS_ROUTES/edge;\
   rm -rf $BLESS_ROUTES/firefox;\
+  fi
+RUN if  [ -z "${FROM##*edge*}" ]; then \
+  rm -rf $BLESS_ROUTES/chrome;\
+  rm -rf $BLESS_ROUTES/chromium;\
+  rm -rf $BLESS_ROUTES/firefox;\
+  rm -rf $BLESS_ROUTES/webkit;\
   fi
 
 # Back to non-privileged user
