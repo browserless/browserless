@@ -25,7 +25,7 @@
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
     "install:debugger": "node scripts/install-debugger.js",
-    "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit",
+    "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit msedge",
     "install:dev": "npm run install:browsers && npm run install:debugger",
     "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",

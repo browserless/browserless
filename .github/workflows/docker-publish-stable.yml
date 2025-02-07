@@ -68,6 +68,21 @@ jobs:
           platforms: |
             linux/amd64
 
+      - name: Publish the Stable Edge image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=${{github.ref_name}}
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/edge/Dockerfile
+          tags: |
+            ghcr.io/browserless/edge:${{github.ref_name}}
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
       - name: Publish the Stable FireFox image
         uses: docker/build-push-action@v5
         with:
