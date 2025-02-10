@@ -114,7 +114,7 @@ We support running with playwright via their their browser's remote connection p
 **Before**
 
 ```js
-import pw from "playwright";
+import pw from 'playwright';
 const browser = await pw.firefox.launch();
 ```
 
@@ -126,7 +126,7 @@ docker run -p 3000:3000 ghcr.io/browserless/firefox
 ```
 
 ```js
-import pw from "playwright-core";
+import pw from 'playwright-core';
 
 const browser = await pw.firefox.connect(
   'ws://localhost:3000/firefox/playwright',
@@ -203,3 +203,5 @@ If you want to use Browserless to build commercial sites, applications, or in a 
 Not only does it grant you a license to run such a critical piece of infrastructure, but you are also supporting further innovation in this space and our ability to contribute to it.
 
 If you are creating an open source application under a license compatible with the Server Side License 1.0, you may use Browserless under those terms.
+
+asfd
