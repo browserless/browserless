@@ -84,7 +84,7 @@
     "chai": "^5.1.2",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.0",
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^9.20.0",
     "extract-zip": "^2.0.1",
