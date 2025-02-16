@@ -73,7 +73,7 @@ You still execute the script itself which gives you total control over what libr
 ### Docker
 
 > [!TIP]
-> See more options on our [full documentation site](https://docs.browserless.io/docker/quickstart).
+> See more options on our [full documentation site](https://docs.browserless.io/baas/docker/quickstart).
 
 1. `docker run -p 3000:3000 ghcr.io/browserless/chromium`
 2. Visit `http://localhost:3000/docs` to see the documentation site.
