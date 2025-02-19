@@ -81,7 +81,7 @@
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "assert": "^2.0.0",
-    "chai": "^5.1.2",
+    "chai": "^5.2.0",
     "cross-env": "^7.0.3",
     "env-cmd": "^10.1.0",
     "esbuild": "^0.25.0",
