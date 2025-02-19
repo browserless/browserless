@@ -1,6 +1,10 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.25.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.25.1...main)
 
 - Dependency updates.
+
+# [Latest](https://github.com/browserless/chrome/compare/v2.25.0...v2.25.1)
+
+- Removes edge from `arm64` builds due to lack of support.
 
 # [v2.25.0](https://github.com/browserless/chrome/compare/v2.24.3...v2.25.0)
 
