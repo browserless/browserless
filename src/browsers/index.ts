@@ -229,17 +229,18 @@ export class BrowserManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
   ) {
-    const serverAddress = this.config.getExternalAddress();
+    const serverHTTPAddress = this.config.getExternalAddress();
+    const serverWSAddress = this.config.getExternalWebSocketAddress();
 
     const sessions = [
       {
         ...session,
         browser: browser.constructor.name,
         browserId: session.id,
-        initialConnectURL: new URL(session.initialConnectURL, serverAddress)
+        initialConnectURL: new URL(session.initialConnectURL, serverHTTPAddress)
           .href,
         killURL: session.id
-          ? makeExternalURL(serverAddress, '/kill/', session.id)
+          ? makeExternalURL(serverHTTPAddress, '/kill/', session.id)
           : null,
         running: browser.isRunning(),
         timeAliveMs: Date.now() - session.startedOn,
@@ -247,25 +248,48 @@ export class BrowserManager {
       },
     ];
 
-    const wsEndpoint = browser.wsEndpoint();
-    if (this.browserIsChrome(browser) && wsEndpoint) {
-      const port = new URL(wsEndpoint).port;
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
-        headers: {
-          Host: '127.0.0.1',
+    const internalWSEndpoint = browser.wsEndpoint();
+    const externalURI = new URL(serverHTTPAddress);
+    const externalProtocol = externalURI.protocol === 'https:' ? 'wss' : 'ws';
+
+    if (this.browserIsChrome(browser) && internalWSEndpoint) {
+      const browserURI = new URL(internalWSEndpoint);
+      const response = await fetch(
+        `http://127.0.0.1:${browserURI.port}/json/list`,
+        {
+          headers: {
+            Host: '127.0.0.1',
+          },
         },
-      });
+      );
       if (response.ok) {
-        const externalUrl = new URL(serverAddress);
-        const protocol = externalUrl.protocol === 'https:' ? 'wss' : 'ws';
         const body = await response.json();
         for (const page of body) {
-          const devtoolsFrontendUrl = `/devtools/inspector.html?${protocol}=${externalUrl.host}${externalUrl.pathname}/devtools/page/${page.id}`;
+          const pageURI = new URL(page.webSocketDebuggerUrl);
+          const devtoolsFrontendUrl =
+            `/devtools/inspector.html?${externalProtocol}=${externalURI.host}${externalURI.pathname}${pageURI.pathname}`.replace(
+              /\/\//gi,
+              '/',
+            );
+
+          // /devtools/browser/b733c56b-8543-489c-b27b-28e12d966c01
+          const browserWSEndpoint = new URL(
+            browserURI.pathname,
+            serverWSAddress,
+          ).href;
+
+          // /devtools/page/802B1FDAD5F75E9BCE92D066DFF13253
+          const webSocketDebuggerUrl = new URL(
+            pageURI.pathname,
+            serverWSAddress,
+          ).href;
+
           sessions.push({
             ...sessions[0],
             ...page,
-            browserWSEndpoint: wsEndpoint,
+            browserWSEndpoint,
             devtoolsFrontendUrl,
+            webSocketDebuggerUrl,
           });
         }
       }
