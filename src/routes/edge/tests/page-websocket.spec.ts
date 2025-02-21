@@ -4,10 +4,6 @@ import { NodeWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/node/No
 import { expect } from 'chai';
 
 describe('WebSocket Page API', function () {
-  // Server shutdown can take a few seconds
-  // and so can these tests :/
-  this.timeout(5000);
-
   let browserless: Browserless;
 
   const start = ({

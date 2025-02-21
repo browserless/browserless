@@ -13,10 +13,6 @@ import { expect } from 'chai';
 import puppeteer from 'puppeteer-core';
 
 describe('Chromium WebSocket API', function () {
-  // Server shutdown can take a few seconds
-  // and so can these tests :/
-  this.timeout(5000);
-
   let browserless: Browserless;
 
   const start = ({

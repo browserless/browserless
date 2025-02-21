@@ -65,7 +65,7 @@ describe(`Limiter`, () => {
         resolve(undefined);
       });
     });
-  }).timeout(5000);
+  });
 
   it('passes through arguments', () =>
     new Promise((resolve, reject) => {
