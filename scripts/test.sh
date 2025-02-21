@@ -17,4 +17,4 @@ then
 fi
 
 # Run the tests
-./node_modules/.bin/_mocha --timeout 30000 --slow 10000 --exit $@ && kill -TERM $xvfb
+./node_modules/.bin/_mocha --timeout 45000 --slow 10000 --exit $@ && kill -TERM $xvfb

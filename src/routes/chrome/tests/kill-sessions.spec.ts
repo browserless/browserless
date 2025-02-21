@@ -47,7 +47,7 @@ describe('/kill API', function () {
     }
     expect((errorThrown1 as Error).message).contains('closed');
     expect((errorThrown2 as Error).message).contains('closed');
-  }).timeout(45000);
+  });
 
   it('Kill session by browserId', async () => {
     await start();

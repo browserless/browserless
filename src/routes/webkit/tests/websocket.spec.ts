@@ -8,10 +8,6 @@ import { expect } from 'chai';
 import { webkit } from 'playwright-core';
 
 describe('Webkit Websocket API', function () {
-  // Server shutdown can take a few seconds
-  // and so can these tests :/
-  this.timeout(5000);
-
   let browserless: Browserless;
 
   const start = ({

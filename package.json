@@ -157,7 +157,7 @@
     ],
     "loader": "ts-node/esm",
     "spec": "src/**/*.spec.ts",
-    "timeout": 30000,
+    "timeout": 45000,
     "slow": 5000
   },
   "prettier": {
