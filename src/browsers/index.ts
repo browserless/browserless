@@ -348,6 +348,10 @@ export class BrowserManager {
         cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
       }
 
+      // Clear the timer for the session, stop new listeners from being added
+      this.timers.delete(session.id);
+      browser.removeAllListeners('newPage');
+
       await Promise.all(cleanupACtions.map((a) => a()));
     }
   }
