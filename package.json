@@ -51,7 +51,7 @@
     "debug": "^4.4.0",
     "del": "^8.0.0",
     "enjoi": "^9.0.1",
-    "file-type": "^20.3.0",
+    "file-type": "^20.4.0",
     "get-port": "^7.1.0",
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
