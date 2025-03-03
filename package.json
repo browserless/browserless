@@ -92,7 +92,7 @@
     "marked": "^15.0.7",
     "mocha": "^11.1.0",
     "move-file": "^3.1.0",
-    "prettier": "^3.5.2",
+    "prettier": "^3.5.3",
     "sinon": "^19.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3",
