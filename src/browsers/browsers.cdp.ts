@@ -9,7 +9,7 @@ import {
   edgeExecutablePath,
   noop,
   once,
-  ublockPath,
+  ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
 import { Duplex } from 'stream';
@@ -190,7 +190,7 @@ export class ChromiumCDP extends EventEmitter {
     );
 
     const extensions = [
-      this.blockAds ? ublockPath : null,
+      this.blockAds ? ublockLitePath : null,
       extensionLaunchArgs ? extensionLaunchArgs.split('=')[1] : null,
     ].filter((_) => !!_);
 

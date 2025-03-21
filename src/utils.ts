@@ -880,4 +880,4 @@ export const getCDPClient = (page: Page): CDPSession => {
   return typeof c === 'function' ? c.call(page) : c;
 };
 
-export const ublockPath = path.join(__dirname, '..', 'extensions', 'ublock');
+export const ublockLitePath = path.join(__dirname, '..', 'extensions', 'ublocklite');
