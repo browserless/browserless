@@ -17,7 +17,7 @@ describe('Management APIs', function () {
     await browserless.stop();
   });
 
-  describe.only('CORS', () => {
+  describe('CORS', () => {
     it('allows Single Origin OPTIONS requests', async () => {
       const config = new Config();
       config.enableCORS(true);
