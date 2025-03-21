@@ -2,7 +2,7 @@
 node_modules/
 build/
 metrics.json
-extensions/ublock
+extensions/ublocklite
 
 # npm pack
 browserless.io-browserless-*.tgz
