@@ -6,6 +6,11 @@ import { promisify } from 'util';
 
 import { exec } from 'child_process';
 
+// Ignore node_modules, dist, .next, .cache, coverage for route loading
+// This is to prevent the SDK from loading routes that aren't actual routes
+// we do build in a "build" directory so we need to keep that out of the list
+const ignore = ['node_modules', 'dist', '.next', '.cache', 'coverage'];
+
 const execAsync = promisify(exec);
 
 const waitForCommand = async (
@@ -60,8 +65,10 @@ export const getSourceFiles = async (cwd: string) => {
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
       const parsed = path.parse(file);
-      if (parsed.name.endsWith('http')) {
-        httpRoutes.push(path.join(buildDir, file));
+      const pathSegments = file.split(path.sep);
+
+      if (pathSegments.some((segment) => ignore.includes(segment))) {
+        return [httpRoutes, webSocketRoutes];
       }
 
       if (parsed.name.endsWith('ws')) {
