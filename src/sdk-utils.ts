@@ -60,6 +60,11 @@ export const getSourceFiles = async (cwd: string) => {
   const [httpRoutes, webSocketRoutes] = files.reduce(
     ([httpRoutes, webSocketRoutes], file) => {
       const parsed = path.parse(file);
+      // Skip node_modules
+      if (file.includes('node_modules')) {
+        return [httpRoutes, webSocketRoutes];
+      }
+
       if (parsed.name.endsWith('http')) {
         httpRoutes.push(path.join(buildDir, file));
       }
