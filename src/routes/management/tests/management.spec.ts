@@ -17,6 +17,115 @@ describe('Management APIs', function () {
     await browserless.stop();
   });
 
+  describe.only('CORS', () => {
+    it('allows Single Origin OPTIONS requests', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin('https://example.com');
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin: 'https://example.com',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://example.com',
+      );
+    });
+
+    it('allows wildcard orign OPTIONS requests', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin('*');
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin: 'https://example.com',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://example.com',
+      );
+    });
+
+    it('allows glob-matched OPTIONS requests', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin('*.example.com');
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin: 'https://subdomain.example.com',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://subdomain.example.com',
+      );
+    });
+
+    it('allows glob-matched OPTIONS requests with OR patterns', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin('https://(abc|xyz).example.com');
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin: 'https://abc.example.com',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://abc.example.com',
+      );
+    });
+
+    it('should 404 when the origin does not match the CORS origin pattern', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin('*.other.com');
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin: 'https://subdomain.example.com',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(404);
+    });
+  });
+
   it('allows requests to /config', async () => {
     await start();
 

@@ -18,6 +18,7 @@ import {
   WebSocketRoute,
   contentTypes,
   convertPathToURL,
+  isMatch,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -117,13 +118,25 @@ export class HTTPServer extends EventEmitter {
     if (!proceed) return;
 
     if (this.config.getAllowCORS()) {
-      Object.entries(this.config.getCORSHeaders()).forEach(([header, value]) =>
-        res.setHeader(header, value),
-      );
+      const corsHeaders = this.config.getCORSHeaders();
+      const origin = req.headers.origin;
 
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204);
-        return res.end();
+      // If origin matches the Access-Control-Allow-Origin header,
+      // set the relevant CORS headers, otherwise return a 404
+      if (
+        origin &&
+        isMatch(origin, corsHeaders['Access-Control-Allow-Origin'])
+      ) {
+        corsHeaders['Access-Control-Allow-Origin'] = origin;
+
+        Object.entries(corsHeaders).forEach(([header, value]) =>
+          res.setHeader(header, value),
+        );
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204);
+          return res.end();
+        }
       }
     }
 
