@@ -481,11 +481,13 @@ export class Config extends EventEmitter {
    * @returns Fully-qualified server address
    */
   public getServerAddress(): string {
+    const host = this.host === '::' ? '0.0.0.0' : this.host;
+
     return this.port === 443
-      ? `https://${this.host}:${this.port}`
+      ? `https://${host}:${this.port}`
       : this.port === 80
-        ? `http://${this.host}`
-        : `http://${this.host}:${this.port}`;
+        ? `http://${host}`
+        : `http://${host}:${this.port}`;
   }
 
   /**
