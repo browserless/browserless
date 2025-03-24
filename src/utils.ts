@@ -28,8 +28,8 @@ import debug from 'debug';
 import { fileURLToPath } from 'url';
 import gradient from 'gradient-string';
 import { homedir } from 'os';
-import path from 'path';
 import micromatch from 'micromatch';
+import path from 'path';
 
 const isHTTP = (
   writeable: ServerResponse | Duplex,
