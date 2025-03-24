@@ -1,6 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.25.2...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.26.0...main)
 
 - Dependency updates.
+
+# [v2.26.0](https://github.com/browserless/chrome/compare/v2.25.2...v2.26.0)
+
+- Dependency updates.
+- Moves relevant ad-blocking infrastructure over to uBlock Lite.
+- You can now supply a glob-pattern for the `CORS_ALLOW_ORIGIN` parameter in order to support multiple domains and URLs. When a domain doesn't match, browserless will return a 404.
+- Support for IPv6 when running on `::`.
+- SDK projects will now ignore files found in `node_modules`, `dist`, `.next`, `.cache`, or `coverage`.
+- New `isMatch` utility to do glob pattern matching in SDK and other projects.
+- Supports:
+  - puppeteer-core: 24.4.0
+  - playwright-core: 1.51.1, 1.50.1, 1.49.1, 1.48.2, and 1.47.2
+  - Chromium: 134.0.6998.35
+  - Chrome: 134.0.6998.166
+  - Firefox: 135.0
+  - Webkit: 18.4
 
 # [v2.25.2](https://github.com/browserless/chrome/compare/v2.25.1...v2.25.2)
 
