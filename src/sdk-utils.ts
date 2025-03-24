@@ -71,6 +71,10 @@ export const getSourceFiles = async (cwd: string) => {
         return [httpRoutes, webSocketRoutes];
       }
 
+      if (parsed.name.endsWith('http')) {
+        httpRoutes.push(path.join(buildDir, file));
+      }
+
       if (parsed.name.endsWith('ws')) {
         webSocketRoutes.push(path.join(buildDir, file));
       }
