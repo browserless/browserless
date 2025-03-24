@@ -12,12 +12,12 @@ import unzip from 'extract-zip';
 
 (async () => {
   const tmpDir = path.join(os.tmpdir(), '_ublite' + Date.now());
-  
+
   // Create temporary directory if it doesn't exist
   if (!existsSync(tmpDir)) {
     mkdirSync(tmpDir, { recursive: true });
   }
-  
+
   const zipFile = tmpDir + '/ublock.zip';
   const tmpUblockLitePath = path.join(tmpDir);
   const extensionsDir = join(process.cwd(), 'extensions');

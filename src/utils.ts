@@ -28,6 +28,7 @@ import debug from 'debug';
 import { fileURLToPath } from 'url';
 import gradient from 'gradient-string';
 import { homedir } from 'os';
+import micromatch from 'micromatch';
 import path from 'path';
 
 const isHTTP = (
@@ -880,4 +881,13 @@ export const getCDPClient = (page: Page): CDPSession => {
   return typeof c === 'function' ? c.call(page) : c;
 };
 
-export const ublockLitePath = path.join(__dirname, '..', 'extensions', 'ublocklite');
+export const ublockLitePath = path.join(
+  __dirname,
+  '..',
+  'extensions',
+  'ublocklite',
+);
+
+export const isMatch = (text: string, pattern: string) => {
+  return micromatch.isMatch(text, pattern, { bash: true });
+};

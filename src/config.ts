@@ -161,9 +161,17 @@ export class Config extends EventEmitter {
   protected allowCors = !!parseEnvVars(false, 'CORS', 'ENABLE_CORS');
   protected corsMethods =
     process.env.CORS_ALLOW_METHODS ?? 'OPTIONS, POST, GET';
+
+  // A domain or glob pattern to match against the Origin header
   protected corsOrigin = process.env.CORS_ALLOW_ORIGIN ?? '*';
+
+  // A comma-separated list of headers to allow in the Access-Control-Allow-Headers header
   protected corsHeaders = process.env.CORS_ALLOW_HEADERS ?? '*';
+
+  // Whether to allow credentials in the Access-Control-Allow-Credentials header
   protected corsCredentials = process.env.CORS_ALLOW_CREDENTIALS ?? 'true';
+
+  // A comma-separated list of headers to expose in the Access-Control-Expose-Headers header
   protected corsExposeHeaders = process.env.CORS_EXPOSE_HEADERS ?? '*';
   protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
   protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
