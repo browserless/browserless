@@ -177,7 +177,7 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    const body = await readBody(req);
+    const body = await readBody(req, this.config.getMaxPayloadSize());
     req.body = body;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 

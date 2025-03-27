@@ -17,7 +17,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * configs to add:
  * EXIT_ON_HEALTH_FAILURE
- * MAX_PAYLOAD_SIZE
  */
 
 enum oldConfig {
@@ -176,6 +175,7 @@ export class Config extends EventEmitter {
   protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
   protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
   protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
+  protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
   protected healthCheck = !!parseEnvVars(false, 'HEALTH');
   protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
   protected queueAlertURL = process.env.QUEUE_ALERT_URL ?? null;
@@ -250,6 +250,9 @@ export class Config extends EventEmitter {
   }
   public getMemoryLimit(): number {
     return this.maxMemory;
+  }
+  public getMaxPayloadSize(): number {
+    return this.maxPayloadSize;
   }
   public getHealthChecksEnabled(): boolean {
     return this.healthCheck;
