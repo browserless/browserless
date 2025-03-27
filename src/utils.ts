@@ -266,7 +266,7 @@ export const readRequestBody = async (
         totalSize += chunk.length;
         if (totalSize > maxSize) {
           rejectOnce(
-            new Error(
+            new BadRequest(
               `Request payload size (${totalSize} bytes) exceeds maximum allowed size of ${maxSize} bytes`,
             ),
           );
