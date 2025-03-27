@@ -389,4 +389,31 @@ describe('/chromium/pdf API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('returns 400 when payload size exceeds maximum allowed size', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    config.setMaxPayloadSize(100); // Set a very small max payload size for testing
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    // Create a large payload that exceeds the 100 byte limit
+    const body = {
+      html: 'a'.repeat(200), // Create a 200 byte string
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const errorText = await res.text();
+      console.log(errorText);
+      expect(res.status).to.equal(400);
+      expect(errorText).to.include('Request payload size');
+      expect(errorText).to.include('exceeds maximum allowed size');
+    });
+  });
 });

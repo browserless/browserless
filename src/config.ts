@@ -413,6 +413,11 @@ export class Config extends EventEmitter {
     return (this.maxMemory = limit);
   }
 
+  public setMaxPayloadSize(limit: number): number {
+    this.emit('maxPayloadSize', limit);
+    return (this.maxPayloadSize = limit);
+  }
+
   public enableHealthChecks(enable: boolean): boolean {
     this.emit('healthCheck', enable);
     return (this.healthCheck = enable);
