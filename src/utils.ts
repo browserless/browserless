@@ -236,10 +236,14 @@ export const getTokenFromRequest = (req: Request) => {
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again
-export const readRequestBody = async (req: Request): Promise<string> => {
-  return new Promise((resolve) => {
+export const readRequestBody = async (
+  req: Request,
+  maxSize: number = 10485760,
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
     const body: Uint8Array[] = [];
     let hasResolved = false;
+    let totalSize = 0;
 
     const resolveOnce = (results: string) => {
       if (hasResolved) {
@@ -249,8 +253,27 @@ export const readRequestBody = async (req: Request): Promise<string> => {
       resolve(results);
     };
 
+    const rejectOnce = (error: Error) => {
+      if (hasResolved) {
+        return;
+      }
+      hasResolved = true;
+      reject(error);
+    };
+
     req
-      .on('data', (chunk) => body.push(chunk))
+      .on('data', (chunk) => {
+        totalSize += chunk.length;
+        if (totalSize > maxSize) {
+          rejectOnce(
+            new BadRequest(
+              `Request payload size (${totalSize} bytes) exceeds maximum allowed size of ${maxSize} bytes`,
+            ),
+          );
+          return;
+        }
+        body.push(chunk);
+      })
       .on('end', () => {
         const final = Buffer.concat(body).toString();
         resolveOnce(final);
@@ -258,8 +281,8 @@ export const readRequestBody = async (req: Request): Promise<string> => {
       .on('aborted', () => {
         resolveOnce('');
       })
-      .on('error', () => {
-        resolveOnce('');
+      .on('error', (error) => {
+        rejectOnce(error);
       });
   });
 };
@@ -317,6 +340,7 @@ export const generateDataDir = async (
 
 export const readBody = async (
   req: Request,
+  maxSize: number = 10485760,
 ): Promise<ReturnType<typeof safeParse>> => {
   if (
     typeof req.body === 'string' &&
@@ -324,7 +348,7 @@ export const readBody = async (
   ) {
     return safeParse(convertIfBase64(req.body));
   }
-  const body = await readRequestBody(req);
+  const body = await readRequestBody(req, maxSize);
 
   return req.headers['content-type']?.includes(contentTypes.json)
     ? safeParse(body)

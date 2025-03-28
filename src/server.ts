@@ -60,6 +60,32 @@ export class HTTPServer extends EventEmitter {
     );
   }
 
+  protected handleErrorRequest(e: Error, res: Response | stream.Duplex) {
+    if (e instanceof BadRequest) {
+      return writeResponse(res, 400, e.message);
+    }
+
+    if (e instanceof NotFound) {
+      return writeResponse(res, 404, e.message);
+    }
+
+    if (e instanceof Unauthorized) {
+      return writeResponse(res, 401, e.message);
+    }
+
+    if (e instanceof TooManyRequests) {
+      return writeResponse(res, 429, e.message);
+    }
+
+    if (e instanceof Timeout) {
+      return writeResponse(res, 408, e.message);
+    }
+
+    this.logger.error(`Error handling request: ${e}\n${e.stack}`);
+
+    return writeResponse(res, 500, e.toString());
+  }
+
   protected onHTTPUnauthorized(_req: Request, res: Response) {
     this.logger.error(
       `HTTP request is not properly authorized, responding with 401`,
@@ -177,7 +203,9 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    const body = await readBody(req);
+    const body = await readBody(req, this.config.getMaxPayloadSize()).catch(
+      (e) => this.handleErrorRequest(e, res),
+    );
     req.body = body;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 
@@ -285,29 +313,7 @@ export class HTTPServer extends EventEmitter {
       .then(() => {
         this.logger.trace('HTTP connection complete');
       })
-      .catch((e) => {
-        if (e instanceof BadRequest) {
-          return writeResponse(res, 400, e.message);
-        }
-
-        if (e instanceof NotFound) {
-          return writeResponse(res, 404, e.message);
-        }
-
-        if (e instanceof Unauthorized) {
-          return writeResponse(res, 401, e.message);
-        }
-
-        if (e instanceof TooManyRequests) {
-          return writeResponse(res, 429, e.message);
-        }
-
-        if (e instanceof Timeout) {
-          return writeResponse(res, 408, e.message);
-        }
-
-        return writeResponse(res, 500, e.toString());
-      });
+      .catch((e) => this.handleErrorRequest(e, res));
   }
 
   protected async handleWebSocket(
@@ -394,29 +400,7 @@ export class HTTPServer extends EventEmitter {
         .then(() => {
           this.logger.trace('Websocket connection complete');
         })
-        .catch((e) => {
-          if (e instanceof BadRequest) {
-            return writeResponse(socket, 400, e.message);
-          }
-
-          if (e instanceof NotFound) {
-            return writeResponse(socket, 404, e.message);
-          }
-
-          if (e instanceof Unauthorized) {
-            return writeResponse(socket, 401, e.message);
-          }
-
-          if (e instanceof TooManyRequests) {
-            return writeResponse(socket, 429, e.message);
-          }
-
-          this.logger.error(
-            `Error handling request at "${route.path}": ${e}\n${e.stack}`,
-          );
-
-          return writeResponse(socket, 500, e.message);
-        });
+        .catch((e) => this.handleErrorRequest(e, socket));
     }
 
     this.logger.error(
