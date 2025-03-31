@@ -1,6 +1,13 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.26.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.27.0...main)
 
 - Dependency updates.
+- New `MAX_PAYLOAD_SIZE` env variable for specifying a max-payload size in HTTP-based APIs. Value is a number specified in bytes, so `10485760` = 10MB.
+- Consolidation of HTTP and Websocket Error handling into a singular method.
+
+# [v2.26.1](https://github.com/browserless/chrome/compare/v2.26.0...v2.26.1)
+
+- Dependency updates.
+- Fix http routes being ignored in SDK projects.
 
 # [v2.26.0](https://github.com/browserless/chrome/compare/v2.25.2...v2.26.0)
 
