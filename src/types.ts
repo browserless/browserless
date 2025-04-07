@@ -630,6 +630,7 @@ export const BrowserlessChromeRoutes = {
   ChromePlaywrightWebSocketRoute: 'ChromePlaywrightWebSocketRoute',
   ChromeScrapePostRoute: 'ChromeScrapePostRoute',
   ChromeScreenshotPostRoute: 'ChromeScreenshotPostRoute',
+  ChromeSiteDownloadPostRoute: 'ChromeSiteDownloadPostRoute',
 };
 
 export const BrowserlessEdgeRoutes = {
@@ -648,6 +649,7 @@ export const BrowserlessEdgeRoutes = {
   EdgePlaywrightWebSocketRoute: 'EdgePlaywrightWebSocketRoute',
   EdgeScrapePostRoute: 'EdgeScrapePostRoute',
   EdgeScreenshotPostRoute: 'EdgeScreenshotPostRoute',
+  EdgeSiteDownloadPostRoute: 'EdgeSiteDownloadPostRoute',
 };
 
 export const BrowserlessChromiumRoutes = {
@@ -666,6 +668,7 @@ export const BrowserlessChromiumRoutes = {
   ChromiumPlaywrightWebSocketRoute: 'ChromiumPlaywrightWebSocketRoute',
   ChromiumScrapePostRoute: 'ChromiumScrapePostRoute',
   ChromiumScreenshotPostRoute: 'ChromiumScreenshotPostRoute',
+  ChromiumSiteDownloadPostRoute: 'ChromiumSiteDownloadPostRoute',
 };
 
 export const BrowserlessFirefoxRoutes = {

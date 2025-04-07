@@ -103,8 +103,9 @@ export enum HTTPRoutes {
   chromeFunction = '/chrome/function?(/)',
   chromePdf = '/chrome/pdf?(/)',
   chromePerformance = '/chrome/performance?(/)',
-  chromeScrape = '/chrome/scrape?(/)',
+  chromeScrape = '/scrape?(/)',
   chromeScreenshot = '/chrome/screenshot?(/)',
+  chromeSiteDownload = '/chrome/site-download?(/)',
   edgeContent = '/edge/content?(/)',
   edgeDownload = '/edge/download?(/)',
   edgeFunction = '/edge/function?(/)',
@@ -112,6 +113,7 @@ export enum HTTPRoutes {
   edgePerformance = '/edge/performance?(/)',
   edgeScrape = '/edge/scrape?(/)',
   edgeScreenshot = '/edge/screenshot?(/)',
+  edgeSiteDownload = '/edge/site-download?(/)',
   chromiumContent = '/chromium/content?(/)',
   chromiumDownload = '/chromium/download?(/)',
   chromiumFunction = '/chromium/function?(/)',
@@ -119,6 +121,7 @@ export enum HTTPRoutes {
   chromiumPerformance = '/chromium/performance?(/)',
   chromiumScrape = '/chromium/scrape?(/)',
   chromiumScreenshot = '/chromium/screenshot?(/)',
+  chromiumSiteDownload = '/chromium/site-download?(/)',
   content = '/content?(/)',
   download = '/download?(/)',
   function = '/function?(/)',
@@ -130,6 +133,7 @@ export enum HTTPRoutes {
   performance = '/performance?(/)',
   scrape = '/scrape?(/)',
   screenshot = '/screenshot?(/)',
+  siteDownload = '/site-download?(/)',
 }
 
 export enum HTTPManagementRoutes {
