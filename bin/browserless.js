@@ -52,9 +52,9 @@ process
     console.debug(`SIGUSR2 received, saving and closing down`);
     process.exit(0);
   })
-  .once('exit', () => {
-    console.debug(`Process is finished, exiting`);
-    process.exit(0);
+  .once('exit', (c) => {
+    console.debug(`Process finished with code ${c}, exiting`);
+    process.exit(c);
   });
 
 const log = debug('browserless.io:sdk:log');
@@ -294,9 +294,9 @@ const start = async (dev = false) => {
       await browserless.stop();
       process.exit(0);
     })
-    .once('exit', () => {
-      debug(`Process is finished, exiting`);
-      process.exit(0);
+    .once('exit', (c) => {
+      console.debug(`Process finished with code ${c}, exiting`);
+      process.exit(c);
     });
 };
 
