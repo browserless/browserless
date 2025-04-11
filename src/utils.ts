@@ -176,6 +176,15 @@ export const writeResponse = (
   const httpMessage = codes[httpCode];
   const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
 
+  if (httpMessage.code >= 400 && isHTTP(writeable)) {
+    const req = (writeable as ServerResponse).req;
+    if (req && isLegacyAPIEndpoint(req.url?.split('?')[0] || '')) {
+      if (!message.includes(LEGACY_API_MESSAGE)) {
+        message = `${message}\n\n${LEGACY_API_MESSAGE}`;
+      }
+    }
+  }
+
   if (isHTTP(writeable)) {
     const response = writeable;
     if (!response.headersSent) {
@@ -536,6 +545,12 @@ export const availableBrowsers = Promise.all([
     return availableBrowsers;
   },
 );
+
+export const LEGACY_API_MESSAGE = "This is a legacy API you're requesting, please consider using our current v2 build (https://docs.browserless.io/baas/http-apis/apis) with the new endpoint for the latest features/options on our APIs";
+
+export const isLegacyAPIEndpoint = (pathname: string): boolean => {
+  return ['/content', '/pdf', '/screenshot', '/scrape'].some(endpoint => pathname === endpoint);
+};
 
 export const queryParamsToObject = (
   params: URLSearchParams,
