@@ -549,7 +549,19 @@ export const availableBrowsers = Promise.all([
 export const LEGACY_API_MESSAGE = "This is a legacy API you're requesting, please consider using our current v2 build (https://docs.browserless.io/baas/http-apis/apis) with the new endpoint for the latest features/options on our APIs";
 
 export const isLegacyAPIEndpoint = (pathname: string): boolean => {
-  const legacyEndpoints = ['/content', '/pdf', '/screenshot', '/scrape', '/performance'];
+  const legacyEndpoints = [
+    '/content', 
+    '/pdf', 
+    '/screenshot', 
+    '/scrape', 
+    '/performance',
+    '/download',
+    '/function',
+    '/json/version',
+    '/json/protocol',
+    '/json/new',
+    '/json/list'
+  ];
   
   return legacyEndpoints.some(endpoint => 
     pathname === endpoint || 
