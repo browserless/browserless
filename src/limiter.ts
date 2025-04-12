@@ -199,8 +199,10 @@ export class Limiter extends q {
           this.webhooks.callRejectAlertURL();
           this.metrics.addRejected();
           overCapacityFn(...args);
+          const concurrencyLimit = this.concurrency;
+          const queueLimit = this.queued;
           return rej(
-            new TooManyRequests(`Concurrency and queue is at capacity`),
+            new TooManyRequests(`Concurrency limit of ${concurrencyLimit} and queue limit of ${queueLimit} reached. Your token has reached maximum capacity.`),
           );
         }
 
