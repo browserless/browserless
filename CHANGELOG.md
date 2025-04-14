@@ -1,4 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.27.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.28.0...main)
+
+- Dependency updates.
+
+# [v2.28.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.28.0)
+
+- Dependency updates.
+- Propagate library process exit codes through for SDK project commands.
+- Better error messaging when queuing and concurrency are full.
+- No browser binary changes.
+
+# [v2.27.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.26.1)
 
 - Dependency updates.
 - New `MAX_PAYLOAD_SIZE` env variable for specifying a max-payload size in HTTP-based APIs. Value is a number specified in bytes, so `10485760` = 10MB.
