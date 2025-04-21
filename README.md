@@ -4,9 +4,9 @@
   <a href="https://browserless.io" align="center">
     <center align="center">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="400">
-        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg" width="400">
-        <img src="./assets/logo.svg" alt="Browserless logo" width="400">
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="600">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg" width="600">
+        <img src="./assets/logo.svg" alt="Browserless logo" width="600">
       </picture>
     </center>
   </a>
