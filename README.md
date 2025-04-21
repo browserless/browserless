@@ -30,6 +30,7 @@
     <img src="https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg" alt="Mulltibrowser build" />
   </center>
   <br>
+  <hr>
   <br>
 </div>
 
