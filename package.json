@@ -104,8 +104,7 @@
     "1.51": "playwright-1.51",
     "1.50": "playwright-1.50",
     "1.49": "playwright-1.49",
-    "1.48": "playwright-1.48",
-    "1.47": "playwright-1.47"
+    "1.48": "playwright-1.48"
   },
   "eslintConfig": {
     "root": true,
