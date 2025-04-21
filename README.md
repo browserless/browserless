@@ -1,13 +1,37 @@
-<!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading -->
+<!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading no-inline-html -->
 
-![browserless.io logo](/assets/logo.png)
-
-![Docker Pulls](https://img.shields.io/docker/pulls/browserless/chrome)
-![GitHub package.json version (subfolder of monorepo)](https://img.shields.io/github/package-json/v/browserless/chrome)
-![Chrome CI](https://github.com/browserless/chrome/actions/workflows/docker-chromium.yml/badge.svg)
-![Firefox CI](https://github.com/browserless/chrome/actions/workflows/docker-firefox.yml/badge.svg)
-![Webkit CI](https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg)
-![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
+<div align="center">
+  <a href="https://browserless.io" align="center">
+    <center align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg">
+        <img src="./assets/logo.svg" alt="Browserless logo" height="200">
+      </picture>
+    </center>
+  </a>
+  <br>
+  <h3 align="center"><center>Deploy headless browsers in Docker. Run on our cloud or bring your own.</center></h3>
+  <br>
+  <center>
+    <a href="https://hub.docker.com/r/browserless/chrome">
+      <img src="https://img.shields.io/docker/pulls/browserless/chrome" alt="Docker pulls" />
+    </a>
+    <a href="https://github.com/browserless/browserless/tags">
+      <img src="https://img.shields.io/github/package-json/v/browserless/chrome" alt="Version" />
+    </a>
+  </center>
+  <br>
+  <center>
+    <img src="https://github.com/browserless/chrome/actions/workflows/docker-chromium.yml/badge.svg" alt="Chromium build" />
+    <img src="https://github.com/browserless/chrome/actions/workflows/docker-firefox.yml/badge.svg" alt="Firefox build" />
+    <img src="https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg" alt="Webkit build" />
+    <img src="https://github.com/browserless/chrome/actions/workflows/docker-edge.yml/badge.svg" alt="Edge build" />
+    <img src="https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg" alt="Mulltibrowser build" />
+  </center>
+  <br>
+  <br>
+</div>
 
 > [!NOTE]  
 > Looking to bypass bot detectors and solve captchas? [We would recommend using BrowserQL as our stealthiest option](https://www.browserless.io/feature/browserql).
@@ -114,7 +138,7 @@ We support running with playwright via their their browser's remote connection p
 **Before**
 
 ```js
-import pw from "playwright";
+import pw from 'playwright';
 const browser = await pw.firefox.launch();
 ```
 
@@ -126,7 +150,7 @@ docker run -p 3000:3000 ghcr.io/browserless/firefox
 ```
 
 ```js
-import pw from "playwright-core";
+import pw from 'playwright-core';
 
 const browser = await pw.firefox.connect(
   'ws://localhost:3000/firefox/playwright',
