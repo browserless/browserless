@@ -144,9 +144,6 @@ const clean = async () =>
  * and validation. Doesn't start the HTTP server.
  */
 const build = async () => {
-  log(`Cleaning build directory`);
-  await clean();
-
   log(`Compiling TypeScript`);
   await buildTypeScript(buildDir, projectDir);
 
