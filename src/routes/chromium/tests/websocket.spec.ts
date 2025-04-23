@@ -522,7 +522,7 @@ describe('Chromium WebSocket API', function () {
 
     const runPuppeteer = async (launch: string) => {
       const browser = await puppeteer.connect({
-        browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
       });
 
       const page = await browser.newPage();
@@ -535,7 +535,7 @@ describe('Chromium WebSocket API', function () {
 
     const runPlaywright = async (launch: string) => {
       const browser = await chromium.connect(
-        `ws://localhost:3000/chrome/playwright?token=browserless&launch=${launch}`,
+        `ws://localhost:3000/chromium/playwright?token=browserless&launch=${launch}`,
       );
 
       const page = await browser.newPage();
