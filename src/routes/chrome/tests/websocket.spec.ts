@@ -518,44 +518,66 @@ describe('Chrome WebSocket API', function () {
 
     const getVersion = () => {
       return document.querySelector('#command_line')?.textContent;
-    }
+    };
 
+    const runPuppeteer = async (launch: string) => {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
+      });
+
+      const page = await browser.newPage();
+      await page.goto('chrome://version/');
+      const command = await page.evaluate(getVersion);
+      await browser.close();
+
+      return command;
+    };
+
+    const runPlaywright = async (launch: string) => {
+      const browser = await chromium.connect(
+        `ws://localhost:3000/chrome/playwright?token=browserless&launch=${launch}`,
+      );
+
+      const page = await browser.newPage();
+      await page.goto('chrome://version/');
+      const command = await page.evaluate(getVersion);
+      await browser.close();
+
+      return command;
+    };
+
+    // Test headless=new
     let launch = JSON.stringify({
       args: ['--headless=new'],
     });
 
-    let browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
-    });
+    let pptrCommand = await runPuppeteer(launch);
+    let pwCommand = await runPlaywright(launch);
 
-    let page = await browser.newPage();
-    await page.goto('chrome://version/');
-    let command = await page.evaluate(getVersion);
+    expect(pptrCommand).to.include('--headless=new');
+    expect(pwCommand).to.include('--headless=new');
 
-    expect(command).to.include('--headless=new');
-
+    // Test headless false
     launch = JSON.stringify({
       headless: false,
     });
-    browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
-    });
-    page = await browser.newPage();
-    await page.goto('chrome://version/');
-    command = await page.evaluate(getVersion);
-    expect(command).not.to.include('--headless');
 
+    pptrCommand = await runPuppeteer(launch);
+    pwCommand = await runPlaywright(launch);
+
+    expect(pptrCommand).not.to.include('--headless');
+    expect(pwCommand).not.to.include('--headless');
+
+    // Test headless true (should default to headless=new for puppeteer and headless for playwright)
     launch = JSON.stringify({
       headless: true,
     });
-    browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
-    });
-    page = await browser.newPage();
-    await page.goto('chrome://version/');
-    command = await page.evaluate(getVersion);
-    expect(command).to.include('--headless=new');
 
-    await browser.close();
+    pptrCommand = await runPuppeteer(launch);
+    pwCommand = await runPlaywright(launch);
+    console.log(pwCommand);
+
+    expect(pptrCommand).to.include('--headless=new');
+    expect(pwCommand).to.include('--headless');
   });
 });
