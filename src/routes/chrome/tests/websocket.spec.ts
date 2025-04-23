@@ -509,4 +509,53 @@ describe('Chrome WebSocket API', function () {
 
     await browser.disconnect();
   });
+
+  it('launches headless correctly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const getVersion = () => {
+      return document.querySelector('#command_line')?.textContent;
+    }
+
+    let launch = JSON.stringify({
+      args: ['--headless=new'],
+    });
+
+    let browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
+    });
+
+    let page = await browser.newPage();
+    await page.goto('chrome://version/');
+    let command = await page.evaluate(getVersion);
+
+    expect(command).to.include('--headless=new');
+
+    launch = JSON.stringify({
+      headless: false,
+    });
+    browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
+    });
+    page = await browser.newPage();
+    await page.goto('chrome://version/');
+    command = await page.evaluate(getVersion);
+    expect(command).not.to.include('--headless');
+
+    launch = JSON.stringify({
+      headless: true,
+    });
+    browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chrome?token=browserless&launch=${launch}`,
+    });
+    page = await browser.newPage();
+    await page.goto('chrome://version/');
+    command = await page.evaluate(getVersion);
+    expect(command).to.include('--headless=new');
+
+    await browser.close();
+  });
 });
