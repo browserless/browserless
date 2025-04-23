@@ -410,7 +410,6 @@ describe('/chromium/pdf API', function () {
       method: 'POST',
     }).then(async (res) => {
       const errorText = await res.text();
-      console.log(errorText);
       expect(res.status).to.equal(400);
       expect(errorText).to.include('Request payload size');
       expect(errorText).to.include('exceeds maximum allowed size');

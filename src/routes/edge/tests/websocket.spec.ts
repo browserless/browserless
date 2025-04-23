@@ -507,4 +507,53 @@ describe('Edge WebSocket API', function () {
 
     await browser.disconnect();
   });
+
+  it('launches headless correctly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const getVersion = () => {
+      return document.querySelector('#command_line')?.textContent;
+    };
+
+    const runPlaywright = async (launch: string) => {
+      const browser = await chromium.connect(
+        `ws://localhost:3000/edge/playwright?token=browserless&launch=${launch}`,
+      );
+
+      const page = await browser.newPage();
+      await page.goto('edge://version/');
+      const command = await page.evaluate(getVersion);
+      await browser.close();
+
+      return command;
+    };
+
+    // Test headless=new
+    let launch = JSON.stringify({
+      args: ['--headless=new'],
+    });
+
+    let pwCommand = await runPlaywright(launch);
+
+    expect(pwCommand).to.include('--headless=new');
+
+    // Test headless false
+    launch = JSON.stringify({
+      headless: false,
+    });
+    pwCommand = await runPlaywright(launch);
+
+    expect(pwCommand).not.to.include('--headless');
+
+    launch = JSON.stringify({
+      headless: true,
+    });
+
+    pwCommand = await runPlaywright(launch);
+
+    expect(pwCommand).to.include('--headless');
+  });
 });

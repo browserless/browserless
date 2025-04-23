@@ -59,8 +59,11 @@ class BasePlaywright extends EventEmitter {
   protected makeLaunchOptions(opts: BrowserServerOptions) {
     // Strip headless=old as it'll cause issues with newer Chromium
     const args = (opts.args ?? []).filter((a) => !a.includes('--headless=old'));
+    const hasHeadless =
+      args.some((a) => a.startsWith('--headless')) ||
+      opts.headless !== undefined; // check for undefinity, since it can be set to false as well
 
-    if (!args.some((a) => a.startsWith('--headless'))) {
+    if (!hasHeadless) {
       args.push('--headless=new');
     }
 
