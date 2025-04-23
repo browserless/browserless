@@ -575,7 +575,6 @@ describe('Chromium WebSocket API', function () {
 
     pptrCommand = await runPuppeteer(launch);
     pwCommand = await runPlaywright(launch);
-    console.log(pwCommand);
 
     expect(pptrCommand).to.include('--headless=new');
     expect(pwCommand).to.include('--headless');
