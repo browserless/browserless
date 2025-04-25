@@ -379,12 +379,11 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    const allRoutes = [...httpRoutes, ...wsRoutes];
-    // Validate that we have the browsers they are asking for
-    // and omit arm64 linux routes
-    allRoutes
-      .filter((r) => this.filterRoutes(r))
-      .forEach((route) => {
+    const filteredHTTPRoutes = httpRoutes.filter((r) => this.filterRoutes(r));
+    const filteredWSRoutes = wsRoutes.filter((r) => this.filterRoutes(r));
+
+    const allRoutes = [...filteredHTTPRoutes, ...filteredWSRoutes].map(
+      (route) => {
         if (
           'browser' in route &&
           route.browser &&
@@ -396,7 +395,9 @@ export class Browserless extends EventEmitter {
             Installed Browsers: ${installedBrowsers.map((b) => b.name).join(', ')}`),
           );
         }
-      });
+        return route;
+      },
+    );
 
     const duplicateNamedRoutes = allRoutes
       .filter((e, i, a) => a.findIndex((r) => r.name === e.name) !== i)
@@ -404,18 +405,13 @@ export class Browserless extends EventEmitter {
 
     if (duplicateNamedRoutes.length) {
       this.logger.warn(
-        `Found duplicate routing names. Route names must be unique:`,
+        `Found duplicate routing names. Route names must be unique in order to prevent collisions:`,
         duplicateNamedRoutes,
       );
     }
 
-    httpRoutes
-      .filter((r) => this.filterRoutes(r))
-      .forEach((r) => this.router.registerHTTPRoute(r));
-
-    wsRoutes
-      .filter((r) => this.filterRoutes(r))
-      .forEach((r) => this.router.registerWebSocketRoute(r));
+    filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
+    filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
     this.logger.info(
       `Imported and validated all route files, starting up server.`,
