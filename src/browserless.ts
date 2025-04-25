@@ -136,15 +136,18 @@ export class Browserless extends EventEmitter {
       | WebSocketRoute
       | BrowserWebsocketRoute,
   ) {
+    const unsupportedArmBrowsers = ['chrome', 'edge'];
+    const browserName =
+      ('browser' in route && route.browser?.name?.toLowerCase()) || '';
     if (
       isArm64 &&
       !isMacOS &&
       'browser' in route &&
       route.browser &&
-      route.browser.name.toLowerCase().includes('chrome')
+      unsupportedArmBrowsers.some((n) => n.includes(browserName))
     ) {
       this.logger.warn(
-        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "Chrome").`,
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser ${route.browser.name}).`,
       );
       return false;
     }
