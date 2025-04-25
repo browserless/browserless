@@ -381,19 +381,22 @@ export class Browserless extends EventEmitter {
 
     const allRoutes = [...httpRoutes, ...wsRoutes];
     // Validate that we have the browsers they are asking for
-    allRoutes.forEach((route) => {
-      if (
-        'browser' in route &&
-        route.browser &&
-        internalBrowsers.includes(route.browser) &&
-        !installedBrowsers.some((b) => b.name === route.browser?.name)
-      ) {
-        throw new Error(
-          dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
+    // and omit arm64 linux routes
+    allRoutes
+      .filter((r) => this.filterRoutes(r))
+      .forEach((route) => {
+        if (
+          'browser' in route &&
+          route.browser &&
+          internalBrowsers.includes(route.browser) &&
+          !installedBrowsers.some((b) => b.name === route.browser?.name)
+        ) {
+          throw new Error(
+            dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
             Installed Browsers: ${installedBrowsers.map((b) => b.name).join(', ')}`),
-        );
-      }
-    });
+          );
+        }
+      });
 
     const duplicateNamedRoutes = allRoutes
       .filter((e, i, a) => a.findIndex((r) => r.name === e.name) !== i)
