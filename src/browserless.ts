@@ -144,7 +144,7 @@ export class Browserless extends EventEmitter {
       !isMacOS &&
       'browser' in route &&
       route.browser &&
-      unsupportedArmBrowsers.some((n) => n.includes(browserName))
+      unsupportedArmBrowsers.some((n) => browserName.includes(n))
     ) {
       this.logger.warn(
         `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser ${route.browser.name}).`,
