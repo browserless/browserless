@@ -40,6 +40,9 @@ import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
 
+const isArm64 = process.arch === 'arm64';
+const isMacOS = process.platform === 'darwin';
+
 type Implements<T> = {
   new (...args: unknown[]): T;
 };
@@ -122,6 +125,30 @@ export class Browserless extends EventEmitter {
     this.router =
       router ||
       new Router(this.config, this.browserManager, this.limiter, this.Logger);
+  }
+
+  // Filter out routes that are not able to work on the arm64 architecture
+  // and log a message as to why that is (can't run Chrome on non-apple arm64)
+  protected filterRoutes(
+    route:
+      | HTTPRoute
+      | BrowserHTTPRoute
+      | WebSocketRoute
+      | BrowserWebsocketRoute,
+  ) {
+    if (
+      isArm64 &&
+      !isMacOS &&
+      'browser' in route &&
+      route.browser &&
+      route.browser.name.toLowerCase().includes('chrome')
+    ) {
+      this.logger.warn(
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "Chrome").`,
+      );
+      return false;
+    }
+    return true;
   }
 
   protected async loadPwVersions(): Promise<void> {
@@ -363,7 +390,7 @@ export class Browserless extends EventEmitter {
       ) {
         throw new Error(
           dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
-            Installed Browsers: ${installedBrowsers.join(', ')}`),
+            Installed Browsers: ${installedBrowsers.map((b) => b.name).join(', ')}`),
         );
       }
     });
@@ -379,8 +406,13 @@ export class Browserless extends EventEmitter {
       );
     }
 
-    httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
-    wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
+    httpRoutes
+      .filter((r) => this.filterRoutes(r))
+      .forEach((r) => this.router.registerHTTPRoute(r));
+
+    wsRoutes
+      .filter((r) => this.filterRoutes(r))
+      .forEach((r) => this.router.registerWebSocketRoute(r));
 
     this.logger.info(
       `Imported and validated all route files, starting up server.`,
