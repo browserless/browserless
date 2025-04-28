@@ -1,6 +1,15 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.28.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.29.0...main)
 
 - Dependency updates.
+
+# [v2.29.0](https://github.com/browserless/chrome/compare/v2.28.0...v2.29.0)
+
+- Dependency updates.
+- The `build` command for SDK projects will no longer run `clean` prior.
+- On startup, browserless will check dependencies and log if a browser isn't available for that platform. This only effects non-macOS arm64 platform Chrome and Edge routes. Prior to this an error would cause the application to quit at startup.
+- Fixes for running Chrome and Chromium "non-headless" in playwright.
+- Formatting, and stray console message cleanup.
+- Logo fixes in README.md file.
 
 # [v2.28.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.28.0)
 
