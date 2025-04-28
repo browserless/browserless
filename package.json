@@ -55,7 +55,7 @@
     "get-port": "^7.1.0",
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
-    "lighthouse": "^12.5.1",
+    "lighthouse": "^12.6.0",
     "micromatch": "^4.0.8",
     "playwright-1.48": "npm:playwright-core@1.48.2",
     "playwright-1.49": "npm:playwright-core@1.49.1",
