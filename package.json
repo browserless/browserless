@@ -76,7 +76,7 @@
     "@types/http-proxy": "^1.17.16",
     "@types/micromatch": "^4.0.9",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.15.2",
+    "@types/node": "^22.15.3",
     "@types/sinon": "^17.0.4",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
