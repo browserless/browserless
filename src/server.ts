@@ -132,6 +132,7 @@ export class HTTPServer extends EventEmitter {
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) {
+    const startTime = Date.now();
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
     );
@@ -311,6 +312,9 @@ export class HTTPServer extends EventEmitter {
     return (route as HTTPRoute)
       .handler(req, res, new this.Logger(route.name, req))
       .then(() => {
+        const endTime = Date.now();
+        const totalTime = endTime - startTime;
+        res.setHeader('X-Response-Time', totalTime.toString());
         this.logger.trace('HTTP connection complete');
       })
       .catch((e) => this.handleErrorRequest(e, res));
@@ -321,6 +325,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
+    const startTime = Date.now();
     this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
 
     const req = request as Request;
@@ -398,7 +403,10 @@ export class HTTPServer extends EventEmitter {
       return (route as WebSocketRoute)
         .handler(req, socket, head, new this.Logger(route.name, req))
         .then(() => {
-          this.logger.trace('Websocket connection complete');
+          const endTime = Date.now();
+          const totalTime = endTime - startTime;
+          
+          this.logger.debug(`WebSocket connection complete. Total time: ${totalTime}ms`);
         })
         .catch((e) => this.handleErrorRequest(e, socket));
     }
