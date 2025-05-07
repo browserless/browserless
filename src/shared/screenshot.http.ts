@@ -89,6 +89,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
+    const startTime = Date.now();
     logger.info('Screenshot API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
@@ -236,12 +237,16 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
       await scrollThroughPage(page);
     }
 
+    const endTime = Date.now();
+    const totalTime = endTime - startTime;
+    
     const headers = {
       'X-Response-Code': gotoResponse?.status(),
       'X-Response-IP': gotoResponse?.remoteAddress().ip,
       'X-Response-Port': gotoResponse?.remoteAddress().port,
       'X-Response-Status': gotoResponse?.statusText(),
       'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      'X-Response-Time': totalTime,
     };
 
     for (const [key, value] of Object.entries(headers)) {
