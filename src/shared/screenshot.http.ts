@@ -246,7 +246,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
       'X-Response-Port': gotoResponse?.remoteAddress().port,
       'X-Response-Status': gotoResponse?.statusText(),
       'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-      'X-Response-Time': totalTime,
+      'X-Response-Time': totalTime.toString(),
     };
 
     for (const [key, value] of Object.entries(headers)) {
