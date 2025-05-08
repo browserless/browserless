@@ -139,6 +139,7 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'error',
+      error: error instanceof Error ? error : new Error(error?.toString() ?? 'Unknown Error'),
     } as AfterResponse);
   }
 
