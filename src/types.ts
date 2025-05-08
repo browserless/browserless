@@ -41,6 +41,7 @@ export interface AfterResponse {
   req: Request;
   start: number;
   status: 'successful' | 'error' | 'timedout';
+  error?: Error;
 }
 
 export interface BrowserHook {
