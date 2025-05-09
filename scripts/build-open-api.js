@@ -91,7 +91,6 @@ const buildOpenAPI = async (
       ...externalWebSocketRoutes,
     ]
       .filter((r) => r.endsWith('.js'))
-      .sort()
       .map(async (routeModule) => {
         const routeImport = `${isWin ? 'file:///' : ''}${routeModule}`;
         const { default: Route } = await import(routeImport);
