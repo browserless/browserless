@@ -88,8 +88,8 @@ const getChromiumURL = (baseUrl, format, revision) => {
     platform === 'win32'
       ? `Win%2F${revision}%2Fchromedriver_win32.zip`
       : platform === 'darwin'
-      ? `Mac%2F${revision}%2Fchromedriver_mac64.zip`
-      : `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
+        ? `Mac%2F${revision}%2Fchromedriver_mac64.zip`
+        : `Linux_x64%2F${revision}%2Fchromedriver_linux64.zip`;
 
   return format
     .replace(`{BASE_URL}`, baseUrl)

@@ -387,7 +387,8 @@ export class PuppeteerProvider {
 
             browser._keepaliveTimeout = global.setTimeout(
               () => this.stopChromeProcess(browser),
-              Number(req.parsed.query.keepalive) || this.config.connectionTimeout,
+              Number(req.parsed.query.keepalive) ||
+                this.config.connectionTimeout,
             );
           }
         }

@@ -76,9 +76,9 @@ const {
 const blacklist = require('../hosts.json');
 const packageLockFile = require('../package-lock.json');
 
-const puppeteerVersion = packageLockFile.dependencies ?
-  packageLockFile.dependencies.puppeteer.version :
-  packageLockFile.packages['node_modules/puppeteer'].version;
+const puppeteerVersion = packageLockFile.dependencies
+  ? packageLockFile.dependencies.puppeteer.version
+  : packageLockFile.packages['node_modules/puppeteer'].version;
 
 let versionCache: object;
 let protocolCache: object;
@@ -455,10 +455,10 @@ const parseHeadlessValue = (
   _.isUndefined(param)
     ? DEFAULT_HEADLESS
     : param === 'new'
-    ? 'new'
-    : param === 'false'
-    ? false
-    : true;
+      ? 'new'
+      : param === 'false'
+        ? false
+        : true;
 
 export const convertUrlParamsToLaunchOpts = (
   req: IHTTPRequest,
@@ -624,13 +624,13 @@ export const launchChrome = async (
   const browserServerPromise = injectedPuppeteer
     ? injectedPuppeteer.launch(finalLaunch)
     : launchArgs.playwright
-    ? (await getPlaywright(opts.playwrightVersion)).launchServer({
-        ...launchArgs,
-        proxy: launchArgs.playwrightProxy,
-      })
-    : launchArgs.stealth
-    ? pptrExtra.launch(finalLaunch)
-    : puppeteer.launch(finalLaunch);
+      ? (await getPlaywright(opts.playwrightVersion)).launchServer({
+          ...launchArgs,
+          proxy: launchArgs.playwrightProxy,
+        })
+      : launchArgs.stealth
+        ? pptrExtra.launch(finalLaunch)
+        : puppeteer.launch(finalLaunch);
 
   const browserServer = await browserServerPromise.catch((e: Error) => {
     removeDataDir(browserlessDataDir);
