@@ -39,7 +39,7 @@ const request = (url: string, cb: any) => fetch(url).then(cb).catch(_.noop);
 const twentyFourHours = 1000 * 60 * 60 * 24;
 const thirtyMinutes = 30 * 60 * 1000;
 const fiveMinutes = 5 * 60 * 1000;
-const maxStats = 12 * 24 * 7; // 7 days @ 5-min intervals
+const maxStats = 12 * 24 * 30; // 30 days @ 5-min intervals
 
 export class BrowserlessServer {
   public currentStat: IBrowserlessStats;
@@ -257,18 +257,18 @@ export class BrowserlessServer {
     const reason = queueFull
       ? 'full'
       : cpuOverloaded
-      ? 'cpu'
-      : memoryOverloaded
-      ? 'memory'
-      : '';
+        ? 'cpu'
+        : memoryOverloaded
+          ? 'memory'
+          : '';
 
     const message = queueFull
       ? 'Concurrency and queue are full'
       : cpuOverloaded
-      ? 'CPU is over the configured maximum for cpu percent'
-      : memoryOverloaded
-      ? 'Memory is over the configured maximum for memory percent'
-      : '';
+        ? 'CPU is over the configured maximum for cpu percent'
+        : memoryOverloaded
+          ? 'Memory is over the configured maximum for memory percent'
+          : '';
 
     return {
       date: Date.now(),
@@ -327,10 +327,17 @@ export class BrowserlessServer {
 
       if (!this.config.disabledFeatures.includes(Features.DEBUG_VIEWER)) {
         app.use('/devtools', express.static('./devtools'));
-        app.use(
-          '/',
-          express.static('./node_modules/browserless-debugger/static'),
-        );
+        app.use('/', (req, res, next) => {
+          res.setHeader(
+            'Content-Security-Policy',
+            "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:",
+          );
+          return express.static('./node_modules/browserless-debugger/static')(
+            req,
+            res,
+            next,
+          );
+        });
       }
 
       if (externalRoutes) {

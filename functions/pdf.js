@@ -182,10 +182,10 @@ module.exports = async function pdf({ page, context }) {
       rotate === 90
         ? '1-endright'
         : rotate === -90
-        ? '1-endleft'
-        : rotate === 180
-        ? '1-enddown'
-        : '';
+          ? '1-endleft'
+          : rotate === 180
+            ? '1-enddown'
+            : '';
 
     data = await pdftk.input(data).rotate(rotateValue).output();
   }
