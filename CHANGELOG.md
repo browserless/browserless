@@ -1,4 +1,10 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.29.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.30.0...main)
+
+- Dependency updates.
+- Bumps `puppeteer-core` to `24.8.2`.
+- Fixes a small issue in SDK OpenAPI docgen when overwriting an existing route.
+
+# [v2.30.0](https://github.com/browserless/chrome/compare/v2.29.0...v2.30.0)
 
 - Dependency updates.
 
@@ -18,7 +24,7 @@
 - Better error messaging when queuing and concurrency are full.
 - No browser binary changes.
 
-# [v2.27.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.26.1)
+# [v2.27.0](https://github.com/browserless/chrome/compare/v2.26.1...v2.27.0)
 
 - Dependency updates.
 - New `MAX_PAYLOAD_SIZE` env variable for specifying a max-payload size in HTTP-based APIs. Value is a number specified in bytes, so `10485760` = 10MB.
