@@ -139,7 +139,10 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'error',
-      error: error instanceof Error ? error : new Error(error?.toString() ?? 'Unknown Error'),
+      error:
+        error instanceof Error
+          ? error
+          : new Error(error?.toString() ?? 'Unknown Error'),
     } as AfterResponse);
   }
 
@@ -203,7 +206,9 @@ export class Limiter extends q {
           const concurrencyLimit = this.concurrency;
           const queueLimit = this.queued;
           return rej(
-            new TooManyRequests(`Concurrency limit of ${concurrencyLimit} and queue limit of ${queueLimit} reached. Possible causes: 1) Your token has reached maximum capacity, 2) Your token may not have access to this version, 3) Your requests are coming too quickly.`),
+            new TooManyRequests(
+              `Concurrency limit of ${concurrencyLimit} and queue limit of ${queueLimit} reached. Possible causes: 1) Your token has reached maximum capacity, 2) Your token may not have access to this version, 3) Your requests are coming too quickly.`,
+            ),
           );
         }
 

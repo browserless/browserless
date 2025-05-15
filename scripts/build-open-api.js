@@ -108,17 +108,10 @@ const buildOpenAPI = async (
         const query = routeModule.replace('.js', '.query.json');
         const response = routeModule.replace('.js', '.response.json');
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
-        
-        let pathToUse = route.path;
-        let alternativePaths = [];
-        
-        if (Array.isArray(route.path)) {
-          const sortedPaths = [...route.path].sort((a, b) => b.length - a.length);
-          pathToUse = sortedPaths[0];
-          alternativePaths = sortedPaths.slice(1);
-        }
-        
-        const path = pathToUse.replace(/\?\(\/\)/g, '');
+        const paths = (Array.isArray(route.path) ? route.path : [route.path])
+          .sort((a, b) => b.length - a.length)
+          .map((p) => p.replace(/\?\(\/\)/g, ''));
+        const [path, ...alternativePaths] = paths;
 
         const {
           tags,
@@ -130,23 +123,23 @@ const buildOpenAPI = async (
           title,
         } = route;
 
-        let updatedDescription = description;
-        
+        const routeDocs = [description];
+
         if (alternativePaths.length > 0) {
           const altPathsText = alternativePaths
-            .map(p => `\`${p.replace(/\?\(\/\)/g, '')}\``)
+            .map((p) => `\`${p}\``)
             .join(', ');
-          
-          const compatNote = `\n\n**Note:** This endpoint is also available at: ${altPathsText} for backwards compatibility.`;
-          updatedDescription = description + compatNote;
-        }
 
+          const compatNote = `**Note:** This endpoint is also available at: ${altPathsText} for backwards compatibility.`;
+          routeDocs.push(compatNote);
+        }
+        console.log(alternativePaths.length, routeDocs);
         return {
           accepts,
           auth,
           body: isWebSocket ? null : JSON.parse(await readFileOrNull(body)),
           contentTypes,
-          description: updatedDescription,
+          description: routeDocs.join('\n\n'),
           isWebSocket,
           method,
           path,
