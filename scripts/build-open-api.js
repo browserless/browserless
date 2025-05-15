@@ -108,9 +108,10 @@ const buildOpenAPI = async (
         const query = routeModule.replace('.js', '.query.json');
         const response = routeModule.replace('.js', '.response.json');
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
-        const path = (
-          Array.isArray(route.path) ? route.path.join(' ') : route.path
-        ).replace(/\?\(\/\)/g, '');
+        const paths = (Array.isArray(route.path) ? route.path : [route.path])
+          .sort((a, b) => b.length - a.length)
+          .map((p) => p.replace(/\?\(\/\)/g, ''));
+        const [path, ...alternativePaths] = paths;
 
         const {
           tags,
@@ -122,12 +123,23 @@ const buildOpenAPI = async (
           title,
         } = route;
 
+        const routeDocs = [description];
+
+        if (alternativePaths.length > 0) {
+          const altPathsText = alternativePaths
+            .map((p) => `\`${p}\``)
+            .join(', ');
+
+          const compatNote = `**Note:** This endpoint is also available at: ${altPathsText} for backwards compatibility.`;
+          routeDocs.push(compatNote);
+        }
+        console.log(alternativePaths.length, routeDocs);
         return {
           accepts,
           auth,
           body: isWebSocket ? null : JSON.parse(await readFileOrNull(body)),
           contentTypes,
-          description,
+          description: routeDocs.join('\n\n'),
           isWebSocket,
           method,
           path,
