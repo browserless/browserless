@@ -1,12 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.30.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.30.1...main)
 
 - Dependency updates.
-- Bumps `puppeteer-core` to `24.8.2`.
-- Fixes a small issue in SDK OpenAPI docgen when overwriting an existing route.
+
+# [v2.30.1](https://github.com/browserless/chrome/compare/v2.30.0...v2.30.1)
+
+- Dependency updates.
+- Cleans up the embedded Open API docs.
+- Prettier
 
 # [v2.30.0](https://github.com/browserless/chrome/compare/v2.29.0...v2.30.0)
 
 - Dependency updates.
+- Bumps `puppeteer-core` to `24.8.2`.
+- Fixes a small issue in SDK OpenAPI docgen when overwriting an existing route.
 
 # [v2.29.0](https://github.com/browserless/chrome/compare/v2.28.0...v2.29.0)
 
