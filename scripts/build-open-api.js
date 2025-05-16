@@ -133,7 +133,7 @@ const buildOpenAPI = async (
           const compatNote = `**Note:** This endpoint is also available at: ${altPathsText} for backwards compatibility.`;
           routeDocs.push(compatNote);
         }
-        console.log(alternativePaths.length, routeDocs);
+
         return {
           accepts,
           auth,
