@@ -58,12 +58,7 @@ RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | b
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
-# Set reliable DNS and force IPv4
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
-
-RUN apt-get update -o Acquire::ForceIPv4=true && \
-  add-apt-repository universe && \
-  apt-get update -o Acquire::ForceIPv4=true && \
+RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3.10 python3-pip && \
   update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
   update-alternatives --install /usr/bin/python python /usr/bin/python3 1
