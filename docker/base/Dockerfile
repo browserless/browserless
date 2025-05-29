@@ -42,10 +42,6 @@ COPY package-lock.json .
 COPY README.md .
 COPY tsconfig.json .
 
-# Use faster/more reliable Ubuntu mirror
-RUN sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirror.ubuntu.com/ubuntu|g' /etc/apt/sources.list
-
-# Install core packages
 RUN apt-get update && apt-get install -y \
   ca-certificates \
   curl \
@@ -58,12 +54,10 @@ RUN apt-get update && apt-get install -y \
   wget \
   xvfb
 
-# Install Node.js
 RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
-# Python setup
 RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3.10 python3-pip && \
   update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
