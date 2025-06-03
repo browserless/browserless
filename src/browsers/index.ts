@@ -547,6 +547,12 @@ export class BrowserManager {
         ?.find((arg) => arg.includes('--user-data-dir='))
         ?.split('=')[1] || (launchOptions as CDPLaunchOptions).userDataDir;
 
+    if (manualUserDataDir && launchOptions.args) {
+      launchOptions.args = launchOptions.args.filter(
+        (arg) => !arg.includes('--user-data-dir='),
+      );
+    }
+
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs
     const userDataDir =
