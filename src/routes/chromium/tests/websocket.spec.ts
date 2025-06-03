@@ -222,7 +222,7 @@ describe('Chromium WebSocket API', function () {
   });
 
   it('allows specified user-data-dirs', async () => {
-    const dataDir = '/tmp/data-dir';
+    const dataDir = '/tmp/data-dir-1';
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
