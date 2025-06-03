@@ -86,7 +86,7 @@
     "env-cmd": "^10.1.0",
     "esbuild": "^0.25.5",
     "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^9.27.0",
+    "eslint": "^9.28.0",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^15.0.12",
