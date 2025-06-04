@@ -1,6 +1,13 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.30.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.31.0...main)
 
 - Dependency updates.
+
+# [v2.31.0](https://github.com/browserless/chrome/compare/v2.30.1...v2.31.0)
+
+- Dependency updates -- including fix for tar-fs.
+- Bumps `puppeteer-core` to `24.10.0`.
+- Remove stray console.log's in route building.
+- Fixes for duplicative user-data-dir flags (fixes CI issues).
 
 # [v2.30.1](https://github.com/browserless/chrome/compare/v2.30.0...v2.30.1)
 
