@@ -42,6 +42,7 @@ const routeSchemas = ['body', 'query'];
 
 const isArm64 = process.arch === 'arm64';
 const isMacOS = process.platform === 'darwin';
+const unavailableARM64Browsers = ['edge', 'chrome'];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -141,10 +142,12 @@ export class Browserless extends EventEmitter {
       !isMacOS &&
       'browser' in route &&
       route.browser &&
-      route.browser.name.toLowerCase().includes('chrome')
+      unavailableARM64Browsers.some((b) =>
+        route.browser.name.toLowerCase().includes(b),
+      )
     ) {
       this.logger.warn(
-        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "Chrome").`,
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "${route.browser.name}").`,
       );
       return false;
     }
