@@ -106,6 +106,31 @@ describe('Management APIs', function () {
       );
     });
 
+    it.only('allows glob-matched OPTIONS requests with OR patterns across two domains', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin(
+        '(https://(abc|xyz).example.com|https://deploy-preview-*.netlify.app)',
+      );
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin:
+              'https://deploy-preview-123--funky-monkey-12345.netlify.app',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://deploy-preview-123--funky-monkey-12345.netlify.app',
+      );
+    });
+
     it('should 404 when the origin does not match the CORS origin pattern', async () => {
       const config = new Config();
       config.enableCORS(true);
