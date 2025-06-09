@@ -1,6 +1,11 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.31.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.31.1...main)
 
 - Dependency updates.
+
+# [v2.31.1](https://github.com/browserless/chrome/compare/v2.31.0...v2.31.1)
+
+- Dependency updates.
+- Fixes an issue where ARM64 Platforms attempt to load non-compatible routes.
 
 # [v2.31.0](https://github.com/browserless/chrome/compare/v2.30.1...v2.31.0)
 
