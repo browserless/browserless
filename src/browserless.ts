@@ -42,6 +42,7 @@ const routeSchemas = ['body', 'query'];
 
 const isArm64 = process.arch === 'arm64';
 const isMacOS = process.platform === 'darwin';
+const unavailableARM64Browsers = ['edge', 'chrome'];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -129,7 +130,7 @@ export class Browserless extends EventEmitter {
 
   // Filter out routes that are not able to work on the arm64 architecture
   // and log a message as to why that is (can't run Chrome on non-apple arm64)
-  protected filterRoutes(
+  protected filterNonMacArm64Browsers(
     route:
       | HTTPRoute
       | BrowserHTTPRoute
@@ -141,10 +142,12 @@ export class Browserless extends EventEmitter {
       !isMacOS &&
       'browser' in route &&
       route.browser &&
-      route.browser.name.toLowerCase().includes('chrome')
+      unavailableARM64Browsers.some((b) =>
+        route.browser.name.toLowerCase().includes(b),
+      )
     ) {
       this.logger.warn(
-        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "Chrome").`,
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "${route.browser.name}").`,
       );
       return false;
     }
@@ -379,40 +382,43 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    const allRoutes = [...httpRoutes, ...wsRoutes];
+    const allRoutes: [
+      (HTTPRoute | BrowserHTTPRoute)[],
+      (WebSocketRoute | BrowserWebsocketRoute)[],
+    ] = [
+      [...httpRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
+      [...wsRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
+    ];
+
     // Validate that we have the browsers they are asking for
-    allRoutes.forEach((route) => {
-      if (
-        'browser' in route &&
-        route.browser &&
-        internalBrowsers.includes(route.browser) &&
-        !installedBrowsers.some((b) => b.name === route.browser?.name)
-      ) {
-        throw new Error(
-          dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
+    allRoutes
+      .flat()
+      .map((route) => {
+        if (
+          'browser' in route &&
+          route.browser &&
+          internalBrowsers.includes(route.browser) &&
+          !installedBrowsers.some((b) => b.name === route.browser?.name)
+        ) {
+          throw new Error(
+            dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
             Installed Browsers: ${installedBrowsers.map((b) => b.name).join(', ')}`),
-        );
-      }
-    });
-
-    const duplicateNamedRoutes = allRoutes
+          );
+        }
+        return route;
+      })
       .filter((e, i, a) => a.findIndex((r) => r.name === e.name) !== i)
-      .map((r) => r.name);
+      .map((r) => r.name)
+      .forEach((name) => {
+        this.logger.warn(
+          `Found duplicate routing names. Route names must be unique: ${name}`,
+        );
+      });
 
-    if (duplicateNamedRoutes.length) {
-      this.logger.warn(
-        `Found duplicate routing names. Route names must be unique:`,
-        duplicateNamedRoutes,
-      );
-    }
+    const [filteredHTTPRoutes, filteredWSRoutes] = allRoutes;
 
-    httpRoutes
-      .filter((r) => this.filterRoutes(r))
-      .forEach((r) => this.router.registerHTTPRoute(r));
-
-    wsRoutes
-      .filter((r) => this.filterRoutes(r))
-      .forEach((r) => this.router.registerWebSocketRoute(r));
+    filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
+    filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
     this.logger.info(
       `Imported and validated all route files, starting up server.`,
