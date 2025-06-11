@@ -106,6 +106,9 @@
     "1.50": "playwright-1.50",
     "1.49": "playwright-1.49"
   },
+  "engines": {
+    "node": ">= 24 < 25"
+  },
   "eslintConfig": {
     "root": true,
     "parser": "@typescript-eslint/parser",

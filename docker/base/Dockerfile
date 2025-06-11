@@ -6,7 +6,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v22.11.0
+ARG NODE_VERSION=v24.2.0
 
 ENV NODE_VERSION=$NODE_VERSION
 ENV NVM_DIR /usr/src/.nvm
@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install -y \
   wget \
   xvfb
 
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION
 
