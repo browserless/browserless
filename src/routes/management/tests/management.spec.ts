@@ -106,7 +106,7 @@ describe('Management APIs', function () {
       );
     });
 
-    it.only('allows glob-matched OPTIONS requests with OR patterns across two domains', async () => {
+    it('allows glob-matched OPTIONS requests with OR patterns across two domains', async () => {
       const config = new Config();
       config.enableCORS(true);
       config.setCORSOrigin(
