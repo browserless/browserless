@@ -296,7 +296,7 @@ class SchemaResolver {
 
       Hoek.assert(joischema, 'Could not resolve type: ' + schema.type + '.');
 
-      return joischema.strict(this.strictMode);
+      return this.strictMode === true ? joischema.strict(true) : joischema;
     };
 
     if (isArray(schema.type)) {
