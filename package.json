@@ -50,7 +50,6 @@
   "dependencies": {
     "debug": "^4.4.1",
     "del": "^8.0.0",
-    "enjoi": "^9.0.1",
     "file-type": "^21.0.0",
     "get-port": "^7.1.0",
     "gradient-string": "^3.0.0",

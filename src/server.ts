@@ -26,8 +26,7 @@ import {
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 
-// @ts-ignore
-import Enjoi from 'enjoi';
+import EnjoiResolver from './shared/utils/enjoi-resolver.js';
 
 export interface HTTPServerOptions {
   concurrent: number;
@@ -223,7 +222,7 @@ export class HTTPServer extends EventEmitter {
     if (route.querySchema) {
       this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
-        const schema = Enjoi.schema(route.querySchema);
+        const schema = EnjoiResolver.schema(route.querySchema);
         const valid = schema.validate(req.queryParams, {
           abortEarly: false,
         });
@@ -268,7 +267,7 @@ export class HTTPServer extends EventEmitter {
     if (route.bodySchema) {
       this.logger.trace(`Validating route payload with BODY schema`);
       try {
-        const schema = Enjoi.schema(route.bodySchema);
+        const schema = EnjoiResolver.schema(route.bodySchema);
         const valid = schema.validate(body, { abortEarly: false });
 
         if (valid.error) {
@@ -353,7 +352,7 @@ export class HTTPServer extends EventEmitter {
       if (route.querySchema) {
         this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
-          const schema = Enjoi.schema(route.querySchema);
+          const schema = EnjoiResolver.schema(route.querySchema);
           const valid = schema.validate(req.queryParams, {
             abortEarly: false,
           });
