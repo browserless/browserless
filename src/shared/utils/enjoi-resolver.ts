@@ -1,7 +1,10 @@
 /* global WeakMap */
-import Joi from 'joi';
-import * as Hoek from '@hapi/hoek';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import * as Bourne from '@hapi/bourne';
+import * as Hoek from '@hapi/hoek';
+import Joi from 'joi';
 
 // Modern replacements for deprecated Node.js util functions
 const isArray = Array.isArray;
@@ -88,7 +91,7 @@ class SchemaResolver {
 
                         try {
                             return { value: Bourne.parse(value) };
-                        } catch (ignoreErr) { 
+                        } catch (_) { 
                             return;
                         } // eslint-disable-line no-empty
                     }
@@ -105,7 +108,7 @@ class SchemaResolver {
                         }
                         try {
                             return { value: Bourne.parse(value) };
-                        } catch (ignoreErr) { 
+                        } catch (_) { 
                             return;
                         } // eslint-disable-line no-empty
                     }
@@ -121,10 +124,10 @@ class SchemaResolver {
 
         if (generatedId && ancestors.lastIndexOf(generatedId) > -1) {
             // resolve cyclic schema by using joi reference via generated unique ids
-            return this.resolveLink(schema)
+            return this.resolveLink(schema);
         } else if (typeof schema === 'object') {
-            generatedId = randomString(10)
-            this.walkedSchemas.set(schema, generatedId)
+            generatedId = randomString(10);
+            this.walkedSchemas.set(schema, generatedId);
         }
 
         if (typeof schema === 'string') {
@@ -138,10 +141,10 @@ class SchemaResolver {
                 partialSchemas.push(this.resolveType(schema, ancestors.concat(generatedId || '')));
             } else if (schema.properties) {
                 // if no type is specified, just properties
-                partialSchemas.push(this.object(schema, ancestors.concat(generatedId || '')))
+                partialSchemas.push(this.object(schema, ancestors.concat(generatedId || '')));
             } else if (schema.format) {
                 // if no type is specified, just format
-                partialSchemas.push(this.string(schema))
+                partialSchemas.push(this.string(schema));
             } else if (schema.enum) {
                 // If no type is specified, just enum
                 partialSchemas.push(this.joi.any().valid(...schema.enum));
@@ -170,7 +173,7 @@ class SchemaResolver {
 
         if (generatedId) {
             // we have finished resolving the schema, now attach the id generated earlier
-            resolvedSchema = resolvedSchema.id(this.walkedSchemas.get(schema))
+            resolvedSchema = resolvedSchema.id(this.walkedSchemas.get(schema));
         }
 
         if (this.refineSchema) {
@@ -178,7 +181,7 @@ class SchemaResolver {
         }
 
         if (this.useDefaults && schema.default !== undefined) {
-            resolvedSchema = resolvedSchema.default(schema.default)
+            resolvedSchema = resolvedSchema.default(schema.default);
         }
 
         return resolvedSchema;
@@ -252,7 +255,7 @@ class SchemaResolver {
             Hoek.assert(joischema, 'Could not resolve type: ' + schema.type + '.');
 
             return joischema.strict(this.strictMode);
-        }
+        };
 
         if (isArray(schema.type)) {
             const schemas: any[] = [];
@@ -308,7 +311,7 @@ class SchemaResolver {
     }
 
     resolveLink(schema: any): any {
-        return this.joi.link().ref(`#${this.walkedSchemas.get(schema)}`)
+        return this.joi.link().ref(`#${this.walkedSchemas.get(schema)}`);
     }
 
     object(schema: JSONSchema, ancestors: string[]): any {
@@ -333,7 +336,7 @@ class SchemaResolver {
             });
 
             return schemas;
-        }
+        };
 
         let joischema = this.joi.object(resolveproperties());
 
@@ -360,7 +363,7 @@ class SchemaResolver {
             }
             // it's a single entity, so just resolve it normally
             return [this.resolve(value, ancestors)];
-        }
+        };
 
         if (schema.items) {
             items = resolveAsArray(schema.items);
