@@ -1,7 +1,7 @@
 /* global WeakMap */
 import Joi from 'joi';
-import Hoek from '@hapi/hoek';
-import Bourne from '@hapi/bourne';
+import * as Hoek from '@hapi/hoek';
+import * as Bourne from '@hapi/bourne';
 
 // Modern replacements for deprecated Node.js util functions
 const isArray = Array.isArray;
