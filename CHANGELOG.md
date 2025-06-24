@@ -1,6 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.31.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.32.0...main)
 
 - Dependency updates.
+
+# [v2.32.0](https://github.com/browserless/chrome/compare/v2.31.1...v2.32.0)
+
+- Dependency updates.
+- Bump nodeJS to 24.2.0.
+- Bumps `puppeteer-core` to `24.10.2`.
+- Bumps `playwright-core` to `1.53.1`.
+- Drops support for `playwright-core` at `1.48`.
+- Supports:
+  - puppeteer-core: 24.10.2
+  - playwright-core: 1.53.1, 1.52.0, 1.50.1, and 1.49.1
+  - Chromium: 138.0.7204.23
+  - Chrome: 137.0.7151.120 (amd64 only)
+  - Firefox: 139.0
+  - Webkit: 18.5
+  - Edge: 137.0.3296.93 (amd64 only)
 
 # [v2.31.1](https://github.com/browserless/chrome/compare/v2.31.0...v2.31.1)
 
