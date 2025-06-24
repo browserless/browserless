@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.31.1",
+  "version": "2.32.0-beta-1",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -30,7 +30,7 @@
     "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,.github}/**/*.{js,ts,json,yml,yaml,md}' --log-level error --write",
-    "test": "cross-env DEBUG=quiet mocha",
+    "test": "npm run build:ts && cross-env DEBUG=quiet mocha",
     "start": "env-cmd -f .env node build"
   },
   "files": [
@@ -108,6 +108,9 @@
     "1.50": "playwright-1.50",
     "1.49": "playwright-1.49"
   },
+  "engines": {
+    "node": ">= 24 < 25"
+  },
   "eslintConfig": {
     "root": true,
     "parser": "@typescript-eslint/parser",
@@ -155,10 +158,10 @@
   },
   "mocha": {
     "extension": [
-      "ts"
+      "js"
     ],
     "loader": "ts-node/esm",
-    "spec": "src/**/*.spec.ts",
+    "spec": "build/**/*.spec.js",
     "timeout": 45000,
     "slow": 5000
   },
