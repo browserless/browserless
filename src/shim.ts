@@ -21,7 +21,7 @@ export function shimLegacyRequests(url: URL): URL {
 
   const cliSwitches = params.filter(([name]) => name.startsWith('--'));
   const hasLegacyParams =
-    cliSwitches || shimParam.some((name) => names.includes(name));
+    cliSwitches.length || shimParam.some((name) => names.includes(name));
 
   if (hasLegacyParams) {
     const launchParams: CDPLaunchOptions =

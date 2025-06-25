@@ -151,4 +151,22 @@ describe('Request Shimming', () => {
       expect(decodeURIComponent(shimmed.href)).to.equal(final);
     });
   });
+
+  describe('no params', () => {
+    it('does not alter URLS when no params are set', () => {
+      const url = 'wss://localhost';
+      const final = 'wss://localhost/';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+
+    it('does not alter URLS when unknown params are set', () => {
+      const url = 'wss://localhost?silly=banana';
+      const final = 'wss://localhost/?silly=banana';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
 });
