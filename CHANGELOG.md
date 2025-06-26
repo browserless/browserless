@@ -1,6 +1,12 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.32.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.32.1...main)
 
 - Dependency updates.
+
+# [v2.32.1](https://github.com/browserless/chrome/compare/v2.32.0...v2.32.1)
+
+- Dependency updates.
+- Fixes an in request shimming when no params are sent.
+- Fixes an issue in OpenAPI JSON schema parsing on routes with `.d` in their name.
 
 # [v2.32.0](https://github.com/browserless/chrome/compare/v2.31.1...v2.32.0)
 
