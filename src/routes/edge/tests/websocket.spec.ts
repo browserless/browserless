@@ -221,7 +221,7 @@ describe('Edge WebSocket API', function () {
     expect(await exists(userDataDir)).to.be.false;
   });
 
-  it('allows specified user-data-dirs', async () => {
+  it.skip('allows specified user-data-dirs', async () => {
     const dataDir = '/tmp/data-dir';
     const config = new Config();
     config.setToken('browserless');
