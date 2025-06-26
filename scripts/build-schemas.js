@@ -98,7 +98,7 @@ const buildSchemas = async (
           schemas.map((schemaName) => {
             if (findExportedInterface(sourceFile, schemaName)) {
               const routePath = path.parse(route);
-              const routeName = routePath.name.replace('.d', '');
+              const routeName = routePath.name.slice(0, -2); // drop the ending .d
               const schemaSuffix = schemaName
                 .replace('Schema', '')
                 .toLocaleLowerCase();
