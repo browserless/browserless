@@ -166,6 +166,17 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
+    // Apply security headers to all HTTP responses
+    if (this.config.getSecurityHeadersEnabled()) {
+      const securityHeaders = this.config.getSecurityHeaders();
+
+      Object.entries(securityHeaders).forEach(([header, value]) => {
+        if (value) {
+          res.setHeader(header, value);
+        }
+      });
+    }
+
     if (req.method?.toLowerCase() === 'head') {
       this.logger.debug(`Inbound HEAD request, setting to GET`);
       req.method = 'GET';

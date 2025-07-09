@@ -185,6 +185,21 @@ export class Config extends EventEmitter {
   protected pwVersions: { [key: string]: string } = {};
   protected enableDebugger = !!parseEnvVars(true, 'ENABLE_DEBUGGER');
 
+  // Security Headers Configuration
+  protected enableSecurityHeaders = !!parseEnvVars(
+    true,
+    'ENABLE_SECURITY_HEADERS',
+  );
+  protected hstsMaxAge = +(process.env.HSTS_MAX_AGE ?? '63072000'); // 2 years in seconds
+  protected hstsIncludeSubdomains = !!parseEnvVars(
+    true,
+    'HSTS_INCLUDE_SUBDOMAINS',
+  );
+  protected hstsPreload = !!parseEnvVars(true, 'HSTS_PRELOAD');
+  protected xFrameOptions = process.env.X_FRAME_OPTIONS ?? 'DENY';
+  protected xContentTypeOptions =
+    process.env.X_CONTENT_TYPE_OPTIONS ?? 'nosniff';
+
   public getRoutes(): string {
     return this.routes;
   }
@@ -290,6 +305,46 @@ export class Config extends EventEmitter {
    */
   public getAllowCORS(): boolean {
     return this.allowCors;
+  }
+
+  /**
+   * Returns whether security headers are enabled
+   */
+  public getSecurityHeadersEnabled(): boolean {
+    return this.enableSecurityHeaders;
+  }
+
+  /**
+   * Returns security headers object with appropriate values
+   * HSTS is only included for HTTPS connections
+   */
+  public getSecurityHeaders(): {
+    'Strict-Transport-Security'?: string;
+    'X-Frame-Options': string;
+    'X-Content-Type-Options': string;
+  } {
+    const headers: {
+      'Strict-Transport-Security'?: string;
+      'X-Frame-Options': string;
+      'X-Content-Type-Options': string;
+    } = {
+      'X-Frame-Options': this.xFrameOptions,
+      'X-Content-Type-Options': this.xContentTypeOptions,
+    };
+
+    // Only add HSTS header for HTTPS connections
+    if (this.getExternalAddress().startsWith('https://')) {
+      let hstsValue = `max-age=${this.hstsMaxAge}`;
+      if (this.hstsIncludeSubdomains) {
+        hstsValue += '; includeSubDomains';
+      }
+      if (this.hstsPreload) {
+        hstsValue += '; preload';
+      }
+      headers['Strict-Transport-Security'] = hstsValue;
+    }
+
+    return headers;
   }
 
   public async getDataDir(): Promise<string> {
@@ -488,6 +543,38 @@ export class Config extends EventEmitter {
   }
 
   /**
+   * Enable or disable security headers
+   */
+  public setSecurityHeadersEnabled(enable: boolean): boolean {
+    this.emit('securityHeaders', enable);
+    return (this.enableSecurityHeaders = enable);
+  }
+
+  /**
+   * Set HSTS max-age value in seconds
+   */
+  public setHSTSMaxAge(maxAge: number): number {
+    this.emit('hstsMaxAge', maxAge);
+    return (this.hstsMaxAge = maxAge);
+  }
+
+  /**
+   * Set X-Frame-Options header value
+   */
+  public setXFrameOptions(options: string): string {
+    this.emit('xFrameOptions', options);
+    return (this.xFrameOptions = options);
+  }
+
+  /**
+   * Set X-Content-Type-Options header value
+   */
+  public setXContentTypeOptions(options: string): string {
+    this.emit('xContentTypeOptions', options);
+    return (this.xContentTypeOptions = options);
+  }
+
+  /**
    * Returns the fully-qualified server address, which
    * includes host, protocol, and port for which the
    * server is *actively* listening on. For uses behind
@@ -502,8 +589,8 @@ export class Config extends EventEmitter {
     return this.port === 443
       ? `https://${host}:${this.port}`
       : this.port === 80
-        ? `http://${host}`
-        : `http://${host}:${this.port}`;
+      ? `http://${host}`
+      : `http://${host}:${this.port}`;
   }
 
   /**
