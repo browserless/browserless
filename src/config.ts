@@ -187,7 +187,7 @@ export class Config extends EventEmitter {
 
   // Security Headers Configuration
   protected enableSecurityHeaders = !!parseEnvVars(
-    true,
+    false,
     'ENABLE_SECURITY_HEADERS',
   );
   protected hstsMaxAge = +(process.env.HSTS_MAX_AGE ?? '63072000'); // 2 years in seconds
@@ -200,7 +200,7 @@ export class Config extends EventEmitter {
   protected xContentTypeOptions =
     process.env.X_CONTENT_TYPE_OPTIONS ?? 'nosniff';
   protected cspFrameAncestors = process.env.CSP_FRAME_ANCESTORS ?? "'none'";
-  protected enableCSP = !!parseEnvVars(true, 'ENABLE_CSP');
+  protected enableCSP = !!parseEnvVars(false, 'ENABLE_CSP');
 
   public getRoutes(): string {
     return this.routes;
@@ -350,7 +350,9 @@ export class Config extends EventEmitter {
 
     // Add Content Security Policy for comprehensive clickjacking protection
     if (this.enableCSP) {
-      headers['Content-Security-Policy'] = `frame-ancestors ${this.cspFrameAncestors}`;
+      headers[
+        'Content-Security-Policy'
+      ] = `frame-ancestors ${this.cspFrameAncestors}`;
     }
 
     return headers;
