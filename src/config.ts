@@ -199,6 +199,8 @@ export class Config extends EventEmitter {
   protected xFrameOptions = process.env.X_FRAME_OPTIONS ?? 'DENY';
   protected xContentTypeOptions =
     process.env.X_CONTENT_TYPE_OPTIONS ?? 'nosniff';
+  protected cspFrameAncestors = process.env.CSP_FRAME_ANCESTORS ?? "'none'";
+  protected enableCSP = !!parseEnvVars(true, 'ENABLE_CSP');
 
   public getRoutes(): string {
     return this.routes;
@@ -322,11 +324,13 @@ export class Config extends EventEmitter {
     'Strict-Transport-Security'?: string;
     'X-Frame-Options': string;
     'X-Content-Type-Options': string;
+    'Content-Security-Policy'?: string;
   } {
     const headers: {
       'Strict-Transport-Security'?: string;
       'X-Frame-Options': string;
       'X-Content-Type-Options': string;
+      'Content-Security-Policy'?: string;
     } = {
       'X-Frame-Options': this.xFrameOptions,
       'X-Content-Type-Options': this.xContentTypeOptions,
@@ -342,6 +346,11 @@ export class Config extends EventEmitter {
         hstsValue += '; preload';
       }
       headers['Strict-Transport-Security'] = hstsValue;
+    }
+
+    // Add Content Security Policy for comprehensive clickjacking protection
+    if (this.enableCSP) {
+      headers['Content-Security-Policy'] = `frame-ancestors ${this.cspFrameAncestors}`;
     }
 
     return headers;
@@ -572,6 +581,36 @@ export class Config extends EventEmitter {
   public setXContentTypeOptions(options: string): string {
     this.emit('xContentTypeOptions', options);
     return (this.xContentTypeOptions = options);
+  }
+
+  /**
+   * Enable or disable Content Security Policy
+   */
+  public setCSPEnabled(enable: boolean): boolean {
+    this.emit('cspEnabled', enable);
+    return (this.enableCSP = enable);
+  }
+
+  /**
+   * Get CSP enabled status
+   */
+  public getCSPEnabled(): boolean {
+    return this.enableCSP;
+  }
+
+  /**
+   * Set CSP frame-ancestors directive value
+   */
+  public setCSPFrameAncestors(ancestors: string): string {
+    this.emit('cspFrameAncestors', ancestors);
+    return (this.cspFrameAncestors = ancestors);
+  }
+
+  /**
+   * Get CSP frame-ancestors directive value
+   */
+  public getCSPFrameAncestors(): string {
+    return this.cspFrameAncestors;
   }
 
   /**
