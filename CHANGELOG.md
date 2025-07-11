@@ -1,6 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.32.1...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.33.0...main)
 
 - Dependency updates.
+
+# [v2.33.0](https://github.com/browserless/chrome/compare/v2.32.1...v2.33.0)
+
+- Dependency updates.
+- Fix `page`'s created by playwright's `context` object hanging.
+- Bumps `puppeteer-core` to `24.12.1`.
+- Bumps `playwright-core` to `1.54.1`.
+- Drops support for `playwright-core` at `1.49`.
+- Supports:
+  - puppeteer-core: 24.12.1
+  - playwright-core: 1.54.1, 1.53.1, 1.52.0, and 1.50.1
+  - Chromium: 139.0.7258.5
+  - Chrome: 138.0.7204.101 (amd64 only)
+  - Firefox: 140.0.2
+  - Webkit: 26.0
+  - Edge: 138.0.3351.83 (amd64 only)
 
 # [v2.32.1](https://github.com/browserless/chrome/compare/v2.32.0...v2.32.1)
 
