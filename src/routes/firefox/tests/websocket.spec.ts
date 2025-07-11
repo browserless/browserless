@@ -34,7 +34,8 @@ describe('Firefox Websocket API', function () {
     const browser = await firefox.connect(
       `ws://localhost:3000/playwright/firefox?token=browserless`,
     );
-
+    const context = await browser.newContext();
+    await context.newPage();
     await browser.close();
   });
 

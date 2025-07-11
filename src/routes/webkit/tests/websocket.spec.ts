@@ -31,6 +31,8 @@ describe('Webkit Websocket API', function () {
     const browser = await webkit.connect(
       `ws://localhost:3000/playwright/webkit?token=browserless`,
     );
+    const context = await browser.newContext();
+    await context.newPage();
 
     await browser.close();
   });
