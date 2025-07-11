@@ -49,6 +49,8 @@ describe('Chrome WebSocket API', function () {
     const browser = await chromium.connectOverCDP(
       `ws://localhost:3000/chrome?token=browserless`,
     );
+    const context = await browser.newContext();
+    await context.newPage();
 
     await browser.close();
   });
