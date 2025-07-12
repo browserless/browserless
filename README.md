@@ -134,7 +134,7 @@ const browser = await puppeteer.connect({
 
 ### Playwright
 
-We support running with playwright via their their browser's remote connection protocols interface out of the box. Just make sure that your Docker image, playwright browser type _and_ endpoint match:
+We support running with playwright via their browser's remote connection protocols interface out of the box. Just make sure that your Docker image, playwright browser type _and_ endpoint match:
 
 **Before**
 
