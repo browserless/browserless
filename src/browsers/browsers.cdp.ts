@@ -228,6 +228,10 @@ export class ChromiumCDP extends EventEmitter {
       args: [
         `--remote-debugging-port=${this.port}`,
         `--no-sandbox`,
+        `--disable-dev-shm-usage`,
+        `--disable-gpu`,
+        `--disable-setuid-sandbox`,
+        `--no-first-run`,
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
