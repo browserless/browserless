@@ -387,6 +387,7 @@ export const chromeExecutablePath = () => {
         }
       }
     } catch {
+      // Continue checking other paths
     }
   }
 
@@ -398,6 +399,7 @@ export const chromeExecutablePath = () => {
       return chromiumPath;
     }
   } catch {
+    // Playwright not available, continue to fallback
   }
 
   return '/usr/bin/google-chrome-stable';
