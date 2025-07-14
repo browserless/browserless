@@ -386,17 +386,18 @@ export const chromeExecutablePath = () => {
           return path;
         }
       }
-    } catch (error) {
+    } catch {
     }
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const playwright = require('playwright-core');
     const chromiumPath = playwright.chromium.executablePath();
     if (fsSync.existsSync(chromiumPath)) {
       return chromiumPath;
     }
-  } catch (error) {
+  } catch {
   }
 
   return '/usr/bin/google-chrome-stable';
