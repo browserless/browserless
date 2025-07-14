@@ -369,6 +369,23 @@ export const chromeExecutablePath = () => {
     return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   }
 
+  const possiblePaths = [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/home/ubuntu/.local/bin/google-chrome',
+    '/opt/google/chrome/chrome',
+    '/snap/bin/chromium'
+  ];
+
+  for (const path of possiblePaths) {
+    try {
+      if (require('fs').existsSync(path)) {
+        return path;
+      }
+    } catch (error) {
+    }
+  }
+
   return '/usr/bin/google-chrome-stable';
 };
 
