@@ -392,6 +392,11 @@ export interface BrowserlessSession {
   trackingId?: string;
   ttl: number;
   userDataDir: string | null;
+  targetCreationTimes?: Map<string, {
+    createdAt: number;
+    createdBy: string;
+    url: string;
+  }>;
 }
 
 export interface BrowserlessSessionJSON {
@@ -407,6 +412,14 @@ export interface BrowserlessSessionJSON {
   timeAliveMs: number;
   trackingId?: string;
   userDataDir: string | null;
+  recentTabs?: Array<{
+    id: string;
+    url: string;
+    title: string;
+    createdAt: number;
+    createdBy: string;
+    webSocketDebuggerUrl: string;
+  }>;
 }
 
 export interface BrowserlessSessionFullJSON extends BrowserlessSessionJSON {

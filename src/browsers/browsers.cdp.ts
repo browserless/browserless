@@ -129,6 +129,15 @@ export class ChromiumCDP extends EventEmitter {
           }
         });
 
+        const targetInfo = {
+          id: this.getPageId(page),
+          type: target.type(),
+          url: page.url(),
+          createdAt: Date.now(),
+          createdBy: 'target_blank'
+        };
+
+        this.emit('targetCreated', targetInfo);
         this.emit('newPage', page);
       }
     }

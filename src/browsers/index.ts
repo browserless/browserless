@@ -231,6 +231,7 @@ export class BrowserManager {
   ) {
     const serverHTTPAddress = this.config.getExternalAddress();
     const serverWSAddress = this.config.getExternalWebSocketAddress();
+    const now = Date.now();
 
     const sessions = [
       {
@@ -245,6 +246,14 @@ export class BrowserManager {
         running: browser.isRunning(),
         timeAliveMs: Date.now() - session.startedOn,
         type: 'browser',
+        recentTabs: [] as Array<{
+          id: string;
+          url: string;
+          title: string;
+          createdAt: number;
+          createdBy: string;
+          webSocketDebuggerUrl: string;
+        }>,
       },
     ];
 
@@ -264,6 +273,15 @@ export class BrowserManager {
       );
       if (response.ok) {
         const body = await response.json();
+        const recentTabs: Array<{
+          id: string;
+          url: string;
+          title: string;
+          createdAt: number;
+          createdBy: string;
+          webSocketDebuggerUrl: string;
+        }> = [];
+        
         for (const page of body) {
           const pageURI = new URL(page.webSocketDebuggerUrl);
           const devtoolsFrontendUrl =
@@ -284,14 +302,37 @@ export class BrowserManager {
             serverWSAddress,
           ).href;
 
-          sessions.push({
+          const pageSession = {
             ...sessions[0],
             ...page,
             browserWSEndpoint,
             devtoolsFrontendUrl,
             webSocketDebuggerUrl,
-          });
+          };
+
+          const targetCreationInfo = session.targetCreationTimes?.get(page.id);
+          const isRecentTab = targetCreationInfo && 
+                             (now - targetCreationInfo.createdAt) < 30000 && // 30 seconds
+                             page.type === 'page' &&
+                             page.url !== 'about:blank' && 
+                             page.url !== '' && 
+                             !page.url.startsWith('chrome://');
+
+          if (isRecentTab) {
+            recentTabs.push({
+              id: page.id,
+              url: page.url,
+              title: page.title || '',
+              createdAt: targetCreationInfo.createdAt,
+              createdBy: targetCreationInfo.createdBy,
+              webSocketDebuggerUrl,
+            });
+          }
+
+          sessions.push(pageSession);
         }
+
+        sessions[0].recentTabs = recentTabs;
       }
     }
     return sessions;
@@ -618,6 +659,24 @@ export class BrowserManager {
     browser.on('newPage', async (page: Page) => {
       await this.onNewPage(req, page);
       (router.onNewPage || noop)(req.parsed || '', page);
+    });
+
+    browser.on('targetCreated', (targetInfo: {
+      id: string;
+      type: string;
+      url: string;
+      createdAt: number;
+      createdBy: string;
+    }) => {
+      this.log.trace(`Target created: ${targetInfo.id} (${targetInfo.type}) - ${targetInfo.url}`);
+      if (!session.targetCreationTimes) {
+        session.targetCreationTimes = new Map();
+      }
+      session.targetCreationTimes.set(targetInfo.id, {
+        createdAt: targetInfo.createdAt,
+        createdBy: targetInfo.createdBy,
+        url: targetInfo.url,
+      });
     });
 
     return browser;
