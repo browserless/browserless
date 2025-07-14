@@ -34,12 +34,13 @@ import {
   parseStringParam,
   pwVersionRegex,
 } from '@browserless.io/browserless';
+import { EventEmitter } from 'events';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
 
-export class BrowserManager {
+export class BrowserManager extends EventEmitter {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   protected log = new Logger('browser-manager');
@@ -56,7 +57,9 @@ export class BrowserManager {
     protected config: Config,
     protected hooks: Hooks,
     protected fileSystem: FileSystem,
-  ) {}
+  ) {
+    super();
+  }
 
   protected browserIsChrome(b: BrowserInstance) {
     return this.chromeBrowsers.some(
@@ -677,6 +680,18 @@ export class BrowserManager {
         createdBy: targetInfo.createdBy,
         url: targetInfo.url,
       });
+      
+      const eventData = {
+        id: targetInfo.id,
+        url: targetInfo.url,
+        title: '',
+        createdAt: targetInfo.createdAt,
+        createdBy: targetInfo.createdBy,
+        sessionId: session.id,
+        webSocketDebuggerUrl: `${this.config.getExternalWebSocketAddress()}/devtools/page/${targetInfo.id}`
+      };
+      
+      this.emit('targetCreated', eventData);
     });
 
     return browser;

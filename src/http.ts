@@ -88,6 +88,7 @@ export enum WebsocketRoutes {
   edgePlaywright = '/edge/playwright?(/)',
   chromium = '/chromium?(/)',
   chromiumPlaywright = '/chromium/playwright?(/)',
+  events = '/events?(/)',
   firefoxPlaywright = '/firefox/playwright?(/)',
   page = '/devtools/page/*',
   playwrightChrome = '/playwright/chrome?(/)',

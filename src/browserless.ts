@@ -419,6 +419,19 @@ export class Browserless extends EventEmitter {
 
     filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
+    
+    const EventsWebSocketRoute = (await import('./routes/management/ws/events')).default;
+    const eventsRoute = new EventsWebSocketRoute(
+      this.browserManager,
+      this.config,
+      this.fileSystem,
+      this.metrics,
+      this.monitoring,
+      this.staticSDKDir,
+      this.limiter,
+    );
+    eventsRoute.setBrowserManager(this.browserManager);
+    this.router.registerWebSocketRoute(eventsRoute);
 
     this.logger.info(
       `Imported and validated all route files, starting up server.`,
