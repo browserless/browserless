@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import {
   BLESS_PAGE_IDENTIFIER,
   ChromeCDP,
@@ -379,7 +380,7 @@ export const chromeExecutablePath = () => {
 
   for (const path of possiblePaths) {
     try {
-      if (require('fs').existsSync(path)) {
+      if (fsSync.existsSync(path)) {
         return path;
       }
     } catch (error) {
