@@ -381,10 +381,22 @@ export const chromeExecutablePath = () => {
   for (const path of possiblePaths) {
     try {
       if (fsSync.existsSync(path)) {
-        return path;
+        const stats = fsSync.statSync(path);
+        if (stats.isFile() && stats.size > 1000) {
+          return path;
+        }
       }
     } catch (error) {
     }
+  }
+
+  try {
+    const playwright = require('playwright-core');
+    const chromiumPath = playwright.chromium.executablePath();
+    if (fsSync.existsSync(chromiumPath)) {
+      return chromiumPath;
+    }
+  } catch (error) {
   }
 
   return '/usr/bin/google-chrome-stable';
