@@ -1,6 +1,5 @@
 import {
   APITags,
-  BrowserManager,
   BrowserlessRoutes,
   Logger,
   Request,
@@ -43,12 +42,6 @@ export default class EventsWebSocketRoute extends WebSocketRoute {
   );
   path = WebsocketRoutes.events;
   tags = [APITags.management];
-  
-  private browserManagerInstance: BrowserManager | null = null;
-  
-  setBrowserManager(browserManager: BrowserManager) {
-    this.browserManagerInstance = browserManager;
-  }
 
   async handler(
     _req: Request,
@@ -58,13 +51,7 @@ export default class EventsWebSocketRoute extends WebSocketRoute {
   ): Promise<void> {
     logger.trace('Events WebSocket connection established');
     
-    if (!this.browserManagerInstance) {
-      logger.error('BrowserManager not available');
-      socket.end();
-      return;
-    }
-    
-    const browserManager = this.browserManagerInstance;
+    const browserManager = this.browserManager();
     
     const welcomeMessage = {
       type: 'connected',
