@@ -348,11 +348,11 @@ export abstract class BrowserWebsocketRoute extends Route {
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
-  abstract before(
+  before?: (
     req: Request,
     socket: stream.Duplex,
     head: Buffer,
-  ): Promise<boolean>;
+  ) => Promise<boolean>;
 }
 
 interface BrowserlessLaunch {
