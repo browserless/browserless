@@ -193,6 +193,10 @@ export class HTTPServer extends EventEmitter {
 
     this.logger.trace(`Found matching HTTP route handler "${route.path}"`);
 
+    if (route.before && !(await route.before(req, res))) {
+      return;
+    }
+
     if (route?.auth) {
       this.logger.trace(`Authorizing HTTP request to "${request.url}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
@@ -337,6 +341,10 @@ export class HTTPServer extends EventEmitter {
       this.logger.trace(
         `Found matching WebSocket route handler "${route.path}"`,
       );
+
+      if (route.before && !(await route.before(req, socket, head))) {
+        return;
+      }
 
       if (route?.auth) {
         this.logger.trace(

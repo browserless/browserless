@@ -238,6 +238,13 @@ abstract class BasicHTTPRoute extends Route {
    * The allowed methods ("GET", "POST", etc) this route can utilize and match against.
    */
   abstract method: Methods;
+
+  /**
+   * A function that can run before the requests is parsed and any query or body validation is run.
+   * Useful if you need to alter something about the request to conform it or otherwise. This
+   * hook is ran after any "global" hooks have run.
+   */
+  before?: (req: Request, res: http.ServerResponse) => Promise<boolean>;
 }
 
 /**
@@ -299,6 +306,15 @@ export abstract class WebSocketRoute extends Route {
     head: Buffer,
     logger: Logger,
   ): Promise<unknown>;
+
+  /**
+   * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
+   */
+  before?: (
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) => Promise<boolean>;
 }
 
 /**
@@ -328,6 +344,15 @@ export abstract class BrowserWebsocketRoute extends Route {
    * creation. Useful for injecting behaviors or other functionality.
    */
   onNewPage?: (url: URL, page: Page) => Promise<void>;
+
+  /**
+   * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
+   */
+  abstract before(
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ): Promise<boolean>;
 }
 
 interface BrowserlessLaunch {
