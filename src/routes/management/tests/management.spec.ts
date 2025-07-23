@@ -65,7 +65,7 @@ describe('Management APIs', function () {
     it('allows glob-matched OPTIONS requests', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('*.example.com');
+      config.setCORSOrigin('*.one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -73,21 +73,21 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://subdomain.example.com',
+            Origin: 'https://subdomain.one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://subdomain.example.com',
+        'https://subdomain.one.one.one.one',
       );
     });
 
     it('allows glob-matched OPTIONS requests with OR patterns', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('https://(abc|xyz).example.com');
+      config.setCORSOrigin('https://(abc|xyz).one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -95,14 +95,14 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://abc.example.com',
+            Origin: 'https://abc.one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://abc.example.com',
+        'https://abc.one.one.one.one',
       );
     });
 
@@ -110,7 +110,7 @@ describe('Management APIs', function () {
       const config = new Config();
       config.enableCORS(true);
       config.setCORSOrigin(
-        '(https://(abc|xyz).example.com|https://deploy-preview-*.netlify.app)',
+        '(https://(abc|xyz).one.one.one.one|https://deploy-preview-*.netlify.app)',
       );
       await start({ config });
 
@@ -142,7 +142,7 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://subdomain.example.com',
+            Origin: 'https://subdomain.one.one.one.one',
           },
         },
       );

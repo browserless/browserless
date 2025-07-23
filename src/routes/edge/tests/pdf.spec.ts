@@ -167,7 +167,7 @@ describe('/edge/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
+      cookies: [{ domain: 'one.one.one.one', name: 'foo', value: 'bar' }],
       url: 'https://one.one.one.one',
     };
 
