@@ -33,7 +33,7 @@ describe(`Limiter`, () => {
   it('limits and queues function calls, calls hooks, and calls queue alert urls', async () => {
     return new Promise((resolve, reject) => {
       const config = new Config();
-      config.setQueueAlertURL('https://example.com');
+      config.setQueueAlertURL('https://one.one.one.one');
 
       const monitoring = new Monitoring(config);
       const metrics = new Metrics();

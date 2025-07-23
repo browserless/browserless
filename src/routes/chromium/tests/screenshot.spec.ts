@@ -22,7 +22,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -59,7 +59,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       viewport: {
         deviceScaleFactor: 3,
         height: 100,
@@ -86,7 +86,7 @@ describe('/chromium/screenshot API', function () {
     await start({ config, metrics });
     const body = {
       selector: 'h1',
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -142,7 +142,7 @@ describe('/chromium/screenshot API', function () {
           },
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -163,7 +163,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: '() => 5 + 5',
       },
@@ -187,7 +187,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
@@ -211,7 +211,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForSelector: {
         selector: 'h1',
       },
@@ -235,7 +235,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForTimeout: 500,
     };
 
@@ -285,7 +285,7 @@ describe('/chromium/screenshot API', function () {
     await start({ config, metrics });
     const body = {
       cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -306,7 +306,7 @@ describe('/chromium/screenshot API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch(
@@ -332,7 +332,7 @@ describe('/chromium/screenshot API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -353,7 +353,7 @@ describe('/chromium/screenshot API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
@@ -370,7 +370,7 @@ describe('/chromium/screenshot API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/screenshot', {

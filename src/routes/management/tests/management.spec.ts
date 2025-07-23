@@ -21,7 +21,7 @@ describe('Management APIs', function () {
     it('allows Single Origin OPTIONS requests', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('https://example.com');
+      config.setCORSOrigin('https://one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -29,14 +29,14 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://example.com',
+            Origin: 'https://one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://example.com',
+        'https://one.one.one.one',
       );
     });
 
@@ -51,14 +51,14 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://example.com',
+            Origin: 'https://one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://example.com',
+        'https://one.one.one.one',
       );
     });
 

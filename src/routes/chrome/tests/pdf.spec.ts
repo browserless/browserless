@@ -22,7 +22,7 @@ describe('/chrome/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -64,7 +64,7 @@ describe('/chrome/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: '() => 5 + 5',
       },
@@ -89,7 +89,7 @@ describe('/chrome/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
@@ -114,7 +114,7 @@ describe('/chrome/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForSelector: {
         selector: 'h1',
       },
@@ -168,7 +168,7 @@ describe('/chrome/pdf API', function () {
     await start({ config, metrics });
     const body = {
       cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -191,7 +191,7 @@ describe('/chrome/pdf API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch(
@@ -218,7 +218,7 @@ describe('/chrome/pdf API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -252,7 +252,7 @@ describe('/chrome/pdf API', function () {
           },
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -277,7 +277,7 @@ describe('/chrome/pdf API', function () {
       gotoOptions: {
         waitUntil: `networkidle2`,
       },
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -324,7 +324,7 @@ describe('/chrome/pdf API', function () {
       options: {
         landscape: true,
       },
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf?token=browserless', {
@@ -346,7 +346,7 @@ describe('/chrome/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       viewport: {
         deviceScaleFactor: 3,
         height: 100,
@@ -370,7 +370,7 @@ describe('/chrome/pdf API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/pdf', {

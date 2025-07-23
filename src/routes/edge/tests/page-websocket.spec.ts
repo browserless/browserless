@@ -27,7 +27,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000/edge`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
@@ -78,7 +78,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000/edge?token=browserless`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
@@ -106,7 +106,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000/edge?token=browserless`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/im-a-banana`;
 
     // Connect to raw page target without authorization
