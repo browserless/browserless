@@ -64,7 +64,7 @@
     "playwright-1.52": "npm:playwright-core@1.52.0",
     "playwright-1.53": "npm:playwright-core@1.53.2",
     "playwright-core": "1.54.1",
-    "puppeteer-core": "24.13.0",
+    "puppeteer-core": "24.15.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
