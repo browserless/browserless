@@ -28,7 +28,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
@@ -98,7 +98,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: '() => 5 + 5',
       },
@@ -124,7 +124,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
@@ -150,7 +150,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForSelector: {
         selector: 'h1',
       },
@@ -176,7 +176,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForTimeout: 500,
     };
 
@@ -229,8 +229,8 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
-      url: 'https://example.com',
+      cookies: [{ domain: 'one.one.one.one', name: 'foo', value: 'bar' }],
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
@@ -253,7 +253,7 @@ describe('/chrome/content API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch(
@@ -279,7 +279,7 @@ describe('/chrome/content API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
@@ -312,7 +312,7 @@ describe('/chrome/content API', function () {
           },
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
@@ -336,7 +336,7 @@ describe('/chrome/content API', function () {
       gotoOptions: {
         waitUntil: `networkidle2`,
       },
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content?token=browserless', {
@@ -353,7 +353,7 @@ describe('/chrome/content API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/content', {

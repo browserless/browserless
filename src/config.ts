@@ -522,7 +522,7 @@ export class Config extends EventEmitter {
    * Set the external URL, which Browserless uses for encoding
    * URLs over the HOST:PORT that it's bound to.
    *
-   * @param address The fully-qualified URL, eg https://www.example.com/
+   * @param address The fully-qualified URL, eg https://www.one.one.one.one.com/
    * @returns {string} The address
    */
   public setExternalAddress(address: string) {

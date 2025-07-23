@@ -27,7 +27,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -74,7 +74,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -107,7 +107,7 @@ describe('/chrome/scrape API', function () {
           timeout: 1000,
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -133,7 +133,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: '() => 5 + 5',
       },
@@ -164,7 +164,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
@@ -195,7 +195,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForSelector: {
         selector: 'h1',
       },
@@ -226,7 +226,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForTimeout: 500,
     };
 
@@ -285,13 +285,13 @@ describe('/chrome/scrape API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
+      cookies: [{ domain: 'one.one.one.one', name: 'foo', value: 'bar' }],
       elements: [
         {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -319,7 +319,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch(
@@ -350,7 +350,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -376,7 +376,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape?token=browserless', {
@@ -398,7 +398,7 @@ describe('/chrome/scrape API', function () {
           selector: 'a',
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/scrape', {
