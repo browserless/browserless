@@ -118,6 +118,8 @@ export default class PressureGetRoute extends HTTPRoute {
           ? 'Memory is over the configured maximum for memory percent'
           : '';
 
+    const statusCode = !hasCapacity || cpuOverloaded || memoryOverloaded ? 503 : 200;
+
     const response: ResponseSchema = {
       pressure: {
         cpu,
@@ -134,6 +136,6 @@ export default class PressureGetRoute extends HTTPRoute {
       },
     };
 
-    return jsonResponse(res, 200, response);
+    return jsonResponse(res, statusCode, response);
   }
 }
