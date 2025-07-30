@@ -7,6 +7,7 @@ import {
   Request,
   contentTypes,
   jsonResponse,
+  writeResponse,
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
@@ -76,12 +77,12 @@ export default class PressureGetRoute extends HTTPRoute {
   auth = true;
   browser = null;
   concurrency = false;
-  contentTypes = [contentTypes.json];
+  contentTypes = [contentTypes.json, contentTypes.text];
   description = `Returns a JSON body of stats related to the pressure being created on the instance.`;
   method = Methods.get;
   path = HTTPManagementRoutes.pressure;
   tags = [APITags.management];
-  async handler(_req: Request, res: ServerResponse): Promise<void> {
+  async handler(req: Request, res: ServerResponse): Promise<void> {
     const monitoring = this.monitoring();
     const config = this.config();
     const limiter = this.limiter();
@@ -133,6 +134,11 @@ export default class PressureGetRoute extends HTTPRoute {
         running,
       },
     };
+
+    if (req.headers.accept === contentTypes.text) {
+      const code = response.pressure.isAvailable ? 200 : 503;
+      return writeResponse(res, code, message);
+    }
 
     return jsonResponse(res, 200, response);
   }
