@@ -6,6 +6,7 @@ import {
   Methods,
   Request,
   contentTypes,
+  dedent,
   jsonResponse,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -78,7 +79,12 @@ export default class PressureGetRoute extends HTTPRoute {
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json, contentTypes.text];
-  description = `Returns a JSON body of stats related to the pressure being created on the instance.`;
+  description =
+    dedent(`Returns a JSON body of stats related to the pressure being exerted on the instance. This route is dynamic based upon the supplied "Accept" header, and will either return a human-readable message if the "Accept" header is set to "text/plain", or the default JSON body and a 200 HTTP code.
+
+    When Accept is set to "text/plain" a human-readable message is sent back describing the state of the container, and either a "200" code (indicating "ok") or a "503" code (indicating that the service is unavailable due to load).
+
+    If the "Accept" header is set to anything else it will return a JSON body with the same information.`);
   method = Methods.get;
   path = HTTPManagementRoutes.pressure;
   tags = [APITags.management];
