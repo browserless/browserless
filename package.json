@@ -15,7 +15,9 @@
   },
   "scripts": {
     "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
+    "build:fast": "node scripts/build-optimised.js",
     "build:dev": "npm run build && npm run build:function && npm run install:debugger",
+    "build:dev:fast": "node scripts/build-optimised.js dev",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
     "build:schemas": "node scripts/build-schemas.js",
@@ -23,6 +25,7 @@
     "build:ts": "tsc",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
+    "dev:fast": "node scripts/dev-fast.js",
     "install:adblock": "node scripts/install-adblock.js",
     "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit msedge",
