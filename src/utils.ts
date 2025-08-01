@@ -925,11 +925,19 @@ export const isMatch = (text: string, pattern: string) => {
  */
 export const sanitizeUrlForLogging = (url: string): string => {
   try {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const urlObj = new URL(url);
+      if (urlObj.searchParams.has('token')) {
+        urlObj.searchParams.set('token', '[REDACTED]');
+      }
+      return urlObj.toString();
+    }
+    
     const urlObj = new URL(url, 'http://localhost');
     if (urlObj.searchParams.has('token')) {
       urlObj.searchParams.set('token', '[REDACTED]');
     }
-    return urlObj.toString().replace('http://localhost', '');
+    return urlObj.pathname + urlObj.search;
   } catch {
     return url;
   }
