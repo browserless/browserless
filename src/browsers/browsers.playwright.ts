@@ -192,7 +192,7 @@ class BasePlaywright extends EventEmitter {
       socket.once('close', resolve);
 
       this.logger.info(
-        `Proxying ${req.parsed.logFriendlyURL} to ${this.constructor.name} ${this.browserWSEndpoint}`,
+        `Proxying ${req.logFriendlyURL} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       // Delete headers known to cause issues

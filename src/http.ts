@@ -1,18 +1,9 @@
 import {
   BrowserServerOptions,
   CDPLaunchOptions,
-  sanitizeUrlForLogging,
 } from '@browserless.io/browserless';
 
 import http from 'http';
-
-Object.defineProperty(URL.prototype, 'logFriendlyURL', {
-  get: function(this: URL) {
-    return sanitizeUrlForLogging(this.href);
-  },
-  enumerable: false,
-  configurable: false,
-});
 
 export const errorCodes = {
   400: {
@@ -164,16 +155,11 @@ export enum APITags {
   'management' = 'Management REST APIs',
 }
 
-declare global {
-  interface URL {
-    logFriendlyURL: string;
-  }
-}
-
 export interface Request extends http.IncomingMessage {
   body: unknown;
   parsed: URL;
   queryParams: Record<string, unknown>;
+  logFriendlyURL: string;
 }
 
 export type Response = http.ServerResponse;

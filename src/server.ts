@@ -140,6 +140,7 @@ export class HTTPServer extends EventEmitter {
     const proceed = await this.hooks.before({ req, res });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
+    req.logFriendlyURL = sanitizeUrlForLogging(req.parsed.href);
 
     if (!proceed) return;
 
@@ -186,7 +187,7 @@ export class HTTPServer extends EventEmitter {
 
     if (!route) {
       this.logger.error(
-        `No matching HTTP route handler for "${req.method}: ${req.parsed.logFriendlyURL}"`,
+        `No matching HTTP route handler for "${req.method}: ${req.logFriendlyURL}"`,
       );
       writeResponse(res, 404, 'Not Found');
       return Promise.resolve();
@@ -331,6 +332,7 @@ export class HTTPServer extends EventEmitter {
     const proceed = await this.hooks.before({ head, req, socket });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
+    req.logFriendlyURL = sanitizeUrlForLogging(req.parsed.href);
 
     if (!proceed) return;
 
@@ -349,7 +351,7 @@ export class HTTPServer extends EventEmitter {
 
       if (route?.auth) {
         this.logger.trace(
-          `Authorizing WebSocket request to "${req.parsed.logFriendlyURL}"`,
+          `Authorizing WebSocket request to "${req.logFriendlyURL}"`,
         );
         const isPermitted = await this.token.isAuthorized(req, route);
 
@@ -412,7 +414,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     this.logger.error(
-      `No matching WebSocket route handler for "${req.parsed.logFriendlyURL}"`,
+      `No matching WebSocket route handler for "${req.logFriendlyURL}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
   }
