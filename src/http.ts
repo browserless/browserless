@@ -159,6 +159,7 @@ export interface Request extends http.IncomingMessage {
   body: unknown;
   parsed: URL;
   queryParams: Record<string, unknown>;
+  logFriendlyURL: string;
 }
 
 export type Response = http.ServerResponse;
