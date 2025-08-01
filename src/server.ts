@@ -21,6 +21,7 @@ import {
   isMatch,
   queryParamsToObject,
   readBody,
+  sanitizeUrlForLogging,
   shimLegacyRequests,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -132,7 +133,7 @@ export class HTTPServer extends EventEmitter {
     res: http.ServerResponse,
   ) {
     this.logger.trace(
-      `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
+      `Handling inbound HTTP request on "${request.method}: ${sanitizeUrlForLogging(request.url || '')}"`,
     );
 
     const req = request as Request;
@@ -198,7 +199,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (route?.auth) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url}"`);
+      this.logger.trace(`Authorizing HTTP request to "${sanitizeUrlForLogging(request.url || '')}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
@@ -324,7 +325,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
-    this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
+    this.logger.trace(`Handling inbound WebSocket request on "${sanitizeUrlForLogging(request.url || '')}"`);
 
     const req = request as Request;
     const proceed = await this.hooks.before({ head, req, socket });
@@ -348,7 +349,7 @@ export class HTTPServer extends EventEmitter {
 
       if (route?.auth) {
         this.logger.trace(
-          `Authorizing WebSocket request to "${req.parsed.href}"`,
+          `Authorizing WebSocket request to "${sanitizeUrlForLogging(req.parsed.href)}"`,
         );
         const isPermitted = await this.token.isAuthorized(req, route);
 

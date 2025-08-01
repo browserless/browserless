@@ -915,3 +915,30 @@ export const ublockLitePath = path.join(
 export const isMatch = (text: string, pattern: string) => {
   return micromatch.isMatch(text, pattern, { bash: true });
 };
+
+/**
+ * Sanitizes a URL by redacting the token parameter for safe logging.
+ * Preserves other query parameters for debugging purposes.
+ *
+ * @param url The URL string to sanitize
+ * @returns The sanitized URL string with token redacted
+ */
+export const sanitizeUrlForLogging = (url: string): string => {
+  try {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const urlObj = new URL(url);
+      if (urlObj.searchParams.has('token')) {
+        urlObj.searchParams.set('token', '[REDACTED]');
+      }
+      return urlObj.toString();
+    }
+    
+    const urlObj = new URL(url, 'http://localhost');
+    if (urlObj.searchParams.has('token')) {
+      urlObj.searchParams.set('token', '[REDACTED]');
+    }
+    return urlObj.pathname + urlObj.search;
+  } catch {
+    return url;
+  }
+};

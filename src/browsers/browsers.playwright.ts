@@ -7,6 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
+  sanitizeUrlForLogging,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -192,7 +193,7 @@ class BasePlaywright extends EventEmitter {
       socket.once('close', resolve);
 
       this.logger.info(
-        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
+        `Proxying ${sanitizeUrlForLogging(req.parsed.href)} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       // Delete headers known to cause issues
