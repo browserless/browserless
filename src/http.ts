@@ -36,6 +36,11 @@ export const errorCodes = {
     description: `An internal error occurred when handling the request.`,
     message: 'HTTP/1.1 500 Internal Server Error',
   },
+  503: {
+    code: 503,
+    description: `Service is unavailable.`,
+    message: 'HTTP/1.1 503 Service Unavailable',
+  },
 } as const;
 
 export const okCodes = {
