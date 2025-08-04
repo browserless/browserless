@@ -12,9 +12,10 @@ const exec = promisify(spawn);
  * @param {string} command - The command to run
  * @param {string[]} args - Command arguments
  * @param {string} name - Name for logging
+ * @param {number} timeout - Timeout in milliseconds (default: 10 minutes)
  * @returns {Promise}
  */
-const runCommand = async (command, args, name) => {
+const runCommand = async (command, args, name, timeout = 600000) => {
   console.log(`🚀 Starting ${name}...`);
   const startTime = Date.now();
   
@@ -25,134 +26,84 @@ const runCommand = async (command, args, name) => {
     });
     
     return new Promise((resolve, reject) => {
+      // Set timeout
+      const timeoutId = setTimeout(() => {
+        child.kill('SIGTERM');
+        reject(new Error(`${name} timed out after ${timeout/1000}s`));
+      }, timeout);
+      
       child.on('close', (code) => {
+        clearTimeout(timeoutId);
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         if (code === 0) {
           console.log(`✅ ${name} completed in ${duration}s`);
           resolve();
         } else {
-          console.error(`❌ ${name} failed after ${duration}s`);
-          reject(new Error(`${name} failed with code ${code}`));
+          console.error(`❌ ${name} failed after ${duration}s with code ${code}`);
+          reject(new Error(`${name} failed with exit code ${code}`));
         }
       });
       
       child.on('error', (error) => {
-        console.error(`❌ ${name} error:`, error);
+        clearTimeout(timeoutId);
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.error(`❌ ${name} errored after ${duration}s:`, error.message);
         reject(error);
       });
     });
   } catch (error) {
-    console.error(`❌ ${name} failed:`, error);
+    console.error(`❌ Failed to start ${name}:`, error.message);
     throw error;
   }
 };
 
 /**
- * Run commands in parallel with a concurrency limit
- * @param {Array} tasks - Array of task objects with command, args, and name
- * @param {number} concurrency - Maximum number of concurrent tasks
- * @returns {Promise}
+ * Main build function
  */
-const runParallel = async (tasks, concurrency = 4) => {
-  const results = [];
-  const running = new Set();
-  
-  for (const task of tasks) {
-    if (running.size >= concurrency) {
-      await Promise.race(running);
-    }
-    
-    const promise = runCommand(task.command, task.args, task.name)
-      .then(result => {
-        running.delete(promise);
-        return result;
-      })
-      .catch(error => {
-        running.delete(promise);
-        throw error;
-      });
-    
-    running.add(promise);
-    results.push(promise);
-  }
-  
-  return Promise.all(results);
-};
-
-/**
- * Main build function with optimized parallel execution
- */
-const buildOptimized = async () => {
-  console.log('🏗️  Starting optimized build...');
+const main = async () => {
+  console.log('🚀 Starting optimized build process...');
   const startTime = Date.now();
   
   try {
-    // Step 1: Clean (must be first)
-    console.log('\n📁 Step 1: Cleaning...');
-    await runCommand('node', ['scripts/clean.js'], 'Clean');
+    // Check if we're in a CI environment
+    const isCI = process.env.CI === 'true';
+    console.log(`🔧 Environment: ${isCI ? 'CI/CD' : 'Development'}`);
     
-    // Step 2: Run independent tasks in parallel
-    console.log('\n⚡ Step 2: Running independent tasks in parallel...');
+    // Run independent tasks in parallel
     const parallelTasks = [
-      { command: 'npx', args: ['tsc'], name: 'TypeScript Compilation' },
-      { command: 'node', args: ['scripts/install-adblock.js'], name: 'Install AdBlock' },
-      { command: 'node', args: ['scripts/install-devtools.js'], name: 'Install DevTools' },
+      // Clean and TypeScript compilation (sequential)
+      async () => {
+        await runCommand('npm', ['run', 'clean'], 'Clean', 60000);
+        await runCommand('npm', ['run', 'build:ts'], 'TypeScript Compilation', 300000);
+      },
+      
+      // Install adblock (independent)
+      runCommand('npm', ['run', 'install:adblock'], 'Adblock Installation', 120000),
+      
+      // Install devtools (independent)
+      runCommand('npm', ['run', 'install:devtools'], 'Devtools Installation', 120000)
     ];
     
-    await runParallel(parallelTasks, 3);
+    // Run parallel tasks
+    await Promise.all(parallelTasks);
     
-    // Step 3: Run schema generation (depends on TypeScript compilation)
-    console.log('\n📋 Step 3: Generating schemas...');
-    await runCommand('node', ['scripts/build-schemas.js'], 'Schema Generation');
+    // Run schema generation (depends on TypeScript compilation)
+    await runCommand('node', ['scripts/build-schemas.js'], 'Schema Generation', 300000);
     
-    // Step 4: Run OpenAPI generation (depends on schemas)
-    console.log('\n📚 Step 4: Generating OpenAPI...');
-    await runCommand('node', ['scripts/build-open-api.js'], 'OpenAPI Generation');
+    // Run OpenAPI generation (depends on schemas)
+    await runCommand('node', ['scripts/build-open-api.js'], 'OpenAPI Generation', 120000);
     
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`\n🎉 Build completed successfully in ${totalTime}s!`);
+    console.log(`🎉 Optimized build completed successfully in ${totalTime}s!`);
     
   } catch (error) {
-    console.error('\n💥 Build failed:', error.message);
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.error(`💥 Build failed after ${totalTime}s:`, error.message);
     process.exit(1);
   }
 };
 
-/**
- * Development build function (includes additional dev-specific tasks)
- */
-const buildDevOptimized = async () => {
-  console.log('🔧 Starting optimized development build...');
-  const startTime = Date.now();
-  
-  try {
-    // First run the regular optimized build
-    await buildOptimized();
-    
-    // Then run dev-specific tasks in parallel
-    console.log('\n🔧 Step 5: Running development tasks in parallel...');
-    const devTasks = [
-      { command: 'node', args: ['scripts/build-function.js'], name: 'Function Build' },
-      { command: 'node', args: ['scripts/install-debugger.js'], name: 'Install Debugger' },
-    ];
-    
-    await runParallel(devTasks, 2);
-    
-    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`\n🎉 Development build completed successfully in ${totalTime}s!`);
-    
-  } catch (error) {
-    console.error('\n💥 Development build failed:', error.message);
-    process.exit(1);
-  }
-};
-
-// Handle command line arguments
-const args = process.argv.slice(2);
-const command = args[0];
-
-if (command === 'dev') {
-  buildDevOptimized();
-} else {
-  buildOptimized();
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
 } 
