@@ -14,7 +14,7 @@ import { ServerResponse } from 'http';
 export type ResponseSchema = string;
 
 export interface QuerySchema extends SystemQueryParameters {
-  token: string;
+  token?: string;
   browserId?: string;
   trackingId?: string;
 }

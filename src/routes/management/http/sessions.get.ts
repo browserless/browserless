@@ -13,7 +13,7 @@ import {
 import { ServerResponse } from 'http';
 
 export interface QuerySchema extends SystemQueryParameters {
-  token: string;
+  token?: string;
   trackingId?: string;
 }
 
