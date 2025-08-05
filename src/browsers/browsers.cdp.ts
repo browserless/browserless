@@ -9,7 +9,6 @@ import {
   edgeExecutablePath,
   noop,
   once,
-  sanitizeUrlForLogging,
   ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
@@ -286,7 +285,7 @@ export class ChromiumCDP extends EventEmitter {
       }
       socket.once('close', resolve);
       this.logger.info(
-        `Proxying ${sanitizeUrlForLogging(req.parsed.href)} to ${this.constructor.name}`,
+        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
       );
 
       const shouldMakePage = req.parsed.pathname.includes(
@@ -345,7 +344,7 @@ export class ChromiumCDP extends EventEmitter {
       socket.once('close', close);
 
       this.logger.info(
-        `Proxying ${sanitizeUrlForLogging(req.parsed.href)} to ${this.constructor.name} ${this.browserWSEndpoint}`,
+        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
       req.url = '';

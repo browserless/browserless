@@ -1,3 +1,4 @@
+import * as http from 'http';
 import {
   CDPLaunchOptions,
   convertIfBase64,
@@ -5,6 +6,22 @@ import {
 } from '@browserless.io/browserless';
 
 const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
+
+/**
+ * Obfuscates the ?token parameter by shifting it to a header instead of a query-parameter.
+ */
+export function moveTokenToHeader(req: http.IncomingMessage): string {
+  const parsed = new URL(req.url || '', 'http://localhost');
+  const token = parsed.searchParams.get('token');
+
+  if (token) {
+    parsed.searchParams.delete('token');
+    req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
+    req.url = parsed.pathname + parsed.search;
+  }
+
+  return req.url!;
+}
 
 /**
  * Given a legacy connect or API call, this shim will
