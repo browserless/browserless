@@ -1,5 +1,9 @@
+import * as http from 'http';
 import { expect } from 'chai';
-import { shimLegacyRequests } from '@browserless.io/browserless';
+import {
+  shimLegacyRequests,
+  moveTokenToHeader,
+} from '@browserless.io/browserless';
 
 describe('Request Shimming', () => {
   describe('headless', () => {
@@ -167,6 +171,41 @@ describe('Request Shimming', () => {
       const shimmed = shimLegacyRequests(new URL(url));
 
       expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
+  describe('token shimming', () => {
+    it('converts token query parameters to an authorization header', () => {
+      const url = 'wss://localhost?token=12345';
+      const shimmed = moveTokenToHeader({
+        url,
+        headers: {},
+      } as unknown as http.IncomingMessage);
+
+      expect(shimmed).not.to.include('?token=');
+    });
+
+    it('converts the token to a proper header', () => {
+      const url = 'wss://localhost?token=12345';
+      const request = { url, headers: {} } as unknown as http.IncomingMessage;
+
+      moveTokenToHeader(request);
+
+      expect(request.headers.authorization).to.eql('Bearer 12345');
+    });
+
+    it('does no conversion if an authorization header is already present', () => {
+      const oldAuth = 'Bearer foo-bar';
+      const url = 'wss://localhost?token=12345';
+      const request = {
+        url,
+        headers: { authorization: oldAuth },
+      } as unknown as http.IncomingMessage;
+
+      const shimmed = moveTokenToHeader(request);
+
+      expect(shimmed).not.to.include('?token=');
+      expect(request.headers.authorization).to.eql(oldAuth);
     });
   });
 });
