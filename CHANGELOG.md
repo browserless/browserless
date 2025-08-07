@@ -1,6 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.33.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.34.0...main)
 
 - Dependency updates.
+
+# [v2.34.0](https://github.com/browserless/chrome/compare/v2.33.0...v2.34.0)
+
+- Dependency updates.
+- README spelling fixes.
+- Bumps `puppeteer-core` to `24.16.0`.
+- Bumps `playwright-core` to `1.54.2`.
+- Updates the /pressure API to return a `503` error when under load and the `Accept` header is `text/plain`. All other headers for "Accept" are treated similarly.
+- Internally, when Authorization is sent via the `token` query-parameter, browserless now migrates it to a more secure `Authorization` header before processing the request. This prevents accidental logging in source as well as SDK projects.
+- Supports a `before` hook in routes so that pre-route logic can be applied before the request is handled by the route.
+- Fixes an issue in API's where a `requestInterceptor` has a `body` with base64 encoded content. This is now properly handled and fulfills the request.
+- Minor internal changes and spec file updates.
 
 # [v2.33.0](https://github.com/browserless/chrome/compare/v2.32.1...v2.33.0)
 
