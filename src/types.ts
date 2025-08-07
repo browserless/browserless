@@ -542,7 +542,13 @@ export type requestInterceptors = {
    * corresponding responses to use in order to fulfill those requests.
    */
   pattern: string;
-  response: Partial<ResponseForRequest>;
+  response: Partial<Omit<ResponseForRequest, 'body'>> & {
+    /**
+     * A string representation of the body to return. Can be a base64-encoded
+     * string but please omit any leading content-type data (eg "data:image/png;base64,").
+     */
+    body?: string;
+  };
 };
 
 export interface IResourceLoad {
