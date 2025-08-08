@@ -84,48 +84,63 @@ const buildSchemas = async (
     ? [...httpRoutes, ...wsRoutes]
     : [...externalHTTPRoutes, ...externalWebSocketRoutes];
 
-  await Promise.all(
-    routesToParse
-      .filter((r) => r.endsWith(tsExtension))
-      .map(async (route) => {
-        const routeContents = (await fs.readFile(route)).toString('utf-8');
-        const program = TJS.getProgramFromFiles([route], compilerOptions, './');
+  // Filter to only TypeScript files
+  const tsRoutes = routesToParse.filter((r) => r.endsWith(tsExtension));
+  
+  if (tsRoutes.length === 0) {
+    console.log('No TypeScript routes found to process');
+    return;
+  }
 
-        // prettier-ignore
-        const sourceFile = ts.createSourceFile(route, routeContents, ts.ScriptTarget.Latest, true);
+  console.log(`Processing ${tsRoutes.length} TypeScript routes...`);
 
-        return Promise.all(
-          schemas.map((schemaName) => {
-            if (findExportedInterface(sourceFile, schemaName)) {
-              const routePath = path.parse(route);
-              const routeName = routePath.name.slice(0, -2); // drop the ending .d
-              const schemaSuffix = schemaName
-                .replace('Schema', '')
-                .toLocaleLowerCase();
-              routePath.base = `${routeName}.${schemaSuffix}.json`;
-              const jsonPath = path.format(routePath);
-              try {
-                const schema = TJS.generateSchema(
-                  program,
-                  schemaName,
-                  settings,
-                );
-                return fs.writeFile(
-                  jsonPath,
-                  JSON.stringify(schema, null, '  '),
-                );
-              } catch (e) {
-                console.error(
-                  `Error generating schema: (${routeName}) (${jsonPath}): ${e}`,
-                );
-                return null;
-              }
-            }
-            return;
-          }),
-        );
-      }),
-  );
+  // Create a single TypeScript program for all routes - this is much faster
+  // than creating individual programs for each route
+  const program = TJS.getProgramFromFiles(tsRoutes, compilerOptions, './');
+  
+  // Batch process all routes in parallel
+  const schemaPromises = tsRoutes.map(async (route) => {
+    const routeContents = (await fs.readFile(route)).toString('utf-8');
+    const sourceFile = ts.createSourceFile(route, routeContents, ts.ScriptTarget.Latest, true);
+
+    // Process all schemas for this route in parallel
+    const routeSchemaPromises = schemas.map(async (schemaName) => {
+      if (findExportedInterface(sourceFile, schemaName)) {
+        const routePath = path.parse(route);
+        const routeName = routePath.name.slice(0, -2); // drop the ending .d
+        const schemaSuffix = schemaName
+          .replace('Schema', '')
+          .toLocaleLowerCase();
+        routePath.base = `${routeName}.${schemaSuffix}.json`;
+        const jsonPath = path.format(routePath);
+        
+        try {
+          const schema = TJS.generateSchema(
+            program,
+            schemaName,
+            settings,
+          );
+          return fs.writeFile(
+            jsonPath,
+            JSON.stringify(schema, null, '  '),
+          );
+        } catch (e) {
+          console.error(
+            `Error generating schema: (${routeName}) (${jsonPath}): ${e}`,
+          );
+          return null;
+        }
+      }
+      return null;
+    });
+
+    return Promise.all(routeSchemaPromises);
+  });
+
+  // Wait for all schema generation to complete
+  await Promise.all(schemaPromises);
+  
+  console.log(`Successfully processed ${tsRoutes.length} routes`);
 };
 
 export default buildSchemas;
