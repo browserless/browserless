@@ -3,7 +3,6 @@
 'use strict';
 
 import { spawn } from 'child_process';
-import { promisify } from 'util';
 
 /**
  * Run a command and return a promise
