@@ -1,7 +1,7 @@
 import {
   default as ChromiumJSONProtocolGetRoute,
-  ResponseSchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/json-protocol.http.js';
 
+export type ResponseSchema = SharedResponseSchema;
 export default ChromiumJSONProtocolGetRoute;
-export { ResponseSchema };

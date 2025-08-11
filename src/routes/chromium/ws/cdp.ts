@@ -1,7 +1,7 @@
 import {
   default as ChromiumCDPWebSocketRoute,
-  QuerySchema,
+  QuerySchema as SharedQuerySchema,
 } from '../../../shared/chromium.ws.js';
 
+export type QuerySchema = SharedQuerySchema;
 export default ChromiumCDPWebSocketRoute;
-export { QuerySchema };

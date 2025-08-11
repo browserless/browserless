@@ -1,7 +1,7 @@
 import {
   default as ChromiumJSONListGetRoute,
-  ResponseSchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/json-list.http.js';
 
+export type ResponseSchema = SharedResponseSchema;
 export default ChromiumJSONListGetRoute;
-export { ResponseSchema };
