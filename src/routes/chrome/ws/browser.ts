@@ -1,4 +1,7 @@
-import { default as Browser, QuerySchema } from '../../../shared/browser.ws.js';
+import {
+  default as Browser,
+  QuerySchema as SharedQuerySchema,
+} from '../../../shared/browser.ws.js';
 import { BrowserlessRoutes, ChromeCDP } from '@browserless.io/browserless';
 
 export default class ChromeBrowserWebSocketRoute extends Browser {
@@ -6,4 +9,4 @@ export default class ChromeBrowserWebSocketRoute extends Browser {
   browser = ChromeCDP;
 }
 
-export { QuerySchema };
+export type QuerySchema = SharedQuerySchema;

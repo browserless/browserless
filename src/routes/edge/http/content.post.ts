@@ -5,10 +5,10 @@ import {
 } from '@browserless.io/browserless';
 
 import {
-  BodySchema,
   default as Content,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/content.http.js';
 
 export default class EdgeContentPostRoute extends Content {
@@ -17,4 +17,6 @@ export default class EdgeContentPostRoute extends Content {
   path = [HTTPRoutes.edgeContent];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

@@ -1,9 +1,10 @@
 import {
-  BodySchema,
   default as Performance,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/performance.http.js';
+
 import {
   BrowserlessRoutes,
   ChromeCDP,
@@ -16,4 +17,6 @@ export default class ChromePerformancePostRoute extends Performance {
   path = [HTTPRoutes.chromePerformance];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

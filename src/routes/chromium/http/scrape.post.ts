@@ -1,8 +1,8 @@
 import {
-  BodySchema,
-  QuerySchema,
-  ResponseSchema,
   default as Scrape,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/scrape.http.js';
 import {
   BrowserlessRoutes,
@@ -10,10 +10,12 @@ import {
   HTTPRoutes,
 } from '@browserless.io/browserless';
 
-export { BodySchema, QuerySchema, ResponseSchema };
-
 export default class ChromiumScrapePostRoute extends Scrape {
   name = BrowserlessRoutes.ChromiumScrapePostRoute;
   browser = ChromiumCDP;
   path = [HTTPRoutes.chromiumScrape];
 }
+
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

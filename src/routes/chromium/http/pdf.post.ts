@@ -1,8 +1,8 @@
 import {
-  BodySchema,
   default as Pdf,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/pdf.http.js';
 import {
   BrowserlessRoutes,
@@ -10,10 +10,11 @@ import {
   HTTPRoutes,
 } from '@browserless.io/browserless';
 
-export { BodySchema, QuerySchema, ResponseSchema };
-
 export default class ChromiumPDFPostRoute extends Pdf {
   name = BrowserlessRoutes.ChromiumPDFPostRoute;
   browser = ChromiumCDP;
   path = [HTTPRoutes.chromiumPdf];
 }
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

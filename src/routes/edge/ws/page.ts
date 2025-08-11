@@ -1,5 +1,8 @@
 import { BrowserlessRoutes, EdgeCDP } from '@browserless.io/browserless';
-import { default as Page, QuerySchema } from '../../../shared/page.ws.js';
+import {
+  default as Page,
+  QuerySchema as SharedQuerySchema,
+} from '../../../shared/page.ws.js';
 
 export default class EdgePageWebSocketRoute extends Page {
   name = BrowserlessRoutes.EdgePageWebSocketRoute;
@@ -7,4 +10,4 @@ export default class EdgePageWebSocketRoute extends Page {
   auth = false;
 }
 
-export { QuerySchema };
+export type QuerySchema = SharedQuerySchema;

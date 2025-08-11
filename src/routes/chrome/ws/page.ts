@@ -1,5 +1,8 @@
 import { BrowserlessRoutes, ChromeCDP } from '@browserless.io/browserless';
-import { default as Page, QuerySchema } from '../../../shared/page.ws.js';
+import {
+  default as Page,
+  QuerySchema as SharedQuerySchema,
+} from '../../../shared/page.ws.js';
 
 export default class ChromePageWebSocketRoute extends Page {
   name = BrowserlessRoutes.ChromePageWebSocketRoute;
@@ -7,4 +10,4 @@ export default class ChromePageWebSocketRoute extends Page {
   auth = false;
 }
 
-export { QuerySchema };
+export type QuerySchema = SharedQuerySchema;

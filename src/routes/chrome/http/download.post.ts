@@ -1,8 +1,8 @@
 import {
-  BodySchema,
   default as Download,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/download.http.js';
 import {
   BrowserlessRoutes,
@@ -16,4 +16,6 @@ export default class ChromeDownloadPostRoute extends Download {
   path = [HTTPRoutes.chromeDownload];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

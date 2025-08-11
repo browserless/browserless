@@ -1,9 +1,10 @@
 import {
-  BodySchema,
   default as PDF,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/pdf.http.js';
+
 import {
   BrowserlessRoutes,
   ChromeCDP,
@@ -16,4 +17,6 @@ export default class ChromePDFPostRoute extends PDF {
   path = [HTTPRoutes.chromePdf];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

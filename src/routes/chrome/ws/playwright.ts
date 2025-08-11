@@ -5,7 +5,7 @@ import {
 } from '@browserless.io/browserless';
 import {
   default as ChromiumPlaywrightWebSocketRoute,
-  QuerySchema,
+  QuerySchema as SharedQuerySchema,
 } from '../../../shared/chromium.playwright.ws.js';
 
 export default class ChromePlaywrightWebSocketRoute extends ChromiumPlaywrightWebSocketRoute {
@@ -14,4 +14,4 @@ export default class ChromePlaywrightWebSocketRoute extends ChromiumPlaywrightWe
   path = [WebsocketRoutes.chromePlaywright];
 }
 
-export { QuerySchema };
+export type QuerySchema = SharedQuerySchema;

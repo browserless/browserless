@@ -6,51 +6,8 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import TJS from 'typescript-json-schema';
-import ts from 'typescript';
 
 const moduleMain = path.normalize(import.meta.url).endsWith(process.argv[1]);
-
-/**
- * Find an exported interface in a TypeScript AST
- *
- * @param {ts.Node} node The node to search for the exported interface
- * @param {string} interfaceName The name of the interface to search for
- * @returns {ts.InterfaceDeclaration | ts.Identifier | null}
- */
-const findExportedInterface = (node, interfaceName) => {
-  if (ts.isInterfaceDeclaration(node) && node.name.text === interfaceName) {
-    // Check if the interface is exported
-    const isExported = node.modifiers?.some(
-      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
-    );
-    if (isExported) {
-      return node;
-    }
-  }
-
-  // Check for re-exported interfaces
-  if (
-    ts.isExportDeclaration(node) &&
-    node.exportClause &&
-    ts.isNamedExports(node.exportClause)
-  ) {
-    const elements = node.exportClause.elements;
-    for (const element of elements) {
-      if (element.name.text === interfaceName) {
-        return element.name;
-      }
-    }
-  }
-
-  let foundNode = null;
-  node.forEachChild((child) => {
-    if (foundNode === null) {
-      foundNode = findExportedInterface(child, interfaceName);
-    }
-  });
-
-  return foundNode;
-};
 
 /**
  * Creates an standard JSON schema file for each route (see https://json-schema.org/specification)
@@ -103,16 +60,10 @@ const buildSchemas = async (
   // Batch process all routes in parallel
   const schemaPromises = tsRoutes.map(async (route) => {
     const routeContents = (await fs.readFile(route)).toString('utf-8');
-    const sourceFile = ts.createSourceFile(
-      route,
-      routeContents,
-      ts.ScriptTarget.Latest,
-      true,
-    );
 
     // Process all schemas for this route in parallel
     const routeSchemaPromises = schemas.map(async (schemaName) => {
-      if (findExportedInterface(sourceFile, schemaName)) {
+      if (routeContents.includes(schemaName)) {
         const routePath = path.parse(route);
         const routeName = routePath.name.slice(0, -2); // drop the ending .d
         const schemaSuffix = schemaName
@@ -127,9 +78,12 @@ const buildSchemas = async (
 
         try {
           const schema = generator.getSchemaForSymbol(symbol.name);
-          return fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
+          return await fs.writeFile(
+            jsonPath,
+            JSON.stringify(schema, null, '  '),
+          );
         } catch (e) {
-          throw new Error(`Error generating schema: (${routeName}): ${e}`);
+          throw new Error(`Error generating schema "${routeName}": ${e}`);
         }
       }
       return null;

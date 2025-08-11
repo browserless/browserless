@@ -5,10 +5,10 @@ import {
 } from '@browserless.io/browserless';
 
 import {
-  BodySchema,
-  QuerySchema,
-  ResponseSchema,
   default as Screenshot,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/screenshot.http.js';
 
 export default class EdgeScreenshotPostRoute extends Screenshot {
@@ -17,4 +17,6 @@ export default class EdgeScreenshotPostRoute extends Screenshot {
   path = [HTTPRoutes.edgeScreenshot];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

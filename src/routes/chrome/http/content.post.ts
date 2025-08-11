@@ -1,9 +1,10 @@
 import {
-  BodySchema,
   default as Content,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/content.http.js';
+
 import {
   BrowserlessRoutes,
   ChromeCDP,
@@ -16,4 +17,6 @@ export default class ChromeContentPostRoute extends Content {
   path = [HTTPRoutes.chromeContent];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

@@ -5,10 +5,10 @@ import {
 } from '@browserless.io/browserless';
 
 import {
-  BodySchema,
   default as PDF,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/pdf.http.js';
 
 export default class EdgePDFPostRoute extends PDF {
@@ -17,4 +17,6 @@ export default class EdgePDFPostRoute extends PDF {
   path = [HTTPRoutes.edgePdf];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

@@ -1,8 +1,8 @@
 import {
-  BodySchema,
   default as Content,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/content.http.js';
 import {
   BrowserlessRoutes,
@@ -10,10 +10,12 @@ import {
   HTTPRoutes,
 } from '@browserless.io/browserless';
 
-export { BodySchema, QuerySchema, ResponseSchema };
-
 export default class ChromiumContentPostRoute extends Content {
   name = BrowserlessRoutes.ChromiumContentPostRoute;
   browser = ChromiumCDP;
   path = [HTTPRoutes.chromiumContent];
 }
+
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

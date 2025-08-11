@@ -5,10 +5,10 @@ import {
 } from '@browserless.io/browserless';
 
 import {
-  BodySchema,
   default as Performance,
-  QuerySchema,
-  ResponseSchema,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/performance.http.js';
 
 export default class EdgePerformancePostRoute extends Performance {
@@ -17,4 +17,6 @@ export default class EdgePerformancePostRoute extends Performance {
   path = [HTTPRoutes.edgePerformance];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

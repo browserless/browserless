@@ -1,8 +1,8 @@
 import {
-  BodySchema,
-  QuerySchema,
-  ResponseSchema,
   default as Screenshot,
+  BodySchema as SharedBodySchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/screenshot.http.js';
 import {
   BrowserlessRoutes,
@@ -16,4 +16,6 @@ export default class ChromeScreenshotPostRoute extends Screenshot {
   path = [HTTPRoutes.chromeScreenshot];
 }
 
-export { BodySchema, QuerySchema, ResponseSchema };
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;

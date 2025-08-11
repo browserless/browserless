@@ -5,7 +5,7 @@ import {
 } from '@browserless.io/browserless';
 import {
   default as ChromiumWebSocketRoute,
-  QuerySchema,
+  QuerySchema as SharedQuerySchema,
 } from '../../../shared/chromium.ws.js';
 
 export default class EdgeCDPWebSocketRoute extends ChromiumWebSocketRoute {
@@ -14,4 +14,4 @@ export default class EdgeCDPWebSocketRoute extends ChromiumWebSocketRoute {
   path = [WebsocketRoutes.edge];
 }
 
-export { QuerySchema };
+export type QuerySchema = SharedQuerySchema;
