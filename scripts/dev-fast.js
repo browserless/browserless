@@ -29,7 +29,7 @@ const isBuildReady = async () => {
   try {
     const stats = await fs.stat(buildDir);
     if (!stats.isDirectory()) return false;
-    
+
     const files = await fs.readdir(buildDir);
     return files.length > 0;
   } catch {
@@ -47,13 +47,13 @@ const isBuildReady = async () => {
 const runCommand = async (command, args, name) => {
   console.log(`🚀 Starting ${name}...`);
   const startTime = Date.now();
-  
+
   try {
-    const child = spawn(command, args, { 
+    const child = spawn(command, args, {
       stdio: 'inherit',
-      shell: true 
+      shell: true,
     });
-    
+
     return new Promise((resolve, reject) => {
       child.on('close', (code) => {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -65,7 +65,7 @@ const runCommand = async (command, args, name) => {
           reject(new Error(`${name} failed with code ${code}`));
         }
       });
-      
+
       child.on('error', (error) => {
         console.error(`❌ ${name} error:`, error);
         reject(error);
@@ -83,48 +83,66 @@ const runCommand = async (command, args, name) => {
 const devFast = async () => {
   console.log('⚡ Starting fast development build...');
   const startTime = Date.now();
-  
+
   try {
     // Check if we need to do a full build
     const buildReady = await isBuildReady();
-    
+
     if (!buildReady) {
-      console.log('📁 Build directory not found or empty, running full build...');
+      console.log(
+        '📁 Build directory not found or empty, running full build...',
+      );
       await runCommand('node', ['scripts/build-optimized.js'], 'Full Build');
     } else {
       console.log('📁 Build directory exists, checking for changes...');
-      
+
       // Only compile TypeScript (fastest step)
       console.log('🔧 Compiling TypeScript only...');
       await runCommand('npx', ['tsc'], 'TypeScript Compilation');
-      
+
       // Only rebuild schemas if needed (this is the slowest part)
       console.log('📋 Checking if schema rebuild is needed...');
-      const schemasExist = await fileExists(path.join(process.cwd(), 'build/routes/chrome/http/screenshot.post.body.json'));
-      
+      const schemasExist = await fileExists(
+        path.join(
+          process.cwd(),
+          'build/routes/chrome/http/screenshot.post.body.json',
+        ),
+      );
+
       if (!schemasExist) {
         console.log('📋 Schemas missing, rebuilding...');
-        await runCommand('node', ['scripts/build-schemas.js'], 'Schema Generation');
+        await runCommand(
+          'node',
+          ['scripts/build-schemas.js'],
+          'Schema Generation',
+        );
       } else {
         console.log('📋 Schemas exist, skipping...');
       }
-      
+
       // Only rebuild OpenAPI if schemas changed
       if (!schemasExist) {
         console.log('📚 Rebuilding OpenAPI...');
-        await runCommand('node', ['scripts/build-open-api.js'], 'OpenAPI Generation');
+        await runCommand(
+          'node',
+          ['scripts/build-open-api.js'],
+          'OpenAPI Generation',
+        );
       } else {
         console.log('📚 OpenAPI exists, skipping...');
       }
     }
-    
+
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`\n🎉 Fast development build completed in ${totalTime}s!`);
-    
+
     // Start the development server
     console.log('\n🚀 Starting development server...');
-    await runCommand('env-cmd', ['-f', '.env', 'node', 'build'], 'Development Server');
-    
+    await runCommand(
+      'env-cmd',
+      ['-f', '.env', 'node', 'build'],
+      'Development Server',
+    );
   } catch (error) {
     console.error('\n💥 Fast development build failed:', error.message);
     process.exit(1);
@@ -132,4 +150,4 @@ const devFast = async () => {
 };
 
 // Run the fast development build
-devFast(); 
+devFast();

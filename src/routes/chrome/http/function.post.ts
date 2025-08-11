@@ -1,8 +1,8 @@
 import {
-  BodySchema,
+  BodySchema as SharedBodySchema,
   default as Function,
-  QuerySchema,
-  ResponseSchema,
+  QuerySchema as SharedQuerySchema,
+  ResponseSchema as SharedResponseSchema,
 } from '../../../shared/function.http.js';
 import {
   BrowserlessRoutes,
@@ -10,10 +10,12 @@ import {
   HTTPRoutes,
 } from '@browserless.io/browserless';
 
+export type BodySchema = SharedBodySchema;
+export type QuerySchema = SharedQuerySchema;
+export type ResponseSchema = SharedResponseSchema;
+
 export default class ChromeFunctionPostRoute extends Function {
   name = BrowserlessRoutes.ChromeFunctionPostRoute;
   browser = ChromeCDP;
   path = [HTTPRoutes.chromeFunction];
 }
-
-export { BodySchema, QuerySchema, ResponseSchema };

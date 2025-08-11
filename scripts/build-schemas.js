@@ -62,6 +62,7 @@ const buildSchemas = async (
   externalHTTPRoutes = [],
   externalWebSocketRoutes = [],
 ) => {
+  const start = Date.now();
   const { getRouteFiles, tsExtension } = await import('../build/utils.js');
 
   const schemas = ['BodySchema', 'QuerySchema', 'ResponseSchema'];
@@ -69,6 +70,7 @@ const buildSchemas = async (
     ignoreErrors: true,
     noExtraProps: true,
     required: true,
+    uniqueNames: true,
   };
 
   const { compilerOptions } = JSON.parse(
@@ -86,7 +88,6 @@ const buildSchemas = async (
 
   // Filter to only TypeScript files
   const tsRoutes = routesToParse.filter((r) => r.endsWith(tsExtension));
-  
   if (tsRoutes.length === 0) {
     console.log('No TypeScript routes found to process');
     return;
@@ -97,11 +98,17 @@ const buildSchemas = async (
   // Create a single TypeScript program for all routes - this is much faster
   // than creating individual programs for each route
   const program = TJS.getProgramFromFiles(tsRoutes, compilerOptions, './');
-  
+  const generator = TJS.buildGenerator(program, settings);
+
   // Batch process all routes in parallel
   const schemaPromises = tsRoutes.map(async (route) => {
     const routeContents = (await fs.readFile(route)).toString('utf-8');
-    const sourceFile = ts.createSourceFile(route, routeContents, ts.ScriptTarget.Latest, true);
+    const sourceFile = ts.createSourceFile(
+      route,
+      routeContents,
+      ts.ScriptTarget.Latest,
+      true,
+    );
 
     // Process all schemas for this route in parallel
     const routeSchemaPromises = schemas.map(async (schemaName) => {
@@ -112,21 +119,18 @@ const buildSchemas = async (
           .replace('Schema', '')
           .toLocaleLowerCase();
         routePath.base = `${routeName}.${schemaSuffix}.json`;
+
+        const symbolList = generator.getSymbols();
+        const name = `"${route.replace('.d.ts', '')}".${schemaName}`;
         const jsonPath = path.format(routePath);
-        
+        const symbol = symbolList.find((s) => s.fullyQualifiedName === name);
+
         try {
-          const schema = TJS.generateSchema(
-            program,
-            schemaName,
-            settings,
-          );
-          return fs.writeFile(
-            jsonPath,
-            JSON.stringify(schema, null, '  '),
-          );
+          const schema = generator.getSchemaForSymbol(symbol.name);
+          return fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
         } catch (e) {
           console.error(
-            `Error generating schema: (${routeName}) (${jsonPath}): ${e}`,
+            `Error generating schema: (${routeName}): ${e}`,
           );
           return null;
         }
@@ -139,8 +143,8 @@ const buildSchemas = async (
 
   // Wait for all schema generation to complete
   await Promise.all(schemaPromises);
-  
-  console.log(`Successfully processed ${tsRoutes.length} routes`);
+
+  console.log(`Successfully processed ${tsRoutes.length} routes in ${(Date.now() - start).toLocaleString()}ms`);
 };
 
 export default buildSchemas;
