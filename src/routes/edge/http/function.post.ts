@@ -5,8 +5,8 @@ import {
 } from '@browserless.io/browserless';
 
 import {
-  BodySchema as SharedBodySchema,
   default as Function,
+  BodySchema as SharedBodySchema,
   QuerySchema as SharedQuerySchema,
   ResponseSchema as SharedResponseSchema,
 } from '../../../shared/function.http.js';

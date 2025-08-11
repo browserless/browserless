@@ -228,29 +228,7 @@ export class HTTPServer extends EventEmitter {
     if (route.querySchema) {
       this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
-        // Check if token is required based on system configuration
-        const systemToken = this.config.getToken();
-        const requiresToken = systemToken !== null && route.auth === true;
-
-        let schema = EnjoiResolver.schema(route.querySchema);
-
-        // If token is not required by the system, make it optional in the schema
-        if (!requiresToken) {
-          // Create a modified schema where token is optional
-          const querySchema = route.querySchema as any;
-          const modifiedSchema = {
-            ...querySchema,
-            properties: {
-              ...querySchema.properties,
-              token: {
-                ...querySchema.properties?.token,
-                required: false,
-              },
-            },
-          };
-          schema = EnjoiResolver.schema(modifiedSchema);
-        }
-
+        const schema = EnjoiResolver.schema(route.querySchema);
         const valid = schema.validate(req.queryParams, {
           abortEarly: false,
         });
@@ -389,28 +367,7 @@ export class HTTPServer extends EventEmitter {
         this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
           // Check if token is required based on system configuration
-          const systemToken = this.config.getToken();
-          const requiresToken = systemToken !== null && route.auth === true;
-
-          let schema = EnjoiResolver.schema(route.querySchema);
-
-          // If token is not required by the system, make it optional in the schema
-          if (!requiresToken) {
-            // Create a modified schema where token is optional
-            const querySchema = route.querySchema as any;
-            const modifiedSchema = {
-              ...querySchema,
-              properties: {
-                ...querySchema.properties,
-                token: {
-                  ...querySchema.properties?.token,
-                  required: false,
-                },
-              },
-            };
-            schema = EnjoiResolver.schema(modifiedSchema);
-          }
-
+          const schema = EnjoiResolver.schema(route.querySchema);
           const valid = schema.validate(req.queryParams, {
             abortEarly: false,
           });
