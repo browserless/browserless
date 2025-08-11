@@ -230,7 +230,7 @@ export const fetchJson = (
   });
 
 export const getTokenFromRequest = (req: Request) => {
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers.authorization;
   const tokenParam = req.parsed.searchParams.get('token');
   return tokenParam ?? getAuthHeaderToken(authHeader || '');
 };
@@ -344,7 +344,7 @@ export const readBody = async (
 ): Promise<ReturnType<typeof safeParse>> => {
   if (
     typeof req.body === 'string' &&
-    (isBase64.test(req.body) || req.body.startsWith('{'))
+    (isBase64Encoded(req.body) || req.body.startsWith('{'))
   ) {
     return safeParse(convertIfBase64(req.body));
   }
@@ -500,8 +500,10 @@ export const fileExists = async (path: string): Promise<boolean> =>
 const isBase64 =
   /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
 
+export const isBase64Encoded = (item: string): boolean => isBase64.test(item);
+
 export const convertIfBase64 = (item: string): string =>
-  isBase64.test(item) ? Buffer.from(item, 'base64').toString() : item;
+  isBase64Encoded(item) ? Buffer.from(item, 'base64').toString() : item;
 
 export const availableBrowsers = Promise.all([
   exists(playwright.chromium.executablePath()),

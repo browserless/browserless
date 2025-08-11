@@ -18,6 +18,7 @@ import {
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
+  isBase64Encoded,
   noop,
   rejectRequestPattern,
   rejectResourceTypes,
@@ -174,7 +175,14 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
           req.url().match(r.pattern),
         );
         if (interceptor) {
-          return req.respond(interceptor.response);
+          return req.respond({
+            ...interceptor.response,
+            body: interceptor.response.body
+              ? isBase64Encoded(interceptor.response.body as string)
+                ? Buffer.from(interceptor.response.body, 'base64')
+                : interceptor.response.body
+              : undefined,
+          });
         }
         return req.continue();
       });

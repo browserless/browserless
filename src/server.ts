@@ -19,6 +19,7 @@ import {
   contentTypes,
   convertPathToURL,
   isMatch,
+  moveTokenToHeader,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -131,8 +132,9 @@ export class HTTPServer extends EventEmitter {
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) {
+    request.url = moveTokenToHeader(request);
     this.logger.trace(
-      `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
+      `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
 
     const req = request as Request;
@@ -198,7 +200,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (route?.auth) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url}"`);
+      this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
@@ -346,7 +348,11 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
-    this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
+    request.url = moveTokenToHeader(request);
+
+    this.logger.trace(
+      `Handling inbound WebSocket request on "${request.url || ''}"`,
+    );
 
     const req = request as Request;
     const proceed = await this.hooks.before({ head, req, socket });

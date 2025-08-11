@@ -6,7 +6,9 @@ import {
   Methods,
   Request,
   contentTypes,
+  dedent,
   jsonResponse,
+  writeResponse,
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
@@ -76,12 +78,17 @@ export default class PressureGetRoute extends HTTPRoute {
   auth = true;
   browser = null;
   concurrency = false;
-  contentTypes = [contentTypes.json];
-  description = `Returns a JSON body of stats related to the pressure being created on the instance.`;
+  contentTypes = [contentTypes.json, contentTypes.text];
+  description =
+    dedent(`Returns a JSON body of stats related to the pressure being exerted on the instance. This route is dynamic based upon the supplied "Accept" header, and will either return a human-readable message if the "Accept" header is set to "text/plain", or the default JSON body and a 200 HTTP code.
+
+    When Accept is set to "text/plain" a human-readable message is sent back describing the state of the container, and either a "200" code (indicating "ok") or a "503" code (indicating that the service is unavailable due to load).
+
+    If the "Accept" header is set to anything else it will return a JSON body with the same information.`);
   method = Methods.get;
   path = HTTPManagementRoutes.pressure;
   tags = [APITags.management];
-  async handler(_req: Request, res: ServerResponse): Promise<void> {
+  async handler(req: Request, res: ServerResponse): Promise<void> {
     const monitoring = this.monitoring();
     const config = this.config();
     const limiter = this.limiter();
@@ -133,6 +140,11 @@ export default class PressureGetRoute extends HTTPRoute {
         running,
       },
     };
+
+    if (req.headers.accept === contentTypes.text) {
+      const code = response.pressure.isAvailable ? 200 : 503;
+      return writeResponse(res, code, message);
+    }
 
     return jsonResponse(res, 200, response);
   }

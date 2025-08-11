@@ -36,9 +36,7 @@ const runCommand = async (command, args, name, timeout = 600000) => {
           console.log(`${name} completed in ${duration}s`);
           resolve();
         } else {
-          console.error(
-            `${name} failed after ${duration}s with code ${code}`,
-          );
+          console.error(`${name} failed after ${duration}s with code ${code}`);
           reject(new Error(`${name} failed with exit code ${code}`));
         }
       });

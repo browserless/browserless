@@ -129,9 +129,7 @@ const buildSchemas = async (
           const schema = generator.getSchemaForSymbol(symbol.name);
           return fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
         } catch (e) {
-          console.error(
-            `Error generating schema: (${routeName}): ${e}`,
-          );
+          console.error(`Error generating schema: (${routeName}): ${e}`);
           return null;
         }
       }
@@ -144,7 +142,9 @@ const buildSchemas = async (
   // Wait for all schema generation to complete
   await Promise.all(schemaPromises);
 
-  console.log(`Successfully processed ${tsRoutes.length} routes in ${(Date.now() - start).toLocaleString()}ms`);
+  console.log(
+    `Successfully processed ${tsRoutes.length} routes in ${(Date.now() - start).toLocaleString()}ms`,
+  );
 };
 
 export default buildSchemas;
