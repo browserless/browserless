@@ -129,8 +129,7 @@ const buildSchemas = async (
           const schema = generator.getSchemaForSymbol(symbol.name);
           return fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
         } catch (e) {
-          console.error(`Error generating schema: (${routeName}): ${e}`);
-          return null;
+          throw new Error(`Error generating schema: (${routeName}): ${e}`);
         }
       }
       return null;
