@@ -1,1 +1,4 @@
-export { default, ResponseSchema } from '../../../shared/json-version.http.js';
+import { default as ChromiumJSONVersionGetRoute, ResponseSchema } from '../../../shared/json-version.http.js';
+
+export default ChromiumJSONVersionGetRoute;
+export { ResponseSchema };
