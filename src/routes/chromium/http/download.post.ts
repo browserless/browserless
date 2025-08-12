@@ -1,14 +1,15 @@
 import {
+  BrowserlessRoutes,
+  ChromiumCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
+
+import {
   default as Download,
   BodySchema as SharedBodySchema,
   QuerySchema as SharedQuerySchema,
   ResponseSchema as SharedResponseSchema,
 } from '../../../shared/download.http.js';
-import {
-  BrowserlessRoutes,
-  ChromiumCDP,
-  HTTPRoutes,
-} from '@browserless.io/browserless';
 
 export default class ChromiumDownloadPostRoute extends Download {
   name = BrowserlessRoutes.ChromiumDownloadPostRoute;

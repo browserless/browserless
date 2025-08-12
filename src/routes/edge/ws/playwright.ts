@@ -3,6 +3,7 @@ import {
   EdgePlaywright,
   WebsocketRoutes,
 } from '@browserless.io/browserless';
+
 import {
   default as ChromiumPlaywrightWebSocketRoute,
   QuerySchema as SharedQuerySchema,

@@ -3,6 +3,7 @@ import {
   EdgeCDP,
   WebsocketRoutes,
 } from '@browserless.io/browserless';
+
 import {
   default as ChromiumWebSocketRoute,
   QuerySchema as SharedQuerySchema,

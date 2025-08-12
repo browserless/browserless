@@ -1,4 +1,5 @@
 import { BrowserlessRoutes, EdgeCDP } from '@browserless.io/browserless';
+
 import {
   default as Page,
   QuerySchema as SharedQuerySchema,
