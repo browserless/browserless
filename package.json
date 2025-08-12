@@ -80,7 +80,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.2.1",
     "@types/sinon": "^17.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.38.0",
     "assert": "^2.0.0",
     "chai": "^5.2.1",
