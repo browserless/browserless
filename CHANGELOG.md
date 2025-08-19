@@ -2,6 +2,11 @@
 
 - Dependency updates.
 
+# [v2.34.1](https://github.com/browserless/chrome/compare/v2.34.0...v2.34.1)
+
+- Dependency updates.
+- Fixes an issue with absolute path in swagger.json docs.
+
 # [v2.34.0](https://github.com/browserless/chrome/compare/v2.33.0...v2.34.0)
 
 - Dependency updates.
