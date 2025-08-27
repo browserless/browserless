@@ -1,4 +1,0 @@
-{
-  "extends": "./node_modules/@browserless.io/browserless/tsconfig.json",
-  "include": ["./src/**/*"]
-}

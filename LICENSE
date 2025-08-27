@@ -1,8 +1,0 @@
-# License
-
-This work is dual-licensed under the MongoDB Server-Side Public License OR the browserless commercial license.
-You can choose between one of them if you use this work.
-
-If you want to use browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/contact).
-
-`SPDX-License-Identifier: SSPL-1.0 OR Browserless Commercial License`
