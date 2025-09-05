@@ -414,4 +414,52 @@ describe('/chromium/scrape API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('handles bestAttempt with failing selectors', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      bestAttempt: true,
+      elements: [
+        {
+          selector: 'a',
+        },
+        {
+          selector: 'nonexistent-element',
+          timeout: 1000,
+        },
+        {
+          selector: 'h1',
+        },
+      ],
+      url: 'https://one.one.one.one',
+    };
+
+    await fetch('http://localhost:3000/chromium/scrape?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      expect(res.status).to.equal(200);
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
+
+      const json = await res.json();
+      expect(json.data).to.be.an('array');
+      expect(json.data).to.have.length(3);
+
+      const aResults = json.data.find((item: any) => item.selector === 'a');
+      const nonexistentResults = json.data.find((item: any) => item.selector === 'nonexistent-element');
+      const h1Results = json.data.find((item: any) => item.selector === 'h1');
+
+      expect(aResults.results).to.be.an('array');
+      expect(nonexistentResults.results).to.be.an('array').that.is.empty;
+      expect(h1Results.results).to.be.an('array');
+    });
+  });
 });
