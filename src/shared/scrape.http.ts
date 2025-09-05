@@ -157,7 +157,7 @@ export interface ResponseSchema {
   } | null;
 }
 
-const scrape = async (elements: ScrapeElementSelector[]) => {
+const scrape = async (elements: ScrapeElementSelector[], bestAttempt = false) => {
   const wait = (selector: string, timeout = 30000) => {
     return new Promise<void>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -175,9 +175,21 @@ const scrape = async (elements: ScrapeElementSelector[]) => {
     });
   };
 
-  await Promise.all(
-    elements.map(({ selector, timeout }) => wait(selector, timeout)),
-  );
+  if (bestAttempt) {
+    const results = await Promise.allSettled(
+      elements.map(({ selector, timeout }) => wait(selector, timeout)),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn(`Selector "${elements[index].selector}" failed: ${result.reason.message}`);
+      }
+    });
+  } else {
+    await Promise.all(
+      elements.map(({ selector, timeout }) => wait(selector, timeout)),
+    );
+  }
 
   return elements.map(({ selector }) => {
     const $els = [...document.querySelectorAll(selector)] as HTMLElement[];
@@ -410,7 +422,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
       }
     }
 
-    const data = await page.evaluate(scrape, elements).catch((e) => {
+    const data = await page.evaluate(scrape, elements, bestAttempt).catch((e) => {
       if (e.message.includes('Timed out')) {
         throw new Timeout(e);
       }
