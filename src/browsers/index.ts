@@ -33,6 +33,7 @@ import {
   parseBooleanParam,
   parseStringParam,
   pwVersionRegex,
+  sleep,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
@@ -338,7 +339,10 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.info(`Closing browser session`);
-      cleanupACtions.push(() => browser.close());
+      cleanupACtions.push(async () => {
+        await sleep(1500);
+        browser.close();
+      });
 
       if (session.isTempDataDir) {
         this.log.info(
