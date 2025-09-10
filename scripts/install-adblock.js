@@ -12,12 +12,12 @@ import unzip from 'extract-zip';
 
 (async () => {
   const tmpDir = path.join(os.tmpdir(), '_ublite' + Date.now());
-  
+
   // Create temporary directory if it doesn't exist
   if (!existsSync(tmpDir)) {
     mkdirSync(tmpDir, { recursive: true });
   }
-  
+
   const zipFile = tmpDir + '/ublock.zip';
   const extensionsDir = join(process.cwd(), 'extensions');
   const uBlockLiteDir = join(extensionsDir, 'ublocklite');
@@ -37,7 +37,6 @@ import unzip from 'extract-zip';
   if (existsSync(uBlockLiteDir)) {
     await deleteAsync(uBlockLiteDir);
   }
-
   const data = await fetch(
     'https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/latest',
   );
