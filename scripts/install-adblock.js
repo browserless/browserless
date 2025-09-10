@@ -47,5 +47,4 @@ import fsExtra from 'fs-extra';
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });
-
 })();
