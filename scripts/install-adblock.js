@@ -33,11 +33,9 @@ import fsExtra from 'fs-extra';
             .on('finish', resolve);
         }),
     );
-  
   if (existsSync(uBlockLiteDir)) {
     await deleteAsync(uBlockLiteDir);
   }
-
   const data = await fetch(
     'https://api.github.com/repos/uBlockOrigin/uBOL-home/releases/latest'
   );
