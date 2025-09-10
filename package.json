@@ -60,12 +60,12 @@
     "joi": "^18.0.1",
     "lighthouse": "^12.8.2",
     "micromatch": "^4.0.8",
-    "playwright-1.50": "npm:playwright-core@1.50.1",
     "playwright-1.51": "npm:playwright-core@1.51.1",
     "playwright-1.52": "npm:playwright-core@1.52.0",
     "playwright-1.53": "npm:playwright-core@1.53.2",
-    "playwright-core": "1.54.2",
-    "puppeteer-core": "24.17.1",
+    "playwright-1.54": "npm:playwright-core@1.54.2",
+    "playwright-core": "1.55.0",
+    "puppeteer-core": "24.19.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
@@ -104,11 +104,11 @@
   },
   "playwrightVersions": {
     "default": "playwright-core",
-    "1.54": "playwright-core",
+    "1.55": "playwright-core",
+    "1.54": "playwright-1.54",
     "1.53": "playwright-1.53",
     "1.52": "playwright-1.52",
-    "1.51": "playwright-1.51",
-    "1.50": "playwright-1.50"
+    "1.51": "playwright-1.51"
   },
   "engines": {
     "node": ">= 24 < 25"
