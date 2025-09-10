@@ -6,7 +6,7 @@ import { createWriteStream, existsSync, mkdirSync, readdirSync, statSync } from 
 import path, { join } from 'path';
 import { Readable } from 'stream';
 import { deleteAsync } from 'del';
-import { moveFile } from 'move-file';
+import { cp } from 'fs/promises';
 import os from 'os';
 import unzip from 'extract-zip';
 
@@ -66,7 +66,6 @@ import unzip from 'extract-zip';
     throw new Error('Could not find uBlock Lite extension directory with manifest.json');
   }
 
-  const { cp } = await import('fs/promises');
   await cp(extensionSourceDir, join(extensionsDir, 'ublocklite'), { recursive: true });
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
