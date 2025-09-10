@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* global fetch, console, process */
 'use strict';
+
 import { createWriteStream, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import path, { join } from 'path';
 import { Readable } from 'stream';
@@ -11,10 +12,12 @@ import unzip from 'extract-zip';
 
 (async () => {
   const tmpDir = path.join(os.tmpdir(), '_ublite' + Date.now());
+  
   // Create temporary directory if it doesn't exist
   if (!existsSync(tmpDir)) {
     mkdirSync(tmpDir, { recursive: true });
   }
+  
   const zipFile = tmpDir + '/ublock.zip';
   const extensionsDir = join(process.cwd(), 'extensions');
   const uBlockLiteDir = join(extensionsDir, 'ublocklite');
