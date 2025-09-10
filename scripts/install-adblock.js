@@ -48,5 +48,4 @@ import fsExtra from 'fs-extra';
     console.warn('Could not delete temporary download file: ' + err.message);
   });
 
-  console.log('✅ uBlock Lite installed successfully!');
 })();
