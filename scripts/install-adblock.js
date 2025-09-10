@@ -44,11 +44,8 @@ import fsExtra from 'fs-extra';
   const json = await data.json();
 
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
-
   await unzip(zipFile, { dir: tmpDir });
-
   await fsExtra.move(tmpDir, uBlockLiteDir, { overwrite: true });
-  
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });
