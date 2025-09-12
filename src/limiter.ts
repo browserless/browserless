@@ -207,7 +207,7 @@ export class Limiter extends q {
           const queueLimit = this.queued;
           return rej(
             new TooManyRequests(
-              `Concurrency limit of ${concurrencyLimit} and queue limit of ${queueLimit} reached. Possible causes: 1) Your token has reached maximum capacity, 2) Your token may not have access to this version, 3) Your requests are coming too quickly.`,
+              `Your plan allows ${concurrencyLimit} concurrent sessions and ${queueLimit} queued requests, but both limits have been reached. Possible causes: 1) Your plan has reached maximum capacity, 2) Your token may not have access to this version, 3) Your requests are coming too quickly.`,
             ),
           );
         }
