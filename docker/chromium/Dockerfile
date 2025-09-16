@@ -1,6 +1,6 @@
 ARG VERSION=latest
 FROM ghcr.io/browserless/base:$VERSION
-LABEL org.opencontainers.image.source https://github.com/browserless/browserless
+LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 COPY fonts/* /usr/share/fonts/truetype/
 COPY src src/
@@ -10,7 +10,7 @@ COPY src/routes/chromium src/routes/chromium/
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
-  apt-add-repository "deb http://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
+  apt-add-repository "deb https://archive.canonical.com/ubuntu $(lsb_release -sc) partner" && \
   apt-get -y -qq --no-install-recommends install \
   fontconfig \
   fonts-freefont-ttf \

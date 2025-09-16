@@ -2,7 +2,7 @@
 set -e
 
 # Install all dependencies for tests
-npm i --production=false
+npm clean-install --production=false
 
 # Setup Env Variables
 export DEBUG=-*
@@ -11,7 +11,7 @@ export NODE_OPTIONS="--loader ts-node/esm"
 
 if [ -z "$DISPLAY" ]
 then
-  Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix &
+  Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix >/dev/null 2>&1 &
   xvfb=$!
   export DISPLAY=:99
 fi

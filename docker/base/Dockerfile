@@ -1,17 +1,17 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
-LABEL org.opencontainers.image.source https://github.com/browserless/browserless
+LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v24.2.0
+ARG NODE_VERSION=v24.8.0
 
 ENV NODE_VERSION=$NODE_VERSION
-ENV NVM_DIR /usr/src/.nvm
-ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
-ENV PATH $NODE_PATH:$PATH
+ENV NVM_DIR=/usr/src/.nvm
+ENV NODE_PATH=$NVM_DIR/versions/node/$NODE_VERSION/bin
+ENV PATH=$NODE_PATH:$PATH
 ENV APP_DIR=$APP_DIR
 ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
@@ -59,7 +59,7 @@ RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | b
   nvm install $NODE_VERSION
 
 RUN add-apt-repository universe && apt-get update && \
-  apt-get install -y python3.10 python3-pip && \
+  apt-get install -y python3 python3-pip python3-setuptools && \
   update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
   update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
@@ -67,4 +67,4 @@ RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G a
   mkdir -p /home/blessuser/Downloads && \
   chown -R blessuser:blessuser /home/blessuser
 
-RUN npm i --production=false
+RUN npm clean-install --production=false
