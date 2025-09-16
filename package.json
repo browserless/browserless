@@ -51,7 +51,7 @@
   "dependencies": {
     "@hapi/bourne": "^3.0.0",
     "@hapi/hoek": "^11.0.4",
-    "debug": "^4.4.1",
+    "debug": "^4.4.3",
     "del": "^8.0.0",
     "file-type": "^21.0.0",
     "get-port": "^7.1.0",
