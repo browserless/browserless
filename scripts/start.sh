@@ -15,7 +15,7 @@ trap _kill_procs SIGTERM SIGINT
 
 if [ -z "$DISPLAY" ]
 then
-  Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix &
+  Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix >/dev/null 2>&1 &
   xvfb=$!
   export DISPLAY=:99
 fi

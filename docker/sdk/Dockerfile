@@ -27,7 +27,7 @@ COPY tsconfig.json .
 COPY *README.md .
 
 # Install dependencies
-RUN npm install
+RUN npm clean-install
 
 # Build Source files
 RUN npm run build
