@@ -1,6 +1,28 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.34.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.35.0...main)
 
 - Dependency updates.
+
+# [v2.35.0](https://github.com/browserless/chrome/compare/v2.34.1...v2.35.0)
+
+- Dependency updates.
+- Updates base image to Ubuntu `24.04`.
+- Updates NodeJS to `24.8.0`.
+- Move to `npm ci` for automated tests and release processes.
+- Small cleanup in dockerfiles for consistency.
+- Added a `npm run coverage` command for determining areas of code needing coverage.
+- `bestAttempt` fixes in the `/scrape` API.
+- Fixes a few OpenAPI issues in the swagger.json manifests.
+- Fixes issues where install-adblock can fail.
+- Updated messaging around concurrency limits being reached.
+- Few more unit-tests.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.22.0`
+  - playwright-core: `1.55.0`, `1.54.2`, `1.53.2`, `1.52.0`, and `1.51.1`.
+  - Chromium: `140.0.7339.16`
+  - Chrome: `140.0.7339.186` (amd64 only)
+  - Firefox: `141.0`
+  - Webkit: `26.0`
+  - Edge: `140.0.3485.81` (amd64 only)
 
 # [v2.34.1](https://github.com/browserless/chrome/compare/v2.34.0...v2.34.1)
 
