@@ -67,4 +67,4 @@ RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G a
   mkdir -p /home/blessuser/Downloads && \
   chown -R blessuser:blessuser /home/blessuser
 
-RUN npm clean-install --production=false
+RUN npm clean-install

@@ -2,7 +2,7 @@
 set -e
 
 # Install all dependencies for tests
-npm clean-install --production=false
+npm clean-install
 
 # Setup Env Variables
 export DEBUG=-*
