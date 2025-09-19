@@ -2,11 +2,11 @@
 /* global fetch, console, process */
 'use strict';
 
-import { createWriteStream, existsSync, mkdirSync } from 'fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import path, { join } from 'path';
 import { Readable } from 'stream';
 import { deleteAsync } from 'del';
-import { moveFile } from 'move-file';
+import { cp } from 'fs/promises';
 import os from 'os';
 import unzip from 'extract-zip';
 
@@ -19,7 +19,6 @@ import unzip from 'extract-zip';
   }
 
   const zipFile = tmpDir + '/ublock.zip';
-  const tmpUblockLitePath = path.join(tmpDir);
   const extensionsDir = join(process.cwd(), 'extensions');
   const uBlockLiteDir = join(extensionsDir, 'ublocklite');
 
@@ -45,7 +44,29 @@ import unzip from 'extract-zip';
 
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
   await unzip(zipFile, { dir: tmpDir });
-  await moveFile(join(tmpUblockLitePath), join(extensionsDir, 'ublocklite'));
+
+  const findExtensionDir = (dir) => {
+    const items = readdirSync(dir);
+    if (items.includes('manifest.json')) {
+      return dir;
+    }
+    for (const item of items) {
+      if (item === 'ublock.zip') continue;
+      const itemPath = join(dir, item);
+      if (existsSync(itemPath) && statSync(itemPath).isDirectory()) {
+        const foundDir = findExtensionDir(itemPath);
+        if (foundDir) return foundDir;
+      }
+    }
+    return null;
+  };
+
+  const extensionSourceDir = findExtensionDir(tmpDir);
+  if (!extensionSourceDir) {
+    throw new Error('Could not find uBlock Lite extension directory with manifest.json');
+  }
+
+  await cp(extensionSourceDir, join(extensionsDir, 'ublocklite'), { recursive: true });
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });
