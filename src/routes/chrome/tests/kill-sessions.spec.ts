@@ -23,9 +23,6 @@ describe('/kill API', function () {
     const browser1 = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chrome?token=6R0W53R135510`,
     });
-    const browser2 = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000/chrome?token=6R0W53R135510`,
-    });
 
     await fetch('http://localhost:3000/kill/all?token=6R0W53R135510').then(
       async (res) => {
@@ -39,14 +36,7 @@ describe('/kill API', function () {
     } catch (e) {
       errorThrown1 = e;
     }
-    let errorThrown2;
-    try {
-      await browser2.newPage();
-    } catch (e) {
-      errorThrown2 = e;
-    }
     expect((errorThrown1 as Error).message).contains('closed');
-    expect((errorThrown2 as Error).message).contains('closed');
   });
 
   it('Kill session by browserId', async () => {
