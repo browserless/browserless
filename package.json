@@ -21,6 +21,7 @@
     "build:schemas": "node scripts/build-schemas.js",
     "build:openapi": "node scripts/build-open-api.js",
     "build:ts": "tsc",
+    "build:tests": "npm run build:ts && npm run build:function && npm run install:debugger",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "install:adblock": "node scripts/install-adblock.js",
@@ -30,7 +31,7 @@
     "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,.github}/**/*.{js,ts,json,yml,yaml,md}' --log-level error --write",
-    "test": "npm run build:ts && cross-env DEBUG=quiet mocha",
+    "test": "npm run build:tests && cross-env DEBUG=quiet mocha",
     "coverage": "npm run build:ts && c8 --reporter=text --reporter=html --reporter=lcov cross-env DEBUG=quiet mocha",
     "start": "env-cmd -f .env node build"
   },

@@ -63,7 +63,7 @@ export interface BodySchema {
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
   viewport?: Parameters<Page['setViewport']>[0];
-  waitForEvent?: WaitForEventOptions;
+  waitForEvent?: WaitForEventOptions;                                                       
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
   waitForTimeout?: number;

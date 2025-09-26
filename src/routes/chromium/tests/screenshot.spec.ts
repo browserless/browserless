@@ -384,4 +384,65 @@ describe('/chromium/screenshot API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+
+  it('allows to set addStyleTag in the payload', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      html: '<h1 id="headline">Hello!</h1>',
+      addStyleTag: [
+        {
+          content: '#headline { color: red; } body { background: #fff; }',
+        },
+      ],
+      waitForSelector: {
+        selector: 'style',
+      },
+    };
+
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows to set addScriptTag in the payload', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    
+    const body = {
+      html: '<h1 id="headline">Hello!</h1>',
+      addScriptTag: [
+        {
+          content: 'document.getElementById("headline").style.color = "red";',
+        },
+      ],
+      waitForSelector: {
+        selector: 'script',
+      },
+    };
+
+    await fetch('http://localhost:3000/chromium/screenshot?token=browserless', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+    }).then((res) => {
+      expect(res.headers.get('content-type')).to.equal('image/png');
+      expect(res.status).to.equal(200);
+    });
+  });
 });

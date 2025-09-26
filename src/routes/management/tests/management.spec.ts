@@ -151,6 +151,94 @@ describe('Management APIs', function () {
     });
   });
 
+  describe('Static Files Serving', () => {
+    it.only('serves docs pages', async () => {
+      await start();
+
+      await fetch('http://localhost:3000/docs/index.html?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+          expect(res.headers.get('content-type')).to.equal('text/html');
+          const content = await res.text();
+          expect(content).to.include('<title>Browserless Docs</title>');
+        },
+      );
+
+      await fetch('http://localhost:3000/docs/docs.js?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+          expect(res.headers.get('content-type')).to.equal('application/javascript');
+          const content = await res.text();
+          expect(content).to.be.an('string');
+        },
+      );
+    });
+
+    it.only('serves the function page', async () => {
+      await start();
+
+      await fetch('http://localhost:3000/function/index.html?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+          expect(res.headers.get('content-type')).to.equal('text/html');
+        },
+      );
+    });
+
+    it.only('serves swagger.json', async () => {
+      await start();
+
+      await fetch('http://localhost:3000/docs/swagger.json?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+          expect(res.headers.get('content-type')).to.equal('application/json');
+          const content = await res.json();
+          expect(content).to.be.an('object');
+        },
+      );
+    });
+
+    it.only('returns 404 if debugger is disabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+      // Ensure debugger is not available
+
+      await start({ config });
+
+      await fetch('http://localhost:3000/debugger/some-file.html?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(404);
+          expect(res.headers.get('content-type')).to.equal('text/plain; charset=UTF-8');
+        },
+      );
+    });
+
+    it.only('serves debugger assets when debugger is enabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+      await start({ config });
+
+      await fetch('http://localhost:3000/debugger/index.html?token=6R0W53R135510').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+        },
+      );
+    });
+
+    it.only('handles requests without authentication token for static files', async () => {
+      await start();
+
+      await fetch('http://localhost:3000/docs/index.html').then(
+        async (res) => {
+          expect(res.status).to.equal(200);
+          expect(res.headers.get('content-type')).to.equal('text/html');
+        },
+      );
+    });
+  });
+
   it('allows requests to /config', async () => {
     await start();
 
