@@ -40,6 +40,7 @@ import micromatch from 'micromatch';
 import path from 'path';
 
 export class BrowserManager {
+  protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   protected log = new Logger('browser-manager');
@@ -461,12 +462,12 @@ export class BrowserManager {
     let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
 
     // Handle browser re-connects here
-    if (req.parsed.pathname.includes('/devtools/browser')) {
+    if (
+      this.reconnectionPatterns.some((p) => req.parsed.pathname.includes(p))
+    ) {
       const sessions = Array.from(this.browsers);
       const id = req.parsed.pathname.split('/').pop() as string;
-      const found = sessions.find(([b]) =>
-        b.wsEndpoint()?.includes(req.parsed.pathname),
-      );
+      const found = sessions.find(([b]) => b.wsEndpoint()?.includes(id));
 
       if (found) {
         const [browser, session] = found;
