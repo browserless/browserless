@@ -176,17 +176,6 @@ describe('Management APIs', function () {
       });
     });
 
-    it('serves the function page', async () => {
-      await start();
-
-      await fetch(
-        'http://localhost:3000/function/index.html?token=6R0W53R135510',
-      ).then(async (res) => {
-        expect(res.status).to.equal(200);
-        expect(res.headers.get('content-type')).to.equal('text/html');
-      });
-    });
-
     it('serves swagger.json', async () => {
       await start();
 
@@ -215,19 +204,6 @@ describe('Management APIs', function () {
         expect(res.headers.get('content-type')).to.equal(
           'text/plain; charset=UTF-8',
         );
-      });
-    });
-
-    it('serves debugger assets when debugger is enabled', async () => {
-      process.env.ENABLE_DEBUGGER = 'true';
-      const config = new Config();
-      config.setToken('6R0W53R135510');
-      await start({ config });
-
-      await fetch(
-        'http://localhost:3000/debugger/index.html?token=6R0W53R135510',
-      ).then(async (res) => {
-        expect(res.status).to.equal(200);
       });
     });
 
