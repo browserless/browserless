@@ -118,7 +118,7 @@ export const prompt = async (question: string) => {
 export const installDependencies = async (
   workingDirectory: string,
 ): Promise<void> => {
-  await waitForCommand('npm clean-install', workingDirectory);
+  await waitForCommand('npm install', workingDirectory);
   await installBrowsers(workingDirectory);
 };
 
