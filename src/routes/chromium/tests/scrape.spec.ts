@@ -454,7 +454,9 @@ describe('/chromium/scrape API', function () {
       expect(json.data).to.have.length(3);
 
       const aResults = json.data.find((item: any) => item.selector === 'a');
-      const nonexistentResults = json.data.find((item: any) => item.selector === 'nonexistent-element');
+      const nonexistentResults = json.data.find(
+        (item: any) => item.selector === 'nonexistent-element',
+      );
       const h1Results = json.data.find((item: any) => item.selector === 'h1');
 
       expect(aResults.results).to.be.an('array');
