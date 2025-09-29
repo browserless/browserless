@@ -445,7 +445,9 @@ describe('/chrome/scrape API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
       expect(res.status).to.equal(200);
     });
   });
@@ -480,7 +482,9 @@ describe('/chrome/scrape API', function () {
         'content-type': 'application/json',
       },
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
       expect(res.status).to.equal(200);
     });
   });

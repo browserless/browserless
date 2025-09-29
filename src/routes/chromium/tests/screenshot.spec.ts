@@ -385,7 +385,6 @@ describe('/chromium/screenshot API', function () {
     });
   });
 
-
   it('allows to set addStyleTag in the payload', async () => {
     const config = new Config();
     config.setToken('browserless');
@@ -421,7 +420,7 @@ describe('/chromium/screenshot API', function () {
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
-    
+
     const body = {
       html: '<h1 id="headline">Hello!</h1>',
       addScriptTag: [

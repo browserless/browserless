@@ -408,7 +408,7 @@ describe('/edge/content API', function () {
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
-    
+
     const body = {
       html: '<h1 id="headline">Hello!</h1>',
       addScriptTag: [
@@ -420,7 +420,7 @@ describe('/edge/content API', function () {
         selector: 'script',
       },
     };
-    
+
     await fetch('http://localhost:3000/edge/content?token=browserless', {
       body: JSON.stringify(body),
       headers: {

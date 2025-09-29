@@ -422,7 +422,7 @@ describe('/edge/pdf API', function () {
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
-    
+
     const body = {
       html: '<h1 id="headline">Hello!</h1>',
       addScriptTag: [

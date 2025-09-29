@@ -56,23 +56,23 @@ describe('/json/ API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/list?token=browserless');
+    const res = await fetch(
+      'http://localhost:3000/json/list?token=browserless',
+    );
     expect(res.status).to.equal(200);
     const resJSON = await res.json();
     expect(Array.isArray(resJSON)).to.equal(true);
 
-    if (resJSON.length > 0) {
-      const keys = [
-        'description',
-        'devtoolsFrontendUrl',
-        'id',
-        'title',
-        'type',
-        'url',
-        'webSocketDebuggerUrl',
-      ];
-      keys.forEach((k) => expect(resJSON[0]).to.haveOwnProperty(k));
-    }
+    const keys = [
+      'description',
+      'devtoolsFrontendUrl',
+      'id',
+      'title',
+      'type',
+      'url',
+      'webSocketDebuggerUrl',
+    ];
+    keys.forEach((k) => expect(resJSON[0]).to.haveOwnProperty(k));
   });
 
   it('rejects unauthorized requests to /json/list', async () => {
@@ -91,7 +91,9 @@ describe('/json/ API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/protocol?token=browserless');
+    const res = await fetch(
+      'http://localhost:3000/json/protocol?token=browserless',
+    );
     expect(res.status).to.equal(200);
     const resJSON = await res.json();
     expect(resJSON).to.be.an('object');
@@ -105,7 +107,9 @@ describe('/json/ API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/protocol?token=imabadboi');
+    const res = await fetch(
+      'http://localhost:3000/json/protocol?token=imabadboi',
+    );
     expect(res.status).to.equal(401);
   });
 
@@ -115,12 +119,15 @@ describe('/json/ API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const res = await fetch('http://localhost:3000/json/new?token=browserless', {
-      method: 'PUT',
-    });
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless',
+      {
+        method: 'PUT',
+      },
+    );
     expect(res.status).to.equal(200);
     const resJSON = await res.json();
-    
+
     const keys = [
       'description',
       'devtoolsFrontendUrl',
@@ -131,7 +138,7 @@ describe('/json/ API', function () {
       'webSocketDebuggerUrl',
     ];
     keys.forEach((k) => expect(resJSON).to.haveOwnProperty(k));
-    
+
     expect(resJSON.type).to.equal('page');
     expect(resJSON.title).to.equal('New Tab');
     expect(resJSON.url).to.equal('about:blank');
@@ -149,6 +156,4 @@ describe('/json/ API', function () {
     });
     expect(res.status).to.equal(401);
   });
-
-  
 });

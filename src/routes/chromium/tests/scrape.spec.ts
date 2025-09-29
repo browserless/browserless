@@ -454,7 +454,9 @@ describe('/chromium/scrape API', function () {
       expect(json.data).to.have.length(3);
 
       const aResults = json.data.find((item: any) => item.selector === 'a');
-      const nonexistentResults = json.data.find((item: any) => item.selector === 'nonexistent-element');
+      const nonexistentResults = json.data.find(
+        (item: any) => item.selector === 'nonexistent-element',
+      );
       const h1Results = json.data.find((item: any) => item.selector === 'h1');
 
       expect(aResults.results).to.be.an('array');
@@ -493,7 +495,9 @@ describe('/chromium/scrape API', function () {
       },
       method: 'POST',
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
       expect(res.status).to.equal(200);
     });
   });
@@ -528,7 +532,9 @@ describe('/chromium/scrape API', function () {
         'content-type': 'application/json',
       },
     }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal('application/json; charset=UTF-8');
+      expect(res.headers.get('content-type')).to.equal(
+        'application/json; charset=UTF-8',
+      );
       expect(res.status).to.equal(200);
     });
   });

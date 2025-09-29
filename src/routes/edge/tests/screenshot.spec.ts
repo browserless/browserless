@@ -420,7 +420,7 @@ describe('/edge/screenshot API', function () {
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
-    
+
     const body = {
       html: '<h1 id="headline">Hello!</h1>',
       addScriptTag: [
@@ -444,6 +444,4 @@ describe('/edge/screenshot API', function () {
       expect(res.status).to.equal(200);
     });
   });
-
-  
 });
