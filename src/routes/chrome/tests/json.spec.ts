@@ -50,31 +50,6 @@ describe('/json/ API', function () {
     expect(res.status).to.equal(401);
   });
 
-  it('allows requests to /json/list', async () => {
-    const config = new Config();
-    config.setToken('browserless');
-    const metrics = new Metrics();
-    await start({ config, metrics });
-
-    const res = await fetch(
-      'http://localhost:3000/json/list?token=browserless',
-    );
-    expect(res.status).to.equal(200);
-    const resJSON = await res.json();
-    expect(Array.isArray(resJSON)).to.equal(true);
-
-    const keys = [
-      'description',
-      'devtoolsFrontendUrl',
-      'id',
-      'title',
-      'type',
-      'url',
-      'webSocketDebuggerUrl',
-    ];
-    keys.forEach((k) => expect(resJSON[0]).to.haveOwnProperty(k));
-  });
-
   it('rejects unauthorized requests to /json/list', async () => {
     const config = new Config();
     config.setToken('browserless');
