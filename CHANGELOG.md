@@ -1,8 +1,22 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.35.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.37.0...main)
 
 - Dependency updates.
 
-# [v2.35.0](https://github.com/browserless/chrome/compare/v2.34.1...v2.35.0)
+# [v2.37.0](https://github.com/browserless/chrome/compare/v2.36.0...v2.37.0)
+
+- Dependency updates.
+- Adds a new `/function/connect` route to distinguish function API calls and not have them add to concurrency.
+- Fix installs in SDK projects not working.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.22.3`
+  - playwright-core: `1.55.1`, `1.54.2`, `1.53.2`, `1.52.0`, and `1.51.1`.
+  - Chromium: `140.0.7339.16`
+  - Chrome: `140.0.7339.214` (amd64 only)
+  - Firefox: `141.0`
+  - Webkit: `26.0`
+  - Edge: `140.0.3485.94` (amd64 only)
+
+# [v2.36.0](https://github.com/browserless/chrome/compare/v2.34.1...v2.36.0)
 
 - Dependency updates.
 - Updates base image to Ubuntu `24.04`.
