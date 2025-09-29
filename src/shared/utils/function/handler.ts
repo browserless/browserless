@@ -12,7 +12,6 @@ import {
   convertIfBase64,
   exists,
   getTokenFromRequest,
-  id,
   makeExternalURL,
   mimeTypes,
 } from '@browserless.io/browserless';
@@ -63,17 +62,23 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
 
     const context = JSON.stringify(rawContext);
     const code = convertIfBase64(rawCode);
-    const browserWSEndpoint = browser.publicWSEndpoint(
-      getTokenFromRequest(req) ?? '',
-    );
+    const privateWSEndpoint = browser.wsEndpoint();
 
-    if (!browserWSEndpoint) {
+    if (!privateWSEndpoint) {
       throw new ServerError(
         `No browser endpoint was found, is the browser running?`,
       );
     }
 
-    const functionCodeJS = `browserless-function-${id()}.js`;
+    const browserID = privateWSEndpoint.split('/').pop() as string;
+    const browserWSEndpoint = makeExternalURL(
+      config.getExternalWebSocketAddress(),
+      'function',
+      'connect',
+      browserID,
+      '?token=' + getTokenFromRequest(req),
+    );
+    const functionCodeJS = `browserless-function-${browserID}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
     >;
