@@ -95,7 +95,7 @@
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^16.3.0",
-    "mocha": "^11.7.2",
+    "mocha": "^11.7.3",
     "move-file": "^3.1.0",
     "prettier": "^3.6.2",
     "sinon": "^21.0.0",
