@@ -373,7 +373,9 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   dumpio?: boolean;
   headless?: boolean | 'shell';
   ignoreDefaultArgs?: boolean | string[];
+  /** @deprecated use acceptInsecureCerts field instead */
   ignoreHTTPSErrors?: boolean;
+  acceptInsecureCerts?: boolean;
   slowMo?: number;
   stealth?: boolean;
   timeout?: number;

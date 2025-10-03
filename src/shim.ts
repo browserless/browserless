@@ -5,7 +5,7 @@ import {
   safeParse,
 } from '@browserless.io/browserless';
 
-const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
+const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo', 'ignoreHTTPSErrors'];
 
 /**
  * Obfuscates the ?token parameter by shifting it to a header instead of a query-parameter.
@@ -72,6 +72,20 @@ export function shimLegacyRequests(url: URL): URL {
       launchParams.ignoreHTTPSErrors === undefined
     ) {
       launchParams.ignoreHTTPSErrors = ignoreHTTPSErrors !== 'false';
+    }
+
+    // When acceptInsecureCerts is set, ignoreHTTPSErrors is ignored
+    if (launchParams.acceptInsecureCerts !== undefined) {
+      launchParams.ignoreHTTPSErrors = undefined;
+    }
+
+    // When ignoreHTTPSErrors sent, convert it to acceptInsecureCerts
+    if (
+      typeof ignoreHTTPSErrors !== 'undefined' &&
+      launchParams.acceptInsecureCerts === undefined
+    ) {
+      launchParams.acceptInsecureCerts = ignoreHTTPSErrors !== 'false';
+      launchParams.ignoreHTTPSErrors = undefined;
     }
 
     if (
