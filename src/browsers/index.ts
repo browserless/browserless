@@ -542,6 +542,16 @@ export class BrowserManager {
       ...routerOptions,
       ...parsedLaunchOptions,
     };
+    const proxyServerParam = req.parsed.searchParams.get('--proxy-server');
+    if (proxyServerParam) {
+      const existingArgs = launchOptions.args || [];
+      const filteredArgs = existingArgs.filter(
+        (arg) => !arg.includes('--proxy-server='),
+      );
+      launchOptions.args = [...filteredArgs, `--proxy-server=${proxyServerParam}`];
+    }
+
+
 
     const manualUserDataDir =
       launchOptions.args
