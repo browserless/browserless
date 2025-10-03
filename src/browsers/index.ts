@@ -567,6 +567,16 @@ export class BrowserManager {
     );
 
     /**
+     * Handle deprecated launch options
+     */
+    if (Object.hasOwn(launchOptions, 'ignoreHTTPSErrors')) {
+      if (!Object.hasOwn(launchOptions, 'acceptInsecureCerts')) {
+        (launchOptions as CDPLaunchOptions).acceptInsecureCerts = (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
+      }
+      delete (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
+    }
+
+    /**
      * If it is a playwright request
      */
     if (

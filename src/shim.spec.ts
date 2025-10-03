@@ -174,6 +174,24 @@ describe('Request Shimming', () => {
     });
   });
 
+  describe('insecure certs', () => {
+    it('converts ignoreHTTPSErrors to acceptInsecureCerts', () => {
+      const url = 'wss://localhost?ignoreHTTPSErrors';
+      const final = 'wss://localhost/?launch={"acceptInsecureCerts":true}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+
+    it('acceptInsecureCerts takes precedence over ignoreHTTPSErrors', () => {
+      const url = 'wss://localhost?ignoreHTTPSErrors&launch={"acceptInsecureCerts":false}';
+      const final = 'wss://localhost/?launch={"acceptInsecureCerts":false}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
   describe('token shimming', () => {
     it('converts token query parameters to an authorization header', () => {
       const url = 'wss://localhost?token=12345';
