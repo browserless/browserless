@@ -279,4 +279,37 @@ describe('/chromium/function API', function () {
       expect(res.status).to.equal(200);
     });
   });
+  it('allows --proxy-server query parameter', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch(
+      'http://localhost:3000/chromium/function?--proxy-server=test.proxy.com:8080&token=browserless',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      },
+    ).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+
 });
