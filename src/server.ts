@@ -424,7 +424,7 @@ export class HTTPServer extends EventEmitter {
 
   public async shutdown(): Promise<void> {
     this.logger.info(`HTTP Server is shutting down`);
-    await new Promise((r) => this.server.close(r));
+    await new Promise((r) => this.server?.close(r));
 
     if (this.server) {
       this.server.removeAllListeners();
