@@ -542,6 +542,16 @@ export class BrowserManager {
       ...routerOptions,
       ...parsedLaunchOptions,
     };
+    const proxyServerParam = req.parsed.searchParams.get('--proxy-server');
+    if (proxyServerParam) {
+      const existingArgs = launchOptions.args || [];
+      const filteredArgs = existingArgs.filter(
+        (arg) => !arg.includes('--proxy-server='),
+      );
+      launchOptions.args = [...filteredArgs, `--proxy-server=${proxyServerParam}`];
+    }
+
+
 
     const manualUserDataDir =
       launchOptions.args
@@ -565,6 +575,16 @@ export class BrowserManager {
     const proxyServerArg = launchOptions.args?.find((arg) =>
       arg.includes('--proxy-server='),
     );
+
+    /**
+     * Handle deprecated launch options
+     */
+    if (Object.hasOwn(launchOptions, 'ignoreHTTPSErrors')) {
+      if (!Object.hasOwn(launchOptions, 'acceptInsecureCerts')) {
+        (launchOptions as CDPLaunchOptions).acceptInsecureCerts = (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
+      }
+      delete (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
+    }
 
     /**
      * If it is a playwright request

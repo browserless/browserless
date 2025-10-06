@@ -399,4 +399,28 @@ describe('/chromium/content API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('can accept insecure certs', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      gotoOptions: {
+        waitUntil: `networkidle2`,
+      },
+      url: 'https://self-signed.badssl.com',
+    };
+
+    await fetch('http://localhost:3000/chromium/content?token=browserless&launch={"acceptInsecureCerts":true}', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      expect(res.status).to.equal(200);
+    });
+  });
 });
