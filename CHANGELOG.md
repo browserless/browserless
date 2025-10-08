@@ -1,6 +1,18 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.37.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.37.1...main)
+
+# [v2.37.1](# [Latest](https://github.com/browserless/chrome/compare/v2.37.1...v2.37.0))
 
 - Dependency updates.
+- Handling of `ignoreHTTPSErrors` to `acceptInsecureCerts`.
+- Smaller fixes, testing updates, and graceful shutdown handling.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.23.0`
+  - playwright-core: `1.55.1`, `1.54.2`, `1.53.2`, `1.52.0`, and `1.51.1`.
+  - Chromium: `140.0.7339.16`
+  - Chrome: `141.0.7390.66` (amd64 only)
+  - Firefox: `141.0`
+  - Webkit: `26.0`
+  - Edge: `141.0.3537.57` (amd64 only)
 
 # [v2.37.0](https://github.com/browserless/chrome/compare/v2.36.0...v2.37.0)
 
