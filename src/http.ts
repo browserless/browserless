@@ -31,6 +31,11 @@ export const errorCodes = {
     description: `Too many requests are currently being processed.`,
     message: 'HTTP/1.1 429 Too Many Requests',
   },
+  422: {
+    code: 422,
+    description: `The request was properly serialized but could not be processed.`,
+    message: 'HTTP/1.1 422 Unprocessable Entity',
+  },
   500: {
     code: 500,
     description: `An internal error occurred when handling the request.`,

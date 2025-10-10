@@ -83,7 +83,7 @@ export class HTTPServer extends EventEmitter {
 
     this.logger.error(`Error handling request: ${e}\n${e.stack}`);
 
-    return writeResponse(res, 500, e.toString());
+    return writeResponse(res, 422, e.toString());
   }
 
   protected onHTTPUnauthorized(_req: Request, res: Response) {
