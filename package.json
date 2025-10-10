@@ -59,7 +59,7 @@
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
     "joi": "^18.0.1",
-    "lighthouse": "^12.8.2",
+    "lighthouse": "^13.0.0",
     "micromatch": "^4.0.8",
     "playwright-1.51": "npm:playwright-core@1.51.1",
     "playwright-1.52": "npm:playwright-core@1.52.0",
