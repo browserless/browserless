@@ -9,10 +9,25 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build the base layer
-        run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
 
       - name: Build the Chrome image
-        run: docker build --build-arg VERSION=latest -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:latest .
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build --build-arg VERSION=latest -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:latest .
 
       - name: Test the Chrome image
-        run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/chrome:latest
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/chrome:latest
