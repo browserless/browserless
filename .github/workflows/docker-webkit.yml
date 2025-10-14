@@ -9,10 +9,25 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build the base layer
-        run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
 
       - name: Build the Webkit image
-        run: docker build --build-arg VERSION=latest -f ./docker/webkit/Dockerfile -t ghcr.io/browserless/webkit:latest .
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build --build-arg VERSION=latest -f ./docker/webkit/Dockerfile -t ghcr.io/browserless/webkit:latest .
 
       - name: Test the Webkit image
-        run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/webkit:latest
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/webkit:latest
