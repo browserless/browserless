@@ -74,7 +74,7 @@
     "tar-fs": "^3.1.1"
   },
   "optionalDependencies": {
-    "@types/chai": "^5.2.2",
+    "@types/chai": "^5.2.3",
     "@types/debug": "^4.1.12",
     "@types/gradient-string": "^1.1.6",
     "@types/http-proxy": "^1.17.16",
