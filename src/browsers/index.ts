@@ -466,7 +466,14 @@ export class BrowserManager {
       this.reconnectionPatterns.some((p) => req.parsed.pathname.includes(p))
     ) {
       const sessions = Array.from(this.browsers);
-      const id = req.parsed.pathname.split('/').pop() as string;
+      const pathParts = req.parsed.pathname.split('/');
+      // The last part of the path is the browser ID, or the second last part in case the path ends with "/"
+      const id = pathParts.pop() as string || pathParts.pop() as string;
+      if (!id) {
+        throw new NotFound(
+          `Couldn't locate browser ID from path "${req.parsed.pathname}"`,
+        );
+      }
       const found = sessions.find(([b]) => b.wsEndpoint()?.includes(id));
 
       if (found) {
