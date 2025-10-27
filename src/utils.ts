@@ -917,3 +917,9 @@ export const ublockLitePath = path.join(
 export const isMatch = (text: string, pattern: string) => {
   return micromatch.isMatch(text, pattern, { bash: true });
 };
+
+export const getFinalPathSegment = (pathname: string): string => {
+  const parsed = path.parse(pathname);
+
+  return parsed.name;
+};

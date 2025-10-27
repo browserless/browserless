@@ -28,6 +28,7 @@ import {
   convertIfBase64,
   exists,
   generateDataDir,
+  getFinalPathSegment,
   makeExternalURL,
   noop,
   parseBooleanParam,
@@ -466,9 +467,7 @@ export class BrowserManager {
       this.reconnectionPatterns.some((p) => req.parsed.pathname.includes(p))
     ) {
       const sessions = Array.from(this.browsers);
-      const pathParts = req.parsed.pathname.split('/');
-      // The last part of the path is the browser ID, or the second last part in case the path ends with "/"
-      const id = pathParts.pop() as string || pathParts.pop() as string;
+      const id = getFinalPathSegment(req.parsed.pathname);
       if (!id) {
         throw new NotFound(
           `Couldn't locate browser ID from path "${req.parsed.pathname}"`,
@@ -490,7 +489,7 @@ export class BrowserManager {
 
     // Handle page connections here
     if (req.parsed.pathname.includes('/devtools/page')) {
-      const id = req.parsed.pathname.split('/').pop() as string;
+      const id = getFinalPathSegment(req.parsed.pathname);
       if (!id.includes(BLESS_PAGE_IDENTIFIER)) {
         const browsers = Array.from(this.browsers).map(([browser]) => browser);
         const allPages = await Promise.all(
@@ -555,10 +554,11 @@ export class BrowserManager {
       const filteredArgs = existingArgs.filter(
         (arg) => !arg.includes('--proxy-server='),
       );
-      launchOptions.args = [...filteredArgs, `--proxy-server=${proxyServerParam}`];
+      launchOptions.args = [
+        ...filteredArgs,
+        `--proxy-server=${proxyServerParam}`,
+      ];
     }
-
-
 
     const manualUserDataDir =
       launchOptions.args
@@ -588,7 +588,9 @@ export class BrowserManager {
      */
     if (Object.hasOwn(launchOptions, 'ignoreHTTPSErrors')) {
       if (!Object.hasOwn(launchOptions, 'acceptInsecureCerts')) {
-        (launchOptions as CDPLaunchOptions).acceptInsecureCerts = (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
+        (launchOptions as CDPLaunchOptions).acceptInsecureCerts = (
+          launchOptions as CDPLaunchOptions
+        ).ignoreHTTPSErrors;
       }
       delete (launchOptions as CDPLaunchOptions).ignoreHTTPSErrors;
     }
