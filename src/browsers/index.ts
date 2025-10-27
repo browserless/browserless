@@ -490,7 +490,7 @@ export class BrowserManager {
     // Handle page connections here
     if (req.parsed.pathname.includes('/devtools/page')) {
       const id = getFinalPathSegment(req.parsed.pathname);
-      if (!id.includes(BLESS_PAGE_IDENTIFIER)) {
+      if (!id?.includes(BLESS_PAGE_IDENTIFIER)) {
         const browsers = Array.from(this.browsers).map(([browser]) => browser);
         const allPages = await Promise.all(
           browsers
