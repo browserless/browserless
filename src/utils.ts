@@ -919,4 +919,4 @@ export const isMatch = (text: string, pattern: string) => {
 };
 
 export const getFinalPathSegment = (pathname: string): string | undefined =>
-  pathname.split('/').filter(Boolean).pop();
+  pathname.split(/[?#&]/)[0].split('/').filter(Boolean).pop();

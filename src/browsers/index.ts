@@ -629,7 +629,7 @@ export class BrowserManager {
     await this.hooks.browser({ browser, req });
 
     const session: BrowserlessSession = {
-      id: browser.wsEndpoint()?.split('/').pop() as string,
+      id: getFinalPathSegment(browser.wsEndpoint()!)!,
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
       isTempDataDir: !manualUserDataDir,

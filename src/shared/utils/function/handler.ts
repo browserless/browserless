@@ -11,6 +11,7 @@ import {
   contentTypes,
   convertIfBase64,
   exists,
+  getFinalPathSegment,
   getTokenFromRequest,
   makeExternalURL,
   mimeTypes,
@@ -70,7 +71,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
       );
     }
 
-    const browserID = privateWSEndpoint.split('/').pop() as string;
+    const browserID = getFinalPathSegment(privateWSEndpoint)!;
     const browserWSEndpoint = makeExternalURL(
       config.getExternalWebSocketAddress(),
       'function',
