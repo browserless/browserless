@@ -1,4 +1,29 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.38.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.38.2...main)
+
+# [v2.38.2](https://github.com/browserless/browserless/compare/v2.38.1...v2.38.2)
+
+- Standardizes on how path parsing works internally, exports the utility as well.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.26.1`
+  - playwright-core: `1.56.1`, `1.55.1`, `1.54.2`, `1.53.2`, and `1.52.0`.
+  - Chromium: `141.0.7390.37`
+  - Chrome: `141.0.7390.123` (amd64 only)
+  - Firefox: `142.0.1`
+  - Webkit: `26.0`
+  - Edge: `141.0.3537.99` (amd64 only)
+
+# [v2.38.1](https://github.com/browserless/browserless/compare/v2.38.0...v2.38.1)
+
+- Dependency updates.
+- Bugfix when a trailing slash is present in /function API call.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.26.1`
+  - playwright-core: `1.56.1`, `1.55.1`, `1.54.2`, `1.53.2`, and `1.52.0`.
+  - Chromium: `141.0.7390.37`
+  - Chrome: `141.0.7390.123` (amd64 only)
+  - Firefox: `142.0.1`
+  - Webkit: `26.0`
+  - Edge: `141.0.3537.99` (amd64 only)
 
 # [v2.38.0](https://github.com/browserless/chrome/compare/v2.37.1...v2.38.0)
 
