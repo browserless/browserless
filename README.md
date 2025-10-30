@@ -14,6 +14,9 @@
   <h3 align="center"><center>Deploy headless browsers in Docker. Run on our cloud or bring your own.</center></h3>
   <br>
   <center>
+    <p align="center">
+      <a href="https://trendshift.io/repositories/4378" target="_blank"><img src="https://trendshift.io/api/badge/repositories/4378" alt="browserless%2Fbrowserless | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+    </p>
     <a href="https://hub.docker.com/r/browserless/chrome">
       <img src="https://img.shields.io/docker/pulls/browserless/chrome" alt="Docker pulls" />
     </a>
@@ -34,7 +37,7 @@
   <br>
 </div>
 
-> [!NOTE]  
+> [!NOTE]
 > Looking to bypass bot detectors and solve captchas? [We would recommend using BrowserQL as our stealthiest option](https://www.browserless.io/feature/browserql).
 
 Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
