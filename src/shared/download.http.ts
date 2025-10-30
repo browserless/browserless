@@ -57,7 +57,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   that are written for execution inside of the browser. Once your script is finished, any
   downloaded files from Chromium are returned back with the appropriate content-type header.`);
   method = Methods.post;
-  path = [HTTPRoutes.download, HTTPRoutes.chromiumDownload];
+  path = [HTTPRoutes.chromiumDownload, HTTPRoutes.download];
   tags = [APITags.browserAPI];
   async handler(
     req: Request,

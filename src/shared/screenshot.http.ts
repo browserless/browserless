@@ -63,7 +63,7 @@ export interface BodySchema {
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
   viewport?: Parameters<Page['setViewport']>[0];
-  waitForEvent?: WaitForEventOptions;                                                       
+  waitForEvent?: WaitForEventOptions;
   waitForFunction?: WaitForFunctionOptions;
   waitForSelector?: WaitForSelectorOptions;
   waitForTimeout?: number;
@@ -82,7 +82,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     cookies, user-agents, setting timers and network mocks.
   `);
   method = Methods.post;
-  path = [HTTPRoutes.screenshot, HTTPRoutes.chromiumScreenshot];
+  path = [HTTPRoutes.chromiumScreenshot, HTTPRoutes.screenshot];
   tags = [APITags.browserAPI];
   async handler(
     req: Request,

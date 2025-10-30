@@ -310,6 +310,4 @@ describe('/chromium/function API', function () {
       expect(res.status).to.equal(200);
     });
   });
-
-
 });

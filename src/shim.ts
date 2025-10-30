@@ -5,7 +5,13 @@ import {
   safeParse,
 } from '@browserless.io/browserless';
 
-const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo', 'ignoreHTTPSErrors'];
+const shimParam = [
+  'headless',
+  'stealth',
+  'ignoreDefaultArgs',
+  'slowMo',
+  'ignoreHTTPSErrors',
+];
 
 /**
  * Obfuscates the ?token parameter by shifting it to a header instead of a query-parameter.
