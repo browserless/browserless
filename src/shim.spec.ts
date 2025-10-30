@@ -184,7 +184,8 @@ describe('Request Shimming', () => {
     });
 
     it('acceptInsecureCerts takes precedence over ignoreHTTPSErrors', () => {
-      const url = 'wss://localhost?ignoreHTTPSErrors&launch={"acceptInsecureCerts":false}';
+      const url =
+        'wss://localhost?ignoreHTTPSErrors&launch={"acceptInsecureCerts":false}';
       const final = 'wss://localhost/?launch={"acceptInsecureCerts":false}';
       const shimmed = shimLegacyRequests(new URL(url));
 

@@ -53,7 +53,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
   Values returned from the function are checked and an appropriate content-type and response is sent back
   to your HTTP call.`);
   method = Methods.post;
-  path = [HTTPRoutes.function, HTTPRoutes.chromiumFunction];
+  path = [HTTPRoutes.chromiumFunction, HTTPRoutes.function];
   tags = [APITags.browserAPI];
   async handler(
     req: Request,

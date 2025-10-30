@@ -2,7 +2,13 @@
 /* global fetch, console, process */
 'use strict';
 
-import { createWriteStream, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+} from 'fs';
 import path, { join } from 'path';
 import { Readable } from 'stream';
 import { deleteAsync } from 'del';
@@ -63,10 +69,14 @@ import unzip from 'extract-zip';
 
   const extensionSourceDir = findExtensionDir(tmpDir);
   if (!extensionSourceDir) {
-    throw new Error('Could not find uBlock Lite extension directory with manifest.json');
+    throw new Error(
+      'Could not find uBlock Lite extension directory with manifest.json',
+    );
   }
 
-  await cp(extensionSourceDir, join(extensionsDir, 'ublocklite'), { recursive: true });
+  await cp(extensionSourceDir, join(extensionsDir, 'ublocklite'), {
+    recursive: true,
+  });
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });

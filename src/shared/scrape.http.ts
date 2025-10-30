@@ -157,7 +157,10 @@ export interface ResponseSchema {
   } | null;
 }
 
-const scrape = async (elements: ScrapeElementSelector[], bestAttempt = false) => {
+const scrape = async (
+  elements: ScrapeElementSelector[],
+  bestAttempt = false,
+) => {
   const wait = (selector: string, timeout = 30000) => {
     return new Promise<void>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -182,7 +185,9 @@ const scrape = async (elements: ScrapeElementSelector[], bestAttempt = false) =>
 
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        console.warn(`Selector "${elements[index].selector}" failed: ${result.reason.message}`);
+        console.warn(
+          `Selector "${elements[index].selector}" failed: ${result.reason.message}`,
+        );
       }
     });
   } else {
@@ -227,7 +232,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     property. Responds with an array of JSON objects.
   `);
   method = Methods.post;
-  path = [HTTPRoutes.scrape, HTTPRoutes.chromiumScrape];
+  path = [HTTPRoutes.chromiumScrape, HTTPRoutes.scrape];
   tags = [APITags.browserAPI];
   async handler(
     req: Request,
@@ -299,11 +304,13 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
           method: req.method(),
           url: req.url(),
         });
-        if (!(
-          rejectRequestPattern.length ||
-          requestInterceptors.length ||
-          rejectResourceTypes.length
-        )) {
+        if (
+          !(
+            rejectRequestPattern.length ||
+            requestInterceptors.length ||
+            rejectResourceTypes.length
+          )
+        ) {
           req.continue();
         }
       });
@@ -428,12 +435,14 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
       }
     }
 
-    const data = await page.evaluate(scrape, elements, bestAttempt).catch((e) => {
-      if (e.message.includes('Timed out')) {
-        throw new Timeout(e);
-      }
-      throw e;
-    });
+    const data = await page
+      .evaluate(scrape, elements, bestAttempt)
+      .catch((e) => {
+        if (e.message.includes('Timed out')) {
+          throw new Timeout(e);
+        }
+        throw e;
+      });
 
     const [debugHTML, screenshot, pageCookies] = await Promise.all([
       debugOpts?.html ? (page.content() as Promise<string>) : null,

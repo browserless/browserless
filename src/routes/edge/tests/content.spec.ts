@@ -387,13 +387,16 @@ describe('/edge/content API', function () {
       url: 'https://self-signed.badssl.com',
     };
 
-    await fetch('http://localhost:3000/edge/content?token=browserless&launch={"acceptInsecureCerts":true}', {
-      body: JSON.stringify(body),
-      headers: {
-        'content-type': 'application/json',
+    await fetch(
+      'http://localhost:3000/edge/content?token=browserless&launch={"acceptInsecureCerts":true}',
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    }).then(async (res) => {
+    ).then(async (res) => {
       expect(res.status).to.equal(200);
     });
   });
