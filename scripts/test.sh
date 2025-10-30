@@ -2,7 +2,7 @@
 set -e
 
 # Install all dependencies for tests
-npm clean-install
+npm cache clean --force && rm -rf ./node_modules && rm ./package-lock.json && npm install
 
 # Setup Env Variables
 export DEBUG=-*
