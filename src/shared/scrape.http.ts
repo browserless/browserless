@@ -299,7 +299,13 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
           method: req.method(),
           url: req.url(),
         });
-        req.continue();
+        if (!(
+          rejectRequestPattern.length ||
+          requestInterceptors.length ||
+          rejectResourceTypes.length
+        )) {
+          req.continue();
+        }
       });
 
       page.on('response', (res) => {
