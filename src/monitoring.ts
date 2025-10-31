@@ -36,7 +36,7 @@ export class Monitoring extends EventEmitter {
     const cpuInt = cpu && Math.ceil(cpu * 100);
     const memoryInt = memory && Math.ceil(memory * 100);
 
-    this.log.info(
+    this.log.debug(
       `Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`,
     );
 

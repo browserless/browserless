@@ -419,6 +419,7 @@ export interface BrowserlessSession {
   trackingId?: string;
   ttl: number;
   userDataDir: string | null;
+  logger?: Logger;
 }
 
 export interface BrowserlessSessionJSON {
