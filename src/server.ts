@@ -103,7 +103,7 @@ export class HTTPServer extends EventEmitter {
   }
 
   public async start(): Promise<void> {
-    this.logger.info(`HTTP Server is starting`);
+    this.logger.debug(`HTTP Server is starting`);
 
     this.server.on('request', this.handleRequest.bind(this));
     this.server.on('upgrade', this.handleWebSocket.bind(this));
@@ -121,7 +121,7 @@ export class HTTPServer extends EventEmitter {
         },
         undefined,
         () => {
-          this.logger.info(listenMessage);
+          this.logger.debug(listenMessage);
           r(undefined);
         },
       );
@@ -423,7 +423,7 @@ export class HTTPServer extends EventEmitter {
   }
 
   public async shutdown(): Promise<void> {
-    this.logger.info(`HTTP Server is shutting down`);
+    this.logger.debug(`HTTP Server is shutting down`);
     await new Promise((r) => this.server?.close(r));
 
     if (this.server) {
@@ -432,7 +432,7 @@ export class HTTPServer extends EventEmitter {
 
     // @ts-ignore garbage collect this reference
     this.server = null;
-    this.logger.info(`HTTP Server shutdown complete`);
+    this.logger.debug(`HTTP Server shutdown complete`);
   }
 
   /**

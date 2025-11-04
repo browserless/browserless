@@ -50,7 +50,6 @@
     "tsconfig.json"
   ],
   "dependencies": {
-    "winston": "^3.14.2",
     "@hapi/bourne": "^3.0.0",
     "@hapi/hoek": "^11.0.4",
     "debug": "^4.4.1",
