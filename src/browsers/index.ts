@@ -626,10 +626,12 @@ export class BrowserManager {
     });
     await this.hooks.browser({ browser, req });
 
-    // Store logger in session metadata
-    if (logger) {
-      logger.setMetadata('sessionId', browser.wsEndpoint()?.split('/').pop() as string);
-      logger.setMetadata('trackingId', trackingId);
+    const sessionId = browser.wsEndpoint()?.split('/').pop() as string;
+    if (logger && sessionId) {
+      logger.setMetadata('sessionId', sessionId);
+      if (trackingId) {
+        logger.setMetadata('trackingId', trackingId);
+      }
       logger.setMetadata('routePath', router.path);
     }
 

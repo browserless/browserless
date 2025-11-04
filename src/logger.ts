@@ -97,21 +97,23 @@ export class Logger {
 
   /**
    * Get tracking ID from token and request ID
+   * Only includes token prefix if token is available and meaningful (not shared across all requests)
    */
   protected getTrackingId(): string {
     if (!this.request) {
       return this.sessionMetadata.requestId || '';
     }
-    let token = getTokenFromRequest(this.request);
-    if (!token) {
-      return this.sessionMetadata.requestId || '';
-    }
-    const isLegacyToken = token.length > 32;
-    if (!isLegacyToken) {
-      token = token.slice(0, customerIdLength);
-    }
     const requestId = this.sessionMetadata.requestId || this.generateRequestId();
-    return `${token} ${requestId}`;
+    
+    const token = getTokenFromRequest(this.request);
+    if (!token) {
+      return requestId;
+    }
+    
+    const isLegacyToken = token.length > 32;
+    const tokenPrefix = isLegacyToken ? token : token.slice(0, customerIdLength);
+    
+    return `${tokenPrefix} ${requestId}`;
   }
 
   /**
@@ -119,22 +121,6 @@ export class Logger {
    */
   public setMetadata(key: string, value: unknown): void {
     this.sessionMetadata[key] = value;
-  }
-
-  /**
-   * Get session metadata
-   */
-  public getMetadata(): SessionMetadata {
-    return { ...this.sessionMetadata };
-  }
-
-  /**
-   * Get a child logger with extended prefix
-   */
-  public createChild(prefix: string): Logger {
-    const child = new Logger(`${this.prefix}:${prefix}`, this.request);
-    child.sessionMetadata = { ...this.sessionMetadata };
-    return child;
   }
 
   protected get reqInfo() {
@@ -277,7 +263,7 @@ export class Logger {
    */
   public logWithContext(level: 'info' | 'debug' | 'warn' | 'error', ...messages: unknown[]) {
     const contextMsg = `[${Object.entries(this.sessionMetadata)
-      .filter(([_, v]) => v !== undefined)
+      .filter(([, v]) => v !== undefined)
       .map(([k, v]) => `${k}:${v}`)
       .join(' ')}]`;
     this[level](contextMsg, ...messages);
