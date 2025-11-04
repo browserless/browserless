@@ -79,11 +79,24 @@ export class Logger {
   }
 
   protected get reqInfo() {
-    const parts = [this.sessionMetadata.remoteAddress || 'Unknown'];
+    const parts: string[] = [];
+    
+    // Connection info
+    if (this.sessionMetadata.remoteAddress) {
+      parts.push(`[${this.sessionMetadata.remoteAddress}]`);
+    }
+    
+    // Session tracking
     if (this.sessionMetadata.sessionId) {
       parts.push(`session:${this.sessionMetadata.sessionId}`);
     }
-    return parts.join(' ');
+    
+    // Request context (if available)
+    if (this.sessionMetadata.method && this.sessionMetadata.path) {
+      parts.push(`${this.sessionMetadata.method} ${this.sessionMetadata.path}`);
+    }
+    
+    return parts.length > 0 ? parts.join(' ') : '';
   }
 
   protected getSessionId(): string | undefined {
@@ -129,7 +142,7 @@ export class Logger {
    */
   public logWithContext(level: 'info' | 'debug' | 'warn' | 'error', ...messages: unknown[]) {
     const contextMsg = `[${Object.entries(this.sessionMetadata)
-      .filter(([_, v]) => v !== undefined)
+      .filter(([, v]) => v !== undefined)
       .map(([k, v]) => `${k}:${v}`)
       .join(' ')}]`;
     this[level](contextMsg, ...messages);
