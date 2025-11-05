@@ -1,12 +1,14 @@
 <!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading no-inline-html -->
 
 <div align="center">
-  <a href="https://browserless.io">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://browserless.io/assets/logo-white.svg" width="600">
-      <source media="(prefers-color-scheme: light)" srcset="https://browserless.io/assets/logo.svg" width="600">
-      <img src="https://browserless.io/assets/logo.svg" alt="Browserless" width="600">
-    </picture>
+  <a href="https://browserless.io" align="center">
+    <center align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="600">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg" width="600">
+        <img src="./assets/logo.svg" alt="Browserless logo" width="600">
+      </picture>
+    </center>
   </a>
 
   <h3>Deploy headless browsers in Docker. Run on our cloud or bring your own.</h3>
