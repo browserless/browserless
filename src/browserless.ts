@@ -285,7 +285,7 @@ export class Browserless extends EventEmitter {
 
     this.logger.info(printLogo(docsLink, debuggerURL));
     this.logger.info(`Running as user "${userInfo().username}"`);
-    this.logger.info('Starting import of HTTP Routes');
+    this.logger.debug('Starting import of HTTP Routes');
 
     for (const httpRoute of [
       ...this.httpRouteFiles,
@@ -334,7 +334,7 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    this.logger.info('Starting import of WebSocket Routes');
+    this.logger.debug('Starting import of WebSocket Routes');
     for (const wsRoute of [
       ...this.webSocketRouteFiles,
       ...internalWsRouteFiles,
@@ -420,7 +420,7 @@ export class Browserless extends EventEmitter {
     filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
-    this.logger.info(
+    this.logger.debug(
       `Imported and validated all route files, starting up server.`,
     );
 
@@ -435,7 +435,7 @@ export class Browserless extends EventEmitter {
 
     await this.loadPwVersions();
     await this.server.start();
-    this.logger.info(`Starting metrics collection.`);
+    this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
       () => this.saveMetrics(),
       this.metricsSaveInterval,
