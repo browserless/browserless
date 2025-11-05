@@ -66,7 +66,7 @@ export class Router extends EventEmitter {
   ) {
     return async (req: Request, res: Response) => {
       if (!isConnected(res)) {
-        this.log.warn(`HTTP Request has closed prior to running`);
+        this.log.debug(`HTTP Request has closed prior to running`);
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
@@ -82,7 +82,7 @@ export class Router extends EventEmitter {
         );
 
         if (!isConnected(res)) {
-          this.log.warn(`HTTP Request has closed prior to running`);
+          this.log.debug(`HTTP Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }
@@ -121,7 +121,7 @@ export class Router extends EventEmitter {
   ) {
     return async (req: Request, socket: stream.Duplex, head: Buffer) => {
       if (!isConnected(socket)) {
-        this.log.warn(`WebSocket Request has closed prior to running`);
+        this.log.debug(`WebSocket Request has closed prior to running`);
         return Promise.resolve();
       }
       const logger = new this.logger(route.name, req);
@@ -137,7 +137,7 @@ export class Router extends EventEmitter {
         );
 
         if (!isConnected(socket)) {
-          this.log.warn(`WebSocket Request has closed prior to running`);
+          this.log.debug(`WebSocket Request has closed prior to running`);
           this.browserManager.complete(browser);
           return Promise.resolve();
         }

@@ -174,7 +174,7 @@ export class Browserless extends EventEmitter {
 
     this.metrics.reset();
 
-    this.logger.info(
+    this.logger.debug(
       `Current period usage: ${JSON.stringify({
         date: aggregatedStats.date,
         error: aggregatedStats.error,
@@ -191,7 +191,7 @@ export class Browserless extends EventEmitter {
     );
 
     if (metricsPath) {
-      this.logger.info(`Saving metrics to "${metricsPath}"`);
+      this.logger.debug(`Saving metrics to "${metricsPath}"`);
       this.fileSystem.append(
         metricsPath,
         JSON.stringify(aggregatedStats),
@@ -283,9 +283,9 @@ export class Browserless extends EventEmitter {
       makeExternalURL(this.config.getExternalAddress(), `/debugger/?token=xxx`);
     const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
 
-    this.logger.info(printLogo(docsLink, debuggerURL));
-    this.logger.info(`Running as user "${userInfo().username}"`);
-    this.logger.info('Starting import of HTTP Routes');
+    this.logger.debug(printLogo(docsLink, debuggerURL));
+    this.logger.debug(`Running as user "${userInfo().username}"`);
+    this.logger.debug('Starting import of HTTP Routes');
 
     for (const httpRoute of [
       ...this.httpRouteFiles,
@@ -334,7 +334,7 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    this.logger.info('Starting import of WebSocket Routes');
+    this.logger.debug('Starting import of WebSocket Routes');
     for (const wsRoute of [
       ...this.webSocketRouteFiles,
       ...internalWsRouteFiles,
@@ -420,7 +420,7 @@ export class Browserless extends EventEmitter {
     filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
     filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
-    this.logger.info(
+    this.logger.debug(
       `Imported and validated all route files, starting up server.`,
     );
 
@@ -435,7 +435,7 @@ export class Browserless extends EventEmitter {
 
     await this.loadPwVersions();
     await this.server.start();
-    this.logger.info(`Starting metrics collection.`);
+    this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
       () => this.saveMetrics(),
       this.metricsSaveInterval,
