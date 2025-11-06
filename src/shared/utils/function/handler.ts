@@ -93,7 +93,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
      */
     page.on('request', async (request) => {
       const requestUrl = request.url();
-      logger.info(`Outbound Page Request: "${requestUrl}"`);
+      logger.trace(`Outbound Page Request: "${requestUrl}"`);
       if (requestUrl.startsWith(functionRequestPath)) {
         const filename = path.basename(requestUrl);
         if (filename === functionCodeJS) {
@@ -121,7 +121,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
           status: 404,
         });
       }
-      logger.info(`Request: "${requestUrl}" no responder found, continuing...`);
+      logger.trace(`Request: "${requestUrl}" no responder found, continuing...`);
       return request.continue();
     });
 

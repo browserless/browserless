@@ -274,6 +274,6 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     await new Promise((r) => readStream.pipe(res).once('close', r));
 
     page.close().catch(noop);
-    logger.info('Screenshot API request completed');
+    logger.debug('Screenshot API request completed');
   }
 }

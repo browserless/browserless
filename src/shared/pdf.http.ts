@@ -257,6 +257,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
 
     page.close().catch(noop);
 
-    logger.info('PDF API request completed');
+    logger.debug('PDF API request completed');
   }
 }
