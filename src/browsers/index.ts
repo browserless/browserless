@@ -628,8 +628,9 @@ export class BrowserManager {
     });
     await this.hooks.browser({ browser, req });
 
+    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
-      id: getFinalPathSegment(browser.wsEndpoint()!)!,
+      id: sessionId,
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
       isTempDataDir: !manualUserDataDir,
@@ -642,6 +643,12 @@ export class BrowserManager {
       ttl: 0,
       userDataDir,
     };
+
+    // Update logger with session context now that we have tracking ID and session ID
+    logger.setSessionContext({
+      trackingId,
+      sessionId,
+    });
 
     this.browsers.set(browser, session);
 
