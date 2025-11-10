@@ -113,7 +113,7 @@ await browser.close();
 
 </br>
 
-**Output:**
+### Output:
 ```
 Example Domain
 ```
@@ -129,18 +129,22 @@ Example Domain
 - **Fonts & emoji** — All system fonts and emoji support out-of-the-box
 - **Configurable timeouts** — Set session timers and health-checks to keep things running smoothly
 - **Error tolerant** — If Chrome crashes, Browserless won't
-- **Apple M series support** — Full support for development and running on ARM architecture
+- **ARM64 architecture support** — Full support for ARM64 platforms including Apple Silicon; some browsers (Edge, Chrome) have limited ARM64 compatibility
 
 ### Premium Features
 
-Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
+Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
 
 - **[BrowserQL](https://www.browserless.io/feature/browserql)** for avoiding detectors and solving captchas
-- **[Hybrid automations](https://www.browserless.io/blog/hybrid-automations-for-puppeteer/)** for streaming login windows during scripts
-- **[/reconnect API](https://www.browserless.io/blog/reconnect-api)** for keeping browsers alive for reuse
-- **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Lighthouse metrics
-- Inbuilt **[residential proxy](https://www.browserless.io/blog/residential-proxying/)**
-- **SSO, tokens and user roles**
+- **[Hybrid automations](https://docs.browserless.io/baas/interactive-browser-sessions/hybrid-automation)** for streaming live browser sessions during scripts
+- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/standard-sessions)** for database-backed session storage that survives restarts and enables cross-request session reuse
+- **[Session Replay](https://docs.browserless.io/baas/interactive-browser-sessions/session-replay)** for recording and debugging browser sessions with event capture and video playback
+- **Chrome Extensions Support** for loading custom extensions including ad blockers, captcha solvers, etc.
+- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with 2Captcha, fingerprint randomization, and residential proxy rotation
+- **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
+- **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/)** for automatic IP rotation and geo-targeting with residential proxy networks
+- **Usage-Based Metering** for per-token quotas, rate limiting, and pay-per-use billing
+- **Webhook Integrations** for lifecycle events, session notifications, and error callbacks
 
 ## 🚢 Customisable Deployment Options
 
@@ -198,7 +202,7 @@ Custom Enterprise infrastructure across major cloud providers.
 </table>
 
 
-> **Want to dive deeper?** Check out [LEARN_MORE.md](./LEARN_MORE.md) for advanced topics including Docker configuration, hosting providers, SDK extensions, and more.
+> **Want to dive deeper?** Check out this [detailed guide](./LEARN_MORE.md) for advanced stuff including Docker configuration, hosting providers, SDK extensions, and more.
 
 
 ## 💡 Why Browserless?
@@ -209,7 +213,7 @@ Missing fonts. Random crashes. Dependency hell. Lambda limits. You know the dril
 
 **Browserless solves this** by handling browsers as a managed service — locally or in our cloud — so you can focus on automation, not infrastructure. We've taken care of the hard parts: system packages, font libraries, security patches, scaling strategies, and CVEs.
 
-You still own your script. You still control your code. We just make sure Chrome runs smoothly, every time.
+You still own your script. You still control your code. We just make sure the Browser runs smoothly, every time.
 
 ## 📜 Licensing
 
