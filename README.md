@@ -137,14 +137,13 @@ Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/prici
 
 - **[BrowserQL](https://www.browserless.io/feature/browserql)** for avoiding detectors and solving captchas
 - **[Hybrid automations](https://docs.browserless.io/baas/interactive-browser-sessions/hybrid-automation)** for streaming live browser sessions during scripts
-- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/standard-sessions)** for database-backed session storage that survives restarts and enables cross-request session reuse
+- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/persisting-state)** for persisting browser state (cookies, cache, localStorage) across multiple sessions with configurable data retention up to 90 days
 - **[Session Replay](https://docs.browserless.io/baas/interactive-browser-sessions/session-replay)** for recording and debugging browser sessions with event capture and video playback
-- **Chrome Extensions Support** for loading custom extensions including ad blockers, captcha solvers, etc.
-- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with 2Captcha, fingerprint randomization, and residential proxy rotation
+- **[Chrome Extensions Support](https://docs.browserless.io/baas/features/browser-extensions)** for loading custom extensions including ad blockers, captcha solvers, etc.
+- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with Captcha solving, fingerprint randomization, and residential proxy rotation
 - **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
 - **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/)** for automatic IP rotation and geo-targeting with residential proxy networks
-- **Usage-Based Metering** for per-token quotas, rate limiting, and pay-per-use billing
-- **Webhook Integrations** for lifecycle events, session notifications, and error callbacks
+- **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
 
 ## 🚢 Customisable Deployment Options
 
