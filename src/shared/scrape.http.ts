@@ -361,8 +361,8 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
 
       page.on('request', (req) => {
         if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
+          rejectResourceTypes.includes(req.resourceType()) ||
+          !!rejectRequestPattern.find((pattern) => req.url().match(pattern))
         ) {
           logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
           return req.abort();
