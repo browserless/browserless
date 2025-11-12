@@ -472,7 +472,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
 
     page.close().catch(noop);
 
-    logger.info('Scrape API request completed');
+    logger.debug('Scrape API request completed');
 
     return jsonResponse(res, 200, response, false);
   }

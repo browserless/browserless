@@ -42,22 +42,22 @@ export class Limiter extends q {
     });
     this.queued = config.getQueued();
 
-    this.logger.info(
+    this.logger.debug(
       `Concurrency: ${this.concurrency} queue: ${this.queued} timeout: ${this.timeout}ms`,
     );
 
     config.on('concurrent', (concurrency: number) => {
-      this.logger.info(`Concurrency updated to ${concurrency}`);
+      this.logger.debug(`Concurrency updated to ${concurrency}`);
       this.concurrency = concurrency;
     });
 
     config.on('queued', (queued: number) => {
-      this.logger.info(`Queue updated to ${queued}`);
+      this.logger.debug(`Queue updated to ${queued}`);
       this.queued = queued;
     });
 
     config.on('timeout', (timeout: number) => {
-      this.logger.info(`Timeout updated to ${timeout}ms`);
+      this.logger.debug(`Timeout updated to ${timeout}ms`);
       this.timeout = timeout <= 0 ? 0 : timeout;
     });
 
@@ -91,7 +91,7 @@ export class Limiter extends q {
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
-    this.logger.info(
+    this.logger.debug(
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
@@ -114,7 +114,7 @@ export class Limiter extends q {
     );
     this.metrics.addTimedout(Date.now() - job.start);
     this.webhooks.callTimeoutAlertURL();
-    this.logger.info(`Calling timeout handler`);
+    this.logger.debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
     this.jobEnd({
       req: job.args[0],
@@ -130,7 +130,7 @@ export class Limiter extends q {
   }: {
     detail: { error: unknown; job: Job };
   }) {
-    this.logger.info(
+    this.logger.debug(
       `Recording failed stat, cleaning up: "${error?.toString()}"`,
     );
     this.metrics.addError(Date.now() - job.start);
@@ -147,7 +147,7 @@ export class Limiter extends q {
   }
 
   protected logQueue(message: string) {
-    this.logger.info(
+    this.logger.debug(
       `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
     );
   }

@@ -68,7 +68,7 @@ export class BrowserManager {
 
   protected async removeUserDataDir(userDataDir: string | null) {
     if (userDataDir && (await exists(userDataDir))) {
-      this.log.info(`Deleting data directory "${userDataDir}"`);
+      this.log.debug(`Deleting data directory "${userDataDir}"`);
       await deleteAsync(userDataDir, { force: true }).catch((err) => {
         this.log.error(
           `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
@@ -123,7 +123,7 @@ export class BrowserManager {
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
   public async getVersionJSON(logger: Logger): Promise<CDPJSONPayload> {
-    this.log.info(`Launching Chromium to generate /json/version results`);
+    this.log.debug(`Launching Chromium to generate /json/version results`);
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -313,11 +313,11 @@ export class BrowserManager {
     const priorTimer = this.timers.get(session.id);
 
     if (priorTimer) {
-      this.log.info(`Deleting prior keep-until timer for "${session.id}"`);
+      this.log.debug(`Deleting prior keep-until timer for "${session.id}"`);
       global.clearTimeout(priorTimer);
     }
 
-    this.log.info(
+    this.log.debug(
       `${session.numbConnected} Client(s) are currently connected, Keep-until: ${keepUntil}, force: ${force}`,
     );
 
@@ -339,11 +339,11 @@ export class BrowserManager {
     }
 
     if (!keepOpen) {
-      this.log.info(`Closing browser session`);
+      this.log.debug(`Closing browser session`);
       cleanupACtions.push(() => browser.close());
 
       if (session.isTempDataDir) {
-        this.log.info(
+        this.log.debug(
           `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
         );
         this.browsers.delete(browser);
@@ -355,7 +355,7 @@ export class BrowserManager {
   }
 
   public async killSessions(target: string): Promise<void> {
-    this.log.info(`killSessions invoked target: "${target}"`);
+    this.log.debug(`killSessions invoked target: "${target}"`);
     const sessions = Array.from(this.browsers);
     let closed = 0;
     for (const [browser, session] of sessions) {
@@ -364,7 +364,7 @@ export class BrowserManager {
         session.id === target ||
         target === 'all'
       ) {
-        this.log.info(
+        this.log.debug(
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
         this.close(browser, session, true);
@@ -399,7 +399,7 @@ export class BrowserManager {
   public async complete(browser: BrowserInstance): Promise<void> {
     const session = this.browsers.get(browser);
     if (!session) {
-      this.log.info(
+      this.log.debug(
         `Couldn't locate session for browser, proceeding with close`,
       );
       return browser.close();
@@ -454,7 +454,7 @@ export class BrowserManager {
         throw new BadRequest(`trackingId cannot be the reserved word "all"`);
       }
 
-      this.log.info(`Assigning session trackingId "${trackingId}"`);
+      this.log.debug(`Assigning session trackingId "${trackingId}"`);
     }
 
     const decodedLaunchOptions = convertIfBase64(
@@ -628,8 +628,9 @@ export class BrowserManager {
     });
     await this.hooks.browser({ browser, req });
 
+    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
-      id: getFinalPathSegment(browser.wsEndpoint()!)!,
+      id: sessionId,
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
       isTempDataDir: !manualUserDataDir,
@@ -642,6 +643,12 @@ export class BrowserManager {
       ttl: 0,
       userDataDir,
     };
+
+    // Update logger with session context now that we have tracking ID and session ID
+    logger.setSessionContext({
+      trackingId,
+      sessionId,
+    });
 
     this.browsers.set(browser, session);
 
