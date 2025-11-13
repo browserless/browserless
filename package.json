@@ -81,7 +81,7 @@
     "@types/micromatch": "^4.0.10",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.10.1",
-    "@types/sinon": "^17.0.4",
+    "@types/sinon": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "assert": "^2.0.0",
