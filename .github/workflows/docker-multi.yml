@@ -5,6 +5,9 @@ on: [workflow_call]
 jobs:
   Test:
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node-version: ['lts/iron', 'lts/jod', 'v24.11.1']
     steps:
       - uses: actions/checkout@v2
 
@@ -14,7 +17,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 5
           retry_wait_seconds: 30
-          command: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+          command: docker build --build-arg NODE_VERSION=${{ matrix.node-version }} -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:${{ matrix.node-version }} .
 
       - name: Build the multi image
         uses: nick-fields/retry@v3
@@ -22,7 +25,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 5
           retry_wait_seconds: 30
-          command: docker build --build-arg VERSION=latest -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:latest .
+          command: docker build --build-arg VERSION=${{ matrix.node-version }} -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:${{ matrix.node-version }} .
 
       - name: Test the multi image
         uses: nick-fields/retry@v3
@@ -30,4 +33,4 @@ jobs:
           timeout_minutes: 10
           max_attempts: 5
           retry_wait_seconds: 30
-          command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/multi:latest
+          command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/multi:${{ matrix.node-version }}
