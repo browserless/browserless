@@ -39,31 +39,133 @@ import { Cookie, Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 
 export interface BodySchema {
+  /**
+   * An array of script tags to add to the page before scraping.
+   * Each object can contain properties like `url`, `path`, or `content`.
+   */
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
+
+  /**
+   * An array of style tags to add to the page before scraping.
+   * Each object can contain properties like `url`, `path`, or `content`.
+   */
   addStyleTag?: Array<Parameters<Page['addStyleTag']>[0]>;
+
+  /**
+   * Credentials for HTTP authentication. Contains `username` and `password` properties.
+   */
   authenticate?: Parameters<Page['authenticate']>[0];
+
+  /**
+   * When bestAttempt is set to true, browserless will attempt to proceed
+   * when "awaited" events fail or timeout. This includes things like
+   * goto, waitForSelector, and more.
+   */
   bestAttempt?: bestAttempt;
+
+  /**
+   * An array of cookies to set on the page before navigation.
+   * Each cookie object should contain at least `name` and `value` properties.
+   */
   cookies?: Array<Parameters<Page['setCookie']>[0]>;
+
+  /**
+   * Debug options for capturing additional information during scraping.
+   * Includes options for console logs, cookies, HTML, network activity, and screenshots.
+   */
   debugOpts?: ScrapeDebugOptions;
+
+  /**
+   * An array of element selectors to scrape from the page.
+   * Each object contains a `selector` CSS selector and optional `timeout` in milliseconds.
+   */
   elements: Array<ScrapeElementSelector>;
+
+  /**
+   * Changes the CSS media type of the page. Accepts values like "screen" or "print".
+   */
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
+
+  /**
+   * Options to configure the page navigation, such as `timeout` and `waitUntil`.
+   */
   gotoOptions?: Parameters<Page['goto']>[1];
+
+  /**
+   * HTML content to set as the page content instead of navigating to a URL.
+   */
   html?: Parameters<Page['setContent']>[0];
+
+  /**
+   * An array of patterns to match against request URLs for automatic rejection.
+   * Requests matching these patterns will be aborted.
+   */
   rejectRequestPattern?: rejectRequestPattern[];
+
+  /**
+   * An array of resource types to reject during page load.
+   * Common types include "image", "stylesheet", "font", "script", etc.
+   */
   rejectResourceTypes?: rejectResourceTypes[];
+
+  /**
+   * An array of request interceptors that can modify or mock network requests.
+   * Each interceptor has a `pattern` to match URLs and a `response` to return.
+   */
   requestInterceptors?: Array<requestInterceptors>;
+
+  /**
+   * An object containing additional HTTP headers to send with every request.
+   */
   setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+
+  /**
+   * Whether or not to allow JavaScript to run on the page.
+   */
   setJavaScriptEnabled?: boolean;
+
+  /**
+   * The URL to navigate to before scraping.
+   */
   url?: Parameters<Page['goto']>[0];
+
+  /**
+   * The user agent string to use for the page.
+   */
   userAgent?: Parameters<Page['setUserAgent']>[0];
+
+  /**
+   * The viewport dimensions and settings for the page.
+   * Includes properties like `width`, `height`, `deviceScaleFactor`, etc.
+   */
   viewport?: Parameters<Page['setViewport']>[0];
+
+  /**
+   * Options for waiting for a specific event to be fired on the page.
+   */
   waitForEvent?: WaitForEventOptions;
+
+  /**
+   * Options for waiting for a JavaScript function to return a truthy value.
+   */
   waitForFunction?: WaitForFunctionOptions;
+
+  /**
+   * Options for waiting for a specific CSS selector to appear on the page.
+   */
   waitForSelector?: WaitForSelectorOptions;
+
+  /**
+   * The amount of time in milliseconds to wait before scraping.
+   */
   waitForTimeout?: number;
 }
 
 export type QuerySchema = SystemQueryParameters & {
+  /**
+   * Launch options for the browser, either as a JSON object or a JSON string.
+   * Includes options like `headless`, `args`, `defaultViewport`, etc.
+   */
   launch?: CDPLaunchOptions | string;
 };
 

@@ -466,33 +466,108 @@ export type WaitForFunctionOptions = {
   timeout?: number;
 };
 
+/**
+ * Options for waiting for a specific CSS selector to appear on the page.
+ */
 export type WaitForSelectorOptions = {
+  /**
+   * Wait for the element to be hidden or removed from the DOM.
+   */
   hidden?: boolean;
+
+  /**
+   * The CSS selector to wait for.
+   */
   selector: string;
+
+  /**
+   * Maximum time to wait for in milliseconds. Defaults to 30000 (30 seconds).
+   */
   timeout?: number;
+
+  /**
+   * Wait for the element to be visible, i.e. not have "display: none" or "visibility: hidden".
+   */
   visible?: boolean;
 };
 
+/**
+ * Options for waiting for a specific event to be fired on the page.
+ */
 export type WaitForEventOptions = {
+  /**
+   * The name of the event to wait for (e.g., "load", "domcontentloaded", "networkidle0").
+   */
   event: string;
+
+  /**
+   * Maximum time to wait for in milliseconds. Defaults to 30000 (30 seconds).
+   */
   timeout?: number;
 };
+
+/**
+ * Options for controlling screenshot dimensions.
+ */
 export interface ScreenshotSizeOptions {
+  /**
+   * The height of the screenshot in pixels.
+   */
   height?: number;
+
+  /**
+   * The scale factor for the screenshot (e.g., 2 for 2x resolution).
+   */
   scale?: number;
+
+  /**
+   * The width of the screenshot in pixels.
+   */
   width?: number;
 }
 
+/**
+ * Options for scraping specific elements from the page.
+ */
 export interface ScrapeElementSelector {
+  /**
+   * The CSS selector to find elements to scrape.
+   */
   selector: string;
+
+  /**
+   * Maximum time to wait for the selector in milliseconds.
+   */
   timeout?: number;
 }
 
+/**
+ * Debug options for capturing additional information during scraping.
+ */
 export interface ScrapeDebugOptions {
+  /**
+   * Whether to capture console messages from the page.
+   */
   console?: boolean;
+
+  /**
+   * Whether to capture cookies from the page.
+   */
   cookies?: boolean;
+
+  /**
+   * Whether to capture the full HTML content of the page.
+   */
   html?: boolean;
+
+  /**
+   * Whether to capture network requests and responses.
+   */
   network?: boolean;
+
+  /**
+   * Whether to capture a screenshot of the page.
+   */
   screenshot?: boolean;
 }
 
@@ -529,9 +604,15 @@ export type setJavaScriptEnabled = boolean;
 
 /**
  * A pattern to match requests with automatic rejections.
- * Internally we do this with the following: `req.url().match(pattern)`.
+ * Requests are rejected when their URL matches this pattern using `req.url().match(pattern)`.
  */
 export type rejectRequestPattern = string;
+
+/**
+ * Resource types to reject during page load. Common types include:
+ * "document", "stylesheet", "image", "media", "font", "script", "texttrack",
+ * "xhr", "fetch", "eventsource", "websocket", "manifest", "other".
+ */
 export type rejectResourceTypes = ReturnType<HTTPRequest['resourceType']>;
 
 /**

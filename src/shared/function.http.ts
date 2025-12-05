@@ -21,13 +21,30 @@ import { fileTypeFromBuffer } from 'file-type';
 import functionHandler from './utils/function/handler.js';
 
 interface JSONSchema {
+  /**
+   * The JavaScript/Puppeteer code to execute in the browser context.
+   * The code should export a default async function that receives { page, context }.
+   */
   code: string;
+
+  /**
+   * An optional context object with key-value pairs to pass to the function.
+   * These values are accessible in your code via the `context` parameter.
+   */
   context?: Record<string, string | number>;
 }
 
+/**
+ * The request body can be either a JSON object with `code` and optional `context`,
+ * or a raw JavaScript string containing the code to execute.
+ */
 export type BodySchema = JSONSchema | string;
 
 export interface QuerySchema extends SystemQueryParameters {
+  /**
+   * Launch options for the browser, either as a JSON object or a JSON string.
+   * Includes options like `headless`, `args`, `defaultViewport`, etc.
+   */
   launch?: CDPLaunchOptions | string;
 }
 

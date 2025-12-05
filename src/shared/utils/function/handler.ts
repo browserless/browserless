@@ -121,7 +121,9 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
           status: 404,
         });
       }
-      logger.trace(`Request: "${requestUrl}" no responder found, continuing...`);
+      logger.trace(
+        `Request: "${requestUrl}" no responder found, continuing...`,
+      );
       return request.continue();
     });
 
