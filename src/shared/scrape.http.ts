@@ -11,16 +11,13 @@ import {
   Logger,
   Methods,
   OutBoundRequest,
+  PageSetupBodyParams,
   Request,
   ScrapeDebugOptions,
   ScrapeElementSelector,
   SystemQueryParameters,
   Timeout,
   UnwrapPromise,
-  WaitForEventOptions,
-  WaitForFunctionOptions,
-  WaitForSelectorOptions,
-  bestAttempt,
   bestAttemptCatch,
   contentTypes,
   debugScreenshotOpts,
@@ -28,42 +25,32 @@ import {
   isBase64Encoded,
   jsonResponse,
   noop,
-  rejectRequestPattern,
-  rejectResourceTypes,
-  requestInterceptors,
   sleep,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
-import { Cookie, Page } from 'puppeteer-core';
+import { Cookie } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 
-export interface BodySchema {
-  addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
-  addStyleTag?: Array<Parameters<Page['addStyleTag']>[0]>;
-  authenticate?: Parameters<Page['authenticate']>[0];
-  bestAttempt?: bestAttempt;
-  cookies?: Array<Parameters<Page['setCookie']>[0]>;
+export interface BodySchema extends PageSetupBodyParams {
+  /**
+   * Debug options for capturing additional information during scraping.
+   * Includes options for console logs, cookies, HTML, network activity, and screenshots.
+   */
   debugOpts?: ScrapeDebugOptions;
+
+  /**
+   * An array of element selectors to scrape from the page.
+   * Each object contains a `selector` CSS selector and optional `timeout` in milliseconds.
+   */
   elements: Array<ScrapeElementSelector>;
-  emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
-  gotoOptions?: Parameters<Page['goto']>[1];
-  html?: Parameters<Page['setContent']>[0];
-  rejectRequestPattern?: rejectRequestPattern[];
-  rejectResourceTypes?: rejectResourceTypes[];
-  requestInterceptors?: Array<requestInterceptors>;
-  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
-  setJavaScriptEnabled?: boolean;
-  url?: Parameters<Page['goto']>[0];
-  userAgent?: Parameters<Page['setUserAgent']>[0];
-  viewport?: Parameters<Page['setViewport']>[0];
-  waitForEvent?: WaitForEventOptions;
-  waitForFunction?: WaitForFunctionOptions;
-  waitForSelector?: WaitForSelectorOptions;
-  waitForTimeout?: number;
 }
 
 export type QuerySchema = SystemQueryParameters & {
+  /**
+   * Launch options for the browser, either as a JSON object or a JSON string.
+   * Includes options like `headless`, `args`, `defaultViewport`, etc.
+   */
   launch?: CDPLaunchOptions | string;
 };
 

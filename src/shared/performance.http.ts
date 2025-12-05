@@ -18,12 +18,29 @@ import { ServerResponse } from 'http';
 import main from './utils/performance/main.js';
 
 export interface BodySchema {
+  /**
+   * An array of Lighthouse budget objects to use for performance auditing.
+   * See Lighthouse documentation for budget configuration options.
+   */
   budgets?: Array<object>;
+
+  /**
+   * A Lighthouse configuration object to customize the audit.
+   * See Lighthouse documentation for available configuration options.
+   */
   config?: object;
+
+  /**
+   * The URL to run performance audits against.
+   */
   url: string;
 }
 
 export interface QuerySchema extends SystemQueryParameters {
+  /**
+   * Launch options for the browser, either as a JSON object or a JSON string.
+   * Includes options like `headless`, `args`, `defaultViewport`, etc.
+   */
   launch?: CDPLaunchOptions | string;
 }
 

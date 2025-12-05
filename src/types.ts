@@ -466,33 +466,108 @@ export type WaitForFunctionOptions = {
   timeout?: number;
 };
 
+/**
+ * Options for waiting for a specific CSS selector to appear on the page.
+ */
 export type WaitForSelectorOptions = {
+  /**
+   * Wait for the element to be hidden or removed from the DOM.
+   */
   hidden?: boolean;
+
+  /**
+   * The CSS selector to wait for.
+   */
   selector: string;
+
+  /**
+   * Maximum time to wait for in milliseconds. Defaults to 30000 (30 seconds).
+   */
   timeout?: number;
+
+  /**
+   * Wait for the element to be visible, i.e. not have "display: none" or "visibility: hidden".
+   */
   visible?: boolean;
 };
 
+/**
+ * Options for waiting for a specific event to be fired on the page.
+ */
 export type WaitForEventOptions = {
+  /**
+   * The name of the event to wait for (e.g., "load", "domcontentloaded", "networkidle0").
+   */
   event: string;
+
+  /**
+   * Maximum time to wait for in milliseconds. Defaults to 30000 (30 seconds).
+   */
   timeout?: number;
 };
+
+/**
+ * Options for controlling screenshot dimensions.
+ */
 export interface ScreenshotSizeOptions {
+  /**
+   * The height of the screenshot in pixels.
+   */
   height?: number;
+
+  /**
+   * The scale factor for the screenshot (e.g., 2 for 2x resolution).
+   */
   scale?: number;
+
+  /**
+   * The width of the screenshot in pixels.
+   */
   width?: number;
 }
 
+/**
+ * Options for scraping specific elements from the page.
+ */
 export interface ScrapeElementSelector {
+  /**
+   * The CSS selector to find elements to scrape.
+   */
   selector: string;
+
+  /**
+   * Maximum time to wait for the selector in milliseconds.
+   */
   timeout?: number;
 }
 
+/**
+ * Debug options for capturing additional information during scraping.
+ */
 export interface ScrapeDebugOptions {
+  /**
+   * Whether to capture console messages from the page.
+   */
   console?: boolean;
+
+  /**
+   * Whether to capture cookies from the page.
+   */
   cookies?: boolean;
+
+  /**
+   * Whether to capture the full HTML content of the page.
+   */
   html?: boolean;
+
+  /**
+   * Whether to capture network requests and responses.
+   */
   network?: boolean;
+
+  /**
+   * Whether to capture a screenshot of the page.
+   */
   screenshot?: boolean;
 }
 
@@ -529,9 +604,15 @@ export type setJavaScriptEnabled = boolean;
 
 /**
  * A pattern to match requests with automatic rejections.
- * Internally we do this with the following: `req.url().match(pattern)`.
+ * Requests are rejected when their URL matches this pattern using `req.url().match(pattern)`.
  */
 export type rejectRequestPattern = string;
+
+/**
+ * Resource types to reject during page load. Common types include:
+ * "document", "stylesheet", "image", "media", "font", "script", "texttrack",
+ * "xhr", "fetch", "eventsource", "websocket", "manifest", "other".
+ */
 export type rejectResourceTypes = ReturnType<HTTPRequest['resourceType']>;
 
 /**
@@ -552,6 +633,142 @@ export type requestInterceptors = {
     body?: string;
   };
 };
+
+/**
+ * Common page setup options used by screenshot, pdf, content, and scrape endpoints.
+ * These options configure how the page is set up before performing the main action.
+ */
+export interface PageSetupBodyParams {
+  /**
+   * An array of script tags to add to the page before performing actions.
+   * Each object can contain properties like `url`, `path`, or `content`.
+   */
+  addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
+
+  /**
+   * An array of style tags to add to the page before performing actions.
+   * Each object can contain properties like `url`, `path`, or `content`.
+   */
+  addStyleTag?: Array<Parameters<Page['addStyleTag']>[0]>;
+
+  /**
+   * Credentials for HTTP authentication. Contains `username` and `password` properties.
+   */
+  authenticate?: Parameters<Page['authenticate']>[0];
+
+  /**
+   * When bestAttempt is set to true, browserless will attempt to proceed
+   * when "awaited" events fail or timeout. This includes things like
+   * goto, waitForSelector, and more.
+   */
+  bestAttempt?: bestAttempt;
+
+  /**
+   * An array of cookies to set on the page before navigation.
+   * Each cookie object should contain at least `name` and `value` properties.
+   */
+  cookies?: Array<Parameters<Page['setCookie']>[0]>;
+
+  /**
+   * Changes the CSS media type of the page. Accepts values like "screen" or "print".
+   */
+  emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
+
+  /**
+   * Options to configure the page navigation, such as `timeout` and `waitUntil`.
+   */
+  gotoOptions?: Parameters<Page['goto']>[1];
+
+  /**
+   * HTML content to set as the page content instead of navigating to a URL.
+   */
+  html?: Parameters<Page['setContent']>[0];
+
+  /**
+   * An array of patterns to match against request URLs for automatic rejection.
+   * Requests matching these patterns will be aborted.
+   */
+  rejectRequestPattern?: rejectRequestPattern[];
+
+  /**
+   * An array of resource types to reject during page load.
+   * Common types include "image", "stylesheet", "font", "script", etc.
+   */
+  rejectResourceTypes?: rejectResourceTypes[];
+
+  /**
+   * An array of request interceptors that can modify or mock network requests.
+   * Each interceptor has a `pattern` to match URLs and a `response` to return.
+   */
+  requestInterceptors?: Array<requestInterceptors>;
+
+  /**
+   * An object containing additional HTTP headers to send with every request.
+   */
+  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+
+  /**
+   * Whether or not to allow JavaScript to run on the page.
+   */
+  setJavaScriptEnabled?: boolean;
+
+  /**
+   * The URL to navigate to before performing actions.
+   */
+  url?: Parameters<Page['goto']>[0];
+
+  /**
+   * The user agent string to use for the page.
+   */
+  userAgent?: Parameters<Page['setUserAgent']>[0];
+
+  /**
+   * The viewport dimensions and settings for the page.
+   * Includes properties like `width`, `height`, `deviceScaleFactor`, etc.
+   */
+  viewport?: Parameters<Page['setViewport']>[0];
+
+  /**
+   * Options for waiting for a specific event to be fired on the page.
+   */
+  waitForEvent?: WaitForEventOptions;
+
+  /**
+   * Options for waiting for a JavaScript function to return a truthy value.
+   */
+  waitForFunction?: WaitForFunctionOptions;
+
+  /**
+   * Options for waiting for a specific CSS selector to appear on the page.
+   */
+  waitForSelector?: WaitForSelectorOptions;
+
+  /**
+   * The amount of time in milliseconds to wait before proceeding.
+   */
+  waitForTimeout?: number;
+}
+
+/**
+ * Options for scrolling behavior before capturing content.
+ */
+export interface ScrollPageBodyParam {
+  /**
+   * Whether to scroll through the entire page before capturing content.
+   * Useful for triggering lazy-loaded content.
+   */
+  scrollPage?: boolean;
+}
+
+/**
+ * Options for targeting a specific element by CSS selector.
+ */
+export interface SelectorBodyParam {
+  /**
+   * A CSS selector to target a specific element instead of the full page.
+   */
+  selector?: string;
+}
 
 export interface IResourceLoad {
   cpu: number | null;
