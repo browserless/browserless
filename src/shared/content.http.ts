@@ -24,7 +24,7 @@ import {
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
-export interface BodySchema extends PageSetupBodyParams {}
+export type BodySchema = PageSetupBodyParams;
 
 /**
  * An HTML payload of the website or HTML after JavaScript
