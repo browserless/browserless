@@ -189,7 +189,7 @@ export class HTTPServer extends EventEmitter {
       this.logger.warn(
         `No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`,
       );
-      writeResponse(res, 404, 'Not Found');
+      writeResponse(res, 404, 'Not Found: Please verify the endpoint URL, the HTTP method (e.g., POST, GET), and check that your Content-Type header is supported (e.g., application/json). See: https://docs.browserless.io/rest-apis/intro');
       return Promise.resolve();
     }
 
