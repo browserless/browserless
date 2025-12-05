@@ -7,9 +7,29 @@
   "type": "module",
   "types": "./src/exports.ts",
   "main": "./build/exports.js",
-  "exports": {
-    ".": "./build/exports.js"
-  },
+    "exports": {
+      ".": "./build/exports.js",
+      "./shared/content.http": {
+        "types": "./build/shared/content.http.d.ts",
+        "default": "./build/shared/content.http.js"
+      },
+      "./shared/scrape.http": {
+        "types": "./build/shared/scrape.http.d.ts",
+        "default": "./build/shared/scrape.http.js"
+      },
+      "./shared/function.http": {
+        "types": "./build/shared/function.http.d.ts",
+        "default": "./build/shared/function.http.js"
+      },
+      "./shared/download.http": {
+        "types": "./build/shared/download.http.d.ts",
+        "default": "./build/shared/download.http.js"
+      },
+      "./shared/performance.http": {
+        "types": "./build/shared/performance.http.d.ts",
+        "default": "./build/shared/performance.http.js"
+      }
+    },
   "bin": {
     "browserless": "./bin/browserless.js"
   },
