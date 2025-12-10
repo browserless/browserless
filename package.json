@@ -101,7 +101,7 @@
     "sinon": "^21.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-json-schema": "^0.65.1"
+    "typescript-json-schema": "^0.67.1"
   },
   "playwrightVersions": {
     "default": "playwright-core",
