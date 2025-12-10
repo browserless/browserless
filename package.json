@@ -112,7 +112,7 @@
     "1.52": "playwright-1.52"
   },
   "engines": {
-    "node": ">= 20 < 25"
+    "node": "24"
   },
   "eslintConfig": {
     "root": true,
