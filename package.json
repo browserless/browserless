@@ -8,7 +8,8 @@
   "types": "./src/exports.ts",
   "main": "./build/exports.js",
   "exports": {
-    ".": "./build/exports.js"
+    ".": "./build/exports.js",
+    "./*": "./build/*.js"
   },
   "bin": {
     "browserless": "./bin/browserless.js"
