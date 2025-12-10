@@ -1,14 +1,12 @@
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
-  BrowserlessRoutes,
   HTTPManagementRoutes,
-  HTTPRoute,
   Methods,
   Request,
   contentTypes,
-  dedent,
-  writeResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { dedent, writeResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 
 export default class ActiveGetRoute extends HTTPRoute {

@@ -4,11 +4,9 @@ import {
   ResponseSchema,
   default as Screenshot,
 } from '../../../shared/screenshot.http.js';
-import {
-  BrowserlessRoutes,
-  ChromeCDP,
-  HTTPRoutes,
-} from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '../../../types.js';
+import { ChromeCDP } from '../../../browsers/browsers.cdp.js';
+import { HTTPRoutes } from '../../../http.js';
 
 export default class ChromeScreenshotPostRoute extends Screenshot {
   name = BrowserlessRoutes.ChromeScreenshotPostRoute;

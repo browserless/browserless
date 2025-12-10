@@ -1,8 +1,6 @@
-import {
-  BrowserlessRoutes,
-  EdgeCDP,
-  HTTPRoutes,
-} from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '../../../types.js';
+import { EdgeCDP } from '../../../browsers/browsers.cdp.js';
+import { HTTPRoutes } from '../../../http.js';
 
 import {
   BodySchema,

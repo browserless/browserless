@@ -1,8 +1,6 @@
-import {
-  BrowserlessRoutes,
-  EdgeCDP,
-  WebsocketRoutes,
-} from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '../../../types.js';
+import { EdgeCDP } from '../../../browsers/browsers.cdp.js';
+import { WebsocketRoutes } from '../../../http.js';
 import {
   default as ChromiumWebSocketRoute,
   QuerySchema,

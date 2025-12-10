@@ -1,15 +1,12 @@
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
-  BrowserlessRoutes,
   HTTPManagementRoutes,
-  HTTPRoute,
   Methods,
   Request,
   contentTypes,
-  dedent,
-  jsonResponse,
-  writeResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { dedent, jsonResponse, writeResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 
 export type ResponseSchema = {

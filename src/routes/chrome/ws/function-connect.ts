@@ -1,4 +1,5 @@
-import { BrowserlessRoutes, ChromeCDP } from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '../../../types.js';
+import { ChromeCDP } from '../../../browsers/browsers.cdp.js';
 import {
   default as FunctionConnect,
   QuerySchema,

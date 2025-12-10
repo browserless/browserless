@@ -1,16 +1,14 @@
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
-  BrowserlessRoutes,
   HTTPManagementRoutes,
-  HTTPRoute,
-  Logger,
   Methods,
-  NotFound,
   Request,
   contentTypes,
-  fileExists,
-  mimeTypes,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { Logger } from '../../../logger.js';
+import { NotFound, fileExists } from '../../../utils.js';
+import { mimeTypes } from '../../../mime-types.js';
 import { ServerResponse } from 'http';
 import { createReadStream } from 'fs';
 import path from 'path';

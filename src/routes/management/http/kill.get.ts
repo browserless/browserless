@@ -1,15 +1,13 @@
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
-  BrowserlessRoutes,
   HTTPManagementRoutes,
-  HTTPRoute,
   Methods,
   Request,
   SystemQueryParameters,
   contentTypes,
-  getFinalPathSegment,
-  writeResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { getFinalPathSegment, writeResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 
 export type ResponseSchema = string;

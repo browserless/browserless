@@ -1,15 +1,17 @@
 import {
-  APITags,
   BrowserlessRoutes,
   BrowserlessSessionJSON,
-  HTTPManagementRoutes,
   HTTPRoute,
+} from '../../../types.js';
+import {
+  APITags,
+  HTTPManagementRoutes,
   Methods,
   Request,
   SystemQueryParameters,
   contentTypes,
-  jsonResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { jsonResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 
 export interface QuerySchema extends SystemQueryParameters {

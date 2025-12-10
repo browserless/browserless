@@ -1,14 +1,16 @@
 import {
-  APITags,
   BrowserlessRoutes,
-  HTTPManagementRoutes,
   HTTPRoute,
   IBrowserlessStats,
+} from '../../../types.js';
+import {
+  APITags,
+  HTTPManagementRoutes,
   Methods,
   Request,
   contentTypes,
-  writeResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { writeResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 
 export type ResponseSchema = Array<IBrowserlessStats>;

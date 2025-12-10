@@ -1,17 +1,14 @@
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
+import { ChromiumCDP } from '../../../browsers/browsers.cdp.js';
+import { FirefoxPlaywright, WebKitPlaywright } from '../../../browsers/browsers.playwright.js';
 import {
   APITags,
-  BrowserlessRoutes,
-  ChromiumCDP,
-  FirefoxPlaywright,
   HTTPManagementRoutes,
-  HTTPRoute,
   Methods,
   Request,
-  WebKitPlaywright,
-  availableBrowsers,
   contentTypes,
-  jsonResponse,
-} from '@browserless.io/browserless';
+} from '../../../http.js';
+import { availableBrowsers, jsonResponse } from '../../../utils.js';
 import { ServerResponse } from 'http';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';

@@ -1,4 +1,4 @@
-import { BrowserlessRoutes } from '@browserless.io/browserless';
+import { BrowserlessRoutes } from '../../../types.js';
 import { default as ChromiumJSONListGetRoute } from '../../../shared/json-list.http.js';
 export { ResponseSchema } from '../../../shared/json-list.http.js';
 
