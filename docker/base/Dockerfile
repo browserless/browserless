@@ -7,6 +7,7 @@ ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
 ARG NODE_VERSION=v24.12.0
+ARG NPM_VERSION=11.7.0
 
 ENV NODE_VERSION=$NODE_VERSION
 ENV NVM_DIR=/usr/src/.nvm
@@ -56,7 +57,8 @@ RUN apt-get update && apt-get install -y \
 
 RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
-  nvm install $NODE_VERSION
+  nvm install $NODE_VERSION &&\
+  npm install -g npm@$NPM_VERSION
 
 RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3 python3-pip python3-setuptools && \
