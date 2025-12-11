@@ -70,7 +70,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.27.11",
+    "systeminformation": "^5.27.13",
     "tar-fs": "^3.1.1"
   },
   "optionalDependencies": {
@@ -113,7 +113,7 @@
   },
   "engines": {
     "node": "24",
-    "npm": "^11.6.1"
+    "npm": "^11.7.0"
   },
   "eslintConfig": {
     "root": true,
