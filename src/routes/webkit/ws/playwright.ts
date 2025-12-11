@@ -1,18 +1,19 @@
 import {
-  BrowserServerOptions,
-  BrowserWebsocketRoute,
-  BrowserlessRoutes,
-} from '../../../types.js';
-import { WebKitPlaywright } from '../../../browsers/browsers.playwright.js';
-import {
   APITags,
   Request,
   SystemQueryParameters,
   WebsocketRoutes,
 } from '../../../http.js';
-import { Logger } from '../../../logger.js';
+import {
+  BrowserServerOptions,
+  BrowserWebsocketRoute,
+  BrowserlessRoutes,
+} from '../../../types.js';
+
 import { BadRequest } from '../../../utils.js';
 import { Duplex } from 'stream';
+import { Logger } from '../../../logger.js';
+import { WebKitPlaywright } from '../../../browsers/browsers.playwright.js';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: BrowserServerOptions | string;

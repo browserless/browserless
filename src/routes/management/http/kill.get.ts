@@ -1,4 +1,3 @@
-import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
   HTTPManagementRoutes,
@@ -7,7 +6,9 @@ import {
   SystemQueryParameters,
   contentTypes,
 } from '../../../http.js';
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import { getFinalPathSegment, writeResponse } from '../../../utils.js';
+
 import { ServerResponse } from 'http';
 
 export type ResponseSchema = string;

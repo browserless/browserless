@@ -1,4 +1,3 @@
-import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
   HTTPManagementRoutes,
@@ -6,8 +5,10 @@ import {
   Request,
   contentTypes,
 } from '../../../http.js';
-import { jsonResponse } from '../../../utils.js';
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
+
 import { ServerResponse } from 'http';
+import { jsonResponse } from '../../../utils.js';
 
 export interface ResponseSchema {
   allowCORS: boolean;

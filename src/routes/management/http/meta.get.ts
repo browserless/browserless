@@ -1,6 +1,3 @@
-import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
-import { ChromiumCDP } from '../../../browsers/browsers.cdp.js';
-import { FirefoxPlaywright, WebKitPlaywright } from '../../../browsers/browsers.playwright.js';
 import {
   APITags,
   HTTPManagementRoutes,
@@ -8,7 +5,11 @@ import {
   Request,
   contentTypes,
 } from '../../../http.js';
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
+import { FirefoxPlaywright, WebKitPlaywright } from '../../../browsers/browsers.playwright.js';
 import { availableBrowsers, jsonResponse } from '../../../utils.js';
+
+import { ChromiumCDP } from '../../../browsers/browsers.cdp.js';
 import { ServerResponse } from 'http';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';

@@ -1,4 +1,3 @@
-import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import {
   APITags,
   HTTPManagementRoutes,
@@ -6,11 +5,13 @@ import {
   Request,
   contentTypes,
 } from '../../../http.js';
-import { Logger } from '../../../logger.js';
+import { BrowserlessRoutes, HTTPRoute } from '../../../types.js';
 import { NotFound, fileExists } from '../../../utils.js';
-import { mimeTypes } from '../../../mime-types.js';
+
+import { Logger } from '../../../logger.js';
 import { ServerResponse } from 'http';
 import { createReadStream } from 'fs';
+import { mimeTypes } from '../../../mime-types.js';
 import path from 'path';
 
 const pathMap: Map<
