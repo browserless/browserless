@@ -8,6 +8,7 @@ COPY src src/
 RUN rm -r src/routes/
 COPY src/routes/management src/routes/management/
 COPY src/routes/webkit src/routes/webkit/
+COPY docker/webkit/routes-index.ts src/routes/index.ts
 
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
   apt-get -y -qq install software-properties-common &&\
