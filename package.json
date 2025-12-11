@@ -113,7 +113,7 @@
   },
   "engines": {
     "node": "24",
-    "npm": "^11.6.1"
+    "npm": "^11.7.0"
   },
   "eslintConfig": {
     "root": true,
