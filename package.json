@@ -70,7 +70,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.27.17",
+    "systeminformation": "^5.28.0",
     "tar-fs": "^3.1.1"
   },
   "optionalDependencies": {
