@@ -143,3 +143,40 @@ npx mocha build/src/routes/chromium/tests/pdf.spec.js
 - Sorted imports (enforced by ESLint)
 - Semicolons required
 - Single quotes, trailing commas
+- Node.js >= 24 required
+
+## Module Extension Pattern
+
+All core modules can be overridden by extending and default-exporting:
+
+```typescript
+// src/config.ts in SDK project
+import { Config } from '@browserless.io/browserless';
+
+export default class MyConfig extends Config {
+  public getCustomSetting(): string {
+    return process.env.CUSTOM_SETTING ?? 'default';
+  }
+}
+```
+
+Every module has a `stop()` method (left blank) that SDK extensions can override for cleanup on shutdown.
+
+## Hooks System
+
+Four lifecycle hooks in `src/hooks.ts`:
+- `before({ req, res?, socket?, head? })` - Before request processing. Return `false` to reject (you must write response).
+- `after({ req, start, status, error? })` - After request completion
+- `page({ meta, page })` - On new Page creation
+- `browser({ browser, req })` - On new Browser launch
+
+Legacy hook injection via `external/*.js` files (before.js, after.js, browser.js, page.js).
+
+## Key Utilities
+
+Import from `@browserless.io/browserless`:
+- `writeResponse(res, code, message)` / `jsonResponse(res, code, object)` - Response helpers
+- `readBody(req, maxSize)` - Parse request body
+- `BadRequest`, `Unauthorized`, `NotFound`, `Timeout`, `TooManyRequests`, `ServerError` - Error classes (throw to return appropriate HTTP codes)
+- `availableBrowsers` - Promise of installed browser classes
+- `sleep(ms)`, `exists(path)`, `safeParse(json)`, `dedent()` - General utilities
