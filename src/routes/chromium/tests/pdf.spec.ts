@@ -415,4 +415,56 @@ describe('/chromium/pdf API', function () {
       expect(errorText).to.include('exceeds maximum allowed size');
     });
   });
+
+  it('sets fullPage height correctly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      html: `
+      <body style="background-color: red; height: 1920px">
+        <h1>Hello World</h1>
+      </body>
+    `,
+      options: { fullPage: true },
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      await res.body?.pipeTo(new WritableStream({}));
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('does not allow fullPage option with height or format options', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      options: { fullPage: true, height: 100, format: 'A4' },
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      expect(res.status).to.equal(400);
+      const errorText = await res.text();
+      expect(errorText).to.include(
+        '"fullPage" option cannot be used with "height" or "format" options.',
+      );
+    });
+  });
 });
