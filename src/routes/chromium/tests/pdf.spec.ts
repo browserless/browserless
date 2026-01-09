@@ -450,6 +450,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
+      html: '<h1>Hello World</h1>',
       options: { fullPage: true, height: 100, format: 'A4' },
     };
 
