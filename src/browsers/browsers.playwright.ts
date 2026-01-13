@@ -71,6 +71,9 @@ class BasePlaywright extends EventEmitter {
       ...opts,
       args: [
         ...args,
+        // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
+        // This is needed to allow WebSocket connections to localhost.
+        `--disable-features=LocalNetworkAccessChecks`,
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath(),

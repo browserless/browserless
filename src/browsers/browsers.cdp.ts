@@ -219,6 +219,9 @@ export class ChromiumCDP extends EventEmitter {
       args: [
         `--remote-debugging-port=${this.port}`,
         `--no-sandbox`,
+        // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
+        // This is needed to allow WebSocket connections to localhost.
+        `--disable-features=LocalNetworkAccessChecks`,
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
