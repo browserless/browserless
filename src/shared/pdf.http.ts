@@ -40,7 +40,9 @@ export interface BodySchema {
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
   html?: Parameters<Page['setContent']>[0];
-  options?: Parameters<Page['pdf']>[0];
+  options?: Parameters<Page['pdf']>[0] & {
+    fullPage?: boolean;
+  };
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
@@ -126,6 +128,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
 
     if (!content) {
       throw new BadRequest(`One of "url" or "html" properties are required.`);
+    }
+
+    if (options?.fullPage && (options?.height || options?.format)) {
+      throw new BadRequest(`"fullPage" option cannot be used with "height" or "format" options.`);
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -242,6 +248,28 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       if (value !== undefined) {
         res.setHeader(key, value);
       }
+    }
+
+
+    if (options?.fullPage) {
+      const height = await page
+        .evaluate(() => {
+          const body = document.body;
+          const html = document.documentElement;
+
+          return Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            html.clientHeight,
+            html.scrollHeight,
+            html.offsetHeight,
+          );
+        })
+        .catch((e) => {
+          logger.warn('Failed to evaluate page height:', e);
+          return 480; // default Puppeteer viewport height
+        });
+      options.height = height;
     }
 
     const pdfStream = await page.createPDFStream(options);
