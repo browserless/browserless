@@ -1,7 +1,7 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.38.3...main)
 
-# [v2.38.2](https://github.com/browserless/browserless/compare/v2.38.2...v2.38.3)
-- Adds suppor for Playwright 1.57
+# [v2.38.3](https://github.com/browserless/browserless/compare/v2.38.2...v2.38.3)
+- Adds support for Playwright 1.57
 - Supports the following libraries and browsers:
   - puppeteer-core: `24.35.0`
   - playwright-core: `1.57.0`, `1.56.1`, `1.55.1`, `1.54.2`, and `1.53.2`.
