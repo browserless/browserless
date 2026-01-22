@@ -1,6 +1,7 @@
 name: Publish Latest Docker Images to GitHub Container Registry
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
