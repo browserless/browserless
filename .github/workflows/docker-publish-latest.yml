@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   push_to_registry:
     name: Push multi-platform docker images to ghcr.io
@@ -24,8 +28,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish the latest Base image
         uses: docker/build-push-action@v5
@@ -33,7 +37,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/base/Dockerfile
           tags: |
-            ghcr.io/browserless/base:latest
+            ghcr.io/divmode/browserless-base:latest
           context: .
           push: true
           platforms: |
@@ -48,7 +52,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/chromium/Dockerfile
           tags: |
-            ghcr.io/browserless/chromium:latest
+            ghcr.io/divmode/browserless-chromium:latest
           context: .
           push: true
           platforms: |
@@ -63,7 +67,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/chrome/Dockerfile
           tags: |
-            ghcr.io/browserless/chrome:latest
+            ghcr.io/divmode/browserless-chrome:latest
           context: .
           push: true
           platforms: |
@@ -77,7 +81,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/edge/Dockerfile
           tags: |
-            ghcr.io/browserless/edge:latest
+            ghcr.io/divmode/browserless-edge:latest
           context: .
           push: true
           platforms: |
@@ -91,7 +95,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/firefox/Dockerfile
           tags: |
-            ghcr.io/browserless/firefox:latest
+            ghcr.io/divmode/browserless-firefox:latest
           context: .
           push: true
           platforms: |
@@ -106,7 +110,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/webkit/Dockerfile
           tags: |
-            ghcr.io/browserless/webkit:latest
+            ghcr.io/divmode/browserless-webkit:latest
           context: .
           push: true
           platforms: |
@@ -121,7 +125,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/multi/Dockerfile
           tags: |
-            ghcr.io/browserless/multi:latest
+            ghcr.io/divmode/browserless-multi:latest
           context: .
           push: true
           platforms: |

@@ -339,12 +339,16 @@ export class ChromiumCDP extends EventEmitter {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);
+        socket.off('end', close);
+        socket.off('error', close);
         return resolve();
       });
 
       this.browser?.once('close', close);
       this.browser?.process()?.once('close', close);
       socket.once('close', close);
+      socket.once('end', close);
+      socket.once('error', close);
 
       this.logger.info(
         `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,

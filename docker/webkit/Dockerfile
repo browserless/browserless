@@ -1,5 +1,5 @@
 ARG VERSION=latest
-FROM ghcr.io/browserless/base:$VERSION
+FROM ghcr.io/divmode/browserless-base:$VERSION
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 # Install Fonts

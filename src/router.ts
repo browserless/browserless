@@ -148,7 +148,14 @@ export class Router extends EventEmitter {
 
         try {
           this.log.trace(`Running found WebSocket handler.`);
-          await handler(req, socket, head, logger, browser);
+          await Promise.race([
+            handler(req, socket, head, logger, browser),
+            new Promise<void>((resolve) => {
+              socket.once('close', resolve);
+              socket.once('end', resolve);
+              socket.once('error', resolve);
+            }),
+          ]);
         } finally {
           this.log.trace(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);

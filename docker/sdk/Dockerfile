@@ -1,4 +1,4 @@
-ARG FROM=ghcr.io/browserless/multi:latest
+ARG FROM=ghcr.io/divmode/browserless-multi:latest
 FROM ${FROM}
 
 ARG FROM
