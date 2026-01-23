@@ -60,75 +60,76 @@ jobs:
             linux/amd64
             linux/arm64
 
-      - name: Publish the latest Chrome image
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=latest
-          builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/chrome/Dockerfile
-          tags: |
-            ghcr.io/divmode/browserless-chrome:latest
-          context: .
-          push: true
-          platforms: |
-            linux/amd64
+      # Commented out - we only use Chromium
+      # - name: Publish the latest Chrome image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     build-args: |
+      #       VERSION=latest
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     file: ./docker/chrome/Dockerfile
+      #     tags: |
+      #       ghcr.io/divmode/browserless-chrome:latest
+      #     context: .
+      #     push: true
+      #     platforms: |
+      #       linux/amd64
 
-      - name: Publish the latest Edge image
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=latest
-          builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/edge/Dockerfile
-          tags: |
-            ghcr.io/divmode/browserless-edge:latest
-          context: .
-          push: true
-          platforms: |
-            linux/amd64
+      # - name: Publish the latest Edge image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     build-args: |
+      #       VERSION=latest
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     file: ./docker/edge/Dockerfile
+      #     tags: |
+      #       ghcr.io/divmode/browserless-edge:latest
+      #     context: .
+      #     push: true
+      #     platforms: |
+      #       linux/amd64
 
-      - name: Publish the latest FireFox image
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=latest
-          builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/firefox/Dockerfile
-          tags: |
-            ghcr.io/divmode/browserless-firefox:latest
-          context: .
-          push: true
-          platforms: |
-            linux/amd64
-            linux/arm64
+      # - name: Publish the latest FireFox image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     build-args: |
+      #       VERSION=latest
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     file: ./docker/firefox/Dockerfile
+      #     tags: |
+      #       ghcr.io/divmode/browserless-firefox:latest
+      #     context: .
+      #     push: true
+      #     platforms: |
+      #       linux/amd64
+      #       linux/arm64
 
-      - name: Publish the latest Webkit image
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=latest
-          builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/webkit/Dockerfile
-          tags: |
-            ghcr.io/divmode/browserless-webkit:latest
-          context: .
-          push: true
-          platforms: |
-            linux/amd64
-            linux/arm64
+      # - name: Publish the latest Webkit image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     build-args: |
+      #       VERSION=latest
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     file: ./docker/webkit/Dockerfile
+      #     tags: |
+      #       ghcr.io/divmode/browserless-webkit:latest
+      #     context: .
+      #     push: true
+      #     platforms: |
+      #       linux/amd64
+      #       linux/arm64
 
-      - name: Publish the latest Multi image
-        uses: docker/build-push-action@v5
-        with:
-          build-args: |
-            VERSION=latest
-          builder: ${{ steps.buildx.outputs.name }}
-          file: ./docker/multi/Dockerfile
-          tags: |
-            ghcr.io/divmode/browserless-multi:latest
-          context: .
-          push: true
-          platforms: |
-            linux/amd64
-            linux/arm64
+      # - name: Publish the latest Multi image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     build-args: |
+      #       VERSION=latest
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     file: ./docker/multi/Dockerfile
+      #     tags: |
+      #       ghcr.io/divmode/browserless-multi:latest
+      #     context: .
+      #     push: true
+      #     platforms: |
+      #       linux/amd64
+      #       linux/arm64
