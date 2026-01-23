@@ -25,11 +25,19 @@ jobs:
           filters: |
             base:
               - 'docker/base/**'
-            chromium:
-              - 'docker/chromium/**'
-              - 'src/**'
+              - 'assets/**'
+              - 'bin/**'
+              - 'extensions/**'
+              - 'external/**'
+              - 'scripts/**'
+              - 'static/**'
               - 'package.json'
               - 'package-lock.json'
+              - 'tsconfig.json'
+            chromium:
+              - 'docker/chromium/**'
+              - 'fonts/**'
+              - 'src/**'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -58,6 +66,8 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,mode=max,scope=base
 
       - name: Publish the latest Chromium image
         if: steps.changes.outputs.base == 'true' || steps.changes.outputs.chromium == 'true' || github.event_name == 'workflow_dispatch'
@@ -74,6 +84,8 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
+          cache-from: type=gha,scope=chromium
+          cache-to: type=gha,mode=max,scope=chromium
 
       # Commented out - we only use Chromium
       # - name: Publish the latest Chrome image
