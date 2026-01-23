@@ -2,11 +2,6 @@ name: Publish Latest Docker Images to GitHub Container Registry
 
 on:
   workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild all images'
-        type: boolean
-        default: false
   push:
     branches:
       - main
@@ -51,7 +46,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish the latest Base image
-        if: steps.changes.outputs.base == 'true' || github.event.inputs.force_rebuild == 'true'
+        if: steps.changes.outputs.base == 'true' || github.event_name == 'workflow_dispatch'
         uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -65,7 +60,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Chromium image
-        if: steps.changes.outputs.base == 'true' || steps.changes.outputs.chromium == 'true' || github.event.inputs.force_rebuild == 'true'
+        if: steps.changes.outputs.base == 'true' || steps.changes.outputs.chromium == 'true' || github.event_name == 'workflow_dispatch'
         uses: docker/build-push-action@v5
         with:
           build-args: |
