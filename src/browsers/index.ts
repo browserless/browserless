@@ -342,11 +342,14 @@ export class BrowserManager {
       this.log.debug(`Closing browser session`);
       cleanupACtions.push(() => browser.close());
 
+      // Always delete session from memory
+      this.browsers.delete(browser);
+
+      // Only delete temp user data directories
       if (session.isTempDataDir) {
         this.log.debug(
-          `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+          `Deleting "${session.userDataDir}" temp user-data-dir`,
         );
-        this.browsers.delete(browser);
         cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
       }
 
@@ -367,7 +370,15 @@ export class BrowserManager {
         this.log.debug(
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
-        this.close(browser, session, true);
+        // CRITICAL: Must await close() to ensure session is fully cleaned up before
+        // returning from kill API. Without await, the /kill endpoint returns 204 while
+        // close() runs in background, causing a race condition where:
+        // 1. Kill API returns success immediately
+        // 2. close() starts async cleanup
+        // 3. Another request may see the session as still active
+        // 4. Session records accumulate in this.browsers Map → memory leak → OOM crash
+        // See: https://github.com/browserless/browserless/issues/XXX
+        await this.close(browser, session, true);
         closed++;
       }
     }
@@ -413,7 +424,16 @@ export class BrowserManager {
 
     --session.numbConnected;
 
-    this.close(browser, session);
+    // CRITICAL: Must await close() to ensure session is removed from this.browsers
+    // before returning. This method is called when a WebSocket client disconnects.
+    // Without await, the method returns while close() runs in background, causing:
+    // 1. complete() returns immediately to the socket close handler
+    // 2. close() starts async cleanup including this.browsers.delete()
+    // 3. If another operation queries sessions before delete completes, it sees stale data
+    // 4. Over time, sessions accumulate in memory → eventual OOM crash
+    // The close() method performs cleanup in order: browser.close() → delete from Map
+    // → remove temp directories. All must complete before we consider the session closed.
+    await this.close(browser, session);
   }
 
   public async getBrowserForRequest(
