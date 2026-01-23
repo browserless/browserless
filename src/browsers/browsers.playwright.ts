@@ -95,11 +95,19 @@ class BasePlaywright extends EventEmitter {
       );
       this.socket?.destroy();
       this.emit('close');
-      this.cleanListeners();
-      this.browser.close();
+      // Store reference before nulling
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      // Close browser FIRST, then clean up listeners
+      try {
+        await browser.close();
+      } catch (e) {
+        this.logger.warn(`Error closing browser: ${e}`);
+      }
+      // Clean up listeners AFTER browser is fully closed
+      this.cleanListeners();
     }
   }
 

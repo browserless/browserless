@@ -154,12 +154,21 @@ export class ChromiumCDP extends EventEmitter {
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.emit('close');
-      this.cleanListeners();
-      this.browser.removeAllListeners();
-      this.browser.close();
+      // Store reference before nulling
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      // Close browser FIRST, then clean up listeners
+      // This ensures the 'close' event fires while listeners are still attached
+      try {
+        await browser.close();
+      } catch (e) {
+        this.logger.warn(`Error closing browser: ${e}`);
+      }
+      // Clean up listeners AFTER browser is fully closed
+      browser.removeAllListeners();
+      this.cleanListeners();
     }
   }
 
