@@ -2,6 +2,11 @@ name: Publish Latest Docker Images to GitHub Container Registry
 
 on:
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild all images'
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -18,6 +23,19 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            base:
+              - 'docker/base/**'
+            chromium:
+              - 'docker/chromium/**'
+              - 'src/**'
+              - 'package.json'
+              - 'package-lock.json'
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -33,6 +51,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish the latest Base image
+        if: steps.changes.outputs.base == 'true' || github.event.inputs.force_rebuild == 'true'
         uses: docker/build-push-action@v5
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -46,6 +65,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Chromium image
+        if: steps.changes.outputs.base == 'true' || steps.changes.outputs.chromium == 'true' || github.event.inputs.force_rebuild == 'true'
         uses: docker/build-push-action@v5
         with:
           build-args: |
