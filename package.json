@@ -53,7 +53,8 @@
   "dependencies": {
     "@hapi/bourne": "^3.0.0",
     "@hapi/hoek": "^11.0.4",
-    "@rrweb/record": "^2.0.0-alpha.18",
+    "@posthog/rrweb": "0.0.36",
+    "@posthog/rrweb-plugin-console-record": "0.0.36",
     "debug": "^4.4.1",
     "del": "^8.0.1",
     "file-type": "^21.3.0",
@@ -72,7 +73,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "rrweb-player": "^2.0.0-alpha.18",
+    "@posthog/rrweb-player": "0.0.36",
     "systeminformation": "^5.30.5",
     "tar-fs": "^3.1.1"
   },
@@ -85,6 +86,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.0.10",
     "@types/sinon": "^21.0.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
     "@typescript-eslint/parser": "^8.53.0",
     "assert": "^2.0.0",
@@ -177,5 +179,10 @@
     "trailingComma": "all",
     "singleQuote": true,
     "printWidth": 80
+  },
+  "devDependencies": {},
+  "overrides": {
+    "@posthog/rrweb-packer": "npm:empty-npm-package@1.0.0",
+    "@posthog/rrweb-replay": "0.0.18"
   }
 }

@@ -17,6 +17,8 @@ import { RRWEB_PLAYER_CSS, RRWEB_PLAYER_JS } from '../../../generated/rrweb-play
 
 export interface QuerySchema extends SystemQueryParameters {
   token?: string;
+  speed?: string;
+  autoplay?: string;
 }
 
 export default class RecordingPlayerGetRoute extends HTTPRoute {
@@ -203,17 +205,26 @@ ${js}
     const events = ${JSON.stringify(events)};
 
     if (events.length > 0) {
-      new rrwebPlayer({
+      // Parse query params for player settings
+      const params = new URLSearchParams(window.location.search);
+      const speed = parseFloat(params.get('speed')) || 4;  // Default 4x
+      const autoPlay = params.get('autoplay') !== 'false';  // Default true
+
+      // rrwebPlayer is bundled as an object with .Player and .default properties
+      const Player = rrwebPlayer.default || rrwebPlayer.Player || rrwebPlayer;
+      const player = new Player({
         target: document.getElementById('player'),
         props: {
           events,
           width: 1024,
           height: 576,
-          autoPlay: false,
+          autoPlay,
           showController: true,
           speedOption: [0.5, 1, 2, 4, 8],
         },
       });
+      // Set speed after initialization to ensure UI reflects the value
+      player.setSpeed(speed);
     } else {
       document.getElementById('player').innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No events recorded in this session.</p>';
     }

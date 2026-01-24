@@ -34,6 +34,10 @@ export class ChromiumCDP extends EventEmitter {
   protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
+  // Flag to track when WE are creating a page (vs external clients like pydoll)
+  // When true, the next targetcreated event is from our newPage() call
+  // When false, it's from an external client and we should NOT attach puppeteer
+  protected pendingInternalPage = false;
 
   constructor({
     blockAds,
@@ -72,6 +76,17 @@ export class ChromiumCDP extends EventEmitter {
 
   protected async onTargetCreated(target: Target) {
     if (target.type() === 'page') {
+      // CRITICAL: Only attach puppeteer to targets WE created via newPage()
+      // External clients (pydoll, playwright, etc.) create targets via /json/new
+      // and don't want puppeteer-stealth or our event handlers interfering.
+      // Attaching to external targets causes CDP command conflicts and timeouts.
+      if (!this.pendingInternalPage) {
+        // @ts-ignore - access internal _targetId for logging
+        const targetId: string = target._targetId;
+        this.logger.trace(`Skipping external target ${targetId} (created by external CDP client)`);
+        return;
+      }
+
       const page = await target.page().catch((e) => {
         this.logger.error(`Error in ${this.constructor.name} new page ${e}`);
         return null;
@@ -145,7 +160,16 @@ export class ChromiumCDP extends EventEmitter {
       );
     }
 
-    return this.browser.newPage();
+    // Pre-register that the next target is internal (created by us, not external client)
+    // This flag is checked by onTargetCreated to decide whether to attach puppeteer
+    this.pendingInternalPage = true;
+
+    const page = await this.browser.newPage();
+
+    // Reset flag (page creation complete)
+    this.pendingInternalPage = false;
+
+    return page;
   }
 
   public async close(): Promise<void> {

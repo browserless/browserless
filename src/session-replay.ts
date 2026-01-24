@@ -8,7 +8,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 
 // Bundled @rrweb/record script - no require.resolve() needed
-import { RRWEB_RECORD_SCRIPT } from './generated/rrweb-script.js';
+import { RRWEB_RECORD_SCRIPT, RRWEB_CONSOLE_PLUGIN_SCRIPT } from './generated/rrweb-script.js';
 
 export interface ReplayEvent {
   data: unknown;
@@ -51,6 +51,7 @@ export interface SessionRecordingState {
  */
 export function getRecordingScript(sessionId: string): string {
   return `${RRWEB_RECORD_SCRIPT}
+${RRWEB_CONSOLE_PLUGIN_SCRIPT}
 (function() {
   if (window.__browserlessRecording) return;
   window.__browserlessRecording = { events: [], sessionId: '${sessionId}' };
@@ -59,13 +60,22 @@ export function getRecordingScript(sessionId: string): string {
     console.warn('[browserless] rrweb.record not found');
     return;
   }
+  // Initialize console plugin
+  var consolePlugin = window.rrwebConsolePlugin?.getRecordConsolePlugin?.({
+    level: ['error', 'warn', 'info', 'log', 'debug'],
+    lengthThreshold: 500
+  });
   window.__browserlessStopRecording = recordFn({
     emit: function(event) { window.__browserlessRecording.events.push(event); },
-    sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last' },
-    recordCanvas: false,
-    collectFonts: true
+    sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last', canvas: 2 },
+    recordCanvas: true,
+    collectFonts: true,
+    recordCrossOriginIframes: true,
+    inlineImages: true,
+    dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
+    plugins: consolePlugin ? [consolePlugin] : []
   });
-  console.log('[browserless] rrweb recording started, sessionId:', '${sessionId}');
+  console.log('[browserless] rrweb recording started with console plugin, sessionId:', '${sessionId}');
 })();`;
 }
 
@@ -75,16 +85,26 @@ export function getRecordingScript(sessionId: string): string {
  */
 export function getRecordingInitScript(sessionId: string): string {
   return `${RRWEB_RECORD_SCRIPT}
+${RRWEB_CONSOLE_PLUGIN_SCRIPT}
 (function() {
   if (window.__browserlessRecording) return 'already_recording';
   window.__browserlessRecording = { events: [], sessionId: '${sessionId}' };
   var recordFn = window.rrweb?.record;
   if (typeof recordFn !== 'function') return 'no_rrweb';
+  // Initialize console plugin
+  var consolePlugin = window.rrwebConsolePlugin?.getRecordConsolePlugin?.({
+    level: ['error', 'warn', 'info', 'log', 'debug'],
+    lengthThreshold: 500
+  });
   window.__browserlessStopRecording = recordFn({
     emit: function(event) { window.__browserlessRecording.events.push(event); },
-    sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last' },
-    recordCanvas: false,
-    collectFonts: true
+    sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last', canvas: 2 },
+    recordCanvas: true,
+    collectFonts: true,
+    recordCrossOriginIframes: true,
+    inlineImages: true,
+    dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
+    plugins: consolePlugin ? [consolePlugin] : []
   });
   return 'started';
 })();`;
