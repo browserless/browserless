@@ -14,7 +14,8 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
+    "bundle:rrweb": "node scripts/bundle-rrweb.js && node scripts/bundle-rrweb-player.js",
+    "build": "npm run clean && npm run bundle:rrweb && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function && npm run install:debugger",
     "build:devtools": "node scripts/install-devtools.js",
     "build:function": "node scripts/build-function.js",
@@ -52,6 +53,7 @@
   "dependencies": {
     "@hapi/bourne": "^3.0.0",
     "@hapi/hoek": "^11.0.4",
+    "@rrweb/record": "^2.0.0-alpha.18",
     "debug": "^4.4.1",
     "del": "^8.0.1",
     "file-type": "^21.3.0",
@@ -70,6 +72,7 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
+    "rrweb-player": "^2.0.0-alpha.18",
     "systeminformation": "^5.30.5",
     "tar-fs": "^3.1.1"
   },

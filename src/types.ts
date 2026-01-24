@@ -13,6 +13,7 @@ import {
   Methods,
   Metrics,
   Request,
+  SessionReplay,
   WebKitPlaywright,
   WebsocketRoutes,
   contentTypes,
@@ -93,6 +94,8 @@ type defaultLaunchOptions =
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
 abstract class Route {
+  protected _sessionReplay?: SessionReplay;
+
   constructor(
     protected _browserManager: Browserless['browserManager'],
     protected _config: Browserless['config'],
@@ -200,6 +203,14 @@ abstract class Route {
    * @returns Limiter
    */
   limiter = () => this._limiter;
+
+  /**
+   * Helper function that loads the session replay module for
+   * managing session recordings. Defined and injected by
+   * browserless after initialization.
+   * @returns SessionReplay | undefined
+   */
+  sessionReplay = () => this._sessionReplay;
 
   /**
    * The HTTP path that this route handles, eg '/my-route' OR an
@@ -413,6 +424,7 @@ export interface BrowserlessSession {
   isTempDataDir: boolean;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
+  replay?: boolean;
   resolver(val: unknown): void;
   routePath: string | string[];
   startedOn: number;
@@ -429,6 +441,7 @@ export interface BrowserlessSessionJSON {
   killURL: string | null;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
+  replay?: boolean;
   routePath: string | string[];
   startedOn: number;
   timeAliveMs: number;
@@ -722,6 +735,10 @@ export const BrowserlessManagementRoutes = {
   MetricsGetRoute: 'MetricsGetRoute',
   MetricsTotalGetRoute: 'MetricsTotalGetRoute',
   PressureGetRoute: 'PressureGetRoute',
+  RecordingDeleteRoute: 'RecordingDeleteRoute',
+  RecordingGetRoute: 'RecordingGetRoute',
+  RecordingPlayerGetRoute: 'RecordingPlayerGetRoute',
+  RecordingsGetRoute: 'RecordingsGetRoute',
   SessionsGetRoute: 'SessionsGetRoute',
   StaticGetRoute: 'StaticGetRoute',
 };

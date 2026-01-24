@@ -11,6 +11,7 @@ export * from './metrics.js';
 export * from './mime-types.js';
 export * from './monitoring.js';
 export * from './router.js';
+export * from './session-replay.js';
 export * from './sdk-utils.js';
 export * from './server.js';
 export * from './shim.js';

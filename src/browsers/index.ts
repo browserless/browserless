@@ -23,12 +23,15 @@ import {
   NotFound,
   Request,
   ServerError,
+  SessionReplay,
   WebKitPlaywright,
   availableBrowsers,
   convertIfBase64,
   exists,
   generateDataDir,
   getFinalPathSegment,
+  getCDPClient,
+  getRecordingScript,
   makeExternalURL,
   noop,
   parseBooleanParam,
@@ -36,6 +39,7 @@ import {
   pwVersionRegex,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
+import type { CDPSession } from 'playwright-core';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
@@ -58,6 +62,7 @@ export class BrowserManager {
     protected config: Config,
     protected hooks: Hooks,
     protected fileSystem: FileSystem,
+    protected sessionReplay?: SessionReplay,
   ) {}
 
   protected browserIsChrome(b: BrowserInstance) {
@@ -77,8 +82,319 @@ export class BrowserManager {
     }
   }
 
-  protected async onNewPage(req: Request, page: Page) {
+  protected async onNewPage(req: Request, page: Page, session?: BrowserlessSession) {
+    // Set up replay recording if enabled for this session
+    if (session?.replay && this.sessionReplay?.isEnabled()) {
+      await this.setupPageRecording(page, session.id);
+    }
     return await this.hooks.page({ meta: req.parsed, page });
+  }
+
+  /**
+   * Set up RRWeb recording for a page using raw CDP commands.
+   * Works with ALL clients: puppeteer, playwright, raw CDP, pydoll, etc.
+   *
+   * Key insight from Puppeteer issues:
+   * - Page.enable MUST be called before Page.addScriptToEvaluateOnNewDocument
+   * - sessionattached event catches new tabs/iframes/popups
+   * @see https://github.com/puppeteer/puppeteer/issues/10094
+   * @see https://github.com/puppeteer/puppeteer/issues/12706
+   */
+  protected async setupPageRecording(page: Page, sessionId: string): Promise<void> {
+    if (!this.sessionReplay) return;
+
+    // Get raw CDP client - works regardless of how page was created
+    const cdp = getCDPClient(page);
+    if (!cdp) {
+      this.log.warn(`No CDP client available for page, skipping recording`);
+      return;
+    }
+
+    // Get the recording script early so it's available in collectEvents closure
+    const script = getRecordingScript(sessionId);
+
+    const collectEvents = async () => {
+      try {
+        if (page.isClosed()) return;
+
+        // First, check if rrweb is loaded and actively recording
+        // This handles cases where:
+        // 1. addScriptToEvaluateOnNewDocument didn't fire
+        // 2. rrweb loaded but failed to start recording
+        const checkResult = await cdp.send('Runtime.evaluate', {
+          expression: `JSON.stringify({
+            hasRecording: !!window.__browserlessRecording,
+            hasRrweb: !!window.rrweb,
+            isRecording: typeof window.__browserlessStopRecording === 'function',
+            url: window.location.href
+          })`,
+          returnByValue: true,
+        }).catch(() => null);
+
+        let needsInjection = false;
+        if (checkResult?.result?.value) {
+          try {
+            const status = JSON.parse(checkResult.result.value);
+            // Inject if we're on a real page AND (recording not set up OR rrweb not actually recording)
+            if (status.url && !status.url.startsWith('about:') && !status.isRecording) {
+              needsInjection = true;
+              this.log.debug(`Recording not active on ${status.url} (hasRecording=${status.hasRecording}, hasRrweb=${status.hasRrweb}, isRecording=${status.isRecording}), injecting...`);
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        // Inject rrweb if needed (self-healing for when addScriptToEvaluateOnNewDocument doesn't work)
+        if (needsInjection) {
+          // Clear any partial state first so the script reinitializes fully
+          await cdp.send('Runtime.evaluate', {
+            expression: `delete window.__browserlessRecording; delete window.__browserlessStopRecording;`,
+            returnByValue: true,
+          }).catch(() => {});
+
+          await cdp.send('Runtime.evaluate', {
+            expression: script,
+            returnByValue: true,
+          }).catch((e) => {
+            this.log.warn(`Failed to inject rrweb: ${e instanceof Error ? e.message : String(e)}`);
+          });
+        }
+
+        // Now collect events
+        const result = await cdp.send('Runtime.evaluate', {
+          expression: `(function() {
+            const recording = window.__browserlessRecording;
+            const debug = {
+              hasRecording: !!recording,
+              hasRrweb: !!window.rrweb,
+              url: window.location.href,
+              eventCount: recording?.events?.length || 0
+            };
+            if (!recording?.events?.length) return JSON.stringify({ events: [], debug });
+            const collected = [...recording.events];
+            recording.events = [];
+            return JSON.stringify({ events: collected, debug });
+          })()`,
+          returnByValue: true,
+        }).catch((e) => {
+          this.log.warn(`collectEvents CDP error: ${e instanceof Error ? e.message : String(e)}`);
+          return null;
+        });
+
+        if (result?.result?.value) {
+          try {
+            const parsed = JSON.parse(result.result.value);
+            const { events, debug } = parsed;
+
+            // Log debug info periodically (every 10 polls or when events found)
+            if (events?.length || Math.random() < 0.1) {
+              this.log.debug(`collectEvents: url=${debug?.url}, hasRecording=${debug?.hasRecording}, hasRrweb=${debug?.hasRrweb}, eventCount=${events?.length || 0}`);
+            }
+
+            if (events?.length) {
+              this.sessionReplay?.addEvents(sessionId, events);
+            }
+          } catch {
+            // JSON parse error, ignore
+          }
+        }
+      } catch {
+        // Page closed or navigating
+      }
+    };
+
+    try {
+      // 1. Enable Page domain FIRST (REQUIRED by CDP protocol!)
+      // Without this, addScriptToEvaluateOnNewDocument may silently fail
+      await cdp.send('Page.enable');
+
+      // 2. Inject for ALL future navigations via raw CDP
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: script,
+        runImmediately: true,
+      });
+
+      // 3. Handle new tabs/iframes/popups via sessionattached event
+      // This catches contexts created after the initial page
+      // Note: Using EventEmitter pattern since CDPSession extends it
+      const emitter = cdp as unknown as NodeJS.EventEmitter;
+      emitter.on('sessionattached', async (attachedSession: CDPSession) => {
+        try {
+          await attachedSession.send('Page.enable');
+          await attachedSession.send('Page.addScriptToEvaluateOnNewDocument', {
+            source: script,
+            runImmediately: true,
+          });
+          this.log.debug(`rrweb injection: attached session for ${sessionId}`);
+        } catch (e) {
+          this.log.warn(`rrweb session attach failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+
+      // 4. Inject immediately on current page via raw CDP Runtime.evaluate
+      let initStatus = 'success';
+      try {
+        await cdp.send('Runtime.evaluate', {
+          expression: script,
+          returnByValue: true,
+        });
+      } catch (e) {
+        initStatus = `error: ${e instanceof Error ? e.message : String(e)}`;
+      }
+
+      this.log.debug(`rrweb injection: ${initStatus}`);
+
+      // 5. FIX: Collect events BEFORE navigation starts (prevents event loss)
+      // Page.frameStartedLoading fires when navigation begins, BEFORE old document unloads
+      emitter.on('Page.frameStartedLoading', async () => {
+        try {
+          await collectEvents();
+          this.log.debug(`Collected events before navigation for session ${sessionId}`);
+        } catch {
+          // Page might be in weird state during navigation
+        }
+      });
+
+      // 6. FIX: Re-inject immediately after navigation completes
+      // This handles CDP session isolation - addScriptToEvaluateOnNewDocument may not fire
+      // for navigations triggered by other CDP sessions (like pydoll)
+      const injectAfterNavigation = async (source: string) => {
+        // Small delay to let the page initialize
+        await new Promise((r) => setTimeout(r, 50));
+        try {
+          if (page.isClosed()) return;
+          await cdp.send('Runtime.evaluate', {
+            expression: script,
+            returnByValue: true,
+          });
+          this.log.debug(`Re-injected rrweb (${source}) for session ${sessionId}`);
+        } catch {
+          // Page might not be ready yet, self-healing will catch it
+        }
+      };
+
+      // Listen for multiple navigation events for redundancy
+      emitter.on('Page.frameNavigated', () => injectAfterNavigation('frameNavigated'));
+      emitter.on('Page.loadEventFired', () => injectAfterNavigation('loadEventFired'));
+      emitter.on('Page.domContentEventFired', () => injectAfterNavigation('domContentEventFired'));
+
+      // 7. FIX: Collect events more frequently (200ms instead of 1000ms)
+      // Reduces maximum event loss window from 1 second to 200ms
+      const intervalId = setInterval(collectEvents, 200);
+
+      // 8. Register final collector so we don't lose events on session close
+      // This is called by stopRecording BEFORE setting isRecording=false
+      this.sessionReplay?.registerFinalCollector(sessionId, collectEvents);
+
+      page.once('close', async () => {
+        clearInterval(intervalId);
+        // Note: collectEvents here might be redundant now, but kept for safety
+        await collectEvents();
+      });
+
+      this.log.debug(`Recording enabled for session ${sessionId}`);
+    } catch (err) {
+      this.log.warn(`Failed to set up replay recording: ${err}`);
+    }
+  }
+
+  /**
+   * Set up recording for ALL tabs - both existing and future ones.
+   * This handles CDP clients like pydoll that use get_opened_tabs()[0].
+   *
+   * Why this is needed:
+   * - Browserless's newPage event only fires for pages created through its wrapper
+   * - CDP clients like pydoll connect directly and use existing tabs
+   * - We need to inject recording at the CDP level to catch all pages
+   */
+  protected async setupRecordingForAllTabs(
+    browser: BrowserInstance,
+    sessionId: string,
+  ): Promise<void> {
+    if (!this.sessionReplay) return;
+
+    const wsEndpoint = browser.wsEndpoint();
+    if (!wsEndpoint) return;
+
+    try {
+      // Connect puppeteer to the BROWSER's wsEndpoint
+      const puppeteer = await import('puppeteer-core');
+      const pptr = await puppeteer.default.connect({
+        browserWSEndpoint: wsEndpoint,
+        defaultViewport: null,
+        // Short timeout for CDP operations - recording setup shouldn't block session creation
+        // Default is 180s which causes the entire getBrowserForRequest to block
+        protocolTimeout: 10000, // 10 seconds max for any CDP command
+      });
+
+      // Track pages we've already set up recording for (avoid duplicates)
+      // Use WeakSet to track actual Page objects - more reliable than URLs
+      const recordingSetUp = new WeakSet<Page>();
+
+      const setupRecordingForPage = async (page: Page, source: string) => {
+        if (recordingSetUp.has(page)) return;
+        recordingSetUp.add(page);
+
+        try {
+          await this.setupPageRecording(page, sessionId);
+          this.log.debug(`Set up recording for ${source} tab, session ${sessionId}`);
+        } catch (e) {
+          this.log.debug(
+            `Failed to setup recording for ${source} tab: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+      };
+
+      // FIRST: Set up listener for new/in-flight targets BEFORE getting existing pages
+      // This prevents race conditions where a tab is created between pages() and listener setup
+      pptr.on('targetcreated', async (target) => {
+        if (target.type() !== 'page') return;
+        try {
+          const page = await target.page();
+          if (page) await setupRecordingForPage(page, 'new');
+        } catch (e) {
+          this.log.warn(`Failed to get page from target: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+
+      // Wait for at least one page to exist (handles waitForInitialPage: false)
+      // The browser might not have created its initial page yet
+      let pages = await pptr.pages();
+      if (pages.length === 0) {
+        this.log.debug(`No pages yet, waiting for initial page...`);
+        const startTime = Date.now();
+        const timeout = 5000; // 5 second max wait
+        while (pages.length === 0 && Date.now() - startTime < timeout) {
+          await new Promise((r) => setTimeout(r, 50));
+          pages = await pptr.pages();
+        }
+        if (pages.length === 0) {
+          this.log.warn(`No pages found after ${timeout}ms, recording may not work`);
+        }
+      }
+
+      // Set up recording for pages that exist
+      for (const page of pages) {
+        await setupRecordingForPage(page, 'existing');
+      }
+
+      // Register cleanup to disconnect puppeteer when recording stops
+      this.sessionReplay?.registerCleanupFn(sessionId, async () => {
+        try {
+          pptr.disconnect();
+          this.log.debug(`Disconnected puppeteer for session ${sessionId}`);
+        } catch (e) {
+          this.log.warn(`Failed to disconnect puppeteer: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+
+      this.log.debug(`Recording active for ${pages.length} tab(s), session ${sessionId}`);
+    } catch (e) {
+      this.log.debug(
+        `Failed to setup recording for tabs: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 
   /**
@@ -340,6 +656,18 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
+
+      // Stop recording and save if replay was enabled
+      if (session.replay && this.sessionReplay) {
+        await this.sessionReplay.stopRecording(session.id, {
+          browserType: browser.constructor.name,
+          routePath: Array.isArray(session.routePath)
+            ? session.routePath[0]
+            : session.routePath,
+          trackingId: session.trackingId,
+        });
+      }
+
       cleanupACtions.push(() => browser.close());
 
       // Always delete session from memory
@@ -445,6 +773,11 @@ export class BrowserManager {
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
       'blockAds',
+      false,
+    );
+    const replay = parseBooleanParam(
+      req.parsed.searchParams,
+      'replay',
       false,
     );
     const trackingId =
@@ -640,22 +973,16 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
-    await browser.launch({
-      options: launchOptions as BrowserServerOptions,
-      pwVersion,
-      req,
-      stealth: launchOptions?.stealth,
-    });
-    await this.hooks.browser({ browser, req });
-
-    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
+    // Pre-create session object so we can reference it in event handler
+    // Session ID will be updated after launch when we know the wsEndpoint
     const session: BrowserlessSession = {
-      id: sessionId,
+      id: '', // Will be set after launch
       initialConnectURL:
         path.join(req.parsed.pathname, req.parsed.search) || '',
       isTempDataDir: !manualUserDataDir,
       launchOptions,
       numbConnected: 1,
+      replay: replay && this.sessionReplay?.isEnabled(),
       resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
@@ -664,6 +991,34 @@ export class BrowserManager {
       userDataDir,
     };
 
+    // CRITICAL: Register newPage handler BEFORE launch so we catch all pages
+    // including those created by CDP clients (like pydoll) immediately after connect
+    browser.on('newPage', async (page: Page) => {
+      await this.onNewPage(req, page, session);
+      (router.onNewPage || noop)(req.parsed || '', page);
+    });
+
+    await browser.launch({
+      options: launchOptions as BrowserServerOptions,
+      pwVersion,
+      req,
+      stealth: launchOptions?.stealth,
+    });
+    await this.hooks.browser({ browser, req });
+
+    // Now we can get the session ID from the wsEndpoint
+    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
+    session.id = sessionId;
+
+    // Start replay recording if enabled
+    if (session.replay && this.sessionReplay) {
+      this.sessionReplay.startRecording(sessionId, trackingId);
+      this.log.debug(`Started replay recording for session ${sessionId}`);
+
+      // Set up recording for all tabs (existing + future via /json/new)
+      await this.setupRecordingForAllTabs(browser, sessionId);
+    }
+
     // Update logger with session context now that we have tracking ID and session ID
     logger.setSessionContext({
       trackingId,
@@ -671,11 +1026,6 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
-
-    browser.on('newPage', async (page: Page) => {
-      await this.onNewPage(req, page);
-      (router.onNewPage || noop)(req.parsed || '', page);
-    });
 
     return browser;
   }

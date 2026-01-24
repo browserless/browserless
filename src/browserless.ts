@@ -22,6 +22,7 @@ import {
   Metrics,
   Monitoring,
   Router,
+  SessionReplay,
   Token,
   WebHooks,
   WebKitPlaywright,
@@ -65,6 +66,7 @@ export class Browserless extends EventEmitter {
   protected metrics: Metrics;
   protected monitoring: Monitoring;
   protected router: Router;
+  protected sessionReplay: SessionReplay;
   protected token: Token;
   protected webhooks: WebHooks;
   protected staticSDKDir: string | null = null;
@@ -86,6 +88,7 @@ export class Browserless extends EventEmitter {
     metrics,
     monitoring,
     router,
+    sessionReplay,
     token,
     webhooks,
   }: {
@@ -98,6 +101,7 @@ export class Browserless extends EventEmitter {
     metrics?: Browserless['metrics'];
     monitoring?: Browserless['monitoring'];
     router?: Browserless['router'];
+    sessionReplay?: Browserless['sessionReplay'];
     token?: Browserless['token'];
     webhooks?: Browserless['webhooks'];
   } = {}) {
@@ -111,9 +115,10 @@ export class Browserless extends EventEmitter {
     this.webhooks = webhooks || new WebHooks(this.config);
     this.monitoring = monitoring || new Monitoring(this.config);
     this.fileSystem = fileSystem || new FileSystem(this.config);
+    this.sessionReplay = sessionReplay || new SessionReplay(this.config);
     this.browserManager =
       browserManager ||
-      new BrowserManager(this.config, this.hooks, this.fileSystem);
+      new BrowserManager(this.config, this.hooks, this.fileSystem, this.sessionReplay);
     this.limiter =
       limiter ||
       new Limiter(
@@ -255,6 +260,7 @@ export class Browserless extends EventEmitter {
       this.metrics.shutdown(),
       this.monitoring.shutdown(),
       this.router.shutdown(),
+      this.sessionReplay.shutdown(),
       this.token.shutdown(),
       this.webhooks.shutdown(),
       this.hooks.shutdown(),
@@ -328,6 +334,7 @@ export class Browserless extends EventEmitter {
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
           route.staticSDKDir = () => this.staticSDKDir;
+          route.sessionReplay = () => this.sessionReplay;
 
           httpRoutes.push(route);
         }
@@ -376,6 +383,7 @@ export class Browserless extends EventEmitter {
           route.monitoring = () => this.monitoring;
           route.fileSystem = () => this.fileSystem;
           route.staticSDKDir = () => this.staticSDKDir;
+          route.sessionReplay = () => this.sessionReplay;
 
           wsRoutes.push(route);
         }
@@ -434,6 +442,7 @@ export class Browserless extends EventEmitter {
     );
 
     await this.loadPwVersions();
+    await this.sessionReplay.initialize();
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(

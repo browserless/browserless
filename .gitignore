@@ -4,6 +4,9 @@ build/
 metrics.json
 extensions/ublocklite
 
+# Generated rrweb bundles (created by scripts/bundle-rrweb*.js)
+src/generated/
+
 # npm pack
 browserless.io-browserless-*.tgz
 

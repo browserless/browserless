@@ -184,6 +184,11 @@ export class Config extends EventEmitter {
   protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
   protected pwVersions: { [key: string]: string } = {};
   protected enableDebugger = !!parseEnvVars(true, 'ENABLE_DEBUGGER');
+  protected enableReplay = !!parseEnvVars(true, 'ENABLE_REPLAY');
+  protected replayDir = process.env.REPLAY_DIR
+    ? untildify(process.env.REPLAY_DIR)
+    : path.join(tmpdir(), 'browserless-recordings');
+  protected replayMaxSize = +(process.env.REPLAY_MAX_SIZE ?? '52428800'); // 50MB default
 
   public getRoutes(): string {
     return this.routes;
@@ -275,6 +280,33 @@ export class Config extends EventEmitter {
 
   public async hasDebugger(): Promise<boolean> {
     return this.enableDebugger && (await exists(this.debuggerDir));
+  }
+
+  public getEnableReplay(): boolean {
+    return this.enableReplay;
+  }
+
+  public getReplayDir(): string {
+    return this.replayDir;
+  }
+
+  public getReplayMaxSize(): number {
+    return this.replayMaxSize;
+  }
+
+  public setEnableReplay(enable: boolean): boolean {
+    this.emit('enableReplay', enable);
+    return (this.enableReplay = enable);
+  }
+
+  public setReplayDir(dir: string): string {
+    this.emit('replayDir', dir);
+    return (this.replayDir = dir);
+  }
+
+  public setReplayMaxSize(size: number): number {
+    this.emit('replayMaxSize', size);
+    return (this.replayMaxSize = size);
   }
 
   /**

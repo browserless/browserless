@@ -146,6 +146,9 @@ export enum HTTPManagementRoutes {
   metrics = '/metrics?(/)',
   metricsTotal = '/metrics/total?(/)',
   pressure = '/pressure?(/)',
+  recordings = '/recordings?(/)',
+  recording = '/recordings/+([0-9a-zA-Z-_])?(/)',
+  recordingPlayer = '/recordings/+([0-9a-zA-Z-_])/player?(/)',
   sessions = '/sessions?(/)',
   static = '/',
 }
@@ -179,6 +182,12 @@ export interface SystemQueryParameters {
    * object, or a base64-encoded JSON object.
    */
   launch?: CDPLaunchOptions | BrowserServerOptions | string;
+
+  /**
+   * Enable session replay recording. When true, DOM mutations
+   * and user interactions are captured using RRWeb for later playback.
+   */
+  replay?: boolean;
 
   /**
    * Override the system-level timeout for this request.
