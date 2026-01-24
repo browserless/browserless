@@ -2,7 +2,7 @@
 
 ## TL;DR - What Was Fixed
 
-Three separate issues were fixed to make rrweb session recordings work with CDP clients like Pydoll:
+Multiple issues were fixed to make rrweb session recordings work with CDP clients like Pydoll:
 
 | Issue | Root Cause | Fix | File |
 |-------|-----------|-----|------|
@@ -11,6 +11,7 @@ Three separate issues were fixed to make rrweb session recordings work with CDP 
 | **CDP session isolation** | `addScriptToEvaluateOnNewDocument` may not fire for navigations from other CDP sessions | Re-inject on `Page.frameNavigated`, `Page.loadEventFired`, `Page.domContentEventFired` | `src/browsers/index.ts` |
 | **Self-healing too slow** | 1-second check interval | Reduced to 200ms polling | `src/browsers/index.ts` |
 | **Concurrent scraper cleanup race** | `get_browser_id()` returned newest session, not calling scraper's session | Use `trackingId` param to identify own session | `pydoll-scraper/src/evasion/browser.py` |
+| **Session state desync** | Recording setup blocked session registration for 180s | Add `protocolTimeout: 10000` to internal Puppeteer connection | `src/browsers/index.ts` |
 
 ---
 
@@ -231,6 +232,100 @@ async def get_browser_id(http_endpoint: str, tracking_id: str) -> str | None:
 
 ---
 
+## Issue 5: Session State Desync (running: N but sessions: [])
+
+### The Problem
+
+**Symptom:** `/pressure` shows `running: 1` but `/sessions` returns `[]`. WebSocket handshake times out after 30 seconds. Browser is launched and running but never tracked.
+
+**Why it happens:**
+
+The `setupRecordingForAllTabs()` function connects an internal Puppeteer instance to set up recording. When the browser is slow (e.g., proxy overhead), CDP operations like `Page.addScriptToEvaluateOnNewDocument` timeout after 30 seconds each. Without a `protocolTimeout`, these operations can chain and block `getBrowserForRequest()` for up to 180 seconds (the job timeout).
+
+```
+Timeline (OLD - no protocolTimeout):
+
+[Job starts]          → limiter.executing = 1
+[Browser launched]    → Chrome PID 149 running
+[Recording started]   → In-memory tracking
+[setupRecordingForAllTabs]
+  │
+  ├── puppeteer.connect() → OK
+  ├── pptr.pages() → OK
+  └── setupPageRecording()
+       └── Page.addScriptToEvaluateOnNewDocument
+            │
+            │ ← Browser slow due to proxy
+            │ ← Waits 30 seconds (default protocolTimeout)
+            │ ← Times out with ProtocolError
+            │
+            [... more retries, more timeouts ...]
+            │
+[180 seconds later]   → Job times out
+[Session NEVER added to this.browsers Map]
+
+Result:
+- /pressure shows running: 1 (limiter counter)
+- /sessions shows []     (this.browsers is empty)
+- Browser is running but orphaned
+```
+
+The critical issue is that `this.browsers.set(browser, session)` at line 1025 is AFTER `setupRecordingForAllTabs()`. If that function blocks, the session is never registered.
+
+### The Fix
+
+**Solution:** Add `protocolTimeout: 10000` to the internal Puppeteer connection in `setupRecordingForAllTabs()`.
+
+**Code location:** `src/browsers/index.ts` → `setupRecordingForAllTabs()`
+
+```typescript
+// Connect to browser with short timeout for CDP operations
+const puppeteer = await import('puppeteer-core');
+const pptr = await puppeteer.default.connect({
+  browserWSEndpoint: wsEndpoint,
+  defaultViewport: null,
+  // Short timeout for CDP operations - recording setup shouldn't block session creation
+  // Default is 180s which causes the entire getBrowserForRequest to block
+  protocolTimeout: 10000, // 10 seconds max for any CDP command
+});
+```
+
+```
+Timeline (NEW - 10s protocolTimeout):
+
+[Job starts]          → limiter.executing = 1
+[Browser launched]    → Chrome PID 149 running
+[Recording started]   → In-memory tracking
+[setupRecordingForAllTabs]
+  │
+  ├── puppeteer.connect() → OK
+  ├── pptr.pages() → OK
+  └── setupPageRecording()
+       └── Page.addScriptToEvaluateOnNewDocument
+            │
+            │ ← Browser slow due to proxy
+            │ ← Waits only 10 seconds
+            │ ← ProtocolError thrown
+            │
+[Caught by try/catch, continues]
+            │
+[Session added to this.browsers Map]   ← NOW THIS HAPPENS
+[WebSocket upgrade completes]
+
+Result:
+- Session is tracked even if recording setup partially failed
+- Recording will be fixed by self-healing (200ms polling + re-injection)
+- No state desync
+```
+
+**Why 10 seconds?**
+- Long enough for normal CDP operations on healthy browsers
+- Short enough to fail fast when browser is overloaded
+- Recording setup is "nice to have" - session creation is critical path
+- Self-healing mechanisms will fix any missed recording setup
+
+---
+
 ## Architecture Overview
 
 ```
@@ -312,7 +407,7 @@ async def get_browser_id(http_endpoint: str, tracking_id: str) -> str | None:
 
 | File | Changes |
 |------|---------|
-| `src/browsers/index.ts` | Added `setupRecordingForAllTabs()`, CDP event listeners (`Page.frameStartedLoading`, `Page.frameNavigated`, `Page.loadEventFired`, `Page.domContentEventFired`), reduced polling to 200ms |
+| `src/browsers/index.ts` | Added `setupRecordingForAllTabs()` with `protocolTimeout: 10000`, CDP event listeners (`Page.frameStartedLoading`, `Page.frameNavigated`, `Page.loadEventFired`, `Page.domContentEventFired`), reduced polling to 200ms |
 | `src/session-replay.ts` | Added `finalCollectors`, `cleanupFns` to `SessionRecordingState`, `registerFinalCollector()`, `registerCleanupFn()` methods |
 
 ### Pydoll Scraper (`/Users/peter/Developer/catchseo/packages/pydoll-scraper`)
@@ -387,6 +482,8 @@ curl -s http://192.168.4.200:3000/sessions | jq '.[0]'
 | Recording works first page, not after navigate | CDP session isolation | Check `Page.frameNavigated` listener is attached and re-injecting |
 | Sessions accumulating | `trackingId` not being used | Verify `get_browser_id()` is filtering by `trackingId` |
 | Recording file empty | `stopRecording()` called before events collected | Check `finalCollectors` are registered and running |
+| `running: N` but `sessions: []` | Recording setup blocking session registration | Check `protocolTimeout` is set in `setupRecordingForAllTabs()` puppeteer.connect() |
+| WebSocket handshake timeout | CDP operations timing out | Verify browser isn't overloaded, check proxy latency, confirm `protocolTimeout: 10000` is set |
 
 ---
 
@@ -401,3 +498,5 @@ curl -s http://192.168.4.200:3000/sessions | jq '.[0]'
 4. **Concurrent scrapers need unique identifiers** - Using "newest session" to find your session fails with multiple scrapers. Use `trackingId` parameter.
 
 5. **Multiple CDP connections to same browser work fine** - Browserless's internal Puppeteer and Pydoll's CDP connection don't interfere with each other.
+
+6. **Recording setup must not block session registration** - If `setupRecordingForAllTabs()` takes too long, the session is never added to `this.browsers` Map, causing state desync where limiter shows running jobs but `/sessions` returns empty. Use short `protocolTimeout` (10s) to fail fast.
