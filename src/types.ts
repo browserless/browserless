@@ -443,9 +443,11 @@ export interface BrowserlessSessionJSON {
   numbConnected: number;
   replay?: boolean;
   routePath: string | string[];
+  running: boolean;
   startedOn: number;
   timeAliveMs: number;
   trackingId?: string;
+  type: 'browser' | 'page';
   userDataDir: string | null;
 }
 

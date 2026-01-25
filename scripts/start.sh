@@ -6,7 +6,7 @@ set -e
 [ -f /tmp/.X99-lock ] && rm -f /tmp/.X99-lock
 
 _kill_procs() {
-  kill -TERM $node
+  kill -TERM $app
   kill -TERM $xvfb
 }
 
@@ -21,9 +21,9 @@ then
 fi
 
 dumb-init -- node build/index.js $@ &
-node=$!
+app=$!
 
-wait $node
+wait $app
 
 if [ ! -z "$xvfb" ]
 then

@@ -21,6 +21,8 @@ import path from 'path';
 import playwright from 'playwright-core';
 import puppeteerStealth from 'puppeteer-extra';
 
+import { CDPProxy, RecordingCompleteParams } from '../cdp-proxy.js';
+
 puppeteerStealth.use(StealthPlugin());
 
 export class ChromiumCDP extends EventEmitter {
@@ -38,6 +40,8 @@ export class ChromiumCDP extends EventEmitter {
   // When true, the next targetcreated event is from our newPage() call
   // When false, it's from an external client and we should NOT attach puppeteer
   protected pendingInternalPage = false;
+  // CDP-aware proxy for injecting events before close
+  protected cdpProxy: CDPProxy | null = null;
 
   constructor({
     blockAds,
@@ -361,19 +365,24 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (!this.browserWSEndpoint) {
-        throw new ServerError(
-          `No browserWSEndpoint found, did you launch first?`,
-        );
-      }
+    if (!this.browserWSEndpoint) {
+      throw new ServerError(
+        `No browserWSEndpoint found, did you launch first?`,
+      );
+    }
 
+    this.logger.info(
+      `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
+    );
+
+    return new Promise(async (resolve, reject) => {
       const close = once(() => {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);
         socket.off('end', close);
         socket.off('error', close);
+        this.cdpProxy = null;
         return resolve();
       });
 
@@ -383,32 +392,46 @@ export class ChromiumCDP extends EventEmitter {
       socket.once('end', close);
       socket.once('error', close);
 
-      this.logger.info(
-        `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
-      );
+      try {
+        // Create CDP-aware proxy for event injection
+        this.cdpProxy = new CDPProxy(
+          socket,
+          head,
+          req,
+          this.browserWSEndpoint!,
+          close,
+        );
 
-      req.url = '';
-
-      // Delete headers known to cause issues
-      delete req.headers.origin;
-
-      this.proxy.ws(
-        req,
-        socket,
-        head,
-        {
-          changeOrigin: true,
-          target: this.browserWSEndpoint,
-        },
-        (error) => {
-          this.logger.error(
-            `Error proxying session to ${this.constructor.name}: ${error}`,
-          );
-          this.close();
-          return reject(error);
-        },
-      );
+        await this.cdpProxy.connect();
+        this.logger.trace('CDPProxy connected successfully');
+      } catch (error) {
+        this.logger.error(
+          `Error proxying session to ${this.constructor.name}: ${error}`,
+        );
+        this.cdpProxy = null;
+        this.close();
+        return reject(error);
+      }
     });
+  }
+
+  /**
+   * Send recording metadata to client via CDP event.
+   *
+   * Called by SessionLifecycleManager before closing the session.
+   * The client (Pydoll) can listen for "Browserless.recordingComplete" event
+   * to receive recording URL without making an additional HTTP call.
+   */
+  public async sendRecordingComplete(
+    metadata: RecordingCompleteParams,
+  ): Promise<void> {
+    if (this.cdpProxy) {
+      await this.cdpProxy.sendRecordingComplete(metadata);
+    } else {
+      this.logger.warn(
+        'Cannot send recording complete: no CDPProxy available',
+      );
+    }
   }
 }
 

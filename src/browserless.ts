@@ -39,6 +39,9 @@ import { EventEmitter } from 'events';
 import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
+import { ServiceContainer } from './container/container.js';
+import { createContainer, Services } from './container/bootstrap.js';
+
 const routeSchemas = ['body', 'query'];
 
 const isArm64 = process.arch === 'arm64';
@@ -449,5 +452,47 @@ export class Browserless extends EventEmitter {
       () => this.saveMetrics(),
       this.metricsSaveInterval,
     );
+  }
+
+  /**
+   * Create a Browserless instance from a service container.
+   *
+   * This factory method uses the centralized DI container for service resolution.
+   * The container provides:
+   * - Centralized service registration
+   * - Circular dependency detection
+   * - Startup validation
+   * - Easy mocking for tests
+   *
+   * @param container Optional container. If not provided, creates a new one.
+   * @example
+   *   // Basic usage
+   *   const browserless = Browserless.fromContainer();
+   *
+   *   // With custom overrides for testing
+   *   const container = createContainer({
+   *     config: new MockConfig(),
+   *     recordingStore: new MockRecordingStore(),
+   *   });
+   *   const browserless = Browserless.fromContainer(container);
+   */
+  public static fromContainer(container?: ServiceContainer): Browserless {
+    const c = container ?? createContainer();
+    c.validate(); // Fail fast on missing deps
+
+    return new Browserless({
+      browserManager: c.resolve<BrowserManager>(Services.BrowserManager),
+      config: c.resolve<Config>(Services.Config),
+      fileSystem: c.resolve<FileSystem>(Services.FileSystem),
+      hooks: c.resolve<Hooks>(Services.Hooks),
+      limiter: c.resolve<Limiter>(Services.Limiter),
+      Logger: c.resolve<typeof BlessLogger>(Services.Logger),
+      metrics: c.resolve<Metrics>(Services.Metrics),
+      monitoring: c.resolve<Monitoring>(Services.Monitoring),
+      router: c.resolve<Router>(Services.Router),
+      sessionReplay: c.resolve<SessionReplay>(Services.SessionReplay),
+      token: c.resolve<Token>(Services.Token),
+      webhooks: c.resolve<WebHooks>(Services.WebHooks),
+    });
   }
 }

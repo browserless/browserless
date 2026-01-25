@@ -9,6 +9,11 @@ import path from 'path';
 
 // Bundled @rrweb/record script - no require.resolve() needed
 import { RRWEB_RECORD_SCRIPT, RRWEB_CONSOLE_PLUGIN_SCRIPT } from './generated/rrweb-script.js';
+import { RecordingStore } from './recording-store.js';
+import type { IRecordingStore, RecordingMetadata } from './interfaces/recording-store.interface.js';
+
+// Re-export RecordingMetadata for backwards compatibility
+export type { RecordingMetadata } from './interfaces/recording-store.interface.js';
 
 export interface ReplayEvent {
   data: unknown;
@@ -16,20 +21,17 @@ export interface ReplayEvent {
   type: number;
 }
 
-export interface RecordingMetadata {
-  browserType: string;
-  duration: number;
-  endedAt: number;
-  eventCount: number;
-  id: string;
-  routePath: string;
-  startedAt: number;
-  trackingId?: string;
-  userAgent?: string;
-}
-
 export interface Recording {
   events: ReplayEvent[];
+  metadata: RecordingMetadata;
+}
+
+/**
+ * Result of stopping a recording.
+ * Returns both the filepath and metadata for CDP event injection.
+ */
+export interface StopRecordingResult {
+  filepath: string;
   metadata: RecordingMetadata;
 }
 
@@ -110,18 +112,38 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
 })();`;
 }
 
+/**
+ * SessionReplay manages browser session recording and playback.
+ *
+ * Supports dependency injection for the recording store:
+ * - If a store is provided via constructor, it's used directly
+ * - If no store is provided, one is created during initialize()
+ *
+ * This decoupling allows for easy mocking in tests.
+ */
 export class SessionReplay extends EventEmitter {
   protected recordings: Map<string, SessionRecordingState> = new Map();
   protected log = new Logger('session-replay');
   protected recordingsDir: string;
   protected enabled: boolean;
   protected maxRecordingSize: number;
+  protected store: IRecordingStore | null = null;
+  protected ownsStore = false; // Track if we created the store (for cleanup)
 
-  constructor(protected config: Config) {
+  constructor(
+    protected config: Config,
+    injectedStore?: IRecordingStore
+  ) {
     super();
     this.enabled = process.env.ENABLE_REPLAY !== 'false';
     this.recordingsDir = process.env.REPLAY_DIR || '/tmp/browserless-recordings';
     this.maxRecordingSize = +(process.env.REPLAY_MAX_SIZE || '52428800');
+
+    // Use injected store if provided
+    if (injectedStore) {
+      this.store = injectedStore;
+      this.ownsStore = false;
+    }
   }
 
   public isEnabled(): boolean {
@@ -130,6 +152,14 @@ export class SessionReplay extends EventEmitter {
 
   public getRecordingsDir(): string {
     return this.recordingsDir;
+  }
+
+  /**
+   * Get the current recording store.
+   * Useful for testing or advanced use cases.
+   */
+  public getStore(): IRecordingStore | null {
+    return this.store;
   }
 
   public async initialize(): Promise<void> {
@@ -150,7 +180,51 @@ export class SessionReplay extends EventEmitter {
       this.log.info(`Created recordings directory: ${this.recordingsDir}`);
     }
 
+    // Only create store if not injected
+    if (!this.store) {
+      this.store = new RecordingStore(this.recordingsDir);
+      this.ownsStore = true;
+    }
+
+    // Migrate any existing JSON recordings to SQLite (one-time migration)
+    await this.migrateExistingRecordings();
+
     this.log.info(`Session replay enabled (bundled rrweb), storing in: ${this.recordingsDir}`);
+  }
+
+  /**
+   * One-time migration: read existing JSON files and populate SQLite metadata.
+   * Safe to run multiple times - INSERT OR REPLACE handles duplicates.
+   */
+  private async migrateExistingRecordings(): Promise<void> {
+    if (!this.store) return;
+
+    try {
+      const files = await readdir(this.recordingsDir);
+      let migrated = 0;
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+        try {
+          const content = await readFile(path.join(this.recordingsDir, file), 'utf-8');
+          const recording = JSON.parse(content);
+          if (recording.metadata) {
+            const result = this.store.insert(recording.metadata);
+            if (result.ok) {
+              migrated++;
+            }
+          }
+        } catch {
+          // Skip invalid files
+        }
+      }
+
+      if (migrated > 0) {
+        this.log.info(`Migrated ${migrated} existing recordings to SQLite`);
+      }
+    } catch {
+      // Directory might not exist or be empty
+    }
   }
 
   public startRecording(sessionId: string, trackingId?: string): void {
@@ -213,7 +287,7 @@ export class SessionReplay extends EventEmitter {
   public async stopRecording(
     sessionId: string,
     metadata?: Partial<RecordingMetadata>
-  ): Promise<string | null> {
+  ): Promise<StopRecordingResult | null> {
     const state = this.recordings.get(sessionId);
     if (!state) return null;
 
@@ -230,25 +304,37 @@ export class SessionReplay extends EventEmitter {
     state.isRecording = false;
     const endedAt = Date.now();
 
+    const recordingMetadata: RecordingMetadata = {
+      browserType: metadata?.browserType || 'unknown',
+      duration: endedAt - state.startedAt,
+      endedAt,
+      eventCount: state.events.length,
+      id: sessionId,
+      routePath: metadata?.routePath || 'unknown',
+      startedAt: state.startedAt,
+      trackingId: state.trackingId,
+      userAgent: metadata?.userAgent,
+    };
+
     const recording: Recording = {
       events: state.events,
-      metadata: {
-        browserType: metadata?.browserType || 'unknown',
-        duration: endedAt - state.startedAt,
-        endedAt,
-        eventCount: state.events.length,
-        id: sessionId,
-        routePath: metadata?.routePath || 'unknown',
-        startedAt: state.startedAt,
-        trackingId: state.trackingId,
-        userAgent: metadata?.userAgent,
-      },
+      metadata: recordingMetadata,
     };
 
     const filepath = path.join(this.recordingsDir, `${sessionId}.json`);
 
     try {
+      // Save full recording to JSON (events + metadata for playback)
       await writeFile(filepath, JSON.stringify(recording), 'utf-8');
+
+      // Save metadata to SQLite for fast queries
+      if (this.store) {
+        const result = this.store.insert(recording.metadata);
+        if (!result.ok) {
+          this.log.warn(`Failed to save recording metadata to store: ${result.error.message}`);
+        }
+      }
+
       this.log.info(`Saved recording ${sessionId} with ${state.events.length} events`);
     } catch (err) {
       this.log.error(`Failed to save recording ${sessionId}: ${err}`);
@@ -265,7 +351,7 @@ export class SessionReplay extends EventEmitter {
       }
     }
 
-    return filepath;
+    return { filepath, metadata: recordingMetadata };
   }
 
   public isRecording(sessionId: string): boolean {
@@ -276,7 +362,22 @@ export class SessionReplay extends EventEmitter {
     return this.recordings.get(sessionId);
   }
 
+  /**
+   * List all recordings metadata.
+   * Uses SQLite for O(1) query instead of O(n) file reads.
+   */
   public async listRecordings(): Promise<RecordingMetadata[]> {
+    // Fast path: use SQLite store
+    if (this.store) {
+      const result = this.store.list();
+      if (result.ok) {
+        return result.value;
+      }
+      this.log.warn(`Failed to list recordings from store: ${result.error.message}`);
+      // Fall through to fallback
+    }
+
+    // Fallback: scan files (only if store not initialized or errored)
     if (!(await exists(this.recordingsDir))) return [];
 
     const files = await readdir(this.recordingsDir);
@@ -312,6 +413,13 @@ export class SessionReplay extends EventEmitter {
 
     try {
       await rm(filepath);
+      // Also remove from SQLite
+      if (this.store) {
+        const result = this.store.delete(id);
+        if (!result.ok) {
+          this.log.warn(`Failed to delete recording from store: ${result.error.message}`);
+        }
+      }
       this.log.info(`Deleted recording ${id}`);
       return true;
     } catch {
@@ -324,7 +432,12 @@ export class SessionReplay extends EventEmitter {
     for (const [sessionId] of this.recordings) {
       await this.stopRecording(sessionId);
     }
-    await this.stop();
+    // Only close SQLite connection if we own it
+    if (this.ownsStore && this.store) {
+      this.store.close();
+    }
+    this.store = null;
+    this.stop();
   }
 
   public stop() {}

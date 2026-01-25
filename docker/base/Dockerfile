@@ -44,6 +44,7 @@ COPY README.md .
 COPY tsconfig.json .
 
 RUN apt-get update && apt-get install -y \
+  build-essential \
   ca-certificates \
   curl \
   dumb-init \
@@ -52,6 +53,7 @@ RUN apt-get update && apt-get install -y \
   libu2f-udev \
   software-properties-common \
   ssh \
+  unzip \
   wget \
   xvfb
 
@@ -59,6 +61,12 @@ RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | b
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION &&\
   npm install -g npm@$NPM_VERSION
+
+# Install Bun (used for build scripts, NOT runtime - see BUN_WEBSOCKET_BUG.md)
+# Runtime uses Node.js due to Bun's broken WebSocket upgrade handling
+RUN curl -fsSL https://bun.com/install | bash && \
+  cp /root/.bun/bin/bun /usr/local/bin/bun && \
+  chmod +x /usr/local/bin/bun
 
 RUN add-apt-repository universe && apt-get update && \
   apt-get install -y python3 python3-pip python3-setuptools && \
