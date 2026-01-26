@@ -4,7 +4,7 @@
 - Dependency updates.
 - Updates NodeJS to `24.13.0`.
 - Supports the following libraries and browsers:
-  - puppeteer-core: `24.35.0`
+  - puppeteer-core: `24.36.0`
   - playwright-core: `1.57.0`, `1.56.1`, `1.55.1`, `1.54.2`, and `1.53.2`.
   - Chromium: `143.0.7499.4`
   - Chrome: `143.0.7499.193` (amd64 only)
