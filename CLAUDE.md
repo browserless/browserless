@@ -285,3 +285,26 @@ new Player({ target, props: { events, ... } });
 - `src/generated/rrweb-script.ts` - Bundled rrweb recording script
 - `src/generated/rrweb-player.ts` - Bundled rrweb player for viewing
 - `src/routes/management/http/recording*.ts` - REST API for recordings
+
+## Skills
+
+### Browserless Debugging Skill
+
+For comprehensive debugging (container issues, player CSS, recordings), see:
+`/Users/peter/Developer/catchseo/.claude/skills/browserless-debug/SKILL.md`
+
+Triggers: sessions, pressure, state desync, restart browserless, debug player, black screen, fullscreen broken
+
+### Test Player Page
+
+A standalone test page exists at `static/test-player.html` for testing player CSS fixes without needing the full server.
+
+```bash
+# Regenerate test page after player changes
+npm run bundle:rrweb
+bun scripts/generate-test-player.js
+
+# Serve and test
+cd static && python3 -m http.server 3000
+# Open http://localhost:3000/test-player.html
+```

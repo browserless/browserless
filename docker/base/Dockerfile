@@ -42,6 +42,8 @@ COPY package.json .
 COPY package-lock.json .
 COPY README.md .
 COPY tsconfig.json .
+COPY vite.config.ts .
+COPY svelte.config.js .
 
 RUN apt-get update && apt-get install -y \
   build-essential \

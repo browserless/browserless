@@ -48,6 +48,332 @@ export interface SessionRecordingState {
 }
 
 /**
+ * Get the network capture script for intercepting fetch/XHR requests.
+ * Emits custom rrweb events (type 5) with tag 'network.request', 'network.response', 'network.error'.
+ * Captures headers and bodies (truncated to 10KB) for debugging.
+ */
+function getNetworkCaptureScript(): string {
+  return `
+(function setupNetworkCapture() {
+  if (window.__browserlessNetworkSetup) return;
+  window.__browserlessNetworkSetup = true;
+
+  var recording = window.__browserlessRecording;
+  if (!recording) return;
+
+  var MAX_BODY_SIZE = 10240; // 10KB max for request/response bodies
+
+  function emitNetworkEvent(tag, payload) {
+    recording.events.push({
+      type: 5,
+      timestamp: Date.now(),
+      data: { tag: tag, payload: payload }
+    });
+  }
+
+  // Safely truncate body content
+  function truncateBody(body, maxSize) {
+    if (!body) return null;
+    if (typeof body !== 'string') {
+      try {
+        body = JSON.stringify(body);
+      } catch (e) {
+        body = String(body);
+      }
+    }
+    if (body.length > maxSize) {
+      return body.substring(0, maxSize) + '... [truncated]';
+    }
+    return body;
+  }
+
+  // Convert Headers object to plain object
+  function headersToObject(headers) {
+    if (!headers) return null;
+    var obj = {};
+    try {
+      if (headers instanceof Headers) {
+        headers.forEach(function(value, key) {
+          obj[key] = value;
+        });
+      } else if (typeof headers === 'object') {
+        // Plain object or array of [key, value] pairs
+        if (Array.isArray(headers)) {
+          headers.forEach(function(pair) {
+            if (Array.isArray(pair) && pair.length >= 2) {
+              obj[pair[0]] = pair[1];
+            }
+          });
+        } else {
+          Object.keys(headers).forEach(function(key) {
+            obj[key] = headers[key];
+          });
+        }
+      }
+    } catch (e) {
+      return null;
+    }
+    return Object.keys(obj).length > 0 ? obj : null;
+  }
+
+  // Check if content type suggests binary data
+  function isBinaryContentType(contentType) {
+    if (!contentType) return false;
+    var binaryTypes = ['image/', 'audio/', 'video/', 'application/octet-stream', 'application/pdf', 'application/zip'];
+    return binaryTypes.some(function(type) {
+      return contentType.toLowerCase().indexOf(type) !== -1;
+    });
+  }
+
+  // Parse XHR response headers string to object
+  function parseXHRHeaders(headerStr) {
+    if (!headerStr) return null;
+    var headers = {};
+    var pairs = headerStr.trim().split('\\r\\n');
+    pairs.forEach(function(pair) {
+      var idx = pair.indexOf(':');
+      if (idx > 0) {
+        var key = pair.substring(0, idx).trim().toLowerCase();
+        var value = pair.substring(idx + 1).trim();
+        headers[key] = value;
+      }
+    });
+    return Object.keys(headers).length > 0 ? headers : null;
+  }
+
+  // Intercept fetch
+  var originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    var startTime = Date.now();
+    var url = typeof input === 'string' ? input : (input.url || String(input));
+    var method = (init && init.method) || 'GET';
+    var requestId = Math.random().toString(36).substr(2, 9);
+
+    // Capture request headers
+    var requestHeaders = null;
+    try {
+      if (init && init.headers) {
+        requestHeaders = headersToObject(init.headers);
+      } else if (input instanceof Request) {
+        requestHeaders = headersToObject(input.headers);
+      }
+    } catch (e) {}
+
+    // Capture request body
+    var requestBody = null;
+    try {
+      if (init && init.body) {
+        if (typeof init.body === 'string') {
+          requestBody = truncateBody(init.body, MAX_BODY_SIZE);
+        } else if (init.body instanceof FormData) {
+          requestBody = '[FormData]';
+        } else if (init.body instanceof Blob) {
+          requestBody = '[Blob: ' + init.body.size + ' bytes]';
+        } else if (init.body instanceof ArrayBuffer) {
+          requestBody = '[ArrayBuffer: ' + init.body.byteLength + ' bytes]';
+        } else {
+          requestBody = truncateBody(init.body, MAX_BODY_SIZE);
+        }
+      }
+    } catch (e) {}
+
+    emitNetworkEvent('network.request', {
+      id: requestId,
+      url: url,
+      method: method,
+      type: 'fetch',
+      timestamp: startTime,
+      headers: requestHeaders,
+      body: requestBody
+    });
+
+    return originalFetch.apply(this, arguments).then(function(response) {
+      // Capture response headers
+      var responseHeaders = null;
+      try {
+        responseHeaders = headersToObject(response.headers);
+      } catch (e) {}
+
+      // Check content type for binary detection
+      var contentType = '';
+      try {
+        contentType = response.headers.get('content-type') || '';
+      } catch (e) {}
+
+      // Capture response body (clone to not consume the stream)
+      var responseBodyPromise = Promise.resolve(null);
+      if (!isBinaryContentType(contentType)) {
+        try {
+          responseBodyPromise = response.clone().text().then(function(text) {
+            return truncateBody(text, MAX_BODY_SIZE);
+          }).catch(function() {
+            return null;
+          });
+        } catch (e) {}
+      }
+
+      responseBodyPromise.then(function(responseBody) {
+        emitNetworkEvent('network.response', {
+          id: requestId,
+          url: url,
+          method: method,
+          status: response.status,
+          statusText: response.statusText,
+          duration: Date.now() - startTime,
+          type: 'fetch',
+          headers: responseHeaders,
+          body: responseBody,
+          contentType: contentType || null
+        });
+      });
+
+      return response;
+    }).catch(function(error) {
+      emitNetworkEvent('network.error', {
+        id: requestId,
+        url: url,
+        method: method,
+        error: error.message || String(error),
+        duration: Date.now() - startTime,
+        type: 'fetch'
+      });
+      throw error;
+    });
+  };
+
+  // Intercept XMLHttpRequest
+  var originalXHROpen = XMLHttpRequest.prototype.open;
+  var originalXHRSend = XMLHttpRequest.prototype.send;
+  var originalXHRSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this.__browserlessXHR = {
+      method: method,
+      url: url,
+      id: Math.random().toString(36).substr(2, 9),
+      requestHeaders: {}
+    };
+    return originalXHROpen.apply(this, arguments);
+  };
+
+  // Capture request headers by wrapping setRequestHeader
+  XMLHttpRequest.prototype.setRequestHeader = function(name, value) {
+    if (this.__browserlessXHR) {
+      this.__browserlessXHR.requestHeaders[name.toLowerCase()] = value;
+    }
+    return originalXHRSetRequestHeader.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function(body) {
+    var xhr = this;
+    var info = xhr.__browserlessXHR;
+    if (!info) return originalXHRSend.apply(this, arguments);
+
+    var startTime = Date.now();
+
+    // Capture request body
+    var requestBody = null;
+    try {
+      if (body) {
+        if (typeof body === 'string') {
+          requestBody = truncateBody(body, MAX_BODY_SIZE);
+        } else if (body instanceof FormData) {
+          requestBody = '[FormData]';
+        } else if (body instanceof Blob) {
+          requestBody = '[Blob: ' + body.size + ' bytes]';
+        } else if (body instanceof ArrayBuffer) {
+          requestBody = '[ArrayBuffer: ' + body.byteLength + ' bytes]';
+        } else if (body instanceof Document) {
+          requestBody = '[Document]';
+        } else {
+          requestBody = truncateBody(body, MAX_BODY_SIZE);
+        }
+      }
+    } catch (e) {}
+
+    emitNetworkEvent('network.request', {
+      id: info.id,
+      url: info.url,
+      method: info.method,
+      type: 'xhr',
+      timestamp: startTime,
+      headers: Object.keys(info.requestHeaders).length > 0 ? info.requestHeaders : null,
+      body: requestBody
+    });
+
+    xhr.addEventListener('load', function() {
+      // Capture response headers
+      var responseHeaders = null;
+      try {
+        responseHeaders = parseXHRHeaders(xhr.getAllResponseHeaders());
+      } catch (e) {}
+
+      // Get content type
+      var contentType = '';
+      try {
+        contentType = xhr.getResponseHeader('content-type') || '';
+      } catch (e) {}
+
+      // Capture response body (only for text responses)
+      var responseBody = null;
+      if (!isBinaryContentType(contentType)) {
+        try {
+          if (xhr.responseType === '' || xhr.responseType === 'text') {
+            responseBody = truncateBody(xhr.responseText, MAX_BODY_SIZE);
+          } else if (xhr.responseType === 'json') {
+            responseBody = truncateBody(JSON.stringify(xhr.response), MAX_BODY_SIZE);
+          } else if (xhr.responseType === 'document' && xhr.responseXML) {
+            responseBody = '[XML Document]';
+          } else {
+            responseBody = '[' + xhr.responseType + ' response]';
+          }
+        } catch (e) {}
+      }
+
+      emitNetworkEvent('network.response', {
+        id: info.id,
+        url: info.url,
+        method: info.method,
+        status: xhr.status,
+        statusText: xhr.statusText,
+        duration: Date.now() - startTime,
+        type: 'xhr',
+        headers: responseHeaders,
+        body: responseBody,
+        contentType: contentType || null
+      });
+    });
+
+    xhr.addEventListener('error', function() {
+      emitNetworkEvent('network.error', {
+        id: info.id,
+        url: info.url,
+        method: info.method,
+        error: 'Network error',
+        duration: Date.now() - startTime,
+        type: 'xhr'
+      });
+    });
+
+    xhr.addEventListener('abort', function() {
+      emitNetworkEvent('network.error', {
+        id: info.id,
+        url: info.url,
+        method: info.method,
+        error: 'Request aborted',
+        duration: Date.now() - startTime,
+        type: 'xhr'
+      });
+    });
+
+    return originalXHRSend.apply(this, arguments);
+  };
+
+  console.log('[browserless] Network capture enabled (with headers/body)');
+})();`;
+}
+
+/**
  * Get the full recording script (rrweb + init) for injection via evaluateOnNewDocument.
  * Uses pre-bundled script from build time - no runtime file reading.
  */
@@ -78,7 +404,8 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     plugins: consolePlugin ? [consolePlugin] : []
   });
   console.log('[browserless] rrweb recording started with console plugin, sessionId:', '${sessionId}');
-})();`;
+})();
+${getNetworkCaptureScript()}`;
 }
 
 /**
@@ -109,7 +436,8 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     plugins: consolePlugin ? [consolePlugin] : []
   });
   return 'started';
-})();`;
+})();
+${getNetworkCaptureScript()}`;
 }
 
 /**

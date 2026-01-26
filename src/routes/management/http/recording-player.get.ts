@@ -12,7 +12,7 @@ import {
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
-// Bundled rrweb-player assets - no require.resolve() needed
+// Bundled Svelte player assets
 import { RRWEB_PLAYER_CSS, RRWEB_PLAYER_JS } from '../../../generated/rrweb-player.js';
 
 export interface QuerySchema extends SystemQueryParameters {
@@ -70,13 +70,14 @@ export default class RecordingPlayerGetRoute extends HTTPRoute {
     startedAt: number;
     trackingId?: string;
   }): string {
-    // Use pre-bundled player assets from build time
+    // Use pre-bundled Svelte player assets from build time
     const css = RRWEB_PLAYER_CSS;
     const js = RRWEB_PLAYER_JS;
 
-    const durationSeconds = Math.round(metadata.duration / 1000);
-    const startDate = new Date(metadata.startedAt).toISOString();
+    // Full recording data for Svelte app
+    const recordingData = JSON.stringify({ events, metadata });
 
+    // Svelte player HTML - the bundled Svelte app handles all UI rendering
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,150 +85,30 @@ export default class RecordingPlayerGetRoute extends HTTPRoute {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Session Replay - ${metadata.id}</title>
   <style>
-/* rrweb-player CSS (bundled from node_modules) */
+/* CSS from bundled Svelte app (may be empty if styles are inlined) */
 ${css}
 
-/* Custom styles */
-* {
-  box-sizing: border-box;
-}
-body {
+/* Base styles - Svelte components provide their own styles */
+* { box-sizing: border-box; }
+html, body {
   margin: 0;
-  padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background: #1a1a2e;
-  color: #eee;
-  min-height: 100vh;
-}
-.header {
-  max-width: 1200px;
-  margin: 0 auto 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #333;
-}
-.header h1 {
-  margin: 0 0 10px;
-  font-size: 24px;
-  color: #fff;
-}
-.metadata {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  font-size: 14px;
-  color: #aaa;
-}
-.metadata-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.metadata-label {
-  color: #666;
-}
-.player-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-}
-.rr-player {
-  border-radius: 8px;
+  padding: 0;
+  height: 100%;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #6c5ce7;
-  text-decoration: none;
-  margin-bottom: 20px;
-  font-size: 14px;
-}
-.back-link:hover {
-  text-decoration: underline;
+#app {
+  height: 100%;
 }
   </style>
 </head>
 <body>
-  <div class="header">
-    <a href="/recordings" class="back-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 12H5M12 19l-7-7 7-7"/>
-      </svg>
-      Back to Recordings
-    </a>
-    <h1>Session Replay</h1>
-    <div class="metadata">
-      <div class="metadata-item">
-        <span class="metadata-label">ID:</span>
-        <span>${metadata.id}</span>
-      </div>
-      ${metadata.trackingId ? `
-      <div class="metadata-item">
-        <span class="metadata-label">Tracking ID:</span>
-        <span>${metadata.trackingId}</span>
-      </div>
-      ` : ''}
-      <div class="metadata-item">
-        <span class="metadata-label">Browser:</span>
-        <span>${metadata.browserType}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Duration:</span>
-        <span>${durationSeconds}s</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Events:</span>
-        <span>${metadata.eventCount}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Started:</span>
-        <span>${startDate}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Route:</span>
-        <span>${metadata.routePath}</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="player-container">
-    <div id="player"></div>
-  </div>
-
+  <div id="app"></div>
   <script>
-// rrweb-player JS (bundled from node_modules)
-${js}
+    // Recording data for Svelte app
+    window.__RECORDING_DATA__ = ${recordingData};
   </script>
   <script>
-    const events = ${JSON.stringify(events)};
-
-    if (events.length > 0) {
-      // Parse query params for player settings
-      const params = new URLSearchParams(window.location.search);
-      const speed = parseFloat(params.get('speed')) || 4;  // Default 4x
-      const autoPlay = params.get('autoplay') !== 'false';  // Default true
-
-      // rrwebPlayer is bundled as an object with .Player and .default properties
-      const Player = rrwebPlayer.default || rrwebPlayer.Player || rrwebPlayer;
-      const player = new Player({
-        target: document.getElementById('player'),
-        props: {
-          events,
-          width: 1024,
-          height: 576,
-          autoPlay,
-          showController: true,
-          speedOption: [0.5, 1, 2, 4, 8],
-        },
-      });
-      // Set speed after initialization to ensure UI reflects the value
-      player.setSpeed(speed);
-    } else {
-      document.getElementById('player').innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No events recorded in this session.</p>';
-    }
+${js}
   </script>
 </body>
 </html>`;

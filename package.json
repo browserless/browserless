@@ -14,7 +14,7 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "bundle:rrweb": "bun scripts/bundle-rrweb.js && bun scripts/bundle-rrweb-player.js",
+    "bundle:rrweb": "bun scripts/bundle-rrweb.js && bun scripts/bundle-svelte-player.js",
     "build": "npm run clean && npm run bundle:rrweb && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function && npm run install:debugger",
     "build:devtools": "bun scripts/install-devtools.js",
@@ -52,10 +52,12 @@
   ],
   "dependencies": {
     "@hapi/bourne": "^3.0.0",
-    "better-sqlite3": "^11.10.0",
     "@hapi/hoek": "^11.0.4",
     "@posthog/rrweb": "0.0.36",
+    "@posthog/rrweb-player": "0.0.36",
     "@posthog/rrweb-plugin-console-record": "0.0.36",
+    "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "better-sqlite3": "^11.10.0",
     "debug": "^4.4.1",
     "del": "^8.0.1",
     "file-type": "^21.3.0",
@@ -74,9 +76,11 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "@posthog/rrweb-player": "0.0.36",
+    "svelte": "^4.2.19",
+    "svelte-tiny-virtual-list": "^2.1.2",
     "systeminformation": "^5.30.5",
-    "tar-fs": "^3.1.1"
+    "tar-fs": "^3.1.1",
+    "vite": "^5.4.0"
   },
   "optionalDependencies": {
     "@types/better-sqlite3": "^7.6.12",
@@ -182,7 +186,6 @@
     "singleQuote": true,
     "printWidth": 80
   },
-  "devDependencies": {},
   "overrides": {
     "@posthog/rrweb-packer": "npm:empty-npm-package@1.0.0",
     "@posthog/rrweb-replay": "0.0.18"
