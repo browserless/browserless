@@ -29,11 +29,4 @@ export default defineConfig({
     // Target modern browsers (Chrome 90+)
     target: ['chrome90', 'firefox88', 'safari14'],
   },
-  // Resolve @posthog packages from node_modules
-  resolve: {
-    alias: {
-      '@posthog/rrweb-replay': resolve(__dirname, 'node_modules/@posthog/rrweb-replay'),
-      '@posthog/rrweb-types': resolve(__dirname, 'node_modules/@posthog/rrweb-types'),
-    },
-  },
 });

@@ -1,6 +1,6 @@
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
-import { EventType } from '@posthog/rrweb-types';
-import { PLUGIN_NAME } from '@posthog/rrweb-plugin-console-record';
+import { EventType } from '@divmode/rrweb-types';
+import { PLUGIN_NAME } from '@divmode/rrweb-plugin-console-record';
 import type {
   ReplayEvent,
   RecordingMetadata,
@@ -104,7 +104,7 @@ function isNetworkErrorPayload(payload: unknown): payload is NetworkErrorPayload
   return isNetworkPayloadBase(payload);
 }
 
-// Console plugin data (type 6) - uses PLUGIN_NAME from @posthog/rrweb-plugin-console-record
+// Console plugin data (type 6) - uses PLUGIN_NAME from @divmode/rrweb-plugin-console-record
 interface ConsolePluginData {
   plugin: typeof PLUGIN_NAME;
   level?: string;

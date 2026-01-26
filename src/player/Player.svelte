@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-  import { Replayer } from '@posthog/rrweb-replay';
-  import type { eventWithTime } from '@posthog/rrweb-types';
+  import { Replayer } from '@divmode/rrweb';
+  import type { eventWithTime } from '@divmode/rrweb-types';
   import {
     inlineCss,
     openFullscreen,

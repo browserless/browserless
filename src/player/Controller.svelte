@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { EventType } from '@posthog/rrweb-types';
-  import type { playerMetaData } from '@posthog/rrweb-types';
+  import { EventType } from '@divmode/rrweb-types';
+  import type { playerMetaData } from '@divmode/rrweb-types';
   import type {
     Replayer,
     PlayerMachineState,
     SpeedMachineState,
-  } from '@posthog/rrweb-replay';
+  } from '@divmode/rrweb';
   import { onMount, onDestroy, createEventDispatcher, afterUpdate } from 'svelte';
   import { formatTime } from './utils';
   import Switch from './components/Switch.svelte';
