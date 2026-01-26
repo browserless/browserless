@@ -55,6 +55,32 @@
 
   $: viewport = recording ? getViewportFromRecording(recording.events) : { width: 1024, height: 576 };
 
+  // CSS rules to inject during replay for third-party widgets that lose styles (CORS)
+  // Cloudflare Turnstile widget - the white box/container styles are cross-origin
+  const insertStyleRules = [
+    // Turnstile container - recreate the white box appearance
+    `.cf-turnstile, [data-turnstile-widget], iframe[src*="challenges.cloudflare.com"] {
+      background: #fff !important;
+      border: 1px solid #e5e5e5 !important;
+      border-radius: 4px !important;
+      min-width: 300px !important;
+      min-height: 65px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    }`,
+    // reCAPTCHA v2/v3 widgets
+    `.g-recaptcha, [data-sitekey], iframe[src*="google.com/recaptcha"] {
+      background: #f9f9f9 !important;
+      border: 1px solid #d3d3d3 !important;
+      border-radius: 3px !important;
+      min-width: 302px !important;
+      min-height: 76px !important;
+      box-shadow: 0 0 1px rgba(0,0,0,0.1) !important;
+    }`,
+  ];
+
   function handleSeek(event: CustomEvent<{ timestamp: number }>) {
     if (!player || !$metadata) return;
     const offset = Math.max(0, event.detail.timestamp - $metadata.startedAt - 1000);
@@ -325,6 +351,7 @@
           showController={true}
           speedOption={[0.5, 1, 2, 4, 8]}
           skipInactive={true}
+          {insertStyleRules}
           on:ui-update-current-time={handleTimeUpdate}
         />
       </div>
