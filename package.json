@@ -96,7 +96,7 @@
     "gunzip-maybe": "^1.4.2",
     "marked": "^17.0.1",
     "mocha": "^11.7.5",
-    "move-file": "^3.1.0",
+    "move-file": "^4.1.0",
     "prettier": "^3.8.1",
     "sinon": "^21.0.1",
     "ts-node": "^10.9.2",
