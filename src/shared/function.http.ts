@@ -62,7 +62,10 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     browser: BrowserInstance,
   ): Promise<void> {
     const config = this.config();
-    const handler = functionHandler(config, logger);
+    const timeout = req.parsed.searchParams.get('timeout');
+    const handler = functionHandler(config, logger, {
+      protocolTimeout: timeout ? +timeout : undefined,
+    });
     const { contentType, payload, page } = await handler(req, browser);
 
     logger.info(`Got function response of "${contentType}"`);

@@ -544,9 +544,11 @@ export class BrowserManager {
         ? router.defaultLaunchOptions(req)
         : router.defaultLaunchOptions;
 
+    const timeout = req.parsed.searchParams.get('timeout');
     const launchOptions = {
       ...routerOptions,
       ...parsedLaunchOptions,
+      ...(timeout ? { protocolTimeout: +timeout } : {}),
     };
     const proxyServerParam = req.parsed.searchParams.get('--proxy-server');
     if (proxyServerParam) {
