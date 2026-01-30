@@ -21,6 +21,7 @@ export class FunctionRunner {
     context: unknown;
     options: {
       downloadPath?: string;
+      protocolTimeout?: number;
     };
   }) {
     console.log(`/function.js: Got endpoint: "${data.browserWSEndpoint}"`);
@@ -31,6 +32,7 @@ export class FunctionRunner {
       headers: {
         Host: '127.0.0.1',
       },
+      protocolTimeout: options.protocolTimeout,
     };
 
     this.browser = (await connect(

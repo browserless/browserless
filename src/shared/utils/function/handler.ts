@@ -34,6 +34,7 @@ interface JSONSchema {
 
 interface HandlerOptions {
   downloadPath?: string;
+  protocolTimeout?: number;
 }
 
 export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
