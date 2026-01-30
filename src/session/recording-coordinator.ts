@@ -419,6 +419,7 @@ export class RecordingCoordinator {
                 await sendCommand('Page.enable', {}, cdpSessionId);
                 await sendCommand('Page.addScriptToEvaluateOnNewDocument', {
                   source: script,
+                  runImmediately: true,
                 }, cdpSessionId);
                 injectedTargets.add(targetInfo.targetId);
                 this.log.info(`Recording pre-injected for target ${targetInfo.targetId} (session ${sessionId})`);
@@ -453,6 +454,7 @@ export class RecordingCoordinator {
                 await sendCommand('Page.enable', {}, cdpSessionId);
                 await sendCommand('Page.addScriptToEvaluateOnNewDocument', {
                   source: iframeScript,
+                  runImmediately: true,
                 }, cdpSessionId);
                 this.log.info(`rrweb injected into iframe ${targetInfo.targetId}`);
               } catch (e) {
@@ -463,6 +465,22 @@ export class RecordingCoordinator {
               if (waitingForDebugger) {
                 await sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId).catch(() => {});
               }
+
+              // Fallback: explicitly inject iframe rrweb script via Runtime.evaluate.
+              // Covers edge case where addScriptToEvaluateOnNewDocument + runImmediately
+              // still misses the current document (e.g., context not yet created when paused).
+              // The iframe script has a guard (if (window.__browserlessRecording) return;)
+              // so double-execution is safe.
+              setTimeout(async () => {
+                try {
+                  await sendCommand('Runtime.evaluate', {
+                    expression: iframeScript,
+                    returnByValue: true,
+                  }, cdpSessionId);
+                } catch {
+                  // Iframe may have navigated or been destroyed
+                }
+              }, 50);
             }
           }
 
@@ -481,6 +499,19 @@ export class RecordingCoordinator {
             const { targetInfo } = msg.params;
             if (targetInfo.type === 'page' && trackedTargets.has(targetInfo.targetId)) {
               injectedTargets.delete(targetInfo.targetId);
+
+              // Re-establish setAutoAttach for cross-origin iframes on the new page.
+              // While CDP docs say it should persist, this ensures iframes created
+              // after navigation (e.g., Turnstile on the Ahrefs page) are always detected.
+              const cdpSessionId = targetSessions.get(targetInfo.targetId);
+              if (cdpSessionId) {
+                sendCommand('Target.setAutoAttach', {
+                  autoAttach: true,
+                  waitForDebuggerOnStart: true,
+                  flatten: true,
+                }, cdpSessionId).catch(() => {});
+              }
+
               // Small delay to let the new document initialize before fallback injection
               setTimeout(() => injectRecording(targetInfo.targetId), 200);
             }

@@ -401,12 +401,8 @@ export class BrowserLauncher {
   private async onNewPage(
     req: Request,
     page: Page,
-    session?: BrowserlessSession,
+    _session?: BrowserlessSession,
   ): Promise<void> {
-    // Set up replay recording if enabled for this session
-    if (session?.replay && this.recordingCoordinator) {
-      await this.recordingCoordinator.setupPageRecording(page, session.id);
-    }
     await this.hooks.page({ meta: req.parsed, page });
   }
 }

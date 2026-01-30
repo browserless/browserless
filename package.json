@@ -51,11 +51,11 @@
     "tsconfig.json"
   ],
   "dependencies": {
+    "@divmode/rrweb": "^0.0.39",
+    "@divmode/rrweb-player": "^0.0.39",
+    "@divmode/rrweb-plugin-console-record": "^0.0.39",
     "@hapi/bourne": "^3.0.0",
     "@hapi/hoek": "^11.0.4",
-    "@divmode/rrweb": "0.0.38",
-    "@divmode/rrweb-player": "0.0.38",
-    "@divmode/rrweb-plugin-console-record": "0.0.38",
     "@sveltejs/vite-plugin-svelte": "^3.1.0",
     "better-sqlite3": "^11.10.0",
     "debug": "^4.4.1",
