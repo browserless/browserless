@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shadow DOM Recording Test</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 32px;
+      background: #f8f9fa;
+      color: #1a1a1a;
+    }
+    h1 {
+      margin-bottom: 24px;
+      font-size: 24px;
+    }
+    .sections {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .regular-dom {
+      border: 3px solid #2563eb;
+      border-radius: 8px;
+      padding: 20px;
+      width: 280px;
+      background: #eff6ff;
+    }
+    .regular-dom .label {
+      font-weight: 700;
+      color: #2563eb;
+      margin-bottom: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .regular-dom .content {
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .turnstile-section {
+      border: 3px solid #7c3aed;
+      border-radius: 8px;
+      padding: 20px;
+      width: 340px;
+      background: #f5f3ff;
+    }
+    .turnstile-section .label {
+      font-weight: 700;
+      color: #7c3aed;
+      margin-bottom: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .turnstile-section .content {
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .turnstile-section .content p {
+      margin-bottom: 12px;
+    }
+    .turnstile-status {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #6b7280;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>Shadow DOM Recording Test</h1>
+  <div class="sections">
+    <open-shadow-box></open-shadow-box>
+    <closed-shadow-box></closed-shadow-box>
+    <div class="regular-dom">
+      <div class="label">Regular DOM</div>
+      <div class="content">This is a plain DOM element. It should always appear in recordings as a baseline control.</div>
+    </div>
+    <div class="turnstile-section">
+      <div class="label">Cloudflare Turnstile</div>
+      <div class="content">
+        <p>Real Turnstile widget using test sitekey (always passes). Uses closed shadow DOM + cross-origin iframe internally.</p>
+        <div class="cf-turnstile" data-sitekey="1x00000000000000000000AA" data-theme="light" data-callback="turnstileCallback"></div>
+        <div class="turnstile-status" id="turnstile-status">Waiting for Turnstile...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class OpenShadowBox extends HTMLElement {
+      connectedCallback() {
+        const shadow = this.attachShadow({ mode: 'open' });
+        shadow.innerHTML = `
+          <style>
+            :host { display: block; width: 280px; }
+            .box {
+              border: 3px solid #16a34a;
+              border-radius: 8px;
+              padding: 20px;
+              background: #f0fdf4;
+            }
+            .label {
+              font-weight: 700;
+              color: #16a34a;
+              margin-bottom: 8px;
+              font-size: 14px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+            .content {
+              font-size: 15px;
+              line-height: 1.5;
+              color: #1a1a1a;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+          </style>
+          <div class="box">
+            <div class="label">Open Shadow DOM</div>
+            <div class="content">This content lives inside an open shadow root. Standard rrweb should capture this.</div>
+          </div>
+        `;
+      }
+    }
+
+    class ClosedShadowBox extends HTMLElement {
+      connectedCallback() {
+        const shadow = this.attachShadow({ mode: 'closed' });
+        shadow.innerHTML = `
+          <style>
+            :host { display: block; width: 280px; }
+            .box {
+              border: 3px solid #dc2626;
+              border-radius: 8px;
+              padding: 20px;
+              background: #fef2f2;
+            }
+            .label {
+              font-weight: 700;
+              color: #dc2626;
+              margin-bottom: 8px;
+              font-size: 14px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+            .content {
+              font-size: 15px;
+              line-height: 1.5;
+              color: #1a1a1a;
+              font-family: system-ui, -apple-system, sans-serif;
+            }
+          </style>
+          <div class="box">
+            <div class="label">Closed Shadow DOM</div>
+            <div class="content">This content lives inside a closed shadow root. Only the @divmode/rrweb fork should capture this.</div>
+          </div>
+        `;
+      }
+    }
+
+    customElements.define('open-shadow-box', OpenShadowBox);
+    customElements.define('closed-shadow-box', ClosedShadowBox);
+
+    window.turnstileCallback = function(token) {
+      document.getElementById('turnstile-status').textContent =
+        'Token received: ' + token.substring(0, 20) + '...';
+    };
+  </script>
+</body>
+</html>

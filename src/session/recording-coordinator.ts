@@ -5,6 +5,7 @@ import {
   StopRecordingResult,
   getCDPClient,
   getRecordingScript,
+  getIframeRecordingScript,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import type { CDPSession } from 'playwright-core';
@@ -248,12 +249,24 @@ export class RecordingCoordinator {
    * CRITICAL: We must NOT use puppeteer.connect() because it creates a competing
    * CDP connection that blocks external clients (like pydoll) from sending commands.
    *
-   * Instead, we use raw WebSocket CDP to:
-   * 1. Listen for new targets via Target.targetCreated events
-   * 2. Inject rrweb via Runtime.evaluate when pages are created
-   * 3. Poll for events periodically
+   * Uses Target.setAutoAttach with waitForDebuggerOnStart to guarantee rrweb
+   * is injected BEFORE any page JS runs. This is essential for closed shadow DOM
+   * recording — rrweb's patchAttachShadow must be installed before any element
+   * calls attachShadow({ mode: 'closed' }).
    *
-   * This approach doesn't interfere with external CDP clients.
+   * Flow:
+   * 1. Target.setAutoAttach (flatten=true) pauses new targets before JS execution
+   * 2. Target.attachedToTarget fires as a top-level WS message with a sessionId
+   * 3. We inject rrweb via Page.addScriptToEvaluateOnNewDocument (persists across navigations)
+   * 4. Runtime.runIfWaitingForDebugger resumes the target — page JS starts AFTER rrweb
+   * 5. Poll for events periodically
+   *
+   * flatten=true creates dedicated CDP sessions per target. Commands are sent directly
+   * with sessionId on the WebSocket message (no sendMessageToTarget wrapping).
+   *
+   * Cross-origin iframes (e.g., Cloudflare Turnstile) get a lightweight rrweb injection
+   * without console/network/turnstile hooks. The child rrweb auto-detects cross-origin
+   * and sends events via PostMessage to the parent, which merges them into the recording.
    */
   async setupRecordingForAllTabs(
     browser: BrowserInstance,
@@ -266,45 +279,37 @@ export class RecordingCoordinator {
 
     const WebSocket = (await import('ws')).default;
     const script = getRecordingScript(sessionId);
+    const iframeScript = getIframeRecordingScript();
 
     try {
       // Connect raw WebSocket to browser CDP endpoint
       const ws = new WebSocket(wsEndpoint);
+
+      // CRITICAL: Attach error handler synchronously before any async work.
+      // If the browser dies during WebSocket handshake, the underlying TCP socket
+      // emits 'error' (ECONNRESET). Without an immediate handler, this becomes
+      // an uncaughtException that crashes the process (index.ts:12 calls process.exit(1)).
+      ws.on('error', (err: Error) => {
+        this.log.debug(`Recording WebSocket error: ${err.message}`);
+      });
+
       let cmdId = 1;
       const pendingCommands = new Map<number, { resolve: Function; reject: Function }>();
       const trackedTargets = new Set<string>(); // targets we're collecting events from
       const injectedTargets = new Set<string>(); // targets we've injected rrweb into
       let closed = false;
 
-      // Helper to send CDP command and wait for response
-      // For browser-level commands (no sessionId), sends directly to browser
-      // For target-level commands (with sessionId from flatten=false attachment),
-      // wraps in Target.sendMessageToTarget
+      // Helper to send CDP command and wait for response.
+      // With flatten=true, target commands include sessionId directly on the message.
+      // No sendMessageToTarget wrapping needed.
       const sendCommand = (method: string, params: object = {}, cdpSessionId?: string): Promise<any> => {
         return new Promise((resolve, reject) => {
           const id = cmdId++;
           pendingCommands.set(id, { resolve, reject });
 
-          let msg: any;
+          const msg: any = { id, method, params };
           if (cdpSessionId) {
-            // For flatten=false, must use Target.sendMessageToTarget
-            // The inner command is JSON-stringified in the message param
-            // Use the same ID for the inner command - the response comes via receivedMessageFromTarget
-            const innerCommand = JSON.stringify({ id, method, params });
-            const outerId = cmdId++; // Different ID for the outer sendMessageToTarget
-            msg = {
-              id: outerId,
-              method: 'Target.sendMessageToTarget',
-              params: {
-                sessionId: cdpSessionId,
-                message: innerCommand,
-              },
-            };
-            // We ignore the outer response (just acknowledges sendMessageToTarget was received)
-            // The actual result comes via Target.receivedMessageFromTarget with the inner id
-          } else {
-            // Browser-level command, send directly
-            msg = { id, method, params };
+            msg.sessionId = cdpSessionId;
           }
 
           ws.send(JSON.stringify(msg));
@@ -319,49 +324,40 @@ export class RecordingCoordinator {
         });
       };
 
-      // Map to track our CDP session IDs for each target (for flatten=false attachment)
+      // Map to track our CDP session IDs for each target
       const targetSessions = new Map<string, string>(); // targetId -> cdpSessionId
 
-      // Helper to attach to a target and inject rrweb
-      // Uses flatten=false which is less invasive than flatten=true
+      /**
+       * Re-inject rrweb into a target via Runtime.evaluate.
+       * Used as a fallback/safety net — primary injection happens in
+       * attachedToTarget via Page.addScriptToEvaluateOnNewDocument.
+       */
       const injectRecording = async (targetId: string) => {
         if (injectedTargets.has(targetId)) return;
 
+        const cdpSessionId = targetSessions.get(targetId);
+        if (!cdpSessionId) {
+          this.log.debug(`No session for target ${targetId}, skipping re-injection`);
+          return;
+        }
+
         try {
-          // First attach to the target if we haven't already
-          let cdpSessionId = targetSessions.get(targetId);
-          if (!cdpSessionId) {
-            const attachResult = await sendCommand('Target.attachToTarget', {
-              targetId,
-              flatten: false, // Less invasive - uses browser WebSocket, not dedicated session
-            });
-            cdpSessionId = attachResult?.sessionId;
-            if (cdpSessionId) {
-              targetSessions.set(targetId, cdpSessionId);
-            }
-          }
-
-          if (!cdpSessionId) {
-            this.log.debug(`Failed to get session for target ${targetId}`);
-            return;
-          }
-
           injectedTargets.add(targetId);
 
-          // Inject rrweb via Runtime.evaluate using our session
+          // Fallback: inject rrweb via Runtime.evaluate (runs in current document)
           await sendCommand('Runtime.evaluate', {
             expression: script,
             returnByValue: true,
           }, cdpSessionId);
 
-          this.log.debug(`Injected rrweb recording for target ${targetId}, session ${sessionId}`);
+          this.log.info(`Recording re-injected for target ${targetId} (session ${sessionId})`);
         } catch (e) {
           injectedTargets.delete(targetId);
-          this.log.debug(`Failed to inject rrweb for target ${targetId}: ${e instanceof Error ? e.message : String(e)}`);
+          this.log.debug(`Re-injection failed for target ${targetId}: ${e instanceof Error ? e.message : String(e)}`);
         }
       };
 
-      // Helper to collect events from a target
+      // Helper to collect events from a target (for main frame polling)
       const collectEvents = async (targetId: string) => {
         if (closed) return;
         const cdpSessionId = targetSessions.get(targetId);
@@ -406,38 +402,67 @@ export class RecordingCoordinator {
             return;
           }
 
-          // Handle responses from attached targets (flatten=false mode)
-          // When using flatten=false, responses come as Target.receivedMessageFromTarget events
-          // with the actual response JSON-encoded in msg.params.message
-          if (msg.method === 'Target.receivedMessageFromTarget') {
-            try {
-              const innerMsg = JSON.parse(msg.params.message);
-              if (innerMsg.id && pendingCommands.has(innerMsg.id)) {
-                const { resolve, reject } = pendingCommands.get(innerMsg.id)!;
-                pendingCommands.delete(innerMsg.id);
-                if (innerMsg.error) {
-                  reject(new Error(innerMsg.error.message));
-                } else {
-                  resolve(innerMsg.result);
-                }
-              }
-            } catch {
-              // Ignore parse errors
-            }
-            return;
-          }
+          // With flatten=true, target responses come as top-level messages with the
+          // command id — they're handled by the id-based resolver above.
 
-          // Handle new page targets - inject rrweb (no flatten needed!)
-          if (msg.method === 'Target.targetCreated') {
-            const { targetInfo } = msg.params;
+          // Handle auto-attached targets — target is PAUSED before any JS runs
+          if (msg.method === 'Target.attachedToTarget') {
+            const { sessionId: cdpSessionId, targetInfo, waitingForDebugger } = msg.params;
+
             if (targetInfo.type === 'page') {
-              this.log.debug(`New page target created: ${targetInfo.targetId}`);
-              // Track target for event collection (no dedicated session needed)
+              this.log.debug(`Target attached (paused=${waitingForDebugger}): ${targetInfo.targetId}`);
               trackedTargets.add(targetInfo.targetId);
-              // Small delay to let the page initialize before injection
-              setTimeout(async () => {
-                await injectRecording(targetInfo.targetId);
-              }, 100);
+              targetSessions.set(targetInfo.targetId, cdpSessionId);
+
+              // Inject rrweb BEFORE page JS runs (target is paused)
+              try {
+                await sendCommand('Page.enable', {}, cdpSessionId);
+                await sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+                  source: script,
+                }, cdpSessionId);
+                injectedTargets.add(targetInfo.targetId);
+                this.log.info(`Recording pre-injected for target ${targetInfo.targetId} (session ${sessionId})`);
+
+                // Propagate auto-attach to this page's child targets (iframes).
+                // Browser-level setAutoAttach only catches new pages/tabs.
+                // Page-level setAutoAttach is needed so cross-origin iframes
+                // (e.g., challenges.cloudflare.com) are auto-attached as well.
+                await sendCommand('Target.setAutoAttach', {
+                  autoAttach: true,
+                  waitForDebuggerOnStart: true,
+                  flatten: true,
+                }, cdpSessionId);
+              } catch (e) {
+                this.log.debug(`Early injection failed for ${targetInfo.targetId}: ${e instanceof Error ? e.message : String(e)}`);
+              }
+
+              // Resume the target — page JS starts AFTER rrweb is installed
+              if (waitingForDebugger) {
+                await sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId).catch(() => {});
+              }
+            }
+
+            // Cross-origin iframes (e.g., Cloudflare Turnstile challenges.cloudflare.com).
+            // Inject lightweight rrweb — no console/network/turnstile hooks that conflict
+            // with cross-origin page JS. Events flow via PostMessage to parent rrweb.
+            // Not tracked for polling (PostMessage handles delivery to parent).
+            if (targetInfo.type === 'iframe') {
+              this.log.debug(`Iframe target attached (paused=${waitingForDebugger}): ${targetInfo.targetId} url=${targetInfo.url}`);
+
+              try {
+                await sendCommand('Page.enable', {}, cdpSessionId);
+                await sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+                  source: iframeScript,
+                }, cdpSessionId);
+                this.log.info(`rrweb injected into iframe ${targetInfo.targetId}`);
+              } catch (e) {
+                this.log.debug(`Iframe injection failed for ${targetInfo.targetId}: ${e instanceof Error ? e.message : String(e)}`);
+              }
+
+              // Resume iframe regardless of injection success
+              if (waitingForDebugger) {
+                await sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId).catch(() => {});
+              }
             }
           }
 
@@ -448,16 +473,16 @@ export class RecordingCoordinator {
             injectedTargets.delete(targetId);
           }
 
-          // Handle target info changed (URL navigation) - re-inject rrweb
+          // Handle target info changed (URL navigation)
+          // addScriptToEvaluateOnNewDocument persists across navigations on the same
+          // session, so rrweb auto-re-injects. This is a safety net — if the persistent
+          // script fails, Runtime.evaluate re-injection catches it.
           if (msg.method === 'Target.targetInfoChanged') {
             const { targetInfo } = msg.params;
             if (targetInfo.type === 'page' && trackedTargets.has(targetInfo.targetId)) {
-              // Clear injection flag so we can re-inject
               injectedTargets.delete(targetInfo.targetId);
-              // Small delay to let the page initialize
-              setTimeout(async () => {
-                await injectRecording(targetInfo.targetId);
-              }, 200);
+              // Small delay to let the new document initialize before fallback injection
+              setTimeout(() => injectRecording(targetInfo.targetId), 200);
             }
           }
         } catch (e) {
@@ -467,42 +492,29 @@ export class RecordingCoordinator {
 
       ws.on('open', async () => {
         try {
-          // Enable target discovery to receive targetCreated/targetDestroyed/targetInfoChanged events
-          // This is non-invasive - doesn't create dedicated sessions that conflict with pydoll
+          // Use Target.setAutoAttach to pause new targets before any JS runs.
+          // This guarantees rrweb's patchAttachShadow is installed before page code
+          // calls attachShadow({ mode: 'closed' }).
+          //
+          // flatten=true: attachedToTarget events arrive as top-level WebSocket messages
+          // with a sessionId we can use directly for commands. Required for
+          // attachedToTarget to actually fire on our connection.
+          //
+          // waitForDebuggerOnStart=true: targets pause before JS execution, giving us a
+          // window to inject rrweb via Page.addScriptToEvaluateOnNewDocument, then resume.
+          await sendCommand('Target.setAutoAttach', {
+            autoAttach: true,
+            waitForDebuggerOnStart: true,
+            flatten: true,
+          });
+
+          // Also enable discovery for targetInfoChanged/targetDestroyed events
           await sendCommand('Target.setDiscoverTargets', { discover: true });
 
-          // CRITICAL: Delay injection to give external client (pydoll) time to:
-          // 1. Connect to the browser
-          // 2. Enable its own CDP domains (Page, Runtime, etc.)
-          // 3. Start initial operations
-          // Without this delay, our sendMessageToTarget calls can race with pydoll
-          const RECORDING_SETUP_DELAY = 2000; // 2 seconds
-
-          // Find and inject into EXISTING targets after delay
-          setTimeout(async () => {
-            if (closed) return;
-            try {
-              const result = await sendCommand('Target.getTargets');
-              for (const targetInfo of result?.targetInfos || []) {
-                if (targetInfo.type === 'page') {
-                  trackedTargets.add(targetInfo.targetId);
-                  await injectRecording(targetInfo.targetId);
-                }
-              }
-              this.log.debug(`Injected rrweb into ${trackedTargets.size} existing target(s) for session ${sessionId}`);
-            } catch (e) {
-              this.log.debug(`Delayed target injection failed: ${e}`);
-            }
-          }, RECORDING_SETUP_DELAY);
-
-          this.log.debug(`Recording discovery enabled for session ${sessionId}`);
+          this.log.debug(`Recording auto-attach enabled for session ${sessionId}`);
         } catch (e) {
           this.log.warn(`Failed to set up recording: ${e}`);
         }
-      });
-
-      ws.on('error', (err: Error) => {
-        this.log.debug(`Recording WebSocket error: ${err.message}`);
       });
 
       ws.on('close', () => {
@@ -511,7 +523,7 @@ export class RecordingCoordinator {
         pendingCommands.clear();
       });
 
-      // Poll for events periodically
+      // Poll for events periodically (fallback for main frame)
       const pollInterval = setInterval(async () => {
         if (closed) {
           clearInterval(pollInterval);

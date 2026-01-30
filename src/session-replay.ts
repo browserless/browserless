@@ -374,8 +374,45 @@ function getNetworkCaptureScript(): string {
 }
 
 /**
+ * Get a lightweight recording script for injection into cross-origin iframe targets via CDP.
+ *
+ * Only includes rrweb record — no console plugin, no network capture, no turnstile overlay.
+ * Those main-frame features hook into globals (fetch, XHR, console) that can conflict with
+ * cross-origin page JS (e.g., Cloudflare Turnstile).
+ *
+ * The emit callback is a no-op because rrweb auto-detects the cross-origin context
+ * (try/catch on window.parent.document) and sends events via PostMessage to the parent.
+ * The parent frame's rrweb instance (with recordCrossOriginIframes: true) receives
+ * and merges these events into the main recording.
+ *
+ * __browserlessRecording is set to `true` (not an object) as a guard against
+ * double-injection — no event array is needed since events flow via PostMessage.
+ */
+export function getIframeRecordingScript(): string {
+  return `${RRWEB_RECORD_SCRIPT}
+(function() {
+  if (window.__browserlessRecording) return;
+  window.__browserlessRecording = true;
+  var recordFn = window.rrweb?.record;
+  if (typeof recordFn !== 'function') return;
+  recordFn({
+    emit: function() {},
+    recordCrossOriginIframes: true,
+    recordCanvas: true,
+    collectFonts: true,
+    inlineImages: true,
+    sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last', canvas: 2 },
+    dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 }
+  });
+})();`;
+}
+
+/**
  * Get the full recording script (rrweb + init) for injection via evaluateOnNewDocument.
  * Uses pre-bundled script from build time - no runtime file reading.
+ *
+ * This script is for the MAIN FRAME only. Events are collected into a local
+ * array and polled periodically by the recording coordinator.
  */
 export function getRecordingScript(sessionId: string): string {
   return `${RRWEB_RECORD_SCRIPT}
@@ -403,7 +440,7 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
     plugins: consolePlugin ? [consolePlugin] : []
   });
-  console.log('[browserless] rrweb recording started with console plugin, sessionId:', '${sessionId}');
+  console.log('[browserless] rrweb recording started, sessionId:', '${sessionId}');
 })();
 ${getNetworkCaptureScript()}`;
 }
