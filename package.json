@@ -61,7 +61,6 @@
     "joi": "^18.0.2",
     "lighthouse": "^13.0.1",
     "micromatch": "^4.0.8",
-    "playwright-1.53": "npm:playwright-core@1.53.2",
     "playwright-1.54": "npm:playwright-core@1.54.2",
     "playwright-1.55": "npm:playwright-core@1.55.1",
     "playwright-1.56": "npm:playwright-core@1.56.1",
@@ -110,8 +109,7 @@
     "1.57": "playwright-1.57",
     "1.56": "playwright-1.56",
     "1.55": "playwright-1.55",
-    "1.54": "playwright-1.54",
-    "1.53": "playwright-1.53"
+    "1.54": "playwright-1.54"
   },
   "engines": {
     "node": ">=24",
