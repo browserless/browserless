@@ -11,7 +11,7 @@ import {
   exists,
   writeResponse,
 } from '@browserless.io/browserless';
-import { createReadStream } from 'fs';
+import { createReadStream, watch } from 'fs';
 import { stat } from 'fs/promises';
 import { ServerResponse } from 'http';
 import path from 'path';
@@ -123,19 +123,50 @@ export default class RecordingVideoHlsGetRoute extends HTTPRoute {
   }
 
   /**
-   * Wait for a file to appear on disk (used when encoding is in progress).
-   * Polls every 200ms until the file exists or timeout is reached.
+   * Block until a file appears on disk (LL-HLS blocking response pattern).
+   * Uses fs.watch (inotify on Linux) — zero CPU while waiting.
+   * Combined with ffmpeg's temp_file flag, the file appearing via atomic
+   * rename guarantees it is fully written and ready to serve.
    */
-  private async waitForFile(filePath: string, timeoutMs: number): Promise<boolean> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      if (await exists(filePath)) {
-        // Brief pause for ffmpeg to finish writing
-        await new Promise(r => setTimeout(r, 100));
-        return true;
-      }
-      await new Promise(r => setTimeout(r, 200));
-    }
-    return false;
+  private waitForFile(filePath: string, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      // File may have appeared between the exists() check and setting up the watcher
+      exists(filePath).then((alreadyExists) => {
+        if (alreadyExists) {
+          resolve(true);
+          return;
+        }
+
+        const dir = path.dirname(filePath);
+        const target = path.basename(filePath);
+        let settled = false;
+
+        const cleanup = () => {
+          if (!settled) {
+            settled = true;
+            watcher.close();
+            clearTimeout(timer);
+          }
+        };
+
+        // inotify watches the directory for new files / renames
+        const watcher = watch(dir, (_eventType, filename) => {
+          if (filename === target) {
+            cleanup();
+            resolve(true);
+          }
+        });
+
+        watcher.on('error', () => {
+          cleanup();
+          resolve(false);
+        });
+
+        const timer = setTimeout(() => {
+          cleanup();
+          resolve(false);
+        }, timeoutMs);
+      });
+    });
   }
 }

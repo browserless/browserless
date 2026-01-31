@@ -100,6 +100,7 @@ ffmpeg -f concat -safe 0 -i frames.txt \
   -f hls -hls_time 10 -hls_list_size 0 \
   -hls_playlist_type vod \
   -hls_segment_filename 'seg%03d.ts' \
+  -hls_flags temp_file \
   -y _encoding.m3u8
 ```
 
@@ -109,6 +110,7 @@ ffmpeg -f concat -safe 0 -i frames.txt \
 - `-force_key_frames`: ensures keyframes align to 10-second segment boundaries
 - MPEG-TS segments (`.ts`): universal browser compatibility via hls.js transmuxing (see "Why MPEG-TS, not fMP4" below)
 - `-hls_time 10`: 10-second segments
+- `-hls_flags temp_file`: **atomic segment writes** — ffmpeg writes each segment to `seg000.ts.tmp` and atomically renames to `seg000.ts` when complete. This prevents the HLS route from ever serving a partially-written segment. See [ffmpeg hlsenc.c commit](https://lists.ffmpeg.org/pipermail/ffmpeg-cvslog/2017-February/104373.html).
 - Writes to `_encoding.m3u8` (temp) to avoid overwriting the pre-generated playlist
 
 **Step 4 — Replace playlist with ffmpeg's exact version.** After encoding completes, `rename(_encoding.m3u8, playlist.m3u8)` replaces the estimated durations with ffmpeg's exact values.
@@ -191,7 +193,7 @@ Migration is automatic — `ALTER TABLE ADD COLUMN` with error catch for "column
 
 **`/recordings/{id}/video/hls/{filename}`** — Serves HLS playlist and segment files. Content types: `.m3u8` → `application/vnd.apple.mpegurl`, `.ts` → `video/mp2t`, `.m4s`/`.mp4` → `video/mp4` (legacy fMP4 compat). Playlist is served with `no-cache`; segments are `immutable` with 1-hour cache.
 
-**Wait-for-file:** When a segment is requested during active encoding, the route polls for the file to appear on disk (up to 30 seconds, 200ms interval) instead of returning 404. This allows the player to request segments that ffmpeg hasn't produced yet — they arrive as soon as ffmpeg writes them.
+**Blocking response (LL-HLS pattern):** When a segment is requested during active encoding, the route holds the HTTP connection open until the file appears on disk (up to 30 seconds) instead of returning 404. This implements Apple's [LL-HLS blocking playlist reload](https://developer.apple.com/videos/play/wwdc2020/10231/) pattern at the segment level. Detection uses `fs.watch` (inotify on Linux) — zero CPU while waiting, resolves instantly when ffmpeg's `temp_file` atomic rename produces the segment. Combined with `-hls_flags temp_file`, the file appearing guarantees it is fully written and ready to serve (no partial read race condition).
 
 **`/recordings/{id}/video/player`** — HLS video player page using `hls-video-element` + `media-chrome`. For both encoding-in-progress and completed states, the player loads the HLS playlist immediately:
 
@@ -204,14 +206,17 @@ Migration is automatic — `ALTER TABLE ADD COLUMN` with error catch for "column
 | `none` (0 frames) | "No video available" + link to DOM replay |
 
 **Mid-encoding playback flow:**
-1. Player page renders with `src` pointing to `playlist.m3u8` (already on disk)
+1. Player page renders with `src` pointing to `playlist.m3u8` (already on disk, pre-generated VOD)
 2. hls.js loads playlist → sees `#EXT-X-ENDLIST` → shows full duration in seek bar
-3. hls.js requests `seg000.ts` → HLS route waits for ffmpeg to produce it → served
-4. hls.js transmuxes TS → fMP4 internally → feeds to MSE → video renders
-5. Player plays at 4× speed (consumes 10s segment in 2.5s real-time)
-6. ffmpeg encodes faster than 4× playback → segments ready ahead of playhead
-7. Progress text shows below player: "356 / 619 frames (58%)"
-8. Encoding completes → ffmpeg's exact playlist replaces estimated one → text fades
+3. hls.js requests `seg000.ts` → file doesn't exist yet → HLS route holds connection open
+4. `fs.watch` (inotify) monitors session directory — zero CPU while waiting
+5. ffmpeg finishes writing `seg000.ts.tmp` → atomic rename to `seg000.ts` (via `temp_file` flag)
+6. inotify fires → `fs.watch` resolves → route serves the complete segment
+7. hls.js transmuxes TS → fMP4 internally → feeds to MSE → video renders
+8. Player plays at 4× speed (consumes 10s segment in 2.5s real-time)
+9. ffmpeg encodes faster than 4× playback → segments ready ahead of playhead
+10. Progress text shows below player: "356 / 619 frames (58%)"
+11. Encoding completes → ffmpeg's exact playlist replaces estimated one → text fades
 
 ### 6. CDP Event (`Browserless.recordingComplete`)
 
@@ -307,7 +312,7 @@ A duplicate guard in `queueEncode()` prevents double-encoding when two viewers r
 | `src/interfaces/recording-store.interface.ts` | `RecordingMetadata` type with video fields |
 | `src/cdp-proxy.ts` | `RecordingCompleteParams` interface + event emission |
 | `src/session/session-lifecycle-manager.ts` | Constructs + sends CDP event on session close |
-| `src/routes/.../recording-video-hls.get.ts` | HLS playlist + segment serving with wait-for-file |
+| `src/routes/.../recording-video-hls.get.ts` | HLS playlist + segment serving with fs.watch blocking response |
 | `src/routes/.../recording-video-player.get.ts` | HLS video player page (media-chrome + hls-video-element) |
 | `src/routes/.../recording-video-status.get.ts` | Encoding progress JSON endpoint |
 | `docker/base/Dockerfile` | ffmpeg binary via `COPY --from` |

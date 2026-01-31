@@ -277,6 +277,7 @@ export class VideoEncoder {
         '-hls_list_size', '0',
         '-hls_playlist_type', 'vod',
         '-hls_segment_filename', segmentPattern,
+        '-hls_flags', 'temp_file',
         '-y',
         playlistPath,
       ];
