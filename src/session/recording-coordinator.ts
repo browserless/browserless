@@ -10,6 +10,9 @@ import {
 import { Page } from 'puppeteer-core';
 import type { CDPSession } from 'playwright-core';
 
+import { ScreencastCapture } from './screencast-capture.js';
+import { VideoEncoder } from '../video/encoder.js';
+
 /**
  * RecordingCoordinator manages rrweb recording across browser sessions.
  *
@@ -24,8 +27,14 @@ import type { CDPSession } from 'playwright-core';
  */
 export class RecordingCoordinator {
   private log = new Logger('recording-coordinator');
+  private screencastCapture = new ScreencastCapture();
+  private videoEncoder: VideoEncoder;
 
-  constructor(private sessionReplay?: SessionReplay) {}
+  constructor(private sessionReplay?: SessionReplay) {
+    this.videoEncoder = new VideoEncoder(sessionReplay?.getStore() ?? null);
+    // Expose encoder to routes for on-demand encoding
+    sessionReplay?.setVideoEncoder(this.videoEncoder);
+  }
 
   /**
    * Check if recording is enabled.
@@ -441,6 +450,9 @@ export class RecordingCoordinator {
               if (waitingForDebugger) {
                 await sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId).catch(() => {});
               }
+
+              // Start screencast on this target (pixel capture alongside rrweb)
+              this.screencastCapture.addTarget(sessionId, sendCommand, cdpSessionId).catch(() => {});
             }
 
             // Cross-origin iframes (e.g., Cloudflare Turnstile challenges.cloudflare.com).
@@ -489,6 +501,20 @@ export class RecordingCoordinator {
             const { targetId } = msg.params;
             trackedTargets.delete(targetId);
             injectedTargets.delete(targetId);
+            // Clean up screencast target
+            const cdpSid = targetSessions.get(targetId);
+            if (cdpSid) {
+              this.screencastCapture.handleTargetDestroyed(sessionId, cdpSid);
+            }
+          }
+
+          // Handle screencast frames (pixel capture alongside rrweb)
+          if (msg.method === 'Page.screencastFrame' && msg.sessionId) {
+            this.screencastCapture.handleFrame(
+              sessionId,
+              msg.sessionId,
+              msg.params,
+            ).catch(() => {});
           }
 
           // Handle target info changed (URL navigation)
@@ -541,6 +567,12 @@ export class RecordingCoordinator {
 
           // Also enable discovery for targetInfoChanged/targetDestroyed events
           await sendCommand('Target.setDiscoverTargets', { discover: true });
+
+          // Initialize screencast capture (parallel to rrweb)
+          const recordingsDir = this.sessionReplay?.getRecordingsDir();
+          if (recordingsDir) {
+            await this.screencastCapture.initSession(sessionId, sendCommand, recordingsDir);
+          }
 
           this.log.debug(`Recording auto-attach enabled for session ${sessionId}`);
         } catch (e) {
@@ -606,6 +638,9 @@ export class RecordingCoordinator {
   /**
    * Stop recording for a session.
    * Returns both filepath and metadata for CDP event injection.
+   *
+   * Stops both rrweb and screencast capture. If screencast captured frames,
+   * queues background ffmpeg encoding (returns immediately).
    */
   async stopRecording(
     sessionId: string,
@@ -616,6 +651,23 @@ export class RecordingCoordinator {
     }
   ): Promise<StopRecordingResult | null> {
     if (!this.sessionReplay) return null;
-    return this.sessionReplay.stopRecording(sessionId, metadata);
+
+    // Stop screencast capture and get frame count
+    const frameCount = await this.screencastCapture.stopCapture(sessionId);
+
+    // Stop rrweb recording (includes frame count in metadata)
+    const result = await this.sessionReplay.stopRecording(sessionId, {
+      ...metadata,
+      frameCount,
+    });
+
+    return result;
+  }
+
+  /**
+   * Get the video encoder instance (for cleanup on startup).
+   */
+  getVideoEncoder(): VideoEncoder {
+    return this.videoEncoder;
   }
 }

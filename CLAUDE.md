@@ -6,6 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Browserless is a headless browser service that allows remote clients to connect and execute browser automation via Docker. It supports Puppeteer and Playwright libraries, and provides REST APIs for PDF generation, screenshots, scraping, and more.
 
+## CRITICAL: Deployment
+
+**After making ANY code changes, you MUST deploy and verify.**
+
+Browserless is deployed as a Docker container via SST from the catchseo repo:
+
+```bash
+cd /Users/peter/Developer/catchseo && bun prod
+```
+
+**ALWAYS deploy after changes. NEVER leave changes undeployed. NO EXCEPTIONS.**
+
+- ✅ If deploy fails with "Locked" / "concurrent update", **STOP and tell the user** — do NOT run `sst unlock`
+- ❌ NEVER run `sst unlock` — a lock means another deploy is in progress
+
 ## Build & Development Commands
 
 ```bash

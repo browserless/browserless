@@ -11,7 +11,10 @@ export interface RecordingCompleteParams {
   trackingId: string;
   duration: number;
   eventCount: number;
+  frameCount: number;
+  encodingStatus: string;
   playerUrl: string;
+  videoPlayerUrl: string;
 }
 
 /**

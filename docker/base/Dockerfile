@@ -59,6 +59,10 @@ RUN apt-get update && apt-get install -y \
   wget \
   xvfb
 
+# FFmpeg static binaries via multi-stage copy (pinned version, no external wget)
+COPY --from=mwader/static-ffmpeg:8.0.1 /ffmpeg /usr/bin/ffmpeg
+COPY --from=mwader/static-ffmpeg:8.0.1 /ffprobe /usr/bin/ffprobe
+
 RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION &&\

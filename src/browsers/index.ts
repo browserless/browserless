@@ -58,7 +58,7 @@ export class BrowserManager {
     this.recording = new RecordingCoordinator(sessionReplay);
     this.lifecycle = new SessionLifecycleManager(
       this.registry,
-      sessionReplay
+      this.recording,
     );
     this.launcher = new BrowserLauncher(
       config,

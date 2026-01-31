@@ -34,6 +34,7 @@ export class RecordingStore implements IRecordingStore {
   private stmtSelectAll: Statement | null = null;
   private stmtSelectById: Statement | null = null;
   private stmtDelete: Statement | null = null;
+  private stmtUpdateEncoding: Statement | null = null;
 
   constructor(recordingsDir: string) {
     const dbPath = path.join(recordingsDir, 'recordings.db');
@@ -52,17 +53,31 @@ export class RecordingStore implements IRecordingStore {
           eventCount INTEGER NOT NULL,
           browserType TEXT,
           routePath TEXT,
-          userAgent TEXT
+          userAgent TEXT,
+          frameCount INTEGER NOT NULL DEFAULT 0,
+          videoPath TEXT,
+          encodingStatus TEXT NOT NULL DEFAULT 'none'
         );
         CREATE INDEX IF NOT EXISTS idx_trackingId ON recordings(trackingId);
         CREATE INDEX IF NOT EXISTS idx_startedAt ON recordings(startedAt DESC);
       `);
 
+      // Migrate existing tables: add video columns if missing
+      try {
+        this.db.exec(`ALTER TABLE recordings ADD COLUMN frameCount INTEGER NOT NULL DEFAULT 0`);
+      } catch { /* column already exists */ }
+      try {
+        this.db.exec(`ALTER TABLE recordings ADD COLUMN videoPath TEXT`);
+      } catch { /* column already exists */ }
+      try {
+        this.db.exec(`ALTER TABLE recordings ADD COLUMN encodingStatus TEXT NOT NULL DEFAULT 'none'`);
+      } catch { /* column already exists */ }
+
       // Prepare statements for better performance
       this.stmtInsert = this.db.prepare(`
         INSERT OR REPLACE INTO recordings
-        (id, trackingId, startedAt, endedAt, duration, eventCount, browserType, routePath, userAgent)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, trackingId, startedAt, endedAt, duration, eventCount, browserType, routePath, userAgent, frameCount, videoPath, encodingStatus)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       this.stmtSelectAll = this.db.prepare(
@@ -75,6 +90,10 @@ export class RecordingStore implements IRecordingStore {
 
       this.stmtDelete = this.db.prepare(
         `DELETE FROM recordings WHERE id = ?`
+      );
+
+      this.stmtUpdateEncoding = this.db.prepare(
+        `UPDATE recordings SET encodingStatus = ?, videoPath = ? WHERE id = ?`
       );
 
       this.healthy = true;
@@ -106,7 +125,10 @@ export class RecordingStore implements IRecordingStore {
         metadata.eventCount,
         metadata.browserType,
         metadata.routePath,
-        metadata.userAgent ?? null
+        metadata.userAgent ?? null,
+        metadata.frameCount,
+        metadata.videoPath ?? null,
+        metadata.encodingStatus
       );
       return ok(undefined);
     } catch (error) {
@@ -146,7 +168,10 @@ export class RecordingStore implements IRecordingStore {
           m.eventCount,
           m.browserType,
           m.routePath,
-          m.userAgent ?? null
+          m.userAgent ?? null,
+          m.frameCount,
+          m.videoPath ?? null,
+          m.encodingStatus
         );
       }
     });
@@ -236,6 +261,38 @@ export class RecordingStore implements IRecordingStore {
   }
 
   /**
+   * Update encoding status and video path for a recording.
+   */
+  updateEncodingStatus(
+    id: string,
+    encodingStatus: RecordingMetadata['encodingStatus'],
+    videoPath?: string,
+  ): Result<boolean, RecordingStoreError> {
+    if (!this.db || !this.stmtUpdateEncoding) {
+      return err({
+        type: 'connection_failed',
+        message: 'Database not initialized',
+      });
+    }
+
+    try {
+      const result = this.stmtUpdateEncoding.run(
+        encodingStatus,
+        videoPath ?? null,
+        id,
+      );
+      return ok(result.changes > 0);
+    } catch (error) {
+      this.log.error(`UpdateEncodingStatus failed: ${error}`);
+      return err({
+        type: 'query_failed',
+        message: `Failed to update encoding status for recording ${id}`,
+        cause: error instanceof Error ? error : undefined,
+      });
+    }
+  }
+
+  /**
    * Execute a function within a database transaction.
    * If the function throws, the transaction is rolled back.
    */
@@ -291,6 +348,7 @@ export class RecordingStore implements IRecordingStore {
       this.stmtSelectAll = null;
       this.stmtSelectById = null;
       this.stmtDelete = null;
+      this.stmtUpdateEncoding = null;
 
       this.db?.close();
       this.db = null;

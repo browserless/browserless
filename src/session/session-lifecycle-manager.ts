@@ -3,11 +3,11 @@ import {
   BrowserlessSession,
   Logger,
   RecordingCompleteParams,
-  SessionReplay,
   exists,
 } from '@browserless.io/browserless';
 import { deleteAsync } from 'del';
 
+import { RecordingCoordinator } from './recording-coordinator.js';
 import { SessionRegistry } from './session-registry.js';
 
 /**
@@ -26,7 +26,7 @@ export class SessionLifecycleManager {
 
   constructor(
     private registry: SessionRegistry,
-    private sessionReplay?: SessionReplay,
+    private recordingCoordinator?: RecordingCoordinator,
   ) {}
 
   /**
@@ -96,8 +96,9 @@ export class SessionLifecycleManager {
       this.log.debug(`Closing browser session`);
 
       // Stop recording and save if replay was enabled
-      if (session.replay && this.sessionReplay) {
-        const result = await this.sessionReplay.stopRecording(session.id, {
+      // Uses RecordingCoordinator to ensure screencast frames are counted
+      if (session.replay && this.recordingCoordinator) {
+        const result = await this.recordingCoordinator.stopRecording(session.id, {
           browserType: browser.constructor.name,
           routePath: Array.isArray(session.routePath)
             ? session.routePath[0]
@@ -114,8 +115,11 @@ export class SessionLifecycleManager {
             trackingId: session.trackingId,
             duration: result.metadata.duration,
             eventCount: result.metadata.eventCount,
-            // Use external URL for player
+            frameCount: result.metadata.frameCount,
+            encodingStatus: result.metadata.encodingStatus,
+            // Use external URL for players
             playerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/player`,
+            videoPlayerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/video/player`,
           };
 
           // Check if browser supports CDP event injection (duck typing)

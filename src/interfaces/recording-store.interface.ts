@@ -25,11 +25,14 @@ export interface RecordingMetadata {
   duration: number;
   endedAt: number;
   eventCount: number;
+  frameCount: number;
   id: string;
   routePath: string;
   startedAt: number;
   trackingId?: string;
   userAgent?: string;
+  videoPath?: string;
+  encodingStatus: 'none' | 'deferred' | 'pending' | 'encoding' | 'completed' | 'failed';
 }
 
 /**
@@ -72,6 +75,16 @@ export interface IRecordingStore {
    * Returns true if a record was deleted, false if not found.
    */
   delete(id: string): Result<boolean, RecordingStoreError>;
+
+  /**
+   * Update encoding status and video path for a recording.
+   * Returns true if a record was updated, false if not found.
+   */
+  updateEncodingStatus(
+    id: string,
+    encodingStatus: RecordingMetadata['encodingStatus'],
+    videoPath?: string,
+  ): Result<boolean, RecordingStoreError>;
 
   /**
    * Execute multiple operations in a single transaction.

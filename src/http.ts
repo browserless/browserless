@@ -149,6 +149,9 @@ export enum HTTPManagementRoutes {
   recordings = '/recordings?(/)',
   recording = '/recordings/+([0-9a-zA-Z-_])?(/)',
   recordingPlayer = '/recordings/+([0-9a-zA-Z-_])/player?(/)',
+  recordingVideoPlayer = '/recordings/+([0-9a-zA-Z-_])/video/player?(/)',
+  recordingVideoStatus = '/recordings/+([0-9a-zA-Z-_])/video/status?(/)',
+  recordingVideoHls = '/recordings/+([0-9a-zA-Z-_])/video/hls/**',
   sessions = '/sessions?(/)',
   static = '/',
 }

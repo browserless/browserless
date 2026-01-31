@@ -446,6 +446,17 @@ export class Browserless extends EventEmitter {
 
     await this.loadPwVersions();
     await this.sessionReplay.initialize();
+
+    // Wire VideoEncoder to the now-initialized store.
+    // VideoEncoder gets null at construction time because SessionReplay.initialize()
+    // creates the RecordingStore. Without this, all status updates are silent no-ops.
+    const store = this.sessionReplay.getStore();
+    if (store) {
+      const encoder = this.browserManager.getRecordingCoordinator().getVideoEncoder();
+      encoder.setStore(store);
+      await encoder.cleanupOrphans(this.sessionReplay.getRecordingsDir());
+    }
+
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(

@@ -11,6 +11,7 @@ import path from 'path';
 import { RRWEB_RECORD_SCRIPT, RRWEB_CONSOLE_PLUGIN_SCRIPT } from './generated/rrweb-script.js';
 import { RecordingStore } from './recording-store.js';
 import type { IRecordingStore, RecordingMetadata } from './interfaces/recording-store.interface.js';
+import type { VideoEncoder } from './video/encoder.js';
 
 // Re-export RecordingMetadata for backwards compatibility
 export type { RecordingMetadata } from './interfaces/recording-store.interface.js';
@@ -494,6 +495,7 @@ export class SessionReplay extends EventEmitter {
   protected maxRecordingSize: number;
   protected store: IRecordingStore | null = null;
   protected ownsStore = false; // Track if we created the store (for cleanup)
+  private videoEncoder?: VideoEncoder;
 
   constructor(
     protected config: Config,
@@ -525,6 +527,20 @@ export class SessionReplay extends EventEmitter {
    */
   public getStore(): IRecordingStore | null {
     return this.store;
+  }
+
+  /**
+   * Set the video encoder reference (for on-demand encoding from routes).
+   */
+  public setVideoEncoder(encoder: VideoEncoder): void {
+    this.videoEncoder = encoder;
+  }
+
+  /**
+   * Get the video encoder (used by routes to trigger on-demand encoding).
+   */
+  public getVideoEncoder(): VideoEncoder | undefined {
+    return this.videoEncoder;
   }
 
   public async initialize(): Promise<void> {
@@ -674,11 +690,13 @@ export class SessionReplay extends EventEmitter {
       duration: endedAt - state.startedAt,
       endedAt,
       eventCount: state.events.length,
+      frameCount: metadata?.frameCount ?? 0,
       id: sessionId,
       routePath: metadata?.routePath || 'unknown',
       startedAt: state.startedAt,
       trackingId: state.trackingId,
       userAgent: metadata?.userAgent,
+      encodingStatus: metadata?.frameCount ? 'deferred' : 'none',
     };
 
     const recording: Recording = {
@@ -778,6 +796,16 @@ export class SessionReplay extends EventEmitter {
 
     try {
       await rm(filepath);
+      // Also remove video file if it exists
+      const videoPath = path.join(this.recordingsDir, `${id}.mp4`);
+      if (await exists(videoPath)) {
+        await rm(videoPath);
+      }
+      // Clean up frames directory if it exists (orphaned encoding)
+      const framesDir = path.join(this.recordingsDir, id, 'frames');
+      if (await exists(framesDir)) {
+        await rm(path.join(this.recordingsDir, id), { recursive: true });
+      }
       // Also remove from SQLite
       if (this.store) {
         const result = this.store.delete(id);

@@ -181,6 +181,27 @@ export class MockRecordingStore implements IRecordingStore {
     return ok(true);
   }
 
+  updateEncodingStatus(
+    id: string,
+    encodingStatus: RecordingMetadata['encodingStatus'],
+    videoPath?: string,
+  ): Result<boolean, RecordingStoreError> {
+    if (this.closed) {
+      return err({ type: 'connection_failed', message: 'Store is closed' });
+    }
+
+    const recording = this.recordings.get(id);
+    if (!recording) {
+      return ok(false);
+    }
+
+    recording.encodingStatus = encodingStatus;
+    if (videoPath !== undefined) {
+      recording.videoPath = videoPath;
+    }
+    return ok(true);
+  }
+
   transaction<T>(fn: () => T): Result<T, RecordingStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
