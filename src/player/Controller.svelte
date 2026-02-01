@@ -9,7 +9,7 @@
   import { onMount, onDestroy, createEventDispatcher, afterUpdate } from 'svelte';
   import { formatTime } from './utils';
   import Switch from './components/Switch.svelte';
-  import { currentPhase } from './stores/player';
+  import { currentPhase, consoleItems, filters } from './stores/player';
 
   const dispatch = createEventDispatcher();
 
@@ -66,6 +66,8 @@
 
   let customEvents: CustomEvent[];
   $: customEvents = (() => {
+    if (!$filters.markers) return [];
+
     const { context } = replayer.service.state;
     const totalEvents = context.events.length;
     const start = context.events[0].timestamp;
@@ -84,6 +86,35 @@
     });
 
     return customEventsArr;
+  })();
+
+  const CONSOLE_LEVEL_COLORS: Record<string, string> = {
+    log:   '#9ba0ab',
+    info:  '#3b82f6',
+    warn:  '#f59e0b',
+    error: '#ef4444',
+    debug: '#8b5cf6',
+  };
+
+  let consoleMarkers: CustomEvent[];
+  $: consoleMarkers = (() => {
+    if (!$filters.console) return [];
+
+    const { context } = replayer.service.state;
+    const totalEvents = context.events.length;
+    const start = context.events[0].timestamp;
+    const end = context.events[totalEvents - 1].timestamp;
+
+    return $consoleItems
+      .filter((item) => {
+        const levelKey = item.level as keyof typeof $filters.levels;
+        return !(levelKey in $filters.levels && $filters.levels[levelKey] === false);
+      })
+      .map((item) => ({
+        name: `console.${item.level}`,
+        background: CONSOLE_LEVEL_COLORS[item.level] || '#9ba0ab',
+        position: `${position(start, end, item.timestamp)}%`,
+      }));
   })();
 
   let inactivePeriods: {
@@ -483,6 +514,12 @@
           ></div>
         {/each}
         {#each customEvents as event}
+          <div
+            title={event.name}
+            style="width: 4px; height: 100%; position: absolute; background: {event.background}; left: {event.position}; border-radius: 2px;"
+          ></div>
+        {/each}
+        {#each consoleMarkers as event}
           <div
             title={event.name}
             style="width: 4px; height: 100%; position: absolute; background: {event.background}; left: {event.position}; border-radius: 2px;"

@@ -399,6 +399,7 @@ export function getIframeRecordingScript(): string {
   recordFn({
     emit: function() {},
     recordCrossOriginIframes: true,
+    recordAfter: 'DOMContentLoaded',
     recordCanvas: true,
     collectFonts: true,
     inlineImages: true,
@@ -437,6 +438,7 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     recordCanvas: true,
     collectFonts: true,
     recordCrossOriginIframes: true,
+    recordAfter: 'DOMContentLoaded',
     inlineImages: true,
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
     plugins: consolePlugin ? [consolePlugin] : []
@@ -469,6 +471,7 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     recordCanvas: true,
     collectFonts: true,
     recordCrossOriginIframes: true,
+    recordAfter: 'DOMContentLoaded',
     inlineImages: true,
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
     plugins: consolePlugin ? [consolePlugin] : []

@@ -105,15 +105,19 @@ function isNetworkErrorPayload(payload: unknown): payload is NetworkErrorPayload
 }
 
 // Console plugin data (type 6) - uses PLUGIN_NAME from @divmode/rrweb-plugin-console-record
+// rrweb wraps plugin data as: { plugin: string, payload: T }
+// For console plugin, T = { level, trace, payload }
 interface ConsolePluginData {
   plugin: typeof PLUGIN_NAME;
-  level?: string;
-  trace?: unknown[];
-  payload?: unknown;
+  payload: {
+    level?: string;
+    trace?: unknown[];
+    payload?: unknown;
+  };
 }
 
 function isConsolePluginData(data: unknown): data is ConsolePluginData {
-  return isRecord(data) && data.plugin === PLUGIN_NAME;
+  return isRecord(data) && data.plugin === PLUGIN_NAME && isRecord(data.payload);
 }
 
 // =============================================================================
@@ -187,9 +191,10 @@ export const consoleItems: Readable<ConsoleItem[]> = derived(events, ($events) =
 
     if (!isConsolePluginData(e.data)) continue;
 
-    const level = isString(e.data.level) ? e.data.level : 'log';
-    const message = stringifyPayload(e.data.payload).slice(0, 500);
-    const trace = extractStringArray(e.data.trace);
+    const inner = e.data.payload;
+    const level = isString(inner.level) ? inner.level : 'log';
+    const message = stringifyPayload(inner.payload).slice(0, 500);
+    const trace = extractStringArray(inner.trace);
 
     items.push({
       timestamp: e.timestamp,

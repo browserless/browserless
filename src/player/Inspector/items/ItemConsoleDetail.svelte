@@ -4,9 +4,9 @@
 
   export let item: ConsoleItem;
 
-  $: hasStackTrace = item.trace && item.trace.length > 1;
-  $: fullMessage = item.trace?.join('\n') || item.message;
-  $: stackTrace = hasStackTrace ? item.trace.slice(1).join('\n') : '';
+  $: hasStackTrace = item.trace && item.trace.length > 0;
+  $: fullMessage = item.message;
+  $: stackTrace = hasStackTrace ? item.trace.join('\n') : '';
 </script>
 
 <style>
