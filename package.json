@@ -67,6 +67,7 @@
     "joi": "^18.0.2",
     "lighthouse": "^13.0.1",
     "micromatch": "^4.0.8",
+    "node-cron": "^4.2.1",
     "playwright-1.53": "npm:playwright-core@1.53.2",
     "playwright-1.54": "npm:playwright-core@1.54.2",
     "playwright-1.55": "npm:playwright-core@1.55.1",

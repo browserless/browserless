@@ -3,9 +3,14 @@ import {
   Logger,
   exists,
 } from '@browserless.io/browserless';
+import { exec } from 'child_process';
 import { EventEmitter } from 'events';
 import { mkdir, readFile, readdir, rm, writeFile } from 'fs/promises';
+import cron, { type ScheduledTask } from 'node-cron';
 import path from 'path';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // Bundled @rrweb/record script - no require.resolve() needed
 import { RRWEB_RECORD_SCRIPT, RRWEB_CONSOLE_PLUGIN_SCRIPT } from './generated/rrweb-script.js';
@@ -402,7 +407,7 @@ export function getIframeRecordingScript(): string {
     recordAfter: 'DOMContentLoaded',
     recordCanvas: true,
     collectFonts: true,
-    inlineImages: true,
+    inlineImages: false,
     sampling: { mousemove: true, mouseInteraction: true, scroll: 150, media: 800, input: 'last', canvas: 2 },
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 }
   });
@@ -439,7 +444,7 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     collectFonts: true,
     recordCrossOriginIframes: true,
     recordAfter: 'DOMContentLoaded',
-    inlineImages: true,
+    inlineImages: false,
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
     plugins: consolePlugin ? [consolePlugin] : []
   });
@@ -472,7 +477,7 @@ ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
     collectFonts: true,
     recordCrossOriginIframes: true,
     recordAfter: 'DOMContentLoaded',
-    inlineImages: true,
+    inlineImages: false,
     dataURLOptions: { type: 'image/webp', quality: 0.6, maxBase64ImageLength: 2097152 },
     plugins: consolePlugin ? [consolePlugin] : []
   });
@@ -498,6 +503,8 @@ export class SessionReplay extends EventEmitter {
   protected maxRecordingSize: number;
   protected store: IRecordingStore | null = null;
   protected ownsStore = false; // Track if we created the store (for cleanup)
+  protected maxAgeMs: number;
+  private cleanupTask: ScheduledTask | null = null;
   private videoEncoder?: VideoEncoder;
 
   constructor(
@@ -508,6 +515,8 @@ export class SessionReplay extends EventEmitter {
     this.enabled = process.env.ENABLE_REPLAY !== 'false';
     this.recordingsDir = process.env.REPLAY_DIR || '/tmp/browserless-recordings';
     this.maxRecordingSize = +(process.env.REPLAY_MAX_SIZE || '52428800');
+    // Default: 7 days (604800000ms)
+    this.maxAgeMs = +(process.env.REPLAY_MAX_AGE_MS || '604800000');
 
     // Use injected store if provided
     if (injectedStore) {
@@ -574,6 +583,9 @@ export class SessionReplay extends EventEmitter {
     await this.migrateExistingRecordings();
 
     this.log.info(`Session replay enabled (bundled rrweb), storing in: ${this.recordingsDir}`);
+
+    // Start daily cleanup of old recordings
+    this.startCleanupTimer();
   }
 
   /**
@@ -608,6 +620,55 @@ export class SessionReplay extends EventEmitter {
       }
     } catch {
       // Directory might not exist or be empty
+    }
+  }
+
+  /**
+   * Schedule daily cleanup of old recordings via cron.
+   * Runs at 3 AM daily + once on startup.
+   */
+  private startCleanupTimer(): void {
+    const maxAgeDays = Math.ceil(this.maxAgeMs / 86400000);
+
+    // Run daily at 3 AM
+    this.cleanupTask = cron.schedule('0 3 * * *', () => {
+      this.cleanupOldRecordings(maxAgeDays).catch((err) => {
+        this.log.warn(`Scheduled cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    });
+
+    // Also run once on startup
+    this.cleanupOldRecordings(maxAgeDays).catch((err) => {
+      this.log.warn(`Initial cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
+
+  /**
+   * Delete recordings older than maxAgeDays using `find`.
+   * Handles files, directories, and orphans in one shot.
+   * Preserves the SQLite database file.
+   */
+  protected async cleanupOldRecordings(maxAgeDays: number): Promise<void> {
+    // find handles files, directories, and orphans in one shot
+    // -mindepth 1 -maxdepth 1: only top-level entries
+    // -mtime +N: older than N days
+    // -not -name "recordings.db": preserve SQLite database
+    const { stdout } = await execAsync(
+      `find ${this.recordingsDir} -mindepth 1 -maxdepth 1 -mtime +${maxAgeDays} -not -name "recordings.db" -printf "%f\\n" -exec rm -rf {} +`
+    );
+
+    const deleted = stdout.trim().split('\n').filter(Boolean);
+
+    // Clean up SQLite entries for deleted recordings
+    if (this.store && deleted.length > 0) {
+      for (const entry of deleted) {
+        const id = entry.replace('.json', '');
+        this.store.delete(id);
+      }
+    }
+
+    if (deleted.length > 0) {
+      this.log.info(`Cleaned up ${deleted.length} old recordings (>${maxAgeDays}d)`);
     }
   }
 
@@ -799,15 +860,15 @@ export class SessionReplay extends EventEmitter {
 
     try {
       await rm(filepath);
-      // Also remove video file if it exists
+      // Remove session directory (HLS segments, frames, playlist)
+      const sessionDir = path.join(this.recordingsDir, id);
+      if (await exists(sessionDir)) {
+        await rm(sessionDir, { recursive: true });
+      }
+      // Also remove standalone video file if it exists
       const videoPath = path.join(this.recordingsDir, `${id}.mp4`);
       if (await exists(videoPath)) {
         await rm(videoPath);
-      }
-      // Clean up frames directory if it exists (orphaned encoding)
-      const framesDir = path.join(this.recordingsDir, id, 'frames');
-      if (await exists(framesDir)) {
-        await rm(path.join(this.recordingsDir, id), { recursive: true });
       }
       // Also remove from SQLite
       if (this.store) {
@@ -825,6 +886,13 @@ export class SessionReplay extends EventEmitter {
 
   public async shutdown(): Promise<void> {
     this.log.info('Shutting down session replay...');
+
+    // Stop cleanup cron
+    if (this.cleanupTask) {
+      this.cleanupTask.stop();
+      this.cleanupTask = null;
+    }
+
     for (const [sessionId] of this.recordings) {
       await this.stopRecording(sessionId);
     }
