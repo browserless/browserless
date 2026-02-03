@@ -33,6 +33,7 @@ class BasePlaywright extends EventEmitter {
     PlaywrightBrowserTypes.chromium;
   protected executablePath = () =>
     playwright[this.playwrightBrowserType].executablePath();
+  protected keepUntilMS = 0;
 
   constructor({
     config,
@@ -81,7 +82,12 @@ class BasePlaywright extends EventEmitter {
   }
 
   public keepUntil() {
-    return 0;
+    return this.keepUntilMS;
+  }
+
+  public setKeepUntil(timeout: number) {
+    this.keepUntilMS = timeout;
+    return this.keepUntilMS;
   }
 
   public isRunning(): boolean {
