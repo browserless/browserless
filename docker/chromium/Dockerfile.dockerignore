@@ -1,0 +1,22 @@
+# Ignore non-chromium routes
+src/routes/chrome
+src/routes/firefox
+src/routes/webkit
+src/routes/edge
+
+# Build Files
+node_modules/
+build/
+
+# Editor preferences
+.editorconfig
+.dockerignore
+.git/
+.no-git/
+.vscode/
+
+# ENV files
+*.env*
+
+# Other non-production dotfiles
+.eslintrc
