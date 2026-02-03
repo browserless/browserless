@@ -93,6 +93,11 @@ export class BrowserLauncher {
       'replay',
       false,
     );
+    const video = parseBooleanParam(
+      req.parsed.searchParams,
+      'video',
+      false,
+    );
     const trackingId =
       parseStringParam(req.parsed.searchParams, 'trackingId', '') || undefined;
 
@@ -178,6 +183,7 @@ export class BrowserLauncher {
       launchOptions,
       numbConnected: 1,
       replay: replay && this.recordingCoordinator?.isEnabled(),
+      video: video && this.recordingCoordinator?.isEnabled(),
       resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
@@ -217,7 +223,7 @@ export class BrowserLauncher {
     // Start recording if enabled (non-blocking)
     if (session.replay && this.recordingCoordinator) {
       this.recordingCoordinator.startRecording(sessionId, trackingId);
-      this.recordingCoordinator.setupRecordingForAllTabs(browser, sessionId).catch((e) => {
+      this.recordingCoordinator.setupRecordingForAllTabs(browser, sessionId, { video: !!session.video }).catch((e) => {
         this.log.warn(`Recording setup failed for session ${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
       });
     }

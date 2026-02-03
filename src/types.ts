@@ -425,6 +425,7 @@ export interface BrowserlessSession {
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
   replay?: boolean;
+  video?: boolean;
   resolver(val: unknown): void;
   routePath: string | string[];
   startedOn: number;
@@ -442,6 +443,7 @@ export interface BrowserlessSessionJSON {
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
   numbConnected: number;
   replay?: boolean;
+  video?: boolean;
   routePath: string | string[];
   running: boolean;
   startedOn: number;

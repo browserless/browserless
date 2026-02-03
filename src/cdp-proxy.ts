@@ -14,7 +14,7 @@ export interface RecordingCompleteParams {
   frameCount: number;
   encodingStatus: string;
   playerUrl: string;
-  videoPlayerUrl: string;
+  videoPlayerUrl?: string;
 }
 
 /**

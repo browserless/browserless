@@ -119,7 +119,9 @@ export class SessionLifecycleManager {
             encodingStatus: result.metadata.encodingStatus,
             // Use external URL for players
             playerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/player`,
-            videoPlayerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/video/player`,
+            ...(result.metadata.frameCount > 0 && {
+              videoPlayerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/video/player`,
+            }),
           };
 
           // Check if browser supports CDP event injection (duck typing)

@@ -652,9 +652,9 @@ export class SessionReplay extends EventEmitter {
     // find handles files, directories, and orphans in one shot
     // -mindepth 1 -maxdepth 1: only top-level entries
     // -mtime +N: older than N days
-    // -not -name "recordings.db": preserve SQLite database
+    // -not -name "recordings.db*": preserve SQLite database + WAL/SHM files
     const { stdout } = await execAsync(
-      `find ${this.recordingsDir} -mindepth 1 -maxdepth 1 -mtime +${maxAgeDays} -not -name "recordings.db" -printf "%f\\n" -exec rm -rf {} +`
+      `find ${this.recordingsDir} -mindepth 1 -maxdepth 1 -mtime +${maxAgeDays} -not -name "recordings.db*" -printf "%f\\n" -exec rm -rf {} +`
     );
 
     const deleted = stdout.trim().split('\n').filter(Boolean);

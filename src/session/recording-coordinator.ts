@@ -280,6 +280,7 @@ export class RecordingCoordinator {
   async setupRecordingForAllTabs(
     browser: BrowserInstance,
     sessionId: string,
+    options?: { video?: boolean },
   ): Promise<void> {
     if (!this.sessionReplay) return;
 
@@ -451,8 +452,10 @@ export class RecordingCoordinator {
                 await sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId).catch(() => {});
               }
 
-              // Start screencast on this target (pixel capture alongside rrweb)
-              this.screencastCapture.addTarget(sessionId, sendCommand, cdpSessionId).catch(() => {});
+              // Start screencast on this target (pixel capture alongside rrweb) — only when video=true
+              if (options?.video) {
+                this.screencastCapture.addTarget(sessionId, sendCommand, cdpSessionId).catch(() => {});
+              }
             }
 
             // Cross-origin iframes (e.g., Cloudflare Turnstile challenges.cloudflare.com).
@@ -508,8 +511,8 @@ export class RecordingCoordinator {
             }
           }
 
-          // Handle screencast frames (pixel capture alongside rrweb)
-          if (msg.method === 'Page.screencastFrame' && msg.sessionId) {
+          // Handle screencast frames (pixel capture alongside rrweb) — only when video=true
+          if (options?.video && msg.method === 'Page.screencastFrame' && msg.sessionId) {
             this.screencastCapture.handleFrame(
               sessionId,
               msg.sessionId,
@@ -568,10 +571,12 @@ export class RecordingCoordinator {
           // Also enable discovery for targetInfoChanged/targetDestroyed events
           await sendCommand('Target.setDiscoverTargets', { discover: true });
 
-          // Initialize screencast capture (parallel to rrweb)
-          const recordingsDir = this.sessionReplay?.getRecordingsDir();
-          if (recordingsDir) {
-            await this.screencastCapture.initSession(sessionId, sendCommand, recordingsDir);
+          // Initialize screencast capture (parallel to rrweb) — only when video=true
+          if (options?.video) {
+            const recordingsDir = this.sessionReplay?.getRecordingsDir();
+            if (recordingsDir) {
+              await this.screencastCapture.initSession(sessionId, sendCommand, recordingsDir);
+            }
           }
 
           this.log.debug(`Recording auto-attach enabled for session ${sessionId}`);

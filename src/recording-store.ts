@@ -10,6 +10,15 @@ import type {
 } from './interfaces/recording-store.interface.js';
 import { ok, err } from './interfaces/recording-store.interface.js';
 
+interface InitializedState {
+  db: DatabaseType;
+  stmtInsert: Statement;
+  stmtSelectAll: Statement;
+  stmtSelectById: Statement;
+  stmtDelete: Statement;
+  stmtUpdateEncoding: Statement;
+}
+
 /**
  * SQLite-based metadata store for session recordings.
  *
@@ -25,25 +34,28 @@ import { ok, err } from './interfaces/recording-store.interface.js';
  *   This makes error handling explicit and testable.
  */
 export class RecordingStore implements IRecordingStore {
-  private db: DatabaseType | null = null;
   private log = new Logger('recording-store');
-  private healthy = false;
-
-  // Prepared statements cache
-  private stmtInsert: Statement | null = null;
-  private stmtSelectAll: Statement | null = null;
-  private stmtSelectById: Statement | null = null;
-  private stmtDelete: Statement | null = null;
-  private stmtUpdateEncoding: Statement | null = null;
+  private dbPath: string;
+  private state: InitializedState | null = null;
 
   constructor(recordingsDir: string) {
-    const dbPath = path.join(recordingsDir, 'recordings.db');
+    this.dbPath = path.join(recordingsDir, 'recordings.db');
+    this.initialize();
+  }
 
+  /**
+   * Initialize (or reinitialize) the SQLite database connection,
+   * create tables/indexes, and prepare statements.
+   */
+  private initialize(): InitializedState | null {
     try {
-      this.db = new Database(dbPath);
+      // Close stale handle if any
+      try { this.state?.db.close(); } catch { /* ignore */ }
+
+      const db = new Database(this.dbPath);
 
       // Create table and indexes if they don't exist
-      this.db.exec(`
+      db.exec(`
         CREATE TABLE IF NOT EXISTS recordings (
           id TEXT PRIMARY KEY,
           trackingId TEXT,
@@ -64,51 +76,63 @@ export class RecordingStore implements IRecordingStore {
 
       // Migrate existing tables: add video columns if missing
       try {
-        this.db.exec(`ALTER TABLE recordings ADD COLUMN frameCount INTEGER NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE recordings ADD COLUMN frameCount INTEGER NOT NULL DEFAULT 0`);
       } catch { /* column already exists */ }
       try {
-        this.db.exec(`ALTER TABLE recordings ADD COLUMN videoPath TEXT`);
+        db.exec(`ALTER TABLE recordings ADD COLUMN videoPath TEXT`);
       } catch { /* column already exists */ }
       try {
-        this.db.exec(`ALTER TABLE recordings ADD COLUMN encodingStatus TEXT NOT NULL DEFAULT 'none'`);
+        db.exec(`ALTER TABLE recordings ADD COLUMN encodingStatus TEXT NOT NULL DEFAULT 'none'`);
       } catch { /* column already exists */ }
 
-      // Prepare statements for better performance
-      this.stmtInsert = this.db.prepare(`
-        INSERT OR REPLACE INTO recordings
-        (id, trackingId, startedAt, endedAt, duration, eventCount, browserType, routePath, userAgent, frameCount, videoPath, encodingStatus)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+      this.state = {
+        db,
+        stmtInsert: db.prepare(`
+          INSERT OR REPLACE INTO recordings
+          (id, trackingId, startedAt, endedAt, duration, eventCount, browserType, routePath, userAgent, frameCount, videoPath, encodingStatus)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `),
+        stmtSelectAll: db.prepare(
+          `SELECT * FROM recordings ORDER BY startedAt DESC`
+        ),
+        stmtSelectById: db.prepare(
+          `SELECT * FROM recordings WHERE id = ?`
+        ),
+        stmtDelete: db.prepare(
+          `DELETE FROM recordings WHERE id = ?`
+        ),
+        stmtUpdateEncoding: db.prepare(
+          `UPDATE recordings SET encodingStatus = ?, videoPath = ? WHERE id = ?`
+        ),
+      };
 
-      this.stmtSelectAll = this.db.prepare(
-        `SELECT * FROM recordings ORDER BY startedAt DESC`
-      );
-
-      this.stmtSelectById = this.db.prepare(
-        `SELECT * FROM recordings WHERE id = ?`
-      );
-
-      this.stmtDelete = this.db.prepare(
-        `DELETE FROM recordings WHERE id = ?`
-      );
-
-      this.stmtUpdateEncoding = this.db.prepare(
-        `UPDATE recordings SET encodingStatus = ?, videoPath = ? WHERE id = ?`
-      );
-
-      this.healthy = true;
-      this.log.info(`Recording store initialized at ${dbPath}`);
+      this.log.info(`Recording store initialized at ${this.dbPath}`);
+      return this.state;
     } catch (error) {
-      this.healthy = false;
+      this.state = null;
       this.log.error(`Failed to initialize recording store: ${error}`);
+      return null;
     }
+  }
+
+  /**
+   * Ensure the store is healthy before operations.
+   * If unhealthy, attempt to reinitialize the database.
+   * Returns the initialized state or null if recovery failed.
+   */
+  private ensureHealthy(): InitializedState | null {
+    if (this.state) return this.state;
+
+    this.log.info('Recording store unhealthy, attempting recovery...');
+    return this.initialize();
   }
 
   /**
    * Insert or update recording metadata.
    */
   insert(metadata: RecordingMetadata): Result<void, RecordingStoreError> {
-    if (!this.db || !this.stmtInsert) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -116,7 +140,7 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      this.stmtInsert.run(
+      s.stmtInsert.run(
         metadata.id,
         metadata.trackingId ?? null,
         metadata.startedAt,
@@ -146,7 +170,8 @@ export class RecordingStore implements IRecordingStore {
    * Either all succeed or none are inserted.
    */
   insertBatch(metadata: RecordingMetadata[]): Result<void, RecordingStoreError> {
-    if (!this.db || !this.stmtInsert) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -159,7 +184,7 @@ export class RecordingStore implements IRecordingStore {
 
     const txnResult = this.transaction(() => {
       for (const m of metadata) {
-        this.stmtInsert!.run(
+        s.stmtInsert.run(
           m.id,
           m.trackingId ?? null,
           m.startedAt,
@@ -192,7 +217,8 @@ export class RecordingStore implements IRecordingStore {
    * O(1) query instead of O(n) file reads.
    */
   list(): Result<RecordingMetadata[], RecordingStoreError> {
-    if (!this.db || !this.stmtSelectAll) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -200,7 +226,7 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const results = this.stmtSelectAll.all() as RecordingMetadata[];
+      const results = s.stmtSelectAll.all() as RecordingMetadata[];
       return ok(results);
     } catch (error) {
       this.log.error(`List query failed: ${error}`);
@@ -216,7 +242,8 @@ export class RecordingStore implements IRecordingStore {
    * Find recording by ID.
    */
   findById(id: string): Result<RecordingMetadata | null, RecordingStoreError> {
-    if (!this.db || !this.stmtSelectById) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -224,7 +251,7 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const result = this.stmtSelectById.get(id) as RecordingMetadata | null;
+      const result = s.stmtSelectById.get(id) as RecordingMetadata | null;
       return ok(result);
     } catch (error) {
       this.log.error(`FindById query failed: ${error}`);
@@ -240,7 +267,8 @@ export class RecordingStore implements IRecordingStore {
    * Delete recording metadata by ID.
    */
   delete(id: string): Result<boolean, RecordingStoreError> {
-    if (!this.db || !this.stmtDelete) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -248,7 +276,7 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const result = this.stmtDelete.run(id);
+      const result = s.stmtDelete.run(id);
       return ok(result.changes > 0);
     } catch (error) {
       this.log.error(`Delete query failed: ${error}`);
@@ -268,7 +296,8 @@ export class RecordingStore implements IRecordingStore {
     encodingStatus: RecordingMetadata['encodingStatus'],
     videoPath?: string,
   ): Result<boolean, RecordingStoreError> {
-    if (!this.db || !this.stmtUpdateEncoding) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -276,7 +305,7 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const result = this.stmtUpdateEncoding.run(
+      const result = s.stmtUpdateEncoding.run(
         encodingStatus,
         videoPath ?? null,
         id,
@@ -297,7 +326,8 @@ export class RecordingStore implements IRecordingStore {
    * If the function throws, the transaction is rolled back.
    */
   transaction<T>(fn: () => T): Result<T, RecordingStoreError> {
-    if (!this.db) {
+    const s = this.ensureHealthy();
+    if (!s) {
       return err({
         type: 'connection_failed',
         message: 'Database not initialized',
@@ -307,7 +337,7 @@ export class RecordingStore implements IRecordingStore {
     try {
       // better-sqlite3's db.transaction() returns a wrapper function
       // that executes fn() within BEGIN/COMMIT or ROLLBACK on error
-      const txnWrapper = this.db.transaction(fn);
+      const txnWrapper = s.db.transaction(fn);
       const result = txnWrapper();
       return ok(result);
     } catch (error) {
@@ -324,16 +354,16 @@ export class RecordingStore implements IRecordingStore {
    * Check if the store is healthy and can accept queries.
    */
   isHealthy(): boolean {
-    if (!this.healthy || !this.db) {
+    if (!this.state) {
       return false;
     }
 
     // Quick integrity check
     try {
-      this.db.prepare('SELECT 1').get();
+      this.state.db.prepare('SELECT 1').get();
       return true;
     } catch {
-      this.healthy = false;
+      this.state = null;
       return false;
     }
   }
@@ -343,16 +373,8 @@ export class RecordingStore implements IRecordingStore {
    */
   close(): void {
     try {
-      // Finalize prepared statements
-      this.stmtInsert = null;
-      this.stmtSelectAll = null;
-      this.stmtSelectById = null;
-      this.stmtDelete = null;
-      this.stmtUpdateEncoding = null;
-
-      this.db?.close();
-      this.db = null;
-      this.healthy = false;
+      this.state?.db.close();
+      this.state = null;
       this.log.info('Recording store closed');
     } catch (error) {
       this.log.error(`Error closing database: ${error}`);

@@ -193,6 +193,12 @@ export interface SystemQueryParameters {
   replay?: boolean;
 
   /**
+   * Enable screencast video capture alongside session replay.
+   * Only effective when replay is also enabled.
+   */
+  video?: boolean;
+
+  /**
    * Override the system-level timeout for this request.
    * Accepts a value in milliseconds.
    */
