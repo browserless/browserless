@@ -38,7 +38,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
   && add-apt-repository universe \
   && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
-  && apt-add-repository "deb https://archive.canonical.com/ubuntu $(lsb_release -sc) partner" \
+  && add-apt-repository multiverse \
   && apt-get update \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
