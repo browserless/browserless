@@ -1,3 +1,9 @@
+# Ignore non-edge routes
+src/routes/chrome
+src/routes/chromium
+src/routes/firefox
+src/routes/webkit
+
 # Build Files
 node_modules/
 build/

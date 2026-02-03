@@ -1,5 +1,6 @@
 ARG FROM=ghcr.io/browserless/multi:latest
 FROM ${FROM}
+LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 ARG FROM
 ARG TARGETPLATFORM
@@ -13,63 +14,24 @@ ENV FROM=${FROM}
 ENV BLESS_INSTALL_NODE_MODULES=${APP_DIR}/node_modules/@browserless.io/browserless
 ENV BLESS_ROUTES=${BLESS_INSTALL_NODE_MODULES}/build/routes
 
-# Cleanup
-RUN rm -rf $APP_DIR
-RUN mkdir -p $APP_DIR
+RUN rm -rf $APP_DIR && mkdir -p $APP_DIR
 
 WORKDIR $APP_DIR
 
-# Copy src
 COPY src src
-COPY package.json .
-COPY package-lock.json .
-COPY tsconfig.json .
-COPY *README.md .
+COPY package.json package-lock.json tsconfig.json README.md ./
 
-# Install dependencies
-RUN npm clean-install
+# Delete unsupported routes based on base image and platform
+RUN npm clean-install && npm run build && \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then rm -rf $BLESS_ROUTES/chrome; fi && \
+    case "$FROM" in \
+      *chromium*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/edge $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \
+      *chrome*) rm -rf $BLESS_ROUTES/chromium $BLESS_ROUTES/edge $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \
+      *firefox*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/chromium $BLESS_ROUTES/edge $BLESS_ROUTES/webkit ;; \
+      *webkit*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/chromium $BLESS_ROUTES/edge $BLESS_ROUTES/firefox ;; \
+      *edge*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/chromium $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \
+    esac
 
-# Build Source files
-RUN npm run build
-
-# Delete Chrome Open Source Routes on linux/arm64
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-  rm -rf $BLESS_ROUTES/chrome;\
-  fi
-
-# Delete unsupported routes
-RUN if  [ -z "${FROM##*chrome*}" ]; then \
-  rm -rf $BLESS_ROUTES/chromium;\
-  rm -rf $BLESS_ROUTES/edge;\
-  rm -rf $BLESS_ROUTES/firefox;\
-  rm -rf $BLESS_ROUTES/webkit;\
-  fi
-RUN if  [ -z "${FROM##*chromium*}" ]; then \
-  rm -rf $BLESS_ROUTES/chrome;\
-  rm -rf $BLESS_ROUTES/edge;\
-  rm -rf $BLESS_ROUTES/firefox;\
-  rm -rf $BLESS_ROUTES/webkit;\
-  fi
-RUN if  [ -z "${FROM##*firefox*}" ]; then \
-  rm -rf $BLESS_ROUTES/chrome;\
-  rm -rf $BLESS_ROUTES/chromium;\
-  rm -rf $BLESS_ROUTES/edge;\
-  rm -rf $BLESS_ROUTES/webkit;\
-  fi
-RUN if  [ -z "${FROM##*webkit*}" ]; then \
-  rm -rf $BLESS_ROUTES/chrome;\
-  rm -rf $BLESS_ROUTES/chromium;\
-  rm -rf $BLESS_ROUTES/edge;\
-  rm -rf $BLESS_ROUTES/firefox;\
-  fi
-RUN if  [ -z "${FROM##*edge*}" ]; then \
-  rm -rf $BLESS_ROUTES/chrome;\
-  rm -rf $BLESS_ROUTES/chromium;\
-  rm -rf $BLESS_ROUTES/firefox;\
-  rm -rf $BLESS_ROUTES/webkit;\
-  fi
-
-# Back to non-privileged user
 USER blessuser
 
 CMD ["npm", "start"]
