@@ -12,6 +12,7 @@ import {
   Hooks,
   Logger,
   NotFound,
+  ReplayCompleteParams,
   Request,
   ServerError,
   SessionReplay,
@@ -296,7 +297,7 @@ export class BrowserManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
     force = false,
-  ): Promise<void> {
+  ): Promise<ReplayCompleteParams | null> {
     return this.lifecycle.close(browser, session, force);
   }
 
@@ -304,9 +305,9 @@ export class BrowserManager {
    * Kill sessions by ID, trackingId, or 'all'.
    * Delegates to SessionLifecycleManager.
    */
-  public async killSessions(target: string): Promise<void> {
+  public async killSessions(target: string): Promise<ReplayCompleteParams[]> {
     try {
-      await this.lifecycle.killSessions(target);
+      return await this.lifecycle.killSessions(target);
     } catch (e) {
       if (e instanceof Error && e.message.includes("Couldn't locate session")) {
         throw new NotFound(e.message);

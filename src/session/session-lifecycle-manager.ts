@@ -57,7 +57,7 @@ export class SessionLifecycleManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
     force = false,
-  ): Promise<void> {
+  ): Promise<ReplayCompleteParams | null> {
     const now = Date.now();
     const keepUntil = browser.keepUntil();
     const connected = session.numbConnected;
@@ -92,6 +92,8 @@ export class SessionLifecycleManager {
       );
     }
 
+    let replayMetadata: ReplayCompleteParams | null = null;
+
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
 
@@ -106,25 +108,21 @@ export class SessionLifecycleManager {
           trackingId: session.trackingId,
         });
 
-        // Inject replay metadata via CDP event BEFORE closing
-        // This allows clients (Pydoll) to receive the replay URL
-        // without making an additional HTTP call after session close
         if (result && session.trackingId) {
-          const replayMetadata: ReplayCompleteParams = {
+          replayMetadata = {
             id: result.metadata.id,
             trackingId: session.trackingId,
             duration: result.metadata.duration,
             eventCount: result.metadata.eventCount,
             frameCount: result.metadata.frameCount,
             encodingStatus: result.metadata.encodingStatus,
-            // Use external URL for players
             playerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/player`,
             ...(result.metadata.frameCount > 0 && {
               videoPlayerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/video/player`,
             }),
           };
 
-          // Check if browser supports CDP event injection (duck typing)
+          // CDP injection as secondary delivery path (backwards-compatible)
           if ('sendReplayComplete' in browser && typeof browser.sendReplayComplete === 'function') {
             try {
               await (browser as { sendReplayComplete: (m: ReplayCompleteParams) => Promise<void> })
@@ -152,6 +150,8 @@ export class SessionLifecycleManager {
 
       await Promise.all(cleanupActions.map((a) => a()));
     }
+
+    return replayMetadata;
   }
 
   /**
@@ -182,9 +182,10 @@ export class SessionLifecycleManager {
   /**
    * Kill sessions by ID, trackingId, or 'all'.
    */
-  async killSessions(target: string): Promise<void> {
+  async killSessions(target: string): Promise<ReplayCompleteParams[]> {
     this.log.debug(`killSessions invoked target: "${target}"`);
     const sessions = this.registry.toArray();
+    const results: ReplayCompleteParams[] = [];
     let closed = 0;
 
     for (const [browser, session] of sessions) {
@@ -197,7 +198,8 @@ export class SessionLifecycleManager {
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
         // CRITICAL: Must await close() to ensure session is fully cleaned up
-        await this.close(browser, session, true);
+        const metadata = await this.close(browser, session, true);
+        if (metadata) results.push(metadata);
         closed++;
       }
     }
@@ -205,6 +207,8 @@ export class SessionLifecycleManager {
     if (closed === 0 && target !== 'all') {
       throw new Error(`Couldn't locate session for id: "${target}"`);
     }
+
+    return results;
   }
 
   /**

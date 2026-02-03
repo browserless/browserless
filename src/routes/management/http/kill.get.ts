@@ -4,15 +4,17 @@ import {
   HTTPManagementRoutes,
   HTTPRoute,
   Methods,
+  ReplayCompleteParams,
   Request,
   SystemQueryParameters,
   contentTypes,
   getFinalPathSegment,
+  jsonResponse,
   writeResponse,
 } from '@browserless.io/browserless';
 import { ServerResponse } from 'http';
 
-export type ResponseSchema = string;
+export type ResponseSchema = ReplayCompleteParams[];
 
 export interface QuerySchema extends SystemQueryParameters {
   token?: string;
@@ -35,7 +37,11 @@ export default class KillGetRoute extends HTTPRoute {
   async handler(req: Request, res: ServerResponse): Promise<void> {
     const target = getFinalPathSegment(req.parsed.pathname)!;
     const browserManager = this.browserManager();
-    await browserManager.killSessions(target);
-    return writeResponse(res, 204, '');
+    try {
+      const recordings = await browserManager.killSessions(target);
+      return jsonResponse(res, 200, recordings);
+    } catch {
+      return writeResponse(res, 404, '');
+    }
   }
 }
