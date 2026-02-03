@@ -34,6 +34,7 @@ export class ChromiumCDP extends EventEmitter {
   protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
+  protected keepUntilMS = 0;
 
   constructor({
     blockAds,
@@ -62,7 +63,12 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   public keepUntil() {
-    return 0;
+    return this.keepUntilMS;
+  }
+
+  public setKeepUntil(timeout: number) {
+    this.keepUntilMS = timeout;
+    return this.keepUntilMS;
   }
 
   public getPageId(page: Page): string {
