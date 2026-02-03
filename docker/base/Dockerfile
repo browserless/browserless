@@ -23,10 +23,65 @@ ENV NODE_ENV=production
 ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
+ENV DBUS_SESSION_BUS_ADDRESS=autolaunch:
 
-RUN mkdir -p $APP_DIR $NVM_DIR
+RUN mkdir -p $APP_DIR $NVM_DIR && \
+  groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
+  mkdir -p /home/blessuser/Downloads && \
+  chown -R blessuser:blessuser /home/blessuser
 
 WORKDIR $APP_DIR
+
+COPY fonts/* /usr/share/fonts/truetype/
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends software-properties-common \
+  && add-apt-repository universe \
+  && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+  && apt-add-repository "deb https://archive.canonical.com/ubuntu $(lsb_release -sc) partner" \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  dumb-init \
+  git \
+  gnupg \
+  libu2f-udev \
+  ssh \
+  wget \
+  xvfb \
+  dbus \
+  dbus-x11 \
+  libwebp-dev \
+  python3 python3-pip python3-setuptools \
+  # Font packages
+  fontconfig \
+  fonts-freefont-ttf \
+  fonts-gfs-neohellenic \
+  fonts-indic \
+  fonts-ipafont-gothic \
+  fonts-kacst \
+  fonts-liberation \
+  fonts-noto-cjk \
+  fonts-noto-color-emoji \
+  fonts-roboto \
+  fonts-thai-tlwg \
+  fonts-ubuntu \
+  fonts-wqy-zenhei \
+  fonts-open-sans \
+  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
+  && update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
+  && fc-cache -f -v \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
+
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash &&\
+  . $NVM_DIR/nvm.sh &&\
+  nvm install $NODE_VERSION &&\
+  npm install -g npm@$NPM_VERSION
+
+COPY package.json package-lock.json ./
+
+RUN npm clean-install
 
 COPY assets assets
 COPY bin bin
@@ -35,38 +90,4 @@ COPY external external
 COPY scripts scripts
 COPY static static
 
-COPY CHANGELOG.md .
-COPY LICENSE .
-COPY NOTICE.txt .
-COPY package.json .
-COPY package-lock.json .
-COPY README.md .
-COPY tsconfig.json .
-
-RUN apt-get update && apt-get install -y \
-  ca-certificates \
-  curl \
-  dumb-init \
-  git \
-  gnupg \
-  libu2f-udev \
-  software-properties-common \
-  ssh \
-  wget \
-  xvfb
-
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash &&\
-  . $NVM_DIR/nvm.sh &&\
-  nvm install $NODE_VERSION &&\
-  npm install -g npm@$NPM_VERSION
-
-RUN add-apt-repository universe && apt-get update && \
-  apt-get install -y python3 python3-pip python3-setuptools && \
-  update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-  update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-
-RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
-  mkdir -p /home/blessuser/Downloads && \
-  chown -R blessuser:blessuser /home/blessuser
-
-RUN npm clean-install
+COPY CHANGELOG.md LICENSE NOTICE.txt README.md tsconfig.json ./
