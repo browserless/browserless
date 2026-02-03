@@ -3,7 +3,7 @@ import { EventType } from '@divmode/rrweb-types';
 import { PLUGIN_NAME } from '@divmode/rrweb-plugin-console-record';
 import type {
   ReplayEvent,
-  RecordingMetadata,
+  ReplayMetadata,
   InspectorItem,
   NetworkItem,
   ConsoleItem,
@@ -16,7 +16,7 @@ import type {
 
 // Core state stores
 export const events: Writable<ReplayEvent[]> = writable([]);
-export const metadata: Writable<RecordingMetadata | null> = writable(null);
+export const metadata: Writable<ReplayMetadata | null> = writable(null);
 export const currentTime: Writable<number> = writable(0);
 export const playing: Writable<boolean> = writable(false);
 export const expandedItems: Writable<Set<string>> = writable(new Set());

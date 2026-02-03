@@ -2,12 +2,12 @@ import {
   BrowserInstance,
   BrowserlessSession,
   Logger,
-  RecordingCompleteParams,
+  ReplayCompleteParams,
   exists,
 } from '@browserless.io/browserless';
 import { deleteAsync } from 'del';
 
-import { RecordingCoordinator } from './recording-coordinator.js';
+import { ReplayCoordinator } from './replay-coordinator.js';
 import { SessionRegistry } from './session-registry.js';
 
 /**
@@ -16,7 +16,7 @@ import { SessionRegistry } from './session-registry.js';
  * Responsibilities:
  * - TTL timers for keep-alive
  * - Session cleanup (close browser, delete temp dirs)
- * - Recording stop on session close
+ * - Replay stop on session close
  *
  * This class is extracted from BrowserManager to reduce its complexity.
  */
@@ -26,7 +26,7 @@ export class SessionLifecycleManager {
 
   constructor(
     private registry: SessionRegistry,
-    private recordingCoordinator?: RecordingCoordinator,
+    private replayCoordinator?: ReplayCoordinator,
   ) {}
 
   /**
@@ -49,7 +49,7 @@ export class SessionLifecycleManager {
    * Handles:
    * - Keep-alive timers
    * - Connection counting
-   * - Recording stop
+   * - Replay stop
    * - Browser close
    * - Temp directory cleanup
    */
@@ -95,10 +95,10 @@ export class SessionLifecycleManager {
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
 
-      // Stop recording and save if replay was enabled
-      // Uses RecordingCoordinator to ensure screencast frames are counted
-      if (session.replay && this.recordingCoordinator) {
-        const result = await this.recordingCoordinator.stopRecording(session.id, {
+      // Stop replay and save if replay was enabled
+      // Uses ReplayCoordinator to ensure screencast frames are counted
+      if (session.replay && this.replayCoordinator) {
+        const result = await this.replayCoordinator.stopReplay(session.id, {
           browserType: browser.constructor.name,
           routePath: Array.isArray(session.routePath)
             ? session.routePath[0]
@@ -106,11 +106,11 @@ export class SessionLifecycleManager {
           trackingId: session.trackingId,
         });
 
-        // Inject recording metadata via CDP event BEFORE closing
-        // This allows clients (Pydoll) to receive the recording URL
+        // Inject replay metadata via CDP event BEFORE closing
+        // This allows clients (Pydoll) to receive the replay URL
         // without making an additional HTTP call after session close
         if (result && session.trackingId) {
-          const recordingMetadata: RecordingCompleteParams = {
+          const replayMetadata: ReplayCompleteParams = {
             id: result.metadata.id,
             trackingId: session.trackingId,
             duration: result.metadata.duration,
@@ -118,20 +118,20 @@ export class SessionLifecycleManager {
             frameCount: result.metadata.frameCount,
             encodingStatus: result.metadata.encodingStatus,
             // Use external URL for players
-            playerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/player`,
+            playerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/player`,
             ...(result.metadata.frameCount > 0 && {
-              videoPlayerUrl: `https://browserless.catchseo.com/recordings/${result.metadata.id}/video/player`,
+              videoPlayerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/video/player`,
             }),
           };
 
           // Check if browser supports CDP event injection (duck typing)
-          if ('sendRecordingComplete' in browser && typeof browser.sendRecordingComplete === 'function') {
+          if ('sendReplayComplete' in browser && typeof browser.sendReplayComplete === 'function') {
             try {
-              await (browser as { sendRecordingComplete: (m: RecordingCompleteParams) => Promise<void> })
-                .sendRecordingComplete(recordingMetadata);
-              this.log.info(`Injected recording complete event for ${session.id}`);
+              await (browser as { sendReplayComplete: (m: ReplayCompleteParams) => Promise<void> })
+                .sendReplayComplete(replayMetadata);
+              this.log.info(`Injected replay complete event for ${session.id}`);
             } catch (e) {
-              this.log.warn(`Failed to inject recording event: ${e instanceof Error ? e.message : String(e)}`);
+              this.log.warn(`Failed to inject replay event: ${e instanceof Error ? e.message : String(e)}`);
             }
           }
         }

@@ -21,16 +21,16 @@ export interface QuerySchema extends SystemQueryParameters {
   autoplay?: string;
 }
 
-export default class RecordingPlayerGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingPlayerGetRoute;
+export default class ReplayPlayerGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayPlayerGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.html];
-  description = `View a session replay recording in an interactive player.`;
+  description = `View a session replay in an interactive player.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.recordingPlayer;
+  path = HTTPManagementRoutes.replayPlayer;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -39,21 +39,21 @@ export default class RecordingPlayerGetRoute extends HTTPRoute {
       return writeResponse(res, 503, 'Session replay is not enabled');
     }
 
-    // Extract recording ID from path: /recordings/:id/player
+    // Extract replay ID from path: /replays/:id/player
     const pathParts = req.parsed.pathname.split('/');
     const playerIndex = pathParts.indexOf('player');
     const id = playerIndex > 0 ? pathParts[playerIndex - 1] : null;
 
     if (!id) {
-      throw new NotFound('Recording ID is required');
+      throw new NotFound('Replay ID is required');
     }
 
-    const recording = await replay.getRecording(id);
-    if (!recording) {
-      throw new NotFound(`Recording "${id}" not found`);
+    const replayData = await replay.getReplay(id);
+    if (!replayData) {
+      throw new NotFound(`Replay "${id}" not found`);
     }
 
-    const html = this.generatePlayerHTML(recording.events, recording.metadata);
+    const html = this.generatePlayerHTML(replayData.events, replayData.metadata);
 
     res.setHeader('Content-Type', 'text/html');
     res.writeHead(200);
@@ -74,8 +74,8 @@ export default class RecordingPlayerGetRoute extends HTTPRoute {
     const css = RRWEB_PLAYER_CSS;
     const js = RRWEB_PLAYER_JS;
 
-    // Full recording data for Svelte app
-    const recordingData = JSON.stringify({ events, metadata });
+    // Full replay data for Svelte app
+    const replayData = JSON.stringify({ events, metadata });
 
     // Svelte player HTML - the bundled Svelte app handles all UI rendering
     return `<!DOCTYPE html>
@@ -104,8 +104,8 @@ html, body {
 <body>
   <div id="app"></div>
   <script>
-    // Recording data for Svelte app
-    window.__RECORDING_DATA__ = ${recordingData};
+    // Replay data for Svelte app
+    window.__REPLAY_DATA__ = ${replayData};
   </script>
   <script>
 ${js}

@@ -21,7 +21,7 @@ import path from 'path';
 import playwright from 'playwright-core';
 import puppeteerStealth from 'puppeteer-extra';
 
-import { CDPProxy, RecordingCompleteParams } from '../cdp-proxy.js';
+import { CDPProxy, ReplayCompleteParams } from '../cdp-proxy.js';
 
 puppeteerStealth.use(StealthPlugin());
 
@@ -416,20 +416,20 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   /**
-   * Send recording metadata to client via CDP event.
+   * Send replay metadata to client via CDP event.
    *
    * Called by SessionLifecycleManager before closing the session.
-   * The client (Pydoll) can listen for "Browserless.recordingComplete" event
-   * to receive recording URL without making an additional HTTP call.
+   * The client (Pydoll) can listen for "Browserless.replayComplete" event
+   * to receive replay URL without making an additional HTTP call.
    */
-  public async sendRecordingComplete(
-    metadata: RecordingCompleteParams,
+  public async sendReplayComplete(
+    metadata: ReplayCompleteParams,
   ): Promise<void> {
     if (this.cdpProxy) {
-      await this.cdpProxy.sendRecordingComplete(metadata);
+      await this.cdpProxy.sendReplayComplete(metadata);
     } else {
       this.logger.warn(
-        'Cannot send recording complete: no CDPProxy available',
+        'Cannot send replay complete: no CDPProxy available',
       );
     }
   }

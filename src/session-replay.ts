@@ -14,12 +14,12 @@ const execAsync = promisify(exec);
 
 // Bundled @rrweb/record script - no require.resolve() needed
 import { RRWEB_RECORD_SCRIPT, RRWEB_CONSOLE_PLUGIN_SCRIPT } from './generated/rrweb-script.js';
-import { RecordingStore } from './recording-store.js';
-import type { IRecordingStore, RecordingMetadata } from './interfaces/recording-store.interface.js';
+import { ReplayStore } from './replay-store.js';
+import type { IReplayStore, ReplayMetadata } from './interfaces/replay-store.interface.js';
 import type { VideoEncoder } from './video/encoder.js';
 
-// Re-export RecordingMetadata for backwards compatibility
-export type { RecordingMetadata } from './interfaces/recording-store.interface.js';
+// Re-export ReplayMetadata for backwards compatibility
+export type { ReplayMetadata } from './interfaces/replay-store.interface.js';
 
 export interface ReplayEvent {
   data: unknown;
@@ -27,29 +27,29 @@ export interface ReplayEvent {
   type: number;
 }
 
-export interface Recording {
+export interface Replay {
   events: ReplayEvent[];
-  metadata: RecordingMetadata;
+  metadata: ReplayMetadata;
 }
 
 /**
- * Result of stopping a recording.
+ * Result of stopping a replay.
  * Returns both the filepath and metadata for CDP event injection.
  */
-export interface StopRecordingResult {
+export interface StopReplayResult {
   filepath: string;
-  metadata: RecordingMetadata;
+  metadata: ReplayMetadata;
 }
 
-export interface SessionRecordingState {
+export interface SessionReplayState {
   events: ReplayEvent[];
-  isRecording: boolean;
+  isReplaying: boolean;
   sessionId: string;
   startedAt: number;
   trackingId?: string;
   /** Functions to call for final event collection before stopping */
   finalCollectors: Array<() => Promise<void>>;
-  /** Cleanup functions to call after recording stops (e.g., disconnect puppeteer) */
+  /** Cleanup functions to call after replay stops (e.g., disconnect puppeteer) */
   cleanupFns: Array<() => Promise<void>>;
 }
 
@@ -380,21 +380,21 @@ function getNetworkCaptureScript(): string {
 }
 
 /**
- * Get a lightweight recording script for injection into cross-origin iframe targets via CDP.
+ * Get a lightweight replay script for injection into cross-origin iframe targets via CDP.
  *
- * Only includes rrweb record — no console plugin, no network capture, no turnstile overlay.
+ * Only includes rrweb record -- no console plugin, no network capture, no turnstile overlay.
  * Those main-frame features hook into globals (fetch, XHR, console) that can conflict with
  * cross-origin page JS (e.g., Cloudflare Turnstile).
  *
  * The emit callback is a no-op because rrweb auto-detects the cross-origin context
  * (try/catch on window.parent.document) and sends events via PostMessage to the parent.
  * The parent frame's rrweb instance (with recordCrossOriginIframes: true) receives
- * and merges these events into the main recording.
+ * and merges these events into the main replay.
  *
  * __browserlessRecording is set to `true` (not an object) as a guard against
- * double-injection — no event array is needed since events flow via PostMessage.
+ * double-injection -- no event array is needed since events flow via PostMessage.
  */
-export function getIframeRecordingScript(): string {
+export function getIframeReplayScript(): string {
   return `${RRWEB_RECORD_SCRIPT}
 (function() {
   if (window.__browserlessRecording) return;
@@ -415,13 +415,13 @@ export function getIframeRecordingScript(): string {
 }
 
 /**
- * Get the full recording script (rrweb + init) for injection via evaluateOnNewDocument.
+ * Get the full replay script (rrweb + init) for injection via evaluateOnNewDocument.
  * Uses pre-bundled script from build time - no runtime file reading.
  *
  * This script is for the MAIN FRAME only. Events are collected into a local
- * array and polled periodically by the recording coordinator.
+ * array and polled periodically by the replay coordinator.
  */
-export function getRecordingScript(sessionId: string): string {
+export function getReplayScript(sessionId: string): string {
   return `${RRWEB_RECORD_SCRIPT}
 ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
 (function() {
@@ -457,7 +457,7 @@ ${getNetworkCaptureScript()}`;
  * Get a simpler init script for injecting into already-loaded pages.
  * The rrweb library should already be loaded via evaluateOnNewDocument.
  */
-export function getRecordingInitScript(sessionId: string): string {
+export function getReplayInitScript(sessionId: string): string {
   return `${RRWEB_RECORD_SCRIPT}
 ${RRWEB_CONSOLE_PLUGIN_SCRIPT}
 (function() {
@@ -487,21 +487,21 @@ ${getNetworkCaptureScript()}`;
 }
 
 /**
- * SessionReplay manages browser session recording and playback.
+ * SessionReplay manages browser session replay capture and playback.
  *
- * Supports dependency injection for the recording store:
+ * Supports dependency injection for the replay store:
  * - If a store is provided via constructor, it's used directly
  * - If no store is provided, one is created during initialize()
  *
  * This decoupling allows for easy mocking in tests.
  */
 export class SessionReplay extends EventEmitter {
-  protected recordings: Map<string, SessionRecordingState> = new Map();
+  protected replays: Map<string, SessionReplayState> = new Map();
   protected log = new Logger('session-replay');
-  protected recordingsDir: string;
+  protected replaysDir: string;
   protected enabled: boolean;
-  protected maxRecordingSize: number;
-  protected store: IRecordingStore | null = null;
+  protected maxReplaySize: number;
+  protected store: IReplayStore | null = null;
   protected ownsStore = false; // Track if we created the store (for cleanup)
   protected maxAgeMs: number;
   private cleanupTask: ScheduledTask | null = null;
@@ -509,12 +509,12 @@ export class SessionReplay extends EventEmitter {
 
   constructor(
     protected config: Config,
-    injectedStore?: IRecordingStore
+    injectedStore?: IReplayStore
   ) {
     super();
     this.enabled = process.env.ENABLE_REPLAY !== 'false';
-    this.recordingsDir = process.env.REPLAY_DIR || '/tmp/browserless-recordings';
-    this.maxRecordingSize = +(process.env.REPLAY_MAX_SIZE || '52428800');
+    this.replaysDir = process.env.REPLAY_DIR || '/tmp/browserless-replays';
+    this.maxReplaySize = +(process.env.REPLAY_MAX_SIZE || '52428800');
     // Default: 7 days (604800000ms)
     this.maxAgeMs = +(process.env.REPLAY_MAX_AGE_MS || '604800000');
 
@@ -529,15 +529,15 @@ export class SessionReplay extends EventEmitter {
     return this.enabled;
   }
 
-  public getRecordingsDir(): string {
-    return this.recordingsDir;
+  public getReplaysDir(): string {
+    return this.replaysDir;
   }
 
   /**
-   * Get the current recording store.
+   * Get the current replay store.
    * Useful for testing or advanced use cases.
    */
-  public getStore(): IRecordingStore | null {
+  public getStore(): IReplayStore | null {
     return this.store;
   }
 
@@ -568,23 +568,23 @@ export class SessionReplay extends EventEmitter {
       return;
     }
 
-    if (!(await exists(this.recordingsDir))) {
-      await mkdir(this.recordingsDir, { recursive: true });
-      this.log.info(`Created recordings directory: ${this.recordingsDir}`);
+    if (!(await exists(this.replaysDir))) {
+      await mkdir(this.replaysDir, { recursive: true });
+      this.log.info(`Created replays directory: ${this.replaysDir}`);
     }
 
     // Only create store if not injected
     if (!this.store) {
-      this.store = new RecordingStore(this.recordingsDir);
+      this.store = new ReplayStore(this.replaysDir);
       this.ownsStore = true;
     }
 
-    // Migrate any existing JSON recordings to SQLite (one-time migration)
-    await this.migrateExistingRecordings();
+    // Migrate any existing JSON replays to SQLite (one-time migration)
+    await this.migrateExistingReplays();
 
-    this.log.info(`Session replay enabled (bundled rrweb), storing in: ${this.recordingsDir}`);
+    this.log.info(`Session replay enabled (bundled rrweb), storing in: ${this.replaysDir}`);
 
-    // Start daily cleanup of old recordings
+    // Start daily cleanup of old replays
     this.startCleanupTimer();
   }
 
@@ -592,20 +592,20 @@ export class SessionReplay extends EventEmitter {
    * One-time migration: read existing JSON files and populate SQLite metadata.
    * Safe to run multiple times - INSERT OR REPLACE handles duplicates.
    */
-  private async migrateExistingRecordings(): Promise<void> {
+  private async migrateExistingReplays(): Promise<void> {
     if (!this.store) return;
 
     try {
-      const files = await readdir(this.recordingsDir);
+      const files = await readdir(this.replaysDir);
       let migrated = 0;
 
       for (const file of files) {
         if (!file.endsWith('.json')) continue;
         try {
-          const content = await readFile(path.join(this.recordingsDir, file), 'utf-8');
-          const recording = JSON.parse(content);
-          if (recording.metadata) {
-            const result = this.store.insert(recording.metadata);
+          const content = await readFile(path.join(this.replaysDir, file), 'utf-8');
+          const replay = JSON.parse(content);
+          if (replay.metadata) {
+            const result = this.store.insert(replay.metadata);
             if (result.ok) {
               migrated++;
             }
@@ -616,7 +616,7 @@ export class SessionReplay extends EventEmitter {
       }
 
       if (migrated > 0) {
-        this.log.info(`Migrated ${migrated} existing recordings to SQLite`);
+        this.log.info(`Migrated ${migrated} existing replays to SQLite`);
       }
     } catch {
       // Directory might not exist or be empty
@@ -624,7 +624,7 @@ export class SessionReplay extends EventEmitter {
   }
 
   /**
-   * Schedule daily cleanup of old recordings via cron.
+   * Schedule daily cleanup of old replays via cron.
    * Runs at 3 AM daily + once on startup.
    */
   private startCleanupTimer(): void {
@@ -632,34 +632,34 @@ export class SessionReplay extends EventEmitter {
 
     // Run daily at 3 AM
     this.cleanupTask = cron.schedule('0 3 * * *', () => {
-      this.cleanupOldRecordings(maxAgeDays).catch((err) => {
+      this.cleanupOldReplays(maxAgeDays).catch((err) => {
         this.log.warn(`Scheduled cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
       });
     });
 
     // Also run once on startup
-    this.cleanupOldRecordings(maxAgeDays).catch((err) => {
+    this.cleanupOldReplays(maxAgeDays).catch((err) => {
       this.log.warn(`Initial cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
     });
   }
 
   /**
-   * Delete recordings older than maxAgeDays using `find`.
+   * Delete replays older than maxAgeDays using `find`.
    * Handles files, directories, and orphans in one shot.
    * Preserves the SQLite database file.
    */
-  protected async cleanupOldRecordings(maxAgeDays: number): Promise<void> {
+  protected async cleanupOldReplays(maxAgeDays: number): Promise<void> {
     // find handles files, directories, and orphans in one shot
     // -mindepth 1 -maxdepth 1: only top-level entries
     // -mtime +N: older than N days
-    // -not -name "recordings.db*": preserve SQLite database + WAL/SHM files
+    // -not -name "replays.db*": preserve SQLite database + WAL/SHM files
     const { stdout } = await execAsync(
-      `find ${this.recordingsDir} -mindepth 1 -maxdepth 1 -mtime +${maxAgeDays} -not -name "recordings.db*" -printf "%f\\n" -exec rm -rf {} +`
+      `find ${this.replaysDir} -mindepth 1 -maxdepth 1 -mtime +${maxAgeDays} -not -name "replays.db*" -printf "%f\\n" -exec rm -rf {} +`
     );
 
     const deleted = stdout.trim().split('\n').filter(Boolean);
 
-    // Clean up SQLite entries for deleted recordings
+    // Clean up SQLite entries for deleted replays
     if (this.store && deleted.length > 0) {
       for (const entry of deleted) {
         const id = entry.replace('.json', '');
@@ -668,33 +668,33 @@ export class SessionReplay extends EventEmitter {
     }
 
     if (deleted.length > 0) {
-      this.log.info(`Cleaned up ${deleted.length} old recordings (>${maxAgeDays}d)`);
+      this.log.info(`Cleaned up ${deleted.length} old replays (>${maxAgeDays}d)`);
     }
   }
 
-  public startRecording(sessionId: string, trackingId?: string): void {
-    if (!this.enabled || this.recordings.has(sessionId)) return;
+  public startReplay(sessionId: string, trackingId?: string): void {
+    if (!this.enabled || this.replays.has(sessionId)) return;
 
-    this.recordings.set(sessionId, {
+    this.replays.set(sessionId, {
       cleanupFns: [],
       events: [],
       finalCollectors: [],
-      isRecording: true,
+      isReplaying: true,
       sessionId,
       startedAt: Date.now(),
       trackingId,
     });
-    this.log.debug(`Started recording for session ${sessionId}`);
+    this.log.debug(`Started replay for session ${sessionId}`);
   }
 
   public addEvent(sessionId: string, event: ReplayEvent): void {
-    const state = this.recordings.get(sessionId);
-    if (!state?.isRecording) return;
+    const state = this.replays.get(sessionId);
+    if (!state?.isReplaying) return;
 
     const currentSize = JSON.stringify(state.events).length;
-    if (currentSize > this.maxRecordingSize) {
-      this.log.warn(`Recording ${sessionId} exceeded max size, stopping`);
-      this.stopRecording(sessionId);
+    if (currentSize > this.maxReplaySize) {
+      this.log.warn(`Replay ${sessionId} exceeded max size, stopping`);
+      this.stopReplay(sessionId);
       return;
     }
 
@@ -712,28 +712,28 @@ export class SessionReplay extends EventEmitter {
    * This ensures we don't lose events between the last poll and session close.
    */
   public registerFinalCollector(sessionId: string, collector: () => Promise<void>): void {
-    const state = this.recordings.get(sessionId);
+    const state = this.replays.get(sessionId);
     if (state) {
       state.finalCollectors.push(collector);
     }
   }
 
   /**
-   * Register a cleanup function to be called after recording stops.
+   * Register a cleanup function to be called after replay stops.
    * Use this for resources that need cleanup (e.g., disconnect puppeteer connections).
    */
   public registerCleanupFn(sessionId: string, cleanupFn: () => Promise<void>): void {
-    const state = this.recordings.get(sessionId);
+    const state = this.replays.get(sessionId);
     if (state) {
       state.cleanupFns.push(cleanupFn);
     }
   }
 
-  public async stopRecording(
+  public async stopReplay(
     sessionId: string,
-    metadata?: Partial<RecordingMetadata>
-  ): Promise<StopRecordingResult | null> {
-    const state = this.recordings.get(sessionId);
+    metadata?: Partial<ReplayMetadata>
+  ): Promise<StopReplayResult | null> {
+    const state = this.replays.get(sessionId);
     if (!state) return null;
 
     // Run all final collectors to gather any pending events before saving
@@ -746,10 +746,10 @@ export class SessionReplay extends EventEmitter {
       }
     }
 
-    state.isRecording = false;
+    state.isReplaying = false;
     const endedAt = Date.now();
 
-    const recordingMetadata: RecordingMetadata = {
+    const replayMetadata: ReplayMetadata = {
       browserType: metadata?.browserType || 'unknown',
       duration: endedAt - state.startedAt,
       endedAt,
@@ -763,31 +763,31 @@ export class SessionReplay extends EventEmitter {
       encodingStatus: metadata?.frameCount ? 'deferred' : 'none',
     };
 
-    const recording: Recording = {
+    const replay: Replay = {
       events: state.events,
-      metadata: recordingMetadata,
+      metadata: replayMetadata,
     };
 
-    const filepath = path.join(this.recordingsDir, `${sessionId}.json`);
+    const filepath = path.join(this.replaysDir, `${sessionId}.json`);
 
     try {
-      // Save full recording to JSON (events + metadata for playback)
-      await writeFile(filepath, JSON.stringify(recording), 'utf-8');
+      // Save full replay to JSON (events + metadata for playback)
+      await writeFile(filepath, JSON.stringify(replay), 'utf-8');
 
       // Save metadata to SQLite for fast queries
       if (this.store) {
-        const result = this.store.insert(recording.metadata);
+        const result = this.store.insert(replay.metadata);
         if (!result.ok) {
-          this.log.warn(`Failed to save recording metadata to store: ${result.error.message}`);
+          this.log.warn(`Failed to save replay metadata to store: ${result.error.message}`);
         }
       }
 
-      this.log.info(`Saved recording ${sessionId} with ${state.events.length} events`);
+      this.log.info(`Saved replay ${sessionId} with ${state.events.length} events`);
     } catch (err) {
-      this.log.error(`Failed to save recording ${sessionId}: ${err}`);
+      this.log.error(`Failed to save replay ${sessionId}: ${err}`);
     }
 
-    this.recordings.delete(sessionId);
+    this.replays.delete(sessionId);
 
     // Run cleanup functions after saving (e.g., disconnect puppeteer)
     for (const cleanupFn of state.cleanupFns) {
@@ -798,53 +798,53 @@ export class SessionReplay extends EventEmitter {
       }
     }
 
-    return { filepath, metadata: recordingMetadata };
+    return { filepath, metadata: replayMetadata };
   }
 
-  public isRecording(sessionId: string): boolean {
-    return this.recordings.get(sessionId)?.isRecording || false;
+  public isReplaying(sessionId: string): boolean {
+    return this.replays.get(sessionId)?.isReplaying || false;
   }
 
-  public getRecordingState(sessionId: string): SessionRecordingState | undefined {
-    return this.recordings.get(sessionId);
+  public getReplayState(sessionId: string): SessionReplayState | undefined {
+    return this.replays.get(sessionId);
   }
 
   /**
-   * List all recordings metadata.
+   * List all replay metadata.
    * Uses SQLite for O(1) query instead of O(n) file reads.
    */
-  public async listRecordings(): Promise<RecordingMetadata[]> {
+  public async listReplays(): Promise<ReplayMetadata[]> {
     // Fast path: use SQLite store
     if (this.store) {
       const result = this.store.list();
       if (result.ok) {
         return result.value;
       }
-      this.log.warn(`Failed to list recordings from store: ${result.error.message}`);
+      this.log.warn(`Failed to list replays from store: ${result.error.message}`);
       // Fall through to fallback
     }
 
     // Fallback: scan files (only if store not initialized or errored)
-    if (!(await exists(this.recordingsDir))) return [];
+    if (!(await exists(this.replaysDir))) return [];
 
-    const files = await readdir(this.recordingsDir);
-    const recordings: RecordingMetadata[] = [];
+    const files = await readdir(this.replaysDir);
+    const replays: ReplayMetadata[] = [];
 
     for (const file of files) {
       if (!file.endsWith('.json')) continue;
       try {
-        const content = await readFile(path.join(this.recordingsDir, file), 'utf-8');
-        recordings.push(JSON.parse(content).metadata);
+        const content = await readFile(path.join(this.replaysDir, file), 'utf-8');
+        replays.push(JSON.parse(content).metadata);
       } catch {
         // Skip invalid files
       }
     }
 
-    return recordings.sort((a, b) => b.startedAt - a.startedAt);
+    return replays.sort((a, b) => b.startedAt - a.startedAt);
   }
 
-  public async getRecording(id: string): Promise<Recording | null> {
-    const filepath = path.join(this.recordingsDir, `${id}.json`);
+  public async getReplay(id: string): Promise<Replay | null> {
+    const filepath = path.join(this.replaysDir, `${id}.json`);
     if (!(await exists(filepath))) return null;
 
     try {
@@ -854,19 +854,19 @@ export class SessionReplay extends EventEmitter {
     }
   }
 
-  public async deleteRecording(id: string): Promise<boolean> {
-    const filepath = path.join(this.recordingsDir, `${id}.json`);
+  public async deleteReplay(id: string): Promise<boolean> {
+    const filepath = path.join(this.replaysDir, `${id}.json`);
     if (!(await exists(filepath))) return false;
 
     try {
       await rm(filepath);
       // Remove session directory (HLS segments, frames, playlist)
-      const sessionDir = path.join(this.recordingsDir, id);
+      const sessionDir = path.join(this.replaysDir, id);
       if (await exists(sessionDir)) {
         await rm(sessionDir, { recursive: true });
       }
       // Also remove standalone video file if it exists
-      const videoPath = path.join(this.recordingsDir, `${id}.mp4`);
+      const videoPath = path.join(this.replaysDir, `${id}.mp4`);
       if (await exists(videoPath)) {
         await rm(videoPath);
       }
@@ -874,10 +874,10 @@ export class SessionReplay extends EventEmitter {
       if (this.store) {
         const result = this.store.delete(id);
         if (!result.ok) {
-          this.log.warn(`Failed to delete recording from store: ${result.error.message}`);
+          this.log.warn(`Failed to delete replay from store: ${result.error.message}`);
         }
       }
-      this.log.info(`Deleted recording ${id}`);
+      this.log.info(`Deleted replay ${id}`);
       return true;
     } catch {
       return false;
@@ -893,8 +893,8 @@ export class SessionReplay extends EventEmitter {
       this.cleanupTask = null;
     }
 
-    for (const [sessionId] of this.recordings) {
-      await this.stopRecording(sessionId);
+    for (const [sessionId] of this.replays) {
+      await this.stopReplay(sessionId);
     }
     // Only close SQLite connection if we own it
     if (this.ownsStore && this.store) {

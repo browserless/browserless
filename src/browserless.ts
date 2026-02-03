@@ -449,12 +449,12 @@ export class Browserless extends EventEmitter {
 
     // Wire VideoEncoder to the now-initialized store.
     // VideoEncoder gets null at construction time because SessionReplay.initialize()
-    // creates the RecordingStore. Without this, all status updates are silent no-ops.
+    // creates the ReplayStore. Without this, all status updates are silent no-ops.
     const store = this.sessionReplay.getStore();
     if (store) {
-      const encoder = this.browserManager.getRecordingCoordinator().getVideoEncoder();
+      const encoder = this.browserManager.getReplayCoordinator().getVideoEncoder();
       encoder.setStore(store);
-      await encoder.cleanupOrphans(this.sessionReplay.getRecordingsDir());
+      await encoder.cleanupOrphans(this.sessionReplay.getReplaysDir());
     }
 
     await this.server.start();
@@ -483,7 +483,7 @@ export class Browserless extends EventEmitter {
    *   // With custom overrides for testing
    *   const container = createContainer({
    *     config: new MockConfig(),
-   *     recordingStore: new MockRecordingStore(),
+   *     replayStore: new MockReplayStore(),
    *   });
    *   const browserless = Browserless.fromContainer(container);
    */

@@ -206,7 +206,7 @@ abstract class Route {
 
   /**
    * Helper function that loads the session replay module for
-   * managing session recordings. Defined and injected by
+   * managing session replays. Defined and injected by
    * browserless after initialization.
    * @returns SessionReplay | undefined
    */
@@ -739,13 +739,13 @@ export const BrowserlessManagementRoutes = {
   MetricsGetRoute: 'MetricsGetRoute',
   MetricsTotalGetRoute: 'MetricsTotalGetRoute',
   PressureGetRoute: 'PressureGetRoute',
-  RecordingDeleteRoute: 'RecordingDeleteRoute',
-  RecordingGetRoute: 'RecordingGetRoute',
-  RecordingPlayerGetRoute: 'RecordingPlayerGetRoute',
-  RecordingVideoPlayerGetRoute: 'RecordingVideoPlayerGetRoute',
-  RecordingVideoStatusGetRoute: 'RecordingVideoStatusGetRoute',
-  RecordingVideoHlsGetRoute: 'RecordingVideoHlsGetRoute',
-  RecordingsGetRoute: 'RecordingsGetRoute',
+  ReplayDeleteRoute: 'ReplayDeleteRoute',
+  ReplayGetRoute: 'ReplayGetRoute',
+  ReplayPlayerGetRoute: 'ReplayPlayerGetRoute',
+  ReplayVideoPlayerGetRoute: 'ReplayVideoPlayerGetRoute',
+  ReplayVideoStatusGetRoute: 'ReplayVideoStatusGetRoute',
+  ReplayVideoHlsGetRoute: 'ReplayVideoHlsGetRoute',
+  ReplaysGetRoute: 'ReplaysGetRoute',
   SessionsGetRoute: 'SessionsGetRoute',
   StaticGetRoute: 'StaticGetRoute',
 };

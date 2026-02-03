@@ -1,13 +1,13 @@
 import type {
-  IRecordingStore,
-  RecordingMetadata,
-  RecordingStoreError,
+  IReplayStore,
+  ReplayMetadata,
+  ReplayStoreError,
   Result,
-} from './interfaces/recording-store.interface.js';
-import { ok, err } from './interfaces/recording-store.interface.js';
+} from './interfaces/replay-store.interface.js';
+import { ok, err } from './interfaces/replay-store.interface.js';
 
 /**
- * In-memory mock implementation of IRecordingStore for testing.
+ * In-memory mock implementation of IReplayStore for testing.
  *
  * Features:
  * - Full interface compliance
@@ -15,8 +15,8 @@ import { ok, err } from './interfaces/recording-store.interface.js';
  * - Transaction simulation with rollback
  * - Fast O(1) operations via Map
  */
-export class MockRecordingStore implements IRecordingStore {
-  private recordings: Map<string, RecordingMetadata> = new Map();
+export class MockReplayStore implements IReplayStore {
+  private replays: Map<string, ReplayMetadata> = new Map();
   private healthy = true;
   private closed = false;
 
@@ -54,20 +54,20 @@ export class MockRecordingStore implements IRecordingStore {
   }
 
   /**
-   * Get all recordings for test assertions.
+   * Get all replays for test assertions.
    */
-  getAll(): RecordingMetadata[] {
-    return Array.from(this.recordings.values());
+  getAll(): ReplayMetadata[] {
+    return Array.from(this.replays.values());
   }
 
   /**
-   * Clear all recordings for test isolation.
+   * Clear all replays for test isolation.
    */
   clear(): void {
-    this.recordings.clear();
+    this.replays.clear();
   }
 
-  insert(metadata: RecordingMetadata): Result<void, RecordingStoreError> {
+  insert(metadata: ReplayMetadata): Result<void, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -80,12 +80,12 @@ export class MockRecordingStore implements IRecordingStore {
       });
     }
 
-    this.recordings.set(metadata.id, { ...metadata });
+    this.replays.set(metadata.id, { ...metadata });
 
     return ok(undefined);
   }
 
-  insertBatch(metadata: RecordingMetadata[]): Result<void, RecordingStoreError> {
+  insertBatch(metadata: ReplayMetadata[]): Result<void, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -99,14 +99,14 @@ export class MockRecordingStore implements IRecordingStore {
     }
 
     // Simulate transaction - all or nothing
-    const backup = new Map(this.recordings);
+    const backup = new Map(this.replays);
 
     try {
       for (const m of metadata) {
         const result = this.insert(m);
         if (!result.ok) {
           // Rollback
-          this.recordings = backup;
+          this.replays = backup;
           return err({
             type: 'transaction_failed',
             message: 'Batch insert failed, rolled back',
@@ -116,7 +116,7 @@ export class MockRecordingStore implements IRecordingStore {
       return ok(undefined);
     } catch {
       // Rollback on any error
-      this.recordings = backup;
+      this.replays = backup;
       return err({
         type: 'transaction_failed',
         message: 'Batch insert failed, rolled back',
@@ -124,7 +124,7 @@ export class MockRecordingStore implements IRecordingStore {
     }
   }
 
-  list(): Result<RecordingMetadata[], RecordingStoreError> {
+  list(): Result<ReplayMetadata[], ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -137,13 +137,13 @@ export class MockRecordingStore implements IRecordingStore {
       });
     }
 
-    const results = Array.from(this.recordings.values())
+    const results = Array.from(this.replays.values())
       .sort((a, b) => b.startedAt - a.startedAt);
 
     return ok(results);
   }
 
-  findById(id: string): Result<RecordingMetadata | null, RecordingStoreError> {
+  findById(id: string): Result<ReplayMetadata | null, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -156,10 +156,10 @@ export class MockRecordingStore implements IRecordingStore {
       });
     }
 
-    return ok(this.recordings.get(id) ?? null);
+    return ok(this.replays.get(id) ?? null);
   }
 
-  delete(id: string): Result<boolean, RecordingStoreError> {
+  delete(id: string): Result<boolean, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -172,37 +172,37 @@ export class MockRecordingStore implements IRecordingStore {
       });
     }
 
-    const existing = this.recordings.get(id);
+    const existing = this.replays.get(id);
     if (!existing) {
       return ok(false);
     }
 
-    this.recordings.delete(id);
+    this.replays.delete(id);
     return ok(true);
   }
 
   updateEncodingStatus(
     id: string,
-    encodingStatus: RecordingMetadata['encodingStatus'],
+    encodingStatus: ReplayMetadata['encodingStatus'],
     videoPath?: string,
-  ): Result<boolean, RecordingStoreError> {
+  ): Result<boolean, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
 
-    const recording = this.recordings.get(id);
-    if (!recording) {
+    const replay = this.replays.get(id);
+    if (!replay) {
       return ok(false);
     }
 
-    recording.encodingStatus = encodingStatus;
+    replay.encodingStatus = encodingStatus;
     if (videoPath !== undefined) {
-      recording.videoPath = videoPath;
+      replay.videoPath = videoPath;
     }
     return ok(true);
   }
 
-  transaction<T>(fn: () => T): Result<T, RecordingStoreError> {
+  transaction<T>(fn: () => T): Result<T, ReplayStoreError> {
     if (this.closed) {
       return err({ type: 'connection_failed', message: 'Store is closed' });
     }
@@ -216,14 +216,14 @@ export class MockRecordingStore implements IRecordingStore {
     }
 
     // Simulate transaction with rollback on error
-    const backup = new Map(this.recordings);
+    const backup = new Map(this.replays);
 
     try {
       const result = fn();
       return ok(result);
     } catch (error) {
       // Rollback
-      this.recordings = backup;
+      this.replays = backup;
       return err({
         type: 'transaction_failed',
         message: 'Transaction failed, rolled back',
@@ -238,6 +238,6 @@ export class MockRecordingStore implements IRecordingStore {
 
   close(): void {
     this.closed = true;
-    this.recordings.clear();
+    this.replays.clear();
   }
 }

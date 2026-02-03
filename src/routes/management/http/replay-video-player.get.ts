@@ -17,22 +17,22 @@ export interface QuerySchema extends SystemQueryParameters {
 }
 
 /**
- * Video player page for a recording.
+ * Video player page for a replay.
  *
  * Both encoding-in-progress and completed states use HLS playback via
  * hls-video-element + media-chrome. The only difference is whether the
  * playlist is still growing (encoding) or finalized (completed).
  */
-export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingVideoPlayerGetRoute;
+export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayVideoPlayerGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.html];
-  description = `View a video recording in an HTML5 player.`;
+  description = `View a video replay in an HTML5 player.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.recordingVideoPlayer;
+  path = HTTPManagementRoutes.replayVideoPlayer;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -41,19 +41,19 @@ export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
       return writeResponse(res, 503, 'Session replay is not enabled');
     }
 
-    // Extract recording ID from path: /recordings/:id/video/player
+    // Extract replay ID from path: /replays/:id/video/player
     const pathParts = req.parsed.pathname.split('/');
     const videoIndex = pathParts.indexOf('video');
     const id = videoIndex > 0 ? pathParts[videoIndex - 1] : null;
 
     if (!id) {
-      throw new NotFound('Recording ID is required');
+      throw new NotFound('Replay ID is required');
     }
 
     // Pass auth token through to sub-resource URLs (video, HLS, status)
     const token = req.parsed.searchParams.get('token') ?? '';
 
-    // Check recording metadata for encoding status
+    // Check replay metadata for encoding status
     const store = replay.getStore();
     let encodingStatus = 'none';
     let frameCount = 0;
@@ -64,17 +64,17 @@ export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
         encodingStatus = result.value.encodingStatus;
         frameCount = result.value.frameCount;
       } else if (result.ok && !result.value) {
-        throw new NotFound(`Recording "${id}" not found`);
+        throw new NotFound(`Replay "${id}" not found`);
       }
     }
 
     // Trigger on-demand encoding for deferred sessions (lazy encoding)
     if (encodingStatus === 'deferred') {
       const encoder = replay.getVideoEncoder();
-      const recordingsDir = replay.getRecordingsDir();
+      const replaysDir = replay.getReplaysDir();
       if (encoder && store) {
         store.updateEncodingStatus(id, 'pending');
-        encoder.queueEncode(id, recordingsDir, frameCount);
+        encoder.queueEncode(id, replaysDir, frameCount);
         encodingStatus = 'pending';
       }
     }
@@ -93,8 +93,8 @@ export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
     token: string,
   ): string {
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-    const hlsUrl = `/recordings/${id}/video/hls/playlist.m3u8${tokenParam}`;
-    const statusUrl = `/recordings/${id}/video/status${tokenParam}`;
+    const hlsUrl = `/replays/${id}/video/hls/playlist.m3u8${tokenParam}`;
+    const statusUrl = `/replays/${id}/video/status${tokenParam}`;
     const isReady = encodingStatus === 'completed';
     const isEncoding = encodingStatus === 'deferred' || encodingStatus === 'pending' || encodingStatus === 'encoding';
     const hasFailed = encodingStatus === 'failed';
@@ -105,7 +105,7 @@ export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Recording - ${id}</title>
+  <title>Video Replay - ${id}</title>
   ${isReady || isEncoding ? `
   <script type="module" src="https://cdn.jsdelivr.net/npm/hls-video-element@1.2/+esm"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/media-chrome@4/+esm"></script>
@@ -180,8 +180,8 @@ export default class RecordingVideoPlayerGetRoute extends HTTPRoute {
     ${noVideo ? `
     <div class="status">
       <h2>No video available</h2>
-      <p>This recording does not have a video component.</p>
-      <p class="meta"><a href="/recordings/${id}/player${tokenParam}" style="color:#0af">View DOM replay instead</a></p>
+      <p>This replay does not have a video component.</p>
+      <p class="meta"><a href="/replays/${id}/player${tokenParam}" style="color:#0af">View DOM replay instead</a></p>
     </div>
     ` : ''}
     ${!isReady && !isEncoding && !hasFailed && !noVideo ? `

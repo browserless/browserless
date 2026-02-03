@@ -4,7 +4,7 @@ import {
   HTTPManagementRoutes,
   HTTPRoute,
   Methods,
-  RecordingMetadata,
+  ReplayMetadata,
   Request,
   SystemQueryParameters,
   contentTypes,
@@ -16,18 +16,18 @@ export interface QuerySchema extends SystemQueryParameters {
   token?: string;
 }
 
-export type ResponseSchema = RecordingMetadata[];
+export type ResponseSchema = ReplayMetadata[];
 
-export default class RecordingsGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingsGetRoute;
+export default class ReplaysGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplaysGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json];
-  description = `Lists all saved session replay recordings.`;
+  description = `Lists all saved session replays.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.recordings;
+  path = HTTPManagementRoutes.replays;
   tags = [APITags.management];
 
   async handler(_req: Request, res: ServerResponse): Promise<void> {
@@ -36,7 +36,7 @@ export default class RecordingsGetRoute extends HTTPRoute {
       return jsonResponse(res, 503, { error: 'Session replay is not enabled' });
     }
 
-    const recordings = await replay.listRecordings();
-    return jsonResponse(res, 200, recordings);
+    const replays = await replay.listReplays();
+    return jsonResponse(res, 200, replays);
   }
 }

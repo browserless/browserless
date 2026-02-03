@@ -7,7 +7,7 @@ import {
   exists,
 } from '@browserless.io/browserless';
 
-import type { IRecordingStore } from '../interfaces/recording-store.interface.js';
+import type { IReplayStore } from '../interfaces/replay-store.interface.js';
 
 export interface EncodingProgress {
   framesProcessed: number;
@@ -34,16 +34,16 @@ export interface EncodingProgress {
 export class VideoEncoder {
   private static readonly SEGMENT_DURATION = 10;
   private log = new Logger('video-encoder');
-  private queue: Array<{ sessionId: string; recordingsDir: string; totalFrames: number }> = [];
+  private queue: Array<{ sessionId: string; replaysDir: string; totalFrames: number }> = [];
   private processing = false;
   private progress = new Map<string, EncodingProgress>();
 
-  constructor(private store: IRecordingStore | null) {}
+  constructor(private store: IReplayStore | null) {}
 
   /**
    * Update the store reference (set after SessionReplay initializes).
    */
-  setStore(store: IRecordingStore): void {
+  setStore(store: IReplayStore): void {
     this.store = store;
   }
 
@@ -58,7 +58,7 @@ export class VideoEncoder {
    * Queue a session for encoding.
    * Returns immediately — encoding happens in the background.
    */
-  queueEncode(sessionId: string, recordingsDir: string, totalFrames: number = 0): void {
+  queueEncode(sessionId: string, replaysDir: string, totalFrames: number = 0): void {
     // Prevent duplicate queue entries (two viewers racing)
     if (this.queue.some(j => j.sessionId === sessionId)) {
       this.log.debug(`Session ${sessionId} already queued, skipping`);
@@ -78,7 +78,7 @@ export class VideoEncoder {
       status: 'pending',
     });
 
-    this.queue.push({ sessionId, recordingsDir, totalFrames });
+    this.queue.push({ sessionId, replaysDir, totalFrames });
     this.processQueue();
   }
 
@@ -93,7 +93,7 @@ export class VideoEncoder {
     while (this.queue.length > 0) {
       const job = this.queue.shift()!;
       try {
-        await this.encode(job.sessionId, job.recordingsDir, job.totalFrames);
+        await this.encode(job.sessionId, job.replaysDir, job.totalFrames);
       } catch (e) {
         this.log.error(`Encoding failed for ${job.sessionId}: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -111,8 +111,8 @@ export class VideoEncoder {
    * 4. Update SQLite status with playlist path
    * 5. Clean up frames directory + concat file
    */
-  private async encode(sessionId: string, recordingsDir: string, totalFrames: number): Promise<void> {
-    const sessionDir = path.join(recordingsDir, sessionId);
+  private async encode(sessionId: string, replaysDir: string, totalFrames: number): Promise<void> {
+    const sessionDir = path.join(replaysDir, sessionId);
     const framesDir = path.join(sessionDir, 'frames');
     const concatPath = path.join(sessionDir, 'frames.txt');
     const playlistPath = path.join(sessionDir, 'playlist.m3u8');
@@ -349,19 +349,19 @@ export class VideoEncoder {
    * Clean up orphaned frame directories on startup.
    * These occur when the container restarts during encoding.
    */
-  async cleanupOrphans(recordingsDir: string): Promise<void> {
+  async cleanupOrphans(replaysDir: string): Promise<void> {
     try {
-      if (!(await exists(recordingsDir))) return;
+      if (!(await exists(replaysDir))) return;
 
-      const entries = await readdir(recordingsDir, { withFileTypes: true });
+      const entries = await readdir(replaysDir, { withFileTypes: true });
       let cleaned = 0;
 
       for (const entry of entries) {
         if (entry.isDirectory() && entry.name !== 'frames') {
-          const framesDir = path.join(recordingsDir, entry.name, 'frames');
+          const framesDir = path.join(replaysDir, entry.name, 'frames');
           if (await exists(framesDir)) {
             this.log.info(`Cleaning up orphaned frames: ${entry.name}`);
-            await rm(path.join(recordingsDir, entry.name), { recursive: true });
+            await rm(path.join(replaysDir, entry.name), { recursive: true });
             cleaned++;
           }
         }

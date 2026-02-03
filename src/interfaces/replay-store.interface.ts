@@ -7,20 +7,20 @@ export type Result<T, E = Error> =
   | { ok: false; error: E };
 
 /**
- * Discriminated union for RecordingStore errors.
+ * Discriminated union for ReplayStore errors.
  * Each error type has a specific `type` field for pattern matching.
  */
-export type RecordingStoreError =
+export type ReplayStoreError =
   | { type: 'connection_failed'; message: string; cause?: Error }
   | { type: 'query_failed'; message: string; cause?: Error }
   | { type: 'transaction_failed'; message: string; cause?: Error }
   | { type: 'not_found'; message: string };
 
 /**
- * Recording metadata stored in SQLite.
+ * Replay metadata stored in SQLite.
  * Events are stored separately in JSON files for playback.
  */
-export interface RecordingMetadata {
+export interface ReplayMetadata {
   browserType: string;
   duration: number;
   endedAt: number;
@@ -36,61 +36,61 @@ export interface RecordingMetadata {
 }
 
 /**
- * Interface for recording metadata storage.
+ * Interface for replay metadata storage.
  *
  * Implementations:
- * - RecordingStore: SQLite-based production store
- * - MockRecordingStore: In-memory store for testing
+ * - ReplayStore: SQLite-based production store
+ * - MockReplayStore: In-memory store for testing
  *
  * All methods return Result types for explicit error handling.
  * No exceptions are thrown - errors are returned as values.
  */
-export interface IRecordingStore {
+export interface IReplayStore {
   /**
-   * Insert or update a single recording metadata entry.
+   * Insert or update a single replay metadata entry.
    * Uses UPSERT semantics (INSERT OR REPLACE).
    */
-  insert(metadata: RecordingMetadata): Result<void, RecordingStoreError>;
+  insert(metadata: ReplayMetadata): Result<void, ReplayStoreError>;
 
   /**
-   * Insert multiple recording metadata entries in a single transaction.
+   * Insert multiple replay metadata entries in a single transaction.
    * Either all succeed or none are inserted (atomic).
    */
-  insertBatch(metadata: RecordingMetadata[]): Result<void, RecordingStoreError>;
+  insertBatch(metadata: ReplayMetadata[]): Result<void, ReplayStoreError>;
 
   /**
-   * List all recordings, ordered by startedAt descending.
+   * List all replays, ordered by startedAt descending.
    * O(1) query via SQLite index.
    */
-  list(): Result<RecordingMetadata[], RecordingStoreError>;
+  list(): Result<ReplayMetadata[], ReplayStoreError>;
 
   /**
-   * Find recording by ID.
+   * Find replay by ID.
    * O(1) primary key lookup.
    */
-  findById(id: string): Result<RecordingMetadata | null, RecordingStoreError>;
+  findById(id: string): Result<ReplayMetadata | null, ReplayStoreError>;
 
   /**
-   * Delete recording metadata by ID.
+   * Delete replay metadata by ID.
    * Returns true if a record was deleted, false if not found.
    */
-  delete(id: string): Result<boolean, RecordingStoreError>;
+  delete(id: string): Result<boolean, ReplayStoreError>;
 
   /**
-   * Update encoding status and video path for a recording.
+   * Update encoding status and video path for a replay.
    * Returns true if a record was updated, false if not found.
    */
   updateEncodingStatus(
     id: string,
-    encodingStatus: RecordingMetadata['encodingStatus'],
+    encodingStatus: ReplayMetadata['encodingStatus'],
     videoPath?: string,
-  ): Result<boolean, RecordingStoreError>;
+  ): Result<boolean, ReplayStoreError>;
 
   /**
    * Execute multiple operations in a single transaction.
    * If the function throws or returns an error, the transaction is rolled back.
    */
-  transaction<T>(fn: () => T): Result<T, RecordingStoreError>;
+  transaction<T>(fn: () => T): Result<T, ReplayStoreError>;
 
   /**
    * Check if the store is healthy and can accept queries.

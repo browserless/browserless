@@ -25,18 +25,18 @@ export * from './browsers/browsers.cdp.js';
 export * from './browsers/browsers.playwright.js';
 
 // New modular architecture exports
-export * from './recording-store.js';
-export * from './recording-store.mock.js';
-// Export interface types explicitly to avoid RecordingMetadata conflict with session-replay.ts
+export * from './replay-store.js';
+export * from './replay-store.mock.js';
+// Export interface types explicitly to avoid ReplayMetadata conflict with session-replay.ts
 export type {
   Result,
-  RecordingStoreError,
-  IRecordingStore,
-} from './interfaces/recording-store.interface.js';
-export { ok, err, isOk, isErr } from './interfaces/recording-store.interface.js';
+  ReplayStoreError,
+  IReplayStore,
+} from './interfaces/replay-store.interface.js';
+export { ok, err, isOk, isErr } from './interfaces/replay-store.interface.js';
 export * from './session/session-registry.js';
 export * from './session/session-lifecycle-manager.js';
-export * from './session/recording-coordinator.js';
+export * from './session/replay-coordinator.js';
 export * from './browsers/browser-launcher.js';
 export * from './container/container.js';
 export * from './container/bootstrap.js';

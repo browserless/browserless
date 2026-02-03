@@ -1,6 +1,6 @@
 // TypeScript types for the session replay player
 
-export interface RecordingMetadata {
+export interface ReplayMetadata {
   id: string;
   browserType: string;
   duration: number;
@@ -18,9 +18,9 @@ export interface ReplayEvent {
   data: unknown;
 }
 
-export interface Recording {
+export interface Replay {
   events: ReplayEvent[];
-  metadata: RecordingMetadata;
+  metadata: ReplayMetadata;
 }
 
 // Network event types
@@ -111,7 +111,7 @@ export interface InspectorFilters {
 // Player options
 export interface PlayerOptions {
   events: ReplayEvent[];
-  metadata: RecordingMetadata;
+  metadata: ReplayMetadata;
   width?: number;
   height?: number;
   autoPlay?: boolean;

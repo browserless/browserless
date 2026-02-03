@@ -14,9 +14,9 @@ import {
 
 import { ServiceContainer } from './container.js';
 import { BrowserManager } from '../browsers/index.js';
-import type { IRecordingStore } from '../interfaces/recording-store.interface.js';
+import type { IReplayStore } from '../interfaces/replay-store.interface.js';
 import { SessionRegistry } from '../session/session-registry.js';
-import { RecordingCoordinator } from '../session/recording-coordinator.js';
+import { ReplayCoordinator } from '../session/replay-coordinator.js';
 
 /**
  * Service names for type-safe resolution.
@@ -30,9 +30,9 @@ export const Services = {
   Monitoring: 'monitoring',
   FileSystem: 'fileSystem',
   SessionReplay: 'sessionReplay',
-  RecordingStore: 'recordingStore',
+  ReplayStore: 'replayStore',
   SessionRegistry: 'sessionRegistry',
-  RecordingCoordinator: 'recordingCoordinator',
+  ReplayCoordinator: 'replayCoordinator',
   BrowserManager: 'browserManager',
   Limiter: 'limiter',
   Router: 'router',
@@ -54,9 +54,9 @@ export interface ContainerOptions {
   monitoring?: Monitoring;
   fileSystem?: FileSystem;
   sessionReplay?: SessionReplay;
-  recordingStore?: IRecordingStore;
+  replayStore?: IReplayStore;
   sessionRegistry?: SessionRegistry;
-  recordingCoordinator?: RecordingCoordinator;
+  replayCoordinator?: ReplayCoordinator;
   browserManager?: BrowserManager;
   limiter?: Limiter;
   router?: Router;
@@ -126,10 +126,10 @@ export function createContainer(options: ContainerOptions = {}): ServiceContaine
     [Services.Config]
   );
 
-  // RecordingStore - lazy initialization based on recordings dir
+  // ReplayStore - lazy initialization based on replays dir
   // This is optional - SessionReplay creates it during initialize()
-  if (options.recordingStore) {
-    container.registerInstance(Services.RecordingStore, options.recordingStore);
+  if (options.replayStore) {
+    container.registerInstance(Services.ReplayStore, options.replayStore);
   }
 
   // SessionRegistry - no dependencies (pure data structure)
@@ -137,10 +137,10 @@ export function createContainer(options: ContainerOptions = {}): ServiceContaine
     options.sessionRegistry ?? new SessionRegistry()
   );
 
-  // RecordingCoordinator - depends on sessionReplay
+  // ReplayCoordinator - depends on sessionReplay
   container.registerSingleton(
-    Services.RecordingCoordinator,
-    (c) => options.recordingCoordinator ?? new RecordingCoordinator(
+    Services.ReplayCoordinator,
+    (c) => options.replayCoordinator ?? new ReplayCoordinator(
       c.resolve<SessionReplay>(Services.SessionReplay)
     ),
     [Services.SessionReplay]

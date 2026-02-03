@@ -187,7 +187,7 @@ export class Config extends EventEmitter {
   protected enableReplay = !!parseEnvVars(true, 'ENABLE_REPLAY');
   protected replayDir = process.env.REPLAY_DIR
     ? untildify(process.env.REPLAY_DIR)
-    : path.join(tmpdir(), 'browserless-recordings');
+    : path.join(tmpdir(), 'browserless-replays');
   protected replayMaxSize = +(process.env.REPLAY_MAX_SIZE ?? '52428800'); // 50MB default
 
   public getRoutes(): string {

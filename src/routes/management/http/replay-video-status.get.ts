@@ -23,16 +23,16 @@ export interface QuerySchema extends SystemQueryParameters {
  * Returns base status from SQLite, overlaid with real-time
  * progress (framesProcessed, fps) from the encoder's in-memory Map.
  */
-export default class RecordingVideoStatusGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingVideoStatusGetRoute;
+export default class ReplayVideoStatusGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayVideoStatusGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.json];
-  description = `Get video encoding status and progress for a recording.`;
+  description = `Get video encoding status and progress for a replay.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.recordingVideoStatus;
+  path = HTTPManagementRoutes.replayVideoStatus;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -41,39 +41,39 @@ export default class RecordingVideoStatusGetRoute extends HTTPRoute {
       return jsonResponse(res, 503, { error: 'Session replay is not enabled' });
     }
 
-    // Extract recording ID from path: /recordings/:id/video/status
+    // Extract replay ID from path: /replays/:id/video/status
     const pathParts = req.parsed.pathname.split('/');
     const videoIndex = pathParts.indexOf('video');
     const id = videoIndex > 0 ? pathParts[videoIndex - 1] : null;
 
     if (!id) {
-      throw new NotFound('Recording ID is required');
+      throw new NotFound('Replay ID is required');
     }
 
     const store = replay.getStore();
     if (!store) {
-      return jsonResponse(res, 503, { error: 'Recording store not available' });
+      return jsonResponse(res, 503, { error: 'Replay store not available' });
     }
 
     const result = store.findById(id);
     if (result.ok && !result.value) {
-      throw new NotFound(`Recording "${id}" not found`);
+      throw new NotFound(`Replay "${id}" not found`);
     }
     if (!result.ok) {
-      return jsonResponse(res, 500, { error: 'Failed to read recording' });
+      return jsonResponse(res, 500, { error: 'Failed to read replay' });
     }
 
-    const recording = result.value!;
+    const replayRecord = result.value!;
     const encoder = replay.getVideoEncoder();
     const progress = encoder?.getProgress(id) ?? null;
 
     const response = {
-      encodingStatus: progress?.status ?? recording.encodingStatus,
-      frameCount: recording.frameCount,
+      encodingStatus: progress?.status ?? replayRecord.encodingStatus,
+      frameCount: replayRecord.frameCount,
       framesProcessed: progress?.framesProcessed ?? 0,
       fps: progress?.fps ?? 0,
-      percent: recording.frameCount > 0 && progress
-        ? Math.min(100, Math.round((progress.framesProcessed / recording.frameCount) * 100))
+      percent: replayRecord.frameCount > 0 && progress
+        ? Math.min(100, Math.round((progress.framesProcessed / replayRecord.frameCount) * 100))
         : 0,
     };
 

@@ -5,7 +5,6 @@ import {
   HTTPRoute,
   Methods,
   NotFound,
-  Recording,
   Request,
   SystemQueryParameters,
   contentTypes,
@@ -17,18 +16,21 @@ export interface QuerySchema extends SystemQueryParameters {
   token?: string;
 }
 
-export type ResponseSchema = Recording;
+export interface ResponseSchema {
+  deleted: boolean;
+  id: string;
+}
 
-export default class RecordingGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingGetRoute;
+export default class ReplayDeleteRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayDeleteRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
-  contentTypes = [contentTypes.json, contentTypes.html];
-  description = `Get a specific session replay recording by ID.`;
-  method = Methods.get;
-  path = HTTPManagementRoutes.recording;
+  contentTypes = [contentTypes.json];
+  description = `Delete a session replay by ID.`;
+  method = Methods.delete;
+  path = HTTPManagementRoutes.replay;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -37,19 +39,19 @@ export default class RecordingGetRoute extends HTTPRoute {
       return jsonResponse(res, 503, { error: 'Session replay is not enabled' });
     }
 
-    // Extract recording ID from path: /recordings/:id
+    // Extract replay ID from path: /replays/:id
     const pathParts = req.parsed.pathname.split('/');
     const id = pathParts[pathParts.length - 1];
 
     if (!id) {
-      throw new NotFound('Recording ID is required');
+      throw new NotFound('Replay ID is required');
     }
 
-    const recording = await replay.getRecording(id);
-    if (!recording) {
-      throw new NotFound(`Recording "${id}" not found`);
+    const deleted = await replay.deleteReplay(id);
+    if (!deleted) {
+      throw new NotFound(`Replay "${id}" not found`);
     }
 
-    return jsonResponse(res, 200, recording);
+    return jsonResponse(res, 200, { deleted: true, id });
   }
 }

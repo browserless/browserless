@@ -7,13 +7,13 @@ import { Logger } from '@browserless.io/browserless';
  * CDP Screencast frame capture per session.
  *
  * Uses the existing raw WebSocket connection to the browser (same pattern as
- * recording-coordinator.ts) to capture pixel-perfect video frames.
+ * replay-coordinator.ts) to capture pixel-perfect video frames.
  *
  * Per tab:
  * - Page.startScreencast sends PNG frames when the page visually changes
  * - Static page fallback: if no frame arrives in 2 seconds, fire
  *   Page.captureScreenshot (handles Turnstile "Just a moment..." pages)
- * - Frames saved as {timestamp_ms}.png in {recordingsDir}/{sessionId}/frames/
+ * - Frames saved as {timestamp_ms}.png in {replaysDir}/{sessionId}/frames/
  *
  * Frame acknowledgment (Page.screencastFrameAck) tells Chrome to send the
  * next frame. Without ack, Chrome stops sending frames.
@@ -46,15 +46,15 @@ export class ScreencastCapture {
   /**
    * Initialize screencast capture for a session.
    *
-   * Called by RecordingCoordinator when a recording session starts.
+   * Called by ReplayCoordinator when a replay session starts.
    * Creates the frames directory and stores the sendCommand reference.
    */
   async initSession(
     sessionId: string,
     sendCommand: SendCommand,
-    recordingsDir: string,
+    replaysDir: string,
   ): Promise<void> {
-    const framesDir = path.join(recordingsDir, sessionId, 'frames');
+    const framesDir = path.join(replaysDir, sessionId, 'frames');
     await mkdir(framesDir, { recursive: true });
 
     this.sessions.set(sessionId, {
@@ -73,7 +73,7 @@ export class ScreencastCapture {
   /**
    * Add a target to an existing capture session and start screencast on it.
    *
-   * Called by RecordingCoordinator when a new page target is auto-attached
+   * Called by ReplayCoordinator when a new page target is auto-attached
    * (after rrweb injection and target resume).
    */
   async addTarget(
@@ -103,7 +103,7 @@ export class ScreencastCapture {
   /**
    * Handle a screencast frame event from CDP.
    *
-   * Called from the recording-coordinator's WebSocket message handler when
+   * Called from the replay-coordinator's WebSocket message handler when
    * a Page.screencastFrame event arrives.
    *
    * Flow:

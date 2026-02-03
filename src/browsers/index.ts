@@ -23,7 +23,7 @@ import path from 'path';
 
 import { SessionRegistry } from '../session/session-registry.js';
 import { SessionLifecycleManager } from '../session/session-lifecycle-manager.js';
-import { RecordingCoordinator } from '../session/recording-coordinator.js';
+import { ReplayCoordinator } from '../session/replay-coordinator.js';
 import { BrowserLauncher } from './browser-launcher.js';
 
 /**
@@ -32,7 +32,7 @@ import { BrowserLauncher } from './browser-launcher.js';
  * After refactoring, it delegates to specialized components:
  * - SessionRegistry: Map bookkeeping, session lookup
  * - SessionLifecycleManager: TTL timers, cleanup, close
- * - RecordingCoordinator: CDP protocol, rrweb injection
+ * - ReplayCoordinator: CDP protocol, rrweb injection
  * - BrowserLauncher: Launch logic, option parsing
  *
  * This class was reduced from 1270 lines to ~200 lines.
@@ -44,7 +44,7 @@ export class BrowserManager {
   // Extracted components
   protected registry: SessionRegistry;
   protected lifecycle: SessionLifecycleManager;
-  protected recording: RecordingCoordinator;
+  protected replay: ReplayCoordinator;
   protected launcher: BrowserLauncher;
 
   constructor(
@@ -55,16 +55,16 @@ export class BrowserManager {
   ) {
     // Initialize extracted components
     this.registry = new SessionRegistry();
-    this.recording = new RecordingCoordinator(sessionReplay);
+    this.replay = new ReplayCoordinator(sessionReplay);
     this.lifecycle = new SessionLifecycleManager(
       this.registry,
-      this.recording,
+      this.replay,
     );
     this.launcher = new BrowserLauncher(
       config,
       hooks,
       this.registry,
-      this.recording
+      this.replay
     );
   }
 
@@ -383,8 +383,8 @@ export class BrowserManager {
     return this.lifecycle;
   }
 
-  public getRecordingCoordinator(): RecordingCoordinator {
-    return this.recording;
+  public getReplayCoordinator(): ReplayCoordinator {
+    return this.replay;
   }
 
   public getLauncher(): BrowserLauncher {

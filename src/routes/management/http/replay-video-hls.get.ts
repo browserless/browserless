@@ -23,20 +23,20 @@ export interface QuerySchema extends SystemQueryParameters {
 /**
  * Serve HLS playlist and segment files during live encoding.
  *
- * Path: /recordings/{id}/video/hls/{filename}
+ * Path: /replays/{id}/video/hls/{filename}
  * - playlist.m3u8 → application/vnd.apple.mpegurl (no-cache, hls.js polls this)
  * - seg*.ts → video/mp2t (immutable once written, cacheable)
  */
-export default class RecordingVideoHlsGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.RecordingVideoHlsGetRoute;
+export default class ReplayVideoHlsGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayVideoHlsGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
   contentTypes = [contentTypes.any];
-  description = `Serve HLS playlist and segment files for a recording.`;
+  description = `Serve HLS playlist and segment files for a replay.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.recordingVideoHls;
+  path = HTTPManagementRoutes.replayVideoHls;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -45,7 +45,7 @@ export default class RecordingVideoHlsGetRoute extends HTTPRoute {
       return writeResponse(res, 503, 'Session replay is not enabled');
     }
 
-    // Parse path: /recordings/{id}/video/hls/{filename}
+    // Parse path: /replays/{id}/video/hls/{filename}
     const pathParts = req.parsed.pathname.split('/');
     const hlsIndex = pathParts.indexOf('hls');
     if (hlsIndex < 0 || hlsIndex + 1 >= pathParts.length) {
@@ -56,7 +56,7 @@ export default class RecordingVideoHlsGetRoute extends HTTPRoute {
     const filename = pathParts[hlsIndex + 1];
 
     if (!id || !filename) {
-      throw new NotFound('Recording ID and filename are required');
+      throw new NotFound('Replay ID and filename are required');
     }
 
     // Validate filename (allow .m3u8, .m4s, .mp4 (init segment), and legacy .ts)
@@ -64,17 +64,17 @@ export default class RecordingVideoHlsGetRoute extends HTTPRoute {
       throw new NotFound('Invalid HLS filename');
     }
 
-    const recordingsDir = replay.getRecordingsDir();
-    const filePath = path.join(recordingsDir, id, filename);
+    const replaysDir = replay.getReplaysDir();
+    const filePath = path.join(replaysDir, id, filename);
 
     // If file doesn't exist yet, check if encoding is in progress and wait for it
     if (!(await exists(filePath))) {
       const store = replay.getStore();
       let shouldWait = false;
       if (store) {
-        const recording = store.findById(id);
-        if (recording.ok && recording.value) {
-          const status = recording.value.encodingStatus;
+        const replayResult = store.findById(id);
+        if (replayResult.ok && replayResult.value) {
+          const status = replayResult.value.encodingStatus;
           shouldWait = status === 'encoding' || status === 'pending';
         }
       }

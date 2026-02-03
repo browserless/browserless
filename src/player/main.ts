@@ -1,25 +1,25 @@
 // Entry point for the Svelte player bundle
-// This file is bundled by Vite and served in the recording player page
+// This file is bundled by Vite and served in the replay player page
 
 import App from './App.svelte';
-import type { Recording } from './types';
+import type { Replay } from './types';
 
 // Global export for inline script usage
 declare global {
   interface Window {
-    RecordingPlayer: typeof RecordingPlayer;
-    __RECORDING_DATA__?: Recording;
+    ReplayPlayer: typeof ReplayPlayer;
+    __REPLAY_DATA__?: Replay;
   }
 }
 
-class RecordingPlayer {
+class ReplayPlayer {
   private app: App;
 
-  constructor(options: { target: HTMLElement; recording: Recording }) {
+  constructor(options: { target: HTMLElement; replay: Replay }) {
     this.app = new App({
       target: options.target,
       props: {
-        recording: options.recording,
+        replay: options.replay,
       },
     });
   }
@@ -29,23 +29,23 @@ class RecordingPlayer {
   }
 }
 
-// Auto-initialize if recording data is provided
+// Auto-initialize if replay data is provided
 if (typeof window !== 'undefined') {
-  window.RecordingPlayer = RecordingPlayer;
+  window.ReplayPlayer = ReplayPlayer;
 
   // Support auto-initialization when script loads
   document.addEventListener('DOMContentLoaded', () => {
-    const recordingData = window.__RECORDING_DATA__;
+    const replayData = window.__REPLAY_DATA__;
     const target = document.getElementById('app');
 
-    if (recordingData && target) {
-      new RecordingPlayer({
+    if (replayData && target) {
+      new ReplayPlayer({
         target,
-        recording: recordingData,
+        replay: replayData,
       });
     }
   });
 }
 
-export { RecordingPlayer };
-export default RecordingPlayer;
+export { ReplayPlayer };
+export default ReplayPlayer;

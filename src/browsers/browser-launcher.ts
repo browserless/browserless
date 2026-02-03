@@ -32,7 +32,7 @@ import micromatch from 'micromatch';
 import path from 'path';
 
 import { SessionRegistry } from '../session/session-registry.js';
-import { RecordingCoordinator } from '../session/recording-coordinator.js';
+import { ReplayCoordinator } from '../session/replay-coordinator.js';
 
 /**
  * BrowserLauncher handles browser launch logic and option parsing.
@@ -61,7 +61,7 @@ export class BrowserLauncher {
     private config: Config,
     private hooks: Hooks,
     private registry: SessionRegistry,
-    private recordingCoordinator?: RecordingCoordinator
+    private replayCoordinator?: ReplayCoordinator
   ) {}
 
   /**
@@ -182,8 +182,8 @@ export class BrowserLauncher {
       isTempDataDir: !manualUserDataDir,
       launchOptions,
       numbConnected: 1,
-      replay: replay && this.recordingCoordinator?.isEnabled(),
-      video: video && this.recordingCoordinator?.isEnabled(),
+      replay: replay && this.replayCoordinator?.isEnabled(),
+      video: video && this.replayCoordinator?.isEnabled(),
       resolver: noop,
       routePath: router.path,
       startedOn: Date.now(),
@@ -220,11 +220,11 @@ export class BrowserLauncher {
     // Register session
     this.registry.register(browser, session);
 
-    // Start recording if enabled (non-blocking)
-    if (session.replay && this.recordingCoordinator) {
-      this.recordingCoordinator.startRecording(sessionId, trackingId);
-      this.recordingCoordinator.setupRecordingForAllTabs(browser, sessionId, { video: !!session.video }).catch((e) => {
-        this.log.warn(`Recording setup failed for session ${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
+    // Start replay if enabled (non-blocking)
+    if (session.replay && this.replayCoordinator) {
+      this.replayCoordinator.startReplay(sessionId, trackingId);
+      this.replayCoordinator.setupReplayForAllTabs(browser, sessionId, { video: !!session.video }).catch((e) => {
+        this.log.warn(`Replay setup failed for session ${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
       });
     }
 

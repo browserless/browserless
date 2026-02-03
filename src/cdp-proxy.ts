@@ -4,9 +4,9 @@ import { IncomingMessage } from 'http';
 import { Logger } from '@browserless.io/browserless';
 
 /**
- * Recording metadata sent via CDP event.
+ * Replay metadata sent via CDP event.
  */
-export interface RecordingCompleteParams {
+export interface ReplayCompleteParams {
   id: string;
   trackingId: string;
   duration: number;
@@ -25,7 +25,7 @@ export interface RecordingCompleteParams {
  * 2. Can inject custom CDP events to the client before closing
  * 3. Handles the WebSocket upgrade from the HTTP socket
  *
- * This enables sending recording metadata to clients (like Pydoll)
+ * This enables sending replay metadata to clients (like Pydoll)
  * without requiring an additional HTTP call after session close.
  *
  * Flow:
@@ -137,7 +137,7 @@ export class CDPProxy {
    * Inject a custom CDP event to the client.
    *
    * CDP events are JSON messages with "method" and "params" fields.
-   * We use a custom method name "Browserless.recordingComplete" that
+   * We use a custom method name "Browserless.replayComplete" that
    * clients (Pydoll) can listen for.
    */
   async emitClientEvent(method: string, params: object): Promise<void> {
@@ -161,14 +161,14 @@ export class CDPProxy {
   }
 
   /**
-   * Send recording metadata to client before closing.
+   * Send replay metadata to client before closing.
    *
-   * This is the key method that enables zero-delay recording URL delivery.
-   * Called by SessionLifecycleManager after stopRecording() returns metadata.
+   * This is the key method that enables zero-delay replay URL delivery.
+   * Called by SessionLifecycleManager after stopReplay() returns metadata.
    */
-  async sendRecordingComplete(metadata: RecordingCompleteParams): Promise<void> {
-    await this.emitClientEvent('Browserless.recordingComplete', metadata);
-    this.log.info(`Sent recording complete event: ${metadata.id}`);
+  async sendReplayComplete(metadata: ReplayCompleteParams): Promise<void> {
+    await this.emitClientEvent('Browserless.replayComplete', metadata);
+    this.log.info(`Sent replay complete event: ${metadata.id}`);
   }
 
   /**

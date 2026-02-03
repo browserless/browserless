@@ -3,12 +3,12 @@ import { Logger } from '@browserless.io/browserless';
 import path from 'path';
 
 import type {
-  IRecordingStore,
-  RecordingMetadata,
-  RecordingStoreError,
+  IReplayStore,
+  ReplayMetadata,
+  ReplayStoreError,
   Result,
-} from './interfaces/recording-store.interface.js';
-import { ok, err } from './interfaces/recording-store.interface.js';
+} from './interfaces/replay-store.interface.js';
+import { ok, err } from './interfaces/replay-store.interface.js';
 
 interface InitializedState {
   db: DatabaseType;
@@ -20,26 +20,39 @@ interface InitializedState {
 }
 
 /**
- * SQLite-based metadata store for session recordings.
+ * SQLite-based metadata store for session replays.
  *
  * Replaces O(n) file scanning with O(1) indexed queries.
  * Uses better-sqlite3 for Node.js compatibility.
  *
  * Schema:
- *   recordings table with indexed trackingId and startedAt columns
+ *   replays table with indexed trackingId and startedAt columns
  *   Events stored separately in JSON files (not in SQLite)
  *
  * Error Handling:
- *   All methods return Result<T, RecordingStoreError> instead of throwing.
+ *   All methods return Result<T, ReplayStoreError> instead of throwing.
  *   This makes error handling explicit and testable.
  */
-export class RecordingStore implements IRecordingStore {
-  private log = new Logger('recording-store');
+export class ReplayStore implements IReplayStore {
+  private log = new Logger('replay-store');
   private dbPath: string;
   private state: InitializedState | null = null;
 
-  constructor(recordingsDir: string) {
-    this.dbPath = path.join(recordingsDir, 'recordings.db');
+  constructor(replaysDir: string) {
+    // Migrate legacy recordings.db to replays.db if it exists
+    const legacyDbPath = path.join(replaysDir, 'recordings.db');
+    const newDbPath = path.join(replaysDir, 'replays.db');
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(legacyDbPath) && !fs.existsSync(newDbPath)) {
+        fs.renameSync(legacyDbPath, newDbPath);
+        // Also rename WAL/SHM files if they exist
+        try { fs.renameSync(legacyDbPath + '-wal', newDbPath + '-wal'); } catch { /* ignore */ }
+        try { fs.renameSync(legacyDbPath + '-shm', newDbPath + '-shm'); } catch { /* ignore */ }
+      }
+    } catch { /* ignore migration errors, DB will be created fresh */ }
+
+    this.dbPath = path.join(replaysDir, 'replays.db');
     this.initialize();
   }
 
@@ -54,9 +67,14 @@ export class RecordingStore implements IRecordingStore {
 
       const db = new Database(this.dbPath);
 
+      // Migrate legacy table name if it exists
+      try {
+        db.exec(`ALTER TABLE recordings RENAME TO replays`);
+      } catch { /* table already renamed or doesn't exist */ }
+
       // Create table and indexes if they don't exist
       db.exec(`
-        CREATE TABLE IF NOT EXISTS recordings (
+        CREATE TABLE IF NOT EXISTS replays (
           id TEXT PRIMARY KEY,
           trackingId TEXT,
           startedAt INTEGER NOT NULL,
@@ -70,47 +88,47 @@ export class RecordingStore implements IRecordingStore {
           videoPath TEXT,
           encodingStatus TEXT NOT NULL DEFAULT 'none'
         );
-        CREATE INDEX IF NOT EXISTS idx_trackingId ON recordings(trackingId);
-        CREATE INDEX IF NOT EXISTS idx_startedAt ON recordings(startedAt DESC);
+        CREATE INDEX IF NOT EXISTS idx_trackingId ON replays(trackingId);
+        CREATE INDEX IF NOT EXISTS idx_startedAt ON replays(startedAt DESC);
       `);
 
       // Migrate existing tables: add video columns if missing
       try {
-        db.exec(`ALTER TABLE recordings ADD COLUMN frameCount INTEGER NOT NULL DEFAULT 0`);
+        db.exec(`ALTER TABLE replays ADD COLUMN frameCount INTEGER NOT NULL DEFAULT 0`);
       } catch { /* column already exists */ }
       try {
-        db.exec(`ALTER TABLE recordings ADD COLUMN videoPath TEXT`);
+        db.exec(`ALTER TABLE replays ADD COLUMN videoPath TEXT`);
       } catch { /* column already exists */ }
       try {
-        db.exec(`ALTER TABLE recordings ADD COLUMN encodingStatus TEXT NOT NULL DEFAULT 'none'`);
+        db.exec(`ALTER TABLE replays ADD COLUMN encodingStatus TEXT NOT NULL DEFAULT 'none'`);
       } catch { /* column already exists */ }
 
       this.state = {
         db,
         stmtInsert: db.prepare(`
-          INSERT OR REPLACE INTO recordings
+          INSERT OR REPLACE INTO replays
           (id, trackingId, startedAt, endedAt, duration, eventCount, browserType, routePath, userAgent, frameCount, videoPath, encodingStatus)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `),
         stmtSelectAll: db.prepare(
-          `SELECT * FROM recordings ORDER BY startedAt DESC`
+          `SELECT * FROM replays ORDER BY startedAt DESC`
         ),
         stmtSelectById: db.prepare(
-          `SELECT * FROM recordings WHERE id = ?`
+          `SELECT * FROM replays WHERE id = ?`
         ),
         stmtDelete: db.prepare(
-          `DELETE FROM recordings WHERE id = ?`
+          `DELETE FROM replays WHERE id = ?`
         ),
         stmtUpdateEncoding: db.prepare(
-          `UPDATE recordings SET encodingStatus = ?, videoPath = ? WHERE id = ?`
+          `UPDATE replays SET encodingStatus = ?, videoPath = ? WHERE id = ?`
         ),
       };
 
-      this.log.info(`Recording store initialized at ${this.dbPath}`);
+      this.log.info(`Replay store initialized at ${this.dbPath}`);
       return this.state;
     } catch (error) {
       this.state = null;
-      this.log.error(`Failed to initialize recording store: ${error}`);
+      this.log.error(`Failed to initialize replay store: ${error}`);
       return null;
     }
   }
@@ -123,14 +141,14 @@ export class RecordingStore implements IRecordingStore {
   private ensureHealthy(): InitializedState | null {
     if (this.state) return this.state;
 
-    this.log.info('Recording store unhealthy, attempting recovery...');
+    this.log.info('Replay store unhealthy, attempting recovery...');
     return this.initialize();
   }
 
   /**
-   * Insert or update recording metadata.
+   * Insert or update replay metadata.
    */
-  insert(metadata: RecordingMetadata): Result<void, RecordingStoreError> {
+  insert(metadata: ReplayMetadata): Result<void, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -159,17 +177,17 @@ export class RecordingStore implements IRecordingStore {
       this.log.error(`Insert failed: ${error}`);
       return err({
         type: 'query_failed',
-        message: `Failed to insert recording ${metadata.id}`,
+        message: `Failed to insert replay ${metadata.id}`,
         cause: error instanceof Error ? error : undefined,
       });
     }
   }
 
   /**
-   * Insert multiple recordings in a single atomic transaction.
+   * Insert multiple replays in a single atomic transaction.
    * Either all succeed or none are inserted.
    */
-  insertBatch(metadata: RecordingMetadata[]): Result<void, RecordingStoreError> {
+  insertBatch(metadata: ReplayMetadata[]): Result<void, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -204,7 +222,7 @@ export class RecordingStore implements IRecordingStore {
     if (!txnResult.ok) {
       return err({
         type: 'transaction_failed',
-        message: `Failed to insert batch of ${metadata.length} recordings`,
+        message: `Failed to insert batch of ${metadata.length} replays`,
         cause: 'cause' in txnResult.error ? txnResult.error.cause : undefined,
       });
     }
@@ -213,10 +231,10 @@ export class RecordingStore implements IRecordingStore {
   }
 
   /**
-   * List all recordings, ordered by startedAt descending.
+   * List all replays, ordered by startedAt descending.
    * O(1) query instead of O(n) file reads.
    */
-  list(): Result<RecordingMetadata[], RecordingStoreError> {
+  list(): Result<ReplayMetadata[], ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -226,22 +244,22 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const results = s.stmtSelectAll.all() as RecordingMetadata[];
+      const results = s.stmtSelectAll.all() as ReplayMetadata[];
       return ok(results);
     } catch (error) {
       this.log.error(`List query failed: ${error}`);
       return err({
         type: 'query_failed',
-        message: 'Failed to list recordings',
+        message: 'Failed to list replays',
         cause: error instanceof Error ? error : undefined,
       });
     }
   }
 
   /**
-   * Find recording by ID.
+   * Find replay by ID.
    */
-  findById(id: string): Result<RecordingMetadata | null, RecordingStoreError> {
+  findById(id: string): Result<ReplayMetadata | null, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -251,22 +269,22 @@ export class RecordingStore implements IRecordingStore {
     }
 
     try {
-      const result = s.stmtSelectById.get(id) as RecordingMetadata | null;
+      const result = s.stmtSelectById.get(id) as ReplayMetadata | null;
       return ok(result);
     } catch (error) {
       this.log.error(`FindById query failed: ${error}`);
       return err({
         type: 'query_failed',
-        message: `Failed to find recording by id: ${id}`,
+        message: `Failed to find replay by id: ${id}`,
         cause: error instanceof Error ? error : undefined,
       });
     }
   }
 
   /**
-   * Delete recording metadata by ID.
+   * Delete replay metadata by ID.
    */
-  delete(id: string): Result<boolean, RecordingStoreError> {
+  delete(id: string): Result<boolean, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -282,20 +300,20 @@ export class RecordingStore implements IRecordingStore {
       this.log.error(`Delete query failed: ${error}`);
       return err({
         type: 'query_failed',
-        message: `Failed to delete recording: ${id}`,
+        message: `Failed to delete replay: ${id}`,
         cause: error instanceof Error ? error : undefined,
       });
     }
   }
 
   /**
-   * Update encoding status and video path for a recording.
+   * Update encoding status and video path for a replay.
    */
   updateEncodingStatus(
     id: string,
-    encodingStatus: RecordingMetadata['encodingStatus'],
+    encodingStatus: ReplayMetadata['encodingStatus'],
     videoPath?: string,
-  ): Result<boolean, RecordingStoreError> {
+  ): Result<boolean, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -315,7 +333,7 @@ export class RecordingStore implements IRecordingStore {
       this.log.error(`UpdateEncodingStatus failed: ${error}`);
       return err({
         type: 'query_failed',
-        message: `Failed to update encoding status for recording ${id}`,
+        message: `Failed to update encoding status for replay ${id}`,
         cause: error instanceof Error ? error : undefined,
       });
     }
@@ -325,7 +343,7 @@ export class RecordingStore implements IRecordingStore {
    * Execute a function within a database transaction.
    * If the function throws, the transaction is rolled back.
    */
-  transaction<T>(fn: () => T): Result<T, RecordingStoreError> {
+  transaction<T>(fn: () => T): Result<T, ReplayStoreError> {
     const s = this.ensureHealthy();
     if (!s) {
       return err({
@@ -375,7 +393,7 @@ export class RecordingStore implements IRecordingStore {
     try {
       this.state?.db.close();
       this.state = null;
-      this.log.info('Recording store closed');
+      this.log.info('Replay store closed');
     } catch (error) {
       this.log.error(`Error closing database: ${error}`);
     }

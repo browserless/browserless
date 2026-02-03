@@ -2,10 +2,10 @@ import {
   BrowserInstance,
   Logger,
   SessionReplay,
-  StopRecordingResult,
+  StopReplayResult,
   getCDPClient,
-  getRecordingScript,
-  getIframeRecordingScript,
+  getReplayScript,
+  getIframeReplayScript,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import type { CDPSession } from 'playwright-core';
@@ -14,10 +14,10 @@ import { ScreencastCapture } from './screencast-capture.js';
 import { VideoEncoder } from '../video/encoder.js';
 
 /**
- * RecordingCoordinator manages rrweb recording across browser sessions.
+ * ReplayCoordinator manages rrweb replay capture across browser sessions.
  *
  * Responsibilities:
- * - Set up CDP protocol listeners for recording
+ * - Set up CDP protocol listeners for replay capture
  * - Inject rrweb script into pages
  * - Collect events from pages periodically
  * - Handle navigation and new tab events
@@ -25,8 +25,8 @@ import { VideoEncoder } from '../video/encoder.js';
  * This class is decoupled from BrowserManager - it receives SessionReplay
  * via constructor and uses it for event storage.
  */
-export class RecordingCoordinator {
-  private log = new Logger('recording-coordinator');
+export class ReplayCoordinator {
+  private log = new Logger('replay-coordinator');
   private screencastCapture = new ScreencastCapture();
   private videoEncoder: VideoEncoder;
 
@@ -37,14 +37,14 @@ export class RecordingCoordinator {
   }
 
   /**
-   * Check if recording is enabled.
+   * Check if replay is enabled.
    */
   isEnabled(): boolean {
     return this.sessionReplay?.isEnabled() ?? false;
   }
 
   /**
-   * Set up RRWeb recording for a page using raw CDP commands.
+   * Set up RRWeb replay capture for a page using raw CDP commands.
    * Works with ALL clients: puppeteer, playwright, raw CDP, pydoll, etc.
    *
    * Key insight from Puppeteer issues:
@@ -53,18 +53,18 @@ export class RecordingCoordinator {
    * @see https://github.com/puppeteer/puppeteer/issues/10094
    * @see https://github.com/puppeteer/puppeteer/issues/12706
    */
-  async setupPageRecording(page: Page, sessionId: string): Promise<void> {
+  async setupPageReplay(page: Page, sessionId: string): Promise<void> {
     if (!this.sessionReplay) return;
 
     // Get raw CDP client - works regardless of how page was created
     const cdp = getCDPClient(page);
     if (!cdp) {
-      this.log.warn(`No CDP client available for page, skipping recording`);
+      this.log.warn(`No CDP client available for page, skipping replay`);
       return;
     }
 
-    // Get the recording script early so it's available in collectEvents closure
-    const script = getRecordingScript(sessionId);
+    // Get the replay script early so it's available in collectEvents closure
+    const script = getReplayScript(sessionId);
 
     const collectEvents = async () => {
       try {
@@ -91,7 +91,7 @@ export class RecordingCoordinator {
             // Inject if we're on a real page AND (recording not set up OR rrweb not actually recording)
             if (status.url && !status.url.startsWith('about:') && !status.isRecording) {
               needsInjection = true;
-              this.log.debug(`Recording not active on ${status.url} (hasRecording=${status.hasRecording}, hasRrweb=${status.hasRrweb}, isRecording=${status.isRecording}), injecting...`);
+              this.log.debug(`Replay not active on ${status.url} (hasRecording=${status.hasRecording}, hasRrweb=${status.hasRrweb}, isRecording=${status.isRecording}), injecting...`);
             }
           } catch {
             // ignore
@@ -246,14 +246,14 @@ export class RecordingCoordinator {
         await collectEvents();
       });
 
-      this.log.debug(`Recording enabled for session ${sessionId}`);
+      this.log.debug(`Replay enabled for session ${sessionId}`);
     } catch (err) {
-      this.log.warn(`Failed to set up replay recording: ${err}`);
+      this.log.warn(`Failed to set up replay capture: ${err}`);
     }
   }
 
   /**
-   * Set up recording for ALL tabs using RAW CDP (no puppeteer).
+   * Set up replay capture for ALL tabs using RAW CDP (no puppeteer).
    *
    * CRITICAL: We must NOT use puppeteer.connect() because it creates a competing
    * CDP connection that blocks external clients (like pydoll) from sending commands.
@@ -275,9 +275,9 @@ export class RecordingCoordinator {
    *
    * Cross-origin iframes (e.g., Cloudflare Turnstile) get a lightweight rrweb injection
    * without console/network/turnstile hooks. The child rrweb auto-detects cross-origin
-   * and sends events via PostMessage to the parent, which merges them into the recording.
+   * and sends events via PostMessage to the parent, which merges them into the replay.
    */
-  async setupRecordingForAllTabs(
+  async setupReplayForAllTabs(
     browser: BrowserInstance,
     sessionId: string,
     options?: { video?: boolean },
@@ -288,8 +288,8 @@ export class RecordingCoordinator {
     if (!wsEndpoint) return;
 
     const WebSocket = (await import('ws')).default;
-    const script = getRecordingScript(sessionId);
-    const iframeScript = getIframeRecordingScript();
+    const script = getReplayScript(sessionId);
+    const iframeScript = getIframeReplayScript();
 
     try {
       // Connect raw WebSocket to browser CDP endpoint
@@ -300,7 +300,7 @@ export class RecordingCoordinator {
       // emits 'error' (ECONNRESET). Without an immediate handler, this becomes
       // an uncaughtException that crashes the process (index.ts:12 calls process.exit(1)).
       ws.on('error', (err: Error) => {
-        this.log.debug(`Recording WebSocket error: ${err.message}`);
+        this.log.debug(`Replay WebSocket error: ${err.message}`);
       });
 
       let cmdId = 1;
@@ -342,7 +342,7 @@ export class RecordingCoordinator {
        * Used as a fallback/safety net — primary injection happens in
        * attachedToTarget via Page.addScriptToEvaluateOnNewDocument.
        */
-      const injectRecording = async (targetId: string) => {
+      const injectReplay = async (targetId: string) => {
         if (injectedTargets.has(targetId)) return;
 
         const cdpSessionId = targetSessions.get(targetId);
@@ -360,7 +360,7 @@ export class RecordingCoordinator {
             returnByValue: true,
           }, cdpSessionId);
 
-          this.log.info(`Recording re-injected for target ${targetId} (session ${sessionId})`);
+          this.log.info(`Replay re-injected for target ${targetId} (session ${sessionId})`);
         } catch (e) {
           injectedTargets.delete(targetId);
           this.log.debug(`Re-injection failed for target ${targetId}: ${e instanceof Error ? e.message : String(e)}`);
@@ -432,7 +432,7 @@ export class RecordingCoordinator {
                   runImmediately: true,
                 }, cdpSessionId);
                 injectedTargets.add(targetInfo.targetId);
-                this.log.info(`Recording pre-injected for target ${targetInfo.targetId} (session ${sessionId})`);
+                this.log.info(`Replay pre-injected for target ${targetInfo.targetId} (session ${sessionId})`);
 
                 // Propagate auto-attach to this page's child targets (iframes).
                 // Browser-level setAutoAttach only catches new pages/tabs.
@@ -542,7 +542,7 @@ export class RecordingCoordinator {
               }
 
               // Small delay to let the new document initialize before fallback injection
-              setTimeout(() => injectRecording(targetInfo.targetId), 200);
+              setTimeout(() => injectReplay(targetInfo.targetId), 200);
             }
           }
         } catch (e) {
@@ -573,15 +573,15 @@ export class RecordingCoordinator {
 
           // Initialize screencast capture (parallel to rrweb) — only when video=true
           if (options?.video) {
-            const recordingsDir = this.sessionReplay?.getRecordingsDir();
-            if (recordingsDir) {
-              await this.screencastCapture.initSession(sessionId, sendCommand, recordingsDir);
+            const replaysDir = this.sessionReplay?.getReplaysDir();
+            if (replaysDir) {
+              await this.screencastCapture.initSession(sessionId, sendCommand, replaysDir);
             }
           }
 
-          this.log.debug(`Recording auto-attach enabled for session ${sessionId}`);
+          this.log.debug(`Replay auto-attach enabled for session ${sessionId}`);
         } catch (e) {
-          this.log.warn(`Failed to set up recording: ${e}`);
+          this.log.warn(`Failed to set up replay: ${e}`);
         }
       });
 
@@ -614,7 +614,7 @@ export class RecordingCoordinator {
 
         try {
           ws.close();
-          this.log.debug(`Closed recording WebSocket for session ${sessionId}`);
+          this.log.debug(`Closed replay WebSocket for session ${sessionId}`);
         } catch {
           // Ignore
         }
@@ -628,40 +628,40 @@ export class RecordingCoordinator {
       });
 
     } catch (e) {
-      this.log.warn(`Failed to setup recording: ${e instanceof Error ? e.message : String(e)}`);
+      this.log.warn(`Failed to setup replay: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
   /**
-   * Start recording for a session.
+   * Start replay capture for a session.
    */
-  startRecording(sessionId: string, trackingId?: string): void {
-    this.sessionReplay?.startRecording(sessionId, trackingId);
-    this.log.debug(`Started replay recording for session ${sessionId}`);
+  startReplay(sessionId: string, trackingId?: string): void {
+    this.sessionReplay?.startReplay(sessionId, trackingId);
+    this.log.debug(`Started replay capture for session ${sessionId}`);
   }
 
   /**
-   * Stop recording for a session.
+   * Stop replay capture for a session.
    * Returns both filepath and metadata for CDP event injection.
    *
    * Stops both rrweb and screencast capture. If screencast captured frames,
    * queues background ffmpeg encoding (returns immediately).
    */
-  async stopRecording(
+  async stopReplay(
     sessionId: string,
     metadata?: {
       browserType?: string;
       routePath?: string;
       trackingId?: string;
     }
-  ): Promise<StopRecordingResult | null> {
+  ): Promise<StopReplayResult | null> {
     if (!this.sessionReplay) return null;
 
     // Stop screencast capture and get frame count
     const frameCount = await this.screencastCapture.stopCapture(sessionId);
 
-    // Stop rrweb recording (includes frame count in metadata)
-    const result = await this.sessionReplay.stopRecording(sessionId, {
+    // Stop rrweb replay capture (includes frame count in metadata)
+    const result = await this.sessionReplay.stopReplay(sessionId, {
       ...metadata,
       frameCount,
     });

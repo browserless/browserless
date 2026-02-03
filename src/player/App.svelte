@@ -12,16 +12,16 @@
     markerItems,
     filters,
   } from './stores/player';
-  import type { Recording, ReplayEvent, RecordingMetadata } from './types';
+  import type { Replay, ReplayEvent, ReplayMetadata } from './types';
 
-  export let recording: Recording;
+  export let replay: Replay;
 
   let player: Player;
 
-  // Initialize stores with recording data
-  $: if (recording) {
-    $events = recording.events;
-    $metadata = recording.metadata;
+  // Initialize stores with replay data
+  $: if (replay) {
+    $events = replay.events;
+    $metadata = replay.metadata;
   }
 
   $: startTime = $metadata?.startedAt || 0;
@@ -31,7 +31,7 @@
 
   // Extract viewport dimensions from rrweb meta event (type 4)
   // This ensures the player matches the recorded viewport size
-  function getViewportFromRecording(events: ReplayEvent[]): { width: number; height: number } {
+  function getViewportFromReplay(events: ReplayEvent[]): { width: number; height: number } {
     const metaEvent = events.find((e) => e.type === 4);
     if (metaEvent && typeof metaEvent.data === 'object' && metaEvent.data !== null) {
       const data = metaEvent.data as { width?: number; height?: number };
@@ -53,7 +53,7 @@
     return { width: 1024, height: 576 };
   }
 
-  $: viewport = recording ? getViewportFromRecording(recording.events) : { width: 1024, height: 576 };
+  $: viewport = replay ? getViewportFromReplay(replay.events) : { width: 1024, height: 576 };
 
   function handleSeek(event: CustomEvent<{ timestamp: number }>) {
     if (!player || !$metadata) return;
@@ -274,11 +274,11 @@
 <div class="app-container">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <a href="/recordings" class="back-link">
+      <a href="/replays" class="back-link">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M19 12H5M12 19l-7-7 7-7" />
         </svg>
-        Recordings
+        Replays
       </a>
       <h2>{displayId}</h2>
       <div class="metadata-row">
@@ -313,11 +313,11 @@
   </aside>
 
   <main class="main-content">
-    {#if recording && recording.events.length > 0}
+    {#if replay && replay.events.length > 0}
       <div class="player-wrapper">
         <Player
           bind:this={player}
-          events={recording.events}
+          events={replay.events}
           width={viewport.width}
           height={viewport.height}
           autoPlay={queryParams.autoPlay}
