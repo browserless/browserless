@@ -66,7 +66,7 @@
 
   let customEvents: CustomEvent[];
   $: customEvents = (() => {
-    if (!$filters.markers) return [];
+    if (!$filters.markers && !$filters.cloudflare) return [];
 
     const { context } = replayer.service.state;
     const totalEvents = context.events.length;
@@ -76,6 +76,14 @@
 
     context.events.forEach((event) => {
       if (event.type === EventType.Custom) {
+        const isTurnstile = event.data.tag.includes('turnstile');
+        // Skip network events (shown in sidebar, not useful as playbar markers)
+        if (event.data.tag.startsWith('network.')) return;
+        // Cloudflare tab: only turnstile markers
+        if ($filters.cloudflare && !isTurnstile) return;
+        // All other tabs: exclude turnstile markers
+        if (!$filters.cloudflare && isTurnstile) return;
+
         const customEvent = {
           name: event.data.tag,
           background: tags[event.data.tag] || 'rgb(249, 115, 22)',
@@ -115,6 +123,58 @@
         background: CONSOLE_LEVEL_COLORS[item.level] || '#9ba0ab',
         position: `${position(start, end, item.timestamp)}%`,
       }));
+  })();
+
+  const NETWORK_STATUS_COLORS: Record<string, string> = {
+    '2xx': '#22c55e',
+    '3xx': '#3b82f6',
+    '4xx': '#f59e0b',
+    '5xx': '#ef4444',
+    error: '#ef4444',
+  };
+
+  function networkStatusColor(status: number | undefined, isError: boolean): string {
+    if (isError) return NETWORK_STATUS_COLORS['error'];
+    if (!status) return NETWORK_STATUS_COLORS['2xx'];
+    if (status >= 500) return NETWORK_STATUS_COLORS['5xx'];
+    if (status >= 400) return NETWORK_STATUS_COLORS['4xx'];
+    if (status >= 300) return NETWORK_STATUS_COLORS['3xx'];
+    return NETWORK_STATUS_COLORS['2xx'];
+  }
+
+  let networkMarkers: CustomEvent[];
+  $: networkMarkers = (() => {
+    if (!$filters.network) return [];
+
+    const { context } = replayer.service.state;
+    const totalEvents = context.events.length;
+    const start = context.events[0].timestamp;
+    const end = context.events[totalEvents - 1].timestamp;
+    const markers: CustomEvent[] = [];
+
+    context.events.forEach((event) => {
+      if (event.type !== EventType.Custom) return;
+      const tag = event.data.tag as string;
+      if (tag !== 'network.response' && tag !== 'network.error') return;
+
+      const payload = event.data.payload as Record<string, unknown> | undefined;
+      if (!payload) return;
+
+      const method = (payload.method as string) || '?';
+      const url = (payload.url as string) || '';
+      const shortUrl = url.replace(/^https?:\/\/[^/]+/, '');
+      const isError = tag === 'network.error';
+      const status = isError ? undefined : (payload.status as number | undefined);
+      const statusLabel = isError ? (payload.error as string) || 'error' : String(status ?? '?');
+
+      markers.push({
+        name: `${method} ${shortUrl} → ${statusLabel}`,
+        background: networkStatusColor(status, isError),
+        position: `${position(start, end, event.timestamp)}%`,
+      });
+    });
+
+    return markers;
   })();
 
   let inactivePeriods: {
@@ -523,6 +583,12 @@
           <div
             title={event.name}
             style="width: 4px; height: 100%; position: absolute; background: {event.background}; left: {event.position}; border-radius: 2px;"
+          ></div>
+        {/each}
+        {#each networkMarkers as event}
+          <div
+            title={event.name}
+            style="width: 2px; height: 50%; position: absolute; top: 50%; background: {event.background}; left: {event.position}; opacity: 0.7; border-radius: 1px;"
           ></div>
         {/each}
         <div class="rr-progress__handler" style="left: {percentage}"></div>

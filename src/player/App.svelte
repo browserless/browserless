@@ -10,6 +10,7 @@
     networkItems,
     consoleItems,
     markerItems,
+    cloudflareItems,
     filters,
   } from './stores/player';
   import type { Replay, ReplayEvent, ReplayMetadata } from './types';
@@ -77,18 +78,21 @@
   $: queryParams = getQueryParams();
 
   // Tab state for inspector filtering
-  let activeTab: 'all' | 'network' | 'console' | 'markers' = 'all';
+  let activeTab: 'all' | 'network' | 'console' | 'markers' | 'cloudflare' = 'all';
 
   function setTab(tab: typeof activeTab) {
     activeTab = tab;
     if (tab === 'all') {
-      $filters = { ...$filters, network: true, console: true, markers: true };
+      $filters = { ...$filters, network: true, console: true, markers: true, cloudflare: false };
+    } else if (tab === 'cloudflare') {
+      $filters = { ...$filters, network: false, console: false, markers: false, cloudflare: true };
     } else {
       $filters = {
         ...$filters,
         network: tab === 'network',
         console: tab === 'console',
         markers: tab === 'markers',
+        cloudflare: false,
       };
     }
   }
@@ -305,6 +309,10 @@
       <button class="summary-tab" class:active={activeTab === 'markers'} on:click={() => setTab('markers')}>
         Markers
         <span class="tab-badge">{$markerItems.length}</span>
+      </button>
+      <button class="summary-tab" class:active={activeTab === 'cloudflare'} on:click={() => setTab('cloudflare')}>
+        Cloudflare
+        <span class="tab-badge">{$cloudflareItems.length}</span>
       </button>
     </div>
 

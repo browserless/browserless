@@ -16,6 +16,7 @@
 
   export let item: InspectorItem;
   export let index: number;
+  export let cloudflareCategory: string | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -251,6 +252,40 @@
     color: #f59e0b;
   }
 
+  .source-badge {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: rgba(20, 184, 166, 0.2);
+    color: #14b8a6;
+    flex-shrink: 0;
+  }
+
+  .category-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .category-badge.challenge {
+    background: rgba(249, 115, 22, 0.2);
+    color: #f97316;
+  }
+
+  .category-badge.pat {
+    background: rgba(139, 92, 246, 0.2);
+    color: #8b5cf6;
+  }
+
+  .category-badge.blob {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
   .expand-btn {
     width: 20px;
     height: 20px;
@@ -292,6 +327,11 @@
     <span class="item-icon network">{@html networkIcon}</span>
     <div class="item-content">
       <span class="method-tag {method}">{method}</span>
+      {#if cloudflareCategory}
+        <span class="category-badge {cloudflareCategory}">{cloudflareCategory}</span>
+      {:else if item.request?.type === 'iframe' || item.response?.type === 'iframe'}
+        <span class="source-badge">iframe</span>
+      {/if}
       <span class="item-label" title={url}>{truncateUrl(url)}</span>
       {#if error}
         <span class="status-badge danger">ERR</span>
@@ -305,6 +345,9 @@
     <span class="item-icon console">{@html consoleIcon}</span>
     <div class="item-content">
       <span class="console-level-badge {level}">{level}</span>
+      {#if item.source === 'iframe'}
+        <span class="source-badge">iframe</span>
+      {/if}
       <span class="item-label">{message}</span>
     </div>
   {:else if item.type === 'marker'}

@@ -28,6 +28,7 @@ export const filters: Writable<InspectorFilters> = writable({
   network: true,
   console: true,
   markers: true,
+  cloudflare: false,
   levels: {
     log: true,
     info: true,
@@ -68,7 +69,7 @@ interface NetworkPayloadBase {
   id: string;
   url: string;
   method: string;
-  type: 'fetch' | 'xhr';
+  type: string;
 }
 
 function isNetworkPayloadBase(payload: unknown): payload is NetworkPayloadBase {
@@ -77,7 +78,7 @@ function isNetworkPayloadBase(payload: unknown): payload is NetworkPayloadBase {
     isString(payload.id) &&
     isString(payload.url) &&
     isString(payload.method) &&
-    (payload.type === 'fetch' || payload.type === 'xhr')
+    isString(payload.type)
   );
 }
 
@@ -178,7 +179,9 @@ export const networkItems: Readable<NetworkItem[]> = derived(events, ($events) =
     }
   }
 
-  return Array.from(requestMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+  return Array.from(requestMap.values())
+    .filter(item => item.request?.type !== 'iframe' && item.response?.type !== 'iframe')
+    .sort((a, b) => a.timestamp - b.timestamp);
 });
 
 // Parse console events into ConsoleItem objects
@@ -195,6 +198,10 @@ export const consoleItems: Readable<ConsoleItem[]> = derived(events, ($events) =
     const level = isString(inner.level) ? inner.level : 'log';
     const message = stringifyPayload(inner.payload).slice(0, 500);
     const trace = extractStringArray(inner.trace);
+    const source = isString((inner as Record<string, unknown>).source) ? (inner as Record<string, unknown>).source as string : undefined;
+
+    // Skip iframe-sourced console messages (shown in Cloudflare tab instead)
+    if (source === 'iframe') continue;
 
     items.push({
       timestamp: e.timestamp,
@@ -202,6 +209,7 @@ export const consoleItems: Readable<ConsoleItem[]> = derived(events, ($events) =
       level,
       message,
       trace,
+      source,
     });
   }
 
@@ -218,6 +226,8 @@ export const markerItems: Readable<MarkerItem[]> = derived(events, ($events) => 
 
     if (!isCustomEventData(e.data)) continue;
     if (e.data.tag.startsWith('network.')) continue;
+    // Skip turnstile markers (shown in Cloudflare tab instead)
+    if (e.data.tag.includes('turnstile')) continue;
 
     const payload = isRecord(e.data.payload) ? e.data.payload : {};
 
@@ -232,10 +242,149 @@ export const markerItems: Readable<MarkerItem[]> = derived(events, ($events) => 
   return items;
 });
 
+// Cloudflare-specific items: turnstile markers, iframe network, iframe console
+// Parsed from raw events since normal stores now filter these out
+export const cloudflareItems: Readable<InspectorItem[]> = derived(events, ($events) => {
+  const items: InspectorItem[] = [];
+  const requestMap = new Map<string, NetworkItem>();
+
+  for (const e of $events) {
+    // Turnstile markers (Custom events with 'turnstile' in tag)
+    if (e.type === EventType.Custom && isCustomEventData(e.data)) {
+      if (e.data.tag.includes('turnstile') && !e.data.tag.startsWith('network.')) {
+        const payload = isRecord(e.data.payload) ? e.data.payload : {};
+        items.push({
+          timestamp: e.timestamp,
+          type: 'marker',
+          tag: e.data.tag,
+          payload,
+        });
+      }
+
+      // Iframe network events
+      if (e.data.tag.startsWith('network.')) {
+        const payload = e.data.payload;
+        if (!isRecord(payload) || !isString(payload.id)) continue;
+        const id = payload.id;
+
+        if (!requestMap.has(id)) {
+          requestMap.set(id, { id, timestamp: e.timestamp, type: 'network' });
+        }
+        const entry = requestMap.get(id);
+        if (!entry) continue;
+
+        if (e.data.tag === 'network.request' && isNetworkRequestPayload(payload)) {
+          entry.request = payload;
+        } else if (e.data.tag === 'network.response' && isNetworkResponsePayload(payload)) {
+          entry.response = payload;
+        } else if (e.data.tag === 'network.error' && isNetworkErrorPayload(payload)) {
+          entry.error = payload;
+        }
+      }
+    }
+
+    // Iframe console events
+    if (e.type === EventType.Plugin && isConsolePluginData(e.data)) {
+      const inner = e.data.payload;
+      const source = isString((inner as Record<string, unknown>).source) ? (inner as Record<string, unknown>).source as string : undefined;
+      if (source === 'iframe') {
+        const level = isString(inner.level) ? inner.level : 'log';
+        const message = stringifyPayload(inner.payload).slice(0, 500);
+        const trace = extractStringArray(inner.trace);
+        items.push({ timestamp: e.timestamp, type: 'console', level, message, trace, source });
+      }
+    }
+  }
+
+  // Add only iframe network items
+  for (const item of requestMap.values()) {
+    if (item.request?.type === 'iframe' || item.response?.type === 'iframe') {
+      items.push(item);
+    }
+  }
+
+  return items.sort((a, b) => a.timestamp - b.timestamp);
+});
+
+// Cloudflare solve summary derived from cloudflare markers
+export interface CloudflareSummary {
+  challengeType: string | null;
+  outcome: string | null;
+  durationMs: number | null;
+  detectedAt: number | null;
+  solvedAt: number | null;
+}
+
+export const cloudflareSummary: Readable<CloudflareSummary | null> = derived(
+  cloudflareItems,
+  ($cloudflareItems) => {
+    const markers = $cloudflareItems.filter(
+      (item): item is MarkerItem => item.type === 'marker'
+    );
+
+    const detected = markers.find((m) => m.tag === 'turnstile.detected');
+    if (!detected) return null;
+
+    const terminalTags = [
+      'turnstile.solved',
+      'turnstile.auto_solved',
+      'turnstile.pre_solved',
+      'turnstile.failed',
+    ];
+    const terminal = markers.find((m) => terminalTags.includes(m.tag));
+
+    const challengeType = isString(detected.payload.context)
+      ? detected.payload.context
+      : null;
+
+    let outcome: string | null = null;
+    if (terminal) {
+      outcome = terminal.tag.replace('turnstile.', '');
+    }
+
+    const durationMs =
+      detected && terminal ? terminal.timestamp - detected.timestamp : null;
+
+    return {
+      challengeType,
+      outcome,
+      durationMs,
+      detectedAt: detected.timestamp,
+      solvedAt: terminal?.timestamp ?? null,
+    };
+  }
+);
+
+// Console noise classification helper
+export function isConsoleNoise(item: ConsoleItem): boolean {
+  const msg = item.message.toLowerCase();
+  return (
+    msg.includes('%c') ||
+    msg.includes('font-size:0') ||
+    msg.includes('color:transparent') ||
+    ['startgroupcollapsed', 'endgroup', 'count'].includes(item.level)
+  );
+}
+
 // Combined and filtered items for the inspector list
 export const filteredItems: Readable<InspectorItem[]> = derived(
-  [networkItems, consoleItems, markerItems, filters, searchQuery],
-  ([$networkItems, $consoleItems, $markerItems, $filters, $searchQuery]) => {
+  [networkItems, consoleItems, markerItems, cloudflareItems, filters, searchQuery],
+  ([$networkItems, $consoleItems, $markerItems, $cloudflareItems, $filters, $searchQuery]) => {
+    // Cloudflare filter returns its own curated list
+    if ($filters.cloudflare) {
+      if (!$searchQuery) return $cloudflareItems;
+      const query = $searchQuery.toLowerCase();
+      return $cloudflareItems.filter((item) => {
+        if (item.type === 'network') {
+          const url = item.request?.url || item.response?.url || '';
+          return url.toLowerCase().includes(query);
+        }
+        if (item.type === 'console') return item.message.toLowerCase().includes(query);
+        if (item.type === 'marker') return item.tag.toLowerCase().includes(query);
+        return false;
+      });
+    }
+
     const items: InspectorItem[] = [];
     const query = $searchQuery.toLowerCase();
 

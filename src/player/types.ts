@@ -28,7 +28,7 @@ export interface NetworkRequestPayload {
   id: string;
   url: string;
   method: string;
-  type: 'fetch' | 'xhr';
+  type: string;
   timestamp: number;
   requestHeaders?: Record<string, string>;
   requestBody?: string;
@@ -41,7 +41,7 @@ export interface NetworkResponsePayload {
   status: number;
   statusText: string;
   duration: number;
-  type: 'fetch' | 'xhr';
+  type: string;
   responseHeaders?: Record<string, string>;
   responseBody?: string;
 }
@@ -52,7 +52,7 @@ export interface NetworkErrorPayload {
   method: string;
   error: string;
   duration: number;
-  type: 'fetch' | 'xhr';
+  type: string;
 }
 
 export interface NetworkItem {
@@ -77,6 +77,7 @@ export interface ConsoleItem {
   message: string;
   trace: string[];
   count?: number;
+  source?: string;
 }
 
 // Marker event types
@@ -99,6 +100,7 @@ export interface InspectorFilters {
   network: boolean;
   console: boolean;
   markers: boolean;
+  cloudflare: boolean;
   levels: {
     log: boolean;
     info: boolean;

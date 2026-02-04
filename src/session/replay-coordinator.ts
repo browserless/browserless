@@ -337,6 +337,9 @@ export class ReplayCoordinator {
       // Map to track our CDP session IDs for each target
       const targetSessions = new Map<string, string>(); // targetId -> cdpSessionId
 
+      // Track iframe CDP sessions for network/console capture
+      const iframeSessions = new Map<string, string>(); // iframe cdpSessionId -> page cdpSessionId
+
       /**
        * Re-inject rrweb into a target via Runtime.evaluate.
        * Used as a fallback/safety net — primary injection happens in
@@ -496,6 +499,22 @@ export class ReplayCoordinator {
                   // Iframe may have navigated or been destroyed
                 }
               }, 50);
+
+              // Enable CDP-level network + console capture for iframe.
+              // JS-level hooks (fetch/XHR/console patching) are intentionally omitted from
+              // the iframe script to avoid conflicts with Turnstile. CDP-level capture is
+              // invisible to page JS and achieves the same result.
+              try {
+                await sendCommand('Network.enable', {}, cdpSessionId);
+                await sendCommand('Runtime.enable', {}, cdpSessionId);
+                // Map iframe session -> parent page session for event injection
+                const pageEntries = [...targetSessions.values()];
+                if (pageEntries.length > 0) {
+                  iframeSessions.set(cdpSessionId, pageEntries[pageEntries.length - 1]);
+                }
+              } catch {
+                // Non-critical — iframe recording still works via rrweb PostMessage
+              }
             }
           }
 
@@ -504,10 +523,11 @@ export class ReplayCoordinator {
             const { targetId } = msg.params;
             trackedTargets.delete(targetId);
             injectedTargets.delete(targetId);
-            // Clean up screencast target
+            // Clean up screencast target + iframe session mapping
             const cdpSid = targetSessions.get(targetId);
             if (cdpSid) {
               this.screencastCapture.handleTargetDestroyed(sessionId, cdpSid);
+              iframeSessions.delete(cdpSid);
             }
           }
 
@@ -518,6 +538,149 @@ export class ReplayCoordinator {
               msg.sessionId,
               msg.params,
             ).catch(() => {});
+          }
+
+          // Convert iframe CDP network events to rrweb recording events.
+          // These appear in the player's Network tab alongside main-frame requests.
+          if (msg.sessionId && iframeSessions.has(msg.sessionId)) {
+            const pageSessionId = iframeSessions.get(msg.sessionId)!;
+
+            if (msg.method === 'Network.requestWillBeSent') {
+              const req = msg.params?.request;
+              const url: string = req?.url || '';
+              const requestId: string = msg.params?.requestId || '';
+              const method: string = req?.method || 'GET';
+              sendCommand('Runtime.evaluate', {
+                expression: `(function(){
+                  var r = window.__browserlessRecording;
+                  if (!r || !r.events) return;
+                  r.events.push({
+                    type: 5,
+                    timestamp: Date.now(),
+                    data: {
+                      tag: 'network.request',
+                      payload: {
+                        id: 'iframe-' + ${JSON.stringify(requestId)},
+                        url: ${JSON.stringify(url)},
+                        method: ${JSON.stringify(method)},
+                        type: 'iframe',
+                        timestamp: Date.now(),
+                        headers: null,
+                        body: null
+                      }
+                    }
+                  });
+                })()`,
+              }, pageSessionId).catch(() => {});
+
+              // Update Turnstile activity signal for pydoll auto-solve detection
+              if (url.includes('challenges.cloudflare.com') || url.includes('cdn-cgi/challenge-platform')) {
+                sendCommand('Runtime.evaluate', {
+                  expression: `(function(){
+                    var a = window.__turnstileCFActivity || (window.__turnstileCFActivity = {count:0,last:0});
+                    a.count++;
+                    a.last = Date.now();
+                  })()`,
+                }, pageSessionId).catch(() => {});
+              }
+            }
+
+            if (msg.method === 'Network.responseReceived') {
+              const resp = msg.params?.response;
+              const requestId: string = msg.params?.requestId || '';
+              const respUrl: string = resp?.url || '';
+              const statusText: string = resp?.statusText || '';
+              const mimeType: string = resp?.mimeType || '';
+              sendCommand('Runtime.evaluate', {
+                expression: `(function(){
+                  var r = window.__browserlessRecording;
+                  if (!r || !r.events) return;
+                  r.events.push({
+                    type: 5,
+                    timestamp: Date.now(),
+                    data: {
+                      tag: 'network.response',
+                      payload: {
+                        id: 'iframe-' + ${JSON.stringify(requestId)},
+                        url: ${JSON.stringify(respUrl)},
+                        method: '',
+                        status: ${resp?.status || 0},
+                        statusText: ${JSON.stringify(statusText)},
+                        duration: 0,
+                        type: 'iframe',
+                        headers: null,
+                        body: null,
+                        contentType: ${JSON.stringify(mimeType || null)}
+                      }
+                    }
+                  });
+                })()`,
+              }, pageSessionId).catch(() => {});
+
+              // Track PAT outcome for pydoll activity signal
+              if (respUrl.includes('/pat/')) {
+                const patStatus = resp?.status || 0;
+                const patSuccess = patStatus >= 200 && patStatus < 300;
+                sendCommand('Runtime.evaluate', {
+                  expression: `(function(){
+                    var a = window.__turnstileCFActivity || (window.__turnstileCFActivity = {count:0,last:0});
+                    if (!a.pat) a.pat = {attempts:0, successes:0};
+                    a.pat.attempts++;
+                    ${patSuccess ? 'a.pat.successes++;' : ''}
+                  })()`,
+                }, pageSessionId).catch(() => {});
+              }
+            }
+          }
+
+          // Convert iframe CDP console events to rrweb type 6 plugin events.
+          // These appear in the player's Console tab alongside main-frame logs.
+          if (msg.method === 'Runtime.consoleAPICalled' && msg.sessionId && iframeSessions.has(msg.sessionId)) {
+            const pageSessionId = iframeSessions.get(msg.sessionId)!;
+            const level: string = msg.params?.type || 'log';
+            // Extract console arguments as strings
+            const args: string[] = (msg.params?.args || [])
+              .map((a: { value?: string; description?: string; type?: string }) =>
+                a.value ?? a.description ?? String(a.type))
+              .slice(0, 5);
+            const trace: string[] = (msg.params?.stackTrace?.callFrames || [])
+              .slice(0, 3)
+              .map((f: { functionName?: string; url?: string; lineNumber?: number }) =>
+                `${f.functionName || '(anonymous)'}@${f.url || ''}:${f.lineNumber ?? 0}`);
+
+            sendCommand('Runtime.evaluate', {
+              expression: `(function(){
+                var r = window.__browserlessRecording;
+                if (!r || !r.events) return;
+                r.events.push({
+                  type: 6,
+                  timestamp: Date.now(),
+                  data: {
+                    plugin: 'rrweb/console@1',
+                    payload: {
+                      level: ${JSON.stringify(level)},
+                      payload: ${JSON.stringify(args)},
+                      trace: ${JSON.stringify(trace)},
+                      source: 'iframe'
+                    }
+                  }
+                });
+              })()`,
+            }, pageSessionId).catch(() => {});
+
+            // Categorize console messages for pydoll activity signal
+            const firstArg: string = args[0] || '';
+            const isAntiDebug = firstArg.includes('%c') || level === 'startGroupCollapsed' || level === 'endGroup' || level === 'count';
+            const isPAT = firstArg.toLowerCase().includes('private access token');
+            sendCommand('Runtime.evaluate', {
+              expression: `(function(){
+                var a = window.__turnstileCFActivity || (window.__turnstileCFActivity = {count:0,last:0});
+                if (!a.console) a.console = {total:0, antiDebug:0, pat:0};
+                a.console.total++;
+                ${isAntiDebug ? 'a.console.antiDebug++;' : ''}
+                ${isPAT ? 'a.console.pat++;' : ''}
+              })()`,
+            }, pageSessionId).catch(() => {});
           }
 
           // Handle target info changed (URL navigation)
