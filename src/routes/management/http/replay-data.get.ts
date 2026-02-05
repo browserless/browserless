@@ -5,6 +5,7 @@ import {
   HTTPRoute,
   Methods,
   NotFound,
+  Replay,
   Request,
   SystemQueryParameters,
   contentTypes,
@@ -16,21 +17,18 @@ export interface QuerySchema extends SystemQueryParameters {
   token?: string;
 }
 
-export interface ResponseSchema {
-  deleted: boolean;
-  id: string;
-}
+export type ResponseSchema = Replay;
 
-export default class ReplayDeleteRoute extends HTTPRoute {
-  name = BrowserlessRoutes.ReplayDeleteRoute;
+export default class ReplayDataGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.ReplayDataGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
   concurrency = false;
-  contentTypes = [contentTypes.json];
-  description = `Delete a session replay by ID.`;
-  method = Methods.delete;
-  path = HTTPManagementRoutes.replay;
+  contentTypes = [contentTypes.json, contentTypes.html];
+  description = `Get a specific session replay by ID.`;
+  method = Methods.get;
+  path = HTTPManagementRoutes.replayData;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -47,11 +45,11 @@ export default class ReplayDeleteRoute extends HTTPRoute {
       throw new NotFound('Replay ID is required');
     }
 
-    const deleted = await replay.deleteReplay(id);
-    if (!deleted) {
+    const result = await replay.getReplay(id);
+    if (!result) {
       throw new NotFound(`Replay "${id}" not found`);
     }
 
-    return jsonResponse(res, 200, { deleted: true, id });
+    return jsonResponse(res, 200, result);
   }
 }

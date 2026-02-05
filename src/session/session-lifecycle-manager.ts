@@ -3,7 +3,10 @@ import {
   BrowserlessSession,
   Logger,
   ReplayCompleteParams,
+  REPLAY_ACK_WAIT_MS,
   exists,
+  id,
+  isReplayCapable,
 } from '@browserless.io/browserless';
 import { deleteAsync } from 'del';
 
@@ -23,6 +26,13 @@ import { SessionRegistry } from './session-registry.js';
 export class SessionLifecycleManager {
   private timers: Map<string, NodeJS.Timeout> = new Map();
   private log = new Logger('session-lifecycle');
+  private replayAckWaiters: Map<
+    string,
+    { resolve: (acked: boolean) => void; timer: NodeJS.Timeout }
+  > = new Map();
+  private replayAcked: Set<string> = new Set();
+  private replayAckWaitMs = REPLAY_ACK_WAIT_MS;
+  private baseUrl = process.env.BROWSERLESS_BASE_URL ?? '';
 
   constructor(
     private registry: SessionRegistry,
@@ -41,6 +51,35 @@ export class SessionLifecycleManager {
         );
       });
     }
+  }
+
+  /**
+   * Handle replay ACKs from the client.
+   */
+  public handleReplayAck(ackId: string): void {
+    const waiter = this.replayAckWaiters.get(ackId);
+    if (waiter) {
+      clearTimeout(waiter.timer);
+      this.replayAckWaiters.delete(ackId);
+      waiter.resolve(true);
+      return;
+    }
+    this.replayAcked.add(ackId);
+  }
+
+  private waitForReplayAck(ackId: string): Promise<boolean> {
+    if (this.replayAcked.has(ackId)) {
+      this.replayAcked.delete(ackId);
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.replayAckWaiters.delete(ackId);
+        resolve(false);
+      }, this.replayAckWaitMs);
+      this.replayAckWaiters.set(ackId, { resolve, timer });
+    });
   }
 
   /**
@@ -108,26 +147,40 @@ export class SessionLifecycleManager {
           trackingId: session.trackingId,
         });
 
-        if (result && session.trackingId) {
+        if (result) {
+          const ackId = id();
           replayMetadata = {
+            ackId,
             id: result.metadata.id,
-            trackingId: session.trackingId,
             duration: result.metadata.duration,
             eventCount: result.metadata.eventCount,
             frameCount: result.metadata.frameCount,
             encodingStatus: result.metadata.encodingStatus,
-            playerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/player`,
+            replayUrl: `${this.baseUrl}/replay/${result.metadata.id}`,
+            ...(session.trackingId ? { trackingId: session.trackingId } : {}),
             ...(result.metadata.frameCount > 0 && {
-              videoPlayerUrl: `https://browserless.catchseo.com/replays/${result.metadata.id}/video/player`,
+              videoUrl: `${this.baseUrl}/video/${result.metadata.id}`,
             }),
           };
 
           // CDP injection as secondary delivery path (backwards-compatible)
-          if ('sendReplayComplete' in browser && typeof browser.sendReplayComplete === 'function') {
+          if (isReplayCapable(browser)) {
             try {
-              await (browser as { sendReplayComplete: (m: ReplayCompleteParams) => Promise<void> })
-                .sendReplayComplete(replayMetadata);
-              this.log.info(`Injected replay complete event for ${session.id}`);
+              const sent = await browser.sendReplayComplete(replayMetadata);
+              if (sent) {
+                this.log.info(`Injected replay complete event for ${session.id}`);
+              } else {
+                this.log.warn(`Replay complete not sent for ${session.id} (no proxy)`);
+              }
+
+              if (sent && this.replayAckWaitMs > 0) {
+                const acked = await this.waitForReplayAck(ackId);
+                if (acked) {
+                  this.log.debug(`Replay ACK received for ${session.id}`);
+                } else {
+                  this.log.warn(`Replay ACK timed out for ${session.id}`);
+                }
+              }
             } catch (e) {
               this.log.warn(`Failed to inject replay event: ${e instanceof Error ? e.message : String(e)}`);
             }

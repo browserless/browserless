@@ -7,15 +7,50 @@ import { Logger } from '@browserless.io/browserless';
  * Replay metadata sent via CDP event.
  */
 export interface ReplayCompleteParams {
+  ackId?: string;
   id: string;
-  trackingId: string;
+  trackingId?: string;
   duration: number;
   eventCount: number;
   frameCount: number;
   encodingStatus: string;
-  playerUrl: string;
-  videoPlayerUrl?: string;
+  replayUrl: string;
+  videoUrl?: string;
 }
+
+/**
+ * Interface for browsers that support replay event injection.
+ *
+ * Implemented by ChromiumCDP to enable replay metadata delivery
+ * via CDP events before session close.
+ */
+export interface ReplayCapableBrowser {
+  setOnBeforeClose(callback: () => Promise<void>): void;
+  setOnReplayAck(callback: (ackId: string) => void): void;
+  sendReplayComplete(metadata: ReplayCompleteParams): Promise<boolean>;
+}
+
+/**
+ * Type guard to check if a browser instance supports replay capabilities.
+ */
+export function isReplayCapable(browser: unknown): browser is ReplayCapableBrowser {
+  return (
+    typeof browser === 'object' &&
+    browser !== null &&
+    'setOnBeforeClose' in browser &&
+    typeof (browser as Record<string, unknown>).setOnBeforeClose === 'function' &&
+    'setOnReplayAck' in browser &&
+    typeof (browser as Record<string, unknown>).setOnReplayAck === 'function' &&
+    'sendReplayComplete' in browser &&
+    typeof (browser as Record<string, unknown>).sendReplayComplete === 'function'
+  );
+}
+
+/**
+ * Timeout in milliseconds to wait for client to ACK replay metadata.
+ * Shared between CDPProxy and SessionLifecycleManager.
+ */
+export const REPLAY_ACK_WAIT_MS = +(process.env.REPLAY_ACK_WAIT_MS ?? '15000');
 
 /**
  * CDP-aware WebSocket proxy that can inject custom events.
@@ -36,7 +71,9 @@ export class CDPProxy {
   private clientWs: WebSocket | null = null;
   private browserWs: WebSocket | null = null;
   private isClosing = false;
+  private closeRequested = false;
   private log = new Logger('cdp-proxy');
+  private onBeforeCloseTimeoutMs = REPLAY_ACK_WAIT_MS;
 
   constructor(
     private clientSocket: Duplex,
@@ -44,6 +81,8 @@ export class CDPProxy {
     private clientRequest: IncomingMessage,
     private browserWsEndpoint: string,
     private onClose?: () => void,
+    private onBeforeClose?: () => Promise<void>,
+    private onReplayAck?: (ackId: string) => void,
   ) {}
 
   /**
@@ -109,6 +148,33 @@ export class CDPProxy {
 
     // Forward client messages to browser
     this.clientWs.on('message', (data, isBinary) => {
+      if (!isBinary) {
+        try {
+          const raw = typeof data === 'string' ? data : data.toString();
+          const msg = JSON.parse(raw);
+
+          if (msg?.method === 'Browserless.replayAck') {
+            const ackId = msg?.params?.ackId;
+            if (ackId && this.onReplayAck) {
+              this.onReplayAck(ackId);
+            }
+            return;
+          }
+
+          // Intercept Browser.close to emit replayComplete before socket closes
+          if (msg?.method === 'Browser.close' && this.onBeforeClose && !this.closeRequested) {
+            this.closeRequested = true;
+            if (typeof msg?.id === 'number') {
+              void this.sendClientResponse(msg.id);
+            }
+            void this.runBeforeCloseAndForward(data, isBinary);
+            return;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+
       if (this.browserWs?.readyState === WebSocket.OPEN) {
         this.browserWs.send(data, { binary: isBinary });
       }
@@ -130,6 +196,48 @@ export class CDPProxy {
     this.browserWs.on('close', () => {
       this.log.trace('Browser WebSocket closed');
       this.handleClose();
+    });
+  }
+
+  private async runBeforeCloseAndForward(
+    data: WebSocket.RawData,
+    isBinary: boolean,
+  ): Promise<void> {
+    if (this.onBeforeClose) {
+      try {
+        await Promise.race([
+          this.onBeforeClose(),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('onBeforeClose timeout')),
+              this.onBeforeCloseTimeoutMs,
+            ),
+          ),
+        ]);
+      } catch (e) {
+        this.log.warn(
+          `onBeforeClose failed: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+
+    if (this.browserWs?.readyState === WebSocket.OPEN) {
+      this.browserWs.send(data, { binary: isBinary });
+    }
+  }
+
+  private async sendClientResponse(id: number, result: object = {}): Promise<void> {
+    if (this.clientWs?.readyState !== WebSocket.OPEN) return;
+    const message = JSON.stringify({ id, result });
+    await new Promise<void>((resolve, reject) => {
+      this.clientWs!.send(message, (err) => {
+        if (err) {
+          this.log.warn(`Failed to send CDP response id=${id}: ${err.message}`);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
   }
 

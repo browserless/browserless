@@ -23,8 +23,8 @@ export interface QuerySchema extends SystemQueryParameters {
  * Returns base status from SQLite, overlaid with real-time
  * progress (framesProcessed, fps) from the encoder's in-memory Map.
  */
-export default class ReplayVideoStatusGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.ReplayVideoStatusGetRoute;
+export default class VideoStatusGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.VideoStatusGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
@@ -32,7 +32,7 @@ export default class ReplayVideoStatusGetRoute extends HTTPRoute {
   contentTypes = [contentTypes.json];
   description = `Get video encoding status and progress for a replay.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.replayVideoStatus;
+  path = HTTPManagementRoutes.videoStatus;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -41,10 +41,12 @@ export default class ReplayVideoStatusGetRoute extends HTTPRoute {
       return jsonResponse(res, 503, { error: 'Session replay is not enabled' });
     }
 
-    // Extract replay ID from path: /replays/:id/video/status
+    // Extract replay ID from path: /video/:id/status
     const pathParts = req.parsed.pathname.split('/');
     const videoIndex = pathParts.indexOf('video');
-    const id = videoIndex > 0 ? pathParts[videoIndex - 1] : null;
+    const id = videoIndex >= 0 && videoIndex + 1 < pathParts.length
+      ? pathParts[videoIndex + 1]
+      : null;
 
     if (!id) {
       throw new NotFound('Replay ID is required');

@@ -18,6 +18,7 @@ import {
   SessionReplay,
   BrowserWebsocketRoute,
   availableBrowsers,
+  isReplayCapable,
   makeExternalURL,
 } from '@browserless.io/browserless';
 import path from 'path';
@@ -356,7 +357,34 @@ export class BrowserManager {
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
   ): Promise<BrowserInstance> {
-    return this.launcher.getBrowserForRequest(req, router, logger);
+    const browser = await this.launcher.getBrowserForRequest(req, router, logger);
+
+    // Set up replay event handlers for browsers that support it
+    if (isReplayCapable(browser)) {
+      // Ensure replayComplete can be emitted before client WS closes
+      browser.setOnBeforeClose(async () => {
+        await this.closeForBrowser(browser, true);
+      });
+
+      // Receive replay ACKs from client to gate close until delivery confirmed
+      browser.setOnReplayAck((ackId) => {
+        this.lifecycle.handleReplayAck(ackId);
+      });
+    }
+
+    return browser;
+  }
+
+  /**
+   * Close a browser session by instance (used for WS close interception).
+   */
+  public async closeForBrowser(
+    browser: BrowserInstance,
+    force = true,
+  ): Promise<ReplayCompleteParams | null> {
+    const session = this.registry.get(browser);
+    if (!session) return null;
+    return this.lifecycle.close(browser, session, force);
   }
 
   /**

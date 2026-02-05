@@ -23,8 +23,8 @@ export interface QuerySchema extends SystemQueryParameters {
  * hls-video-element + media-chrome. The only difference is whether the
  * playlist is still growing (encoding) or finalized (completed).
  */
-export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.ReplayVideoPlayerGetRoute;
+export default class VideoGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.VideoGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
@@ -32,7 +32,7 @@ export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
   contentTypes = [contentTypes.html];
   description = `View a video replay in an HTML5 player.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.replayVideoPlayer;
+  path = HTTPManagementRoutes.video;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -41,10 +41,12 @@ export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
       return writeResponse(res, 503, 'Session replay is not enabled');
     }
 
-    // Extract replay ID from path: /replays/:id/video/player
+    // Extract replay ID from path: /video/:id
     const pathParts = req.parsed.pathname.split('/');
     const videoIndex = pathParts.indexOf('video');
-    const id = videoIndex > 0 ? pathParts[videoIndex - 1] : null;
+    const id = videoIndex >= 0 && videoIndex + 1 < pathParts.length
+      ? pathParts[videoIndex + 1]
+      : null;
 
     if (!id) {
       throw new NotFound('Replay ID is required');
@@ -93,8 +95,8 @@ export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
     token: string,
   ): string {
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-    const hlsUrl = `/replays/${id}/video/hls/playlist.m3u8${tokenParam}`;
-    const statusUrl = `/replays/${id}/video/status${tokenParam}`;
+    const hlsUrl = `/video/${id}/hls/playlist.m3u8${tokenParam}`;
+    const statusUrl = `/video/${id}/status${tokenParam}`;
     const isReady = encodingStatus === 'completed';
     const isEncoding = encodingStatus === 'deferred' || encodingStatus === 'pending' || encodingStatus === 'encoding';
     const hasFailed = encodingStatus === 'failed';
@@ -181,7 +183,7 @@ export default class ReplayVideoPlayerGetRoute extends HTTPRoute {
     <div class="status">
       <h2>No video available</h2>
       <p>This replay does not have a video component.</p>
-      <p class="meta"><a href="/replays/${id}/player${tokenParam}" style="color:#0af">View DOM replay instead</a></p>
+      <p class="meta"><a href="/replay/${id}${tokenParam}" style="color:#0af">View DOM replay instead</a></p>
     </div>
     ` : ''}
     ${!isReady && !isEncoding && !hasFailed && !noVideo ? `

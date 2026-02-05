@@ -27,8 +27,8 @@ export interface QuerySchema extends SystemQueryParameters {
  * - playlist.m3u8 → application/vnd.apple.mpegurl (no-cache, hls.js polls this)
  * - seg*.ts → video/mp2t (immutable once written, cacheable)
  */
-export default class ReplayVideoHlsGetRoute extends HTTPRoute {
-  name = BrowserlessRoutes.ReplayVideoHlsGetRoute;
+export default class VideoHlsGetRoute extends HTTPRoute {
+  name = BrowserlessRoutes.VideoHlsGetRoute;
   accepts = [contentTypes.any];
   auth = true;
   browser = null;
@@ -36,7 +36,7 @@ export default class ReplayVideoHlsGetRoute extends HTTPRoute {
   contentTypes = [contentTypes.any];
   description = `Serve HLS playlist and segment files for a replay.`;
   method = Methods.get;
-  path = HTTPManagementRoutes.replayVideoHls;
+  path = HTTPManagementRoutes.videoHls;
   tags = [APITags.management];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
@@ -45,14 +45,17 @@ export default class ReplayVideoHlsGetRoute extends HTTPRoute {
       return writeResponse(res, 503, 'Session replay is not enabled');
     }
 
-    // Parse path: /replays/{id}/video/hls/{filename}
+    // Parse path: /video/{id}/hls/{filename}
     const pathParts = req.parsed.pathname.split('/');
+    const videoIndex = pathParts.indexOf('video');
     const hlsIndex = pathParts.indexOf('hls');
     if (hlsIndex < 0 || hlsIndex + 1 >= pathParts.length) {
       throw new NotFound('HLS filename is required');
     }
 
-    const id = pathParts[hlsIndex - 2]; // two levels up from "hls": .../video/hls/...
+    const id = videoIndex >= 0 && videoIndex + 1 < pathParts.length
+      ? pathParts[videoIndex + 1]
+      : null;
     const filename = pathParts[hlsIndex + 1];
 
     if (!id || !filename) {

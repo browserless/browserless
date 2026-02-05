@@ -21,11 +21,11 @@ import path from 'path';
 import playwright from 'playwright-core';
 import puppeteerStealth from 'puppeteer-extra';
 
-import { CDPProxy, ReplayCompleteParams } from '../cdp-proxy.js';
+import { CDPProxy, ReplayCapableBrowser, ReplayCompleteParams } from '../cdp-proxy.js';
 
 puppeteerStealth.use(StealthPlugin());
 
-export class ChromiumCDP extends EventEmitter {
+export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
   protected config: Config;
   protected userDataDir: string | null;
   protected blockAds: boolean;
@@ -42,6 +42,8 @@ export class ChromiumCDP extends EventEmitter {
   protected pendingInternalPage = false;
   // CDP-aware proxy for injecting events before close
   protected cdpProxy: CDPProxy | null = null;
+  protected onBeforeClose?: () => Promise<void>;
+  protected onReplayAck?: (ackId: string) => void;
 
   constructor({
     blockAds,
@@ -69,13 +71,28 @@ export class ChromiumCDP extends EventEmitter {
     this.removeAllListeners();
   }
 
+  public setOnBeforeClose(handler: () => Promise<void>): void {
+    this.onBeforeClose = handler;
+  }
+
+  public setOnReplayAck(handler: (ackId: string) => void): void {
+    this.onReplayAck = handler;
+  }
+
   public keepUntil() {
     return 0;
   }
 
+  /**
+   * Extract the internal target ID from a Puppeteer Target.
+   * Puppeteer doesn't expose this publicly but we need it for CDP routing.
+   */
+  private getTargetId(target: Target): string {
+    return (target as unknown as { _targetId: string })._targetId;
+  }
+
   public getPageId(page: Page): string {
-    // @ts-ignore
-    return page.target()._targetId;
+    return this.getTargetId(page.target());
   }
 
   protected async onTargetCreated(target: Target) {
@@ -85,8 +102,7 @@ export class ChromiumCDP extends EventEmitter {
       // and don't want puppeteer-stealth or our event handlers interfering.
       // Attaching to external targets causes CDP command conflicts and timeouts.
       if (!this.pendingInternalPage) {
-        // @ts-ignore - access internal _targetId for logging
-        const targetId: string = target._targetId;
+        const targetId = this.getTargetId(target);
         this.logger.trace(`Skipping external target ${targetId} (created by external CDP client)`);
         return;
       }
@@ -400,6 +416,8 @@ export class ChromiumCDP extends EventEmitter {
           req,
           this.browserWSEndpoint!,
           close,
+          this.onBeforeClose,
+          this.onReplayAck,
         );
 
         await this.cdpProxy.connect();
@@ -424,13 +442,13 @@ export class ChromiumCDP extends EventEmitter {
    */
   public async sendReplayComplete(
     metadata: ReplayCompleteParams,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (this.cdpProxy) {
       await this.cdpProxy.sendReplayComplete(metadata);
+      return true;
     } else {
-      this.logger.warn(
-        'Cannot send replay complete: no CDPProxy available',
-      );
+      this.logger.warn('Cannot send replay complete: no CDPProxy available');
+      return false;
     }
   }
 }
