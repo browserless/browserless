@@ -43,7 +43,6 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
   // CDP-aware proxy for injecting events before close
   protected cdpProxy: CDPProxy | null = null;
   protected onBeforeClose?: () => Promise<void>;
-  protected onReplayAck?: (ackId: string) => void;
 
   constructor({
     blockAds,
@@ -73,10 +72,6 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
 
   public setOnBeforeClose(handler: () => Promise<void>): void {
     this.onBeforeClose = handler;
-  }
-
-  public setOnReplayAck(handler: (ackId: string) => void): void {
-    this.onReplayAck = handler;
   }
 
   public keepUntil() {
@@ -417,7 +412,6 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
           this.browserWSEndpoint!,
           close,
           this.onBeforeClose,
-          this.onReplayAck,
         );
 
         await this.cdpProxy.connect();

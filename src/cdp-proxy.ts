@@ -7,7 +7,6 @@ import { Logger } from '@browserless.io/browserless';
  * Replay metadata sent via CDP event.
  */
 export interface ReplayCompleteParams {
-  ackId?: string;
   id: string;
   trackingId?: string;
   duration: number;
@@ -26,7 +25,6 @@ export interface ReplayCompleteParams {
  */
 export interface ReplayCapableBrowser {
   setOnBeforeClose(callback: () => Promise<void>): void;
-  setOnReplayAck(callback: (ackId: string) => void): void;
   sendReplayComplete(metadata: ReplayCompleteParams): Promise<boolean>;
 }
 
@@ -39,18 +37,10 @@ export function isReplayCapable(browser: unknown): browser is ReplayCapableBrows
     browser !== null &&
     'setOnBeforeClose' in browser &&
     typeof (browser as Record<string, unknown>).setOnBeforeClose === 'function' &&
-    'setOnReplayAck' in browser &&
-    typeof (browser as Record<string, unknown>).setOnReplayAck === 'function' &&
     'sendReplayComplete' in browser &&
     typeof (browser as Record<string, unknown>).sendReplayComplete === 'function'
   );
 }
-
-/**
- * Timeout in milliseconds to wait for client to ACK replay metadata.
- * Shared between CDPProxy and SessionLifecycleManager.
- */
-export const REPLAY_ACK_WAIT_MS = +(process.env.REPLAY_ACK_WAIT_MS ?? '15000');
 
 /**
  * CDP-aware WebSocket proxy that can inject custom events.
@@ -67,13 +57,19 @@ export const REPLAY_ACK_WAIT_MS = +(process.env.REPLAY_ACK_WAIT_MS ?? '15000');
  *   Client <-> CDPProxy <-> Chrome
  *              (can inject events)
  */
+/**
+ * Timeout in milliseconds for onBeforeClose callback.
+ * After this timeout, Browser.close is forwarded to the browser
+ * regardless of whether onBeforeClose completed.
+ */
+const ON_BEFORE_CLOSE_TIMEOUT_MS = 15000;
+
 export class CDPProxy {
   private clientWs: WebSocket | null = null;
   private browserWs: WebSocket | null = null;
   private isClosing = false;
   private closeRequested = false;
   private log = new Logger('cdp-proxy');
-  private onBeforeCloseTimeoutMs = REPLAY_ACK_WAIT_MS;
 
   constructor(
     private clientSocket: Duplex,
@@ -82,7 +78,6 @@ export class CDPProxy {
     private browserWsEndpoint: string,
     private onClose?: () => void,
     private onBeforeClose?: () => Promise<void>,
-    private onReplayAck?: (ackId: string) => void,
   ) {}
 
   /**
@@ -153,14 +148,6 @@ export class CDPProxy {
           const raw = typeof data === 'string' ? data : data.toString();
           const msg = JSON.parse(raw);
 
-          if (msg?.method === 'Browserless.replayAck') {
-            const ackId = msg?.params?.ackId;
-            if (ackId && this.onReplayAck) {
-              this.onReplayAck(ackId);
-            }
-            return;
-          }
-
           // Intercept Browser.close to emit replayComplete before socket closes
           if (msg?.method === 'Browser.close' && this.onBeforeClose && !this.closeRequested) {
             this.closeRequested = true;
@@ -210,7 +197,7 @@ export class CDPProxy {
           new Promise((_, reject) =>
             setTimeout(
               () => reject(new Error('onBeforeClose timeout')),
-              this.onBeforeCloseTimeoutMs,
+              ON_BEFORE_CLOSE_TIMEOUT_MS,
             ),
           ),
         ]);

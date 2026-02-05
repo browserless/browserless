@@ -3,9 +3,7 @@ import {
   BrowserlessSession,
   Logger,
   ReplayCompleteParams,
-  REPLAY_ACK_WAIT_MS,
   exists,
-  id,
   isReplayCapable,
 } from '@browserless.io/browserless';
 import { deleteAsync } from 'del';
@@ -26,12 +24,6 @@ import { SessionRegistry } from './session-registry.js';
 export class SessionLifecycleManager {
   private timers: Map<string, NodeJS.Timeout> = new Map();
   private log = new Logger('session-lifecycle');
-  private replayAckWaiters: Map<
-    string,
-    { resolve: (acked: boolean) => void; timer: NodeJS.Timeout }
-  > = new Map();
-  private replayAcked: Set<string> = new Set();
-  private replayAckWaitMs = REPLAY_ACK_WAIT_MS;
   private baseUrl = process.env.BROWSERLESS_BASE_URL ?? '';
 
   constructor(
@@ -51,35 +43,6 @@ export class SessionLifecycleManager {
         );
       });
     }
-  }
-
-  /**
-   * Handle replay ACKs from the client.
-   */
-  public handleReplayAck(ackId: string): void {
-    const waiter = this.replayAckWaiters.get(ackId);
-    if (waiter) {
-      clearTimeout(waiter.timer);
-      this.replayAckWaiters.delete(ackId);
-      waiter.resolve(true);
-      return;
-    }
-    this.replayAcked.add(ackId);
-  }
-
-  private waitForReplayAck(ackId: string): Promise<boolean> {
-    if (this.replayAcked.has(ackId)) {
-      this.replayAcked.delete(ackId);
-      return Promise.resolve(true);
-    }
-
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        this.replayAckWaiters.delete(ackId);
-        resolve(false);
-      }, this.replayAckWaitMs);
-      this.replayAckWaiters.set(ackId, { resolve, timer });
-    });
   }
 
   /**
@@ -148,9 +111,7 @@ export class SessionLifecycleManager {
         });
 
         if (result) {
-          const ackId = id();
           replayMetadata = {
-            ackId,
             id: result.metadata.id,
             duration: result.metadata.duration,
             eventCount: result.metadata.eventCount,
@@ -163,7 +124,8 @@ export class SessionLifecycleManager {
             }),
           };
 
-          // CDP injection as secondary delivery path (backwards-compatible)
+          // Send replay metadata via CDP event before browser closes
+          // WebSocket TCP ordering guarantees client receives this before close
           if (isReplayCapable(browser)) {
             try {
               const sent = await browser.sendReplayComplete(replayMetadata);
@@ -171,15 +133,6 @@ export class SessionLifecycleManager {
                 this.log.info(`Injected replay complete event for ${session.id}`);
               } else {
                 this.log.warn(`Replay complete not sent for ${session.id} (no proxy)`);
-              }
-
-              if (sent && this.replayAckWaitMs > 0) {
-                const acked = await this.waitForReplayAck(ackId);
-                if (acked) {
-                  this.log.debug(`Replay ACK received for ${session.id}`);
-                } else {
-                  this.log.warn(`Replay ACK timed out for ${session.id}`);
-                }
               }
             } catch (e) {
               this.log.warn(`Failed to inject replay event: ${e instanceof Error ? e.message : String(e)}`);

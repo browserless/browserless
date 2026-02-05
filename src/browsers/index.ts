@@ -359,16 +359,11 @@ export class BrowserManager {
   ): Promise<BrowserInstance> {
     const browser = await this.launcher.getBrowserForRequest(req, router, logger);
 
-    // Set up replay event handlers for browsers that support it
+    // Set up replay event handler for browsers that support it
     if (isReplayCapable(browser)) {
       // Ensure replayComplete can be emitted before client WS closes
       browser.setOnBeforeClose(async () => {
         await this.closeForBrowser(browser, true);
-      });
-
-      // Receive replay ACKs from client to gate close until delivery confirmed
-      browser.setOnReplayAck((ackId) => {
-        this.lifecycle.handleReplayAck(ackId);
       });
     }
 
