@@ -207,6 +207,46 @@ describe('Management APIs', function () {
       });
     });
 
+    it('returns 404 for /debugger without trailing slash when debugger is disabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+
+      await start({ config });
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(404);
+    });
+
+    it('redirects /debugger to /debugger/', async () => {
+      delete process.env.ENABLE_DEBUGGER;
+      await start();
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/debugger/');
+    });
+
+    it('redirects /docs to /docs/', async () => {
+      await start();
+
+      const res = await fetch(
+        'http://localhost:3000/docs?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/docs/');
+    });
+
     it('handles requests without authentication token for static files', async () => {
       await start();
 

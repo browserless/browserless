@@ -72,6 +72,18 @@ export default class StaticGetRoute extends HTTPRoute {
       return streamFile(logger, res, fileCache.path, fileCache.contentType);
     }
 
+    if (pathname === '/.well-known/appspecific/com.chrome.devtools.json') {
+      const payload = JSON.stringify({
+        workspace: {
+          root: process.cwd(),
+          uuid: 'browserless-devtools-workspace',
+        },
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(payload);
+      return;
+    }
+
     const config = this.config();
     const sdkDir = this.staticSDKDir();
     const file = path.join(config.getStatic(), pathname);
@@ -83,7 +95,10 @@ export default class StaticGetRoute extends HTTPRoute {
       locations.push(...[sdkPath, path.join(sdkPath, 'index.html')]);
     }
 
-    if (pathname.includes('/debugger/') && !(await config.hasDebugger())) {
+    if (
+      (pathname === '/debugger' || pathname.startsWith('/debugger/')) &&
+      !(await config.hasDebugger())
+    ) {
       throw new NotFound(
         `No route or file found for resource ${req.method}: ${pathname}`,
       );
@@ -108,6 +123,20 @@ export default class StaticGetRoute extends HTTPRoute {
     }
 
     const [foundFilePath] = foundFilePaths;
+
+    // If we resolved to a directory's index.html but the pathname lacks a
+    // trailing slash, redirect so relative asset URLs resolve correctly.
+    if (
+      foundFilePath.endsWith('/index.html') &&
+      !pathname.endsWith('/') &&
+      !pathname.endsWith('/index.html')
+    ) {
+      const location = req.parsed.pathname + '/' + (req.parsed.search || '');
+      res.writeHead(301, { Location: location });
+      res.end();
+      return;
+    }
+
     logger.info(`Found new file "${foundFilePath}", caching path and serving`);
 
     const contentType = mimeTypes.get(path.extname(foundFilePath));
