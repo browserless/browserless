@@ -3,6 +3,7 @@ import { expect } from 'chai';
 
 describe('Management APIs', function () {
   let browserless: Browserless;
+  const originalDebugger = process.env.ENABLE_DEBUGGER;
 
   const start = ({
     config = new Config(),
@@ -15,6 +16,11 @@ describe('Management APIs', function () {
 
   afterEach(async () => {
     await browserless.stop();
+    if (originalDebugger === undefined) {
+      delete process.env.ENABLE_DEBUGGER;
+    } else {
+      process.env.ENABLE_DEBUGGER = originalDebugger;
+    }
   });
 
   describe('CORS', () => {
@@ -216,25 +222,23 @@ describe('Management APIs', function () {
 
       const res = await fetch(
         'http://localhost:3000/debugger?token=6R0W53R135510',
-        { redirect: 'manual' },
+        { redirect: 'manual', },
       );
 
       expect(res.status).to.equal(404);
     });
 
     it('redirects /debugger to /debugger/', async () => {
-      const debuggerState = process.env.ENABLE_DEBUGGER;
       process.env.ENABLE_DEBUGGER = 'true';
       await start();
 
       const res = await fetch(
         'http://localhost:3000/debugger?token=6R0W53R135510',
-        { redirect: 'manual' },
+        { redirect: 'manual', },
       );
 
       expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
-      process.env.ENABLE_DEBUGGER = debuggerState;
     });
 
     it('redirects /docs to /docs/', async () => {
@@ -242,7 +246,7 @@ describe('Management APIs', function () {
 
       const res = await fetch(
         'http://localhost:3000/docs?token=6R0W53R135510',
-        { redirect: 'manual' },
+        { redirect: 'manual', },
       );
 
       expect(res.status).to.equal(301);
