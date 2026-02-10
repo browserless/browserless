@@ -223,7 +223,7 @@ describe('Management APIs', function () {
     });
 
     it('redirects /debugger to /debugger/', async () => {
-      delete process.env.ENABLE_DEBUGGER;
+      process.env.ENABLE_DEBUGGER = 'true';
       await start();
 
       const res = await fetch(
