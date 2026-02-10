@@ -223,6 +223,7 @@ describe('Management APIs', function () {
     });
 
     it('redirects /debugger to /debugger/', async () => {
+      const debuggerState = process.env.ENABLE_DEBUGGER;
       process.env.ENABLE_DEBUGGER = 'true';
       await start();
 
@@ -233,6 +234,7 @@ describe('Management APIs', function () {
 
       expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
+      process.env.ENABLE_DEBUGGER = debuggerState;
     });
 
     it('redirects /docs to /docs/', async () => {
