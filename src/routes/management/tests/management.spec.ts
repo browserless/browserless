@@ -222,7 +222,7 @@ describe('Management APIs', function () {
 
       const res = await fetch(
         'http://localhost:3000/debugger?token=6R0W53R135510',
-        { redirect: 'manual', },
+        { redirect: 'manual' },
       );
 
       expect(res.status).to.equal(404);
@@ -234,7 +234,7 @@ describe('Management APIs', function () {
 
       const res = await fetch(
         'http://localhost:3000/debugger?token=6R0W53R135510',
-        { redirect: 'manual', },
+        { redirect: 'manual' },
       );
 
       expect(res.status).to.equal(301);
@@ -246,7 +246,7 @@ describe('Management APIs', function () {
 
       const res = await fetch(
         'http://localhost:3000/docs?token=6R0W53R135510',
-        { redirect: 'manual', },
+        { redirect: 'manual' },
       );
 
       expect(res.status).to.equal(301);
