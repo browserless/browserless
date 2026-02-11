@@ -1,4 +1,9 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import {
+  exists,
+  Browserless,
+  Config,
+  Metrics,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 
 describe('Management APIs', function () {
@@ -14,7 +19,10 @@ describe('Management APIs', function () {
   };
 
   afterEach(async () => {
-    await browserless.stop();
+    if (browserless) {
+      await browserless.stop();
+      browserless = undefined as unknown as Browserless;
+    }
   });
 
   describe('CORS', () => {
@@ -193,7 +201,6 @@ describe('Management APIs', function () {
       process.env.ENABLE_DEBUGGER = 'false';
       const config = new Config();
       config.setToken('6R0W53R135510');
-      // Ensure debugger is not available
 
       await start({ config });
 
@@ -205,6 +212,53 @@ describe('Management APIs', function () {
           'text/plain; charset=UTF-8',
         );
       });
+    });
+
+    it('returns 404 for /debugger without trailing slash when debugger is disabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+
+      await start({ config });
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(404);
+    });
+
+    it('redirects /debugger to /debugger/', async function () {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+
+      if (!(await exists(config.getDebuggerDir()))) {
+        // skips in case of firefox and webkit, where debugger is not installed
+        this.skip();
+      }
+
+      await start({ config });
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/debugger/');
+    });
+
+    it('redirects /docs to /docs/', async () => {
+      await start();
+
+      const res = await fetch(
+        'http://localhost:3000/docs?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/docs/');
     });
 
     it('handles requests without authentication token for static files', async () => {

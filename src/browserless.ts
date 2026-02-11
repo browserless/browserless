@@ -281,7 +281,7 @@ export class Browserless extends EventEmitter {
     const debuggerURL =
       hasDebugger &&
       makeExternalURL(this.config.getExternalAddress(), `/debugger/?token=xxx`);
-    const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
+    const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs/');
 
     this.logger.info(printLogo(docsLink, debuggerURL));
     this.logger.info(`Running as user "${userInfo().username}"`);
