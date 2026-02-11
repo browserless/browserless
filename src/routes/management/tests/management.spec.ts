@@ -19,7 +19,9 @@ describe('Management APIs', function () {
   };
 
   afterEach(async () => {
-    await browserless.stop();
+    if (browserless) {
+      await browserless.stop();
+    }
   });
 
   describe('CORS', () => {
