@@ -21,6 +21,7 @@ describe('Management APIs', function () {
   afterEach(async () => {
     if (browserless) {
       await browserless.stop();
+      browserless = undefined as unknown as Browserless;
     }
   });
 
