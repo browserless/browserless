@@ -3,7 +3,6 @@ import { expect } from 'chai';
 
 describe('Management APIs', function () {
   let browserless: Browserless;
-  const originalDebugger = process.env.ENABLE_DEBUGGER;
 
   const start = ({
     config = new Config(),
@@ -16,11 +15,6 @@ describe('Management APIs', function () {
 
   afterEach(async () => {
     await browserless.stop();
-    if (originalDebugger === undefined) {
-      delete process.env.ENABLE_DEBUGGER;
-    } else {
-      process.env.ENABLE_DEBUGGER = originalDebugger;
-    }
   });
 
   describe('CORS', () => {
@@ -196,10 +190,14 @@ describe('Management APIs', function () {
     });
 
     it('returns 404 if debugger is disabled', async () => {
-      process.env.ENABLE_DEBUGGER = 'false';
-      const config = new Config();
-      config.setToken('6R0W53R135510');
       // Ensure debugger is not available
+      class MockConfig extends Config {
+        public async hasDebugger(): Promise<boolean> {
+          return false;
+        }
+      }
+      const config = new MockConfig();
+      config.setToken('6R0W53R135510');
 
       await start({ config });
 
@@ -214,8 +212,13 @@ describe('Management APIs', function () {
     });
 
     it('returns 404 for /debugger without trailing slash when debugger is disabled', async () => {
-      process.env.ENABLE_DEBUGGER = 'false';
-      const config = new Config();
+      // Ensure debugger is not available
+      class MockConfig extends Config {
+        public async hasDebugger(): Promise<boolean> {
+          return false;
+        }
+      }
+      const config = new MockConfig();
       config.setToken('6R0W53R135510');
 
       await start({ config });
@@ -229,8 +232,15 @@ describe('Management APIs', function () {
     });
 
     it('redirects /debugger to /debugger/', async () => {
-      process.env.ENABLE_DEBUGGER = 'true';
-      await start();
+      // Ensure debugger is available
+      class MockConfig extends Config {
+        public async hasDebugger(): Promise<boolean> {
+          return true;
+        }
+      }
+      const config = new MockConfig();
+
+      await start({ config });
 
       const res = await fetch(
         'http://localhost:3000/debugger?token=6R0W53R135510',
