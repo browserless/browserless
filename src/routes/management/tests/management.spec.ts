@@ -1,4 +1,9 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import {
+  exists,
+  Browserless,
+  Config,
+  Metrics,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 
 describe('Management APIs', function () {
@@ -190,13 +195,8 @@ describe('Management APIs', function () {
     });
 
     it('returns 404 if debugger is disabled', async () => {
-      // Ensure debugger is not available
-      class MockConfig extends Config {
-        public async hasDebugger(): Promise<boolean> {
-          return false;
-        }
-      }
-      const config = new MockConfig();
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
       config.setToken('6R0W53R135510');
 
       await start({ config });
@@ -212,13 +212,8 @@ describe('Management APIs', function () {
     });
 
     it('returns 404 for /debugger without trailing slash when debugger is disabled', async () => {
-      // Ensure debugger is not available
-      class MockConfig extends Config {
-        public async hasDebugger(): Promise<boolean> {
-          return false;
-        }
-      }
-      const config = new MockConfig();
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
       config.setToken('6R0W53R135510');
 
       await start({ config });
@@ -231,14 +226,14 @@ describe('Management APIs', function () {
       expect(res.status).to.equal(404);
     });
 
-    it('redirects /debugger to /debugger/', async () => {
-      // Ensure debugger is available
-      class MockConfig extends Config {
-        public async hasDebugger(): Promise<boolean> {
-          return true;
-        }
+    it('redirects /debugger to /debugger/', async function () {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+
+      if (!(await exists(config.getDebuggerDir()))) {
+        // skips in case of firefox and webkit, where debugger is not installed
+        this.skip();
       }
-      const config = new MockConfig();
 
       await start({ config });
 
