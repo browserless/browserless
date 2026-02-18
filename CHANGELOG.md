@@ -1,6 +1,6 @@
 # [Latest](https://github.com/browserless/chrome/compare/v2.40.0...main)
 
-# [v2.39.0](https://github.com/browserless/browserless/compare/v2.39.0...v2.40.0)
+# [v2.40.0](https://github.com/browserless/browserless/compare/v2.39.0...v2.40.0)
 - Dependency updates.
 - Updates NodeJS to `24.13.1`.
 - Updates NPM to `11.9.0`.
