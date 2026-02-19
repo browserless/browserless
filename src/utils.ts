@@ -550,8 +550,7 @@ export const queryParamsToObject = (
     },
     {} as ReturnType<typeof queryParamsToObject>,
   );
-
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+ 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const wrapUserFunction = (fn: string) => {
@@ -639,8 +638,8 @@ export const scrollThroughPage = async (page: Page) => {
   }, viewport.height);
 };
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-// eslint-disable-next-line @typescript-eslint/no-empty-function
+ 
+ 
 export const noop = (): void => {};
 
 export const once = <A extends unknown[], R, T>(
