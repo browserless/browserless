@@ -28,7 +28,7 @@
     "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit msedge",
     "install:dev": "npm run install:browsers && npm run install:debugger",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --fix",
+    "lint": "cross-env eslint . --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,.github}/**/*.{js,ts,json,yml,yaml,md}' --log-level error --write",
     "test": "npm run build:tests && cross-env DEBUG=quiet mocha",
@@ -91,7 +91,7 @@
     "env-cmd": "^11.0.0",
     "esbuild": "^0.27.3",
     "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.0",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^17.0.3",
@@ -114,51 +114,6 @@
   "engines": {
     "node": ">=24",
     "npm": "^11.7.0"
-  },
-  "eslintConfig": {
-    "root": true,
-    "parser": "@typescript-eslint/parser",
-    "plugins": [
-      "@typescript-eslint"
-    ],
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
-    ],
-    "ignorePatterns": [
-      "node_modules/*",
-      "static/*",
-      "**.spec.ts",
-      "build/*",
-      ".DS_Store",
-      ".no-git/*",
-      "*.log"
-    ],
-    "rules": {
-      "semi": [
-        2,
-        "always"
-      ],
-      "no-async-promise-executor": 0,
-      "@typescript-eslint/ban-ts-comment": 0,
-      "@typescript-eslint/no-var-requires": 0,
-      "sort-imports": [
-        "error",
-        {
-          "ignoreCase": false,
-          "ignoreDeclarationSort": false,
-          "ignoreMemberSort": false,
-          "memberSyntaxSortOrder": [
-            "none",
-            "all",
-            "multiple",
-            "single"
-          ],
-          "allowSeparatedGroups": true
-        }
-      ]
-    }
   },
   "mocha": {
     "extension": [
