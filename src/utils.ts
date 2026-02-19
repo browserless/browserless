@@ -550,7 +550,7 @@ export const queryParamsToObject = (
     },
     {} as ReturnType<typeof queryParamsToObject>,
   );
- 
+
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const wrapUserFunction = (fn: string) => {
@@ -638,8 +638,6 @@ export const scrollThroughPage = async (page: Page) => {
   }, viewport.height);
 };
 
- 
- 
 export const noop = (): void => {};
 
 export const once = <A extends unknown[], R, T>(

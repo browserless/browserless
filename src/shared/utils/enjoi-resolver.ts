@@ -110,7 +110,7 @@ class SchemaResolver {
               return { value: Bourne.parse(value) };
             } catch (_) {
               return;
-            }  
+            }
           },
         },
       },
@@ -130,7 +130,7 @@ class SchemaResolver {
               return { value: Bourne.parse(value) };
             } catch (_) {
               return;
-            }  
+            }
           },
         },
       },
@@ -198,7 +198,6 @@ class SchemaResolver {
       }
       if (partialSchemas.length === 0) {
         //Fall through to whatever.
-         
         console.warn(
           "WARNING: schema missing a 'type' or '$ref' or 'enum': \n%s",
           JSON.stringify(schema, null, 2),
