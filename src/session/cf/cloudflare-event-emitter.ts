@@ -122,6 +122,10 @@ export interface ActiveDetection {
   aborted: boolean;
   tracker: CloudflareTracker;
   activityLoopStarted?: boolean;
+  /** Set to true when findAndClickViaCDP successfully dispatched a click. */
+  clickDelivered?: boolean;
+  /** Timestamp when click was dispatched (for timing analysis). */
+  clickDeliveredAt?: number;
 }
 
 /** Handles all CDP event emission for Cloudflare detection/solving. */

@@ -141,65 +141,6 @@ const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max + 1));
 
 /**
- * Execute mouse movement along a path with eased timing.
- * Optionally decelerates the final 25% of points.
- */
-export async function executePathSegment(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  path: Point[],
-  totalDuration: number,
-  decelerateFinal: boolean = false,
-): Promise<void> {
-  const decelThreshold = decelerateFinal ? Math.floor(path.length * 0.75) : path.length;
-  const decelFactor = rand(1.8, 2.5);
-
-  const ease = (v: number) => v * v * (3 - 2 * v);
-
-  for (let i = 0; i < path.length; i++) {
-    if (i > 0) {
-      const t = i / (path.length - 1);
-      const prevT = (i - 1) / (path.length - 1);
-      let segDuration = (ease(t) - ease(prevT)) * totalDuration;
-      segDuration *= rand(0.8, 1.2); // +-20% variation
-      if (decelerateFinal && i >= decelThreshold) segDuration *= decelFactor;
-      await sleep(Math.max(18, segDuration * 1000));
-    }
-
-    await sendCommand('Input.dispatchMouseEvent', {
-      type: 'mouseMoved',
-      x: Math.round(path[i][0]),
-      y: Math.round(path[i][1]),
-      button: 'none',
-    }, cdpSessionId);
-  }
-}
-
-/**
- * Execute active overshoot: move past target, pause, correct back.
- */
-async function executeOvershootCorrection(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  targetX: number, targetY: number,
-  approachDx: number, approachDy: number,
-): Promise<void> {
-  const overshootDist = rand(8, 15);
-  const overshootX = targetX + approachDx * overshootDist;
-  const overshootY = targetY + approachDy * overshootDist;
-
-  // Move to overshoot point (quick)
-  const overshootPath = generatePath(targetX, targetY, overshootX, overshootY, { moveSpeed: 3.0 });
-  await executePathSegment(sendCommand, cdpSessionId, overshootPath, rand(0.05, 0.1));
-
-  await sleep(rand(80, 150)); // "Oops" pause
-
-  // Correct back to target with deceleration
-  const correctionPath = generatePath(overshootX, overshootY, targetX, targetY, { moveSpeed: 3.0 });
-  await executePathSegment(sendCommand, cdpSessionId, correctionPath, rand(0.08, 0.15), true);
-}
-
-/**
  * Simulate idle human presence with random mouse drift and optional scroll.
  * Returns final cursor position.
  */
@@ -281,250 +222,46 @@ export async function simulateHumanPresence(
 }
 
 /**
- * Tab+Space keyboard fallback for Turnstile when click target not found.
+ * Bezier mouse movement to a click target — matches pydoll's Mouse.click(humanize=True).
  *
- * FlareSolverr technique: keyboard focus naturally crosses iframe/shadow DOM
- * boundaries invisible to mouse clicks. Injects a hidden reset button, focuses it,
- * then TABs 1-5 times, pressing SPACE after each to activate the focused element.
- *
- * Returns true if token appeared after any TAB+SPACE attempt.
+ * Generates a smooth Bezier curve from a random offset position to the target
+ * coordinates, sending Input.dispatchMouseEvent(mouseMoved) at each step.
+ * This must be called BEFORE the click to build up mousemove history that CF
+ * validates in its WASM verifier.
  */
-export async function tabSpaceFallback(
+export async function humanizeMouseToTarget(
   sendCommand: SendCommand,
-  cdpSessionId: string,
-  maxTabs: number = 5,
-  isSolved: () => Promise<boolean>,
-): Promise<boolean> {
-  // Inject hidden button at top-left to reset focus position
-  try {
-    await sendCommand('Runtime.evaluate', {
-      expression: `(function() {
-        var btn = document.getElementById('__tabSpaceReset');
-        if (!btn) {
-          btn = document.createElement('button');
-          btn.id = '__tabSpaceReset';
-          btn.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
-          document.body.appendChild(btn);
-        }
-        btn.focus();
-      })()`,
-    }, cdpSessionId);
-  } catch {
-    return false; // Page gone
-  }
-
-  for (let tabCount = 1; tabCount <= maxTabs; tabCount++) {
-    // TAB key
-    await sendCommand('Input.dispatchKeyEvent', {
-      type: 'keyDown', key: 'Tab', code: 'Tab',
-      windowsVirtualKeyCode: 9,
-    }, cdpSessionId).catch(() => {});
-    await sleep(rand(30, 60));
-    await sendCommand('Input.dispatchKeyEvent', {
-      type: 'keyUp', key: 'Tab', code: 'Tab',
-    }, cdpSessionId).catch(() => {});
-
-    await sleep(rand(80, 120));
-
-    // SPACE key (activate focused element)
-    await sendCommand('Input.dispatchKeyEvent', {
-      type: 'keyDown', key: ' ', code: 'Space',
-      windowsVirtualKeyCode: 32,
-    }, cdpSessionId).catch(() => {});
-    await sleep(rand(50, 100));
-    await sendCommand('Input.dispatchKeyEvent', {
-      type: 'keyUp', key: ' ', code: 'Space',
-    }, cdpSessionId).catch(() => {});
-
-    // Wait for Turnstile to process
-    await sleep(rand(800, 1200));
-
-    // Check if solved
-    if (await isSolved()) return true;
-
-    // Re-focus reset button for next attempt
-    try {
-      await sendCommand('Runtime.evaluate', {
-        expression: `(function() { var btn = document.getElementById('__tabSpaceReset'); if (btn) btn.focus(); })()`,
-      }, cdpSessionId);
-    } catch {
-      return false;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Two-phase Bezier approach to coordinates without clicking.
- * Phase 1 (ballistic): 15-25 pts @ 350-650ms to ~20px from target
- * Phase 2 (correction): 8-15 pts @ 150-350ms with deceleration
- * 15% chance of active overshoot between phases.
- * Returns final (targetX, targetY) for commitClick.
- */
-export async function approachCoordinates(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  x: number, y: number,
-  startFrom?: Point,
-): Promise<Point> {
-  const targetX = Math.round(x) + randInt(-3, 3);
-  const targetY = Math.round(y) + randInt(-2, 2);
-
-  // Starting position
-  let startX: number, startY: number;
-  if (startFrom) {
-    [startX, startY] = startFrom;
-  } else {
-    const angle = rand(0, 2 * Math.PI);
-    const dist = rand(80, 200);
-    startX = Math.max(10, Math.min(1900, targetX + Math.cos(angle) * dist));
-    startY = Math.max(10, Math.min(1060, targetY + Math.sin(angle) * dist));
-  }
-
-  const dxApproach = targetX - startX;
-  const dyApproach = targetY - startY;
-  const approachDist = Math.sqrt(dxApproach * dxApproach + dyApproach * dyApproach);
-
-  if (approachDist > 30) {
-    const normDx = dxApproach / approachDist;
-    const normDy = dyApproach / approachDist;
-
-    // Intermediate point ~15-25px from target
-    const offsetDist = rand(25, 45);
-    const lateralOffset = rand(-12, 12);
-    const midX = targetX - normDx * offsetDist + (-normDy) * lateralOffset;
-    const midY = targetY - normDy * offsetDist + normDx * lateralOffset;
-
-    // Phase 1: ballistic sweep
-    const ballisticPath = generatePath(startX, startY, midX, midY);
-    await executePathSegment(sendCommand, cdpSessionId, ballisticPath, rand(0.30, 0.55));
-
-    // Mid-path micro-pause
-    await sleep(rand(30, 100));
-
-    // 15% chance of overshoot
-    if (Math.random() < 0.15) {
-      await executeOvershootCorrection(sendCommand, cdpSessionId, targetX, targetY, normDx, normDy);
-    } else {
-      // Phase 2: correction
-      const correctionPath = generatePath(midX, midY, targetX, targetY, { moveSpeed: 1.5 });
-      await executePathSegment(sendCommand, cdpSessionId, correctionPath, rand(0.20, 0.45), true);
-    }
-  } else {
-    // Already close — single short correction
-    const correctionPath = generatePath(startX, startY, targetX, targetY, { moveSpeed: 1.5 });
-    await executePathSegment(sendCommand, cdpSessionId, correctionPath, rand(0.20, 0.45), true);
-  }
-
-  // Decision pause (150-400ms)
-  await sleep(rand(150, 400));
-
-  return [targetX, targetY];
-}
-
-/**
- * Dispatch mousedown + hold + mouseup at coordinates.
- * Hold duration: 80-150ms.
- */
-export async function commitClick(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  x: number, y: number,
+  sessionId: string,
+  targetX: number,
+  targetY: number,
 ): Promise<void> {
-  await sendCommand('Input.dispatchMouseEvent', {
-    type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1,
-  }, cdpSessionId);
+  // Start from a random position 100-250px away (simulates cursor approaching)
+  const angle = Math.random() * 2 * Math.PI;
+  const dist = 100 + Math.random() * 150;
+  const startX = targetX + Math.cos(angle) * dist;
+  const startY = targetY + Math.sin(angle) * dist;
 
-  await sleep(rand(80, 150));
+  const path = generatePath(startX, startY, targetX, targetY);
 
-  await sendCommand('Input.dispatchMouseEvent', {
-    type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0,
-  }, cdpSessionId);
-}
-
-/**
- * Lightweight approach for contended sessions (~6-8 CDP calls).
- * Single Bezier arc from a nearby random position. Skips the two-phase
- * ballistic+correction split of approachCoordinates to minimise CDP overhead
- * while still producing a curved, human-looking trajectory.
- */
-export async function quickApproach(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  targetX: number, targetY: number,
-): Promise<Point> {
-  const finalX = Math.round(targetX) + randInt(-2, 2);
-  const finalY = Math.round(targetY) + randInt(-1, 1);
-
-  // Start 50-80px away in a random direction
-  const angle = rand(0, 2 * Math.PI);
-  const dist = rand(50, 80);
-  const startX = Math.max(10, Math.min(1900, finalX + Math.cos(angle) * dist));
-  const startY = Math.max(10, Math.min(1060, finalY + Math.sin(angle) * dist));
-
-  // moveSpeed 3.0 → ~6-8 points instead of ~20
-  const path = generatePath(startX, startY, finalX, finalY, { moveSpeed: 3.0 });
-  await executePathSegment(sendCommand, cdpSessionId, path, rand(0.15, 0.35), true);
-
-  // Brief decision pause before click
-  await sleep(rand(100, 250));
-
-  return [finalX, finalY];
-}
-
-/**
- * Post-click dwell: keeps cursor near click position with tiny micro-movements,
- * then slowly drifts away. Prevents the suspicious "click-and-teleport" pattern
- * that Turnstile uses as a bot signal.
- *
- * ~6-10 CDP calls total (2-4 micro-moves + 4-6 drift points).
- */
-export async function postClickDwell(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  clickX: number, clickY: number,
-): Promise<void> {
-  // Phase 1: Micro-drift near click position (300-600ms)
-  const dwellTime = rand(300, 600);
-  const microMoves = randInt(2, 4);
-  const microDelay = dwellTime / microMoves;
-
-  let curX = clickX;
-  let curY = clickY;
-  for (let i = 0; i < microMoves; i++) {
-    await sleep(microDelay);
-    curX += rand(-3, 3);
-    curY += rand(-2, 2);
+  for (let i = 0; i < path.length; i++) {
     await sendCommand('Input.dispatchMouseEvent', {
       type: 'mouseMoved',
-      x: Math.round(curX),
-      y: Math.round(curY),
+      x: Math.round(path[i][0]),
+      y: Math.round(path[i][1]),
       button: 'none',
-    }, cdpSessionId);
+    }, sessionId);
+
+    // Human-like timing: 5-15ms between moves, slower near target
+    if (i < path.length - 1) {
+      const delay = i >= path.length - 3
+        ? 15 + Math.random() * 25  // decelerate near target
+        : 5 + Math.random() * 10;
+      await sleep(delay);
+    }
   }
 
-  // Phase 2: Slow drift away (200-400ms, 30-60px)
-  const driftAngle = rand(0, 2 * Math.PI);
-  const driftDist = rand(30, 60);
-  const driftX = curX + Math.cos(driftAngle) * driftDist;
-  const driftY = curY + Math.sin(driftAngle) * driftDist;
-
-  const driftPath = generatePath(curX, curY, driftX, driftY, { moveSpeed: 3.0 });
-  await executePathSegment(sendCommand, cdpSessionId, driftPath, rand(0.2, 0.4));
-}
-
-/**
- * Full click: approach + commit.
- */
-export async function clickAtCoordinates(
-  sendCommand: SendCommand,
-  cdpSessionId: string,
-  x: number, y: number,
-  startFrom?: Point,
-): Promise<void> {
-  const [targetX, targetY] = await approachCoordinates(sendCommand, cdpSessionId, x, y, startFrom);
-  await commitClick(sendCommand, cdpSessionId, targetX, targetY);
+  // Decision pause before click (humans pause 50-150ms before clicking)
+  await sleep(50 + Math.random() * 100);
 }
 
 /**
@@ -647,7 +384,7 @@ async function findChromeWindow(chromePid?: number): Promise<string> {
  * Click via xdotool (OS-level X11 event). Bypasses CDP's kFromDebugger flag.
  *
  * xdotool sends real X11 MotionNotify + ButtonPress/Release events through
- * X11 → Chrome's PlatformEventSource → RenderWidgetHost → compositor.
+ * X11 -> Chrome's PlatformEventSource -> RenderWidgetHost -> compositor.
  * These events have NO kFromDebugger modifier — identical to a physical mouse.
  *
  * Includes a full Bezier cursor approach path (not just a single move+click)

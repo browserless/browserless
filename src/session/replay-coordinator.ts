@@ -131,11 +131,13 @@ export class ReplayCoordinator {
     // injectMarker uses server-side addTabEvents instead of Runtime.evaluate
     // because extension-based recording has no pollEvents() loop to drain
     // the page's events array — markers would only appear at finalization.
+    const chromePort = new URL(wsEndpoint).port;
     const cloudflareSolver = new CloudflareSolver(
       sendViaSession,
       (cdpSid: string, tag: string, payload?: object) => {
         sessionRef?.injectMarkerServerSide(cdpSid, tag, payload);
       },
+      chromePort,
     );
     this.cloudflareSolvers.set(sessionId, cloudflareSolver);
 

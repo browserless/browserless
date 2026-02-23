@@ -89,6 +89,12 @@ export class CDPProxy {
   private closeRequested = false;
   private log = new Logger('cdp-proxy');
 
+  /**
+   * Debug mode: log all CDP commands going through the proxy.
+   * Enable via BROWSERLESS_CDP_DEBUG=1 env var.
+   */
+  private cdpDebug = !!process.env.BROWSERLESS_CDP_DEBUG;
+
   constructor(
     private clientSocket: Duplex,
     private clientHead: Buffer,
@@ -238,13 +244,41 @@ export class CDPProxy {
         }
       }
 
+      // Debug: log client→browser commands
+      if (this.cdpDebug && !isBinary) {
+        try {
+          const raw = typeof data === 'string' ? data : data.toString();
+          const msg = JSON.parse(raw);
+          if (msg.method) {
+            const sid = msg.sessionId ? ` [sid=${msg.sessionId.substring(0, 16)}]` : '';
+            const params = msg.params ? JSON.stringify(msg.params).substring(0, 200) : '{}';
+            this.log.info(`[CDP→Chrome] id=${msg.id} ${msg.method}${sid} ${params}`);
+          }
+        } catch { /* ignore */ }
+      }
+
       if (this.browserWs?.readyState === WebSocket.OPEN) {
         this.browserWs.send(data, { binary: isBinary });
       }
     });
 
-    // Forward browser messages to client
+    // Forward browser messages to client (intercept proxy-injected command responses)
     this.browserWs.on('message', (data, isBinary) => {
+      if (!isBinary) {
+        try {
+          const raw = typeof data === 'string' ? data : data.toString();
+          const msg = JSON.parse(raw);
+          // Check if this is a response to a proxy-injected command
+          if (this.handleProxyResponse(msg)) return; // Don't forward to client
+
+          // Debug: log browser→client events (not responses)
+          if (this.cdpDebug && msg.method) {
+            const sid = msg.sessionId ? ` [sid=${msg.sessionId.substring(0, 16)}]` : '';
+            const params = msg.params ? JSON.stringify(msg.params).substring(0, 150) : '{}';
+            this.log.info(`[Chrome→CDP] ${msg.method}${sid} ${params}`);
+          }
+        } catch { /* ignore parse errors */ }
+      }
       if (this.clientWs?.readyState === WebSocket.OPEN) {
         this.clientWs.send(data, { binary: isBinary });
       }
@@ -329,6 +363,127 @@ export class CDPProxy {
     } else {
       this.log.warn(`Cannot inject event ${method}: client WebSocket not open`);
     }
+  }
+
+  /**
+   * Send a CDP command through the proxy's browser WS.
+   */
+  private proxyCommandId = 200_000;
+  private proxyPendingCommands = new Map<number, { resolve: (result: any) => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+
+  sendViaBrowserWs(method: string, params: object = {}, sessionId?: string, timeoutMs: number = 30_000): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.browserWs || this.browserWs.readyState !== WebSocket.OPEN) {
+        reject(new Error('Browser WS not open'));
+        return;
+      }
+      const id = this.proxyCommandId++;
+      const msg: any = { id, method, params };
+      if (sessionId) msg.sessionId = sessionId;
+
+      const timer = setTimeout(() => {
+        if (this.proxyPendingCommands.has(id)) {
+          this.proxyPendingCommands.delete(id);
+          reject(new Error(`CDP proxy command ${method} timed out`));
+        }
+      }, timeoutMs);
+      this.proxyPendingCommands.set(id, { resolve, reject, timer });
+
+      if (this.cdpDebug) {
+        const sid = sessionId ? ` [sid=${sessionId.substring(0, 16)}]` : '';
+        const p = JSON.stringify(params).substring(0, 200);
+        this.log.info(`[SOLVER→Chrome] id=${id} ${method}${sid} ${p}`);
+      }
+
+      this.browserWs.send(JSON.stringify(msg));
+    });
+  }
+
+  /**
+   * Create a fresh, isolated WS connection to Chrome — matching pydoll's approach.
+   *
+   * Pydoll's IFrameContextResolver creates a brand new ConnectionHandler for
+   * OOPIF resolution. This fresh WS has ZERO CDP domain enables, no auto-attach,
+   * no subscriptions — a completely clean slate. All commands (Target.attachToTarget,
+   * DOM queries, Input.dispatchMouseEvent) go through this isolated connection.
+   *
+   * Returns a sendCommand function scoped to the fresh WS.
+   * Call cleanup() when done to close the connection.
+   */
+  createIsolatedConnection(): { send: (method: string, params?: object, sessionId?: string, timeoutMs?: number) => Promise<any>; cleanup: () => void } {
+    const endpoint = this.browserWsEndpoint;
+    const ws = new WebSocket(endpoint);
+    let cmdId = 300_000;
+    const pending = new Map<number, { resolve: (result: any) => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+    let connected = false;
+    const waitForOpen = new Promise<void>((resolve, reject) => {
+      ws.on('open', () => { connected = true; resolve(); });
+      ws.on('error', (err) => { if (!connected) reject(err); });
+    });
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (typeof msg.id === 'number') {
+          const p = pending.get(msg.id);
+          if (p) {
+            pending.delete(msg.id);
+            clearTimeout(p.timer);
+            if (msg.error) {
+              p.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+            } else {
+              p.resolve(msg.result);
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    });
+
+    const send = async (method: string, params: object = {}, sessionId?: string, timeoutMs: number = 30_000): Promise<any> => {
+      await waitForOpen;
+      return new Promise((resolve, reject) => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          reject(new Error('Isolated WS not open'));
+          return;
+        }
+        const id = cmdId++;
+        const msg: any = { id, method, params };
+        if (sessionId) msg.sessionId = sessionId;
+        const timer = setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error(`Isolated CDP command ${method} timed out`));
+          }
+        }, timeoutMs);
+        pending.set(id, { resolve, reject, timer });
+        ws.send(JSON.stringify(msg));
+      });
+    };
+
+    const cleanup = () => {
+      for (const [, p] of pending) { clearTimeout(p.timer); }
+      pending.clear();
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
+
+    return { send, cleanup };
+  }
+
+  /** Handle responses for proxy-injected commands (called from browser WS message handler) */
+  private handleProxyResponse(msg: any): boolean {
+    if (typeof msg.id !== 'number') return false;
+    const pending = this.proxyPendingCommands.get(msg.id);
+    if (!pending) return false;
+    this.proxyPendingCommands.delete(msg.id);
+    clearTimeout(pending.timer);
+    if (msg.error) {
+      pending.reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+    } else {
+      pending.resolve(msg.result);
+    }
+    return true;
   }
 
   /**

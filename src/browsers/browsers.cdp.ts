@@ -560,6 +560,11 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
           this.cloudflareSolver.setEmitClientEvent(
             (method: string, params: object) => this.cdpProxy!.emitClientEvent(method, params),
           );
+          // Route solver's Input events through CDPProxy's browser WS
+          this.cloudflareSolver.setSendViaProxy(
+            (method, params, sessionId, timeoutMs) =>
+              this.cdpProxy!.sendViaBrowserWs(method, params || {}, sessionId, timeoutMs),
+          );
         }
       } catch (error) {
         this.logger.error(

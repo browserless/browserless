@@ -6,7 +6,6 @@ import {
 
 import { ScreencastCapture } from './screencast-capture.js';
 import { CloudflareSolver } from './cloudflare-solver.js';
-import { TURNSTILE_STATE_OBSERVER_JS } from '../shared/cloudflare-detection.js';
 import { registerSessionState, tabDuration } from '../prom-metrics.js';
 import { TargetRegistry } from './target-state.js';
 
@@ -597,16 +596,6 @@ export class ReplaySession {
       }]);
     }
 
-    // Runtime.bindingCalled (turnstile state) → server-side timeline marker + notify solver
-    if (msg.method === 'Runtime.bindingCalled' && msg.params?.name === '__turnstileStateBinding') {
-      const state = msg.params?.payload || 'unknown';
-      this.sessionReplay.addTabEvents(this.sessionId, parentTargetId, [{
-        type: 5, timestamp: Date.now(),
-        data: { tag: 'cf.iframe_state', payload: { state } },
-      }]);
-      this.cloudflareSolver.onTurnstileStateChange(state, msg.sessionId)
-        .catch((e: Error) => this.log.debug(`onTurnstileStateChange failed: ${e.message}`));
-    }
   }
 
   // ─── CDP Message Routing ───────────────────────────────────────────────
@@ -682,9 +671,6 @@ export class ReplaySession {
     } else if (name === '__turnstileSolvedBinding') {
       this.cloudflareSolver.onAutoSolveBinding(msg.sessionId)
         .catch((e: Error) => this.log.debug(`onAutoSolveBinding failed: ${e.message}`));
-    } else if (name === '__turnstileTargetBinding') {
-      this.cloudflareSolver.onTurnstileTargetFound(msg.sessionId, msg.params?.payload)
-        .catch((e: Error) => this.log.debug(`onTurnstileTargetFound failed: ${e.message}`));
     }
   }
 
@@ -772,50 +758,21 @@ export class ReplaySession {
     }
 
     // Cross-origin iframes (e.g., Cloudflare Turnstile)
-    // Extension handles rrweb injection via all_frames: true + world: "MAIN".
-    // We only need: Page.enable, resume debugger, Turnstile observer, Network/Runtime capture.
+    // Extension handles rrweb + network + console capture via all_frames: true + world: "MAIN".
+    // No CDP domain enables on OOPIF sessions — they're detectable fingerprints.
+    // We only need: resume debugger, iframe tracking, CF solver notification.
     if (targetInfo.type === 'iframe') {
       this.log.debug(`Iframe target attached (paused=${waitingForDebugger}): ${targetInfo.targetId} url=${targetInfo.url}`);
       this.targets.addIframeTarget(targetInfo.targetId, cdpSessionId);
-
-      try {
-        await this.sendCommand('Page.enable', {}, cdpSessionId);
-      } catch (e) {
-        this.log.debug(`Iframe Page.enable failed for ${targetInfo.targetId}: ${e instanceof Error ? e.message : String(e)}`);
-      }
 
       if (waitingForDebugger) {
         await this.sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId)
           .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] iframe runIfWaitingForDebugger skipped: ${e.message}`));
       }
 
-      // Turnstile iframe state tracking
-      if (targetInfo.url?.includes('challenges.cloudflare.com')) {
-        this.sendCommand('Runtime.addBinding', { name: '__turnstileStateBinding' }, cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile binding skipped: ${e.message}`));
-        this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-          source: TURNSTILE_STATE_OBSERVER_JS,
-          runImmediately: true,
-        }, cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile observer inject skipped: ${e.message}`));
-        setTimeout(() => {
-          this.sendCommand('Runtime.evaluate', { expression: TURNSTILE_STATE_OBSERVER_JS }, cdpSessionId)
-            .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile observer eval skipped: ${e.message}`));
-        }, 100);
-      }
-
-      // Enable CDP-level network + console capture for iframe
       const parentCdpSid = msg.sessionId || this.getLastPageCdpSession();
-      try {
-        await this.sendCommand('Network.enable', {}, cdpSessionId);
-        await this.sendCommand('Runtime.enable', {}, cdpSessionId);
-        if (parentCdpSid) {
-          this.targets.addIframe(cdpSessionId, parentCdpSid);
-        }
-      } catch {
-        // Non-critical
-      }
       if (parentCdpSid) {
+        this.targets.addIframe(cdpSessionId, parentCdpSid);
         this.cloudflareSolver.onIframeAttached(targetInfo.targetId, cdpSessionId, targetInfo.url, parentCdpSid)
           .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onIframeAttached skipped: ${e.message}`));
       }
@@ -894,31 +851,11 @@ export class ReplaySession {
     }
 
     // Handle iframe navigation
-    // Extension handles rrweb re-injection on iframe navigation via all_frames + document_start.
-    // We only re-inject Turnstile observer (CF-specific CDP code) and maintain Network/Runtime.
     const iframeCdpSid = this.targets.getIframeCdpSession(targetInfo.targetId);
     if (iframeCdpSid && targetInfo.type === 'iframe') {
+      // No CDP domain enables on OOPIF — extension handles capture, enables are fingerprints.
+      // Just ensure iframe tracking and notify CF solver.
       if (targetInfo.url?.includes('challenges.cloudflare.com')) {
-        this.sendCommand('Runtime.addBinding', {
-          name: '__turnstileStateBinding',
-        }, iframeCdpSid)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile binding skipped: ${e.message}`));
-        this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-          source: TURNSTILE_STATE_OBSERVER_JS,
-          runImmediately: true,
-        }, iframeCdpSid)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile observer inject skipped: ${e.message}`));
-        setTimeout(() => {
-          this.sendCommand('Runtime.evaluate', {
-            expression: TURNSTILE_STATE_OBSERVER_JS,
-          }, iframeCdpSid)
-            .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] turnstile observer eval skipped: ${e.message}`));
-        }, 100);
-
-        this.sendCommand('Network.enable', {}, iframeCdpSid)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Network.enable skipped: ${e.message}`));
-        this.sendCommand('Runtime.enable', {}, iframeCdpSid)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Runtime.enable skipped: ${e.message}`));
         if (!this.targets.isIframe(iframeCdpSid)) {
           const fallbackParent = this.getLastPageCdpSession();
           if (fallbackParent) {

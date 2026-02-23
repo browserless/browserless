@@ -38,9 +38,9 @@
       const data = metaEvent.data as { width?: number; height?: number };
       console.log('[Player] Meta event viewport:', data.width, 'x', data.height);
       if (data.width && data.height) {
-        // Scale down to fit in reasonable player size (max 1280x720)
-        const maxWidth = 1280;
-        const maxHeight = 720;
+        // Scale down to fit player beside 420px sidebar + padding
+        const maxWidth = 1920;
+        const maxHeight = 1080;
         const scale = Math.min(maxWidth / data.width, maxHeight / data.height, 1);
         console.log('[Player] Scaled viewport:', Math.round(data.width * scale), 'x', Math.round(data.height * scale), 'scale:', scale);
         return {

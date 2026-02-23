@@ -1,13 +1,5 @@
 import { Logger } from '@browserless.io/browserless';
-import type { CloudflareConfig, CloudflareInfo } from '../../shared/cloudflare-detection.js';
-import {
-  CF_DETECTION_JS,
-  TURNSTILE_CALLBACK_HOOK_JS,
-  TURNSTILE_STATE_OBSERVER_JS,
-  TURNSTILE_DETECT_AND_AWAIT_JS,
-  detectCloudflareType,
-} from '../../shared/cloudflare-detection.js';
-import { TURNSTILE_TARGET_OBSERVER_JS } from '../../generated/cf-scripts.js';
+import type { CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
 import { CloudflareTracker } from './cloudflare-event-emitter.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 import type { CloudflareStateTracker, SendCommand } from './cloudflare-state-tracker.js';
@@ -16,17 +8,21 @@ import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js
 /**
  * Detection lifecycle for Cloudflare challenges.
  *
- * Three detection paths:
- *   1. detectAndSolve — polls for _cf_chl_opt on every page navigation
- *   2. onAutoSolveBinding — instant callback via Runtime.addBinding (handled by state tracker)
- *   3. detectTurnstileWidget — polls for Turnstile API / DOM presence + token
+ * ZERO-INJECTION approach: No Runtime.evaluate, no addScriptToEvaluateOnNewDocument,
+ * no Runtime.addBinding on the page. This matches what happens when pydoll's native
+ * solver runs (which succeeds) — zero server-side JS execution on the CF page.
+ *
+ * Detection paths:
+ *   1. URL pattern matching — challenges.cloudflare.com in page URL (interstitials)
+ *   2. CDP DOM walk — iframe[src*="challenges.cloudflare.com"] (embedded Turnstile)
+ *   3. onAutoSolveBinding — instant callback via Runtime.addBinding (handled by state tracker)
  */
 export class CloudflareDetector {
   private log = new Logger('cf-detect');
   private enabled = false;
 
   constructor(
-    private sendCommand: SendCommand,
+    _sendCommand: SendCommand,
     private events: CloudflareEventEmitter,
     private state: CloudflareStateTracker,
     private strategies: CloudflareSolveStrategies,
@@ -38,25 +34,12 @@ export class CloudflareDetector {
       this.state.config = { ...this.state.config, ...config };
       this.events.recordingMarkers = this.state.config.recordingMarkers;
     }
-    this.log.info('Cloudflare solver enabled');
+    this.log.info('Cloudflare solver enabled (zero-injection mode)');
 
-    // Inject callback hook + binding for all known pages, then scan for existing CF pages
+    // Check existing pages for CF URLs (no JS injection)
     for (const [targetId, cdpSessionId] of this.state.knownPages) {
-      this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-        source: TURNSTILE_CALLBACK_HOOK_JS,
-        runImmediately: true,
-      }, cdpSessionId).catch(() => {});
-      this.sendCommand('Runtime.addBinding', {
-        name: '__turnstileSolvedBinding',
-      }, cdpSessionId).catch(() => {});
-      this.sendCommand('Runtime.addBinding', {
-        name: '__turnstileTargetBinding',
-      }, cdpSessionId).catch(() => {});
-      this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-        source: TURNSTILE_TARGET_OBSERVER_JS,
-        runImmediately: true,
-      }, cdpSessionId).catch(() => {});
-      this.detectAndSolve(targetId, cdpSessionId).catch(() => {});
+      // We don't have URLs for already-attached pages, so fall back to DOM walk
+      this.detectTurnstileWidget(targetId, cdpSessionId).catch(() => {});
     }
   }
 
@@ -69,22 +52,11 @@ export class CloudflareDetector {
     this.state.knownPages.set(targetId, cdpSessionId);
     if (!this.enabled || !url || url.startsWith('about:')) return;
 
-    this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-      source: TURNSTILE_CALLBACK_HOOK_JS,
-      runImmediately: true,
-    }, cdpSessionId).catch(() => {});
-    this.sendCommand('Runtime.addBinding', {
-      name: '__turnstileSolvedBinding',
-    }, cdpSessionId).catch(() => {});
-    this.sendCommand('Runtime.addBinding', {
-      name: '__turnstileTargetBinding',
-    }, cdpSessionId).catch(() => {});
-    this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-      source: TURNSTILE_TARGET_OBSERVER_JS,
-      runImmediately: true,
-    }, cdpSessionId).catch(() => {});
-
-    await this.detectAndSolve(targetId, cdpSessionId);
+    // ZERO-INJECTION: Detect CF from URL pattern only — NO Runtime.evaluate.
+    const cfType = this.detectCFFromUrl(url);
+    if (cfType) {
+      this.triggerSolveFromUrl(targetId, cdpSessionId, url, cfType);
+    }
   }
 
   /** Called when a page navigates. */
@@ -96,54 +68,86 @@ export class CloudflareDetector {
       active.aborted = true;
       this.state.activeDetections.delete(targetId);
       const duration = Date.now() - active.startTime;
-      if (active.info.type === 'interstitial') {
-        // Don't emit cf.solved yet — verify the destination isn't another challenge.
-        // Wait for new page to settle, then check.
+
+      // For click-based types (interstitial, turnstile, managed), check if the
+      // destination is ALSO a CF page before emitting solved/failed.
+      // CF rechallenge flow: click → page navigates to clean URL → CF re-serves challenge.
+      const clickBased = active.info.type === 'interstitial' || active.info.type === 'turnstile' || active.info.type === 'managed';
+      if (clickBased) {
         await new Promise((r) => setTimeout(r, 500));
-        let destinationIsCF = false;
-        try {
-          const result = await this.sendCommand('Runtime.evaluate', {
-            expression: CF_DETECTION_JS,
-            returnByValue: true,
-          }, cdpSessionId);
-          const raw = result?.result?.value;
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            destinationIsCF = !!parsed.detected;
+        let destinationIsCF = !!this.detectCFFromUrl(url);
+
+        if (!destinationIsCF) {
+          // URL looks clean, but CF may be re-rendering. Check DOM for Turnstile iframe.
+          try {
+            const detection = await this.strategies.detectTurnstileViaCDP(cdpSessionId);
+            if (detection?.present) {
+              destinationIsCF = true;
+            }
+          } catch {
+            // CDP error — assume not CF, emit solved
           }
-        } catch {
-          // CDP error (context destroyed, etc.) — assume not CF, emit solved
         }
 
         if (destinationIsCF) {
-          this.log.info(`Navigation from interstitial landed on another CF challenge — suppressing cf.solved`);
+          this.log.info(`Navigation from ${active.info.type} landed on another CF challenge — suppressing cf.solved`);
           this.events.marker(cdpSessionId, 'cf.rechallenge', {
-            type: 'interstitial', duration_ms: duration,
+            type: active.info.type, duration_ms: duration,
+            click_delivered: !!active.clickDelivered,
           });
-          // Let detectAndSolve below handle the new challenge page
         } else {
+          // Distinguish: did our click trigger this navigation, or did CF auto-solve?
+          // If clickDelivered is true, our Input.dispatchMouseEvent succeeded and
+          // this navigation likely resulted from it.
+          const wasClicked = !!active.clickDelivered;
+          const clickToNavMs = active.clickDeliveredAt
+            ? Date.now() - active.clickDeliveredAt
+            : null;
+
           this.events.emitSolved(active, {
             solved: true,
-            type: 'interstitial',
-            method: 'auto_navigation',
+            type: active.info.type,
+            method: wasClicked ? 'click_navigation' : 'auto_navigation',
             signal: 'page_navigated',
             duration_ms: duration,
             attempts: active.attempt,
-            auto_resolved: true,
+            auto_resolved: !wasClicked,
           });
+
+          // Extra marker for timing analysis: how long between click and navigation?
+          if (wasClicked && clickToNavMs !== null) {
+            this.events.marker(cdpSessionId, 'cf.click_to_nav', {
+              click_to_nav_ms: clickToNavMs,
+              type: active.info.type,
+            });
+          }
         }
       } else {
+        // Non-interactive, invisible — navigation means something else happened
         this.events.emitFailed(active, 'page_navigated', duration);
       }
     }
 
     if (!this.enabled || !url || url.startsWith('about:')) return;
 
-    // If we already waited 500ms for interstitial verification above, skip the delay
-    if (!active || active.info.type !== 'interstitial') {
+    // URL-based detection first (instant, zero CDP calls)
+    const cfType = this.detectCFFromUrl(url);
+    if (cfType) {
+      // If we already waited 500ms for click-based rechallenge check above, skip extra delay
+      const alreadyWaited = active && (active.info.type === 'interstitial' || active.info.type === 'turnstile' || active.info.type === 'managed');
+      if (!alreadyWaited) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      this.triggerSolveFromUrl(targetId, cdpSessionId, url, cfType);
+      return;
+    }
+
+    // Not a CF URL — check for embedded Turnstile via DOM walk (zero JS injection)
+    const alreadyWaited = active && (active.info.type === 'interstitial' || active.info.type === 'turnstile' || active.info.type === 'managed');
+    if (!alreadyWaited) {
       await new Promise((r) => setTimeout(r, 500));
     }
-    await this.detectAndSolve(targetId, cdpSessionId);
+    this.detectTurnstileWidget(targetId, cdpSessionId).catch(() => {});
   }
 
   /** Called when a cross-origin iframe is attached. */
@@ -170,19 +174,6 @@ export class CloudflareDetector {
         this.detectTurnstileWidget(pageTargetId, pageCdpSessionId).catch(() => {});
       }
     }
-
-    this.sendCommand('Runtime.addBinding', {
-      name: '__turnstileStateBinding',
-    }, iframeCdpSessionId).catch(() => {});
-    this.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
-      source: TURNSTILE_STATE_OBSERVER_JS,
-      runImmediately: true,
-    }, iframeCdpSessionId).catch(() => {});
-    setTimeout(() => {
-      this.sendCommand('Runtime.evaluate', {
-        expression: TURNSTILE_STATE_OBSERVER_JS,
-      }, iframeCdpSessionId).catch(() => {});
-    }, 100);
   }
 
   /** Called when an iframe navigates (Target.targetInfoChanged for type=iframe). */
@@ -205,98 +196,88 @@ export class CloudflareDetector {
         this.detectTurnstileWidget(pageTargetId, pageCdpSessionId).catch(() => {});
       }
     }
-
-    this.sendCommand('Runtime.addBinding', {
-      name: '__turnstileStateBinding',
-    }, iframeCdpSessionId).catch(() => {});
-    this.sendCommand('Runtime.evaluate', {
-      expression: TURNSTILE_STATE_OBSERVER_JS,
-    }, iframeCdpSessionId).catch(() => {});
   }
 
   // ─── Private detection methods ──────────────────────────────────────
 
-  private async detectAndSolve(targetId: string, cdpSessionId: string): Promise<void> {
-    if (this.state.destroyed || !this.enabled) return;
-
+  /**
+   * Detect CF challenge type purely from URL pattern. Zero CDP calls.
+   *
+   * CF interstitial challenge pages are served on the TARGET domain's URL
+   * (e.g. nopecha.com/demo/cloudflare?__cf_chl_rt_tk=...). The
+   * challenges.cloudflare.com domain only appears in the Turnstile iframe.
+   *
+   * Detection signals:
+   * - __cf_chl_rt_tk query param = CF challenge retry token
+   * - __cf_chl_f_tk query param = CF challenge form token
+   * - __cf_chl_jschl_tk__ query param = legacy CF JS challenge token
+   * - /cdn-cgi/challenge-platform/ in pathname
+   * - challenges.cloudflare.com hostname (rare — direct challenge URLs)
+   */
+  private detectCFFromUrl(url: string): CloudflareType | null {
+    if (!url) return null;
     try {
-      let data: any = null;
-      let pollCount = 0;
-      for (let i = 0; i < 1; i++) {
-        if (this.state.destroyed || !this.enabled) return;
-        if (this.state.activeDetections.has(targetId)) return;
-
-        try {
-          const result = await this.sendCommand('Runtime.evaluate', {
-            expression: CF_DETECTION_JS,
-            returnByValue: true,
-          }, cdpSessionId);
-          const raw = result?.result?.value;
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed.detected) { pollCount = i + 1; data = parsed; break; }
-          }
-        } catch {
-          break;
-        }
-
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      if (!data) {
-        this.detectTurnstileWidget(targetId, cdpSessionId).catch(() => {});
-        return;
-      }
-
-      const hasTurnstileIframe = [...this.state.iframeToPage.entries()]
-        .some(([, pageId]) => pageId === targetId);
-
-      const cfType = detectCloudflareType('', data, hasTurnstileIframe);
-      if (!cfType) return;
-
-      if (cfType === 'block') {
-        this.log.warn(`CF block page detected on ${targetId}, not solvable`);
-        return;
-      }
-
-      const info: CloudflareInfo = {
-        type: cfType,
-        url: '',
-        cType: data.cType,
-        cRay: data.cRay,
-        detectionMethod: data.method,
-        pollCount,
-      };
-
-      const active: ActiveDetection = {
-        info,
-        pageCdpSessionId: cdpSessionId,
-        pageTargetId: targetId,
-        startTime: Date.now(),
-        attempt: 1,
-        aborted: false,
-        tracker: new CloudflareTracker(info),
-      };
-
-      this.state.activeDetections.set(targetId, active);
-      const pending = this.state.pendingIframes.get(targetId);
-      if (pending) {
-        active.iframeCdpSessionId = pending.iframeCdpSessionId;
-        active.iframeTargetId = pending.iframeTargetId;
-        this.state.pendingIframes.delete(targetId);
-      }
-      this.events.emitDetected(active);
-      this.events.marker(cdpSessionId, 'cf.detected', { type: cfType });
-
-      await this.strategies.solveDetection(active);
-    } catch (e) {
-      this.log.debug(`CF detection failed: ${e instanceof Error ? e.message : String(e)}`);
+      const parsed = new URL(url);
+      // CF interstitial challenge pages
+      if (parsed.hostname === 'challenges.cloudflare.com') return 'interstitial';
+      // CF challenge platform paths
+      if (parsed.pathname.includes('/cdn-cgi/challenge-platform/')) return 'interstitial';
+      // CF challenge retry/form tokens in query params
+      if (parsed.search.includes('__cf_chl_rt_tk=')) return 'interstitial';
+      if (parsed.search.includes('__cf_chl_f_tk=')) return 'interstitial';
+      if (parsed.search.includes('__cf_chl_jschl_tk__=')) return 'interstitial';
+    } catch {
+      // Not a valid URL — check raw string patterns
+      if (url.includes('challenges.cloudflare.com')) return 'interstitial';
+      if (url.includes('__cf_chl_rt_tk=')) return 'interstitial';
     }
+    return null;
   }
 
   /**
-   * Detect standalone Turnstile widgets on pages where Runtime.addBinding
-   * doesn't work (e.g., Fetch.fulfillRequest-intercepted responses).
+   * Trigger solve from URL-based detection. No Runtime.evaluate needed.
+   */
+  private triggerSolveFromUrl(
+    targetId: string, cdpSessionId: string,
+    url: string, cfType: CloudflareType,
+  ): void {
+    if (this.state.destroyed || !this.enabled) return;
+    if (this.state.activeDetections.has(targetId)) return;
+
+    const info: CloudflareInfo = {
+      type: cfType,
+      url,
+      detectionMethod: 'url_pattern',
+    };
+
+    const active: ActiveDetection = {
+      info,
+      pageCdpSessionId: cdpSessionId,
+      pageTargetId: targetId,
+      startTime: Date.now(),
+      attempt: 1,
+      aborted: false,
+      tracker: new CloudflareTracker(info),
+    };
+
+    this.state.activeDetections.set(targetId, active);
+    const pending = this.state.pendingIframes.get(targetId);
+    if (pending) {
+      active.iframeCdpSessionId = pending.iframeCdpSessionId;
+      active.iframeTargetId = pending.iframeTargetId;
+      this.state.pendingIframes.delete(targetId);
+    }
+    this.events.emitDetected(active);
+    this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'url_pattern' });
+
+    this.strategies.solveDetection(active).catch((e) => {
+      this.log.debug(`CF solve from URL failed: ${e instanceof Error ? e.message : String(e)}`);
+    });
+  }
+
+  /**
+   * Detect standalone Turnstile widgets via CDP DOM walk (zero JS injection).
+   * Polls for iframe[src*="challenges.cloudflare.com"] in the page DOM tree.
    */
   private async detectTurnstileWidget(targetId: string, cdpSessionId: string): Promise<void> {
     if (this.state.destroyed || !this.enabled) return;
@@ -310,54 +291,45 @@ export class CloudflareDetector {
       if (this.state.bindingSolvedTargets.has(targetId)) return;
 
       try {
-        const result = await this.sendCommand('Runtime.evaluate', {
-          expression: TURNSTILE_DETECT_AND_AWAIT_JS,
-          returnByValue: true,
-        }, cdpSessionId);
-        const raw = result?.result?.value;
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed?.present) {
-            const info: CloudflareInfo = {
-              type: 'turnstile', url: '', detectionMethod: 'runtime_poll',
-            };
-            const active: ActiveDetection = {
-              info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
-              startTime, attempt: 1, aborted: false,
-              tracker: new CloudflareTracker(info),
-            };
+        const detection = await this.strategies.detectTurnstileViaCDP(cdpSessionId);
+        if (detection?.present) {
+          const info: CloudflareInfo = {
+            type: 'turnstile', url: '', detectionMethod: 'cdp_dom_walk',
+          };
+          const active: ActiveDetection = {
+            info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
+            startTime, attempt: 1, aborted: false,
+            tracker: new CloudflareTracker(info),
+          };
 
-            if (parsed.solved && !this.state.bindingSolvedTargets.has(targetId)) {
-              active.aborted = true;
-              this.state.bindingSolvedTargets.add(targetId);
-              this.events.emitDetected(active);
-              this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'runtime_poll' });
-              this.events.emitSolved(active, {
-                solved: true, type: 'turnstile', method: 'auto_solve',
-                duration_ms: Date.now() - startTime, attempts: 1,
-                auto_resolved: true, signal: 'runtime_poll',
-                token_length: parsed.tokenLength || 0,
-              });
-              return;
-            }
-
-            this.state.activeDetections.set(targetId, active);
-            const pending = this.state.pendingIframes.get(targetId);
-            if (pending) {
-              active.iframeCdpSessionId = pending.iframeCdpSessionId;
-              active.iframeTargetId = pending.iframeTargetId;
-              this.state.pendingIframes.delete(targetId);
-            }
+          // Fast-path: already solved at detection time (auto-solve beat us)
+          if (await this.state.isSolved(cdpSessionId) && !this.state.bindingSolvedTargets.has(targetId)) {
+            active.aborted = true;
+            this.state.bindingSolvedTargets.add(targetId);
             this.events.emitDetected(active);
-            this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'runtime_poll' });
-            await this.strategies.solveDetection(active);
+            this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'cdp_dom_walk' });
+            this.events.emitSolved(active, {
+              solved: true, type: 'turnstile', method: 'auto_solve',
+              duration_ms: Date.now() - startTime, attempts: 1,
+              auto_resolved: true, signal: 'cdp_dom_walk',
+            });
             return;
           }
+
+          this.state.activeDetections.set(targetId, active);
+          const pending = this.state.pendingIframes.get(targetId);
+          if (pending) {
+            active.iframeCdpSessionId = pending.iframeCdpSessionId;
+            active.iframeTargetId = pending.iframeTargetId;
+            this.state.pendingIframes.delete(targetId);
+          }
+          this.events.emitDetected(active);
+          this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'cdp_dom_walk' });
+          await this.strategies.solveDetection(active);
+          return;
         }
       } catch {
-        // Transient CDP error (context destroyed, timeout, etc.) — keep polling.
-        // Previously this was `return`, which silently abandoned detection on
-        // any single CDP failure, causing BLIND_PIPELINE (cf_events=0).
+        // Transient CDP error — keep polling
       }
 
       await new Promise(r => setTimeout(r, 200));

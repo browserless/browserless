@@ -22,10 +22,10 @@ export class CloudflareSolver {
   private stateTracker: CloudflareStateTracker;
   private events: CloudflareEventEmitter;
 
-  constructor(sendCommand: SendCommand, injectMarker: InjectMarker) {
+  constructor(sendCommand: SendCommand, injectMarker: InjectMarker, chromePort?: string) {
     this.events = new CloudflareEventEmitter(injectMarker);
     this.stateTracker = new CloudflareStateTracker(sendCommand, this.events);
-    this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, this.stateTracker);
+    this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, this.stateTracker, chromePort);
     this.detector = new CloudflareDetector(sendCommand, this.events, this.stateTracker, this.strategies);
 
     // Wire retry callback: when state tracker detects a retry-worthy failure,
@@ -33,11 +33,24 @@ export class CloudflareSolver {
     this.stateTracker.onRetryCallback = (active) => {
       this.strategies.solveDetection(active).catch(() => {});
     };
+
+    // Wire OOPIF state check: activity loop polls Turnstile iframe state via CDP
+    this.stateTracker.checkOOPIFState = (iframeCdpSessionId) => {
+      return this.strategies.checkOOPIFStateViaCDP(iframeCdpSessionId);
+    };
   }
 
   setEmitClientEvent(fn: EmitClientEvent): void {
     this.events.setEmitClientEvent(fn);
   }
+
+  /**
+   * Route solver commands through CDPProxy's browser WS.
+   */
+  setSendViaProxy(fn: SendCommand): void {
+    this.strategies.setSendViaProxy(fn);
+  }
+
 
   enable(config?: CloudflareConfig): void {
     this.detector.enable(config);
@@ -68,20 +81,12 @@ export class CloudflareSolver {
     return this.detector.onIframeNavigated(iframeTargetId, iframeCdpSessionId, url);
   }
 
-  async onTurnstileStateChange(state: string, iframeCdpSessionId: string): Promise<void> {
-    return this.stateTracker.onTurnstileStateChange(state, iframeCdpSessionId);
-  }
-
   async onAutoSolveBinding(cdpSessionId: string): Promise<void> {
     return this.stateTracker.onAutoSolveBinding(cdpSessionId);
   }
 
   onBeaconSolved(targetId: string, tokenLength: number): void {
     return this.stateTracker.onBeaconSolved(targetId, tokenLength);
-  }
-
-  async onTurnstileTargetFound(cdpSessionId: string, payload: string): Promise<void> {
-    return this.stateTracker.onTurnstileTargetFound(cdpSessionId, payload);
   }
 
   emitUnresolvedDetections(): void {

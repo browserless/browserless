@@ -38,8 +38,9 @@ typecheck:
     npx tsc --noEmit
 
 # Start local Browserless server with auto-restart on rebuild
+# MUST use node, NOT bun — bun breaks WebSocket proxying (handshake timeouts)
 dev port="3000":
-    PORT={{port}} npx env-cmd -f .env.dev bun --watch build/index.js
+    PORT={{port}} npx env-cmd -f .env.dev node --watch build/index.js
 
 # Run TypeScript compiler in watch mode (separate terminal)
 watch:

@@ -1,14 +1,9 @@
 import { Logger } from '@browserless.io/browserless';
 import type { CloudflareConfig } from '../../shared/cloudflare-detection.js';
 import {
-  TURNSTILE_TOKEN_JS,
   TURNSTILE_ERROR_CHECK_JS,
-  TURNSTILE_DETECT_AND_AWAIT_JS,
   CF_DETECTION_JS,
 } from '../../shared/cloudflare-detection.js';
-import {
-  simulateHumanPresence,
-} from '../../shared/mouse-humanizer.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 
 export type SendCommand = (method: string, params?: object, cdpSessionId?: string, timeoutMs?: number) => Promise<any>;
@@ -17,7 +12,7 @@ export type SendCommand = (method: string, params?: object, cdpSessionId?: strin
  * Tracks active CF detections, solved state, and background activity loops.
  *
  * Owns: activeDetections, bindingSolvedTargets, pendingIframes,
- *       pendingTargetCoords, targetCoordResolvers, knownPages, iframeToPage
+ *       knownPages, iframeToPage
  */
 export class CloudflareStateTracker {
   private log = new Logger('cf-state');
@@ -26,8 +21,6 @@ export class CloudflareStateTracker {
   readonly knownPages = new Map<string, string>();
   readonly bindingSolvedTargets = new Set<string>();
   readonly pendingIframes = new Map<string, { iframeCdpSessionId: string; iframeTargetId: string }>();
-  readonly pendingTargetCoords = new Map<string, { x: number; y: number; method: string; debug?: Record<string, unknown> }>();
-  readonly targetCoordResolvers = new Map<string, (coords: { x: number; y: number; method: string; debug?: Record<string, unknown> }) => void>();
   config: Required<CloudflareConfig> = { maxAttempts: 3, attemptTimeout: 30000, recordingMarkers: true };
   destroyed = false;
 
@@ -36,7 +29,7 @@ export class CloudflareStateTracker {
     private events: CloudflareEventEmitter,
   ) {}
 
-  /** Called when Turnstile iframe state changes (via __turnstileStateBinding). */
+  /** Called when Turnstile iframe state changes (via CDP OOPIF DOM walk or direct call). */
   async onTurnstileStateChange(state: string, iframeCdpSessionId: string): Promise<void> {
     const pageTargetId = this.findPageByIframeSession(iframeCdpSessionId);
     if (!pageTargetId) return;
@@ -48,13 +41,30 @@ export class CloudflareStateTracker {
     this.events.emitProgress(active, state);
 
     if (state === 'success') {
-      await new Promise(r => setTimeout(r, 500));
+      // For interstitials, CF redirects after Turnstile success — takes 1-5s.
+      // Poll until CF markers disappear or token appears, rather than a fixed wait.
+      const isInterstitial = active.info.type === 'interstitial';
+      const maxWaitMs = isInterstitial ? 8000 : 1000;
+      const pollInterval = 500;
+      const pollStart = Date.now();
+      let token: string | null = null;
+      let stillDetected = true;
 
-      const token = await this.getToken(active.pageCdpSessionId);
-      const stillDetected = await this.isStillDetected(active.pageCdpSessionId);
+      while (Date.now() - pollStart < maxWaitMs) {
+        await new Promise(r => setTimeout(r, pollInterval));
+        if (active.aborted) return;
+
+        token = await this.getToken(active.pageCdpSessionId);
+        stillDetected = await this.isStillDetected(active.pageCdpSessionId);
+
+        // Page navigated away from CF challenge or token appeared
+        if (!stillDetected || token) break;
+      }
 
       if (stillDetected && !token) {
-        this.events.marker(active.pageCdpSessionId, 'cf.false_positive', { state });
+        this.events.marker(active.pageCdpSessionId, 'cf.false_positive', {
+          state, waited_ms: Date.now() - pollStart, type: active.info.type,
+        });
         this.events.emitProgress(active, 'false_positive');
         this.log.warn(`False positive success for page ${pageTargetId}`);
         return;
@@ -92,6 +102,9 @@ export class CloudflareStateTracker {
 
   // Callback for retry — wired by delegator to strategies.solveDetection
   onRetryCallback: ((active: ActiveDetection) => void) | null = null;
+
+  // Callback for OOPIF state check via CDP — wired by delegator to strategies.checkOOPIFStateViaCDP
+  checkOOPIFState: ((iframeCdpSessionId: string) => Promise<'success' | 'fail' | 'expired' | 'timeout' | 'pending' | null>) | null = null;
 
   /** Called when TURNSTILE_CALLBACK_HOOK_JS detects an auto-solve on any page. */
   async onAutoSolveBinding(cdpSessionId: string): Promise<void> {
@@ -148,23 +161,6 @@ export class CloudflareStateTracker {
     }
   }
 
-  /** Called when __turnstileTargetBinding fires with widget coordinates. */
-  async onTurnstileTargetFound(cdpSessionId: string, payload: string): Promise<void> {
-    const pageTargetId = this.findPageBySession(cdpSessionId);
-    if (!pageTargetId) return;
-
-    const coords = JSON.parse(payload);
-    const parsed = { x: coords.x, y: coords.y, method: coords.m, debug: coords.d };
-
-    const resolver = this.targetCoordResolvers.get(pageTargetId);
-    if (resolver) {
-      this.targetCoordResolvers.delete(pageTargetId);
-      resolver(parsed);
-    } else {
-      this.pendingTargetCoords.set(pageTargetId, parsed);
-    }
-  }
-
   /**
    * Emit cf.solved for any detections that were detected but never resolved.
    * Called during session cleanup as a fallback to guarantee ZERO cf(1).
@@ -204,9 +200,7 @@ export class CloudflareStateTracker {
       const result = await this.sendCommand('Runtime.evaluate', {
         expression: `(function() {
           if (window.__turnstileSolved === true) return true;
-          if (window.__turnstileAwaitResult) return true;
           try { if (typeof turnstile !== 'undefined' && turnstile.getResponse && turnstile.getResponse()) return true; } catch(e) {}
-          if (window.__turnstileToken) return true;
           var el = document.querySelector('[name="cf-turnstile-response"]');
           return !!(el && el.value && el.value.length > 0);
         })()`,
@@ -221,7 +215,12 @@ export class CloudflareStateTracker {
   async getToken(cdpSessionId: string): Promise<string | null> {
     try {
       const result = await this.sendCommand('Runtime.evaluate', {
-        expression: TURNSTILE_TOKEN_JS,
+        expression: `(() => {
+          if (typeof turnstile !== 'undefined' && turnstile.getResponse) {
+            try { var t = turnstile.getResponse(); if (t && t.length > 0) return t; } catch(e){}
+          }
+          return null;
+        })()`,
         returnByValue: true,
       }, cdpSessionId);
       const val = result?.result?.value;
@@ -265,13 +264,6 @@ export class CloudflareStateTracker {
   /** Background loop that keeps the browser alive after click commit. */
   startActivityLoop(active: ActiveDetection): void {
     const loop = async () => {
-      try {
-        await this.sendCommand('Runtime.evaluate', {
-          expression: TURNSTILE_DETECT_AND_AWAIT_JS,
-          returnByValue: true,
-        }, active.pageCdpSessionId);
-      } catch { /* page gone */ }
-
       let loopIter = 0;
       const loopStart = Date.now();
       while (!active.aborted && !this.destroyed) {
@@ -287,6 +279,17 @@ export class CloudflareStateTracker {
 
         this.events.emitProgress(active, 'activity_poll', { iteration: loopIter });
 
+        // Check OOPIF state via CDP DOM walk (replaces MutationObserver injection)
+        if (active.iframeCdpSessionId && this.checkOOPIFState) {
+          try {
+            const oopifState = await this.checkOOPIFState(active.iframeCdpSessionId);
+            if (oopifState && oopifState !== 'pending') {
+              await this.onTurnstileStateChange(oopifState, active.iframeCdpSessionId);
+              if (active.aborted) return;
+            }
+          } catch { /* OOPIF gone */ }
+        }
+
         const widgetErr = await this.isWidgetError(active.pageCdpSessionId);
         if (widgetErr) {
           this.events.marker(active.pageCdpSessionId, 'cf.widget_error_detected', {
@@ -297,9 +300,8 @@ export class CloudflareStateTracker {
           });
         }
 
-        try {
-          await simulateHumanPresence(this.sendCommand, active.pageCdpSessionId, 0.5 + Math.random() * 1.0);
-        } catch { /* CDP gone — skip presence, keep polling */ }
+        // No mouse simulation — pydoll's solver doesn't do it, and CF may detect it.
+        // Just wait for the next poll interval.
       }
     };
     loop().catch(() => {});
@@ -326,7 +328,5 @@ export class CloudflareStateTracker {
     this.knownPages.clear();
     this.bindingSolvedTargets.clear();
     this.pendingIframes.clear();
-    this.pendingTargetCoords.clear();
-    this.targetCoordResolvers.clear();
   }
 }

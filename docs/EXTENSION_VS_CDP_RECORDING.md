@@ -136,7 +136,7 @@ At 500ms intervals across 5 tabs:
 | pydoll commands | Variable | Navigation, DOM queries, form fills |
 | **Total** | **12–20+** | All competing on shared WebSocket |
 
-Under concurrency (15 tabs), this scaled to 30+ `Runtime.evaluate` commands per second for event collection alone. Each command took ~8s under contention (see [PUSH_BASED_CF_SOLVER.md](PUSH_BASED_CF_SOLVER.md)), making the polling model fundamentally unscalable.
+Under concurrency (15 tabs), this scaled to 30+ `Runtime.evaluate` commands per second for event collection alone. Each command took ~8s under contention (see [CLOUDFLARE_SOLVER.md](CLOUDFLARE_SOLVER.md)), making the polling model fundamentally unscalable.
 
 ### 3.5 Self-Healing Complexity
 
@@ -331,7 +331,7 @@ if (window.__rrwebPush) {
 }
 ```
 
-If the binding isn't registered yet (brief window at page start), events accumulate in the array buffer and are drained during finalization. This is the same pattern as the CF solver's push-based detection — see [PUSH_BASED_CF_SOLVER.md](PUSH_BASED_CF_SOLVER.md).
+If the binding isn't registered yet (brief window at page start), events accumulate in the array buffer and are drained during finalization. This is the same pattern as the CF solver's push-based detection — see [CLOUDFLARE_SOLVER.md](CLOUDFLARE_SOLVER.md).
 
 ---
 
@@ -398,7 +398,7 @@ The key difference is under contention: CDP polling latency scales with tab coun
 | Document | Content |
 |----------|---------|
 | [WEBSOCKET_ARCHITECTURE.md](WEBSOCKET_ARCHITECTURE.md) | Per-page WS topology, stuck sessions (§5), 0-event replay bug (§6) |
-| [PUSH_BASED_CF_SOLVER.md](PUSH_BASED_CF_SOLVER.md) | CDP polling → push migration precedent, performance numbers |
+| [CLOUDFLARE_SOLVER.md](CLOUDFLARE_SOLVER.md) | CDP polling → push migration precedent, performance numbers |
 | [TURNSTILE_RECORDING.md](TURNSTILE_RECORDING.md) | Closed shadow DOM, cross-origin iframe handling |
 
 | Source File | Content |
