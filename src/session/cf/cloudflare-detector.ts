@@ -90,11 +90,26 @@ export class CloudflareDetector {
         }
 
         if (destinationIsCF) {
-          this.log.info(`Navigation from ${active.info.type} landed on another CF challenge — suppressing cf.solved`);
+          const rechallengeCount = (active.rechallengeCount || 0) + 1;
+
           this.events.marker(cdpSessionId, 'cf.rechallenge', {
             type: active.info.type, duration_ms: duration,
             click_delivered: !!active.clickDelivered,
+            rechallenge_count: rechallengeCount,
           });
+
+          const maxRechallenges = 6;
+          if (rechallengeCount >= maxRechallenges) {
+            this.log.info(`Rechallenge limit reached (${rechallengeCount}) for ${active.info.type} — emitting cf.failed`);
+            this.events.emitFailed(active, 'rechallenge_limit', duration);
+            this.state.bindingSolvedTargets.add(targetId);
+            return;
+          }
+
+          this.events.emitFailed(active, 'rechallenge', duration);
+
+          this.log.info(`Navigation from ${active.info.type} landed on another CF challenge (rechallenge ${rechallengeCount}/${maxRechallenges}) — suppressing cf.solved`);
+          this.state.pendingRechallengeCount.set(targetId, rechallengeCount);
         } else {
           // Distinguish: did our click trigger this navigation, or did CF auto-solve?
           // If clickDelivered is true, our Input.dispatchMouseEvent succeeded and
@@ -198,6 +213,13 @@ export class CloudflareDetector {
     }
   }
 
+  private emitSolveFailure(active: ActiveDetection, targetId: string, reason: string): void {
+    if (active.aborted) return;
+    this.events.emitFailed(active, reason, Date.now() - active.startTime);
+    active.aborted = true;
+    this.state.activeDetections.delete(targetId);
+  }
+
   // ─── Private detection methods ──────────────────────────────────────
 
   /**
@@ -243,12 +265,16 @@ export class CloudflareDetector {
   ): void {
     if (this.state.destroyed || !this.enabled) return;
     if (this.state.activeDetections.has(targetId)) return;
+    if (this.state.bindingSolvedTargets.has(targetId)) return;
 
     const info: CloudflareInfo = {
       type: cfType,
       url,
       detectionMethod: 'url_pattern',
     };
+
+    const rechallengeCount = this.state.pendingRechallengeCount.get(targetId) || 0;
+    this.state.pendingRechallengeCount.delete(targetId);
 
     const active: ActiveDetection = {
       info,
@@ -258,6 +284,7 @@ export class CloudflareDetector {
       attempt: 1,
       aborted: false,
       tracker: new CloudflareTracker(info),
+      rechallengeCount,
     };
 
     this.state.activeDetections.set(targetId, active);
@@ -270,7 +297,11 @@ export class CloudflareDetector {
     this.events.emitDetected(active);
     this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'url_pattern' });
 
-    this.strategies.solveDetection(active).catch((e) => {
+    this.strategies.solveDetection(active).then((outcome) => {
+      if (outcome === 'no_click') {
+        this.emitSolveFailure(active, targetId, 'widget_not_found');
+      }
+    }).catch((e) => {
       this.log.debug(`CF solve from URL failed: ${e instanceof Error ? e.message : String(e)}`);
     });
   }
@@ -293,13 +324,19 @@ export class CloudflareDetector {
       try {
         const detection = await this.strategies.detectTurnstileViaCDP(cdpSessionId);
         if (detection?.present) {
+          const rechallengeCount = this.state.pendingRechallengeCount.get(targetId) || 0;
+          this.state.pendingRechallengeCount.delete(targetId);
+
+          const cfType = detection.cfType ?? 'turnstile';
           const info: CloudflareInfo = {
-            type: 'turnstile', url: '', detectionMethod: 'cdp_dom_walk',
+            type: cfType, url: '', detectionMethod: 'cdp_dom_walk',
+            cRay: detection.cRay,
           };
           const active: ActiveDetection = {
             info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
             startTime, attempt: 1, aborted: false,
             tracker: new CloudflareTracker(info),
+            rechallengeCount,
           };
 
           // Fast-path: already solved at detection time (auto-solve beat us)
@@ -307,9 +344,9 @@ export class CloudflareDetector {
             active.aborted = true;
             this.state.bindingSolvedTargets.add(targetId);
             this.events.emitDetected(active);
-            this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'cdp_dom_walk' });
+            this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
             this.events.emitSolved(active, {
-              solved: true, type: 'turnstile', method: 'auto_solve',
+              solved: true, type: cfType, method: 'auto_solve',
               duration_ms: Date.now() - startTime, attempts: 1,
               auto_resolved: true, signal: 'cdp_dom_walk',
             });
@@ -324,8 +361,11 @@ export class CloudflareDetector {
             this.state.pendingIframes.delete(targetId);
           }
           this.events.emitDetected(active);
-          this.events.marker(cdpSessionId, 'cf.detected', { type: 'turnstile', method: 'cdp_dom_walk' });
-          await this.strategies.solveDetection(active);
+          this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
+          const outcome = await this.strategies.solveDetection(active);
+          if (outcome === 'no_click') {
+            this.emitSolveFailure(active, targetId, 'widget_not_found');
+          }
           return;
         }
       } catch {

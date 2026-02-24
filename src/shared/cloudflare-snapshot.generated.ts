@@ -42,9 +42,13 @@ export interface CloudflareSnapshot {
    */
   widget_y?: number | null;
   /**
-   * Whether the CF solver clicked the widget
+   * Whether the CF solver's click caused the solve. False if CF auto-solved independently. See click_attempted for dispatch-level tracking.
    */
   clicked?: boolean;
+  /**
+   * Whether the CF solver dispatched a click (regardless of outcome). Use for diagnostics. For attribution, use 'clicked' which indicates the click caused the solve.
+   */
+  click_attempted?: boolean;
   /**
    * Number of times the widget was clicked
    */

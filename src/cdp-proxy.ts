@@ -233,10 +233,9 @@ export class CDPProxy {
           // Intercept Browser.close to emit replayComplete before socket closes
           if (msg?.method === 'Browser.close' && this.onBeforeClose && !this.closeRequested) {
             this.closeRequested = true;
-            if (typeof msg?.id === 'number') {
-              void this.sendClientResponse(msg.id);
-            }
-            void this.runBeforeCloseAndForward(data, isBinary);
+            // Run onBeforeClose FIRST (saves replay, emits tabReplayComplete),
+            // THEN send the Browser.close response so client WS stays open.
+            void this.runBeforeCloseAndForward(data, isBinary, msg?.id);
             return;
           }
         } catch {
@@ -299,6 +298,7 @@ export class CDPProxy {
   private async runBeforeCloseAndForward(
     data: WebSocket.RawData,
     isBinary: boolean,
+    clientMsgId?: number,
   ): Promise<void> {
     if (this.onBeforeClose) {
       try {
@@ -316,6 +316,11 @@ export class CDPProxy {
           `onBeforeClose failed: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
+    }
+
+    // Send Browser.close response AFTER onBeforeClose (replay events already sent)
+    if (typeof clientMsgId === 'number') {
+      await this.sendClientResponse(clientMsgId);
     }
 
     if (this.browserWs?.readyState === WebSocket.OPEN) {

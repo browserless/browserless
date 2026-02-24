@@ -21,6 +21,7 @@ export class CloudflareStateTracker {
   readonly knownPages = new Map<string, string>();
   readonly bindingSolvedTargets = new Set<string>();
   readonly pendingIframes = new Map<string, { iframeCdpSessionId: string; iframeTargetId: string }>();
+  readonly pendingRechallengeCount = new Map<string, number>();
   config: Required<CloudflareConfig> = { maxAttempts: 3, attemptTimeout: 30000, recordingMarkers: true };
   destroyed = false;
 

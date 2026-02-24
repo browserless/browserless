@@ -605,6 +605,7 @@ export class ReplaySession {
     this.messageHandlers.set('Target.targetCreated', (msg) => this.handleTargetCreated(msg));
     this.messageHandlers.set('Target.targetDestroyed', (msg) => this.handleTargetDestroyed(msg));
     this.messageHandlers.set('Target.targetInfoChanged', (msg) => this.handleTargetInfoChanged(msg));
+    this.messageHandlers.set('Page.frameNavigated', (msg) => this.handleFrameNavigated(msg));
   }
 
   private async handleCDPMessage(data: Buffer): Promise<void> {
@@ -867,6 +868,46 @@ export class ReplaySession {
       this.cloudflareSolver.onIframeNavigated(targetInfo.targetId, iframeCdpSid, targetInfo.url)
         .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onIframeNavigated skipped: ${e.message}`));
     }
+  }
+
+  /**
+   * Backup CF detection path via Page.frameNavigated.
+   *
+   * Target.targetInfoChanged is the primary detection path but doesn't always fire
+   * for CF redirects. Page.frameNavigated fires for every navigation and catches
+   * the gaps — particularly CF challenges that appear after the initial DOM walk.
+   *
+   * Uses onPageAttached (detection-only, no resolution) instead of onPageNavigated
+   * to avoid aborting detections that targetInfoChanged already started. The
+   * detector's internal guard (activeDetections.has) deduplicates automatically.
+   */
+  private handleFrameNavigated(msg: any): void {
+    const frame = msg.params?.frame;
+    if (!frame || !msg.sessionId) return;
+
+    // Main frame only — sub-frame navigations are not CF challenge pages
+    if (frame.parentId) return;
+
+    const url = frame.url;
+    if (!url || url.startsWith('about:') || url.startsWith('chrome:')) return;
+
+    // Only trigger for CF challenge URLs — normal navigations don't need this path
+    const isCFUrl = url.includes('__cf_chl_rt_tk=')
+      || url.includes('__cf_chl_f_tk=')
+      || url.includes('__cf_chl_jschl_tk__=')
+      || url.includes('/cdn-cgi/challenge-platform/')
+      || url.includes('challenges.cloudflare.com');
+
+    if (!isCFUrl) return;
+
+    const target = this.targets.getByCdpSession(msg.sessionId);
+    if (!target) return;
+
+    // Use onPageAttached (detection-only) — it calls triggerSolveFromUrl which has
+    // the activeDetections.has guard for deduplication. Unlike onPageNavigated, it
+    // won't abort an existing detection that targetInfoChanged already started.
+    this.cloudflareSolver.onPageAttached(target.targetId, msg.sessionId, url)
+      .catch((e: Error) => this.log.debug(`[${target.targetId}] frameNavigated CF detection skipped: ${e.message}`));
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────

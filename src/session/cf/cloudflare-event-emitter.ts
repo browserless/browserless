@@ -95,6 +95,7 @@ export class CloudflareTracker {
       widget_x: this.widgetX,
       widget_y: this.widgetY,
       clicked: this.clicked,
+      click_attempted: this.clicked,
       click_count: this.clickCount,
       click_x: this.clickX,
       click_y: this.clickY,
@@ -126,6 +127,8 @@ export interface ActiveDetection {
   clickDelivered?: boolean;
   /** Timestamp when click was dispatched (for timing analysis). */
   clickDeliveredAt?: number;
+  /** Number of CF rechallenges on this target so far. */
+  rechallengeCount?: number;
 }
 
 /** Handles all CDP event emission for Cloudflare detection/solving. */

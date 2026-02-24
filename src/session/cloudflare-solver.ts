@@ -13,7 +13,7 @@ import type { SendCommand } from './cf/cloudflare-state-tracker.js';
  * ReplayCoordinator, and BrowsersCDP depend on. All logic lives in:
  *   - CloudflareDetector: detection lifecycle
  *   - CloudflareSolveStrategies: solve execution
- *   - CloudflareStateTracker: active detection state + background loops
+ *   - CloudflareStateTracker: active detection state
  *   - CloudflareEventEmitter: CDP event emission + recording markers
  */
 export class CloudflareSolver {
@@ -27,17 +27,6 @@ export class CloudflareSolver {
     this.stateTracker = new CloudflareStateTracker(sendCommand, this.events);
     this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, this.stateTracker, chromePort);
     this.detector = new CloudflareDetector(sendCommand, this.events, this.stateTracker, this.strategies);
-
-    // Wire retry callback: when state tracker detects a retry-worthy failure,
-    // it calls back into strategies.solveDetection
-    this.stateTracker.onRetryCallback = (active) => {
-      this.strategies.solveDetection(active).catch(() => {});
-    };
-
-    // Wire OOPIF state check: activity loop polls Turnstile iframe state via CDP
-    this.stateTracker.checkOOPIFState = (iframeCdpSessionId) => {
-      return this.strategies.checkOOPIFStateViaCDP(iframeCdpSessionId);
-    };
   }
 
   setEmitClientEvent(fn: EmitClientEvent): void {

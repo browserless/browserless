@@ -1,8 +1,22 @@
 import {
   simulateHumanPresence,
 } from '../../shared/mouse-humanizer.js';
+import type { CloudflareType } from '../../shared/cloudflare-detection.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 import type { CloudflareStateTracker, SendCommand } from './cloudflare-state-tracker.js';
+
+/** Result from detectTurnstileViaCDP — includes type info when available. */
+export interface CFDetectionResult {
+  present: boolean;
+  cfType?: CloudflareType;
+  cRay?: string;
+}
+
+export type SolveOutcome =
+  | 'click_dispatched'
+  | 'no_click'
+  | 'auto_handled'
+  | 'aborted';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -65,35 +79,39 @@ export class CloudflareSolveStrategies {
     this.sendViaProxy = fn;
   }
 
-  async solveDetection(active: ActiveDetection): Promise<void> {
-    if (active.aborted || this.state.destroyed) return;
+  async solveDetection(active: ActiveDetection): Promise<SolveOutcome> {
+    if (active.aborted || this.state.destroyed) return 'aborted';
 
-    // Only start activity loop for types that DON'T click.
-    // For click-based types, no concurrent CDP polling — pydoll doesn't do it.
-    const clickBased = active.info.type === 'managed' || active.info.type === 'interstitial' || active.info.type === 'turnstile';
-    if (!clickBased && !active.activityLoopStarted) {
-      active.activityLoopStarted = true;
-      this.state.startActivityLoop(active);
-    }
-
-    switch (active.info.type) {
-      case 'managed':
-        await this.solveByClicking(active, 0.5 + Math.random() * 1.0);
-        break;
-      case 'interstitial':
-        await this.solveByClicking(active, 1.5 + Math.random() * 1.5);
-        break;
-      case 'turnstile':
-        await this.solveTurnstile(active);
-        break;
-      case 'non_interactive':
-      case 'invisible':
-        await this.solveAutomatic(active);
-        break;
-      case 'block':
-        throw new Error('block type should not reach solveDetection');
-      default:
-        assertNever(active.info.type, 'CloudflareType in solveDetection');
+    try {
+      switch (active.info.type) {
+        case 'managed':
+        case 'interstitial': {
+          const presence = active.info.type === 'managed'
+            ? 0.5 + Math.random() * 1.0
+            : 1.5 + Math.random() * 1.5;
+          const clicked = await this.solveByClicking(active, presence);
+          return active.aborted ? 'aborted' : clicked ? 'click_dispatched' : 'no_click';
+        }
+        case 'turnstile': {
+          const clicked = await this.solveTurnstile(active);
+          return active.aborted ? 'aborted' : clicked ? 'click_dispatched' : 'no_click';
+        }
+        case 'non_interactive':
+        case 'invisible':
+          await this.solveAutomatic(active);
+          return active.aborted ? 'aborted' : 'auto_handled';
+        case 'block':
+          throw new Error('block type should not reach solveDetection');
+        default:
+          assertNever(active.info.type, 'CloudflareType in solveDetection');
+      }
+    } catch (err) {
+      if (!active.aborted) {
+        this.events.emitFailed(active, 'solve_exception', Date.now() - active.startTime);
+        active.aborted = true;
+        this.state.activeDetections.delete(active.pageTargetId);
+      }
+      return 'aborted';
     }
   }
 
@@ -102,57 +120,85 @@ export class CloudflareSolveStrategies {
    * ZERO-INJECTION: No Runtime.evaluate on the page before clicking.
    * Matches pydoll's approach: immediate Phase 1 polling → find OOPIF → click.
    */
-  private async solveByClicking(active: ActiveDetection, _presenceDuration: number): Promise<void> {
-    if (active.aborted) return;
-
-    // NO initial sleep — pydoll doesn't wait either. It immediately starts
-    // _find_cloudflare_shadow_root() which polls 500ms until the shadow root
-    // appears. Our findAndClickViaCDP does the same: Phase 1 opens a clean
-    // page WS and polls DOM.getDocument until the CF iframe shows up.
-    // The retry loop with 500ms gaps handles the wait naturally.
+  private async solveByClicking(active: ActiveDetection, _presenceDuration: number): Promise<boolean> {
+    if (active.aborted) return false;
 
     const maxAttempts = 6;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (active.aborted) return;
+      if (active.aborted) return false;
 
       if (attempt > 0) await sleep(500);
 
       const result = await this.findAndClickViaCDP(active, attempt);
       if (result) {
         this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
-        return;
+        return true;
       }
     }
 
     this.events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
+    return false;
   }
 
   /**
    * Solve standalone Turnstile widgets on third-party pages.
    * ZERO-INJECTION: No Runtime.evaluate on the page before clicking.
+   *
+   * After click attempts, waits for auto-solve by polling turnstile.getResponse().
+   * This handles non-interactive widgets (Ahrefs) that auto-solve without clicking.
+   * Runtime.evaluate is safe AFTER detection — CF's WASM checks run during detection,
+   * not during post-click polling.
    */
-  private async solveTurnstile(active: ActiveDetection): Promise<void> {
-    if (active.aborted) return;
+  private async solveTurnstile(active: ActiveDetection): Promise<boolean> {
+    if (active.aborted) return false;
     const { pageCdpSessionId } = active;
     const deadline = Date.now() + 30_000;
 
-    // NO initial sleep — match pydoll's immediate polling approach.
-
+    // Phase 1: Try to click the checkbox
     const maxAttempts = 6;
+    let clicked = false;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (active.aborted || Date.now() > deadline) return;
+      if (active.aborted || Date.now() > deadline) return false;
 
       if (attempt > 0) await sleep(500);
 
       const result = await this.findAndClickViaCDP(active, attempt);
       if (result) {
         this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
-        return;
+        clicked = true;
+        break;
       }
     }
 
-    this.events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
-    this.events.marker(pageCdpSessionId, 'cf.cdp_click_failed');
+    if (!clicked) {
+      this.events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
+      this.events.marker(pageCdpSessionId, 'cf.cdp_no_checkbox');
+    }
+
+    // Phase 2: Wait for auto-solve (token via turnstile.getResponse()).
+    // Covers both: click succeeded and we wait for token, or click failed and
+    // the widget is non-interactive (auto-solves without click).
+    while (!active.aborted && Date.now() < deadline) {
+      await sleep(500);
+      if (active.aborted) return false;
+
+      try {
+        const token = await this.state.getToken(pageCdpSessionId);
+        if (token) {
+          this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
+          // Resolve via state tracker so the event pipeline fires correctly
+          await this.state.resolveAutoSolved(active, 'token_poll');
+          return true;
+        }
+      } catch {
+        // CDP error — page may have navigated (click solved it)
+      }
+
+      // Also check if something else resolved it (beacon, navigation)
+      if (active.aborted) return false;
+    }
+
+    return clicked;
   }
 
   /**
@@ -858,22 +904,19 @@ export class CloudflareSolveStrategies {
   // ── CDP-based Detection (zero JS injection) ────────────────────────
 
   /**
-   * Detect Turnstile widget presence via Target.getTargets.
+   * Detect Turnstile widget via Target.getTargets (browser-level).
+   * Zero page interaction — no DOM walk, no Runtime.evaluate.
    *
-   * SAFE APPROACH: Checks for CF iframe targets at the browser level instead
-   * of calling DOM.getDocument(depth=-1, pierce=true) on the page session.
-   * The old DOM.getDocument approach traverses shadow DOM boundaries including
-   * Turnstile's shadow root, which CF's WASM detects and uses to reject
-   * subsequent clicks.
-   *
-   * Target.getTargets is a browser-level command that returns all targets
-   * (pages, iframes, workers) — we filter for iframe targets with
-   * challenges.cloudflare.com in the URL.
+   * WARNING: Do NOT upgrade this to use DOM.getDocument or Runtime.evaluate —
+   * even on a fresh clean-page WS connection. The detection polling loop runs
+   * 20 polls × 200ms, and repeated page-level CDP calls during that window
+   * trigger CF's WASM fingerprint checks, causing rechallenges on every click.
+   * Proven 2026-02-24: Target.getTargets = 5/5 pass, DOM.getDocument = timeout,
+   * Runtime.evaluate = rechallenge. Target.getTargets is browser-level and
+   * completely invisible to the page.
    */
-  async detectTurnstileViaCDP(_pageCdpSessionId: string): Promise<{ present: boolean } | null> {
+  async detectTurnstileViaCDP(_pageCdpSessionId: string): Promise<CFDetectionResult | null> {
     try {
-      // Use sendViaProxy (browser WS) if available, otherwise sendCommand.
-      // Target.getTargets works on any connection.
       const send = this.sendViaProxy || this.sendCommand;
       const { targetInfos } = await send('Target.getTargets');
       if (!targetInfos?.length) return { present: false };
