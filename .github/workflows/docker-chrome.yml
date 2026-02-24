@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        node-version: ['v24.13.1']
+        node-version: ['v24.14.0']
     steps:
       - uses: actions/checkout@v2
 
