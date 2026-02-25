@@ -1,4 +1,17 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.41.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.42.0...main)
+
+# [v2.42.0](https://github.com/browserless/browserless/compare/v2.41.0...v2.42.0)
+- Dependency updates.
+- Updates NodeJS to `24.14.0`.
+- Updates NPM to `11.10.1`.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.37.5`
+  - playwright-core: `1.58.2`, `1.57.0`, `1.56.1`, `1.55.1`, and `1.54.2`.
+  - Chromium: `145.0.7632.6`
+  - Chrome: `145.0.7632.45` (amd64 only)
+  - Firefox: `146.0.1`
+  - Webkit: `26.0`
+  - Edge: `144.0.3719.115` (amd64 only)
 
 # [v2.41.0](https://github.com/browserless/browserless/compare/v2.40.0...v2.41.0)
 - Dependency updates.
