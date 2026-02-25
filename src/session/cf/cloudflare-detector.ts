@@ -2,6 +2,7 @@ import { Logger } from '@browserless.io/browserless';
 import type { CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
 import { CloudflareTracker } from './cloudflare-event-emitter.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
+import { deriveSolveAttribution } from './cloudflare-state-tracker.js';
 import type { CloudflareStateTracker, SendCommand } from './cloudflare-state-tracker.js';
 import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js';
 
@@ -77,63 +78,141 @@ export class CloudflareDetector {
         await new Promise((r) => setTimeout(r, 500));
         let destinationIsCF = !!this.detectCFFromUrl(url);
 
-        if (!destinationIsCF) {
-          // URL looks clean, but CF may be re-rendering. Check DOM for Turnstile iframe.
-          try {
-            const detection = await this.strategies.detectTurnstileViaCDP(cdpSessionId);
-            if (detection?.present) {
-              destinationIsCF = true;
-            }
-          } catch {
-            // CDP error — assume not CF, emit solved
-          }
-        }
+        // NOTE: We intentionally do NOT DOM-walk for Turnstile iframes here.
+        // If the URL is clean, the interstitial solved — even if the destination
+        // page has an embedded Turnstile. That's a multi-phase flow (interstitial
+        // → embedded widget), not a rechallenge. The embedded Turnstile will be
+        // detected by detectTurnstileWidget() in the post-navigation flow below.
 
         if (destinationIsCF) {
-          const rechallengeCount = (active.rechallengeCount || 0) + 1;
-
-          this.events.marker(cdpSessionId, 'cf.rechallenge', {
-            type: active.info.type, duration_ms: duration,
-            click_delivered: !!active.clickDelivered,
-            rechallenge_count: rechallengeCount,
-          });
-
-          const maxRechallenges = 6;
-          if (rechallengeCount >= maxRechallenges) {
-            this.log.info(`Rechallenge limit reached (${rechallengeCount}) for ${active.info.type} — emitting cf.failed`);
-            this.events.emitFailed(active, 'rechallenge_limit', duration);
+          // TURNSTILE INTERRUPTED BY NAVIGATION — NOT A RECHALLENGE.
+          //
+          // Rechallenges only apply to interstitials (CF re-serves a challenge
+          // after our solve attempt). When a turnstile detection is active and the
+          // page navigates to a CF URL, it means the client (pydoll) re-navigated
+          // while the embedded turnstile was being solved — the turnstile solve was
+          // abandoned, not rechallenged.
+          //
+          // Example: ahrefs_fast.py's "Fetch interception missed" fallback calls
+          // goto() while browserless is solving the embedded Turnstile. CF intercepts
+          // the new navigation → URL has __cf_chl_rt_tk → looks like a rechallenge.
+          // But the turnstile and the new interstitial are unrelated challenges.
+          //
+          // Without this guard, the cycle was:
+          //   1. detectTurnstileWidget → ActiveDetection(turnstile) → click
+          //   2. Pydoll re-navigates → CF intercepts → onPageNavigated sees turnstile + CF URL
+          //   3. Rechallenge path: pendingRechallengeCount++ → triggerSolveFromUrl creates
+          //      new ActiveDetection(interstitial, rechallengeCount=N)
+          //   4. Solved → phantom "Int✓" with inherited rechallenge count
+          //   5. detectTurnstileWidget → new turnstile → pydoll re-navs → repeat
+          // conversazap.shop showed "Int→Int✓Int✓" (rechallenge_count=2) from this.
+          //
+          // Fix: discard the turnstile, block further turnstile detection on this
+          // tab, and let the new CF URL be detected fresh (no inherited rechallenge).
+          if (active.info.type === 'turnstile') {
+            this.log.info(`Turnstile detection interrupted by navigation to CF URL — discarding (not a rechallenge)`);
             this.state.bindingSolvedTargets.add(targetId);
-            return;
+            // Fall through to post-navigation URL detection (triggerSolveFromUrl)
+          } else {
+            const rechallengeCount = (active.rechallengeCount || 0) + 1;
+            // label reflects what the attempt DID (✓ = click navigated), not that CF rechallenged
+            const rechallengeAttr = deriveSolveAttribution('page_navigated', !!active.clickDelivered);
+
+            this.events.marker(cdpSessionId, 'cf.rechallenge', {
+              type: active.info.type, duration_ms: duration,
+              click_delivered: !!active.clickDelivered,
+              rechallenge_count: rechallengeCount,
+            });
+
+            const maxRechallenges = 6;
+            if (rechallengeCount >= maxRechallenges) {
+              this.log.info(`Rechallenge limit reached (${rechallengeCount}) for ${active.info.type} — emitting cf.failed`);
+              this.events.emitFailed(active, 'rechallenge_limit', duration);
+              this.state.bindingSolvedTargets.add(targetId);
+              return;
+            }
+
+            // Label reflects what the attempt did (✓ = click navigated, → = auto navigated),
+            // not that it was rechallenged. The rechallenge is a separate concern.
+            this.events.emitFailed(active, 'rechallenge', duration, rechallengeAttr.label);
+
+            this.log.info(`Navigation from ${active.info.type} landed on another CF challenge (rechallenge ${rechallengeCount}/${maxRechallenges}) — suppressing cf.solved`);
+            this.state.pendingRechallengeCount.set(targetId, rechallengeCount);
           }
-
-          this.events.emitFailed(active, 'rechallenge', duration);
-
-          this.log.info(`Navigation from ${active.info.type} landed on another CF challenge (rechallenge ${rechallengeCount}/${maxRechallenges}) — suppressing cf.solved`);
-          this.state.pendingRechallengeCount.set(targetId, rechallengeCount);
         } else {
-          // Distinguish: did our click trigger this navigation, or did CF auto-solve?
-          // If clickDelivered is true, our Input.dispatchMouseEvent succeeded and
-          // this navigation likely resulted from it.
-          const wasClicked = !!active.clickDelivered;
+          // clickDelivered = our click triggered this navigation
+          const attr = deriveSolveAttribution('page_navigated', !!active.clickDelivered);
           const clickToNavMs = active.clickDeliveredAt
             ? Date.now() - active.clickDeliveredAt
             : null;
 
+          // BEHAVIORAL RECLASSIFICATION: turnstile → interstitial
+          //
+          // WHY THIS EXISTS:
+          // Some sites (e.g. astrotarot.site) serve CF interstitials on clean URLs — no
+          // `__cf_chl_rt_tk`, no `/cdn-cgi/challenge-platform/` path. Our URL-based
+          // detection (`detectCFFromUrl`) misses these, so `detectTurnstileViaCDP` picks
+          // them up via `Target.getTargets` (which finds the challenges.cloudflare.com
+          // iframe) and classifies them as 'turnstile'. But they BEHAVE as interstitials:
+          // the page navigates after solve.
+          //
+          // WHY NOT GET THE TYPE FROM CF DIRECTLY?
+          // We investigated every available signal (2026-02-24):
+          //
+          //   1. `_cf_chl_opt.cType` — CF's gold standard (managed/non_interactive/invisible).
+          //      But it requires `Runtime.evaluate` on the page session, which PERMANENTLY
+          //      POISONS the session — CF's WASM monitors V8 evaluation events. This is our
+          //      #1 CDP safety rule. Using it for classification would break every solve.
+          //
+          //   2. `Target.getTargets` — returns identical metadata for both interstitial and
+          //      embedded (same challenges.cloudflare.com URL, same target structure). There
+          //      is no field that distinguishes them.
+          //
+          //   3. DOM element IDs — CF randomizes them. Nopecha interstitial has IDs like
+          //      `CZUq4`, `GeuE4`; astrotarot has zero IDs. No reliable static markers.
+          //
+          // WHAT DOES DISTINGUISH THEM:
+          // Page navigation is the DEFINING behavioral characteristic:
+          //   - Interstitials ALWAYS navigate (CF replays the original request after solve)
+          //   - Embedded widgets NEVER navigate (they resolve in-place, token goes to form)
+          //
+          // This is not a hack — it's the only observable signal that doesn't require
+          // forbidden CDP calls. The hybrid approach is:
+          //   1. URL detection (detectCFFromUrl) catches ~95% of interstitials
+          //   2. This reclassification catches the rest (transparent interstitials)
+          //
+          // WITHOUT THIS: pydoll's _phase_snapshots dict (keyed by cf_type) overwrites
+          // the first phase with the second when both are 'turnstile'. Summary shows
+          // 'Emb✓' instead of 'Int✓ Emb✓', losing the interstitial phase entirely.
+          const emitType = active.info.type === 'turnstile' ? 'interstitial' : active.info.type;
+
+          // DO NOT add bindingSolvedTargets here. After reclassification, the
+          // destination page (e.g. Ahrefs) may have a real embedded Turnstile that
+          // detectTurnstileWidget (line 248) needs to find. bindingSolvedTargets
+          // would block that detection entirely.
+          //
+          // The phantom loop (conversazap.shop "Int→Int✓Int✓") is prevented by:
+          //   1. Turnstile guard in rechallenge path (line 112): if active=turnstile
+          //      + destination is CF URL → discard + bindingSolvedTargets (not here)
+          //   2. await_resolution in ahrefs_fast.py: waits for CF solve before re-nav
+          //   3. onIframeAttached/onIframeNavigated: pendingIframes, no racing detection
+
           this.events.emitSolved(active, {
             solved: true,
-            type: active.info.type,
-            method: wasClicked ? 'click_navigation' : 'auto_navigation',
+            type: emitType,
+            method: attr.method,
             signal: 'page_navigated',
             duration_ms: duration,
             attempts: active.attempt,
-            auto_resolved: !wasClicked,
+            auto_resolved: attr.autoResolved,
+            phase_label: attr.label,
           });
 
           // Extra marker for timing analysis: how long between click and navigation?
-          if (wasClicked && clickToNavMs !== null) {
+          if (attr.method === 'click_navigation' && clickToNavMs !== null) {
             this.events.marker(cdpSessionId, 'cf.click_to_nav', {
               click_to_nav_ms: clickToNavMs,
-              type: active.info.type,
+              type: emitType,
             });
           }
         }
@@ -183,11 +262,11 @@ export class CloudflareDetector {
       active.iframeCdpSessionId = iframeCdpSessionId;
       active.iframeTargetId = iframeTargetId;
     } else {
+      // Store iframe as pending — triggerSolveFromUrl or onPageNavigated's
+      // detectTurnstileWidget will pick it up. Do NOT start detectTurnstileWidget
+      // here: it races with triggerSolveFromUrl creating duplicate parallel solves
+      // (both detected at +0.0s, interstitial orphaned → no_resolution).
       this.state.pendingIframes.set(pageTargetId, { iframeCdpSessionId, iframeTargetId });
-      const pageCdpSessionId = this.state.knownPages.get(pageTargetId);
-      if (pageCdpSessionId) {
-        this.detectTurnstileWidget(pageTargetId, pageCdpSessionId).catch(() => {});
-      }
     }
   }
 
@@ -206,10 +285,11 @@ export class CloudflareDetector {
       active.iframeCdpSessionId = iframeCdpSessionId;
       active.iframeTargetId = iframeTargetId;
     } else if (!active) {
-      const pageCdpSessionId = this.state.knownPages.get(pageTargetId);
-      if (pageCdpSessionId) {
-        this.detectTurnstileWidget(pageTargetId, pageCdpSessionId).catch(() => {});
-      }
+      // Same race as onIframeAttached: if onPageNavigated hasn't fired yet,
+      // there's no active detection, but triggerSolveFromUrl is about to create one.
+      // Starting detectTurnstileWidget here races with it → dual detection → orphan.
+      // Store as pending instead — triggerSolveFromUrl/detectTurnstileWidget will pick it up.
+      this.state.pendingIframes.set(pageTargetId, { iframeCdpSessionId, iframeTargetId });
     }
   }
 
@@ -264,7 +344,10 @@ export class CloudflareDetector {
     url: string, cfType: CloudflareType,
   ): void {
     if (this.state.destroyed || !this.enabled) return;
-    if (this.state.activeDetections.has(targetId)) return;
+    if (this.state.activeDetections.has(targetId)) {
+      this.log.info(`triggerSolveFromUrl: SKIPPED — activeDetection already exists for ${targetId} (type=${this.state.activeDetections.get(targetId)!.info.type})`);
+      return;
+    }
     if (this.state.bindingSolvedTargets.has(targetId)) return;
 
     const info: CloudflareInfo = {
@@ -339,19 +422,29 @@ export class CloudflareDetector {
             rechallengeCount,
           };
 
+          // Guard: another detection path (e.g. triggerSolveFromUrl) may have
+          // registered while we awaited the CDP call. Check before every async gap.
+          if (this.state.activeDetections.has(targetId)) return;
+
           // Fast-path: already solved at detection time (auto-solve beat us)
           if (await this.state.isSolved(cdpSessionId) && !this.state.bindingSolvedTargets.has(targetId)) {
             active.aborted = true;
             this.state.bindingSolvedTargets.add(targetId);
+            // already solved at detection time — no click was attempted
+            const attr = deriveSolveAttribution('cdp_dom_walk', false);
             this.events.emitDetected(active);
             this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
             this.events.emitSolved(active, {
-              solved: true, type: cfType, method: 'auto_solve',
+              solved: true, type: cfType, method: attr.method,
               duration_ms: Date.now() - startTime, attempts: 1,
-              auto_resolved: true, signal: 'cdp_dom_walk',
+              auto_resolved: attr.autoResolved, signal: 'cdp_dom_walk',
+              phase_label: attr.label,
             });
             return;
           }
+
+          // Re-check after isSolved() async gap
+          if (this.state.activeDetections.has(targetId)) return;
 
           this.state.activeDetections.set(targetId, active);
           const pending = this.state.pendingIframes.get(targetId);

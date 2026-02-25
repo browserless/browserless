@@ -162,6 +162,17 @@ export class CloudflareSolveStrategies {
 
       if (attempt > 0) await sleep(500);
 
+      // Fast-path: check if widget already auto-solved (non-interactive)
+      // before spending 4s on checkbox polling. Safe post-detection.
+      try {
+        const token = await this.state.getToken(pageCdpSessionId);
+        if (token) {
+          this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
+          await this.state.resolveAutoSolved(active, 'token_poll');
+          return true;
+        }
+      } catch { /* page gone */ }
+
       const result = await this.findAndClickViaCDP(active, attempt);
       if (result) {
         this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });

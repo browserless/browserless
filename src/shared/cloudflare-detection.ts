@@ -76,6 +76,7 @@ export interface CloudflareResult {
   attempts: number;
   auto_resolved?: boolean;
   signal?: string;
+  phase_label?: string;
 }
 
 /** Accumulated state for one CF solve phase, included in solved/failed events.

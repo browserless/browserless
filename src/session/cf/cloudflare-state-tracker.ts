@@ -8,6 +8,50 @@ import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event
 
 export type SendCommand = (method: string, params?: object, cdpSessionId?: string, timeoutMs?: number) => Promise<any>;
 
+// ─── Decision Table ────────────────────────────────────────────────────
+//
+// clickDelivered is RELIABLE — set only after findAndClickViaCDP() successfully:
+//   1. Found the checkbox element via DOM tree walk
+//   2. Confirmed it's visible (getBoundingClientRect + getComputedStyle)
+//   3. Scrolled it into view
+//   4. Dispatched mousePressed + mouseReleased onto exact coordinates
+// It does NOT mean "we blindly clicked empty space."
+//
+// Interstitials solve via page navigation (click → page navigates to real URL).
+// Embedded widgets solve via beacon/state_change (click → widget spins → success).
+// Both paths use clickDelivered to determine the label.
+//
+// ┌──────────────┬──────────────────┬──────────────┬───────┐
+// │ Signal       │ clickDelivered?  │ Method       │ Label │
+// ├──────────────┼──────────────────┼──────────────┼───────┤
+// │ page_nav     │ true             │ click_nav    │  ✓    │
+// │ page_nav     │ false            │ auto_nav     │  →    │
+// │ any other    │ true             │ click_solve  │  ✓    │
+// │ any other    │ false            │ auto_solve   │  →    │
+// └──────────────┴──────────────────┴──────────────┴───────┘
+
+export type SolveSignal = 'page_navigated' | 'beacon_push' | 'token_poll' | 'activity_poll'
+  | 'state_change' | 'callback_binding' | 'session_close' | 'cdp_dom_walk';
+
+export function deriveSolveAttribution(signal: SolveSignal, clickDelivered: boolean) {
+  // Interstitials: page navigated away from CF challenge page
+  if (signal === 'page_navigated') {
+    return clickDelivered
+      ? { method: 'click_navigation' as const, autoResolved: false, label: '✓' }
+      : { method: 'auto_navigation' as const, autoResolved: true, label: '→' };
+  }
+  // Embedded widgets: solved via beacon/state_change/poll (no navigation)
+  // clickDelivered = our click landed on the checkbox and the widget then solved
+  // !clickDelivered = widget auto-solved without our click (e.g. managed mode)
+  return clickDelivered
+    ? { method: 'click_solve' as const, autoResolved: false, label: '✓' }
+    : { method: 'auto_solve' as const, autoResolved: true, label: '→' };
+}
+
+export function deriveFailLabel(reason: string) {
+  return { label: `✗ ${reason}` };
+}
+
 /**
  * Tracks active CF detections, solved state, and background activity loops.
  *
@@ -73,16 +117,21 @@ export class CloudflareStateTracker {
 
       const duration = Date.now() - active.startTime;
       active.aborted = true;
+      const solveSignal: SolveSignal = token ? 'token_poll' : 'state_change';
+      // clickDelivered = our click landed on checkbox before iframe state changed
+      const attr = deriveSolveAttribution(solveSignal, !!active.clickDelivered);
 
       this.activeDetections.delete(pageTargetId);
       this.events.emitSolved(active, {
         solved: true,
         type: active.info.type,
-        method: token ? 'auto_solve' : 'state_change',
+        method: attr.method,
         token: token || undefined,
         duration_ms: duration,
         attempts: active.attempt,
-        auto_resolved: !active.iframeCdpSessionId,
+        auto_resolved: attr.autoResolved,
+        signal: solveSignal,
+        phase_label: attr.label,
       });
     } else if (state === 'fail' || state === 'expired' || state === 'timeout') {
       active.aborted = true;
@@ -138,18 +187,21 @@ export class CloudflareStateTracker {
       active.aborted = true;
       this.activeDetections.delete(targetId);
       this.bindingSolvedTargets.add(targetId);
+      // clickDelivered = our click landed on checkbox before beacon fired
+      const attr = deriveSolveAttribution('beacon_push', !!active.clickDelivered);
       this.events.emitSolved(active, {
         solved: true,
         type: active.info.type,
-        method: 'auto_solve',
+        method: attr.method,
         duration_ms: duration,
         attempts: active.attempt,
-        auto_resolved: true,
+        auto_resolved: attr.autoResolved,
         signal: 'beacon_push',
         token_length: tokenLength,
+        phase_label: attr.label,
       });
       this.events.marker(active.pageCdpSessionId, 'cf.solved', {
-        type: active.info.type, method: 'auto_solve', signal: 'beacon_push',
+        type: active.info.type, method: attr.method, signal: 'beacon_push',
       });
       return;
     }
@@ -171,29 +223,34 @@ export class CloudflareStateTracker {
       if (!active.aborted) {
         active.aborted = true;
         const duration = Date.now() - active.startTime;
+        // session_close fallback — no click context, always auto_solve
+        const attr = deriveSolveAttribution('session_close', false);
         this.log.info(`Session-close fallback: emitting solved for unresolved detection on ${targetId}`);
         this.events.emitSolved(active, {
-          solved: true, type: active.info.type, method: 'auto_solve',
-          duration_ms: duration, attempts: 0, auto_resolved: true,
-          signal: 'session_close', token_length: 0,
+          solved: true, type: active.info.type, method: attr.method,
+          duration_ms: duration, attempts: 0, auto_resolved: attr.autoResolved,
+          signal: 'session_close', token_length: 0, phase_label: attr.label,
         });
       }
     }
   }
 
-  /** Resolve an active detection as auto-solved. */
+  /** Resolve an active detection as auto-solved (token appeared without navigation). */
   async resolveAutoSolved(active: ActiveDetection, signal: string): Promise<void> {
     const duration = Date.now() - active.startTime;
     const token = await this.getToken(active.pageCdpSessionId);
     active.aborted = true;
     const pageTargetId = this.findPageBySession(active.pageCdpSessionId);
     if (pageTargetId) this.activeDetections.delete(pageTargetId);
+    // clickDelivered = our click landed on checkbox before token/state resolved
+    const attr = deriveSolveAttribution(signal as SolveSignal, !!active.clickDelivered);
     this.events.emitSolved(active, {
-      solved: true, type: active.info.type, method: 'auto_solve',
+      solved: true, type: active.info.type, method: attr.method,
       token: token || undefined, duration_ms: duration,
-      attempts: active.attempt, auto_resolved: true, signal,
+      attempts: active.attempt, auto_resolved: attr.autoResolved, signal,
+      phase_label: attr.label,
     });
-    this.events.marker(active.pageCdpSessionId, 'cf.auto_solved', { signal });
+    this.events.marker(active.pageCdpSessionId, 'cf.auto_solved', { signal, method: attr.method });
   }
 
   async isSolved(cdpSessionId: string): Promise<boolean> {
@@ -220,6 +277,8 @@ export class CloudflareStateTracker {
           if (typeof turnstile !== 'undefined' && turnstile.getResponse) {
             try { var t = turnstile.getResponse(); if (t && t.length > 0) return t; } catch(e){}
           }
+          var el = document.querySelector('[name="cf-turnstile-response"]');
+          if (el && el.value && el.value.length > 0) return el.value;
           return null;
         })()`,
         returnByValue: true,

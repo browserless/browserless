@@ -123,7 +123,14 @@ export interface ActiveDetection {
   aborted: boolean;
   tracker: CloudflareTracker;
   activityLoopStarted?: boolean;
-  /** Set to true when findAndClickViaCDP successfully dispatched a click. */
+  /**
+   * Set to true ONLY after findAndClickViaCDP() successfully:
+   *   1. Found the checkbox via DOM tree walk
+   *   2. Confirmed it's visible and interactive
+   *   3. Dispatched mousePressed + mouseReleased onto exact coordinates
+   * NOT set when no checkbox found, checkbox not visible, or click dispatch failed.
+   * Used by deriveSolveAttribution() to determine phase_label (✓ vs →).
+   */
   clickDelivered?: boolean;
   /** Timestamp when click was dispatched (for timing analysis). */
   clickDeliveredAt?: number;
@@ -177,17 +184,20 @@ export class CloudflareEventEmitter {
     }).catch(() => {});
     this.marker(active.pageCdpSessionId, 'cf.solved', {
       type: result.type, method: result.method, duration_ms: result.duration_ms,
+      phase_label: result.phase_label,
     });
   }
 
-  emitFailed(active: ActiveDetection, reason: string, duration: number): void {
+  emitFailed(active: ActiveDetection, reason: string, duration: number, phaseLabel?: string): void {
+    const phase_label = phaseLabel ?? `✗ ${reason}`;
     this.log.warn(`CF failed: reason=${reason} duration=${duration}ms attempts=${active.attempt}`);
     this.emitClientEvent('Browserless.cloudflareFailed', {
       reason, type: active.info.type, duration_ms: duration, attempts: active.attempt,
       targetId: active.pageTargetId,
       summary: active.tracker.snapshot(),
+      phase_label,
     }).catch(() => {});
-    this.marker(active.pageCdpSessionId, 'cf.failed', { reason, duration_ms: duration });
+    this.marker(active.pageCdpSessionId, 'cf.failed', { reason, duration_ms: duration, phase_label });
   }
 
   emitStandaloneAutoSolved(
@@ -212,7 +222,7 @@ export class CloudflareEventEmitter {
     this.emitSolved(active, {
       solved: true, type: 'turnstile', method: 'auto_solve',
       duration_ms: 0, attempts: 0, auto_resolved: true,
-      signal, token_length: tokenLength,
+      signal, token_length: tokenLength, phase_label: '→',
     });
   }
 
