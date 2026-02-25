@@ -838,7 +838,18 @@ export class ReplaySession {
       const target = this.targets.getByTarget(targetInfo.targetId);
       if (target) {
         // Extension handles rrweb re-injection on navigation via content_scripts.
-        // We only need to re-enable auto-attach and notify CF solver.
+        // Re-enable CDP domains that Chrome resets on same-target navigation:
+        // - Runtime.addBinding: re-register __rrwebPush so new execution context has it
+        // - Runtime.enable: required for Runtime.bindingCalled delivery
+        // - Page.enable: required for Page.frameNavigated etc.
+        // - Target.setAutoAttach: required for new iframe auto-attach
+        // Without these, rrweb runs in the new page but events never reach us.
+        this.sendCommand('Runtime.addBinding', { name: '__rrwebPush' }, target.cdpSessionId)
+          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] addBinding skipped: ${e.message}`));
+        this.sendCommand('Runtime.enable', {}, target.cdpSessionId)
+          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Runtime.enable skipped: ${e.message}`));
+        this.sendCommand('Page.enable', {}, target.cdpSessionId)
+          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Page.enable skipped: ${e.message}`));
         this.sendCommand('Target.setAutoAttach', {
           autoAttach: true,
           waitForDebuggerOnStart: true,

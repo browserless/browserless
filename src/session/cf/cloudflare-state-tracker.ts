@@ -200,9 +200,6 @@ export class CloudflareStateTracker {
         token_length: tokenLength,
         phase_label: attr.label,
       });
-      this.events.marker(active.pageCdpSessionId, 'cf.solved', {
-        type: active.info.type, method: attr.method, signal: 'beacon_push',
-      });
       return;
     }
 

@@ -184,7 +184,7 @@ export class CloudflareEventEmitter {
     }).catch(() => {});
     this.marker(active.pageCdpSessionId, 'cf.solved', {
       type: result.type, method: result.method, duration_ms: result.duration_ms,
-      phase_label: result.phase_label,
+      phase_label: result.phase_label, signal: result.signal,
     });
   }
 

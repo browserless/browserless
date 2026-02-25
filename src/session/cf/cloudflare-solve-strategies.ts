@@ -90,7 +90,20 @@ export class CloudflareSolveStrategies {
             ? 0.5 + Math.random() * 1.0
             : 1.5 + Math.random() * 1.5;
           const clicked = await this.solveByClicking(active, presence);
-          return active.aborted ? 'aborted' : clicked ? 'click_dispatched' : 'no_click';
+          if (active.aborted) return 'aborted';
+          if (clicked) return 'click_dispatched';
+
+          // Widget not found — CF managed challenges may auto-pass without a widget.
+          // Keep the detection alive so onPageNavigated() can emit cf.solved(auto_navigation).
+          this.events.marker(active.pageCdpSessionId, 'cf.waiting_auto_nav', {
+            type: active.info.type,
+            attempts_exhausted: true,
+          });
+          const autoNavDeadline = Date.now() + 30_000;
+          while (!active.aborted && Date.now() < autoNavDeadline) {
+            await sleep(500);
+          }
+          return active.aborted ? 'aborted' : 'no_click';
         }
         case 'turnstile': {
           const clicked = await this.solveTurnstile(active);
@@ -186,9 +199,23 @@ export class CloudflareSolveStrategies {
       this.events.marker(pageCdpSessionId, 'cf.cdp_no_checkbox');
     }
 
-    // Phase 2: Wait for auto-solve (token via turnstile.getResponse()).
-    // Covers both: click succeeded and we wait for token, or click failed and
-    // the widget is non-interactive (auto-solves without click).
+    // Click dispatched — wait briefly for async resolution signals.
+    // Resolution arrives via two async paths:
+    //   - Interstitials: onPageNavigated() sets active.aborted, emits cf.solved
+    //   - Embedded turnstile: onBeaconSolved() fires from navigator.sendBeacon
+    // Both typically arrive within 2-8s. We wait up to 10s total (not from click,
+    // from function start — so subtracting Phase 1 time). If nothing arrives,
+    // return and let emitUnresolvedDetections() handle cleanup at session close.
+    if (clicked) {
+      const postClickDeadline = Math.min(active.startTime + 10_000, deadline);
+      while (!active.aborted && Date.now() < postClickDeadline) {
+        await sleep(300);
+      }
+      return true;
+    }
+
+    // No click dispatched — widget is non-interactive (auto-solves without click).
+    // Poll for token using the remaining deadline (Ahrefs auto-solve: ~5-8s).
     while (!active.aborted && Date.now() < deadline) {
       await sleep(500);
       if (active.aborted) return false;
@@ -197,19 +224,17 @@ export class CloudflareSolveStrategies {
         const token = await this.state.getToken(pageCdpSessionId);
         if (token) {
           this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-          // Resolve via state tracker so the event pipeline fires correctly
           await this.state.resolveAutoSolved(active, 'token_poll');
           return true;
         }
       } catch {
-        // CDP error — page may have navigated (click solved it)
+        // CDP error — page may have navigated
       }
 
-      // Also check if something else resolved it (beacon, navigation)
       if (active.aborted) return false;
     }
 
-    return clicked;
+    return false;
   }
 
   /**
@@ -594,36 +619,97 @@ export class CloudflareSolveStrategies {
         }
 
         // Fallback: parentFrameId filter (if page-side traversal failed)
+        // When iframeFrameId is set but frameId_match failed, the correct OOPIF
+        // likely hasn't appeared in Target.getTargets yet (Chrome registers OOPIFs
+        // asynchronously after the iframe element appears in the DOM). Poll for it.
         if (!oopifSessionId) {
-          let pageFrameId: string | null = null;
-          try {
-            const frameTree = await pageSend('Page.getFrameTree', {}, pageCdpSessionId);
-            pageFrameId = frameTree?.frameTree?.frame?.id ?? null;
-          } catch { /* ignore */ }
+          const maxOopifPolls = iframeFrameId ? 6 : 1; // 6 × 500ms = 3s max wait
+          for (let oopifPoll = 0; oopifPoll < maxOopifPolls; oopifPoll++) {
+            if (oopifPoll > 0) {
+              await sleep(500);
+              // Re-fetch targets — the correct OOPIF may have appeared
+              const refreshed = await send('Target.getTargets');
+              const refreshedCandidates = (refreshed.targetInfos ?? []).filter(
+                (t: { type: string; url?: string }) =>
+                  (t.type === 'iframe' || t.type === 'page')
+                  && t.url?.includes('challenges.cloudflare.com')
+                  && !isCFTestWidget(t.url),
+              );
+              // Try frameId_match on refreshed targets
+              for (const target of refreshedCandidates) {
+                try {
+                  const { sessionId: trySessionId } = await send('Target.attachToTarget', {
+                    targetId: target.targetId,
+                    flatten: true,
+                  });
+                  if (!trySessionId) continue;
+                  const ft = await send('Page.getFrameTree', {}, trySessionId).catch(() => null);
+                  const frameId = ft?.frameTree?.frame?.id;
+                  if (frameId && (frameId === iframeFrameId || target.targetId === iframeFrameId)) {
+                    oopifSessionId = trySessionId;
+                    this.events.marker(pageCdpSessionId, 'cf.oopif_discovered', {
+                      method: 'active', via,
+                      filter: 'frameId_match_retry',
+                      targetId: target.targetId,
+                      url: target.url?.substring(0, 100),
+                      total_candidates: refreshedCandidates.length,
+                      poll: oopifPoll,
+                    });
+                    break;
+                  }
+                } catch { /* try next */ }
+              }
+              if (oopifSessionId) break;
+              continue;
+            }
 
-          let cfTargets = pageFrameId
-            ? candidates.filter(
-                (t: { parentFrameId?: string }) => t.parentFrameId === pageFrameId,
-              )
-            : [];
+            // First poll (oopifPoll === 0): use parentFrameId filter on existing candidates
+            let pageFrameId: string | null = null;
+            try {
+              const frameTree = await pageSend('Page.getFrameTree', {}, pageCdpSessionId);
+              pageFrameId = frameTree?.frameTree?.frame?.id ?? null;
+            } catch { /* ignore */ }
 
-          if (cfTargets.length === 0) cfTargets = candidates;
+            let cfTargets = pageFrameId
+              ? candidates.filter(
+                  (t: { parentFrameId?: string }) => t.parentFrameId === pageFrameId,
+                )
+              : [];
 
-          if (cfTargets.length > 0) {
-            const target = cfTargets[0];
-            const { sessionId } = await send('Target.attachToTarget', {
-              targetId: target.targetId,
-              flatten: true,
-            });
-            if (sessionId) {
-              oopifSessionId = sessionId;
-              this.events.marker(pageCdpSessionId, 'cf.oopif_discovered', {
-                method: 'active', via,
-                filter: pageFrameId ? 'parentFrameId' : 'url',
+            if (cfTargets.length === 0) cfTargets = candidates;
+
+            if (cfTargets.length > 0) {
+              const target = cfTargets[0];
+              const { sessionId } = await send('Target.attachToTarget', {
                 targetId: target.targetId,
-                url: target.url?.substring(0, 100),
-                total_candidates: cfTargets.length,
+                flatten: true,
               });
+              if (sessionId) {
+                // If we have iframeFrameId, verify this OOPIF matches before committing
+                if (iframeFrameId) {
+                  const ft = await send('Page.getFrameTree', {}, sessionId).catch(() => null);
+                  const frameId = ft?.frameTree?.frame?.id;
+                  if (frameId && frameId !== iframeFrameId && target.targetId !== iframeFrameId) {
+                    // Stale OOPIF — doesn't match our Phase 1 iframe. Keep polling.
+                    this.events.marker(pageCdpSessionId, 'cf.oopif_stale', {
+                      via, targetId: target.targetId,
+                      expected_frame_id: (iframeFrameId as string).substring(0, 20),
+                      actual_frame_id: frameId?.substring(0, 20),
+                      poll: oopifPoll,
+                    });
+                    continue;
+                  }
+                }
+                oopifSessionId = sessionId;
+                this.events.marker(pageCdpSessionId, 'cf.oopif_discovered', {
+                  method: 'active', via,
+                  filter: pageFrameId ? 'parentFrameId' : 'url',
+                  targetId: target.targetId,
+                  url: target.url?.substring(0, 100),
+                  total_candidates: cfTargets.length,
+                });
+                break;
+              }
             }
           }
         }
@@ -793,22 +879,70 @@ export class CloudflareSolveStrategies {
         return false;
       }
 
-      this.events.marker(pageCdpSessionId, 'cf.cdp_click_target', {
-        x: Math.round(x), y: Math.round(y),
-        method, via, coordSource,
-      });
+      // ── Phase 4a: Get iframe page-space position for debugging ────────
+      // Translate iframe-relative click coords → page-absolute coords
+      // so the replay shows WHERE on the page the click should appear.
+      let iframePageX: number | null = null;
+      let iframePageY: number | null = null;
+      if (iframeBackendNodeId && this.chromePort && active.pageTargetId) {
+        try {
+          const cleanWs = await this.openCleanPageWs(active.pageTargetId);
+          try {
+            const iframeBox = await cleanWs.send('DOM.getBoxModel', {
+              backendNodeId: iframeBackendNodeId,
+            });
+            if (iframeBox?.model?.content) {
+              const q = iframeBox.model.content;
+              // content quad: [x0,y0, x1,y1, x2,y2, x3,y3] — top-left origin is q[0],q[1]
+              iframePageX = q[0];
+              iframePageY = q[1];
+            }
+          } finally {
+            cleanWs.cleanup();
+          }
+        } catch {
+          // Non-fatal — page coords just won't be available
+        }
+      }
 
-      // Bare press + random hold + release — NO mouseMoved (matches pydoll exactly)
       const clickX = Math.round(x);
       const clickY = Math.round(y);
 
+      // Page-absolute coordinates (iframe origin + click offset within iframe)
+      const pageAbsX = iframePageX != null ? Math.round(iframePageX + clickX) : null;
+      const pageAbsY = iframePageY != null ? Math.round(iframePageY + clickY) : null;
+
+      this.events.marker(pageCdpSessionId, 'cf.cdp_click_target', {
+        x: clickX, y: clickY,
+        method, via, coordSource,
+        page_x: pageAbsX,
+        page_y: pageAbsY,
+        iframe_origin_x: iframePageX != null ? Math.round(iframePageX) : null,
+        iframe_origin_y: iframePageY != null ? Math.round(iframePageY) : null,
+        had_phase1_iframe: !!iframeBackendNodeId,
+      });
+
+      // ── Phase 4b: Dispatch click with mouseMoved + response capture ──
+      // Send a mouseMoved BEFORE the press/release. Without this, Chrome receives
+      // a bare mousePressed at coordinates it hasn't seen the cursor move to —
+      // the compositor may not route the event to the correct renderer process.
+      // This also makes the click visible in rrweb recordings (the extension inside
+      // the OOPIF captures mousemove DOM events, so the replay shows cursor movement).
       await send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved',
+        x: clickX, y: clickY,
+        button: 'none',
+      }, oopifSessionId);
+      await sleep(20 + Math.random() * 30);
+
+      const pressResponse = await send('Input.dispatchMouseEvent', {
         type: 'mousePressed',
         x: clickX, y: clickY,
         button: 'left', clickCount: 1,
       }, oopifSessionId);
-      await sleep(50 + Math.random() * 100);
-      await send('Input.dispatchMouseEvent', {
+      const holdMs = 50 + Math.random() * 100;
+      await sleep(holdMs);
+      const releaseResponse = await send('Input.dispatchMouseEvent', {
         type: 'mouseReleased',
         x: clickX, y: clickY,
         button: 'left', clickCount: 1,
@@ -822,6 +956,12 @@ export class CloudflareSolveStrategies {
       this.events.marker(pageCdpSessionId, 'cf.oopif_click', {
         ok: true, method: 'cdp_oopif_session', via, attempt,
         x: clickX, y: clickY,
+        page_x: pageAbsX,
+        page_y: pageAbsY,
+        hold_ms: Math.round(holdMs),
+        press_response: pressResponse ? JSON.stringify(pressResponse).substring(0, 100) : 'empty',
+        release_response: releaseResponse ? JSON.stringify(releaseResponse).substring(0, 100) : 'empty',
+        oopif_session_id: oopifSessionId.substring(0, 16),
         elapsed_since_solve_start_ms: Date.now() - solveStart,
         checkbox_to_click_ms: Date.now() - checkboxFoundAt,
       });

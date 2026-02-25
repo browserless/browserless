@@ -86,6 +86,16 @@ The only missing piece was injecting rrweb into the iframe target via CDP — no
 - **Errors caught silently** — if a specific iframe crashes on injection (defensive), other iframes and the main page still work
 - **Always resume** — even if injection fails, the iframe is resumed with `Runtime.runIfWaitingForDebugger` so the page isn't stuck
 
+## Fixed: CDP Domain Reset on Navigation (2026-02-25)
+
+When a page target navigates (e.g., CF rechallenge), Chrome resets CDP domain enables. The extension's content script re-injects rrweb via `all_frames: true`, but the server-side CDP event delivery (`Runtime.bindingCalled` for `__rrwebPush`) requires `Runtime.enable` to be active.
+
+**Symptom:** First interstitial's Turnstile OOPIF content captured. Second interstitial (after rechallenge navigation) shows zero DOM mutations — rrweb runs but events never reach the server.
+
+**Root cause:** `handleTargetInfoChanged` (same-target navigation) did not re-enable `Runtime.enable`, `Page.enable`, or re-register `Runtime.addBinding('__rrwebPush')`. Only `handleAttachedToTarget` (new target) set these up. After navigation, Chrome resets the domain enables but keeps the target attached.
+
+**Fix:** Added `Runtime.addBinding`, `Runtime.enable`, `Page.enable` calls to `handleTargetInfoChanged` alongside the existing `Target.setAutoAttach` re-registration. All are fire-and-forget (`.catch()`) since they may fail during session teardown (harmless).
+
 ## Current State
 
 The `getTurnstileOverlayScript()` function and all associated player CSS (`insertStyleRules`) have been **fully removed**. Turnstile now shows natively in recordings via rrweb's cross-origin iframe recording — no synthetic overlays or injected styles needed.
