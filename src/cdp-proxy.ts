@@ -1,7 +1,11 @@
 import WebSocket from 'ws';
+const WebSocketServer = WebSocket.Server;
 import { Duplex } from 'stream';
 import { IncomingMessage } from 'http';
 import { Config, Logger } from '@browserless.io/browserless';
+import { Schema } from 'effect';
+
+import { CloudflareConfig } from './shared/cloudflare-detection.js';
 
 /**
  * Replay metadata sent via CDP event.
@@ -104,7 +108,7 @@ export class CDPProxy {
     private config: Config,
     private onClose?: () => void,
     private onBeforeClose?: () => Promise<void>,
-    private onEnableCloudflareSolver?: (config: any) => void,
+    private onEnableCloudflareSolver?: (config: CloudflareConfig) => void,
     private onAddReplayMarker?: (targetId: string, tag: string, payload?: object) => void,
   ) {}
 
@@ -136,7 +140,7 @@ export class CDPProxy {
 
     // Step 2: Now upgrade the client socket (Chrome is ready to receive)
     return new Promise((resolve, reject) => {
-      const wss = new WebSocket.Server({ noServer: true });
+      const wss = new WebSocketServer({ noServer: true });
 
       wss.handleUpgrade(
         this.clientRequest,
@@ -203,7 +207,17 @@ export class CDPProxy {
               return;
             }
             if (this.onEnableCloudflareSolver) {
-              this.onEnableCloudflareSolver(msg.params || {});
+              const exit = Schema.decodeExit(CloudflareConfig)(msg.params || {}, {
+                onExcessProperty: 'ignore',
+              });
+              if (exit._tag === 'Failure') {
+                void this.sendClientResponse(msg.id, {
+                  enabled: false,
+                  error: `Invalid config: ${exit.cause.toString()}`,
+                });
+                return;
+              }
+              this.onEnableCloudflareSolver(exit.value);
             }
             void this.sendClientResponse(msg.id, { enabled: true });
             return;

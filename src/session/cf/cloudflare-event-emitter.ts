@@ -29,7 +29,7 @@ export class CloudflareTracker {
   private falsePositiveCount = 0;
   private widgetErrorCount = 0;
   private iframeStates: string[] = [];
-  private widgetFindDebug: Record<string, unknown> | null = null;
+  private widgetFindDebug: Record<string, any> | null = null;
   private lastErrorType: string | null = null;
 
   constructor(info: CloudflareInfo) {

@@ -2,114 +2,177 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "CloudflareSnapshot",
   "title": "CloudflareSnapshot",
-  "description": "Accumulated state for one CF solve phase, included in solved/failed events. This is the single source of truth — TypeScript and Python types are generated from this schema.",
+  "description": "Accumulated state for one CF solve phase, included in solved/failed events.",
   "type": "object",
   "properties": {
     "detection_method": {
-      "type": ["string", "null"],
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "How CF was detected: cf_chl_opt, title_interstitial, challenge_element, etc."
     },
     "cf_cray": {
-      "type": ["string", "null"],
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Cloudflare Ray ID from _cf_chl_opt.cRay"
     },
     "detection_poll_count": {
       "type": "integer",
-      "default": 0,
-      "description": "Number of 500ms polls before challenge detected (1-20)"
+      "description": "Number of 500ms polls before challenge detected (1-20)",
+      "default": 0
     },
     "widget_found": {
       "type": "boolean",
-      "default": false,
-      "description": "Whether the CF solver found the Turnstile widget element"
+      "description": "Whether the CF solver found the Turnstile widget element",
+      "default": false
     },
     "widget_find_method": {
-      "type": ["string", "null"],
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Which method found the widget: iframe-src, shadow-root-div, etc."
     },
     "widget_find_methods": {
       "type": "array",
-      "items": { "type": "string" },
+      "description": "All widget find methods tried across retries",
       "default": [],
-      "description": "All widget find methods tried across retries"
+      "items": {
+        "type": "string"
+      }
     },
     "widget_x": {
-      "type": ["number", "null"],
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Click target X coordinate"
     },
     "widget_y": {
-      "type": ["number", "null"],
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Click target Y coordinate"
     },
     "clicked": {
       "type": "boolean",
-      "default": false,
-      "description": "Whether the CF solver's click caused the solve. False if CF auto-solved independently. See click_attempted for dispatch-level tracking."
+      "description": "Whether the CF solver's click caused the solve. False if CF auto-solved independently. See click_attempted for dispatch-level tracking.",
+      "default": false
     },
     "click_attempted": {
       "type": "boolean",
-      "default": false,
-      "description": "Whether the CF solver dispatched a click (regardless of outcome). Use for diagnostics. For attribution, use 'clicked' which indicates the click caused the solve."
+      "description": "Whether the CF solver dispatched a click (regardless of outcome). Use for diagnostics. For attribution, use 'clicked' which indicates the click caused the solve.",
+      "default": false
     },
     "click_count": {
       "type": "integer",
-      "default": 0,
-      "description": "Number of times the widget was clicked"
+      "description": "Number of times the widget was clicked",
+      "default": 0
     },
     "click_x": {
-      "type": ["number", "null"],
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Actual click X coordinate (after mouse approach)"
     },
     "click_y": {
-      "type": ["number", "null"],
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Actual click Y coordinate"
     },
     "presence_duration_ms": {
       "type": "integer",
-      "default": 0,
-      "description": "Human presence simulation duration in ms"
+      "description": "Human presence simulation duration in ms",
+      "default": 0
     },
     "presence_phases": {
       "type": "integer",
-      "default": 0,
-      "description": "Number of presence phases (>1 if retried)"
+      "description": "Number of presence phases (>1 if retried)",
+      "default": 0
     },
     "approach_phases": {
       "type": "integer",
-      "default": 0,
-      "description": "Number of approach phases (0 = auto-solved before approach)"
+      "description": "Number of approach phases (0 = auto-solved before approach)",
+      "default": 0
     },
     "activity_poll_count": {
       "type": "integer",
-      "default": 0,
-      "description": "Activity loop iterations (each 3-7s)"
+      "description": "Activity loop iterations (each 3-7s)",
+      "default": 0
     },
     "false_positive_count": {
       "type": "integer",
-      "default": 0,
-      "description": "False positive solve detections"
+      "description": "False positive solve detections",
+      "default": 0
     },
     "widget_error_count": {
       "type": "integer",
-      "default": 0,
-      "description": "Widget error state detections"
+      "description": "Widget error state detections",
+      "default": 0
     },
     "iframe_states": {
       "type": "array",
-      "items": { "type": "string" },
+      "description": "Turnstile iframe state sequence: verifying, success, fail, etc.",
       "default": [],
-      "description": "Turnstile iframe state sequence: verifying, success, fail, etc."
+      "items": {
+        "type": "string"
+      }
     },
     "widget_find_debug": {
-      "oneOf": [
-        { "type": "object" },
-        { "type": "null" }
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
       ],
-      "default": null,
       "description": "JSON debug info from click target search (iframes, ts_els, forms, shadow_hosts)"
     },
     "widget_error_type": {
-      "type": ["string", "null"],
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "description": "Last error type: confirmed_error, error_text, iframe_error, expired"
     }
   },

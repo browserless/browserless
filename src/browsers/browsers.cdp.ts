@@ -26,6 +26,7 @@ import puppeteerStealth from 'puppeteer-extra';
 
 import { CDPProxy, ReplayCapableBrowser, ReplayCompleteParams, TabReplayCompleteParams } from '../cdp-proxy.js';
 import { CloudflareSolver } from '../session/cloudflare-solver.js';
+import type { CloudflareConfig } from '../shared/cloudflare-detection.js';
 puppeteerStealth.use(StealthPlugin());
 
 export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
@@ -555,7 +556,7 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
           close,
           this.onBeforeClose,
           this.cloudflareSolver
-            ? (config: any) => this.cloudflareSolver!.enable(config)
+            ? (config: CloudflareConfig) => this.cloudflareSolver!.enable(config)
             : undefined,
           this.replayMarkerCallback,
         );

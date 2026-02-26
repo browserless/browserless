@@ -6,6 +6,7 @@ import {
 } from '../../shared/cloudflare-detection.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 
+/** CDP send command. Returns any because CDP response shapes vary per method — not worth validating every shape. */
 export type SendCommand = (method: string, params?: object, cdpSessionId?: string, timeoutMs?: number) => Promise<any>;
 
 // ─── Decision Table ────────────────────────────────────────────────────

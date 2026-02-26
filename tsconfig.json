@@ -4,7 +4,7 @@
     "outDir": "build",
     "baseUrl": ".",
     "module": "es2022",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "target": "es2022",
     "paths": {
       "@browserless.io/*": ["src/exports.ts"]

@@ -14,7 +14,7 @@
     "browserless": "./bin/browserless.js"
   },
   "scripts": {
-    "schema:generate": "json2ts src/shared/cloudflare-snapshot.schema.json -o src/shared/cloudflare-snapshot.generated.ts",
+    "schema:generate": "tsx scripts/generate-cf-snapshot-schema.ts",
     "bundle:rrweb": "bun scripts/bundle-svelte-player.js && bun extensions/replay/build.js",
     "build": "npm run clean && npm run bundle:rrweb && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
     "build:dev": "npm run build && npm run build:function && npm run install:debugger",
@@ -62,6 +62,7 @@
     "better-sqlite3": "^11.10.0",
     "debug": "^4.4.1",
     "del": "^8.0.1",
+    "effect": "4.0.0-beta.15",
     "file-type": "^21.3.0",
     "get-port": "^7.1.0",
     "gradient-string": "^3.0.0",
@@ -110,13 +111,13 @@
     "eslint": "^9.39.2",
     "extract-zip": "^2.0.1",
     "gunzip-maybe": "^1.4.2",
-    "json-schema-to-typescript": "^15.0.4",
     "marked": "^17.0.1",
     "mocha": "^11.7.5",
     "move-file": "^4.1.0",
     "prettier": "^3.8.1",
     "sinon": "^21.0.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-json-schema": "^0.65.1"
   },
