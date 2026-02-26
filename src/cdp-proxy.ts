@@ -8,6 +8,7 @@ import { Schema } from 'effect';
 
 import { CloudflareConfig } from './shared/cloudflare-detection.js';
 import type { CdpSessionId, TargetId } from './shared/cloudflare-detection.js';
+import { decodeCDPCommand, decodeCDPMessage, decodeAddReplayMarkerParams } from './shared/cdp-schemas.js';
 
 /**
  * Replay metadata sent via CDP event.
@@ -190,17 +191,25 @@ export class CDPProxy {
       if (!isBinary) {
         try {
           const raw = typeof data === 'string' ? data : data.toString();
-          const msg = JSON.parse(raw);
+          const cmdExit = decodeCDPCommand(JSON.parse(raw));
+          if (cmdExit._tag === 'Failure') {
+            // Not a valid CDP command — forward raw to browser
+            if (this.browserWs?.readyState === WebSocket.OPEN) {
+              this.browserWs.send(data, { binary: isBinary });
+            }
+            return;
+          }
+          const msg = cmdExit.value;
 
           // Intercept Browserless.getSessionInfo — respond with session ID directly
-          if (msg?.method === 'Browserless.getSessionInfo' && typeof msg?.id === 'number') {
+          if (msg.method === 'Browserless.getSessionInfo') {
             const sessionId = this.browserWsEndpoint.split('/').pop() || '';
             void this.sendClientResponse(msg.id, { sessionId });
             return;
           }
 
           // Gate Browserless.enableCloudflareSolver behind ENABLE_CLOUDFLARE_SOLVER flag
-          if (msg?.method === 'Browserless.enableCloudflareSolver' && typeof msg?.id === 'number') {
+          if (msg.method === 'Browserless.enableCloudflareSolver') {
             if (!this.config.getEnableCloudflareSolver()) {
               void this.sendClientResponse(msg.id, {
                 enabled: false,
@@ -226,14 +235,15 @@ export class CDPProxy {
           }
 
           // Intercept Browserless.addReplayMarker — inject custom marker into replay
-          if (msg?.method === 'Browserless.addReplayMarker' && typeof msg?.id === 'number') {
+          if (msg.method === 'Browserless.addReplayMarker') {
             if (this.onAddReplayMarker) {
-              const { targetId, tag, payload } = msg.params || {};
-              if (!tag) {
-                void this.sendClientResponse(msg.id, { error: 'tag is required' });
+              const markerExit = decodeAddReplayMarkerParams(msg.params || {});
+              if (markerExit._tag === 'Failure') {
+                void this.sendClientResponse(msg.id, { error: `Invalid params: ${markerExit.cause.toString()}` });
                 return;
               }
-              this.onAddReplayMarker(targetId || '', tag, payload);
+              const { targetId, tag, payload } = markerExit.value;
+              this.onAddReplayMarker((targetId || '') as TargetId, tag, payload);
               void this.sendClientResponse(msg.id, { success: true });
             } else {
               void this.sendClientResponse(msg.id, { error: 'Replay not enabled' });
@@ -242,7 +252,7 @@ export class CDPProxy {
           }
 
           // Delay Page.close to flush pending screencast frames + event collection
-          if (msg?.method === 'Page.close') {
+          if (msg.method === 'Page.close') {
             setTimeout(() => {
               if (this.browserWs?.readyState === WebSocket.OPEN) {
                 this.browserWs.send(data, { binary: isBinary });
@@ -252,18 +262,18 @@ export class CDPProxy {
           }
 
           // Intercept Browser.close to emit replayComplete before socket closes
-          if (msg?.method === 'Browser.close' && this.onBeforeClose && !this.closeRequested) {
+          if (msg.method === 'Browser.close' && this.onBeforeClose && !this.closeRequested) {
             this.closeRequested = true;
             // Run onBeforeClose FIRST (saves replay, emits tabReplayComplete),
             // THEN send the Browser.close response so client WS stays open.
-            void this.runBeforeCloseAndForward(data, isBinary, msg?.id);
+            void this.runBeforeCloseAndForward(data, isBinary, msg.id);
             return;
           }
 
           // Reject Target.createTarget when tab count exceeds limit.
           // Sync path: getTabCount callback (from ReplaySession target registry).
           // Async path: queries Chrome's Target.getTargets, must intercept + defer forwarding.
-          if (msg?.method === 'Target.createTarget' && typeof msg.id === 'number') {
+          if (msg.method === 'Target.createTarget') {
             const limit = this.config.getMaxTabsPerSession();
             if (limit > 0) {
               if (this.getTabCount) {
@@ -309,15 +319,19 @@ export class CDPProxy {
       if (!isBinary) {
         try {
           const raw = typeof data === 'string' ? data : data.toString();
-          const msg = JSON.parse(raw);
-          // Check if this is a response to a proxy-injected command
-          if (this.handleProxyResponse(msg)) return; // Don't forward to client
+          const msgExit = decodeCDPMessage(JSON.parse(raw));
+          if (msgExit._tag !== 'Failure') {
+            const msg = msgExit.value;
 
-          // Debug: log browser→client events (not responses)
-          if (this.cdpDebug && msg.method) {
-            const sid = msg.sessionId ? ` [sid=${msg.sessionId.substring(0, 16)}]` : '';
-            const params = msg.params ? JSON.stringify(msg.params).substring(0, 150) : '{}';
-            this.log.info(`[Chrome→CDP] ${msg.method}${sid} ${params}`);
+            // Check if this is a response to a proxy-injected command
+            if (msg.id !== undefined && this.handleProxyResponse(msg)) return;
+
+            // Debug: log browser→client events (not responses)
+            if (this.cdpDebug && msg.method) {
+              const sid = msg.sessionId ? ` [sid=${msg.sessionId.substring(0, 16)}]` : '';
+              const params = msg.params ? JSON.stringify(msg.params).substring(0, 150) : '{}';
+              this.log.info(`[Chrome→CDP] ${msg.method}${sid} ${params}`);
+            }
           }
         } catch { /* ignore parse errors */ }
       }

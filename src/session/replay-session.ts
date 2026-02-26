@@ -5,6 +5,7 @@ import {
 } from '@browserless.io/browserless';
 
 import type { CdpSessionId, TargetId } from '../shared/cloudflare-detection.js';
+import { decodeCDPMessage, decodeRrwebEventBatch } from '../shared/cdp-schemas.js';
 import { ScreencastCapture } from './screencast-capture.js';
 import { CloudflareSolver } from './cloudflare-solver.js';
 import { registerSessionState, tabDuration } from '../prom-metrics.js';
@@ -622,7 +623,9 @@ export class ReplaySession {
 
   private async handleCDPMessage(data: Buffer): Promise<void> {
     try {
-      const msg = JSON.parse(data.toString());
+      const msgExit = decodeCDPMessage(JSON.parse(data.toString()));
+      if (msgExit._tag === 'Failure') return; // malformed — skip
+      const msg = msgExit.value;
 
       // Command responses
       if (msg.id !== undefined) {
@@ -664,8 +667,10 @@ export class ReplaySession {
       }
 
       // Routed CDP events
-      const handler = this.messageHandlers.get(msg.method);
-      if (handler) await handler(msg);
+      if (msg.method) {
+        const handler = this.messageHandlers.get(msg.method);
+        if (handler) await handler(msg);
+      }
     } catch (e) {
       this.log.debug(`Error processing CDP message: ${e}`);
     }
@@ -676,10 +681,13 @@ export class ReplaySession {
     const cdpSessionId = msg.sessionId as CdpSessionId;
     if (name === '__rrwebPush') {
       try {
-        const events = JSON.parse(msg.params.payload);
+        const parsed = JSON.parse(msg.params.payload);
+        const batchExit = decodeRrwebEventBatch(parsed);
+        if (batchExit._tag === 'Failure') return;
+        const events = batchExit.value;
         const targetId = this.targets.findTargetIdByCdpSession(cdpSessionId);
-        if (targetId && events?.length) {
-          this.sessionReplay.addTabEvents(this.sessionId, targetId, events);
+        if (targetId && events.length) {
+          this.sessionReplay.addTabEvents(this.sessionId, targetId, events as any[]);
         }
       } catch {}
     } else if (name === '__turnstileSolvedBinding') {
