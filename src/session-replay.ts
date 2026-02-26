@@ -471,13 +471,15 @@ export class SessionReplay extends EventEmitter {
 
     // Run cleanup functions BEFORE deleting state — cleanup may call stopTabReplay()
     // which needs this.replays.get(sessionId) to still exist.
+    this.log.info(`Running ${state.cleanupFns.length} cleanup functions for ${sessionId}`);
     for (const cleanupFn of state.cleanupFns) {
       try {
         await cleanupFn();
       } catch (e) {
-        this.log.warn(`Cleanup function failed: ${e instanceof Error ? e.message : String(e)}`);
+        this.log.warn(`Cleanup function failed for ${sessionId}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
+    this.log.info(`Cleanup complete for ${sessionId}`);
 
     this.replays.delete(sessionId);
 

@@ -253,6 +253,12 @@ export class BrowserLauncher {
       if (markerCallback && browser instanceof ChromiumCDP) {
         browser.setReplayMarkerCallback(markerCallback);
       }
+
+      // Wire tab count for CDPProxy tab limit enforcement
+      const tabCountCallback = this.replayCoordinator?.getTabCountCallback(sessionId);
+      if (tabCountCallback && browser instanceof ChromiumCDP) {
+        browser.setGetTabCount(tabCountCallback);
+      }
     }
 
     return browser;

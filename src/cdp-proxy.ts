@@ -88,6 +88,7 @@ export class CDPProxy {
   private isClosing = false;
   private closeRequested = false;
   private log = new Logger('cdp-proxy');
+  private getTabCount?: () => number;
 
   /**
    * Debug mode: log all CDP commands going through the proxy.
@@ -106,6 +107,10 @@ export class CDPProxy {
     private onEnableCloudflareSolver?: (config: any) => void,
     private onAddReplayMarker?: (targetId: string, tag: string, payload?: object) => void,
   ) {}
+
+  setGetTabCount(fn: () => number): void {
+    this.getTabCount = fn;
+  }
 
   /**
    * Connect to browser and establish bidirectional proxy.
@@ -238,6 +243,28 @@ export class CDPProxy {
             void this.runBeforeCloseAndForward(data, isBinary, msg?.id);
             return;
           }
+
+          // Reject Target.createTarget when tab count exceeds limit.
+          // Sync path: getTabCount callback (from ReplaySession target registry).
+          // Async path: queries Chrome's Target.getTargets, must intercept + defer forwarding.
+          if (msg?.method === 'Target.createTarget' && typeof msg.id === 'number') {
+            const limit = this.config.getMaxTabsPerSession();
+            if (limit > 0) {
+              if (this.getTabCount) {
+                // Sync check — fast path when ReplaySession is tracking targets
+                const count = this.getTabCount();
+                if (count >= limit) {
+                  this.log.warn(`Tab limit reached (${count}/${limit}), rejecting Target.createTarget`);
+                  void this.sendClientError(msg.id, -32000, `Tab limit exceeded (${count}/${limit})`);
+                  return;
+                }
+              } else {
+                // Async fallback — intercept message, check via CDP, then forward or reject
+                void this.checkTabLimitAndForward(msg.id, limit, data, isBinary);
+                return;
+              }
+            }
+          }
         } catch {
           // ignore parse errors
         }
@@ -341,6 +368,45 @@ export class CDPProxy {
         }
       });
     });
+  }
+
+  private async sendClientError(id: number, code: number, message: string): Promise<void> {
+    if (this.clientWs?.readyState !== WebSocket.OPEN) return;
+    const payload = JSON.stringify({ id, error: { code, message } });
+    await new Promise<void>((resolve, reject) => {
+      this.clientWs!.send(payload, (err) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+  }
+
+  /**
+   * Async tab limit check: query Chrome for target count, then forward or reject.
+   * Used when no sync getTabCount callback is available (no replay session).
+   */
+  private async checkTabLimitAndForward(
+    msgId: number,
+    limit: number,
+    data: WebSocket.RawData,
+    isBinary: boolean,
+  ): Promise<void> {
+    try {
+      const result = await this.sendViaBrowserWs('Target.getTargets', {}, undefined, 5000);
+      const targets: Array<{ type: string }> = result?.targetInfos ?? [];
+      const count = targets.filter(t => t.type === 'page').length;
+      if (count >= limit) {
+        this.log.warn(`Tab limit reached (${count}/${limit}), rejecting Target.createTarget`);
+        void this.sendClientError(msgId, -32000, `Tab limit exceeded (${count}/${limit})`);
+        return;
+      }
+    } catch (e) {
+      // If we can't determine tab count, allow the request through
+      this.log.debug(`Tab count check failed, allowing Target.createTarget: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    // Under limit or check failed — forward to browser
+    if (this.browserWs?.readyState === WebSocket.OPEN) {
+      this.browserWs.send(data, { binary: isBinary });
+    }
   }
 
   /**

@@ -9,6 +9,7 @@ export class TargetState {
   finalizedResult: StopTabRecordingResult | null = null;
   pageWebSocket: InstanceType<any> | null = null;
   failedReconnect = false;
+  detectionAbort: AbortController | null = null;
 
   constructor(targetId: string, cdpSessionId: string) {
     this.targetId = targetId;
@@ -49,12 +50,17 @@ export class TargetRegistry {
     return this.byCdpSessionId.get(cdpSessionId)?.targetId;
   }
 
-  /** Remove target + close its per-page WS + clean iframe refs. One call, no missed Maps. */
+  /** Remove target + close its per-page WS + abort detection + clean iframe refs. One call, no missed Maps. */
   remove(targetId: string): TargetState | undefined {
     const state = this.byTargetId.get(targetId);
     if (!state) return undefined;
     this.byTargetId.delete(targetId);
     this.byCdpSessionId.delete(state.cdpSessionId);
+    // Abort detection loop for this target
+    if (state.detectionAbort) {
+      state.detectionAbort.abort();
+      state.detectionAbort = null;
+    }
     // Close per-page WS if open (clear ping interval eagerly — close event is async)
     if (state.pageWebSocket) {
       clearInterval((state.pageWebSocket as any).__pingInterval);
@@ -155,9 +161,13 @@ export class TargetRegistry {
     return this.byTargetId.values();
   }
 
-  /** Clear all state and close all per-page WebSockets. */
+  /** Clear all state, abort detection loops, and close all per-page WebSockets. */
   clear(): void {
     for (const state of this.byTargetId.values()) {
+      if (state.detectionAbort) {
+        state.detectionAbort.abort();
+        state.detectionAbort = null;
+      }
       if (state.pageWebSocket) {
         clearInterval((state.pageWebSocket as any).__pingInterval);
         try { state.pageWebSocket.close(); } catch {}

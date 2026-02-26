@@ -21,6 +21,7 @@ import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js
 export class CloudflareDetector {
   private log = new Logger('cf-detect');
   private enabled = false;
+  private getAbortSignal?: (targetId: string) => AbortSignal | undefined;
 
   constructor(
     _sendCommand: SendCommand,
@@ -28,6 +29,11 @@ export class CloudflareDetector {
     private state: CloudflareStateTracker,
     private strategies: CloudflareSolveStrategies,
   ) {}
+
+  /** Set callback to retrieve the AbortSignal for a given page target. */
+  setGetAbortSignal(fn: (targetId: string) => AbortSignal | undefined): void {
+    this.getAbortSignal = fn;
+  }
 
   enable(config?: CloudflareConfig): void {
     this.enabled = true;
@@ -40,7 +46,8 @@ export class CloudflareDetector {
     // Check existing pages for CF URLs (no JS injection)
     for (const [targetId, cdpSessionId] of this.state.knownPages) {
       // We don't have URLs for already-attached pages, so fall back to DOM walk
-      this.detectTurnstileWidget(targetId, cdpSessionId).catch(() => {});
+      const signal = this.getAbortSignal?.(targetId);
+      this.detectTurnstileWidget(targetId, cdpSessionId, signal).catch(() => {});
     }
   }
 
@@ -241,7 +248,8 @@ export class CloudflareDetector {
     if (!alreadyWaited) {
       await new Promise((r) => setTimeout(r, 500));
     }
-    this.detectTurnstileWidget(targetId, cdpSessionId).catch(() => {});
+    const signal = this.getAbortSignal?.(targetId);
+    this.detectTurnstileWidget(targetId, cdpSessionId, signal).catch(() => {});
   }
 
   /** Called when a cross-origin iframe is attached. */
@@ -392,14 +400,20 @@ export class CloudflareDetector {
   /**
    * Detect standalone Turnstile widgets via CDP DOM walk (zero JS injection).
    * Polls for iframe[src*="challenges.cloudflare.com"] in the page DOM tree.
+   *
+   * Runs until the tab closes (via AbortSignal) — no hardcoded iteration limit.
+   * Under load, each Target.getTargets call may take up to 5s (reduced timeout),
+   * but the loop retries indefinitely until the tab is destroyed.
    */
-  private async detectTurnstileWidget(targetId: string, cdpSessionId: string): Promise<void> {
+  private async detectTurnstileWidget(
+    targetId: string, cdpSessionId: string, signal?: AbortSignal,
+  ): Promise<void> {
     if (this.state.destroyed || !this.enabled) return;
     if (this.state.activeDetections.has(targetId)) return;
 
     const startTime = Date.now();
 
-    for (let i = 0; i < 20; i++) {
+    while (!signal?.aborted) {
       if (this.state.destroyed || !this.enabled) return;
       if (this.state.activeDetections.has(targetId)) return;
       if (this.state.bindingSolvedTargets.has(targetId)) return;
@@ -426,25 +440,10 @@ export class CloudflareDetector {
           // registered while we awaited the CDP call. Check before every async gap.
           if (this.state.activeDetections.has(targetId)) return;
 
-          // Fast-path: already solved at detection time (auto-solve beat us)
-          if (await this.state.isSolved(cdpSessionId) && !this.state.bindingSolvedTargets.has(targetId)) {
-            active.aborted = true;
-            this.state.bindingSolvedTargets.add(targetId);
-            // already solved at detection time — no click was attempted
-            const attr = deriveSolveAttribution('cdp_dom_walk', false);
-            this.events.emitDetected(active);
-            this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
-            this.events.emitSolved(active, {
-              solved: true, type: cfType, method: attr.method,
-              duration_ms: Date.now() - startTime, attempts: 1,
-              auto_resolved: attr.autoResolved, signal: 'cdp_dom_walk',
-              phase_label: attr.label,
-            });
-            return;
-          }
-
-          // Re-check after isSolved() async gap
-          if (this.state.activeDetections.has(targetId)) return;
+          // NOTE: Do NOT call isSolved() here — it uses Runtime.evaluate on the
+          // page session, which triggers CF's WASM V8 detection and causes
+          // rechallenges. The bindingSolvedTargets check (above) already covers
+          // auto-solve via the push-based binding mechanism.
 
           this.state.activeDetections.set(targetId, active);
           const pending = this.state.pendingIframes.get(targetId);
@@ -465,7 +464,12 @@ export class CloudflareDetector {
         // Transient CDP error — keep polling
       }
 
-      await new Promise(r => setTimeout(r, 200));
+      // Abortable sleep — exits immediately when tab closes
+      await new Promise<void>((resolve) => {
+        if (signal?.aborted) { resolve(); return; }
+        const timer = setTimeout(resolve, 200);
+        signal?.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+      });
     }
   }
 }

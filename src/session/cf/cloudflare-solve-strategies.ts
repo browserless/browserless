@@ -173,18 +173,24 @@ export class CloudflareSolveStrategies {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (active.aborted || Date.now() > deadline) return false;
 
-      if (attempt > 0) await sleep(500);
+      if (attempt > 0) {
+        await sleep(500);
 
-      // Fast-path: check if widget already auto-solved (non-interactive)
-      // before spending 4s on checkbox polling. Safe post-detection.
-      try {
-        const token = await this.state.getToken(pageCdpSessionId);
-        if (token) {
-          this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-          await this.state.resolveAutoSolved(active, 'token_poll');
-          return true;
-        }
-      } catch { /* page gone */ }
+        // Token check on retries only — NEVER on attempt 0.
+        // getToken() uses Runtime.evaluate on the page session. On attempt 0,
+        // the CF WASM is still monitoring V8 evaluation events — calling
+        // Runtime.evaluate poisons the session and causes rechallenges.
+        // By attempt 1+, the click has already been dispatched, so Runtime.evaluate
+        // is safe (CF's detection window has closed).
+        try {
+          const token = await this.state.getToken(pageCdpSessionId);
+          if (token) {
+            this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
+            await this.state.resolveAutoSolved(active, 'token_poll');
+            return true;
+          }
+        } catch { /* page gone */ }
+      }
 
       const result = await this.findAndClickViaCDP(active, attempt);
       if (result) {
@@ -199,16 +205,39 @@ export class CloudflareSolveStrategies {
       this.events.marker(pageCdpSessionId, 'cf.cdp_no_checkbox');
     }
 
-    // Click dispatched — wait briefly for async resolution signals.
-    // Resolution arrives via two async paths:
-    //   - Interstitials: onPageNavigated() sets active.aborted, emits cf.solved
-    //   - Embedded turnstile: onBeaconSolved() fires from navigator.sendBeacon
-    // Both typically arrive within 2-8s. We wait up to 10s total (not from click,
-    // from function start — so subtracting Phase 1 time). If nothing arrives,
-    // return and let emitUnresolvedDetections() handle cleanup at session close.
+    // Click dispatched — wait for resolution.
+    // Two possible outcomes:
+    //   1. Interstitial: page navigates → active.aborted set by onPageNavigated()
+    //   2. Embedded turnstile: token appears in turnstile.getResponse()
+    //
+    // CRITICAL: Do NOT call Runtime.evaluate (getToken) until we're sure this is
+    // NOT an interstitial. For interstitials, the page navigates to a new CF
+    // challenge — any Runtime.evaluate would poison the new page's session.
+    // Wait 3s for navigation first; only start token polling if no navigation.
     if (clicked) {
       const postClickDeadline = Math.min(active.startTime + 10_000, deadline);
+
+      // Phase A: Wait up to 3s for page navigation (interstitial signal)
+      const navWaitEnd = Math.min(Date.now() + 3_000, postClickDeadline);
+      while (!active.aborted && Date.now() < navWaitEnd) {
+        await sleep(200);
+      }
+
+      // If navigation happened (interstitial), we're done — don't token-poll
+      if (active.aborted) return true;
+
+      // Phase B: No navigation — this is an embedded widget. Poll for token.
+      // Runtime.evaluate is safe here: the page is NOT a CF challenge page,
+      // it's the embedding page (e.g. nopecha.com, peet.ws).
       while (!active.aborted && Date.now() < postClickDeadline) {
+        try {
+          const token = await this.state.getToken(pageCdpSessionId);
+          if (token) {
+            this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
+            await this.state.resolveAutoSolved(active, 'token_poll');
+            return true;
+          }
+        } catch { /* page gone */ }
         await sleep(300);
       }
       return true;
@@ -1069,7 +1098,7 @@ export class CloudflareSolveStrategies {
   async detectTurnstileViaCDP(_pageCdpSessionId: string): Promise<CFDetectionResult | null> {
     try {
       const send = this.sendViaProxy || this.sendCommand;
-      const { targetInfos } = await send('Target.getTargets');
+      const { targetInfos } = await send('Target.getTargets', {}, undefined, 5_000);
       if (!targetInfos?.length) return { present: false };
 
       const hasCFIframe = targetInfos.some(

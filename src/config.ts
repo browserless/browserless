@@ -190,6 +190,7 @@ export class Config extends EventEmitter {
     ? untildify(process.env.REPLAY_DIR)
     : path.join(tmpdir(), 'browserless-replays');
   protected replayMaxSize = +(process.env.REPLAY_MAX_SIZE ?? '52428800'); // 50MB default
+  protected maxTabsPerSession = +(process.env.MAX_TABS_PER_SESSION ?? '50');
 
   public getRoutes(): string {
     return this.routes;
@@ -302,6 +303,10 @@ export class Config extends EventEmitter {
 
   public getEnableCloudflareSolver(): boolean {
     return this.enableCloudflareSolver;
+  }
+
+  public getMaxTabsPerSession(): number {
+    return this.maxTabsPerSession;
   }
 
   public setEnableCloudflareSolver(enable: boolean): boolean {

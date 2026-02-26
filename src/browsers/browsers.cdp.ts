@@ -97,9 +97,17 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
   }
 
   private replayMarkerCallback?: (targetId: string, tag: string, payload?: object) => void;
+  private getTabCountCallback?: () => number;
 
   public setReplayMarkerCallback(fn: (targetId: string, tag: string, payload?: object) => void): void {
     this.replayMarkerCallback = fn;
+  }
+
+  public setGetTabCount(fn: () => number): void {
+    this.getTabCountCallback = fn;
+    if (this.cdpProxy) {
+      this.cdpProxy.setGetTabCount(fn);
+    }
   }
 
   /**
@@ -554,6 +562,11 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
 
         await this.cdpProxy.connect();
         this.logger.trace('CDPProxy connected successfully');
+
+        // Wire tab count callback for tab limit enforcement
+        if (this.getTabCountCallback) {
+          this.cdpProxy.setGetTabCount(this.getTabCountCallback);
+        }
 
         // Wire solver to CDPProxy for event emission
         if (this.cloudflareSolver && this.cdpProxy) {

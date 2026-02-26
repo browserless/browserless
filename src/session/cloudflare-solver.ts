@@ -33,6 +33,11 @@ export class CloudflareSolver {
     this.events.setEmitClientEvent(fn);
   }
 
+  /** Set callback to retrieve the AbortSignal for a given page target's detection loop. */
+  setGetAbortSignal(fn: (targetId: string) => AbortSignal | undefined): void {
+    this.detector.setGetAbortSignal(fn);
+  }
+
   /**
    * Route solver commands through CDPProxy's browser WS.
    */

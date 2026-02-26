@@ -158,6 +158,8 @@ export class ReplayCoordinator {
       await session.initialize();
     } catch (e) {
       this.log.warn(`Failed to setup replay: ${e instanceof Error ? e.message : String(e)}`);
+      this.cloudflareSolvers.delete(sessionId);
+      await session.destroy('error').catch(() => {});
       return;
     }
 
@@ -206,6 +208,16 @@ export class ReplayCoordinator {
     });
 
     return result;
+  }
+
+  /**
+   * Get a callback that returns the current target count for a session.
+   * Used by CDPProxy to enforce per-session tab limits.
+   */
+  getTabCountCallback(sessionId: string): (() => number) | undefined {
+    const session = this.replaySessions.get(sessionId);
+    if (!session) return undefined;
+    return () => session.getTargetCount();
   }
 
   /**

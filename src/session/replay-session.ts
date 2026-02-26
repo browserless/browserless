@@ -86,7 +86,15 @@ export class ReplaySession {
     this.videosDir = options.videosDir;
     this.onTabReplayComplete = options.onTabReplayComplete;
     this.chromePort = new URL(options.wsEndpoint).port;
+    this.cloudflareSolver.setGetAbortSignal(
+      (targetId) => this.targets.getByTarget(targetId)?.detectionAbort?.signal,
+    );
     this.setupMessageRouting();
+  }
+
+  /** Current number of tracked targets (pages + iframes). */
+  getTargetCount(): number {
+    return this.targets.size;
   }
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────
@@ -191,9 +199,12 @@ export class ReplaySession {
 
   private async _doDestroy(source: string): Promise<void> {
     this.state = 'DRAINING';
+    this.log.info(`ReplaySession destroying (${source}) for session ${this.sessionId}, targets=${this.targets.size}`);
 
     // Unregister Prometheus gauges
+    const hadGauges = !!this.unregisterGauges;
     this.unregisterGauges?.();
+    this.log.info(`ReplaySession gauges unregistered (had=${hadGauges}) for session ${this.sessionId}`);
 
     // Clean up solver
     this.cloudflareSolver.destroy();
@@ -271,7 +282,7 @@ export class ReplaySession {
     try { this.ws?.close(); } catch {}
 
     this.state = 'DESTROYED';
-    this.log.debug(`ReplaySession destroyed (${source}) for session ${this.sessionId}`);
+    this.log.info(`ReplaySession destroyed (${source}) for session ${this.sessionId}`);
   }
 
   /**
@@ -683,6 +694,7 @@ export class ReplaySession {
     if (targetInfo.type === 'page') {
       this.log.info(`Target attached (paused=${waitingForDebugger}): targetId=${targetInfo.targetId} url=${targetInfo.url} type=${targetInfo.type}`);
       const target = this.targets.add(targetInfo.targetId, cdpSessionId);
+      target.detectionAbort = new AbortController();
       this.cloudflareSolver.onPageAttached(targetInfo.targetId, cdpSessionId, targetInfo.url)
         .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onPageAttached skipped: ${e.message}`));
 
