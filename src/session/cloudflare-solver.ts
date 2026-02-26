@@ -1,4 +1,4 @@
-import type { CloudflareConfig } from '../shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId, CloudflareConfig } from '../shared/cloudflare-detection.js';
 import { CloudflareDetector } from './cf/cloudflare-detector.js';
 import { CloudflareSolveStrategies } from './cf/cloudflare-solve-strategies.js';
 import { CloudflareStateTracker } from './cf/cloudflare-state-tracker.js';
@@ -34,7 +34,7 @@ export class CloudflareSolver {
   }
 
   /** Set callback to retrieve the AbortSignal for a given page target's detection loop. */
-  setGetAbortSignal(fn: (targetId: string) => AbortSignal | undefined): void {
+  setGetAbortSignal(fn: (targetId: TargetId) => AbortSignal | undefined): void {
     this.detector.setGetAbortSignal(fn);
   }
 
@@ -54,32 +54,32 @@ export class CloudflareSolver {
     return this.detector.isEnabled();
   }
 
-  async onPageAttached(targetId: string, cdpSessionId: string, url: string): Promise<void> {
+  async onPageAttached(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
     return this.detector.onPageAttached(targetId, cdpSessionId, url);
   }
 
-  async onPageNavigated(targetId: string, cdpSessionId: string, url: string): Promise<void> {
+  async onPageNavigated(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
     return this.detector.onPageNavigated(targetId, cdpSessionId, url);
   }
 
   async onIframeAttached(
-    iframeTargetId: string, iframeCdpSessionId: string,
-    url: string, parentCdpSessionId: string,
+    iframeTargetId: TargetId, iframeCdpSessionId: CdpSessionId,
+    url: string, parentCdpSessionId: CdpSessionId,
   ): Promise<void> {
     return this.detector.onIframeAttached(iframeTargetId, iframeCdpSessionId, url, parentCdpSessionId);
   }
 
   async onIframeNavigated(
-    iframeTargetId: string, iframeCdpSessionId: string, url: string,
+    iframeTargetId: TargetId, iframeCdpSessionId: CdpSessionId, url: string,
   ): Promise<void> {
     return this.detector.onIframeNavigated(iframeTargetId, iframeCdpSessionId, url);
   }
 
-  async onAutoSolveBinding(cdpSessionId: string): Promise<void> {
+  async onAutoSolveBinding(cdpSessionId: CdpSessionId): Promise<void> {
     return this.stateTracker.onAutoSolveBinding(cdpSessionId);
   }
 
-  onBeaconSolved(targetId: string, tokenLength: number): void {
+  onBeaconSolved(targetId: TargetId, tokenLength: number): void {
     return this.stateTracker.onBeaconSolved(targetId, tokenLength);
   }
 

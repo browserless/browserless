@@ -1,5 +1,5 @@
 import { Logger } from '@browserless.io/browserless';
-import type { CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId, CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
 import { CloudflareTracker } from './cloudflare-event-emitter.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 import { deriveSolveAttribution } from './cloudflare-state-tracker.js';
@@ -21,7 +21,7 @@ import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js
 export class CloudflareDetector {
   private log = new Logger('cf-detect');
   private enabled = false;
-  private getAbortSignal?: (targetId: string) => AbortSignal | undefined;
+  private getAbortSignal?: (targetId: TargetId) => AbortSignal | undefined;
 
   constructor(
     _sendCommand: SendCommand,
@@ -31,7 +31,7 @@ export class CloudflareDetector {
   ) {}
 
   /** Set callback to retrieve the AbortSignal for a given page target. */
-  setGetAbortSignal(fn: (targetId: string) => AbortSignal | undefined): void {
+  setGetAbortSignal(fn: (targetId: TargetId) => AbortSignal | undefined): void {
     this.getAbortSignal = fn;
   }
 
@@ -56,7 +56,7 @@ export class CloudflareDetector {
   }
 
   /** Called when a new page target is attached. */
-  async onPageAttached(targetId: string, cdpSessionId: string, url: string): Promise<void> {
+  async onPageAttached(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
     this.state.knownPages.set(targetId, cdpSessionId);
     if (!this.enabled || !url || url.startsWith('about:')) return;
 
@@ -68,7 +68,7 @@ export class CloudflareDetector {
   }
 
   /** Called when a page navigates. */
-  async onPageNavigated(targetId: string, cdpSessionId: string, url: string): Promise<void> {
+  async onPageNavigated(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
     this.state.knownPages.set(targetId, cdpSessionId);
 
     const active = this.state.activeDetections.get(targetId);
@@ -254,8 +254,8 @@ export class CloudflareDetector {
 
   /** Called when a cross-origin iframe is attached. */
   async onIframeAttached(
-    iframeTargetId: string, iframeCdpSessionId: string,
-    url: string, parentCdpSessionId: string,
+    iframeTargetId: TargetId, iframeCdpSessionId: CdpSessionId,
+    url: string, parentCdpSessionId: CdpSessionId,
   ): Promise<void> {
     if (!this.enabled) return;
     if (!url?.includes('challenges.cloudflare.com')) return;
@@ -280,7 +280,7 @@ export class CloudflareDetector {
 
   /** Called when an iframe navigates (Target.targetInfoChanged for type=iframe). */
   async onIframeNavigated(
-    iframeTargetId: string, iframeCdpSessionId: string, url: string,
+    iframeTargetId: TargetId, iframeCdpSessionId: CdpSessionId, url: string,
   ): Promise<void> {
     if (!this.enabled) return;
     if (!url?.includes('challenges.cloudflare.com')) return;
@@ -301,7 +301,7 @@ export class CloudflareDetector {
     }
   }
 
-  private emitSolveFailure(active: ActiveDetection, targetId: string, reason: string): void {
+  private emitSolveFailure(active: ActiveDetection, targetId: TargetId, reason: string): void {
     if (active.aborted) return;
     this.events.emitFailed(active, reason, Date.now() - active.startTime);
     active.aborted = true;
@@ -348,7 +348,7 @@ export class CloudflareDetector {
    * Trigger solve from URL-based detection. No Runtime.evaluate needed.
    */
   private triggerSolveFromUrl(
-    targetId: string, cdpSessionId: string,
+    targetId: TargetId, cdpSessionId: CdpSessionId,
     url: string, cfType: CloudflareType,
   ): void {
     if (this.state.destroyed || !this.enabled) return;
@@ -406,7 +406,7 @@ export class CloudflareDetector {
    * but the loop retries indefinitely until the tab is destroyed.
    */
   private async detectTurnstileWidget(
-    targetId: string, cdpSessionId: string, signal?: AbortSignal,
+    targetId: TargetId, cdpSessionId: CdpSessionId, signal?: AbortSignal,
   ): Promise<void> {
     if (this.state.destroyed || !this.enabled) return;
     if (this.state.activeDetections.has(targetId)) return;

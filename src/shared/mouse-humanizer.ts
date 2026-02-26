@@ -21,9 +21,11 @@ const execAsync = promisify(exec);
  */
 const CHROME_TOOLBAR_OFFSET = 85;
 
+import type { CdpSessionId } from './cloudflare-detection.js';
+
 type Point = [number, number];
 type Vector = { x: number; y: number };
-type SendCommand = (method: string, params?: object, cdpSessionId?: string) => Promise<any>;
+type SendCommand = (method: string, params?: object, cdpSessionId?: CdpSessionId) => Promise<any>;
 
 /** Box-Muller normal distribution */
 function randomNormal(mean: number, stdDev: number): number {
@@ -146,7 +148,7 @@ const randInt = (min: number, max: number) => Math.floor(rand(min, max + 1));
  */
 export async function simulateHumanPresence(
   sendCommand: SendCommand,
-  cdpSessionId: string,
+  cdpSessionId: CdpSessionId,
   duration: number = 2.0,
 ): Promise<Point> {
   const numWaypoints = duration < 0.8 ? 1 : randInt(1, 2);
@@ -231,7 +233,7 @@ export async function simulateHumanPresence(
  */
 export async function humanizeMouseToTarget(
   sendCommand: SendCommand,
-  sessionId: string,
+  sessionId: CdpSessionId,
   targetX: number,
   targetY: number,
 ): Promise<void> {

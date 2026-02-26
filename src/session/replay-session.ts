@@ -4,6 +4,7 @@ import {
   TabReplayCompleteParams,
 } from '@browserless.io/browserless';
 
+import type { CdpSessionId, TargetId } from '../shared/cloudflare-detection.js';
 import { ScreencastCapture } from './screencast-capture.js';
 import { CloudflareSolver } from './cloudflare-solver.js';
 import { registerSessionState, tabDuration } from '../prom-metrics.js';
@@ -317,7 +318,7 @@ export class ReplaySession {
    * Routes Runtime.evaluate through per-page WS when available (zero contention),
    * falls back to browser WS.
    */
-  sendCommand(method: string, params: object = {}, cdpSessionId?: string, timeoutMs?: number): Promise<any> {
+  sendCommand(method: string, params: object = {}, cdpSessionId?: CdpSessionId, timeoutMs?: number): Promise<any> {
     if (this.state === 'DESTROYED') {
       return Promise.reject(new Error('Session destroyed'));
     }
@@ -379,7 +380,7 @@ export class ReplaySession {
 
   // ─── Per-page WebSocket ─────────────────────────────────────────────────
 
-  private openPageWebSocket(targetId: string, _cdpSessionId: string): Promise<void> {
+  private openPageWebSocket(targetId: TargetId, _cdpSessionId: CdpSessionId): Promise<void> {
     return new Promise((resolve, reject) => {
       const WebSocket = this.WebSocket;
       const pageWsUrl = `ws://127.0.0.1:${this.chromePort}/devtools/page/${targetId}`;
@@ -464,7 +465,7 @@ export class ReplaySession {
    * With extension-based injection, events primarily arrive via __rrwebPush binding.
    * This is only called during finalization to collect any stragglers.
    */
-  private async collectEvents(targetId: string): Promise<void> {
+  private async collectEvents(targetId: TargetId): Promise<void> {
     if (this.state === 'DESTROYED') return;
     const target = this.targets.getByTarget(targetId);
     if (!target) return;
@@ -494,7 +495,7 @@ export class ReplaySession {
 
   // ─── Tab Finalization ───────────────────────────────────────────────────
 
-  private async finalizeTab(targetId: string): Promise<StopTabRecordingResult | null> {
+  private async finalizeTab(targetId: TargetId): Promise<StopTabRecordingResult | null> {
     const target = this.targets.getByTarget(targetId);
 
     // Prevent double-finalization
@@ -546,7 +547,7 @@ export class ReplaySession {
   // ─── Iframe CDP Event Handling ──────────────────────────────────────────
 
   private handleIframeCDPEvent(msg: any): void {
-    const pageSessionId = this.targets.getParentCdpSession(msg.sessionId);
+    const pageSessionId = this.targets.getParentCdpSession(msg.sessionId as CdpSessionId);
     if (!pageSessionId) return;
     const parentTargetId = this.targets.findTargetIdByCdpSession(pageSessionId);
     if (!parentTargetId) return;
@@ -635,7 +636,7 @@ export class ReplaySession {
       }
 
       // Iframe CDP events → rrweb recording events
-      if (msg.sessionId && this.targets.isIframe(msg.sessionId)) {
+      if (msg.sessionId && this.targets.isIframe(msg.sessionId as CdpSessionId)) {
         this.handleIframeCDPEvent(msg);
       }
 
@@ -651,7 +652,7 @@ export class ReplaySession {
       }
 
       // Console API calls from page targets — log [browserless-ext] prefixed messages for diagnostics
-      if (msg.method === 'Runtime.consoleAPICalled' && msg.sessionId && !this.targets.isIframe(msg.sessionId)) {
+      if (msg.method === 'Runtime.consoleAPICalled' && msg.sessionId && !this.targets.isIframe(msg.sessionId as CdpSessionId)) {
         const args: string[] = (msg.params?.args || [])
           .map((a: { value?: string; description?: string; type?: string }) =>
             a.value ?? a.description ?? String(a.type))
@@ -672,16 +673,17 @@ export class ReplaySession {
 
   private handleBindingCalled(msg: any): void {
     const name = msg.params?.name;
+    const cdpSessionId = msg.sessionId as CdpSessionId;
     if (name === '__rrwebPush') {
       try {
         const events = JSON.parse(msg.params.payload);
-        const targetId = this.targets.findTargetIdByCdpSession(msg.sessionId);
+        const targetId = this.targets.findTargetIdByCdpSession(cdpSessionId);
         if (targetId && events?.length) {
           this.sessionReplay.addTabEvents(this.sessionId, targetId, events);
         }
       } catch {}
     } else if (name === '__turnstileSolvedBinding') {
-      this.cloudflareSolver.onAutoSolveBinding(msg.sessionId)
+      this.cloudflareSolver.onAutoSolveBinding(cdpSessionId)
         .catch((e: Error) => this.log.debug(`onAutoSolveBinding failed: ${e.message}`));
     }
   }
@@ -689,17 +691,19 @@ export class ReplaySession {
   // ─── CDP Event Sub-handlers ─────────────────────────────────────────────
 
   private async handleAttachedToTarget(msg: any): Promise<void> {
-    const { sessionId: cdpSessionId, targetInfo, waitingForDebugger } = msg.params;
+    const { sessionId, targetInfo, waitingForDebugger } = msg.params;
+    const cdpSessionId = sessionId as CdpSessionId;
+    const targetId = targetInfo.targetId as TargetId;
 
     if (targetInfo.type === 'page') {
-      this.log.info(`Target attached (paused=${waitingForDebugger}): targetId=${targetInfo.targetId} url=${targetInfo.url} type=${targetInfo.type}`);
-      const target = this.targets.add(targetInfo.targetId, cdpSessionId);
+      this.log.info(`Target attached (paused=${waitingForDebugger}): targetId=${targetId} url=${targetInfo.url} type=${targetInfo.type}`);
+      const target = this.targets.add(targetId, cdpSessionId);
       target.detectionAbort = new AbortController();
-      this.cloudflareSolver.onPageAttached(targetInfo.targetId, cdpSessionId, targetInfo.url)
-        .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onPageAttached skipped: ${e.message}`));
+      this.cloudflareSolver.onPageAttached(targetId, cdpSessionId, targetInfo.url)
+        .catch((e: Error) => this.log.debug(`[${targetId}] onPageAttached skipped: ${e.message}`));
 
       // Eagerly initialize tab event tracking
-      this.sessionReplay.addTabEvents(this.sessionId, targetInfo.targetId, []);
+      this.sessionReplay.addTabEvents(this.sessionId, targetId, []);
 
       // Extension handles rrweb injection via content_scripts (document_start, world: MAIN).
       // We only need: push binding, session ID, auto-attach for iframes, and resume.
@@ -723,17 +727,17 @@ export class ReplaySession {
           flatten: true,
         }, cdpSessionId);
       } catch (e) {
-        this.log.debug(`Target setup failed for ${targetInfo.targetId}: ${e instanceof Error ? e.message : String(e)}`);
+        this.log.debug(`Target setup failed for ${targetId}: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       // Resume the target
       if (waitingForDebugger) {
         await this.sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] runIfWaitingForDebugger skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${targetId}] runIfWaitingForDebugger skipped: ${e.message}`));
       }
 
       // Diagnostic probe: check rrweb state 2s after target resumes
-      const probeTargetId = targetInfo.targetId;
+      const probeTargetId = targetId;
       const probeCdpSessionId = cdpSessionId;
       setTimeout(async () => {
         try {
@@ -760,13 +764,13 @@ export class ReplaySession {
 
       // Start screencast — only when video=true
       if (this.video) {
-        this.screencastCapture.addTarget(this.sessionId, this.sendCommand.bind(this) as any, cdpSessionId, targetInfo.targetId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] screencast addTarget skipped: ${e.message}`));
+        this.screencastCapture.addTarget(this.sessionId, this.sendCommand.bind(this) as any, cdpSessionId, targetId)
+          .catch((e: Error) => this.log.debug(`[${targetId}] screencast addTarget skipped: ${e.message}`));
       }
 
       // Open per-page WebSocket for zero-contention
-      this.openPageWebSocket(targetInfo.targetId, cdpSessionId).catch((err: Error) => {
-        this.log.debug(`Per-page WS failed for ${targetInfo.targetId}: ${err.message}`);
+      this.openPageWebSocket(targetId, cdpSessionId).catch((err: Error) => {
+        this.log.debug(`Per-page WS failed for ${targetId}: ${err.message}`);
       });
     }
 
@@ -775,26 +779,26 @@ export class ReplaySession {
     // No CDP domain enables on OOPIF sessions — they're detectable fingerprints.
     // We only need: resume debugger, iframe tracking, CF solver notification.
     if (targetInfo.type === 'iframe') {
-      this.log.debug(`Iframe target attached (paused=${waitingForDebugger}): ${targetInfo.targetId} url=${targetInfo.url}`);
-      this.targets.addIframeTarget(targetInfo.targetId, cdpSessionId);
+      this.log.debug(`Iframe target attached (paused=${waitingForDebugger}): ${targetId} url=${targetInfo.url}`);
+      this.targets.addIframeTarget(targetId, cdpSessionId);
 
       if (waitingForDebugger) {
         await this.sendCommand('Runtime.runIfWaitingForDebugger', {}, cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] iframe runIfWaitingForDebugger skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${targetId}] iframe runIfWaitingForDebugger skipped: ${e.message}`));
       }
 
-      const parentCdpSid = msg.sessionId || this.getLastPageCdpSession();
+      const parentCdpSid = (msg.sessionId as CdpSessionId | undefined) || this.getLastPageCdpSession();
       if (parentCdpSid) {
         this.targets.addIframe(cdpSessionId, parentCdpSid);
-        this.cloudflareSolver.onIframeAttached(targetInfo.targetId, cdpSessionId, targetInfo.url, parentCdpSid)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onIframeAttached skipped: ${e.message}`));
+        this.cloudflareSolver.onIframeAttached(targetId, cdpSessionId, targetInfo.url, parentCdpSid)
+          .catch((e: Error) => this.log.debug(`[${targetId}] onIframeAttached skipped: ${e.message}`));
       }
     }
   }
 
   private async handleTargetCreated(msg: any): Promise<void> {
     const { targetInfo } = msg.params;
-    if (targetInfo.type === 'page' && !this.targets.has(targetInfo.targetId)) {
+    if (targetInfo.type === 'page' && !this.targets.has(targetInfo.targetId as TargetId)) {
       this.log.info(`Discovered external target ${targetInfo.targetId} (url=${targetInfo.url}), attaching...`);
       try {
         await this.sendCommand('Target.attachToTarget', {
@@ -808,7 +812,7 @@ export class ReplaySession {
   }
 
   private async handleTargetDestroyed(msg: any): Promise<void> {
-    const { targetId } = msg.params;
+    const targetId = msg.params.targetId as TargetId;
 
     const target = this.targets.getByTarget(targetId);
     if (target) {
@@ -845,9 +849,10 @@ export class ReplaySession {
 
   private async handleTargetInfoChanged(msg: any): Promise<void> {
     const { targetInfo } = msg.params;
+    const changedTargetId = targetInfo.targetId as TargetId;
 
     if (targetInfo.type === 'page') {
-      const target = this.targets.getByTarget(targetInfo.targetId);
+      const target = this.targets.getByTarget(changedTargetId);
       if (target) {
         // Extension handles rrweb re-injection on navigation via content_scripts.
         // Re-enable CDP domains that Chrome resets on same-target navigation:
@@ -857,25 +862,25 @@ export class ReplaySession {
         // - Target.setAutoAttach: required for new iframe auto-attach
         // Without these, rrweb runs in the new page but events never reach us.
         this.sendCommand('Runtime.addBinding', { name: '__rrwebPush' }, target.cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] addBinding skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${changedTargetId}] addBinding skipped: ${e.message}`));
         this.sendCommand('Runtime.enable', {}, target.cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Runtime.enable skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${changedTargetId}] Runtime.enable skipped: ${e.message}`));
         this.sendCommand('Page.enable', {}, target.cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] Page.enable skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${changedTargetId}] Page.enable skipped: ${e.message}`));
         this.sendCommand('Target.setAutoAttach', {
           autoAttach: true,
           waitForDebuggerOnStart: true,
           flatten: true,
         }, target.cdpSessionId)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] setAutoAttach skipped: ${e.message}`));
+          .catch((e: Error) => this.log.debug(`[${changedTargetId}] setAutoAttach skipped: ${e.message}`));
 
-        this.cloudflareSolver.onPageNavigated(targetInfo.targetId, target.cdpSessionId, targetInfo.url)
-          .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onPageNavigated skipped: ${e.message}`));
+        this.cloudflareSolver.onPageNavigated(changedTargetId, target.cdpSessionId, targetInfo.url)
+          .catch((e: Error) => this.log.debug(`[${changedTargetId}] onPageNavigated skipped: ${e.message}`));
       }
     }
 
     // Handle iframe navigation
-    const iframeCdpSid = this.targets.getIframeCdpSession(targetInfo.targetId);
+    const iframeCdpSid = this.targets.getIframeCdpSession(changedTargetId);
     if (iframeCdpSid && targetInfo.type === 'iframe') {
       // No CDP domain enables on OOPIF — extension handles capture, enables are fingerprints.
       // Just ensure iframe tracking and notify CF solver.
@@ -888,8 +893,8 @@ export class ReplaySession {
         }
       }
 
-      this.cloudflareSolver.onIframeNavigated(targetInfo.targetId, iframeCdpSid, targetInfo.url)
-        .catch((e: Error) => this.log.debug(`[${targetInfo.targetId}] onIframeNavigated skipped: ${e.message}`));
+      this.cloudflareSolver.onIframeNavigated(changedTargetId, iframeCdpSid, targetInfo.url)
+        .catch((e: Error) => this.log.debug(`[${changedTargetId}] onIframeNavigated skipped: ${e.message}`));
     }
   }
 
@@ -923,21 +928,22 @@ export class ReplaySession {
 
     if (!isCFUrl) return;
 
-    const target = this.targets.getByCdpSession(msg.sessionId);
+    const frameCdpSessionId = msg.sessionId as CdpSessionId;
+    const target = this.targets.getByCdpSession(frameCdpSessionId);
     if (!target) return;
 
     // Use onPageAttached (detection-only) — it calls triggerSolveFromUrl which has
     // the activeDetections.has guard for deduplication. Unlike onPageNavigated, it
     // won't abort an existing detection that targetInfoChanged already started.
-    this.cloudflareSolver.onPageAttached(target.targetId, msg.sessionId, url)
+    this.cloudflareSolver.onPageAttached(target.targetId, frameCdpSessionId, url)
       .catch((e: Error) => this.log.debug(`[${target.targetId}] frameNavigated CF detection skipped: ${e.message}`));
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   /** Get the last known page cdpSessionId (fallback for parent detection). */
-  private getLastPageCdpSession(): string | undefined {
-    let last: string | undefined;
+  private getLastPageCdpSession(): CdpSessionId | undefined {
+    let last: CdpSessionId | undefined;
     for (const target of this.targets) {
       last = target.cdpSessionId;
     }
@@ -949,7 +955,7 @@ export class ReplaySession {
    * Bypasses Runtime.evaluate — events appear immediately in the replay
    * without needing pollEvents() to drain the page's events array.
    */
-  injectMarkerServerSide(cdpSessionId: string, tag: string, payload?: object): void {
+  injectMarkerServerSide(cdpSessionId: CdpSessionId, tag: string, payload?: object): void {
     const target = this.targets.getByCdpSession(cdpSessionId);
     if (!target) {
       this.log.warn(`[cf-marker] target not found for cdpSession=${cdpSessionId} tag=${tag} (known=${this.targets.size})`);
@@ -963,7 +969,7 @@ export class ReplaySession {
    * Inject a custom marker by targetId. Used by Browserless.addReplayMarker CDP command.
    * If targetId is empty, injects into the first (usually only) tracked page.
    */
-  injectMarkerByTargetId(targetId: string, tag: string, payload?: object): void {
+  injectMarkerByTargetId(targetId: TargetId, tag: string, payload?: object): void {
     const resolvedTargetId = targetId || this.targets.firstTargetId();
     if (!resolvedTargetId) {
       this.log.warn(`[replay-marker] no target available for tag=${tag}`);
@@ -972,7 +978,7 @@ export class ReplaySession {
     this.injectMarkerForTarget(resolvedTargetId, tag, payload);
   }
 
-  private injectMarkerForTarget(targetId: string, tag: string, payload?: object): void {
+  private injectMarkerForTarget(targetId: TargetId, tag: string, payload?: object): void {
     this.sessionReplay.addTabEvents(this.sessionId, targetId, [{
       type: 5,
       timestamp: Date.now(),

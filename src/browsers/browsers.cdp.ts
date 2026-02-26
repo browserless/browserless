@@ -13,6 +13,7 @@ import {
   screenxyPatchPath,
   ublockLitePath,
 } from '@browserless.io/browserless';
+import type { TargetId } from '../shared/cloudflare-detection.js';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
@@ -97,10 +98,10 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
     this.cloudflareSolver = cloudflareSolver;
   }
 
-  private replayMarkerCallback?: (targetId: string, tag: string, payload?: object) => void;
+  private replayMarkerCallback?: (targetId: TargetId, tag: string, payload?: object) => void;
   private getTabCountCallback?: () => number;
 
-  public setReplayMarkerCallback(fn: (targetId: string, tag: string, payload?: object) => void): void {
+  public setReplayMarkerCallback(fn: (targetId: TargetId, tag: string, payload?: object) => void): void {
     this.replayMarkerCallback = fn;
   }
 

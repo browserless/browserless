@@ -10,6 +10,16 @@
 import { Schema } from 'effect';
 
 // ═══════════════════════════════════════════════════════════════════════
+// CDP branded identifiers — compile-time-only, zero runtime overhead
+// ═══════════════════════════════════════════════════════════════════════
+
+export const CdpSessionId = Schema.String.pipe(Schema.brand("CdpSessionId"));
+export type CdpSessionId = typeof CdpSessionId.Type;
+
+export const TargetId = Schema.String.pipe(Schema.brand("TargetId"));
+export type TargetId = typeof TargetId.Type;
+
+// ═══════════════════════════════════════════════════════════════════════
 // Reusable schema combinators
 // ═══════════════════════════════════════════════════════════════════════
 

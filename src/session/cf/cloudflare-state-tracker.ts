@@ -1,5 +1,5 @@
 import { Logger } from '@browserless.io/browserless';
-import type { CloudflareConfig } from '../../shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId, CloudflareConfig } from '../../shared/cloudflare-detection.js';
 import {
   TURNSTILE_ERROR_CHECK_JS,
   CF_DETECTION_JS,
@@ -7,7 +7,7 @@ import {
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 
 /** CDP send command. Returns any because CDP response shapes vary per method — not worth validating every shape. */
-export type SendCommand = (method: string, params?: object, cdpSessionId?: string, timeoutMs?: number) => Promise<any>;
+export type SendCommand = (method: string, params?: object, cdpSessionId?: CdpSessionId, timeoutMs?: number) => Promise<any>;
 
 // ─── Decision Table ────────────────────────────────────────────────────
 //
@@ -61,12 +61,12 @@ export function deriveFailLabel(reason: string) {
  */
 export class CloudflareStateTracker {
   private log = new Logger('cf-state');
-  readonly activeDetections = new Map<string, ActiveDetection>();
-  readonly iframeToPage = new Map<string, string>();
-  readonly knownPages = new Map<string, string>();
-  readonly bindingSolvedTargets = new Set<string>();
-  readonly pendingIframes = new Map<string, { iframeCdpSessionId: string; iframeTargetId: string }>();
-  readonly pendingRechallengeCount = new Map<string, number>();
+  readonly activeDetections = new Map<TargetId, ActiveDetection>();
+  readonly iframeToPage = new Map<TargetId, TargetId>();
+  readonly knownPages = new Map<TargetId, CdpSessionId>();
+  readonly bindingSolvedTargets = new Set<TargetId>();
+  readonly pendingIframes = new Map<TargetId, { iframeCdpSessionId: CdpSessionId; iframeTargetId: TargetId }>();
+  readonly pendingRechallengeCount = new Map<TargetId, number>();
   config: Required<CloudflareConfig> = { maxAttempts: 3, attemptTimeout: 30000, recordingMarkers: true };
   destroyed = false;
 
@@ -76,7 +76,7 @@ export class CloudflareStateTracker {
   ) {}
 
   /** Called when Turnstile iframe state changes (via CDP OOPIF DOM walk or direct call). */
-  async onTurnstileStateChange(state: string, iframeCdpSessionId: string): Promise<void> {
+  async onTurnstileStateChange(state: string, iframeCdpSessionId: CdpSessionId): Promise<void> {
     const pageTargetId = this.findPageByIframeSession(iframeCdpSessionId);
     if (!pageTargetId) return;
 
@@ -155,10 +155,10 @@ export class CloudflareStateTracker {
   onRetryCallback: ((active: ActiveDetection) => void) | null = null;
 
   // Callback for OOPIF state check via CDP — wired by delegator to strategies.checkOOPIFStateViaCDP
-  checkOOPIFState: ((iframeCdpSessionId: string) => Promise<'success' | 'fail' | 'expired' | 'timeout' | 'pending' | null>) | null = null;
+  checkOOPIFState: ((iframeCdpSessionId: CdpSessionId) => Promise<'success' | 'fail' | 'expired' | 'timeout' | 'pending' | null>) | null = null;
 
   /** Called when TURNSTILE_CALLBACK_HOOK_JS detects an auto-solve on any page. */
-  async onAutoSolveBinding(cdpSessionId: string): Promise<void> {
+  async onAutoSolveBinding(cdpSessionId: CdpSessionId): Promise<void> {
     const pageTargetId = this.findPageBySession(cdpSessionId);
     if (!pageTargetId) return;
 
@@ -180,7 +180,7 @@ export class CloudflareStateTracker {
   /**
    * Called when the HTTP beacon fires from navigator.sendBeacon in the browser.
    */
-  onBeaconSolved(targetId: string, tokenLength: number): void {
+  onBeaconSolved(targetId: TargetId, tokenLength: number): void {
     const active = this.activeDetections.get(targetId);
 
     if (active && !active.aborted) {
@@ -251,7 +251,7 @@ export class CloudflareStateTracker {
     this.events.marker(active.pageCdpSessionId, 'cf.auto_solved', { signal, method: attr.method });
   }
 
-  async isSolved(cdpSessionId: string): Promise<boolean> {
+  async isSolved(cdpSessionId: CdpSessionId): Promise<boolean> {
     try {
       const result = await this.sendCommand('Runtime.evaluate', {
         expression: `(function() {
@@ -268,7 +268,7 @@ export class CloudflareStateTracker {
     }
   }
 
-  async getToken(cdpSessionId: string): Promise<string | null> {
+  async getToken(cdpSessionId: CdpSessionId): Promise<string | null> {
     try {
       const result = await this.sendCommand('Runtime.evaluate', {
         expression: `(() => {
@@ -289,7 +289,7 @@ export class CloudflareStateTracker {
   }
 
   /** Check if the Turnstile widget is in an error/expired state. */
-  async isWidgetError(cdpSessionId: string): Promise<{ type: string; has_token: boolean } | null> {
+  async isWidgetError(cdpSessionId: CdpSessionId): Promise<{ type: string; has_token: boolean } | null> {
     try {
       const result = await this.sendCommand('Runtime.evaluate', {
         expression: TURNSTILE_ERROR_CHECK_JS,
@@ -305,7 +305,7 @@ export class CloudflareStateTracker {
   }
 
   /** Re-run CF detection to verify a solve isn't a false positive. */
-  async isStillDetected(cdpSessionId: string): Promise<boolean> {
+  async isStillDetected(cdpSessionId: CdpSessionId): Promise<boolean> {
     try {
       const result = await this.sendCommand('Runtime.evaluate', {
         expression: CF_DETECTION_JS,
@@ -365,14 +365,14 @@ export class CloudflareStateTracker {
     loop().catch(() => {});
   }
 
-  findPageBySession(cdpSessionId: string): string | undefined {
+  findPageBySession(cdpSessionId: CdpSessionId): TargetId | undefined {
     for (const [targetId, sid] of this.knownPages) {
       if (sid === cdpSessionId) return targetId;
     }
     return undefined;
   }
 
-  findPageByIframeSession(iframeCdpSessionId: string): string | undefined {
+  findPageByIframeSession(iframeCdpSessionId: CdpSessionId): TargetId | undefined {
     for (const [pageTargetId, active] of this.activeDetections) {
       if (active.iframeCdpSessionId === iframeCdpSessionId) return pageTargetId;
     }

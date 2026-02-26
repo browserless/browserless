@@ -6,6 +6,7 @@ import {
   TabReplayCompleteParams,
 } from '@browserless.io/browserless';
 
+import type { CdpSessionId, TargetId } from '../shared/cloudflare-detection.js';
 import { ScreencastCapture } from './screencast-capture.js';
 import { CloudflareSolver } from './cloudflare-solver.js';
 import { ReplaySession } from './replay-session.js';
@@ -81,10 +82,11 @@ export class ReplayCoordinator {
    *  pydoll paths where getSessionInfo returned empty).
    */
   handleCfBeacon(sessionId: string, targetId: string, tokenLength: number): boolean {
+    const brandedTargetId = targetId as TargetId;
     if (sessionId) {
       const solver = this.cloudflareSolvers.get(sessionId);
       if (solver) {
-        solver.onBeaconSolved(targetId, tokenLength);
+        solver.onBeaconSolved(brandedTargetId, tokenLength);
         return true;
       }
       return false;
@@ -93,7 +95,7 @@ export class ReplayCoordinator {
     // against its own tracking, so only the correct one will act on it.
     let handled = false;
     for (const solver of this.cloudflareSolvers.values()) {
-      solver.onBeaconSolved(targetId, tokenLength);
+      solver.onBeaconSolved(brandedTargetId, tokenLength);
       handled = true;
     }
     return handled;
@@ -124,7 +126,7 @@ export class ReplayCoordinator {
     // Use a mutable ref so the solver's callbacks can reference
     // the session without circular init (solver is created first).
     let sessionRef: ReplaySession | null = null;
-    const sendViaSession = (method: string, params?: object, cdpSid?: string, timeoutMs?: number): Promise<any> =>
+    const sendViaSession = (method: string, params?: object, cdpSid?: CdpSessionId, timeoutMs?: number): Promise<any> =>
       sessionRef!.sendCommand(method, params ?? {}, cdpSid, timeoutMs);
 
     // Create solver for this session (disabled until client enables)
@@ -134,7 +136,7 @@ export class ReplayCoordinator {
     const chromePort = new URL(wsEndpoint).port;
     const cloudflareSolver = new CloudflareSolver(
       sendViaSession,
-      (cdpSid: string, tag: string, payload?: object) => {
+      (cdpSid: CdpSessionId, tag: string, payload?: object) => {
         sessionRef?.injectMarkerServerSide(cdpSid, tag, payload);
       },
       chromePort,
@@ -224,7 +226,7 @@ export class ReplayCoordinator {
    * Create a callback for Browserless.addReplayMarker CDP command.
    * Returns a function that injects markers by targetId, or undefined if no session.
    */
-  getReplayMarkerCallback(sessionId: string): ((targetId: string, tag: string, payload?: object) => void) | undefined {
+  getReplayMarkerCallback(sessionId: string): ((targetId: TargetId, tag: string, payload?: object) => void) | undefined {
     const session = this.replaySessions.get(sessionId);
     if (!session) return undefined;
     return (targetId, tag, payload) => session.injectMarkerByTargetId(targetId, tag, payload);

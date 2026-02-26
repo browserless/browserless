@@ -1,8 +1,8 @@
 import { Logger } from '@browserless.io/browserless';
-import type { CloudflareInfo, CloudflareResult, CloudflareSnapshot } from '../../shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId, CloudflareInfo, CloudflareResult, CloudflareSnapshot } from '../../shared/cloudflare-detection.js';
 
 export type EmitClientEvent = (method: string, params: object) => Promise<void>;
-export type InjectMarker = (cdpSessionId: string, tag: string, payload?: object) => void;
+export type InjectMarker = (cdpSessionId: CdpSessionId, tag: string, payload?: object) => void;
 
 /**
  * Accumulates state during a CF solve phase.
@@ -114,10 +114,10 @@ export class CloudflareTracker {
 
 export interface ActiveDetection {
   info: CloudflareInfo;
-  pageCdpSessionId: string;
-  pageTargetId: string;
-  iframeCdpSessionId?: string;
-  iframeTargetId?: string;
+  pageCdpSessionId: CdpSessionId;
+  pageTargetId: TargetId;
+  iframeCdpSessionId?: CdpSessionId;
+  iframeTargetId?: TargetId;
   startTime: number;
   attempt: number;
   aborted: boolean;
@@ -201,16 +201,16 @@ export class CloudflareEventEmitter {
   }
 
   emitStandaloneAutoSolved(
-    targetId: string,
+    targetId: TargetId,
     signal: string,
     tokenLength: number,
-    cdpSessionId?: string,
+    cdpSessionId?: CdpSessionId,
   ): void {
     const info: CloudflareInfo = {
       type: 'turnstile', url: '', detectionMethod: signal,
     };
     const active: ActiveDetection = {
-      info, pageCdpSessionId: cdpSessionId || '', pageTargetId: targetId,
+      info, pageCdpSessionId: cdpSessionId || '' as CdpSessionId, pageTargetId: targetId,
       startTime: Date.now(), attempt: 0, aborted: true,
       tracker: new CloudflareTracker(info),
     };
@@ -226,7 +226,7 @@ export class CloudflareEventEmitter {
     });
   }
 
-  marker(cdpSessionId: string, tag: string, payload?: object): void {
+  marker(cdpSessionId: CdpSessionId, tag: string, payload?: object): void {
     if (this.recordingMarkers) {
       this.injectMarker(cdpSessionId, tag, payload);
     }

@@ -1,7 +1,7 @@
 import {
   simulateHumanPresence,
 } from '../../shared/mouse-humanizer.js';
-import type { CloudflareType } from '../../shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId, CloudflareType } from '../../shared/cloudflare-detection.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 import type { CloudflareStateTracker, SendCommand } from './cloudflare-state-tracker.js';
 
@@ -284,7 +284,7 @@ export class CloudflareSolveStrategies {
    */
   private async findCheckboxViaRuntimeUsing(
     send: SendCommand,
-    oopifSessionId: string,
+    oopifSessionId: CdpSessionId,
   ): Promise<{ objectId: string; backendNodeId: number } | null> {
     try {
       // Step 1: Get document node
@@ -369,7 +369,7 @@ export class CloudflareSolveStrategies {
    */
   private async findCheckboxViaIsolatedWorld(
     send: SendCommand,
-    oopifSessionId: string,
+    oopifSessionId: CdpSessionId,
     contextId: number,
   ): Promise<{ objectId: string; backendNodeId: number } | null> {
     try {
@@ -430,7 +430,7 @@ export class CloudflareSolveStrategies {
 
   private async queryCheckboxInShadowUsing(
     send: SendCommand,
-    oopifSessionId: string,
+    oopifSessionId: CdpSessionId,
     shadowBackendNodeId: number,
   ): Promise<{ objectId: string; backendNodeId: number } | null> {
     // Resolve shadow root to objectId
@@ -601,7 +601,7 @@ export class CloudflareSolveStrategies {
       // Pydoll creates a new ConnectionHandler, calls Target.getTargets,
       // then for each target: attachToTarget → Page.getFrameTree → DOM.getFrameOwner
       // → match backendNodeId from Phase 1.
-      let oopifSessionId: string | null = null;
+      let oopifSessionId: CdpSessionId | null = null;
 
       const { targetInfos } = await send('Target.getTargets');
       if (targetInfos?.length) {
@@ -1018,7 +1018,7 @@ export class CloudflareSolveStrategies {
    * The WS is opened, used for one DOM.getDocument call, and immediately closed.
    * Pattern from replay-session.ts:openPageWebSocket.
    */
-  private async openCleanPageWs(targetId: string): Promise<{
+  private async openCleanPageWs(targetId: TargetId): Promise<{
     send: (method: string, params?: object) => Promise<any>;
     cleanup: () => void;
   }> {
@@ -1095,7 +1095,7 @@ export class CloudflareSolveStrategies {
    * Runtime.evaluate = rechallenge. Target.getTargets is browser-level and
    * completely invisible to the page.
    */
-  async detectTurnstileViaCDP(_pageCdpSessionId: string): Promise<CFDetectionResult | null> {
+  async detectTurnstileViaCDP(_pageCdpSessionId: CdpSessionId): Promise<CFDetectionResult | null> {
     try {
       const send = this.sendViaProxy || this.sendCommand;
       const { targetInfos } = await send('Target.getTargets', {}, undefined, 5_000);
@@ -1125,7 +1125,7 @@ export class CloudflareSolveStrategies {
    * - #verifying → 'verifying' (mapped to 'pending')
    * - none visible → 'pending'
    */
-  async checkOOPIFStateViaCDP(iframeCdpSessionId: string): Promise<
+  async checkOOPIFStateViaCDP(iframeCdpSessionId: CdpSessionId): Promise<
     'success' | 'fail' | 'expired' | 'timeout' | 'pending' | null
   > {
     try {

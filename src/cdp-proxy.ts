@@ -1,11 +1,13 @@
 import WebSocket from 'ws';
-const WebSocketServer = WebSocket.Server;
+// ws is CJS — Server lives on default export at runtime but TS types don't expose it
+const WebSocketServer = (WebSocket as any).Server as typeof import('ws').WebSocketServer;
 import { Duplex } from 'stream';
 import { IncomingMessage } from 'http';
 import { Config, Logger } from '@browserless.io/browserless';
 import { Schema } from 'effect';
 
 import { CloudflareConfig } from './shared/cloudflare-detection.js';
+import type { CdpSessionId, TargetId } from './shared/cloudflare-detection.js';
 
 /**
  * Replay metadata sent via CDP event.
@@ -27,7 +29,7 @@ export interface ReplayCompleteParams {
  */
 export interface TabReplayCompleteParams {
   sessionId: string;
-  targetId: string;
+  targetId: TargetId;
   duration: number;
   eventCount: number;
   frameCount: number;
@@ -109,7 +111,7 @@ export class CDPProxy {
     private onClose?: () => void,
     private onBeforeClose?: () => Promise<void>,
     private onEnableCloudflareSolver?: (config: CloudflareConfig) => void,
-    private onAddReplayMarker?: (targetId: string, tag: string, payload?: object) => void,
+    private onAddReplayMarker?: (targetId: TargetId, tag: string, payload?: object) => void,
   ) {}
 
   setGetTabCount(fn: () => number): void {
@@ -146,7 +148,7 @@ export class CDPProxy {
         this.clientRequest,
         this.clientSocket,
         this.clientHead,
-        (clientWs) => {
+        (clientWs: WebSocket) => {
           this.clientWs = clientWs;
           this.log.trace('Client WebSocket upgraded');
 
@@ -159,7 +161,7 @@ export class CDPProxy {
             this.emitClientEvent('Browserless.sessionInfo', { sessionId }).catch(() => {});
           }
 
-          clientWs.on('error', (err) => {
+          clientWs.on('error', (err: Error) => {
             this.log.warn(`Client WebSocket error: ${err.message}`);
             this.handleClose();
           });
@@ -456,7 +458,7 @@ export class CDPProxy {
   private proxyCommandId = 200_000;
   private proxyPendingCommands = new Map<number, { resolve: (result: any) => void; reject: (err: Error) => void; timer: ReturnType<typeof setTimeout> }>();
 
-  sendViaBrowserWs(method: string, params: object = {}, sessionId?: string, timeoutMs: number = 30_000): Promise<any> {
+  sendViaBrowserWs(method: string, params: object = {}, sessionId?: CdpSessionId, timeoutMs: number = 30_000): Promise<any> {
     return new Promise((resolve, reject) => {
       if (!this.browserWs || this.browserWs.readyState !== WebSocket.OPEN) {
         reject(new Error('Browser WS not open'));
@@ -495,7 +497,7 @@ export class CDPProxy {
    * Returns a sendCommand function scoped to the fresh WS.
    * Call cleanup() when done to close the connection.
    */
-  createIsolatedConnection(): { send: (method: string, params?: object, sessionId?: string, timeoutMs?: number) => Promise<any>; cleanup: () => void } {
+  createIsolatedConnection(): { send: (method: string, params?: object, sessionId?: CdpSessionId, timeoutMs?: number) => Promise<any>; cleanup: () => void } {
     const endpoint = this.browserWsEndpoint;
     const ws = new WebSocket(endpoint);
     let cmdId = 300_000;
