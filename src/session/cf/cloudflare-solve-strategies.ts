@@ -79,7 +79,15 @@ export class CloudflareSolveStrategies {
     this.sendViaProxy = fn;
   }
 
-  async solveDetection(active: ActiveDetection): Promise<SolveOutcome> {
+  /**
+   * Overridable solve dispatcher. CloudflareSolver replaces this with the
+   * Effect-based solver in Phase 1. Default implementation is the original
+   * imperative logic (kept as fallback for testing / gradual migration).
+   */
+  solveDetection: (active: ActiveDetection) => Promise<SolveOutcome> =
+    (active) => this._solveDetectionImpl(active);
+
+  private async _solveDetectionImpl(active: ActiveDetection): Promise<SolveOutcome> {
     if (active.aborted || this.state.destroyed) return 'aborted';
 
     try {
@@ -142,7 +150,7 @@ export class CloudflareSolveStrategies {
 
       if (attempt > 0) await sleep(500);
 
-      const result = await this.findAndClickViaCDP(active, attempt);
+      const result = await this._findAndClickViaCDP(active, attempt);
       if (result) {
         this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
         return true;
@@ -192,7 +200,7 @@ export class CloudflareSolveStrategies {
         } catch { /* page gone */ }
       }
 
-      const result = await this.findAndClickViaCDP(active, attempt);
+      const result = await this._findAndClickViaCDP(active, attempt);
       if (result) {
         this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
         clicked = true;
@@ -474,7 +482,18 @@ export class CloudflareSolveStrategies {
    * 4. DOM.getBoxModel for coordinates
    * 5. Input.dispatchMouseEvent via PAGE session (Bezier approach)
    */
-  private async findAndClickViaCDP(
+  /**
+   * Public entry point for findAndClickViaCDP — called by the Effect solver bridge.
+   * Exposed as a separate method so the Effect solver can call it via Effect.tryPromise.
+   */
+  async findAndClickViaCDPDirect(
+    active: ActiveDetection,
+    attempt = 0,
+  ): Promise<boolean> {
+    return this._findAndClickViaCDP(active, attempt);
+  }
+
+  private async _findAndClickViaCDP(
     active: ActiveDetection,
     attempt = 0,
   ): Promise<boolean> {

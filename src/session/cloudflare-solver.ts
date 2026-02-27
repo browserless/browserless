@@ -1,50 +1,149 @@
+import { Effect, Layer, ManagedRuntime } from 'effect';
 import type { CdpSessionId, TargetId, CloudflareConfig } from '../shared/cloudflare-detection.js';
 import { CloudflareDetector } from './cf/cloudflare-detector.js';
 import { CloudflareSolveStrategies } from './cf/cloudflare-solve-strategies.js';
 import { CloudflareStateTracker } from './cf/cloudflare-state-tracker.js';
 import { CloudflareEventEmitter } from './cf/cloudflare-event-emitter.js';
-import type { EmitClientEvent, InjectMarker } from './cf/cloudflare-event-emitter.js';
+import type { EmitClientEvent, InjectMarker, ActiveDetection } from './cf/cloudflare-event-emitter.js';
 import type { SendCommand } from './cf/cloudflare-state-tracker.js';
+import { CdpSender, TokenChecker, SolverEvents } from './cf/cf-services.js';
+import { CdpSessionGone } from './cf/cf-errors.js';
+import { solveDetection as solveDetectionEffect } from './cf/cloudflare-solver.effect.js';
+import type { SolveOutcome } from './cf/cloudflare-solve-strategies.js';
+import { simulateHumanPresence } from '../shared/mouse-humanizer.js';
 
 /**
  * Cloudflare detection and solving for a single browser session.
  *
  * Thin delegator — preserves the identical public interface that ReplaySession,
- * ReplayCoordinator, and BrowsersCDP depend on. All logic lives in:
- *   - CloudflareDetector: detection lifecycle
- *   - CloudflareSolveStrategies: solve execution
- *   - CloudflareStateTracker: active detection state
- *   - CloudflareEventEmitter: CDP event emission + recording markers
+ * ReplayCoordinator, and BrowsersCDP depend on.
+ *
+ * Phase 1 change: solveDetection() now runs through Effect via ManagedRuntime.
+ * The detector and strategies still use plain TypeScript. The Effect solver
+ * calls back into strategies for complex CDP/WS plumbing (findAndClickViaCDP).
  */
 export class CloudflareSolver {
   private detector: CloudflareDetector;
   private strategies: CloudflareSolveStrategies;
   private stateTracker: CloudflareStateTracker;
   private events: CloudflareEventEmitter;
+  private sendCommand: SendCommand;
+  private sendViaProxy: SendCommand | null = null;
+  // Type safety is inside the Effect solver — the runtime is just a bridge.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private runtime: any = null;
 
   constructor(sendCommand: SendCommand, injectMarker: InjectMarker, chromePort?: string) {
+    this.sendCommand = sendCommand;
     this.events = new CloudflareEventEmitter(injectMarker);
     this.stateTracker = new CloudflareStateTracker(sendCommand, this.events);
     this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, this.stateTracker, chromePort);
     this.detector = new CloudflareDetector(sendCommand, this.events, this.stateTracker, this.strategies);
+
+    // Override strategies.solveDetection to route through Effect
+    this.strategies.solveDetection = (active: ActiveDetection) => this.solveViaEffect(active);
+
+    // Build the Effect runtime with service layers
+    this.runtime = ManagedRuntime.make(this.buildLayer());
+  }
+
+  /**
+   * Build the Layer that provides all services to the Effect solver.
+   * Wraps existing imperative objects (sendCommand, stateTracker, events)
+   * as Effect services — no behavior change, just typed wrapping.
+   */
+  private buildLayer() {
+    const sendCommand = this.sendCommand;
+    const stateTracker = this.stateTracker;
+    const events = this.events;
+    const self = this;
+
+    const cdpSenderLayer = Layer.succeed(CdpSender, CdpSender.of({
+      send: (method, params, sessionId, timeoutMs) =>
+        Effect.tryPromise({
+          try: () => sendCommand(method, params, sessionId, timeoutMs),
+          catch: () => new CdpSessionGone({
+            sessionId: sessionId ?? ('' as CdpSessionId),
+            method,
+          }),
+        }),
+      sendViaProxy: (method, params, sessionId, timeoutMs) =>
+        Effect.tryPromise({
+          try: () => (self.sendViaProxy || sendCommand)(method, params, sessionId, timeoutMs),
+          catch: () => new CdpSessionGone({
+            sessionId: sessionId ?? ('' as CdpSessionId),
+            method,
+          }),
+        }),
+    }));
+
+    const tokenCheckerLayer = Layer.succeed(TokenChecker, TokenChecker.of({
+      getToken: (sessionId) =>
+        Effect.tryPromise({
+          try: () => stateTracker.getToken(sessionId),
+          catch: () => new CdpSessionGone({ sessionId, method: 'getToken' }),
+        }),
+      isSolved: (sessionId) =>
+        Effect.tryPromise({
+          try: () => stateTracker.isSolved(sessionId),
+          catch: () => new CdpSessionGone({ sessionId, method: 'isSolved' }),
+        }),
+      isWidgetError: (sessionId) =>
+        Effect.tryPromise({
+          try: () => stateTracker.isWidgetError(sessionId),
+          catch: () => new CdpSessionGone({ sessionId, method: 'isWidgetError' }),
+        }),
+      isStillDetected: (sessionId) =>
+        Effect.tryPromise({
+          try: () => stateTracker.isStillDetected(sessionId),
+          catch: () => new CdpSessionGone({ sessionId, method: 'isStillDetected' }),
+        }),
+    }));
+
+    const solverEventsLayer = Layer.succeed(SolverEvents, SolverEvents.of({
+      emitDetected: (active) => Effect.sync(() => events.emitDetected(active)),
+      emitProgress: (active, state, extra) => Effect.sync(() => events.emitProgress(active, state, extra)),
+      emitSolved: (active, result) => Effect.sync(() => events.emitSolved(active, result)),
+      emitFailed: (active, reason, duration, phaseLabel) =>
+        Effect.sync(() => events.emitFailed(active, reason, duration, phaseLabel)),
+      marker: (sessionId, tag, payload) => Effect.sync(() => events.marker(sessionId, tag, payload)),
+    }));
+
+    return Layer.mergeAll(cdpSenderLayer, tokenCheckerLayer, solverEventsLayer);
+  }
+
+  /**
+   * Run Effect-based solveDetection via ManagedRuntime.
+   * Returns the same Promise<SolveOutcome> the detector expects.
+   */
+  private async solveViaEffect(active: ActiveDetection): Promise<SolveOutcome> {
+    if (!this.runtime) return 'aborted';
+
+    const bridge = {
+      findAndClickViaCDP: (a: ActiveDetection, attempt: number) =>
+        this.strategies.findAndClickViaCDPDirect(a, attempt),
+      resolveAutoSolved: (a: ActiveDetection, signal: string) =>
+        this.stateTracker.resolveAutoSolved(a, signal),
+      simulatePresence: async (a: ActiveDetection) => {
+        await simulateHumanPresence(this.sendCommand, a.pageCdpSessionId, 2.0 + Math.random() * 2.0);
+      },
+    };
+
+    return this.runtime.runPromise(solveDetectionEffect(active, bridge));
   }
 
   setEmitClientEvent(fn: EmitClientEvent): void {
     this.events.setEmitClientEvent(fn);
   }
 
-  /** Set callback to retrieve the AbortSignal for a given page target's detection loop. */
   setGetAbortSignal(fn: (targetId: TargetId) => AbortSignal | undefined): void {
     this.detector.setGetAbortSignal(fn);
   }
 
-  /**
-   * Route solver commands through CDPProxy's browser WS.
-   */
   setSendViaProxy(fn: SendCommand): void {
+    this.sendViaProxy = fn;
     this.strategies.setSendViaProxy(fn);
   }
-
 
   enable(config?: CloudflareConfig): void {
     this.detector.enable(config);
@@ -87,7 +186,12 @@ export class CloudflareSolver {
     return this.stateTracker.emitUnresolvedDetections();
   }
 
+  /** Destroy — disposes ManagedRuntime (interrupts all fibers instantly). */
   destroy(): void {
     this.stateTracker.destroy();
+    if (this.runtime) {
+      this.runtime.dispose();
+      this.runtime = null;
+    }
   }
 }
