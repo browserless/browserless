@@ -467,30 +467,31 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      if (!this.browserWSEndpoint || !this.browser) {
-        throw new ServerError(
-          `No browserWSEndpoint found, did you launch first?`,
-        );
-      }
+    if (!this.browserWSEndpoint || !this.browser) {
+      throw new ServerError(
+        `No browserWSEndpoint found, did you launch first?`,
+      );
+    }
+
+    this.logger.info(
+      `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+    );
+
+    const shouldMakePage = req.parsed.pathname.includes(
+      BLESS_PAGE_IDENTIFIER,
+    );
+    const page = shouldMakePage ? await this.browser.newPage() : null;
+    const pathname = page
+      ? path.join('/devtools', '/page', this.getPageId(page))
+      : req.parsed.pathname;
+    const target = new URL(pathname, this.browserWSEndpoint).href;
+    req.url = '';
+
+    // Delete headers known to cause issues
+    delete req.headers.origin;
+
+    return new Promise<void>((resolve, reject) => {
       socket.once('close', resolve);
-      this.logger.info(
-        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
-      );
-
-      const shouldMakePage = req.parsed.pathname.includes(
-        BLESS_PAGE_IDENTIFIER,
-      );
-      const page = shouldMakePage ? await this.browser.newPage() : null;
-      const pathname = page
-        ? path.join('/devtools', '/page', this.getPageId(page))
-        : req.parsed.pathname;
-      const target = new URL(pathname, this.browserWSEndpoint).href;
-      req.url = '';
-
-      // Delete headers known to cause issues
-      delete req.headers.origin;
-
       this.proxy.ws(
         req,
         socket,
@@ -526,7 +527,7 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
       `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
     );
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const close = once(() => {
         this.logger.debug(
           `proxyWebSocket close triggered: browser=${!!this.browser} cdpProxy=${!!this.cdpProxy}`,
@@ -546,8 +547,8 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
       socket.once('end', close);
       socket.once('error', close);
 
-      try {
-        // Create CDP-aware proxy for event injection
+      // Create and connect CDP-aware proxy (async, but errors routed to reject)
+      const setup = async () => {
         this.cdpProxy = new CDPProxy(
           socket,
           head,
@@ -581,14 +582,16 @@ export class ChromiumCDP extends EventEmitter implements ReplayCapableBrowser {
               this.cdpProxy!.sendViaBrowserWs(method, params || {}, sessionId, timeoutMs),
           );
         }
-      } catch (error) {
+      };
+
+      setup().catch((error) => {
         this.logger.error(
           `Error proxying session to ${this.constructor.name}: ${error}`,
         );
         this.cdpProxy = null;
         this.close();
-        return reject(error);
-      }
+        reject(error);
+      });
     });
   }
 

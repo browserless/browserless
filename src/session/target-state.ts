@@ -142,7 +142,7 @@ export class TargetRegistry {
     let count = 0;
     for (const state of this.byTargetId.values()) {
       if (state.pageWebSocket) {
-        count += ((state.pageWebSocket as any).__pendingCmds as Map<any, any>)?.size ?? 0;
+        count += (state.pageWebSocket as any).__cdpConn?.pendingCount ?? 0;
       }
     }
     return count;

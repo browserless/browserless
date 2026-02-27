@@ -6,6 +6,7 @@ import {
 
 import type { CdpSessionId, TargetId } from '../shared/cloudflare-detection.js';
 import { decodeCDPMessage, decodeRrwebEventBatch } from '../shared/cdp-schemas.js';
+import { CdpConnection } from '../shared/cdp-rpc.js';
 import { ScreencastCapture } from './screencast-capture.js';
 import { CloudflareSolver } from './cloudflare-solver.js';
 import { registerSessionState, tabDuration } from '../prom-metrics.js';
@@ -62,11 +63,8 @@ export class ReplaySession {
   // Unified target state (replaces 9 Maps/Sets)
   private readonly targets = new TargetRegistry();
 
-  // CDP command tracking (not target-specific)
-  private readonly pendingCommands = new Map<number, { resolve: Function; reject: Function; timer: ReturnType<typeof setTimeout>; cdpSessionId?: string }>();
-
-  // Command ID counters
-  private cmdId = 1;
+  // CDP command tracking via shared CdpConnection (replaces manual correlation map)
+  private browserConn: CdpConnection | null = null;
   private pageWsCmdId = 100_000;
 
   // WebSocket (set during initialize)
@@ -120,19 +118,26 @@ export class ReplaySession {
     const targets = this.targets;
     const sessionReplay = this.sessionReplay;
     const sessionId = this.sessionId;
+    const self = this;
     this.unregisterGauges = registerSessionState({
       pageWebSockets: { get size() { return targets.pageWsCount; } },
       trackedTargets: targets,
-      pendingCommands: this.pendingCommands,
+      pendingCommands: { get size() { return self.browserConn?.pendingCount ?? 0; } },
       getPagePendingCount: () => targets.getPagePendingCount(),
       getEstimatedBytes: () => sessionReplay.getReplayState(sessionId)?.estimatedBytes ?? 0,
     });
 
+    // Create CdpConnection for browser-level WS (replaces manual pendingCommands map)
+    this.browserConn = new CdpConnection(ws, { startId: 1, defaultTimeout: 30_000 });
+
     // Wire up WS message handler
     ws.on('message', (data: Buffer) => this.handleCDPMessage(data));
 
-    // Wire up WS close handler
-    ws.on('close', () => this.destroy('ws_close'));
+    // Wire up WS close handler — drain pending commands before destroying
+    ws.on('close', () => {
+      this.browserConn?.drainPending('ws_close');
+      this.destroy('ws_close');
+    });
 
     // Await WebSocket open + setAutoAttach BEFORE returning.
     await new Promise<void>((resolveSetup, rejectSetup) => {
@@ -257,23 +262,15 @@ export class ReplaySession {
     }
 
     // Reject all pending browser WS commands
-    this.pendingCommands.forEach(({ reject, timer }) => {
-      clearTimeout(timer);
-      reject(new Error('Session destroyed'));
-    });
-    this.pendingCommands.clear();
+    this.browserConn?.drainPending('session_destroyed');
+    this.browserConn?.dispose();
 
-    // Close per-page WebSockets + reject their pending commands
+    // Close per-page WebSockets + reject their pending commands via CdpConnection
     for (const target of this.targets) {
       if (target.pageWebSocket) {
-        const pendingCmds = (target.pageWebSocket as any).__pendingCmds as Map<number, { resolve: Function; reject: Function; timer: ReturnType<typeof setTimeout> }> | undefined;
-        if (pendingCmds) {
-          for (const [, { reject, timer }] of pendingCmds) {
-            clearTimeout(timer);
-            reject(new Error('Session destroyed'));
-          }
-          pendingCmds.clear();
-        }
+        const conn = (target.pageWebSocket as any).__cdpConn as CdpConnection | undefined;
+        conn?.drainPending('session_destroyed');
+        conn?.dispose();
       }
     }
 
@@ -325,8 +322,6 @@ export class ReplaySession {
     }
 
     const timeout = timeoutMs ?? 30_000;
-    const ws = this.ws;
-    const WebSocket = this.WebSocket;
 
     // Route stateless commands through per-page WS (zero contention on main WS).
     const PAGE_WS_SAFE = method === 'Runtime.evaluate' || method === 'Page.addScriptToEvaluateOnNewDocument';
@@ -334,19 +329,11 @@ export class ReplaySession {
       const target = this.targets.getByCdpSession(cdpSessionId);
       if (target?.pageWebSocket) {
         const pageWs = target.pageWebSocket;
-        if (pageWs.readyState === WebSocket.OPEN) {
-          return new Promise((resolve, reject) => {
-            const id = this.pageWsCmdId++;
-            const pendingCmds = (pageWs as any).__pendingCmds as Map<number, { resolve: Function; reject: Function; timer: ReturnType<typeof setTimeout> }>;
-            const timer = setTimeout(() => {
-              if (pendingCmds.has(id)) {
-                pendingCmds.delete(id);
-                reject(new Error(`CDP command ${method} timed out (per-page WS)`));
-              }
-            }, timeout);
-            pendingCmds.set(id, { resolve, reject, timer });
-            pageWs.send(JSON.stringify({ id, method, params }));
-          });
+        if (pageWs.readyState === this.WebSocket.OPEN) {
+          const pageConn = (pageWs as any).__cdpConn as CdpConnection | undefined;
+          if (pageConn) {
+            return pageConn.sendPromise(method, params, undefined, timeout);
+          }
         } else {
           // Dead WS — remove and attempt reconnect (once per target)
           target.pageWebSocket = null;
@@ -359,24 +346,11 @@ export class ReplaySession {
       }
     }
 
-    // Fallback: browser-level WS with sessionId routing
-    return new Promise((resolve, reject) => {
-      const id = this.cmdId++;
-      const msg: any = { id, method, params };
-      if (cdpSessionId) {
-        msg.sessionId = cdpSessionId;
-      }
-
-      const timer = setTimeout(() => {
-        if (this.pendingCommands.has(id)) {
-          this.pendingCommands.delete(id);
-          reject(new Error(`CDP command ${method} timed out`));
-        }
-      }, timeout);
-      this.pendingCommands.set(id, { resolve, reject, timer, cdpSessionId });
-
-      ws!.send(JSON.stringify(msg));
-    });
+    // Fallback: browser-level WS with sessionId routing via CdpConnection
+    if (!this.browserConn) {
+      return Promise.reject(new Error('Browser connection not initialized'));
+    }
+    return this.browserConn.sendPromise(method, params, cdpSessionId as CdpSessionId | undefined, timeout);
   }
 
   // ─── Per-page WebSocket ─────────────────────────────────────────────────
@@ -386,7 +360,6 @@ export class ReplaySession {
       const WebSocket = this.WebSocket;
       const pageWsUrl = `ws://127.0.0.1:${this.chromePort}/devtools/page/${targetId}`;
       const pageWs = new WebSocket(pageWsUrl);
-      const pendingCmds = new Map<number, { resolve: Function; reject: Function; timer: ReturnType<typeof setTimeout> }>();
       let settled = false;
 
       const connectTimer = setTimeout(() => {
@@ -404,7 +377,14 @@ export class ReplaySession {
         if (target) {
           target.pageWebSocket = pageWs;
         }
-        (pageWs as any).__pendingCmds = pendingCmds;
+
+        // Create CdpConnection for per-page WS (replaces manual __pendingCmds map)
+        const pageConn = new CdpConnection(pageWs, {
+          startId: this.pageWsCmdId,
+          defaultTimeout: 30_000,
+        });
+        this.pageWsCmdId += 10_000; // Reserve range per page WS
+        (pageWs as any).__cdpConn = pageConn;
 
         // Keepalive: ping every 30s, close if no pong within 30s.
         // A dead per-page WS is NOT fatal — sendCommand falls back to browser WS.
@@ -417,7 +397,6 @@ export class ReplaySession {
           const pongTimeout = setTimeout(() => {
             this.log.debug(`Per-page WS for ${targetId} missed pong — closing (fallback to browser WS)`);
             pageWs.terminate();
-            // No cascade — sendCommand will route through browser WS automatically
           }, 30_000);
           pageWs.once('pong', () => clearTimeout(pongTimeout));
         }, 30_000);
@@ -431,15 +410,8 @@ export class ReplaySession {
       pageWs.on('message', (data: Buffer) => {
         try {
           const msg = JSON.parse(data.toString());
-          if (msg.id !== undefined) {
-            const pending = pendingCmds.get(msg.id);
-            if (pending) {
-              clearTimeout(pending.timer);
-              pendingCmds.delete(msg.id);
-              if (msg.error) pending.reject(new Error(msg.error.message));
-              else pending.resolve(msg.result);
-            }
-          }
+          const conn = (pageWs as any).__cdpConn as CdpConnection | undefined;
+          conn?.handleResponse(msg);
         } catch {}
       });
 
@@ -450,11 +422,9 @@ export class ReplaySession {
           target.pageWebSocket = null;
         }
         clearInterval((pageWs as any).__pingInterval);
-        for (const [, { reject, timer }] of pendingCmds) {
-          clearTimeout(timer);
-          reject(new Error('Per-page WS closed'));
-        }
-        pendingCmds.clear();
+        const conn = (pageWs as any).__cdpConn as CdpConnection | undefined;
+        conn?.drainPending('per_page_ws_closed');
+        conn?.dispose();
       });
     });
   }
@@ -627,14 +597,9 @@ export class ReplaySession {
       if (msgExit._tag === 'Failure') return; // malformed — skip
       const msg = msgExit.value;
 
-      // Command responses
+      // Command responses — delegate to CdpConnection
       if (msg.id !== undefined) {
-        const cmd = this.pendingCommands.get(msg.id);
-        if (cmd) {
-          clearTimeout(cmd.timer);
-          this.pendingCommands.delete(msg.id);
-          msg.error ? cmd.reject(new Error(msg.error.message)) : cmd.resolve(msg.result);
-        }
+        this.browserConn?.handleResponse(msg);
         return;
       }
 
