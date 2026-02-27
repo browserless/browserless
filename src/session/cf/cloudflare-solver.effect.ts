@@ -10,15 +10,27 @@
  */
 import { Effect } from 'effect';
 import type { SolveOutcome } from './cloudflare-solve-strategies.js';
+import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js';
+import type { CloudflareStateTracker } from './cloudflare-state-tracker.js';
 import type { ActiveDetection } from './cloudflare-event-emitter.js';
 import { TokenChecker, SolverEvents } from './cf-services.js';
-import { CdpSessionGone } from './cf-errors.js';
 import {
   CLICK_RETRY_DELAY,
   TOKEN_POLL_DELAY,
   AUTO_NAV_WAIT_DELAY,
   AUTO_SOLVE_POLL_DELAY,
 } from './cf-schedules.js';
+
+/**
+ * Strategies bridge — passed in by CloudflareSolver at the call site.
+ * Contains the Effect-returning methods from CloudflareSolveStrategies
+ * and the state tracker's resolveAutoSolved.
+ */
+export interface SolveDeps {
+  strategies: CloudflareSolveStrategies;
+  stateTracker: CloudflareStateTracker;
+  simulatePresence: (active: ActiveDetection) => Promise<void>;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // solveDetection — top-level dispatcher
@@ -33,7 +45,7 @@ import {
  */
 export const solveDetection = (
   active: ActiveDetection,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.solveDetection')(function*() {
     if (active.aborted) return 'aborted' as SolveOutcome;
@@ -43,10 +55,7 @@ export const solveDetection = (
     switch (active.info.type) {
       case 'managed':
       case 'interstitial': {
-        const presence = active.info.type === 'managed'
-          ? 0.5 + Math.random() * 1.0
-          : 1.5 + Math.random() * 1.5;
-        const clicked = yield* solveByClicking(active, presence, strategies);
+        const clicked = yield* solveByClicking(active, deps);
         if (active.aborted) return 'aborted' as SolveOutcome;
         if (clicked) return 'click_dispatched' as SolveOutcome;
 
@@ -60,13 +69,13 @@ export const solveDetection = (
       }
 
       case 'turnstile': {
-        const clicked = yield* solveTurnstile(active, strategies);
+        const clicked = yield* solveTurnstile(active, deps);
         return (active.aborted ? 'aborted' : clicked ? 'click_dispatched' : 'no_click') as SolveOutcome;
       }
 
       case 'non_interactive':
       case 'invisible': {
-        yield* solveAutomatic(active, strategies);
+        yield* solveAutomatic(active, deps);
         return (active.aborted ? 'aborted' : 'auto_handled') as SolveOutcome;
       }
 
@@ -85,6 +94,7 @@ export const solveDetection = (
           const events = yield* SolverEvents;
           yield* events.emitFailed(active, 'solve_exception', Date.now() - active.startTime);
           active.aborted = true;
+          active.abortLatch?.openUnsafe();
         }
         return 'aborted' as SolveOutcome;
       }),
@@ -100,10 +110,10 @@ export const solveDetection = (
 
 const solveByClicking = (
   active: ActiveDetection,
-  _presenceDuration: number,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.solveByClicking')(function*() {
+    // Phase 1: Try to click the checkbox
     if (active.aborted) return false;
 
     const events = yield* SolverEvents;
@@ -114,13 +124,10 @@ const solveByClicking = (
 
       if (attempt > 0) yield* Effect.sleep(CLICK_RETRY_DELAY);
 
-      const result = yield* Effect.tryPromise({
-        try: () => strategies.findAndClickViaCDP(active, attempt),
-        catch: () => new CdpSessionGone({
-          sessionId: active.pageCdpSessionId,
-          method: 'findAndClickViaCDP',
-        }),
-      });
+      // Call findAndClickViaCDP directly — it returns Effect<boolean>
+      const result = yield* deps.strategies.findAndClickViaCDP(active, attempt).pipe(
+        Effect.catch(() => Effect.succeed(false)),
+      );
 
       if (result) {
         yield* events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
@@ -130,9 +137,7 @@ const solveByClicking = (
 
     yield* events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
     return false;
-  })().pipe(
-    Effect.catchTag('CdpSessionGone', () => Effect.succeed(false)),
-  );
+  })();
 
 // ═══════════════════════════════════════════════════════════════════════
 // solveTurnstile — embedded Turnstile widget solve
@@ -143,7 +148,7 @@ const solveByClicking = (
 
 const solveTurnstile = (
   active: ActiveDetection,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.solveTurnstile')(function*() {
     if (active.aborted) return false;
@@ -163,24 +168,24 @@ const solveTurnstile = (
         yield* Effect.sleep(CLICK_RETRY_DELAY);
 
         // Token check on retries only — NEVER on attempt 0.
-        // getToken() uses Runtime.evaluate. On attempt 0, CF WASM is monitoring.
+        // getToken() uses Runtime.evaluate on the page session. On attempt 0,
+        // the CF WASM is still monitoring V8 evaluation events — calling
+        // Runtime.evaluate poisons the session and causes rechallenges.
+        // By attempt 1+, the click has already been dispatched, so Runtime.evaluate
+        // is safe (CF's detection window has closed).
         const token = yield* tokens.getToken(pageCdpSessionId).pipe(
           Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
         );
         if (token) {
           yield* events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-          yield* Effect.tryPromise({
-            try: () => strategies.resolveAutoSolved(active, 'token_poll'),
-            catch: () => new CdpSessionGone({ sessionId: pageCdpSessionId, method: 'resolveAutoSolved' }),
-          }).pipe(Effect.catchTag('CdpSessionGone', () => Effect.void));
+          yield* deps.stateTracker.resolveAutoSolved(active, 'token_poll');
           return true;
         }
       }
 
-      const result = yield* Effect.tryPromise({
-        try: () => strategies.findAndClickViaCDP(active, attempt),
-        catch: () => new CdpSessionGone({ sessionId: pageCdpSessionId, method: 'findAndClickViaCDP' }),
-      }).pipe(Effect.catchTag('CdpSessionGone', () => Effect.succeed(false)));
+      const result = yield* deps.strategies.findAndClickViaCDP(active, attempt).pipe(
+        Effect.catch(() => Effect.succeed(false)),
+      );
 
       if (result) {
         yield* events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
@@ -192,13 +197,26 @@ const solveTurnstile = (
     if (!clicked) {
       yield* events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
       yield* events.marker(pageCdpSessionId, 'cf.cdp_no_checkbox');
+      // Widget not found — CF managed challenges may auto-pass without a widget.
+      // Keep the detection alive so onPageNavigated() can emit cf.solved(auto_navigation).
     }
 
+    // Click dispatched — wait for resolution.
+    // Two possible outcomes:
+    //   1. Interstitial: page navigates → active.aborted set by onPageNavigated()
+    //   2. Embedded turnstile: token appears in turnstile.getResponse()
+    //
+    // CRITICAL: Do NOT call Runtime.evaluate (getToken) until we're sure this is
+    // NOT an interstitial. For interstitials, the page navigates to a new CF
+    // challenge — any Runtime.evaluate would poison the new page's session.
+    // Wait 3s for navigation first; only start token polling if no navigation.
     if (clicked) {
-      return yield* postClickWait(active, deadline, strategies);
+      return yield* postClickWait(active, deadline, deps);
     }
 
-    return yield* pollForAutoSolveToken(active, deadline, strategies);
+    // No click dispatched — widget is non-interactive (auto-solves without click).
+    // Poll for token using the remaining deadline (Ahrefs auto-solve: ~5-8s).
+    return yield* pollForAutoSolveToken(active, deadline, deps);
   })();
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -208,7 +226,7 @@ const solveTurnstile = (
 const postClickWait = (
   active: ActiveDetection,
   deadline: number,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.postClickWait')(function*() {
     const { pageCdpSessionId } = active;
@@ -217,25 +235,25 @@ const postClickWait = (
 
     const postClickDeadline = Math.min(active.startTime + 10_000, deadline);
 
-    // Phase A: Wait up to 3s for page navigation
+    // Phase A: Wait up to 3s for page navigation (interstitial signal)
     const navWaitEnd = Math.min(Date.now() + 3_000, postClickDeadline);
     while (!active.aborted && Date.now() < navWaitEnd) {
       yield* Effect.sleep('200 millis');
     }
 
+    // If navigation happened (interstitial), we're done — don't token-poll
     if (active.aborted) return true;
 
-    // Phase B: No navigation → embedded widget. Poll for token.
+    // Phase B: No navigation — this is an embedded widget. Poll for token.
+    // Runtime.evaluate is safe here: the page is NOT a CF challenge page,
+    // it's the embedding page (e.g. nopecha.com, peet.ws).
     while (!active.aborted && Date.now() < postClickDeadline) {
       const token = yield* tokens.getToken(pageCdpSessionId).pipe(
         Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
       );
       if (token) {
         yield* events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-        yield* Effect.tryPromise({
-          try: () => strategies.resolveAutoSolved(active, 'token_poll'),
-          catch: () => new CdpSessionGone({ sessionId: pageCdpSessionId, method: 'resolveAutoSolved' }),
-        }).pipe(Effect.catchTag('CdpSessionGone', () => Effect.void));
+        yield* deps.stateTracker.resolveAutoSolved(active, 'token_poll');
         return true;
       }
       yield* Effect.sleep(TOKEN_POLL_DELAY);
@@ -250,7 +268,7 @@ const postClickWait = (
 const pollForAutoSolveToken = (
   active: ActiveDetection,
   deadline: number,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.pollForAutoSolveToken')(function*() {
     const { pageCdpSessionId } = active;
@@ -261,15 +279,13 @@ const pollForAutoSolveToken = (
       yield* Effect.sleep(AUTO_SOLVE_POLL_DELAY);
       if (active.aborted) return false;
 
+      // CDP error — page may have navigated away during auto-solve wait
       const token = yield* tokens.getToken(pageCdpSessionId).pipe(
         Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
       );
       if (token) {
         yield* events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-        yield* Effect.tryPromise({
-          try: () => strategies.resolveAutoSolved(active, 'token_poll'),
-          catch: () => new CdpSessionGone({ sessionId: pageCdpSessionId, method: 'resolveAutoSolved' }),
-        }).pipe(Effect.catchTag('CdpSessionGone', () => Effect.void));
+        yield* deps.stateTracker.resolveAutoSolved(active, 'token_poll');
         return true;
       }
 
@@ -285,9 +301,20 @@ const pollForAutoSolveToken = (
 
 const waitForAutoNav = (active: ActiveDetection) =>
   Effect.fn('cf.waitForAutoNav')(function*() {
-    const autoNavDeadline = Date.now() + 30_000;
-    while (!active.aborted && Date.now() < autoNavDeadline) {
-      yield* Effect.sleep(AUTO_NAV_WAIT_DELAY);
+    if (active.aborted) return;
+
+    // If Latch is available, block until abort signal (zero CPU) with timeout.
+    // Falls back to polling if no Latch (shouldn't happen in practice).
+    if (active.abortLatch) {
+      yield* active.abortLatch.await.pipe(
+        Effect.timeout('30 seconds'),
+        Effect.ignore,
+      );
+    } else {
+      const autoNavDeadline = Date.now() + 30_000;
+      while (!active.aborted && Date.now() < autoNavDeadline) {
+        yield* Effect.sleep(AUTO_NAV_WAIT_DELAY);
+      }
     }
   })();
 
@@ -297,24 +324,14 @@ const waitForAutoNav = (active: ActiveDetection) =>
 
 const solveAutomatic = (
   active: ActiveDetection,
-  strategies: SolveStrategiesBridge,
+  deps: SolveDeps,
 ) =>
   Effect.fn('cf.solveAutomatic')(function*() {
     if (active.aborted) return;
     const events = yield* SolverEvents;
     yield* events.marker(active.pageCdpSessionId, 'cf.presence_start', { type: active.info.type });
     yield* Effect.tryPromise({
-      try: () => strategies.simulatePresence(active),
+      try: () => deps.simulatePresence(active),
       catch: () => undefined,
     });
   })();
-
-// ═══════════════════════════════════════════════════════════════════════
-// Bridge type — methods that remain on CloudflareSolveStrategies
-// ═══════════════════════════════════════════════════════════════════════
-
-export interface SolveStrategiesBridge {
-  findAndClickViaCDP(active: ActiveDetection, attempt: number): Promise<boolean>;
-  resolveAutoSolved(active: ActiveDetection, signal: string): Promise<void>;
-  simulatePresence(active: ActiveDetection): Promise<void>;
-}

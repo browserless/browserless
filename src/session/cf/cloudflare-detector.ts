@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Latch } from 'effect';
 import { Logger } from '@browserless.io/browserless';
 import type { CdpSessionId, TargetId, CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
 import { DETECTION_POLL_DELAY } from './cf-schedules.js';
@@ -45,7 +45,8 @@ export class CloudflareDetector {
     }
     this.log.info('Cloudflare solver enabled (zero-injection mode)');
 
-    // Check existing pages for CF URLs (no JS injection)
+    // Check existing pages for CF URLs (no JS injection).
+    // We don't have URLs for already-attached pages, so fall back to DOM walk.
     for (const [targetId, cdpSessionId] of this.state.knownPages) {
       this.startDetectionLoop?.(targetId, cdpSessionId);
     }
@@ -57,7 +58,7 @@ export class CloudflareDetector {
 
   /** Called when a new page target is attached. */
   async onPageAttached(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
-    this.state.knownPages.set(targetId, cdpSessionId);
+    this.state.registerPage(targetId, cdpSessionId);
     if (!this.enabled || !url || url.startsWith('about:')) return;
 
     // ZERO-INJECTION: Detect CF from URL pattern only — NO Runtime.evaluate.
@@ -69,11 +70,12 @@ export class CloudflareDetector {
 
   /** Called when a page navigates. */
   async onPageNavigated(targetId: TargetId, cdpSessionId: CdpSessionId, url: string): Promise<void> {
-    this.state.knownPages.set(targetId, cdpSessionId);
+    this.state.registerPage(targetId, cdpSessionId);
 
     const active = this.state.activeDetections.get(targetId);
     if (active) {
       active.aborted = true;
+      active.abortLatch?.openUnsafe();
       this.state.activeDetections.delete(targetId);
       const duration = Date.now() - active.startTime;
 
@@ -89,7 +91,7 @@ export class CloudflareDetector {
         // If the URL is clean, the interstitial solved — even if the destination
         // page has an embedded Turnstile. That's a multi-phase flow (interstitial
         // → embedded widget), not a rechallenge. The embedded Turnstile will be
-        // detected by detectTurnstileWidget() in the post-navigation flow below.
+        // detected by detectTurnstileWidgetEffect() in the post-navigation flow below.
 
         if (destinationIsCF) {
           // TURNSTILE INTERRUPTED BY NAVIGATION — NOT A RECHALLENGE.
@@ -195,11 +197,11 @@ export class CloudflareDetector {
 
           // DO NOT add bindingSolvedTargets here. After reclassification, the
           // destination page (e.g. Ahrefs) may have a real embedded Turnstile that
-          // detectTurnstileWidget (line 248) needs to find. bindingSolvedTargets
+          // detectTurnstileWidgetEffect() needs to find. bindingSolvedTargets
           // would block that detection entirely.
           //
           // The phantom loop (conversazap.shop "Int→Int✓Int✓") is prevented by:
-          //   1. Turnstile guard in rechallenge path (line 112): if active=turnstile
+          //   1. Turnstile guard in rechallenge path above: if active=turnstile
           //      + destination is CF URL → discard + bindingSolvedTargets (not here)
           //   2. await_resolution in ahrefs_fast.py: waits for CF solve before re-nav
           //   3. onIframeAttached/onIframeNavigated: pendingIframes, no racing detection
@@ -270,7 +272,7 @@ export class CloudflareDetector {
       active.iframeTargetId = iframeTargetId;
     } else {
       // Store iframe as pending — triggerSolveFromUrl or onPageNavigated's
-      // detectTurnstileWidget will pick it up. Do NOT start detectTurnstileWidget
+      // detectTurnstileWidgetEffect will pick it up. Do NOT start detection
       // here: it races with triggerSolveFromUrl creating duplicate parallel solves
       // (both detected at +0.0s, interstitial orphaned → no_resolution).
       this.state.pendingIframes.set(pageTargetId, { iframeCdpSessionId, iframeTargetId });
@@ -294,8 +296,8 @@ export class CloudflareDetector {
     } else if (!active) {
       // Same race as onIframeAttached: if onPageNavigated hasn't fired yet,
       // there's no active detection, but triggerSolveFromUrl is about to create one.
-      // Starting detectTurnstileWidget here races with it → dual detection → orphan.
-      // Store as pending instead — triggerSolveFromUrl/detectTurnstileWidget will pick it up.
+      // Starting detection here races with it → dual detection → orphan.
+      // Store as pending instead — triggerSolveFromUrl/detectTurnstileWidgetEffect will pick it up.
       this.state.pendingIframes.set(pageTargetId, { iframeCdpSessionId, iframeTargetId });
     }
   }
@@ -304,6 +306,7 @@ export class CloudflareDetector {
     if (active.aborted) return;
     this.events.emitFailed(active, reason, Date.now() - active.startTime);
     active.aborted = true;
+    active.abortLatch?.openUnsafe();
     this.state.activeDetections.delete(targetId);
   }
 
@@ -375,6 +378,7 @@ export class CloudflareDetector {
       aborted: false,
       tracker: new CloudflareTracker(info),
       rechallengeCount,
+      abortLatch: Latch.makeUnsafe(false),
     };
 
     this.state.activeDetections.set(targetId, active);
@@ -397,12 +401,13 @@ export class CloudflareDetector {
   }
 
   /**
-   * Effect-based Turnstile detection loop.
+   * Detect standalone Turnstile widgets via CDP DOM walk (zero JS injection).
+   * Polls for iframe[src*="challenges.cloudflare.com"] via CDP Target.getTargets.
    *
-   * Polls for iframe[src*="challenges.cloudflare.com"] via CDP DOM walk.
-   * Runs until interrupted (fiber cancellation replaces AbortSignal).
+   * Runs until interrupted via fiber cancellation — no hardcoded iteration limit.
    * Under load, each Target.getTargets call may take up to 5s (reduced timeout),
-   * but the loop retries indefinitely until the fiber is interrupted.
+   * but the loop retries indefinitely until the tab is destroyed or the fiber
+   * is cancelled.
    */
   detectTurnstileWidgetEffect(targetId: TargetId, cdpSessionId: CdpSessionId): Effect.Effect<void> {
     const self = this;
@@ -417,14 +422,13 @@ export class CloudflareDetector {
         if (self.state.activeDetections.has(targetId)) return;
         if (self.state.bindingSolvedTargets.has(targetId)) return;
 
-        const detection = yield* Effect.tryPromise(
-          () => self.strategies.detectTurnstileViaCDP(cdpSessionId),
-        ).pipe(Effect.orElseSucceed(() => null));
+        // detectTurnstileViaCDP now returns Effect — yield* directly
+        const detection = yield* self.strategies.detectTurnstileViaCDP(cdpSessionId).pipe(
+          Effect.orElseSucceed(() => null),
+        );
 
         if (detection?.present) {
-          yield* Effect.tryPromise(
-            () => self.handleTurnstileDetection(targetId, cdpSessionId, detection, startTime),
-          ).pipe(Effect.orElseSucceed(() => undefined));
+          yield* self.handleTurnstileDetection(targetId, cdpSessionId, detection, startTime);
           return;
         }
 
@@ -435,49 +439,58 @@ export class CloudflareDetector {
 
   /**
    * Handle a positive Turnstile detection — create ActiveDetection, emit events, start solve.
-   * Extracted from detectTurnstileWidget for clarity.
+   * Returns Effect<void>.
    */
-  private async handleTurnstileDetection(
+  private handleTurnstileDetection(
     targetId: TargetId,
     cdpSessionId: CdpSessionId,
     detection: { present: boolean; cfType?: CloudflareType; cRay?: string },
     startTime: number,
-  ): Promise<void> {
-    const rechallengeCount = this.state.pendingRechallengeCount.get(targetId) || 0;
-    this.state.pendingRechallengeCount.delete(targetId);
+  ): Effect.Effect<void> {
+    const self = this;
+    return Effect.gen(function*() {
+      const rechallengeCount = self.state.pendingRechallengeCount.get(targetId) || 0;
+      self.state.pendingRechallengeCount.delete(targetId);
 
-    const cfType = detection.cfType ?? 'turnstile';
-    const info: CloudflareInfo = {
-      type: cfType, url: '', detectionMethod: 'cdp_dom_walk',
-      cRay: detection.cRay,
-    };
-    const active: ActiveDetection = {
-      info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
-      startTime, attempt: 1, aborted: false,
-      tracker: new CloudflareTracker(info),
-      rechallengeCount,
-    };
+      const cfType = detection.cfType ?? 'turnstile';
+      const info: CloudflareInfo = {
+        type: cfType, url: '', detectionMethod: 'cdp_dom_walk',
+        cRay: detection.cRay,
+      };
+      const active: ActiveDetection = {
+        info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
+        startTime, attempt: 1, aborted: false,
+        tracker: new CloudflareTracker(info),
+        rechallengeCount,
+        abortLatch: Latch.makeUnsafe(false),
+      };
 
-    // Guard: another detection path (e.g. triggerSolveFromUrl) may have
-    // registered while we awaited the CDP call. Check before every async gap.
-    if (this.state.activeDetections.has(targetId)) return;
+      // Guard: another detection path (e.g. triggerSolveFromUrl) may have
+      // registered while we awaited the CDP call. Check before every async gap.
+      if (self.state.activeDetections.has(targetId)) return;
 
-    // NOTE: Do NOT call isSolved() here — it uses Runtime.evaluate on the
-    // page session, which triggers CF's WASM V8 detection and causes
-    // rechallenges. The bindingSolvedTargets check is in the caller loop.
+      // NOTE: Do NOT call isSolved() here — it uses Runtime.evaluate on the
+      // page session, which triggers CF's WASM V8 detection and causes
+      // rechallenges. The bindingSolvedTargets check (above) already covers
+      // auto-solve via the push-based binding mechanism.
 
-    this.state.activeDetections.set(targetId, active);
-    const pending = this.state.pendingIframes.get(targetId);
-    if (pending) {
-      active.iframeCdpSessionId = pending.iframeCdpSessionId;
-      active.iframeTargetId = pending.iframeTargetId;
-      this.state.pendingIframes.delete(targetId);
-    }
-    this.events.emitDetected(active);
-    this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
-    const outcome = await this.strategies.solveDetection(active);
-    if (outcome === 'no_click') {
-      this.emitSolveFailure(active, targetId, 'widget_not_found');
-    }
+      self.state.activeDetections.set(targetId, active);
+      const pending = self.state.pendingIframes.get(targetId);
+      if (pending) {
+        active.iframeCdpSessionId = pending.iframeCdpSessionId;
+        active.iframeTargetId = pending.iframeTargetId;
+        self.state.pendingIframes.delete(targetId);
+      }
+      self.events.emitDetected(active);
+      self.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
+
+      // solveDetection is still Promise-returning (routed through Effect solver via bridge)
+      const outcome = yield* Effect.tryPromise(
+        () => self.strategies.solveDetection(active),
+      ).pipe(Effect.orElseSucceed(() => 'aborted' as const));
+      if (outcome === 'no_click') {
+        self.emitSolveFailure(active, targetId, 'widget_not_found');
+      }
+    });
   }
 }

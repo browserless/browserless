@@ -1,4 +1,5 @@
 import { Logger } from '@browserless.io/browserless';
+import type { Latch } from 'effect';
 import type { CdpSessionId, TargetId, CloudflareInfo, CloudflareResult, CloudflareSnapshot } from '../../shared/cloudflare-detection.js';
 
 export type EmitClientEvent = (method: string, params: object) => Promise<void>;
@@ -136,6 +137,12 @@ export interface ActiveDetection {
   clickDeliveredAt?: number;
   /** Number of CF rechallenges on this target so far. */
   rechallengeCount?: number;
+  /**
+   * Latch for abort coordination — opens when active.aborted is set to true.
+   * Allows Effect fibers to block on `latch.await` instead of polling `aborted`.
+   * Initialized closed (not aborted). Open = aborted.
+   */
+  abortLatch?: Latch.Latch;
 }
 
 /** Handles all CDP event emission for Cloudflare detection/solving. */
