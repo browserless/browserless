@@ -11,6 +11,8 @@ export class TargetState {
   pageWebSocket: InstanceType<any> | null = null;
   failedReconnect = false;
   detectionAbort: AbortController | null = null;
+  /** Pending timers to clear on destroy (e.g. rrweb diagnostic probe). */
+  pendingTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(targetId: TargetId, cdpSessionId: CdpSessionId) {
     this.targetId = targetId;
@@ -62,9 +64,14 @@ export class TargetRegistry {
       state.detectionAbort.abort();
       state.detectionAbort = null;
     }
-    // Close per-page WS if open (clear ping interval eagerly — close event is async)
+    // Clear any pending timers (diagnostic probes, etc.)
+    for (const t of state.pendingTimers) clearTimeout(t);
+    state.pendingTimers.length = 0;
+    // Close per-page WS if open (clear ping + pong timers eagerly — close event is async)
     if (state.pageWebSocket) {
       clearInterval((state.pageWebSocket as any).__pingInterval);
+      const getPongTimeout = (state.pageWebSocket as any).__pongTimeout as (() => ReturnType<typeof setTimeout> | undefined) | undefined;
+      clearTimeout(getPongTimeout?.());
       try { state.pageWebSocket.close(); } catch {}
       state.pageWebSocket = null;
     }
@@ -169,8 +176,12 @@ export class TargetRegistry {
         state.detectionAbort.abort();
         state.detectionAbort = null;
       }
+      for (const t of state.pendingTimers) clearTimeout(t);
+      state.pendingTimers.length = 0;
       if (state.pageWebSocket) {
         clearInterval((state.pageWebSocket as any).__pingInterval);
+        const getPongTimeout = (state.pageWebSocket as any).__pongTimeout as (() => ReturnType<typeof setTimeout> | undefined) | undefined;
+        clearTimeout(getPongTimeout?.());
         try { state.pageWebSocket.close(); } catch {}
       }
     }

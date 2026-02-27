@@ -264,6 +264,7 @@ export class ReplaySession {
     // Reject all pending browser WS commands
     this.browserConn?.drainPending('session_destroyed');
     this.browserConn?.dispose();
+    this.browserConn = null;
 
     // Close per-page WebSockets + reject their pending commands via CdpConnection
     for (const target of this.targets) {
@@ -274,11 +275,13 @@ export class ReplaySession {
       }
     }
 
-    // Clear all target state (closes all per-page WSs)
+    // Clear all target state (closes all per-page WSs + clears pending timers)
     this.targets.clear();
 
     // Close main WS (no-op if already closed via ws_close)
     try { this.ws?.close(); } catch {}
+    this.ws = null;
+    this.unregisterGauges = null;
 
     this.state = 'DESTROYED';
     this.log.info(`ReplaySession destroyed (${source}) for session ${this.sessionId}`);
@@ -388,20 +391,23 @@ export class ReplaySession {
 
         // Keepalive: ping every 30s, close if no pong within 30s.
         // A dead per-page WS is NOT fatal — sendCommand falls back to browser WS.
+        let activePongTimeout: ReturnType<typeof setTimeout> | undefined;
         const pingInterval = setInterval(() => {
           if (pageWs.readyState !== WebSocket.OPEN) {
             clearInterval(pingInterval);
             return;
           }
           pageWs.ping();
-          const pongTimeout = setTimeout(() => {
+          activePongTimeout = setTimeout(() => {
+            activePongTimeout = undefined;
             this.log.debug(`Per-page WS for ${targetId} missed pong — closing (fallback to browser WS)`);
             pageWs.terminate();
           }, 30_000);
-          pageWs.once('pong', () => clearTimeout(pongTimeout));
+          pageWs.once('pong', () => { clearTimeout(activePongTimeout); activePongTimeout = undefined; });
         }, 30_000);
 
         (pageWs as any).__pingInterval = pingInterval;
+        (pageWs as any).__pongTimeout = () => activePongTimeout;
 
         this.log.debug(`Per-page WS opened for target ${targetId}`);
         resolve();
@@ -422,6 +428,9 @@ export class ReplaySession {
           target.pageWebSocket = null;
         }
         clearInterval((pageWs as any).__pingInterval);
+        // Clear outstanding pong timeout (prevents 30s fire-into-dead-socket)
+        const getPongTimeout = (pageWs as any).__pongTimeout as (() => ReturnType<typeof setTimeout> | undefined) | undefined;
+        clearTimeout(getPongTimeout?.());
         const conn = (pageWs as any).__cdpConn as CdpConnection | undefined;
         conn?.drainPending('per_page_ws_closed');
         conn?.dispose();
@@ -654,7 +663,9 @@ export class ReplaySession {
         if (targetId && events.length) {
           this.sessionReplay.addTabEvents(this.sessionId, targetId, events as any[]);
         }
-      } catch {}
+      } catch (e) {
+        this.log.debug(`rrweb push parse failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
     } else if (name === '__turnstileSolvedBinding') {
       this.cloudflareSolver.onAutoSolveBinding(cdpSessionId)
         .catch((e: Error) => this.log.debug(`onAutoSolveBinding failed: ${e.message}`));
@@ -712,7 +723,7 @@ export class ReplaySession {
       // Diagnostic probe: check rrweb state 2s after target resumes
       const probeTargetId = targetId;
       const probeCdpSessionId = cdpSessionId;
-      setTimeout(async () => {
+      const probeTimer = setTimeout(async () => {
         try {
           const result = await this.sendCommand('Runtime.evaluate', {
             expression: `JSON.stringify({
@@ -734,6 +745,7 @@ export class ReplaySession {
           this.log.info(`[rrweb-diag] target=${probeTargetId} probe-failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       }, 2000);
+      target.pendingTimers.push(probeTimer);
 
       // Start screencast — only when video=true
       if (this.video) {
