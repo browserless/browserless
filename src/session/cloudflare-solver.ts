@@ -1,4 +1,4 @@
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Effect, Fiber, Layer, ManagedRuntime } from 'effect';
 import type { CdpSessionId, TargetId, CloudflareConfig } from '../shared/cloudflare-detection.js';
 import { CloudflareDetector } from './cf/cloudflare-detector.js';
 import { CloudflareSolveStrategies } from './cf/cloudflare-solve-strategies.js';
@@ -11,6 +11,7 @@ import { CdpSessionGone } from './cf/cf-errors.js';
 import { solveDetection as solveDetectionEffect } from './cf/cloudflare-solver.effect.js';
 import type { SolveOutcome } from './cf/cloudflare-solve-strategies.js';
 import { simulateHumanPresence } from '../shared/mouse-humanizer.js';
+import { Logger } from '@browserless.io/browserless';
 
 /**
  * Cloudflare detection and solving for a single browser session.
@@ -29,19 +30,34 @@ export class CloudflareSolver {
   private events: CloudflareEventEmitter;
   private sendCommand: SendCommand;
   private sendViaProxy: SendCommand | null = null;
+  private _setRealEmit: (fn: EmitClientEvent) => void;
+  private detectionFibers = new Map<TargetId, Fiber.Fiber<void>>();
+  private log = new Logger('cf-solver');
   // Type safety is inside the Effect solver — the runtime is just a bridge.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private runtime: any = null;
 
   constructor(sendCommand: SendCommand, injectMarker: InjectMarker, chromePort?: string) {
     this.sendCommand = sendCommand;
-    this.events = new CloudflareEventEmitter(injectMarker);
+    // Mutable closure: emitClientEvent is set after construction by replay-session.ts
+    let realEmit: EmitClientEvent = async () => {};
+    this.events = new CloudflareEventEmitter(injectMarker, (...args) => realEmit(...args));
+    this._setRealEmit = (fn) => { realEmit = fn; };
     this.stateTracker = new CloudflareStateTracker(sendCommand, this.events);
     this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, chromePort);
     this.detector = new CloudflareDetector(sendCommand, this.events, this.stateTracker, this.strategies);
 
     // Override strategies.solveDetection to route through Effect
     this.strategies.solveDetection = (active: ActiveDetection) => this.solveViaEffect(active);
+
+    // Wire OOPIF state check — activity loop calls this to check iframe widget state via CDP DOM walk
+    this.stateTracker.checkOOPIFState = (iframeCdpSessionId) =>
+      this.strategies.checkOOPIFStateViaCDP(iframeCdpSessionId);
+
+    // Wire fiber-based detection loop callback
+    this.detector.setStartDetectionLoop(
+      (targetId, cdpSessionId) => this.startDetectionFiber(targetId, cdpSessionId),
+    );
 
     // Build the Effect runtime with service layers
     this.runtime = ManagedRuntime.make(this.buildLayer());
@@ -117,11 +133,39 @@ export class CloudflareSolver {
   }
 
   setEmitClientEvent(fn: EmitClientEvent): void {
-    this.events.setEmitClientEvent(fn);
+    this._setRealEmit(fn);
   }
 
-  setGetAbortSignal(fn: (targetId: TargetId) => AbortSignal | undefined): void {
-    this.detector.setGetAbortSignal(fn);
+  /** Interrupt and stop the detection fiber for a target (e.g. on tab close). */
+  stopTargetDetection(targetId: TargetId): void {
+    this.stopDetectionFiber(targetId);
+  }
+
+  private startDetectionFiber(targetId: TargetId, cdpSessionId: CdpSessionId): void {
+    if (!this.runtime) {
+      this.log.warn(`startDetectionFiber: no runtime, target=${targetId}`);
+      return;
+    }
+    const existing = this.detectionFibers.get(targetId);
+    if (existing) {
+      this.runtime.runPromise(Fiber.interrupt(existing)).catch(() => {});
+    }
+    // Use runFork (root fiber) — NOT runPromise(forkChild) which creates a scoped
+    // fiber that gets interrupted when runPromise's scope closes.
+    const fiber = this.runtime.runFork(
+      this.detector.detectTurnstileWidgetEffect(targetId, cdpSessionId)
+    );
+    this.detectionFibers.set(targetId, fiber);
+  }
+
+  private stopDetectionFiber(targetId: TargetId): void {
+    const fiber = this.detectionFibers.get(targetId);
+    if (fiber) {
+      this.detectionFibers.delete(targetId);
+      if (this.runtime) {
+        this.runtime.runPromise(Fiber.interrupt(fiber)).catch(() => {});
+      }
+    }
   }
 
   setSendViaProxy(fn: SendCommand): void {
@@ -170,8 +214,9 @@ export class CloudflareSolver {
     return this.stateTracker.emitUnresolvedDetections();
   }
 
-  /** Destroy — disposes ManagedRuntime (interrupts all fibers instantly). */
+  /** Destroy — disposes ManagedRuntime (interrupts all fibers including detection loops). */
   destroy(): void {
+    this.detectionFibers.clear();
     this.stateTracker.destroy();
     if (this.runtime) {
       this.runtime.dispose();

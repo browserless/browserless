@@ -13,6 +13,12 @@ import type { SolveOutcome } from './cloudflare-solve-strategies.js';
 import type { ActiveDetection } from './cloudflare-event-emitter.js';
 import { TokenChecker, SolverEvents } from './cf-services.js';
 import { CdpSessionGone } from './cf-errors.js';
+import {
+  CLICK_RETRY_DELAY,
+  TOKEN_POLL_DELAY,
+  AUTO_NAV_WAIT_DELAY,
+  AUTO_SOLVE_POLL_DELAY,
+} from './cf-schedules.js';
 
 // ═══════════════════════════════════════════════════════════════════════
 // solveDetection — top-level dispatcher
@@ -106,7 +112,7 @@ const solveByClicking = (
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (active.aborted) return false;
 
-      if (attempt > 0) yield* Effect.sleep('500 millis');
+      if (attempt > 0) yield* Effect.sleep(CLICK_RETRY_DELAY);
 
       const result = yield* Effect.tryPromise({
         try: () => strategies.findAndClickViaCDP(active, attempt),
@@ -154,7 +160,7 @@ const solveTurnstile = (
       if (active.aborted || Date.now() > deadline) return false;
 
       if (attempt > 0) {
-        yield* Effect.sleep('500 millis');
+        yield* Effect.sleep(CLICK_RETRY_DELAY);
 
         // Token check on retries only — NEVER on attempt 0.
         // getToken() uses Runtime.evaluate. On attempt 0, CF WASM is monitoring.
@@ -232,7 +238,7 @@ const postClickWait = (
         }).pipe(Effect.catchTag('CdpSessionGone', () => Effect.void));
         return true;
       }
-      yield* Effect.sleep('300 millis');
+      yield* Effect.sleep(TOKEN_POLL_DELAY);
     }
     return true;
   })();
@@ -252,7 +258,7 @@ const pollForAutoSolveToken = (
     const tokens = yield* TokenChecker;
 
     while (!active.aborted && Date.now() < deadline) {
-      yield* Effect.sleep('500 millis');
+      yield* Effect.sleep(AUTO_SOLVE_POLL_DELAY);
       if (active.aborted) return false;
 
       const token = yield* tokens.getToken(pageCdpSessionId).pipe(
@@ -281,7 +287,7 @@ const waitForAutoNav = (active: ActiveDetection) =>
   Effect.fn('cf.waitForAutoNav')(function*() {
     const autoNavDeadline = Date.now() + 30_000;
     while (!active.aborted && Date.now() < autoNavDeadline) {
-      yield* Effect.sleep('500 millis');
+      yield* Effect.sleep(AUTO_NAV_WAIT_DELAY);
     }
   })();
 

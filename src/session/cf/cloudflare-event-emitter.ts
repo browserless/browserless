@@ -141,14 +141,12 @@ export interface ActiveDetection {
 /** Handles all CDP event emission for Cloudflare detection/solving. */
 export class CloudflareEventEmitter {
   private log = new Logger('cf-events');
-  private emitClientEvent: EmitClientEvent = async () => {};
   recordingMarkers = true;
 
-  constructor(private injectMarker: InjectMarker) {}
-
-  setEmitClientEvent(fn: EmitClientEvent): void {
-    this.emitClientEvent = fn;
-  }
+  constructor(
+    private injectMarker: InjectMarker,
+    private emitClientEvent: EmitClientEvent = async () => {},
+  ) {}
 
   emitDetected(active: ActiveDetection): void {
     this.emitClientEvent('Browserless.cloudflareDetected', {

@@ -1,5 +1,6 @@
 import { Logger } from '@browserless.io/browserless';
-import { Duration, Effect } from 'effect';
+import { Effect } from 'effect';
+import { activityLoopSchedule } from './cf-schedules.js';
 import type { CdpSessionId, TargetId, CloudflareConfig } from '../../shared/cloudflare-detection.js';
 import {
   TURNSTILE_ERROR_CHECK_JS,
@@ -142,9 +143,6 @@ export class CloudflareStateTracker {
         active.attempt++;
         active.aborted = false;
         this.log.info(`Retrying CF detection (attempt ${active.attempt})`);
-        // Return control to caller — solveDetection is on the strategies module
-        // The delegator will wire this callback
-        this.onRetryCallback?.(active);
       } else {
         const duration = Date.now() - active.startTime;
         this.activeDetections.delete(pageTargetId);
@@ -152,9 +150,6 @@ export class CloudflareStateTracker {
       }
     }
   }
-
-  // Callback for retry — wired by delegator to strategies.solveDetection
-  onRetryCallback: ((active: ActiveDetection) => void) | null = null;
 
   // Callback for OOPIF state check via CDP — wired by delegator to strategies.checkOOPIFStateViaCDP
   checkOOPIFState: ((iframeCdpSessionId: CdpSessionId) => Promise<'success' | 'fail' | 'expired' | 'timeout' | 'pending' | null>) | null = null;
@@ -426,20 +421,24 @@ export class CloudflareStateTracker {
         return 'continue' as const;
       });
 
-    const loop = Effect.gen(function*() {
-      let loopIter = 0;
-      const loopStart = Date.now();
-      while (!active.aborted && !tracker.destroyed) {
-        // Jittered 3-7s sleep
-        yield* Effect.sleep(Duration.millis(3000 + Math.random() * 4000));
-        if (active.aborted || tracker.destroyed) break;
-        if (Date.now() - loopStart > 90_000) break;
-        loopIter++;
-
-        const result = yield* activityIteration(loopIter);
-        if (result === 'solved' || result === 'aborted') break;
-      }
-    });
+    // Effect.repeat runs the body, then consults the schedule for delay + continue.
+    // activityLoopSchedule: jittered ~3s interval, capped at 90s total.
+    // Effect.fail('done') breaks out of the repeat loop.
+    let loopIter = 0;
+    const loop = Effect.suspend(() => {
+      if (active.aborted || tracker.destroyed) return Effect.fail('done' as const);
+      loopIter++;
+      return activityIteration(loopIter).pipe(
+        Effect.flatMap(result =>
+          result === 'solved' || result === 'aborted'
+            ? Effect.fail('done' as const)
+            : Effect.void,
+        ),
+      );
+    }).pipe(
+      Effect.repeat(activityLoopSchedule),
+      Effect.catch(() => Effect.void),
+    );
 
     Effect.runPromise(loop).catch(() => {});
   }

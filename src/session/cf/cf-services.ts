@@ -1,7 +1,7 @@
 /**
  * Service definitions for the CF solver Effect layer.
  *
- * Replaces setter injection (setSendViaProxy, setGetAbortSignal, setGetTabCount)
+ * Replaces setter injection (setSendViaProxy, setGetTabCount)
  * with typed services that are provided via Layer at construction time.
  *
  * Service scope restriction enforces safety rules at compile time:

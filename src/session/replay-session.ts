@@ -86,9 +86,6 @@ export class ReplaySession {
     this.videosDir = options.videosDir;
     this.onTabReplayComplete = options.onTabReplayComplete;
     this.chromePort = new URL(options.wsEndpoint).port;
-    this.cloudflareSolver.setGetAbortSignal(
-      (targetId) => this.targets.getByTarget(targetId)?.detectionAbort?.signal,
-    );
     this.setupMessageRouting();
   }
 
@@ -682,7 +679,6 @@ export class ReplaySession {
     if (targetInfo.type === 'page') {
       this.log.info(`Target attached (paused=${waitingForDebugger}): targetId=${targetId} url=${targetInfo.url} type=${targetInfo.type}`);
       const target = this.targets.add(targetId, cdpSessionId);
-      target.detectionAbort = new AbortController();
       this.cloudflareSolver.onPageAttached(targetId, cdpSessionId, targetInfo.url)
         .catch((e: Error) => this.log.debug(`[${targetId}] onPageAttached skipped: ${e.message}`));
 
@@ -827,6 +823,8 @@ export class ReplaySession {
       this.screencastCapture.handleTargetDestroyed(this.sessionId, target.cdpSessionId);
     }
 
+    // Interrupt detection fiber for this target (replaces AbortController)
+    this.cloudflareSolver.stopTargetDetection(targetId);
     // Atomic cleanup — removes from all indices, closes per-page WS, cleans iframe refs
     this.targets.remove(targetId);
     this.targets.removeIframeTarget(targetId);

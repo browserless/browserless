@@ -1,5 +1,7 @@
+import { Effect } from 'effect';
 import { Logger } from '@browserless.io/browserless';
 import type { CdpSessionId, TargetId, CloudflareConfig, CloudflareInfo, CloudflareType } from '../../shared/cloudflare-detection.js';
+import { DETECTION_POLL_DELAY } from './cf-schedules.js';
 import { CloudflareTracker } from './cloudflare-event-emitter.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
 import { deriveSolveAttribution } from './cloudflare-state-tracker.js';
@@ -21,7 +23,7 @@ import type { CloudflareSolveStrategies } from './cloudflare-solve-strategies.js
 export class CloudflareDetector {
   private log = new Logger('cf-detect');
   private enabled = false;
-  private getAbortSignal?: (targetId: TargetId) => AbortSignal | undefined;
+  private startDetectionLoop?: (targetId: TargetId, cdpSessionId: CdpSessionId) => void;
 
   constructor(
     _sendCommand: SendCommand,
@@ -30,9 +32,9 @@ export class CloudflareDetector {
     private strategies: CloudflareSolveStrategies,
   ) {}
 
-  /** Set callback to retrieve the AbortSignal for a given page target. */
-  setGetAbortSignal(fn: (targetId: TargetId) => AbortSignal | undefined): void {
-    this.getAbortSignal = fn;
+  /** Set callback to start a fiber-based detection loop for a target. */
+  setStartDetectionLoop(fn: (targetId: TargetId, cdpSessionId: CdpSessionId) => void): void {
+    this.startDetectionLoop = fn;
   }
 
   enable(config?: CloudflareConfig): void {
@@ -45,9 +47,7 @@ export class CloudflareDetector {
 
     // Check existing pages for CF URLs (no JS injection)
     for (const [targetId, cdpSessionId] of this.state.knownPages) {
-      // We don't have URLs for already-attached pages, so fall back to DOM walk
-      const signal = this.getAbortSignal?.(targetId);
-      this.detectTurnstileWidget(targetId, cdpSessionId, signal).catch(() => {});
+      this.startDetectionLoop?.(targetId, cdpSessionId);
     }
   }
 
@@ -248,8 +248,7 @@ export class CloudflareDetector {
     if (!alreadyWaited) {
       await new Promise((r) => setTimeout(r, 500));
     }
-    const signal = this.getAbortSignal?.(targetId);
-    this.detectTurnstileWidget(targetId, cdpSessionId, signal).catch(() => {});
+    this.startDetectionLoop?.(targetId, cdpSessionId);
   }
 
   /** Called when a cross-origin iframe is attached. */
@@ -398,78 +397,87 @@ export class CloudflareDetector {
   }
 
   /**
-   * Detect standalone Turnstile widgets via CDP DOM walk (zero JS injection).
-   * Polls for iframe[src*="challenges.cloudflare.com"] in the page DOM tree.
+   * Effect-based Turnstile detection loop.
    *
-   * Runs until the tab closes (via AbortSignal) — no hardcoded iteration limit.
+   * Polls for iframe[src*="challenges.cloudflare.com"] via CDP DOM walk.
+   * Runs until interrupted (fiber cancellation replaces AbortSignal).
    * Under load, each Target.getTargets call may take up to 5s (reduced timeout),
-   * but the loop retries indefinitely until the tab is destroyed.
+   * but the loop retries indefinitely until the fiber is interrupted.
    */
-  private async detectTurnstileWidget(
-    targetId: TargetId, cdpSessionId: CdpSessionId, signal?: AbortSignal,
-  ): Promise<void> {
-    if (this.state.destroyed || !this.enabled) return;
-    if (this.state.activeDetections.has(targetId)) return;
+  detectTurnstileWidgetEffect(targetId: TargetId, cdpSessionId: CdpSessionId): Effect.Effect<void> {
+    const self = this;
+    return Effect.fn('cf.detectTurnstileWidget')(function*() {
+      if (self.state.destroyed || !self.enabled) return;
+      if (self.state.activeDetections.has(targetId)) return;
 
-    const startTime = Date.now();
+      const startTime = Date.now();
 
-    while (!signal?.aborted) {
-      if (this.state.destroyed || !this.enabled) return;
-      if (this.state.activeDetections.has(targetId)) return;
-      if (this.state.bindingSolvedTargets.has(targetId)) return;
+      while (true) {
+        if (self.state.destroyed || !self.enabled) return;
+        if (self.state.activeDetections.has(targetId)) return;
+        if (self.state.bindingSolvedTargets.has(targetId)) return;
 
-      try {
-        const detection = await this.strategies.detectTurnstileViaCDP(cdpSessionId);
+        const detection = yield* Effect.tryPromise(
+          () => self.strategies.detectTurnstileViaCDP(cdpSessionId),
+        ).pipe(Effect.orElseSucceed(() => null));
+
         if (detection?.present) {
-          const rechallengeCount = this.state.pendingRechallengeCount.get(targetId) || 0;
-          this.state.pendingRechallengeCount.delete(targetId);
-
-          const cfType = detection.cfType ?? 'turnstile';
-          const info: CloudflareInfo = {
-            type: cfType, url: '', detectionMethod: 'cdp_dom_walk',
-            cRay: detection.cRay,
-          };
-          const active: ActiveDetection = {
-            info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
-            startTime, attempt: 1, aborted: false,
-            tracker: new CloudflareTracker(info),
-            rechallengeCount,
-          };
-
-          // Guard: another detection path (e.g. triggerSolveFromUrl) may have
-          // registered while we awaited the CDP call. Check before every async gap.
-          if (this.state.activeDetections.has(targetId)) return;
-
-          // NOTE: Do NOT call isSolved() here — it uses Runtime.evaluate on the
-          // page session, which triggers CF's WASM V8 detection and causes
-          // rechallenges. The bindingSolvedTargets check (above) already covers
-          // auto-solve via the push-based binding mechanism.
-
-          this.state.activeDetections.set(targetId, active);
-          const pending = this.state.pendingIframes.get(targetId);
-          if (pending) {
-            active.iframeCdpSessionId = pending.iframeCdpSessionId;
-            active.iframeTargetId = pending.iframeTargetId;
-            this.state.pendingIframes.delete(targetId);
-          }
-          this.events.emitDetected(active);
-          this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
-          const outcome = await this.strategies.solveDetection(active);
-          if (outcome === 'no_click') {
-            this.emitSolveFailure(active, targetId, 'widget_not_found');
-          }
+          yield* Effect.tryPromise(
+            () => self.handleTurnstileDetection(targetId, cdpSessionId, detection, startTime),
+          ).pipe(Effect.orElseSucceed(() => undefined));
           return;
         }
-      } catch {
-        // Transient CDP error — keep polling
-      }
 
-      // Abortable sleep — exits immediately when tab closes
-      await new Promise<void>((resolve) => {
-        if (signal?.aborted) { resolve(); return; }
-        const timer = setTimeout(resolve, 200);
-        signal?.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
-      });
+        yield* Effect.sleep(DETECTION_POLL_DELAY);
+      }
+    })();
+  }
+
+  /**
+   * Handle a positive Turnstile detection — create ActiveDetection, emit events, start solve.
+   * Extracted from detectTurnstileWidget for clarity.
+   */
+  private async handleTurnstileDetection(
+    targetId: TargetId,
+    cdpSessionId: CdpSessionId,
+    detection: { present: boolean; cfType?: CloudflareType; cRay?: string },
+    startTime: number,
+  ): Promise<void> {
+    const rechallengeCount = this.state.pendingRechallengeCount.get(targetId) || 0;
+    this.state.pendingRechallengeCount.delete(targetId);
+
+    const cfType = detection.cfType ?? 'turnstile';
+    const info: CloudflareInfo = {
+      type: cfType, url: '', detectionMethod: 'cdp_dom_walk',
+      cRay: detection.cRay,
+    };
+    const active: ActiveDetection = {
+      info, pageCdpSessionId: cdpSessionId, pageTargetId: targetId,
+      startTime, attempt: 1, aborted: false,
+      tracker: new CloudflareTracker(info),
+      rechallengeCount,
+    };
+
+    // Guard: another detection path (e.g. triggerSolveFromUrl) may have
+    // registered while we awaited the CDP call. Check before every async gap.
+    if (this.state.activeDetections.has(targetId)) return;
+
+    // NOTE: Do NOT call isSolved() here — it uses Runtime.evaluate on the
+    // page session, which triggers CF's WASM V8 detection and causes
+    // rechallenges. The bindingSolvedTargets check is in the caller loop.
+
+    this.state.activeDetections.set(targetId, active);
+    const pending = this.state.pendingIframes.get(targetId);
+    if (pending) {
+      active.iframeCdpSessionId = pending.iframeCdpSessionId;
+      active.iframeTargetId = pending.iframeTargetId;
+      this.state.pendingIframes.delete(targetId);
+    }
+    this.events.emitDetected(active);
+    this.events.marker(cdpSessionId, 'cf.detected', { type: cfType, method: 'cdp_dom_walk' });
+    const outcome = await this.strategies.solveDetection(active);
+    if (outcome === 'no_click') {
+      this.emitSolveFailure(active, targetId, 'widget_not_found');
     }
   }
 }

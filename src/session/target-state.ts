@@ -10,7 +10,6 @@ export class TargetState {
   finalizedResult: StopTabRecordingResult | null = null;
   pageWebSocket: InstanceType<any> | null = null;
   failedReconnect = false;
-  detectionAbort: AbortController | null = null;
   /** Pending timers to clear on destroy (e.g. rrweb diagnostic probe). */
   pendingTimers: ReturnType<typeof setTimeout>[] = [];
 
@@ -53,17 +52,12 @@ export class TargetRegistry {
     return this.byCdpSessionId.get(cdpSessionId)?.targetId;
   }
 
-  /** Remove target + close its per-page WS + abort detection + clean iframe refs. One call, no missed Maps. */
+  /** Remove target + close its per-page WS + clean iframe refs. One call, no missed Maps. */
   remove(targetId: TargetId): TargetState | undefined {
     const state = this.byTargetId.get(targetId);
     if (!state) return undefined;
     this.byTargetId.delete(targetId);
     this.byCdpSessionId.delete(state.cdpSessionId);
-    // Abort detection loop for this target
-    if (state.detectionAbort) {
-      state.detectionAbort.abort();
-      state.detectionAbort = null;
-    }
     // Clear any pending timers (diagnostic probes, etc.)
     for (const t of state.pendingTimers) clearTimeout(t);
     state.pendingTimers.length = 0;
@@ -169,13 +163,9 @@ export class TargetRegistry {
     return this.byTargetId.values();
   }
 
-  /** Clear all state, abort detection loops, and close all per-page WebSockets. */
+  /** Clear all state and close all per-page WebSockets. */
   clear(): void {
     for (const state of this.byTargetId.values()) {
-      if (state.detectionAbort) {
-        state.detectionAbort.abort();
-        state.detectionAbort = null;
-      }
       for (const t of state.pendingTimers) clearTimeout(t);
       state.pendingTimers.length = 0;
       if (state.pageWebSocket) {

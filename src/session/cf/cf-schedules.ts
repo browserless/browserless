@@ -1,34 +1,33 @@
 /**
- * Schedule definitions for CF solver polling and retry loops.
+ * Schedule and delay constants for CF solver polling and retry loops.
  *
- * Replaces 4 hand-rolled while-sleep loops with composable,
- * testable Schedule values.
+ * activityLoopSchedule — used with Effect.repeat in the activity loop.
+ * Named delay constants — replace magic strings in solver for-loops
+ * that can't use Effect.repeat (complex break conditions).
  */
-import { Schedule, pipe } from 'effect';
+import { Schedule } from 'effect';
 
-/** Token polling: 300ms fixed interval (post-click token check). */
-export const tokenPollSchedule = Schedule.spaced('300 millis');
+// ── Schedule (used with Effect.repeat) ───────────────────────────────
 
-/** Click retry: 500ms between attempts, max 6 attempts. */
-export const clickRetrySchedule = pipe(
-  Schedule.spaced('500 millis'),
-  Schedule.take(5), // 5 retries after first attempt = 6 total
-);
-
-/** Turnstile detection polling: 200ms interval (via Target.getTargets). */
-export const detectionPollSchedule = Schedule.spaced('200 millis');
-
-/** Auto-nav wait: 500ms polling while waiting for page navigation. */
-export const autoNavWaitSchedule = Schedule.spaced('500 millis');
-
-/** Checkbox polling inside OOPIF: 500ms interval, max 8 attempts. */
-export const checkboxPollSchedule = pipe(
-  Schedule.spaced('500 millis'),
-  Schedule.take(7), // 7 retries after first = 8 total
-);
-
-/** Activity loop: 3-7s jittered interval, max 90s total. */
+/** Activity loop: jittered ~3s interval, max 90s total. */
 export const activityLoopSchedule = Schedule.both(
   Schedule.jittered(Schedule.spaced('3 seconds')),
   Schedule.during('90 seconds'),
 );
+
+// ── Named delay constants (for imperative for-loops) ─────────────────
+
+/** Click retry: delay between findAndClickViaCDP attempts. */
+export const CLICK_RETRY_DELAY = '500 millis' as const;
+
+/** Token polling: post-click token check interval. */
+export const TOKEN_POLL_DELAY = '300 millis' as const;
+
+/** Turnstile detection polling: Target.getTargets interval. */
+export const DETECTION_POLL_DELAY = '200 millis' as const;
+
+/** Auto-nav wait: polling interval while waiting for page navigation. */
+export const AUTO_NAV_WAIT_DELAY = '500 millis' as const;
+
+/** Auto-solve token polling: fallback no-click token check interval. */
+export const AUTO_SOLVE_POLL_DELAY = '500 millis' as const;
