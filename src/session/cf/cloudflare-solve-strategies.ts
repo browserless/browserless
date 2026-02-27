@@ -1,9 +1,6 @@
-import {
-  simulateHumanPresence,
-} from '../../shared/mouse-humanizer.js';
 import type { CdpSessionId, TargetId, CloudflareType } from '../../shared/cloudflare-detection.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
-import type { CloudflareStateTracker, SendCommand } from './cloudflare-state-tracker.js';
+import type { SendCommand } from './cloudflare-state-tracker.js';
 
 /** Result from detectTurnstileViaCDP — includes type info when available. */
 export interface CFDetectionResult {
@@ -34,10 +31,6 @@ const CF_TEST_SITEKEY_PREFIXES = ['1x00000000', '2x00000000', '3x00000000'];
 function isCFTestWidget(url: string | undefined): boolean {
   if (!url) return false;
   return CF_TEST_SITEKEY_PREFIXES.some((prefix) => url.includes(prefix));
-}
-
-function assertNever(x: never, context: string): never {
-  throw new Error(`Unhandled ${context}: ${x}`);
 }
 
 /** CDP DOM node shape (subset of fields we use). */
@@ -71,7 +64,6 @@ export class CloudflareSolveStrategies {
   constructor(
     private sendCommand: SendCommand,
     private events: CloudflareEventEmitter,
-    private state: CloudflareStateTracker,
     private chromePort?: string,
   ) {}
 
@@ -81,207 +73,11 @@ export class CloudflareSolveStrategies {
 
   /**
    * Overridable solve dispatcher. CloudflareSolver replaces this with the
-   * Effect-based solver in Phase 1. Default implementation is the original
-   * imperative logic (kept as fallback for testing / gradual migration).
+   * Effect-based solver in the constructor. No-op default — never called
+   * in production because the constructor always overrides it.
    */
   solveDetection: (active: ActiveDetection) => Promise<SolveOutcome> =
-    (active) => this._solveDetectionImpl(active);
-
-  private async _solveDetectionImpl(active: ActiveDetection): Promise<SolveOutcome> {
-    if (active.aborted || this.state.destroyed) return 'aborted';
-
-    try {
-      switch (active.info.type) {
-        case 'managed':
-        case 'interstitial': {
-          const presence = active.info.type === 'managed'
-            ? 0.5 + Math.random() * 1.0
-            : 1.5 + Math.random() * 1.5;
-          const clicked = await this.solveByClicking(active, presence);
-          if (active.aborted) return 'aborted';
-          if (clicked) return 'click_dispatched';
-
-          // Widget not found — CF managed challenges may auto-pass without a widget.
-          // Keep the detection alive so onPageNavigated() can emit cf.solved(auto_navigation).
-          this.events.marker(active.pageCdpSessionId, 'cf.waiting_auto_nav', {
-            type: active.info.type,
-            attempts_exhausted: true,
-          });
-          const autoNavDeadline = Date.now() + 30_000;
-          while (!active.aborted && Date.now() < autoNavDeadline) {
-            await sleep(500);
-          }
-          return active.aborted ? 'aborted' : 'no_click';
-        }
-        case 'turnstile': {
-          const clicked = await this.solveTurnstile(active);
-          return active.aborted ? 'aborted' : clicked ? 'click_dispatched' : 'no_click';
-        }
-        case 'non_interactive':
-        case 'invisible':
-          await this.solveAutomatic(active);
-          return active.aborted ? 'aborted' : 'auto_handled';
-        case 'block':
-          throw new Error('block type should not reach solveDetection');
-        default:
-          assertNever(active.info.type, 'CloudflareType in solveDetection');
-      }
-    } catch (err) {
-      if (!active.aborted) {
-        this.events.emitFailed(active, 'solve_exception', Date.now() - active.startTime);
-        active.aborted = true;
-        this.state.activeDetections.delete(active.pageTargetId);
-      }
-      return 'aborted';
-    }
-  }
-
-  /**
-   * Click-based solve for managed and interstitial types.
-   * ZERO-INJECTION: No Runtime.evaluate on the page before clicking.
-   * Matches pydoll's approach: immediate Phase 1 polling → find OOPIF → click.
-   */
-  private async solveByClicking(active: ActiveDetection, _presenceDuration: number): Promise<boolean> {
-    if (active.aborted) return false;
-
-    const maxAttempts = 6;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (active.aborted) return false;
-
-      if (attempt > 0) await sleep(500);
-
-      const result = await this._findAndClickViaCDP(active, attempt);
-      if (result) {
-        this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
-        return true;
-      }
-    }
-
-    this.events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
-    return false;
-  }
-
-  /**
-   * Solve standalone Turnstile widgets on third-party pages.
-   * ZERO-INJECTION: No Runtime.evaluate on the page before clicking.
-   *
-   * After click attempts, waits for auto-solve by polling turnstile.getResponse().
-   * This handles non-interactive widgets (Ahrefs) that auto-solve without clicking.
-   * Runtime.evaluate is safe AFTER detection — CF's WASM checks run during detection,
-   * not during post-click polling.
-   */
-  private async solveTurnstile(active: ActiveDetection): Promise<boolean> {
-    if (active.aborted) return false;
-    const { pageCdpSessionId } = active;
-    const deadline = Date.now() + 30_000;
-
-    // Phase 1: Try to click the checkbox
-    const maxAttempts = 6;
-    let clicked = false;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (active.aborted || Date.now() > deadline) return false;
-
-      if (attempt > 0) {
-        await sleep(500);
-
-        // Token check on retries only — NEVER on attempt 0.
-        // getToken() uses Runtime.evaluate on the page session. On attempt 0,
-        // the CF WASM is still monitoring V8 evaluation events — calling
-        // Runtime.evaluate poisons the session and causes rechallenges.
-        // By attempt 1+, the click has already been dispatched, so Runtime.evaluate
-        // is safe (CF's detection window has closed).
-        try {
-          const token = await this.state.getToken(pageCdpSessionId);
-          if (token) {
-            this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-            await this.state.resolveAutoSolved(active, 'token_poll');
-            return true;
-          }
-        } catch { /* page gone */ }
-      }
-
-      const result = await this._findAndClickViaCDP(active, attempt);
-      if (result) {
-        this.events.emitProgress(active, 'cdp_click_complete', { success: true, attempt });
-        clicked = true;
-        break;
-      }
-    }
-
-    if (!clicked) {
-      this.events.emitProgress(active, 'cdp_click_complete', { success: false, attempts: maxAttempts });
-      this.events.marker(pageCdpSessionId, 'cf.cdp_no_checkbox');
-    }
-
-    // Click dispatched — wait for resolution.
-    // Two possible outcomes:
-    //   1. Interstitial: page navigates → active.aborted set by onPageNavigated()
-    //   2. Embedded turnstile: token appears in turnstile.getResponse()
-    //
-    // CRITICAL: Do NOT call Runtime.evaluate (getToken) until we're sure this is
-    // NOT an interstitial. For interstitials, the page navigates to a new CF
-    // challenge — any Runtime.evaluate would poison the new page's session.
-    // Wait 3s for navigation first; only start token polling if no navigation.
-    if (clicked) {
-      const postClickDeadline = Math.min(active.startTime + 10_000, deadline);
-
-      // Phase A: Wait up to 3s for page navigation (interstitial signal)
-      const navWaitEnd = Math.min(Date.now() + 3_000, postClickDeadline);
-      while (!active.aborted && Date.now() < navWaitEnd) {
-        await sleep(200);
-      }
-
-      // If navigation happened (interstitial), we're done — don't token-poll
-      if (active.aborted) return true;
-
-      // Phase B: No navigation — this is an embedded widget. Poll for token.
-      // Runtime.evaluate is safe here: the page is NOT a CF challenge page,
-      // it's the embedding page (e.g. nopecha.com, peet.ws).
-      while (!active.aborted && Date.now() < postClickDeadline) {
-        try {
-          const token = await this.state.getToken(pageCdpSessionId);
-          if (token) {
-            this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-            await this.state.resolveAutoSolved(active, 'token_poll');
-            return true;
-          }
-        } catch { /* page gone */ }
-        await sleep(300);
-      }
-      return true;
-    }
-
-    // No click dispatched — widget is non-interactive (auto-solves without click).
-    // Poll for token using the remaining deadline (Ahrefs auto-solve: ~5-8s).
-    while (!active.aborted && Date.now() < deadline) {
-      await sleep(500);
-      if (active.aborted) return false;
-
-      try {
-        const token = await this.state.getToken(pageCdpSessionId);
-        if (token) {
-          this.events.marker(pageCdpSessionId, 'cf.token_polled', { token_length: token.length });
-          await this.state.resolveAutoSolved(active, 'token_poll');
-          return true;
-        }
-      } catch {
-        // CDP error — page may have navigated
-      }
-
-      if (active.aborted) return false;
-    }
-
-    return false;
-  }
-
-  /**
-   * Auto-solve for non_interactive and invisible types.
-   */
-  private async solveAutomatic(active: ActiveDetection): Promise<void> {
-    if (active.aborted) return;
-    this.events.marker(active.pageCdpSessionId, 'cf.presence_start', { type: active.info.type });
-    await simulateHumanPresence(this.sendCommand, active.pageCdpSessionId, 2.0 + Math.random() * 2.0);
-  }
+    () => Promise.resolve('aborted' as SolveOutcome);
 
   // ── Runtime.callFunctionOn Element Finding (matches pydoll) ─────────
 
@@ -862,7 +658,7 @@ export class CloudflareSolveStrategies {
 
       // ── Phase 4: Visibility check, scroll, bounds, click ─────────────
       // No artificial delay — pydoll clicks immediately after finding the
-      // checkbox. The retry loop in solveByClicking polls every 500ms which
+      // checkbox. The Effect solver's retry loop polls every 500ms which
       // naturally gives CF's WASM time to arm.
 
       // Pydoll does a visibility check (getBoundingClientRect + getComputedStyle)

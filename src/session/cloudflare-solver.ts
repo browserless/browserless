@@ -37,7 +37,7 @@ export class CloudflareSolver {
     this.sendCommand = sendCommand;
     this.events = new CloudflareEventEmitter(injectMarker);
     this.stateTracker = new CloudflareStateTracker(sendCommand, this.events);
-    this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, this.stateTracker, chromePort);
+    this.strategies = new CloudflareSolveStrategies(sendCommand, this.events, chromePort);
     this.detector = new CloudflareDetector(sendCommand, this.events, this.stateTracker, this.strategies);
 
     // Override strategies.solveDetection to route through Effect
@@ -78,26 +78,10 @@ export class CloudflareSolver {
     }));
 
     const tokenCheckerLayer = Layer.succeed(TokenChecker, TokenChecker.of({
-      getToken: (sessionId) =>
-        Effect.tryPromise({
-          try: () => stateTracker.getToken(sessionId),
-          catch: () => new CdpSessionGone({ sessionId, method: 'getToken' }),
-        }),
-      isSolved: (sessionId) =>
-        Effect.tryPromise({
-          try: () => stateTracker.isSolved(sessionId),
-          catch: () => new CdpSessionGone({ sessionId, method: 'isSolved' }),
-        }),
-      isWidgetError: (sessionId) =>
-        Effect.tryPromise({
-          try: () => stateTracker.isWidgetError(sessionId),
-          catch: () => new CdpSessionGone({ sessionId, method: 'isWidgetError' }),
-        }),
-      isStillDetected: (sessionId) =>
-        Effect.tryPromise({
-          try: () => stateTracker.isStillDetected(sessionId),
-          catch: () => new CdpSessionGone({ sessionId, method: 'isStillDetected' }),
-        }),
+      getToken: (sessionId) => stateTracker.getTokenEffect(sessionId),
+      isSolved: (sessionId) => stateTracker.isSolvedEffect(sessionId),
+      isWidgetError: (sessionId) => stateTracker.isWidgetErrorEffect(sessionId),
+      isStillDetected: (sessionId) => stateTracker.isStillDetectedEffect(sessionId),
     }));
 
     const solverEventsLayer = Layer.succeed(SolverEvents, SolverEvents.of({

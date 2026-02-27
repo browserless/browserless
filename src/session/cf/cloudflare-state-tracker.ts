@@ -1,10 +1,12 @@
 import { Logger } from '@browserless.io/browserless';
+import { Duration, Effect } from 'effect';
 import type { CdpSessionId, TargetId, CloudflareConfig } from '../../shared/cloudflare-detection.js';
 import {
   TURNSTILE_ERROR_CHECK_JS,
   CF_DETECTION_JS,
 } from '../../shared/cloudflare-detection.js';
 import type { ActiveDetection, CloudflareEventEmitter } from './cloudflare-event-emitter.js';
+import { CdpSessionGone } from './cf-errors.js';
 
 /** CDP send command. Returns any because CDP response shapes vary per method — not worth validating every shape. */
 export type SendCommand = (method: string, params?: object, cdpSessionId?: CdpSessionId, timeoutMs?: number) => Promise<any>;
@@ -251,9 +253,18 @@ export class CloudflareStateTracker {
     this.events.marker(active.pageCdpSessionId, 'cf.auto_solved', { signal, method: attr.method });
   }
 
-  async isSolved(cdpSessionId: CdpSessionId): Promise<boolean> {
-    try {
-      const result = await this.sendCommand('Runtime.evaluate', {
+  // ═══════════════════════════════════════════════════════════════════════
+  // Effect-native CDP query methods
+  //
+  // Each returns Effect<T, CdpSessionGone> — typed error on session loss.
+  // The TokenChecker service layer delegates directly to these.
+  // Internal imperative callers use the Promise wrappers below.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  isSolvedEffect(cdpSessionId: CdpSessionId): Effect.Effect<boolean, CdpSessionGone> {
+    const sendCommand = this.sendCommand;
+    return Effect.tryPromise({
+      try: () => sendCommand('Runtime.evaluate', {
         expression: `(function() {
           if (window.__turnstileSolved === true) return true;
           try { if (typeof turnstile !== 'undefined' && turnstile.getResponse && turnstile.getResponse()) return true; } catch(e) {}
@@ -261,16 +272,17 @@ export class CloudflareStateTracker {
           return !!(el && el.value && el.value.length > 0);
         })()`,
         returnByValue: true,
-      }, cdpSessionId);
-      return result?.result?.value === true;
-    } catch {
-      return false;
-    }
+      }, cdpSessionId),
+      catch: () => new CdpSessionGone({ sessionId: cdpSessionId, method: 'isSolved' }),
+    }).pipe(
+      Effect.map((result) => result?.result?.value === true),
+    );
   }
 
-  async getToken(cdpSessionId: CdpSessionId): Promise<string | null> {
-    try {
-      const result = await this.sendCommand('Runtime.evaluate', {
+  getTokenEffect(cdpSessionId: CdpSessionId): Effect.Effect<string | null, CdpSessionGone> {
+    const sendCommand = this.sendCommand;
+    return Effect.tryPromise({
+      try: () => sendCommand('Runtime.evaluate', {
         expression: `(() => {
           if (typeof turnstile !== 'undefined' && turnstile.getResponse) {
             try { var t = turnstile.getResponse(); if (t && t.length > 0) return t; } catch(e){}
@@ -280,89 +292,156 @@ export class CloudflareStateTracker {
           return null;
         })()`,
         returnByValue: true,
-      }, cdpSessionId);
-      const val = result?.result?.value;
-      return typeof val === 'string' && val.length > 0 ? val : null;
-    } catch {
-      return null;
-    }
+      }, cdpSessionId),
+      catch: () => new CdpSessionGone({ sessionId: cdpSessionId, method: 'getToken' }),
+    }).pipe(
+      Effect.map((result) => {
+        const val = result?.result?.value;
+        return typeof val === 'string' && val.length > 0 ? val : null;
+      }),
+    );
   }
 
-  /** Check if the Turnstile widget is in an error/expired state. */
-  async isWidgetError(cdpSessionId: CdpSessionId): Promise<{ type: string; has_token: boolean } | null> {
-    try {
-      const result = await this.sendCommand('Runtime.evaluate', {
+  isWidgetErrorEffect(cdpSessionId: CdpSessionId): Effect.Effect<{ type: string; has_token: boolean } | null, CdpSessionGone> {
+    const sendCommand = this.sendCommand;
+    return Effect.tryPromise({
+      try: () => sendCommand('Runtime.evaluate', {
         expression: TURNSTILE_ERROR_CHECK_JS,
         returnByValue: true,
-      }, cdpSessionId);
-      const raw = result?.result?.value;
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed || null;
-    } catch {
-      return null;
-    }
+      }, cdpSessionId),
+      catch: () => new CdpSessionGone({ sessionId: cdpSessionId, method: 'isWidgetError' }),
+    }).pipe(
+      Effect.map((result) => {
+        const raw = result?.result?.value;
+        if (!raw) return null;
+        try { return JSON.parse(raw) || null; } catch { return null; }
+      }),
+    );
   }
 
-  /** Re-run CF detection to verify a solve isn't a false positive. */
-  async isStillDetected(cdpSessionId: CdpSessionId): Promise<boolean> {
-    try {
-      const result = await this.sendCommand('Runtime.evaluate', {
+  isStillDetectedEffect(cdpSessionId: CdpSessionId): Effect.Effect<boolean, CdpSessionGone> {
+    const sendCommand = this.sendCommand;
+    return Effect.tryPromise({
+      try: () => sendCommand('Runtime.evaluate', {
         expression: CF_DETECTION_JS,
         returnByValue: true,
-      }, cdpSessionId);
-      const raw = result?.result?.value;
-      if (!raw) return false;
-      return JSON.parse(raw).detected === true;
-    } catch {
-      return false;
-    }
+      }, cdpSessionId),
+      catch: () => new CdpSessionGone({ sessionId: cdpSessionId, method: 'isStillDetected' }),
+    }).pipe(
+      Effect.map((result) => {
+        const raw = result?.result?.value;
+        if (!raw) return false;
+        try { return JSON.parse(raw).detected === true; } catch { return false; }
+      }),
+    );
   }
 
-  /** Background loop that keeps the browser alive after click commit. */
+  // ── Imperative wrappers (for internal callers not yet on Effect) ─────
+
+  async isSolved(cdpSessionId: CdpSessionId): Promise<boolean> {
+    return Effect.runPromise(
+      this.isSolvedEffect(cdpSessionId).pipe(
+        Effect.catchTag('CdpSessionGone', () => Effect.succeed(false)),
+      ),
+    );
+  }
+
+  async getToken(cdpSessionId: CdpSessionId): Promise<string | null> {
+    return Effect.runPromise(
+      this.getTokenEffect(cdpSessionId).pipe(
+        Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
+      ),
+    );
+  }
+
+  async isWidgetError(cdpSessionId: CdpSessionId): Promise<{ type: string; has_token: boolean } | null> {
+    return Effect.runPromise(
+      this.isWidgetErrorEffect(cdpSessionId).pipe(
+        Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
+      ),
+    );
+  }
+
+  async isStillDetected(cdpSessionId: CdpSessionId): Promise<boolean> {
+    return Effect.runPromise(
+      this.isStillDetectedEffect(cdpSessionId).pipe(
+        Effect.catchTag('CdpSessionGone', () => Effect.succeed(false)),
+      ),
+    );
+  }
+
+  /**
+   * Background loop that keeps the browser alive after click commit.
+   *
+   * Effect-native loop body uses isSolvedEffect/isWidgetErrorEffect.
+   * Fire-and-forget via Effect.runPromise — no ManagedRuntime needed.
+   */
   startActivityLoop(active: ActiveDetection): void {
-    const loop = async () => {
+    // Capture `this` for Effect closures (Effect.gen doesn't support class `this` binding)
+    const tracker = this;
+
+    const activityIteration = (loopIter: number) =>
+      Effect.gen(function*() {
+        // Check if solved via Effect-native CDP method
+        const solved = yield* tracker.isSolvedEffect(active.pageCdpSessionId).pipe(
+          Effect.catchTag('CdpSessionGone', () => Effect.succeed(false)),
+        );
+        if (solved) {
+          yield* Effect.tryPromise({
+            try: () => tracker.resolveAutoSolved(active, 'activity_poll'),
+            catch: () => undefined,
+          });
+          return 'solved' as const;
+        }
+
+        tracker.events.emitProgress(active, 'activity_poll', { iteration: loopIter });
+
+        // Check OOPIF state via CDP DOM walk
+        if (active.iframeCdpSessionId && tracker.checkOOPIFState) {
+          yield* Effect.tryPromise({
+            try: async () => {
+              const oopifState = await tracker.checkOOPIFState!(active.iframeCdpSessionId!);
+              if (oopifState && oopifState !== 'pending') {
+                await tracker.onTurnstileStateChange(oopifState, active.iframeCdpSessionId!);
+              }
+            },
+            catch: () => undefined, // OOPIF gone
+          }).pipe(Effect.ignore);
+          if (active.aborted) return 'aborted' as const;
+        }
+
+        // Check widget error via Effect-native CDP method
+        const widgetErr = yield* tracker.isWidgetErrorEffect(active.pageCdpSessionId).pipe(
+          Effect.catchTag('CdpSessionGone', () => Effect.succeed(null)),
+        );
+        if (widgetErr) {
+          tracker.events.marker(active.pageCdpSessionId, 'cf.widget_error_detected', {
+            error_type: widgetErr.type, has_token: widgetErr.has_token,
+          });
+          tracker.events.emitProgress(active, 'widget_error', {
+            error_type: widgetErr.type, has_token: widgetErr.has_token,
+          });
+        }
+
+        return 'continue' as const;
+      });
+
+    const loop = Effect.gen(function*() {
       let loopIter = 0;
       const loopStart = Date.now();
-      while (!active.aborted && !this.destroyed) {
-        await new Promise(r => setTimeout(r, 3000 + Math.random() * 4000));
-        if (active.aborted || this.destroyed) break;
+      while (!active.aborted && !tracker.destroyed) {
+        // Jittered 3-7s sleep
+        yield* Effect.sleep(Duration.millis(3000 + Math.random() * 4000));
+        if (active.aborted || tracker.destroyed) break;
         if (Date.now() - loopStart > 90_000) break;
         loopIter++;
 
-        if (await this.isSolved(active.pageCdpSessionId)) {
-          await this.resolveAutoSolved(active, 'activity_poll');
-          return;
-        }
-
-        this.events.emitProgress(active, 'activity_poll', { iteration: loopIter });
-
-        // Check OOPIF state via CDP DOM walk (replaces MutationObserver injection)
-        if (active.iframeCdpSessionId && this.checkOOPIFState) {
-          try {
-            const oopifState = await this.checkOOPIFState(active.iframeCdpSessionId);
-            if (oopifState && oopifState !== 'pending') {
-              await this.onTurnstileStateChange(oopifState, active.iframeCdpSessionId);
-              if (active.aborted) return;
-            }
-          } catch { /* OOPIF gone */ }
-        }
-
-        const widgetErr = await this.isWidgetError(active.pageCdpSessionId);
-        if (widgetErr) {
-          this.events.marker(active.pageCdpSessionId, 'cf.widget_error_detected', {
-            error_type: widgetErr.type, has_token: widgetErr.has_token,
-          });
-          this.events.emitProgress(active, 'widget_error', {
-            error_type: widgetErr.type, has_token: widgetErr.has_token,
-          });
-        }
-
-        // No mouse simulation — pydoll's solver doesn't do it, and CF may detect it.
-        // Just wait for the next poll interval.
+        const result = yield* activityIteration(loopIter);
+        if (result === 'solved' || result === 'aborted') break;
       }
-    };
-    loop().catch(() => {});
+    });
+
+    Effect.runPromise(loop).catch(() => {});
   }
 
   findPageBySession(cdpSessionId: CdpSessionId): TargetId | undefined {
