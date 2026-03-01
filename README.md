@@ -67,6 +67,7 @@ Get up and running in three simple steps:
 docker run -p 3000:3000 ghcr.io/browserless/chromium
 ```
 ### Step 2: Open the docs in your browser
+- [Anchor Browser](https://anchorbrowser.io) - Cloud browser infrastructure for AI agents — scalable Chromium with stealth, proxies, and session management
 Visit http://localhost:3000/docs
 
 **✅ Success!** Your browser service is live at `ws://localhost:3000`
