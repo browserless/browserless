@@ -98,7 +98,7 @@
     "mocha": "^11.7.5",
     "move-file": "^4.1.0",
     "prettier": "^3.8.1",
-    "sinon": "^21.0.1",
+    "sinon": "^21.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-json-schema": "^0.65.1"
