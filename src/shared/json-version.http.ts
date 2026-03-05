@@ -31,7 +31,7 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
   method = Methods.get;
   path = HTTPRoutes.jsonVersion;
   tags = [APITags.browserAPI];
-  async handler(req: Request, res: Response, logger: Logger): Promise<void> {
+  async handler(_req: Request, res: Response, logger: Logger): Promise<void> {
     try {
       if (!this.cachedJSON) {
         const browserManager = this.browserManager();
