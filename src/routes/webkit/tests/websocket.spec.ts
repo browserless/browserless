@@ -177,7 +177,8 @@ describe('Webkit Websocket API', function () {
     it(`resolves WebKit revision for v${version}`, async () => {
       await start();
 
-      const browser = await webkit.connect(
+      const pw = await import(playwrightVersions[version]);
+      const browser = await pw.webkit.connect(
         `ws://localhost:3000/playwright/webkit`,
       );
 
