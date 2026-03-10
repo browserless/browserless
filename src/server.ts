@@ -1,4 +1,5 @@
 import * as http from 'http';
+import * as net from 'net';
 import * as stream from 'stream';
 import {
   BadRequest,
@@ -106,7 +107,7 @@ export class HTTPServer extends EventEmitter {
     this.logger.info(`HTTP Server is starting`);
 
     this.server.on('request', this.handleRequest.bind(this));
-    this.server.on('upgrade', this.handleWebSocket.bind(this));
+    this.server.on('upgrade', this.handleUpgrade.bind(this));
 
     const listenMessage = [
       `HTTP Server is listening on ${this.config.getServerAddress()}`,
@@ -126,6 +127,38 @@ export class HTTPServer extends EventEmitter {
         },
       );
     });
+  }
+
+  protected handleUpgrade(
+    request: http.IncomingMessage,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) {
+    if (request.headers.upgrade?.toLowerCase() === 'websocket') {
+      return this.handleWebSocket(request, socket, head);
+    }
+
+    // Non-WebSocket upgrade (h2c, etc.) — process as normal HTTP
+    // per RFC 7230 Section 6.7.
+    this.logger.trace(
+      `Non-WebSocket upgrade request (Upgrade: ${request.headers.upgrade}), handling as HTTP`,
+    );
+
+    socket.on('error', (err) => {
+      this.logger.trace(
+        `Socket error during non-WebSocket upgrade handling: ${err.message}`,
+      );
+    });
+
+    const res = new http.ServerResponse(request);
+    res.assignSocket(socket as unknown as net.Socket);
+
+    res.on('finish', () => {
+      res.detachSocket(socket as unknown as net.Socket);
+      (socket as unknown as net.Socket).destroySoon();
+    });
+
+    return this.handleRequest(request, res);
   }
 
   protected async handleRequest(
