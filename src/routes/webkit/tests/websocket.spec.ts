@@ -4,8 +4,14 @@ import {
   Metrics,
   sleep,
 } from '@browserless.io/browserless';
+import { readFileSync } from 'fs';
 import { expect } from 'chai';
 import { webkit } from 'playwright-core';
+
+const { playwrightVersions } = JSON.parse(readFileSync('package.json', 'utf8'));
+const validPwVersions = Object.keys(playwrightVersions).filter(
+  (v) => !isNaN(parseFloat(v)),
+);
 
 describe('Webkit Websocket API', function () {
   let browserless: Browserless;
@@ -166,4 +172,16 @@ describe('Webkit Websocket API', function () {
 
     await browser.close();
   });
+
+  for (const version of validPwVersions) {
+    it(`resolves WebKit revision for v${version}`, async () => {
+      await start();
+
+      const browser = await webkit.connect(
+        `ws://localhost:3000/playwright/webkit`,
+      );
+
+      await browser.close();
+    });
+  }
 });
