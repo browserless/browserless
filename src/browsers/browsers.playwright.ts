@@ -7,6 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
+  exists,
 } from '@browserless.io/browserless';
 import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
@@ -19,6 +20,8 @@ enum PlaywrightBrowserTypes {
   firefox = 'firefox',
   webkit = 'webkit',
 }
+
+let numericVersions: string[];
 
 class BasePlaywright extends EventEmitter {
   protected config: Config;
@@ -33,6 +36,48 @@ class BasePlaywright extends EventEmitter {
     PlaywrightBrowserTypes.chromium;
   protected executablePath = () =>
     playwright[this.playwrightBrowserType].executablePath();
+  protected async resolveExecutablePath(
+    versionedPw: typeof playwright,
+    pwVersion: string,
+  ): Promise<string> {
+    const execPath = versionedPw[this.playwrightBrowserType].executablePath();
+    if (await exists(execPath)) {
+      return execPath;
+    }
+
+    this.logger.warn(
+      `${this.constructor.name} binary not found for Playwright ${pwVersion}, searching for fallback...`,
+    );
+
+    const versions = this.config.getPwVersions();
+    const requested = parseFloat(pwVersion);
+    if (!numericVersions)
+      numericVersions = Object.keys(versions)
+        .filter(
+          (v) => v !== 'default' && v !== pwVersion && !isNaN(parseFloat(v)),
+        )
+        // Sort ascending by minor version, so we can find the nearest version above the requested one
+        .sort((a, b) => {
+          const da = parseFloat(a) - requested;
+          const db = parseFloat(b) - requested;
+          if (da < 0 && db >= 0) return -1;
+          if (db < 0 && da >= 0) return 1;
+          return Math.abs(da) - Math.abs(db);
+        });
+
+    for (const v of numericVersions) {
+      const pw = await this.config.loadPwVersion(v);
+      const fallbackPath = pw[this.playwrightBrowserType].executablePath();
+      if (await exists(fallbackPath)) {
+        this.logger.warn(
+          `Using Playwright ${v} binary as fallback for ${pwVersion}: ${fallbackPath}`,
+        );
+        return fallbackPath;
+      }
+    }
+
+    return execPath;
+  }
   protected keepUntilMS = 0;
 
   constructor({
@@ -143,10 +188,15 @@ class BasePlaywright extends EventEmitter {
     const { options, pwVersion } = launcherOpts;
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
-    const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
+    const opts = this.makeLaunchOptions(options);
+    const executablePath = await this.resolveExecutablePath(
+      versionedPw,
+      pwVersion!,
+    );
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
+      executablePath,
       args: opts.args.filter((_) => !!_),
     });
     const browserWSEndpoint = browser.wsEndpoint();
@@ -234,13 +284,19 @@ export class ChromiumPlaywright extends BasePlaywright {
 }
 
 export class ChromePlaywright extends ChromiumPlaywright {
-  protected executablePath = () => chromeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+
+  protected async resolveExecutablePath(): Promise<string> {
+    return chromeExecutablePath();
+  }
 }
 
 export class EdgePlaywright extends ChromiumPlaywright {
-  protected executablePath = () => edgeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+
+  protected async resolveExecutablePath(): Promise<string> {
+    return edgeExecutablePath();
+  }
 }
 
 export class FirefoxPlaywright extends BasePlaywright {
