@@ -145,7 +145,7 @@ export class HTTPServer extends EventEmitter {
     );
 
     socket.on('error', (err) => {
-      this.logger.trace(
+      this.logger.error(
         `Socket error during non-WebSocket upgrade handling: ${err.message}`,
       );
     });
