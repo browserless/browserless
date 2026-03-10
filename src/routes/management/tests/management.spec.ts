@@ -1,3 +1,4 @@
+import * as http from 'http';
 import {
   exists,
   Browserless,
@@ -391,6 +392,22 @@ describe('Management APIs', function () {
       `http://localhost:3000/kill/invalid-session?token=6R0W53R135510`,
     ).then(async (res) => {
       expect(res.status).to.equal(404);
+    });
+  });
+
+  it('handles non-WebSocket upgrade requests (h2c) as normal HTTP', async () => {
+    await start();
+
+    await new Promise<http.IncomingMessage>((resolve, reject) => {
+      http
+        .get(
+          'http://localhost:3000/config?token=6R0W53R135510',
+          { headers: { Connection: 'Upgrade', Upgrade: 'h2c' } },
+          resolve,
+        )
+        .on('error', reject);
+    }).then(async (res) => {
+      expect(res.statusCode).to.equal(200);
     });
   });
 });
