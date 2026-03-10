@@ -401,7 +401,7 @@ describe('Management APIs', function () {
     await new Promise<http.IncomingMessage>((resolve, reject) => {
       http
         .get(
-          'http://localhost:3000/json/version?token=6R0W53R135510',
+          'http://localhost:3000/config?token=6R0W53R135510',
           { headers: { Connection: 'Upgrade', Upgrade: 'h2c' } },
           resolve,
         )
