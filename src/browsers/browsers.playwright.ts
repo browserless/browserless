@@ -33,6 +33,9 @@ class BasePlaywright extends EventEmitter {
     PlaywrightBrowserTypes.chromium;
   protected executablePath = () =>
     playwright[this.playwrightBrowserType].executablePath();
+  protected async resolveExecutablePath(pwVersion: string): Promise<string> {
+    return this.config.resolveExecutablePath(this.playwrightBrowserType, pwVersion);
+  }
   protected keepUntilMS = 0;
 
   constructor({
@@ -145,10 +148,7 @@ class BasePlaywright extends EventEmitter {
 
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
     const opts = this.makeLaunchOptions(options);
-    const executablePath = await this.config.resolveExecutablePath(
-      this.playwrightBrowserType,
-      pwVersion!,
-    );
+    const executablePath = await this.resolveExecutablePath(pwVersion!);
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
       executablePath,
