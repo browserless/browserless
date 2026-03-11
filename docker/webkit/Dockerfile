@@ -6,7 +6,7 @@ COPY src src/
 
 # NOTE it's important to not use npx playwright-core here since it'll likely install
 # a more recent version than we potentially have in our own package.json
-RUN ./node_modules/playwright-core/cli.js install --with-deps webkit && \
+RUN bash ./scripts/install-versioned-browsers.sh webkit && \
     npm run build && \
     npm prune production && \
     chown -R blessuser:blessuser $APP_DIR && \

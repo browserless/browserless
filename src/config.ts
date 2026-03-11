@@ -183,6 +183,9 @@ export class Config extends EventEmitter {
   protected timeoutAlertURL = process.env.TIMEOUT_ALERT_URL ?? null;
   protected errorAlertURL = process.env.ERROR_ALERT_URL ?? null;
   protected pwVersions: { [key: string]: string } = {};
+  // Sorted ascending by minor version: [minor, version string, executable path]
+  protected installedBinaries: Map<string, Array<[number, string, string]>> =
+    new Map();
   protected enableDebugger = !!parseEnvVars(true, 'ENABLE_DEBUGGER');
 
   public getRoutes(): string {
@@ -346,6 +349,17 @@ export class Config extends EventEmitter {
     return (this.pwVersions = versions);
   }
 
+  public setInstalledBinaries(
+    browserType: string,
+    binaries: Array<[number, string, string]>,
+  ) {
+    this.installedBinaries.set(browserType, binaries);
+  }
+
+  public getInstalledBinaries(browserType: string): Array<[number, string, string]> {
+    return this.installedBinaries.get(browserType) ?? [];
+  }
+
   public async loadPwVersion(version: string): Promise<typeof playwright> {
     const versions = this.getPwVersions();
 
@@ -355,6 +369,41 @@ export class Config extends EventEmitter {
       debug.log('Error importing Playwright. Using default version', err);
       return playwright;
     }
+  }
+
+  public async resolveExecutablePath(
+    browserType: 'chromium' | 'firefox' | 'webkit',
+    pwVersion: string,
+  ): Promise<string> {
+    const versionedPw = await this.loadPwVersion(pwVersion);
+    const execPath = versionedPw[browserType].executablePath();
+
+    if (await exists(execPath)) {
+      return execPath;
+    }
+
+    debug.log(
+      `Binary not found for Playwright ${pwVersion} ${browserType}, searching for fallback...`,
+    );
+
+    const installed = this.getInstalledBinaries(browserType);
+    const requested = parseFloat(pwVersion);
+
+    // Prefer the closest older binary (safer: less likely to have dropped
+    // protocol APIs the client relies on), then fall through to the closest newer one.
+    const older = [...installed].reverse().find(([v]) => v < requested);
+    const newer = installed.find(([v]) => v > requested);
+    const fallback = older ?? newer;
+
+    if (fallback) {
+      const [, fallbackVersion, fallbackPath] = fallback;
+      debug.log(
+        `Using Playwright ${fallbackVersion} binary as fallback for ${pwVersion}: ${fallbackPath}`,
+      );
+      return fallbackPath;
+    }
+
+    return execPath;
   }
 
   public async setDataDir(newDataDir: string): Promise<string> {

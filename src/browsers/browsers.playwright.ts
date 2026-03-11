@@ -33,6 +33,9 @@ class BasePlaywright extends EventEmitter {
     PlaywrightBrowserTypes.chromium;
   protected executablePath = () =>
     playwright[this.playwrightBrowserType].executablePath();
+  protected async resolveExecutablePath(pwVersion: string): Promise<string> {
+    return this.config.resolveExecutablePath(this.playwrightBrowserType, pwVersion);
+  }
   protected keepUntilMS = 0;
 
   constructor({
@@ -143,10 +146,12 @@ class BasePlaywright extends EventEmitter {
     const { options, pwVersion } = launcherOpts;
     this.logger.info(`Launching ${this.constructor.name} Handler`);
 
-    const opts = this.makeLaunchOptions(options);
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
+    const opts = this.makeLaunchOptions(options);
+    const executablePath = await this.resolveExecutablePath(pwVersion!);
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
+      executablePath,
       args: opts.args.filter((_) => !!_),
     });
     const browserWSEndpoint = browser.wsEndpoint();
@@ -234,13 +239,19 @@ export class ChromiumPlaywright extends BasePlaywright {
 }
 
 export class ChromePlaywright extends ChromiumPlaywright {
-  protected executablePath = () => chromeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+
+  protected async resolveExecutablePath(): Promise<string> {
+    return chromeExecutablePath();
+  }
 }
 
 export class EdgePlaywright extends ChromiumPlaywright {
-  protected executablePath = () => edgeExecutablePath();
   protected playwrightBrowserType = PlaywrightBrowserTypes.chromium;
+
+  protected async resolveExecutablePath(): Promise<string> {
+    return edgeExecutablePath();
+  }
 }
 
 export class FirefoxPlaywright extends BasePlaywright {

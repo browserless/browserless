@@ -28,6 +28,7 @@ import {
   WebSocketRoute,
   availableBrowsers,
   dedent,
+  exists,
   getRouteFiles,
   makeExternalURL,
   normalizeFileProtocol,
@@ -160,6 +161,37 @@ export class Browserless extends EventEmitter {
     );
 
     this.config.setPwVersions(playwrightVersions);
+  }
+
+  protected async loadInstalledBinaries(): Promise<void> {
+    const pwVersions = this.config.getPwVersions();
+    const browserTypes = ['chromium', 'firefox', 'webkit'] as const;
+
+    await Promise.all(
+      browserTypes.map(async (browserType) => {
+        const installed: Array<[number, string, string]> = [];
+
+        await Promise.all(
+          Object.keys(pwVersions).map(async (version) => {
+            const minor = parseFloat(version);
+            if (isNaN(minor)) return;
+
+            try {
+              const pw = await this.config.loadPwVersion(version);
+              const exePath = pw[browserType].executablePath();
+              if (await exists(exePath)) {
+                installed.push([minor, version, exePath]);
+              }
+            } catch {
+              // Package not installed, skip
+            }
+          }),
+        );
+
+        installed.sort(([a], [b]) => a - b);
+        this.config.setInstalledBinaries(browserType, installed);
+      }),
+    );
   }
 
   protected async saveMetrics(): Promise<void> {
@@ -434,6 +466,7 @@ export class Browserless extends EventEmitter {
     );
 
     await this.loadPwVersions();
+    await this.loadInstalledBinaries();
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(

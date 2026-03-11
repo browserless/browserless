@@ -16,7 +16,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
   fi && \
   # NOTE it's important to not use npx playwright-core here since it'll likely install
   # a more recent version than we potentially have in our own package.json
-  ./node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit &&\
+  bash ./scripts/install-versioned-browsers.sh webkit firefox chromium && \
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\
