@@ -1,4 +1,20 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.42.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.43.0...main)
+
+# [v2.43.0](https://github.com/browserless/browserless/compare/v2.42.0...v2.43.0)
+- Dependency updates.
+- Updates NPM to `11.11.1`.
+- Fix: allow multiple Playwright binaries for WebKit.
+- Fix: handle h2c upgrade requests as normal HTTP.
+- Fix: preserve external `webSocketDebuggerUrl` for CDP clients in JSON version endpoint.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.39.0`
+  - playwright-core: `1.58.2`, `1.57.0`, `1.56.1`, `1.55.1`, and `1.54.2`.
+  - Chromium: `145.0.7632.0`
+  - Chrome: `146.0.7680.71` (amd64 only)
+  - Firefox: `146.0.1`
+  - Webkit: `26.0`
+  - Edge: `145.0.3800.97` (amd64 only)
+
 
 # [v2.42.0](https://github.com/browserless/browserless/compare/v2.41.0...v2.42.0)
 - Dependency updates.
