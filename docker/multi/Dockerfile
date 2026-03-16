@@ -22,7 +22,7 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
   if [ "$INSTALL_WEBKIT_VERSIONS" = "true" ]; then \
     bash ./scripts/install-versioned-browsers.sh webkit; \
   else \
-    node node_modules/playwright-core/cli.js install webkit; \
+    node node_modules/playwright-core/cli.js install --with-deps webkit; \
   fi && \
   npm run build &&\
   npm run build:function &&\
