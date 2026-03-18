@@ -4,6 +4,7 @@ LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 ARG TARGETPLATFORM
 ENV TARGETPLATFORM=${TARGETPLATFORM}
+ARG INSTALL_WEBKIT_VERSIONS=false
 
 COPY src src/
 
@@ -16,7 +17,13 @@ RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
   fi && \
   # NOTE it's important to not use npx playwright-core here since it'll likely install
   # a more recent version than we potentially have in our own package.json
-  bash ./scripts/install-versioned-browsers.sh webkit firefox chromium && \
+  node node_modules/playwright-core/cli.js install chromium firefox && \
+
+  if [ "$INSTALL_WEBKIT_VERSIONS" = "true" ]; then \
+    bash ./scripts/install-versioned-browsers.sh webkit; \
+  else \
+    node node_modules/playwright-core/cli.js install --with-deps webkit; \
+  fi && \
   npm run build &&\
   npm run build:function &&\
   npm prune production &&\

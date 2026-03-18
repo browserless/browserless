@@ -103,10 +103,27 @@ jobs:
         with:
           build-args: |
             VERSION=latest
+            INSTALL_WEBKIT_VERSIONS=false
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/webkit/Dockerfile
           tags: |
             ghcr.io/browserless/webkit:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest Webkit Heavy image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=latest
+            INSTALL_WEBKIT_VERSIONS=true
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/webkit/Dockerfile
+          tags: |
+            ghcr.io/browserless/webkit-heavy:latest
           context: .
           push: true
           platforms: |
@@ -118,10 +135,27 @@ jobs:
         with:
           build-args: |
             VERSION=latest
+            INSTALL_WEBKIT_VERSIONS=false
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/multi/Dockerfile
           tags: |
             ghcr.io/browserless/multi:latest
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the latest Multi Heavy image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=latest
+            INSTALL_WEBKIT_VERSIONS=true
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/multi/Dockerfile
+          tags: |
+            ghcr.io/browserless/multi-heavy:latest
           context: .
           push: true
           platforms: |

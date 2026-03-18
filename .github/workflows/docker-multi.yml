@@ -25,7 +25,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 5
           retry_wait_seconds: 30
-          command: docker build --build-arg VERSION=${{ matrix.node-version }} -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:${{ matrix.node-version }} .
+          command: docker build --build-arg VERSION=${{ matrix.node-version }} --build-arg INSTALL_WEBKIT_VERSIONS=false -f ./docker/multi/Dockerfile -t ghcr.io/browserless/multi:${{ matrix.node-version }} .
 
       - name: Test the multi image
         uses: nick-fields/retry@v3

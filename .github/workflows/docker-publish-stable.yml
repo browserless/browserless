@@ -102,10 +102,27 @@ jobs:
         with:
           build-args: |
             VERSION=${{github.ref_name}}
+            INSTALL_WEBKIT_VERSIONS=false
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/webkit/Dockerfile
           tags: |
             ghcr.io/browserless/webkit:${{github.ref_name}}
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the Stable Webkit Heavy image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=${{github.ref_name}}
+            INSTALL_WEBKIT_VERSIONS=true
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/webkit/Dockerfile
+          tags: |
+            ghcr.io/browserless/webkit-heavy:${{github.ref_name}}
           context: .
           push: true
           platforms: |
@@ -117,10 +134,27 @@ jobs:
         with:
           build-args: |
             VERSION=${{github.ref_name}}
+            INSTALL_WEBKIT_VERSIONS=false
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/multi/Dockerfile
           tags: |
             ghcr.io/browserless/multi:${{github.ref_name}}
+          context: .
+          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+
+      - name: Publish the Stable Multi Heavy image
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            VERSION=${{github.ref_name}}
+            INSTALL_WEBKIT_VERSIONS=true
+          builder: ${{ steps.buildx.outputs.name }}
+          file: ./docker/multi/Dockerfile
+          tags: |
+            ghcr.io/browserless/multi-heavy:${{github.ref_name}}
           context: .
           push: true
           platforms: |
