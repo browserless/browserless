@@ -27,7 +27,7 @@ import path from 'path';
 
 interface JSONSchema {
   code: string;
-  context?: Record<string, string | number>;
+  context?: { [key: string]: string | number | boolean };
 }
 
 export type BodySchema = JSONSchema | string;

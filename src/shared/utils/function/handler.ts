@@ -29,7 +29,7 @@ declare global {
 
 interface JSONSchema {
   code: string;
-  context?: Record<string, string | number>;
+  context?: { [key: string]: string | number | boolean };
 }
 
 interface HandlerOptions {

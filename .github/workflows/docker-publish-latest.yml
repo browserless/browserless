@@ -28,7 +28,7 @@ jobs:
           password: ${{ secrets.GHCR_PASSWORD }}
 
       - name: Publish the latest Base image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/base/Dockerfile
@@ -41,7 +41,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Chromium image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -56,7 +56,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Chrome image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -70,7 +70,7 @@ jobs:
             linux/amd64
 
       - name: Publish the latest Edge image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -84,7 +84,7 @@ jobs:
             linux/amd64
 
       - name: Publish the latest FireFox image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -99,7 +99,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Webkit image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -115,7 +115,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Webkit Heavy image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -131,7 +131,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Multi image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
@@ -147,7 +147,7 @@ jobs:
             linux/arm64
 
       - name: Publish the latest Multi Heavy image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             VERSION=latest
