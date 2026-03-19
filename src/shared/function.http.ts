@@ -22,7 +22,7 @@ import functionHandler from './utils/function/handler.js';
 
 interface JSONSchema {
   code: string;
-  context?: Record<string, string | number>;
+  context?: { [key: string]: string | number };
 }
 
 export type BodySchema = JSONSchema | string;
