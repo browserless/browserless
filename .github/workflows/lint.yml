@@ -6,7 +6,7 @@ jobs:
   Lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install modules
         uses: nick-fields/retry@v3
         with:

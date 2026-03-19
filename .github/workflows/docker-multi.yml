@@ -9,7 +9,7 @@ jobs:
       matrix:
         node-version: ['v24.14.0']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Build the base layer
         uses: nick-fields/retry@v3
