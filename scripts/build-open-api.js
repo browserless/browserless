@@ -242,7 +242,7 @@ const buildOpenAPI = async (
       // ignores the "accepts" properties on routes since we can't
       // yet correlate the accepted types to the proper body
       if (r.body) {
-        const { properties, type, anyOf } = r.body;
+        const { properties, type, required, anyOf } = r.body;
         if (anyOf) {
           // @ts-ignore
           anyOf.forEach((anyType) => {
@@ -270,11 +270,15 @@ const buildOpenAPI = async (
 
         // Handle JSON
         if (type === 'object') {
+          const schema = {
+            properties,
+            type: 'object',
+          };
+          if (required?.length) {
+            schema.required = required;
+          }
           swaggerRoute.requestBody.content['application/json'] = {
-            schema: {
-              properties,
-              type: 'object',
-            },
+            schema,
           };
         }
       }
