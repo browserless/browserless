@@ -9,10 +9,10 @@ jobs:
       matrix:
         node-version: ['v24.14.0']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build the base layer
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 5
@@ -20,7 +20,7 @@ jobs:
           command: docker build --build-arg NODE_VERSION=${{ matrix.node-version }} -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:${{ matrix.node-version }} .
 
       - name: Build the Chrome image
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 5
@@ -28,7 +28,7 @@ jobs:
           command: docker build --build-arg VERSION=${{ matrix.node-version }} -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:${{ matrix.node-version }} .
 
       - name: Test the Chrome image
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 10
           max_attempts: 5
