@@ -100,7 +100,7 @@
     "prettier": "^3.8.1",
     "sinon": "^21.0.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "typescript-json-schema": "^0.67.1"
   },
   "playwrightVersions": {
