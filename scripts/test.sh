@@ -7,7 +7,6 @@ npm cache clean --force && rm -rf ./node_modules && rm ./package-lock.json && np
 # Setup Env Variables
 export DEBUG=-*
 export PUPPETEER_DISABLE_HEADLESS_WARNING=true
-export NODE_OPTIONS="--loader ts-node/esm"
 
 if [ -z "$DISPLAY" ]
 then
