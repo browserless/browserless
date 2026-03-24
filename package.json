@@ -99,7 +99,6 @@
     "move-file": "^4.1.0",
     "prettier": "^3.8.1",
     "sinon": "^21.0.3",
-    "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-json-schema": "^0.67.1"
   },
@@ -119,7 +118,6 @@
     "extension": [
       "js"
     ],
-    "loader": "ts-node/esm",
     "spec": "build/**/*.spec.js",
     "timeout": 45000,
     "slow": 5000
