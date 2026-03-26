@@ -443,6 +443,14 @@ export interface BrowserlessSessionFullJSON extends BrowserlessSessionJSON {
   }[];
 }
 
+export type ContextValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ContextValue[]
+  | { [key: string]: ContextValue };
+
 export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type WaitForFunctionOptions = {
