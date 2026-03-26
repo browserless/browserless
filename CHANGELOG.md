@@ -1,4 +1,17 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.45.0...main)
+# [Latest](https://github.com/browserless/chrome/compare/v2.46.0...main)
+
+# [v2.46.0](https://github.com/browserless/browserless/compare/v2.45.0...v2.46.0)
+- Dependency updates.
+- Updates NodeJS to `24.14.1`.
+- Fix: replace Record and Parameters utility types with index signatures to fix schema validation.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.40.0`
+  - playwright-core: `1.58.2`, `1.57.0`, `1.56.1`, `1.55.1`, and `1.54.2`.
+  - Chromium: `145.0.7632.0`
+  - Chrome: `146.0.7680.153` (amd64 only)
+  - Firefox: `146.0.1`
+  - Webkit: `26.0`
+  - Edge: `146.0.3856.62` (amd64 only)
 
 # [v2.45.0](https://github.com/browserless/browserless/compare/v2.44.0...v2.45.0)
 - Dependency updates.
