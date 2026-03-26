@@ -81,6 +81,44 @@ describe('/chrome/function API', function () {
     });
   });
 
+  it('allows nested objects and arrays in context', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ context }) {
+        return Promise.resolve({
+          data: context,
+          type: "application/json",
+        });
+      }`,
+      context: {
+        role: 'admin',
+        expiry: 3600,
+        is_active: true,
+        otp: null,
+        email_webhook_info: {
+          url: 'https://example.com/webhook',
+          headers: { authorization: 'Bearer token' },
+        },
+        tags: ['a', 'b', 'c'],
+      },
+    };
+
+    await fetch('http://localhost:3000/chrome/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      expect(res.status).to.equal(200);
+      const json = await res.json();
+      expect(json.data).to.deep.equal(body.context);
+    });
+  });
+
   it('runs "application/javascript" functions', async () => {
     const config = new Config();
     config.setToken('browserless');

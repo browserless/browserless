@@ -211,8 +211,10 @@ class SchemaResolver {
           : this.joi.alternatives(partialSchemas).match('all');
     }
 
-    if (generatedId) {
-      // we have finished resolving the schema, now attach the id generated earlier
+    if (generatedId && !schema.$ref) {
+      // we have finished resolving the schema, now attach the id generated earlier.
+      // Skip for $ref schemas — the resolved target already carries its own id
+      // and overwriting it would break cyclic Joi.link() references.
       resolvedSchema = resolvedSchema.id(this.walkedSchemas.get(schema));
     }
 

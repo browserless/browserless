@@ -6,6 +6,7 @@ import {
   BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
+  ContextValue,
   HTTPRoutes,
   Logger,
   Methods,
@@ -22,7 +23,7 @@ import functionHandler from './utils/function/handler.js';
 
 interface JSONSchema {
   code: string;
-  context?: { [key: string]: string | number | boolean };
+  context?: { [key: string]: ContextValue };
 }
 
 export type BodySchema = JSONSchema | string;

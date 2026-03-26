@@ -58,7 +58,7 @@ export interface BodySchema {
   requestInterceptors?: Array<requestInterceptors>;
   scrollPage?: boolean;
   selector?: string;
-  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+  setExtraHTTPHeaders?: { [key: string]: string };
   setJavaScriptEnabled?: boolean;
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
