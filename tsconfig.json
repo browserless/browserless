@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
+    "rootDir": "src",
     "rootDirs": ["src"],
     "outDir": "build",
-    "baseUrl": ".",
     "module": "es2022",
     "moduleResolution": "Bundler",
     "target": "es2022",
     "paths": {
-      "@browserless.io/*": ["src/exports.ts"]
+      "@browserless.io/*": ["./src/exports.ts"]
     },
     "lib": ["dom", "dom.iterable", "es2022"],
+    "types": ["node", "mocha"],
     "strict": true,
     "removeComments": false,
     "noImplicitAny": true,
