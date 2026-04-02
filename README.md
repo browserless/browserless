@@ -147,7 +147,7 @@ Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/prici
 - **[/crawl API](https://docs.browserless.io/rest-apis/crawl)** for asynchronously crawling entire websites and scraping every discovered page into structured, LLM-ready data
 - **[/map API](https://docs.browserless.io/rest-apis/map)** for discovering all URLs on a website via sitemaps and link extraction, with search-based relevance ranking
 - **[/search API](https://docs.browserless.io/rest-apis/search)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
-- **[MCP Server](https://docs.browserless.io/mcp/overview)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
+- **[MCP Server](https://docs.browserless.io/mcp/browserless-mcp-server)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
 - **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
 
 ## 🚢 Customisable Deployment Options
