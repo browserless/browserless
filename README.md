@@ -53,7 +53,6 @@
 
 - [Get Started in Seconds](#-get-started-in-seconds)
 - [Features](#-features)
-- [MCP Server](#-mcp-server)
 - [Customisable Deployment Options](#-customisable-deployment-options)
 - [Why Browserless?](#-why-browserless)
 - [Licensing](#-licensing)
@@ -150,26 +149,6 @@ Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/prici
 - **[/search API](https://docs.browserless.io/rest-apis/search)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
 - **[MCP Server](https://docs.browserless.io/mcp/overview)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
 - **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
-
-## 🤖 MCP Server
-
-Browserless offers an [MCP (Model Context Protocol) server](https://docs.browserless.io/mcp/overview) that lets AI assistants connect directly to the Browserless platform. Give your LLM the ability to scrape pages, search the web, crawl websites, take screenshots, generate PDFs, and run Lighthouse audits — all through a simple tool interface.
-
-```bash
-BROWSERLESS_TOKEN=your-token npx browserless-mcp
-```
-
-The MCP server works with Claude Desktop, Cursor, VS Code, Windsurf, and any other MCP-compatible client. It exposes the following tools:
-
-| Tool | Description |
-|------|-------------|
-| `browserless_smartscraper` | Scrape any webpage using cascading strategies (HTTP fetch, proxy, headless browser, captcha solving) |
-| `browserless_search` | Search the web and optionally scrape each result with geo-targeting and time filters |
-| `browserless_map` | Discover and map all URLs on a website via sitemaps and link extraction |
-| `browserless_crawl` | Crawl an entire website with depth control, path filtering, and configurable scrape options |
-| `browserless_performance` | Run Lighthouse audits for accessibility, best practices, performance, PWA, and SEO |
-
-For setup instructions and configuration options, see the [MCP documentation](https://docs.browserless.io/mcp/overview) or the [`browserless-mcp` repository](https://github.com/browserless/browserless-mcp).
 
 ## 🚢 Customisable Deployment Options
 
