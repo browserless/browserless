@@ -143,6 +143,11 @@ Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/prici
 - **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with Captcha solving, fingerprint randomization, and residential proxy rotation
 - **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
 - **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/)** for automatic IP rotation and geo-targeting with residential proxy networks
+- **[/smart-scrape API](https://docs.browserless.io/rest-apis/smart-scrape)** for intelligently scraping any URL using cascading strategies (HTTP fetch, proxy, headless browser, captcha solving)
+- **[/crawl API](https://docs.browserless.io/rest-apis/crawl)** for asynchronously crawling entire websites and scraping every discovered page into structured, LLM-ready data
+- **[/map API](https://docs.browserless.io/rest-apis/map)** for discovering all URLs on a website via sitemaps and link extraction, with search-based relevance ranking
+- **[/search API](https://docs.browserless.io/rest-apis/search)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
+- **[MCP Server](https://docs.browserless.io/mcp/browserless-mcp-server)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
 - **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
 
 ## 🚢 Customisable Deployment Options
