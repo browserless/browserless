@@ -23,7 +23,6 @@ ENV NODE_ENV=production
 ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
-ENV DBUS_SESSION_BUS_ADDRESS=autolaunch:
 
 RUN mkdir -p $APP_DIR $NVM_DIR && \
   groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
@@ -50,8 +49,6 @@ RUN apt-get update \
   ssh \
   wget \
   xvfb \
-  dbus \
-  dbus-x11 \
   libwebp-dev \
   python3 python3-pip python3-setuptools \
   # Font packages
