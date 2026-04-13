@@ -173,10 +173,11 @@ export const writeResponse = (
     return;
   }
 
-  const isJSON = contentType.includes(contentTypes.json); // contentType can include charset, so we check if it includes the json content type rather than equals
+  const isJSON = contentType.includes(contentTypes.json);
+  const isError = httpCode >= 400;
   const httpMessage = codes[httpCode];
   const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
-  const body = isJSON
+  const body = isJSON && isError
     ? JSON.stringify({ error: message })
     : message;
 
