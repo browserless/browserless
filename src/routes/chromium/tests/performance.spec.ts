@@ -22,7 +22,7 @@ describe('/chromium/performance API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://one.one.one.one',
+      url: 'https://browserless.io',
     };
 
     await fetch(
@@ -148,7 +148,7 @@ describe('/chromium/performance API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://one.one.one.one',
+      url: 'https://browserless.io',
     };
 
     await fetch('http://localhost:3000/chromium/performance', {
