@@ -80,7 +80,7 @@
     "@types/http-proxy": "^1.17.17",
     "@types/micromatch": "^4.0.10",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.5.2",
+    "@types/node": "^25.6.0",
     "@types/sinon": "^21.0.1",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
     "@typescript-eslint/parser": "^8.57.2",
