@@ -243,9 +243,13 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    const body = await readBody(req, this.config.getMaxPayloadSize()).catch(
-      (e) => this.handleErrorRequest(e, res, req),
-    );
+    const body = await readBody(req, this.config.getMaxPayloadSize()).catch(() => undefined );
+
+    // readBody can return null, but not undefined, so if it's undefined, it means there was an error reading the body
+    if (body === undefined) {
+      return this.handleErrorRequest(new Error('Failed to read request body'), res, req);
+    }
+
     req.body = body;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 
@@ -473,5 +477,5 @@ export class HTTPServer extends EventEmitter {
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop() {}
+  public stop() { }
 }
