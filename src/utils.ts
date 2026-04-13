@@ -173,14 +173,18 @@ export const writeResponse = (
     return;
   }
 
+  const isJSON = contentType.includes(contentTypes.json); // contentType can include charset, so we check if it includes the json content type rather than equals
   const httpMessage = codes[httpCode];
   const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
+  const body = isJSON
+    ? JSON.stringify({ error: message })
+    : message;
 
   if (isHTTP(writeable)) {
     const response = writeable;
     if (!response.headersSent) {
       response.writeHead(httpMessage.code, { 'Content-Type': CTTHeader });
-      response.end(message + '\n');
+      response.end(body + '\n');
     }
     return;
   }
@@ -192,7 +196,7 @@ export const writeResponse = (
     'Accept-Ranges: bytes',
     'Connection: keep-alive',
     '\r\n',
-    message,
+    body,
   ].join('\r\n');
 
   writeable.write(httpResponse);
@@ -551,7 +555,7 @@ export const queryParamsToObject = (
     {} as ReturnType<typeof queryParamsToObject>,
   );
 
-const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 
 const wrapUserFunction = (fn: string) => {
   // Handle async definitions
@@ -638,7 +642,7 @@ export const scrollThroughPage = async (page: Page) => {
   }, viewport.height);
 };
 
-export const noop = (): void => {};
+export const noop = (): void => { };
 
 export const once = <A extends unknown[], R, T>(
   fn: (this: T, ...arg: A) => R,
@@ -732,10 +736,10 @@ export class Timeout extends Error {
 
 export const bestAttemptCatch =
   (bestAttempt: boolean) =>
-  (err: Error): void => {
-    if (bestAttempt) return;
-    throw err;
-  };
+    (err: Error): void => {
+      if (bestAttempt) return;
+      throw err;
+    };
 
 export const parseBooleanParam = (
   params: URLSearchParams,
@@ -867,13 +871,13 @@ export const printLogo = (docsLink: string, debugURL?: string | boolean) => `
 | Full Documentation: https://docs.browserless.io/ ${
   /*prettier-ignore*/
   debugURL ? `
-| Debbuger: ${debugURL}`  : ""
-}
+| Debbuger: ${debugURL}` : ""
+  }
 ---------------------------------------------------------
 ${gradient(
-  '#ff1a8c',
-  '#ffea00',
-)(`
+    '#ff1a8c',
+    '#ffea00',
+  )(`
 
 █▓▒
 ████▒

@@ -61,25 +61,27 @@ export class HTTPServer extends EventEmitter {
     );
   }
 
-  protected handleErrorRequest(e: Error, res: Response | stream.Duplex) {
+  protected handleErrorRequest(e: Error, res: Response | stream.Duplex, req?: Request) {
+    const contentType = req?.headers['content-type'] as contentTypes;
+
     if (e instanceof BadRequest) {
-      return writeResponse(res, 400, e.message);
+      return writeResponse(res, 400, e.message, contentType);
     }
 
     if (e instanceof NotFound) {
-      return writeResponse(res, 404, e.message);
+      return writeResponse(res, 404, e.message, contentType);
     }
 
     if (e instanceof Unauthorized) {
-      return writeResponse(res, 401, e.message);
+      return writeResponse(res, 401, e.message, contentType);
     }
 
     if (e instanceof TooManyRequests) {
-      return writeResponse(res, 429, e.message);
+      return writeResponse(res, 429, e.message, contentType);
     }
 
     if (e instanceof Timeout) {
-      return writeResponse(res, 408, e.message);
+      return writeResponse(res, 408, e.message, contentType);
     }
 
     this.logger.error(`Error handling request: ${e}\n${e.stack}`);
@@ -242,7 +244,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     const body = await readBody(req, this.config.getMaxPayloadSize()).catch(
-      (e) => this.handleErrorRequest(e, res),
+      (e) => this.handleErrorRequest(e, res, req),
     );
     req.body = body;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
@@ -351,7 +353,7 @@ export class HTTPServer extends EventEmitter {
       .then(() => {
         this.logger.trace('HTTP connection complete');
       })
-      .catch((e) => this.handleErrorRequest(e, res));
+      .catch((e) => this.handleErrorRequest(e, res, req));
   }
 
   protected async handleWebSocket(
@@ -446,7 +448,7 @@ export class HTTPServer extends EventEmitter {
         .then(() => {
           this.logger.trace('Websocket connection complete');
         })
-        .catch((e) => this.handleErrorRequest(e, socket));
+        .catch((e) => this.handleErrorRequest(e, socket, req));
     }
 
     this.logger.warn(
