@@ -176,7 +176,9 @@ export const writeResponse = (
   const isJSON = contentType.includes(contentTypes.json);
   const isError = httpCode >= 400;
   const httpMessage = codes[httpCode];
-  const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
+  const CTTHeader = contentType.toLowerCase().includes('charset=')
+    ? contentType
+    : `${contentType}; charset=${encodings.utf8}`;
   const body = isJSON && isError
     ? JSON.stringify({ error: message instanceof Error ? message.message : message })
     : message;
