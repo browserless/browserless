@@ -75,15 +75,15 @@ describe('Utils', () => {
       let writtenHead: { code?: number; headers?: Record<string, string> } = {};
       let body = '';
 
-      res.writeHead = function (code: number, headers?: any) {
+      res.writeHead = ((code: number, headers?: any) => {
         writtenHead = { code, headers };
-        return this;
-      } as any;
+        return res;
+      }) as any;
 
-      res.end = function (data?: any) {
+      res.end = ((data?: any) => {
         body = typeof data === 'string' ? data : '';
-        return this;
-      } as any;
+        return res;
+      }) as any;
 
       return { res, getHead: () => writtenHead, getBody: () => body };
     };
@@ -134,12 +134,12 @@ describe('Utils', () => {
       const { res, getHead, getBody } = createMockResponse();
       writeResponse(
         res,
-        422,
+        408,
         'Validation failed',
         'application/json; charset=utf-8' as contentTypes,
       );
 
-      expect(getHead().code).to.equal(422);
+      expect(getHead().code).to.equal(408);
       const parsed = JSON.parse(getBody().trim());
       expect(parsed).to.deep.equal({ error: 'Validation failed' });
     });
