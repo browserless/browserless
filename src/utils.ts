@@ -166,7 +166,7 @@ export const isConnected = (connection: Duplex | ServerResponse): boolean =>
 export const writeResponse = (
   writeable: Duplex | ServerResponse,
   httpCode: keyof typeof codes,
-  message: string,
+  message: string | Error,
   contentType: contentTypes = contentTypes.text,
 ): void => {
   if (!isConnected(writeable)) {
@@ -178,7 +178,7 @@ export const writeResponse = (
   const httpMessage = codes[httpCode];
   const CTTHeader = `${contentType}; charset=${encodings.utf8}`;
   const body = isJSON && isError
-    ? JSON.stringify({ error: message })
+    ? JSON.stringify({ error: message instanceof Error ? message.message : message })
     : message;
 
   if (isHTTP(writeable)) {

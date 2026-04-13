@@ -462,8 +462,8 @@ describe('/chromium/pdf API', function () {
       method: 'POST',
     }).then(async (res) => {
       expect(res.status).to.equal(400);
-      const errorText = await res.text();
-      expect(errorText).to.include(
+      const { error } = await res.json();
+      expect(error).to.include(
         '"fullPage" option cannot be used with "height" or "format" options.',
       );
     });
