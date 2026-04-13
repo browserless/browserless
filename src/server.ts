@@ -246,8 +246,8 @@ export class HTTPServer extends EventEmitter {
     let body;
     try {
       body = await readBody(req, this.config.getMaxPayloadSize());
-    } catch (e: any) {
-      return this.handleErrorRequest(e, res, req);
+    } catch (e: unknown) {
+      return this.handleErrorRequest(e as Error, res, req);
     }
 
     req.body = body;
