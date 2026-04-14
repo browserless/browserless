@@ -1,4 +1,19 @@
-# [Latest](https://github.com/browserless/chrome/compare/v2.46.0...main)
+# [Latest](https://github.com/browserless/browserless/compare/v2.47.0...main)
+
+# [v2.47.0](https://github.com/browserless/browserless/compare/v2.46.0...v2.47.0)
+- Dependency updates.
+- Updates NPM to `11.12.1`.
+- Adds support for Playwright 1.59.
+- Fix: include content type in generic error handling.
+- Fix: remove dbus autolaunch to stop orphaned dbus-daemon processes.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.40.0`
+  - playwright-core: `1.59.1`, `1.58.2`, `1.57.0`, `1.56.1`, and `1.55.1`.
+  - Chromium: `145.0.7632.0`
+  - Chrome: `147.0.7727.55` (amd64 only)
+  - Firefox: `146.0.1`
+  - Webkit: `26.0`
+  - Edge: `147.0.3912.60` (amd64 only)
 
 # [v2.46.0](https://github.com/browserless/browserless/compare/v2.45.0...v2.46.0)
 - Dependency updates.
