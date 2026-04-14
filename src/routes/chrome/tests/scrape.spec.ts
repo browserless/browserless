@@ -117,7 +117,8 @@ describe('/chrome/scrape API', function () {
       },
       method: 'POST',
     }).then(async (res) => {
-      expect(await res.text()).to.contain('Timed out waiting for selector');
+      const { error } = await res.json();
+      expect(error).to.include('Timed out waiting for selector');
       expect(res.status).not.to.equal(200);
     });
   });
