@@ -33,12 +33,16 @@ WORKDIR $APP_DIR
 
 COPY fonts/* /usr/share/fonts/truetype/
 
-# Optional apt mirror override. Defaults preserve upstream archive.ubuntu.com
-# for external builders; CI passes azure.archive.ubuntu.com to avoid timeouts
-# against the default mirror from GitHub-hosted (Azure-backed) runners.
-ARG APT_MIRROR=archive.ubuntu.com
-RUN sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
-  /etc/apt/sources.list.d/ubuntu.sources
+# Optional apt mirror override. Unset by default so external builders keep the
+# upstream archive.ubuntu.com + security.ubuntu.com defaults untouched. CI
+# passes azure.archive.ubuntu.com to avoid timeouts from GitHub-hosted
+# (Azure-backed) runners; when set, both archive and security are routed
+# through it since the Azure mirror carries noble-security as well.
+ARG APT_MIRROR=
+RUN if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
+      /etc/apt/sources.list.d/ubuntu.sources; \
+  fi
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends software-properties-common \
