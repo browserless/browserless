@@ -30,6 +30,8 @@ jobs:
       - name: Publish the latest Base image
         uses: docker/build-push-action@v7
         with:
+          build-args: |
+            APT_MIRROR=azure.archive.ubuntu.com
           builder: ${{ steps.buildx.outputs.name }}
           file: ./docker/base/Dockerfile
           tags: |

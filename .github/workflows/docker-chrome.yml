@@ -17,7 +17,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 5
           retry_wait_seconds: 30
-          command: docker build --build-arg NODE_VERSION=${{ matrix.node-version }} -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:${{ matrix.node-version }} .
+          command: docker build --build-arg NODE_VERSION=${{ matrix.node-version }} --build-arg APT_MIRROR=azure.archive.ubuntu.com -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:${{ matrix.node-version }} .
 
       - name: Build the Chrome image
         uses: nick-fields/retry@v4
