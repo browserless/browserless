@@ -99,7 +99,7 @@
     "move-file": "^4.1.0",
     "prettier": "^3.8.3",
     "sinon": "^21.1.2",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "typescript-json-schema": "^0.67.1"
   },
   "playwrightVersions": {
