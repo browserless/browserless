@@ -393,21 +393,29 @@ describe('CgroupV1Source', () => {
 });
 
 describe('detectMachineStatsSource', () => {
+  const V2_FILES = [
+    '/sys/fs/cgroup/cgroup.controllers',
+    '/sys/fs/cgroup/cpu.stat',
+    '/sys/fs/cgroup/cpu.max',
+    '/sys/fs/cgroup/memory.current',
+    '/sys/fs/cgroup/memory.max',
+  ];
+  const V1_FILES = [
+    '/sys/fs/cgroup/cpu/cpuacct.usage',
+    '/sys/fs/cgroup/cpu/cpu.cfs_quota_us',
+    '/sys/fs/cgroup/cpu/cpu.cfs_period_us',
+    '/sys/fs/cgroup/memory/memory.usage_in_bytes',
+    '/sys/fs/cgroup/memory/memory.limit_in_bytes',
+  ];
   const fileExistsFor = (paths: string[]) => (p: string) => paths.includes(p);
 
-  it('picks CgroupV2Source when /sys/fs/cgroup/cgroup.controllers exists', () => {
-    const source = detectMachineStatsSource(
-      'auto',
-      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
-    );
+  it('picks CgroupV2Source when the full v2 file set exists', () => {
+    const source = detectMachineStatsSource('auto', fileExistsFor(V2_FILES));
     expect(source.name).to.equal('cgroup-v2');
   });
 
   it('picks CgroupV1Source when v1 exists and v2 does not', () => {
-    const source = detectMachineStatsSource(
-      'auto',
-      fileExistsFor(['/sys/fs/cgroup/cpu/cpuacct.usage']),
-    );
+    const source = detectMachineStatsSource('auto', fileExistsFor(V1_FILES));
     expect(source.name).to.equal('cgroup-v1');
   });
 
@@ -417,10 +425,7 @@ describe('detectMachineStatsSource', () => {
   });
 
   it('forces HostSource when preference is "host"', () => {
-    const source = detectMachineStatsSource(
-      'host',
-      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
-    );
+    const source = detectMachineStatsSource('host', fileExistsFor(V2_FILES));
     expect(source.name).to.equal('host (systeminformation)');
   });
 
@@ -431,30 +436,37 @@ describe('detectMachineStatsSource', () => {
   });
 
   it('forces CgroupV2 when preference is "cgroup" and v2 is present', () => {
-    const source = detectMachineStatsSource(
-      'cgroup',
-      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
-    );
+    const source = detectMachineStatsSource('cgroup', fileExistsFor(V2_FILES));
     expect(source.name).to.equal('cgroup-v2');
   });
 
   it('picks CgroupV1Source when preference is "cgroup" and only v1 is present', () => {
-    const source = detectMachineStatsSource(
-      'cgroup',
-      fileExistsFor(['/sys/fs/cgroup/cpu/cpuacct.usage']),
-    );
+    const source = detectMachineStatsSource('cgroup', fileExistsFor(V1_FILES));
     expect(source.name).to.equal('cgroup-v1');
   });
 
-  it('prefers v2 when both probes exist in auto mode', () => {
+  it('prefers v2 when both file sets exist in auto mode', () => {
     const source = detectMachineStatsSource(
       'auto',
-      fileExistsFor([
-        '/sys/fs/cgroup/cgroup.controllers',
-        '/sys/fs/cgroup/cpu/cpuacct.usage',
-      ]),
+      fileExistsFor([...V2_FILES, ...V1_FILES]),
     );
     expect(source.name).to.equal('cgroup-v2');
+  });
+
+  it('falls back to HostSource in auto mode when v2 is partially present', () => {
+    // cgroup.controllers exists but cpu.stat does not — non-standard mount
+    const partial = V2_FILES.filter((p) => p !== '/sys/fs/cgroup/cpu.stat');
+    const source = detectMachineStatsSource('auto', fileExistsFor(partial));
+    expect(source.name).to.equal('host (systeminformation)');
+  });
+
+  it('throws in cgroup mode when v1 is partially present', () => {
+    const partial = V1_FILES.filter(
+      (p) => p !== '/sys/fs/cgroup/memory/memory.limit_in_bytes',
+    );
+    expect(() =>
+      detectMachineStatsSource('cgroup', fileExistsFor(partial)),
+    ).to.throw(/cgroup/i);
   });
 });
 

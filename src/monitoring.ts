@@ -317,8 +317,20 @@ const defaultFileExists: FileExists = (path) => {
   }
 };
 
-const CGROUP_V2_PROBE = '/sys/fs/cgroup/cgroup.controllers';
-const CGROUP_V1_PROBE = '/sys/fs/cgroup/cpu/cpuacct.usage';
+const CGROUP_V2_REQUIRED = [
+  '/sys/fs/cgroup/cgroup.controllers',
+  '/sys/fs/cgroup/cpu.stat',
+  '/sys/fs/cgroup/cpu.max',
+  '/sys/fs/cgroup/memory.current',
+  '/sys/fs/cgroup/memory.max',
+];
+const CGROUP_V1_REQUIRED = [
+  '/sys/fs/cgroup/cpu/cpuacct.usage',
+  '/sys/fs/cgroup/cpu/cpu.cfs_quota_us',
+  '/sys/fs/cgroup/cpu/cpu.cfs_period_us',
+  '/sys/fs/cgroup/memory/memory.usage_in_bytes',
+  '/sys/fs/cgroup/memory/memory.limit_in_bytes',
+];
 
 export function detectMachineStatsSource(
   preference: 'auto' | 'host' | 'cgroup',
@@ -326,15 +338,15 @@ export function detectMachineStatsSource(
 ): MachineStatsSource {
   if (preference === 'host') return new HostSource();
 
-  const hasV2 = fileExists(CGROUP_V2_PROBE);
-  const hasV1 = !hasV2 && fileExists(CGROUP_V1_PROBE);
+  const hasAll = (paths: string[]) => paths.every((p) => fileExists(p));
+  const hasV2 = hasAll(CGROUP_V2_REQUIRED);
+  const hasV1 = !hasV2 && hasAll(CGROUP_V1_REQUIRED);
 
   if (preference === 'cgroup') {
     if (hasV2) return new CgroupV2Source();
     if (hasV1) return new CgroupV1Source();
     throw new Error(
-      'MACHINE_STATS_SOURCE=cgroup but no cgroup files found at ' +
-        `${CGROUP_V2_PROBE} or ${CGROUP_V1_PROBE}.`,
+      'MACHINE_STATS_SOURCE=cgroup but required cgroup stat files are missing.',
     );
   }
 

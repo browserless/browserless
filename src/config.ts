@@ -177,7 +177,9 @@ export class Config extends EventEmitter {
   protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
   protected machineStatsSource: string = (
     process.env.MACHINE_STATS_SOURCE ?? 'auto'
-  ).toLowerCase();
+  )
+    .trim()
+    .toLowerCase();
   protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
   protected healthCheck = !!parseEnvVars(false, 'HEALTH');
   protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
