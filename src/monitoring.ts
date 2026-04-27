@@ -351,9 +351,13 @@ export class Monitoring extends EventEmitter {
   constructor(
     protected config: Config,
     statsSource?: MachineStatsSource,
+    logFn?: (msg: string) => void,
   ) {
     super();
-    this.statsSource = statsSource ?? new HostSource();
+    this.statsSource =
+      statsSource ?? detectMachineStatsSource(config.getMachineStatsSource());
+    const log = logFn ?? ((msg: string) => this.log.info(msg));
+    log(`Machine stats source: ${this.statsSource.name}`);
   }
 
   public async getMachineStats(): Promise<IResourceLoad> {
