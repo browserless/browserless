@@ -1,6 +1,48 @@
 import { Config, IResourceLoad, Logger } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
+import { readFile as fsReadFile } from 'fs/promises';
 import si from 'systeminformation';
+
+const READ_TIMEOUT_MS = 200;
+
+type ReadFileFn = (path: string, signal: AbortSignal) => Promise<string>;
+
+const defaultReadFile: ReadFileFn = (path, signal) =>
+  fsReadFile(path, { encoding: 'utf8', signal });
+
+export async function readWithTimeout(
+  path: string,
+  readFile: ReadFileFn = defaultReadFile,
+  timeoutMs: number = READ_TIMEOUT_MS,
+): Promise<string> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  return readFile(path, signal);
+}
+
+export interface MachineStatsSource {
+  read(): Promise<IResourceLoad>;
+  readonly name: string;
+}
+
+export class HostSource implements MachineStatsSource {
+  public readonly name = 'host (systeminformation)';
+  protected log = new Logger('hardware');
+
+  public async read(): Promise<IResourceLoad> {
+    const [cpuLoad, memLoad] = await Promise.all([
+      si.currentLoad(),
+      si.mem(),
+    ]).catch((err) => {
+      this.log.error(`Error checking machine stats`, err);
+      return [null, null];
+    });
+
+    const cpu = cpuLoad ? cpuLoad.currentLoadUser / 100 : null;
+    const memory = memLoad ? memLoad.active / memLoad.total : null;
+
+    return { cpu, memory };
+  }
+}
 
 export class Monitoring extends EventEmitter {
   protected log = new Logger('hardware');
