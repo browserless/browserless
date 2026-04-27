@@ -180,9 +180,11 @@ export function parseCpuV1Quota(
 ): number | null {
   const period = Number(periodContent.trim());
   if (!Number.isFinite(period) || period <= 0) return null;
-  const quota = Number(quotaContent.trim());
+  const trimmedQuota = quotaContent.trim();
+  if (!trimmedQuota) return null;
+  const quota = Number(trimmedQuota);
   if (!Number.isFinite(quota)) return null;
-  if (quota <= 0) return os.cpus().length; // -1 means unbounded
+  if (quota <= 0) return os.cpus().length; // <= 0 (including -1) means unbounded
   return quota / period;
 }
 
@@ -203,12 +205,12 @@ export class CgroupV1Source implements MachineStatsSource {
   protected lastSample: Sample | null = null;
   protected loggedFailure: Set<string> = new Set();
 
-  protected readFile: ReadFileFn;
   protected now: () => number;
+  protected readFile: ReadFileFn;
 
   constructor(opts: CgroupSourceOpts = {}) {
-    this.readFile = opts.readFile ?? defaultReadFile;
     this.now = opts.now ?? Date.now;
+    this.readFile = opts.readFile ?? defaultReadFile;
   }
 
   public async read(): Promise<IResourceLoad> {

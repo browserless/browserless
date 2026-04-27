@@ -278,6 +278,11 @@ describe('cgroup v1 parsers', () => {
       expect(parseCpuV1Quota('abc', '100000')).to.be.null;
       expect(parseCpuV1Quota('100000', '0')).to.be.null;
     });
+
+    it('returns null when quota content is empty or whitespace', () => {
+      expect(parseCpuV1Quota('', '100000')).to.be.null;
+      expect(parseCpuV1Quota('   ', '100000')).to.be.null;
+    });
   });
 
   describe('parseMemoryV1Limit', () => {
@@ -299,6 +304,8 @@ describe('cgroup v1 parsers', () => {
 });
 
 describe('CgroupV1Source', () => {
+  afterEach(() => Sinon.restore());
+
   it('converts cpuacct.usage from nanoseconds to fractional cpu', async () => {
     const responses: Record<string, string> = {
       '/sys/fs/cgroup/cpu/cpuacct.usage': '1000000', // 1 ms in ns = 1000 us
@@ -335,5 +342,49 @@ describe('CgroupV1Source', () => {
     });
     const result = await source.read();
     expect(result.memory).to.equal(0.5);
+  });
+
+  it('returns nulls when a read fails, logs once per category', async () => {
+    const warnStub = Sinon.stub(Logger.prototype, 'warn');
+
+    const readFile = async () => {
+      throw new Error('EACCES');
+    };
+
+    const source = new CgroupV1Source({ readFile });
+    const result1 = await source.read();
+    const result2 = await source.read();
+
+    expect(result1).to.deep.equal({ cpu: null, memory: null });
+    expect(result2).to.deep.equal({ cpu: null, memory: null });
+
+    // 2 categories of read failure (cpu-read, memory-read) — each logged exactly once.
+    expect(warnStub.callCount).to.equal(2);
+    const messages = warnStub.getCalls().map((c) => c.args[0] as string);
+    expect(messages.some((m) => m.includes('cpu-read'))).to.be.true;
+    expect(messages.some((m) => m.includes('memory-read'))).to.be.true;
+  });
+
+  it('decouples memory failure from cpu success', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu/cpuacct.usage': '1000000',
+      '/sys/fs/cgroup/cpu/cpu.cfs_quota_us': '100000',
+      '/sys/fs/cgroup/cpu/cpu.cfs_period_us': '100000',
+      '/sys/fs/cgroup/memory/memory.usage_in_bytes': '0',
+      '/sys/fs/cgroup/memory/memory.limit_in_bytes': 'garbage',
+    };
+    const readFile = async (path: string) => responses[path];
+
+    const now = Sinon.stub();
+    now.onCall(0).returns(1_000_000);
+    now.onCall(1).returns(1_001_000);
+
+    const source = new CgroupV1Source({ readFile, now });
+    await source.read(); // first sample stored
+
+    responses['/sys/fs/cgroup/cpu/cpuacct.usage'] = '1001000000';
+    const result = await source.read();
+    expect(result.cpu).to.be.closeTo(1.0, 0.001);
+    expect(result.memory).to.be.null;
   });
 });
