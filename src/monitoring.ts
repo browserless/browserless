@@ -296,13 +296,23 @@ export class CgroupV1Source implements MachineStatsSource {
   }
 }
 
-type FileExists = (path: string) => boolean;
+export type FileExists = (path: string) => boolean;
+
+let detectionLog: Logger | undefined;
 
 const defaultFileExists: FileExists = (path) => {
   try {
     fs.accessSync(path);
     return true;
-  } catch {
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'ENOTDIR') {
+      detectionLog ??= new Logger('hardware');
+      detectionLog.warn(
+        `Unexpected error probing ${path}; treating as missing:`,
+        err,
+      );
+    }
     return false;
   }
 };

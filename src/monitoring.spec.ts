@@ -435,4 +435,23 @@ describe('detectMachineStatsSource', () => {
     );
     expect(source.name).to.equal('cgroup-v2');
   });
+
+  it('picks CgroupV1Source when preference is "cgroup" and only v1 is present', () => {
+    const source = detectMachineStatsSource(
+      'cgroup',
+      fileExistsFor(['/sys/fs/cgroup/cpu/cpuacct.usage']),
+    );
+    expect(source.name).to.equal('cgroup-v1');
+  });
+
+  it('prefers v2 when both probes exist in auto mode', () => {
+    const source = detectMachineStatsSource(
+      'auto',
+      fileExistsFor([
+        '/sys/fs/cgroup/cgroup.controllers',
+        '/sys/fs/cgroup/cpu/cpuacct.usage',
+      ]),
+    );
+    expect(source.name).to.equal('cgroup-v2');
+  });
 });
