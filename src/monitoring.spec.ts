@@ -2,6 +2,7 @@
 import {
   CgroupV2Source,
   HostSource,
+  Logger,
   parseCpuMax,
   parseCpuStatUsageUsec,
   parseMemoryMax,
@@ -123,6 +124,8 @@ describe('cgroup v2 parsers', () => {
 });
 
 describe('CgroupV2Source', () => {
+  afterEach(() => Sinon.restore());
+
   const makeReadFile = (responses: Record<string, string | Error>) => {
     return async (path: string) => {
       const v = responses[path];
@@ -199,6 +202,8 @@ describe('CgroupV2Source', () => {
   });
 
   it('returns nulls when a read fails, logs once per category', async () => {
+    const warnStub = Sinon.stub(Logger.prototype, 'warn');
+
     const readFile = async () => {
       throw new Error('EACCES');
     };
@@ -209,6 +214,12 @@ describe('CgroupV2Source', () => {
 
     expect(result1).to.deep.equal({ cpu: null, memory: null });
     expect(result2).to.deep.equal({ cpu: null, memory: null });
+
+    // 2 categories of read failure (cpu-read, memory-read) — each logged exactly once.
+    expect(warnStub.callCount).to.equal(2);
+    const messages = warnStub.getCalls().map((c) => c.args[0] as string);
+    expect(messages.some((m) => m.includes('cpu-read'))).to.be.true;
+    expect(messages.some((m) => m.includes('memory-read'))).to.be.true;
   });
 
   it('returns nulls when cpu.stat is unparseable', async () => {
@@ -224,5 +235,27 @@ describe('CgroupV2Source', () => {
     const result = await source.read();
     expect(result.cpu).to.be.null;
     expect(result.memory).to.equal(0);
+  });
+
+  it('decouples memory failure from cpu success', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu.stat': 'usage_usec 1000\n',
+      '/sys/fs/cgroup/cpu.max': '100000 100000', // 1 core
+      '/sys/fs/cgroup/memory.current': '0',
+      '/sys/fs/cgroup/memory.max': 'garbage',
+    };
+    const readFile = async (path: string) => responses[path];
+
+    const now = Sinon.stub();
+    now.onCall(0).returns(1_000_000);
+    now.onCall(1).returns(1_001_000);
+
+    const source = new CgroupV2Source({ readFile, now });
+    await source.read(); // first sample stored
+
+    responses['/sys/fs/cgroup/cpu.stat'] = 'usage_usec 1001000\n';
+    const result = await source.read();
+    expect(result.cpu).to.be.closeTo(1.0, 0.001);
+    expect(result.memory).to.be.null;
   });
 });
