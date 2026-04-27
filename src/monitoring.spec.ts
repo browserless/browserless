@@ -1,11 +1,14 @@
 /* eslint-disable no-unused-expressions */
 import {
+  CgroupV1Source,
   CgroupV2Source,
   HostSource,
   Logger,
   parseCpuMax,
   parseCpuStatUsageUsec,
+  parseCpuV1Quota,
   parseMemoryMax,
+  parseMemoryV1Limit,
   readWithTimeout,
 } from '@browserless.io/browserless';
 import { expect } from 'chai';
@@ -257,5 +260,80 @@ describe('CgroupV2Source', () => {
     const result = await source.read();
     expect(result.cpu).to.be.closeTo(1.0, 0.001);
     expect(result.memory).to.be.null;
+  });
+});
+
+describe('cgroup v1 parsers', () => {
+  describe('parseCpuV1Quota', () => {
+    it('returns quota/period when bounded', () => {
+      expect(parseCpuV1Quota('200000', '100000')).to.equal(2);
+      expect(parseCpuV1Quota('50000', '100000')).to.equal(0.5);
+    });
+
+    it('returns os.cpus().length when quota is -1 (unbounded)', () => {
+      expect(parseCpuV1Quota('-1', '100000')).to.equal(os.cpus().length);
+    });
+
+    it('returns null for invalid content', () => {
+      expect(parseCpuV1Quota('abc', '100000')).to.be.null;
+      expect(parseCpuV1Quota('100000', '0')).to.be.null;
+    });
+  });
+
+  describe('parseMemoryV1Limit', () => {
+    it('returns the byte value when bounded', () => {
+      expect(parseMemoryV1Limit('536870912')).to.equal(536870912);
+    });
+
+    it('returns os.totalmem() when the kernel sentinel is used (unbounded)', () => {
+      // Treat any value larger than 16 * host RAM as unbounded
+      const sentinel = String(os.totalmem() * 32);
+      expect(parseMemoryV1Limit(sentinel)).to.equal(os.totalmem());
+    });
+
+    it('returns null for invalid content', () => {
+      expect(parseMemoryV1Limit('garbage')).to.be.null;
+      expect(parseMemoryV1Limit('')).to.be.null;
+    });
+  });
+});
+
+describe('CgroupV1Source', () => {
+  it('converts cpuacct.usage from nanoseconds to fractional cpu', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu/cpuacct.usage': '1000000', // 1 ms in ns = 1000 us
+      '/sys/fs/cgroup/cpu/cpu.cfs_quota_us': '100000', // 1 core
+      '/sys/fs/cgroup/cpu/cpu.cfs_period_us': '100000',
+      '/sys/fs/cgroup/memory/memory.usage_in_bytes': '0',
+      '/sys/fs/cgroup/memory/memory.limit_in_bytes': '1073741824',
+    };
+    const readFile = async (path: string) => responses[path];
+
+    const now = Sinon.stub();
+    now.onCall(0).returns(1_000_000);
+    now.onCall(1).returns(1_001_000);
+
+    const source = new CgroupV1Source({ readFile, now });
+    await source.read();
+
+    // 1,000,000,000 ns = 1,000,000 us delta over 1000 ms wall on 1 core = 100%
+    responses['/sys/fs/cgroup/cpu/cpuacct.usage'] = '1001000000';
+    const result = await source.read();
+    expect(result.cpu).to.be.closeTo(1.0, 0.001);
+  });
+
+  it('computes memory fraction', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu/cpuacct.usage': '0',
+      '/sys/fs/cgroup/cpu/cpu.cfs_quota_us': '100000',
+      '/sys/fs/cgroup/cpu/cpu.cfs_period_us': '100000',
+      '/sys/fs/cgroup/memory/memory.usage_in_bytes': '268435456',
+      '/sys/fs/cgroup/memory/memory.limit_in_bytes': '536870912',
+    };
+    const source = new CgroupV1Source({
+      readFile: async (path: string) => responses[path],
+    });
+    const result = await source.read();
+    expect(result.memory).to.equal(0.5);
   });
 });
