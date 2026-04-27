@@ -1,6 +1,7 @@
 import { Config, IResourceLoad, Logger } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import { readFile as fsReadFile } from 'fs/promises';
+import os from 'os';
 import si from 'systeminformation';
 
 const READ_TIMEOUT_MS = 200;
@@ -17,6 +18,40 @@ export async function readWithTimeout(
 ): Promise<string> {
   const signal = AbortSignal.timeout(timeoutMs);
   return readFile(path, signal);
+}
+
+export function parseCpuMax(content: string): number | null {
+  const trimmed = content.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length !== 2) return null;
+  const [quotaRaw, periodRaw] = parts;
+  const period = Number(periodRaw);
+  if (!Number.isFinite(period) || period <= 0) return null;
+  if (quotaRaw === 'max') return os.cpus().length;
+  const quota = Number(quotaRaw);
+  if (!Number.isFinite(quota) || quota <= 0) return null;
+  return quota / period;
+}
+
+export function parseCpuStatUsageUsec(content: string): number | null {
+  for (const line of content.split('\n')) {
+    const [key, value] = line.trim().split(/\s+/);
+    if (key === 'usage_usec') {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+  }
+  return null;
+}
+
+export function parseMemoryMax(content: string): number | null {
+  const trimmed = content.trim();
+  if (!trimmed) return null;
+  if (trimmed === 'max') return os.totalmem();
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
 }
 
 export interface MachineStatsSource {
