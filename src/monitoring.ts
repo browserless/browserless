@@ -79,6 +79,101 @@ export class HostSource implements MachineStatsSource {
   }
 }
 
+type Sample = { usageUsec: number; timestamp: number };
+
+interface CgroupSourceOpts {
+  now?: () => number;
+  readFile?: ReadFileFn;
+}
+
+export class CgroupV2Source implements MachineStatsSource {
+  public readonly name = 'cgroup-v2';
+  protected log = new Logger('hardware');
+  protected lastSample: Sample | null = null;
+  protected loggedFailure: Set<string> = new Set();
+
+  protected now: () => number;
+  protected readFile: ReadFileFn;
+
+  constructor(opts: CgroupSourceOpts = {}) {
+    this.now = opts.now ?? Date.now;
+    this.readFile = opts.readFile ?? defaultReadFile;
+  }
+
+  public async read(): Promise<IResourceLoad> {
+    const [cpu, memory] = await Promise.all([
+      this.readCpu(),
+      this.readMemory(),
+    ]);
+    return { cpu, memory };
+  }
+
+  protected async readCpu(): Promise<number | null> {
+    let usageContent: string;
+    let maxContent: string;
+    try {
+      [usageContent, maxContent] = await Promise.all([
+        readWithTimeout('/sys/fs/cgroup/cpu.stat', this.readFile),
+        readWithTimeout('/sys/fs/cgroup/cpu.max', this.readFile),
+      ]);
+    } catch (err) {
+      this.logOnce('cpu-read', err);
+      return null;
+    }
+
+    const usageUsec = parseCpuStatUsageUsec(usageContent);
+    const cores = parseCpuMax(maxContent);
+    if (usageUsec === null || cores === null || cores <= 0) {
+      this.logOnce('cpu-parse', new Error('cgroup v2 cpu parse failed'));
+      return null;
+    }
+
+    const timestamp = this.now();
+    const previous = this.lastSample;
+    this.lastSample = { timestamp, usageUsec };
+
+    if (!previous) return null;
+
+    const dWallMs = timestamp - previous.timestamp;
+    if (dWallMs <= 0) return null;
+    const dUsageUsec = usageUsec - previous.usageUsec;
+    if (dUsageUsec < 0) return null;
+
+    return dUsageUsec / (dWallMs * cores * 1000);
+  }
+
+  protected async readMemory(): Promise<number | null> {
+    let currentContent: string;
+    let maxContent: string;
+    try {
+      [currentContent, maxContent] = await Promise.all([
+        readWithTimeout('/sys/fs/cgroup/memory.current', this.readFile),
+        readWithTimeout('/sys/fs/cgroup/memory.max', this.readFile),
+      ]);
+    } catch (err) {
+      this.logOnce('memory-read', err);
+      return null;
+    }
+
+    const current = Number(currentContent.trim());
+    const max = parseMemoryMax(maxContent);
+    if (!Number.isFinite(current) || max === null || max <= 0) {
+      this.logOnce('memory-parse', new Error('cgroup v2 memory parse failed'));
+      return null;
+    }
+    return current / max;
+  }
+
+  protected logOnce(category: string, err: unknown) {
+    if (this.loggedFailure.has(category)) return;
+    this.loggedFailure.add(category);
+    this.log.warn(
+      `cgroup v2 ${category} failure (further occurrences silenced):`,
+      err,
+    );
+  }
+}
+
 export class Monitoring extends EventEmitter {
   protected log = new Logger('hardware');
   protected statsSource: MachineStatsSource;

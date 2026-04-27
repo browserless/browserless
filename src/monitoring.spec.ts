@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-expressions */
 import {
+  CgroupV2Source,
   HostSource,
   parseCpuMax,
   parseCpuStatUsageUsec,
@@ -118,5 +119,110 @@ describe('cgroup v2 parsers', () => {
       expect(parseMemoryMax('')).to.be.null;
       expect(parseMemoryMax('garbage')).to.be.null;
     });
+  });
+});
+
+describe('CgroupV2Source', () => {
+  const makeReadFile = (responses: Record<string, string | Error>) => {
+    return async (path: string) => {
+      const v = responses[path];
+      if (v === undefined) throw new Error(`unexpected path ${path}`);
+      if (v instanceof Error) throw v;
+      return v;
+    };
+  };
+
+  it('returns null for cpu on the first call (no prior sample)', async () => {
+    const now = Sinon.stub();
+    now.returns(1_000_000);
+
+    const source = new CgroupV2Source({
+      readFile: makeReadFile({
+        '/sys/fs/cgroup/cpu.stat': 'usage_usec 1000\n',
+        '/sys/fs/cgroup/cpu.max': '100000 100000',
+        '/sys/fs/cgroup/memory.current': '536870912',
+        '/sys/fs/cgroup/memory.max': '1073741824',
+      }),
+      now,
+    });
+
+    const result = await source.read();
+    expect(result.cpu).to.be.null;
+    expect(result.memory).to.equal(0.5);
+  });
+
+  it('computes cpu fraction from delta between two reads', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu.stat': 'usage_usec 1000\n',
+      '/sys/fs/cgroup/cpu.max': '100000 100000', // 1 core
+      '/sys/fs/cgroup/memory.current': '0',
+      '/sys/fs/cgroup/memory.max': '1073741824',
+    };
+    const readFile = async (path: string) => responses[path];
+
+    const now = Sinon.stub();
+    now.onCall(0).returns(1_000_000); // first sample at t=0
+    now.onCall(1).returns(1_001_000); // second read 1000ms later
+
+    const source = new CgroupV2Source({ readFile, now });
+    await source.read(); // store first sample
+
+    // 1,000,000 usec of CPU time consumed in 1000 ms wall, on 1 core = 100%
+    responses['/sys/fs/cgroup/cpu.stat'] = 'usage_usec 1001000\n';
+
+    const result = await source.read();
+    expect(result.cpu).to.be.closeTo(1.0, 0.001);
+  });
+
+  it('uses os.cpus().length when cpu.max is "max"', async () => {
+    const responses: Record<string, string> = {
+      '/sys/fs/cgroup/cpu.stat': 'usage_usec 0\n',
+      '/sys/fs/cgroup/cpu.max': 'max 100000',
+      '/sys/fs/cgroup/memory.current': '0',
+      '/sys/fs/cgroup/memory.max': 'max',
+    };
+    const readFile = async (path: string) => responses[path];
+
+    const now = Sinon.stub();
+    now.onCall(0).returns(1_000_000);
+    now.onCall(1).returns(1_001_000);
+
+    const source = new CgroupV2Source({ readFile, now });
+    await source.read();
+
+    const cores = os.cpus().length;
+    // 1,000,000 usec used over 1000 ms wall on N cores = 1/N
+    responses['/sys/fs/cgroup/cpu.stat'] = 'usage_usec 1000000\n';
+
+    const result = await source.read();
+    expect(result.cpu).to.be.closeTo(1 / cores, 0.001);
+  });
+
+  it('returns nulls when a read fails, logs once per category', async () => {
+    const readFile = async () => {
+      throw new Error('EACCES');
+    };
+
+    const source = new CgroupV2Source({ readFile });
+    const result1 = await source.read();
+    const result2 = await source.read();
+
+    expect(result1).to.deep.equal({ cpu: null, memory: null });
+    expect(result2).to.deep.equal({ cpu: null, memory: null });
+  });
+
+  it('returns nulls when cpu.stat is unparseable', async () => {
+    const source = new CgroupV2Source({
+      readFile: makeReadFile({
+        '/sys/fs/cgroup/cpu.stat': 'garbage\n',
+        '/sys/fs/cgroup/cpu.max': '100000 100000',
+        '/sys/fs/cgroup/memory.current': '0',
+        '/sys/fs/cgroup/memory.max': '1073741824',
+      }),
+    });
+
+    const result = await source.read();
+    expect(result.cpu).to.be.null;
+    expect(result.memory).to.equal(0);
   });
 });
