@@ -4,6 +4,7 @@ import {
   CgroupV2Source,
   HostSource,
   Logger,
+  detectMachineStatsSource,
   parseCpuMax,
   parseCpuStatUsageUsec,
   parseCpuV1Quota,
@@ -386,5 +387,52 @@ describe('CgroupV1Source', () => {
     const result = await source.read();
     expect(result.cpu).to.be.closeTo(1.0, 0.001);
     expect(result.memory).to.be.null;
+  });
+});
+
+describe('detectMachineStatsSource', () => {
+  const fileExistsFor = (paths: string[]) => (p: string) => paths.includes(p);
+
+  it('picks CgroupV2Source when /sys/fs/cgroup/cgroup.controllers exists', () => {
+    const source = detectMachineStatsSource(
+      'auto',
+      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
+    );
+    expect(source.name).to.equal('cgroup-v2');
+  });
+
+  it('picks CgroupV1Source when v1 exists and v2 does not', () => {
+    const source = detectMachineStatsSource(
+      'auto',
+      fileExistsFor(['/sys/fs/cgroup/cpu/cpuacct.usage']),
+    );
+    expect(source.name).to.equal('cgroup-v1');
+  });
+
+  it('picks HostSource when no cgroup files exist', () => {
+    const source = detectMachineStatsSource('auto', fileExistsFor([]));
+    expect(source.name).to.equal('host (systeminformation)');
+  });
+
+  it('forces HostSource when preference is "host"', () => {
+    const source = detectMachineStatsSource(
+      'host',
+      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
+    );
+    expect(source.name).to.equal('host (systeminformation)');
+  });
+
+  it('throws when preference is "cgroup" but no cgroup files exist', () => {
+    expect(() =>
+      detectMachineStatsSource('cgroup', fileExistsFor([])),
+    ).to.throw(/cgroup/i);
+  });
+
+  it('forces CgroupV2 when preference is "cgroup" and v2 is present', () => {
+    const source = detectMachineStatsSource(
+      'cgroup',
+      fileExistsFor(['/sys/fs/cgroup/cgroup.controllers']),
+    );
+    expect(source.name).to.equal('cgroup-v2');
   });
 });

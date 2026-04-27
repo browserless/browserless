@@ -1,5 +1,6 @@
 import { Config, IResourceLoad, Logger } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
+import fs from 'fs';
 import { readFile as fsReadFile } from 'fs/promises';
 import os from 'os';
 import si from 'systeminformation';
@@ -293,6 +294,44 @@ export class CgroupV1Source implements MachineStatsSource {
       err,
     );
   }
+}
+
+type FileExists = (path: string) => boolean;
+
+const defaultFileExists: FileExists = (path) => {
+  try {
+    fs.accessSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const CGROUP_V2_PROBE = '/sys/fs/cgroup/cgroup.controllers';
+const CGROUP_V1_PROBE = '/sys/fs/cgroup/cpu/cpuacct.usage';
+
+export function detectMachineStatsSource(
+  preference: 'auto' | 'host' | 'cgroup',
+  fileExists: FileExists = defaultFileExists,
+): MachineStatsSource {
+  if (preference === 'host') return new HostSource();
+
+  const hasV2 = fileExists(CGROUP_V2_PROBE);
+  const hasV1 = !hasV2 && fileExists(CGROUP_V1_PROBE);
+
+  if (preference === 'cgroup') {
+    if (hasV2) return new CgroupV2Source();
+    if (hasV1) return new CgroupV1Source();
+    throw new Error(
+      'MACHINE_STATS_SOURCE=cgroup but no cgroup files found at ' +
+        `${CGROUP_V2_PROBE} or ${CGROUP_V1_PROBE}.`,
+    );
+  }
+
+  // 'auto'
+  if (hasV2) return new CgroupV2Source();
+  if (hasV1) return new CgroupV1Source();
+  return new HostSource();
 }
 
 export class Monitoring extends EventEmitter {
