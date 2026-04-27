@@ -175,6 +175,11 @@ export class Config extends EventEmitter {
   protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
   protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
   protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
+  protected machineStatsSource: string = (
+    process.env.MACHINE_STATS_SOURCE ?? 'auto'
+  )
+    .trim()
+    .toLowerCase();
   protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
   protected healthCheck = !!parseEnvVars(false, 'HEALTH');
   protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
@@ -253,6 +258,15 @@ export class Config extends EventEmitter {
   }
   public getMemoryLimit(): number {
     return this.maxMemory;
+  }
+  public getMachineStatsSource(): 'auto' | 'host' | 'cgroup' {
+    const value = this.machineStatsSource;
+    if (value !== 'auto' && value !== 'host' && value !== 'cgroup') {
+      throw new Error(
+        `Invalid MACHINE_STATS_SOURCE value "${value}". Expected "auto", "host", or "cgroup".`,
+      );
+    }
+    return value;
   }
   public getMaxPayloadSize(): number {
     return this.maxPayloadSize;
