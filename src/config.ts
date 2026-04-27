@@ -175,7 +175,7 @@ export class Config extends EventEmitter {
   protected corsMaxAge = +(process.env.CORS_MAX_AGE ?? '2592000');
   protected maxCpu = +(process.env.MAX_CPU_PERCENT ?? '99');
   protected maxMemory = +(process.env.MAX_MEMORY_PERCENT ?? '99');
-  protected machineStatsSource = (
+  protected machineStatsSource: string = (
     process.env.MACHINE_STATS_SOURCE ?? 'auto'
   ).toLowerCase();
   protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
