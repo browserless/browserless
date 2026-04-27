@@ -360,4 +360,39 @@ describe(`Limiter`, () => {
         r(undefined);
       });
     }));
+
+  it('rejects via overCapacityFn when MachineStatsSource reports CPU overloaded', async () => {
+    const sandbox = Sinon.createSandbox();
+    const config = new Config();
+    config.setConcurrent(5);
+    config.setQueued(5);
+    config.setTimeout(-1);
+    // MAX_CPU_PERCENT defaults to 99; force a low ceiling.
+    sandbox.stub(config, 'getCPULimit').returns(10);
+    sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+    const overloadedSource = {
+      name: 'fake-overloaded',
+      read: async () => ({ cpu: 0.95, memory: 0.1 }),
+    };
+    const monitoring = new Monitoring(config, overloadedSource);
+    const metrics = new Metrics();
+
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    const overCapacity = sandbox.spy();
+    const handler = sandbox.spy(asyncNoop);
+
+    const job = limiter.limit(handler, overCapacity, asyncNoop, noop);
+    let rejected = false;
+    await job().catch(() => {
+      rejected = true;
+    });
+
+    expect(rejected).to.be.true;
+    expect(overCapacity.calledOnce).to.be.true;
+    expect(handler.called).to.be.false;
+    expect(metrics.get().rejected).to.equal(1);
+
+    sandbox.restore();
+  });
 });
