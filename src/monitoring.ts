@@ -46,26 +46,18 @@ export class HostSource implements MachineStatsSource {
 
 export class Monitoring extends EventEmitter {
   protected log = new Logger('hardware');
-  constructor(protected config: Config) {
+  protected statsSource: MachineStatsSource;
+
+  constructor(
+    protected config: Config,
+    statsSource?: MachineStatsSource,
+  ) {
     super();
+    this.statsSource = statsSource ?? new HostSource();
   }
 
   public async getMachineStats(): Promise<IResourceLoad> {
-    const [cpuLoad, memLoad] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-    ]).catch((err) => {
-      this.log.error(`Error checking machine stats`, err);
-      return [null, null];
-    });
-
-    const cpu = cpuLoad ? cpuLoad.currentLoadUser / 100 : null;
-    const memory = memLoad ? memLoad.active / memLoad.total : null;
-
-    return {
-      cpu,
-      memory,
-    };
+    return this.statsSource.read();
   }
 
   public async overloaded(): Promise<{
@@ -86,24 +78,12 @@ export class Monitoring extends EventEmitter {
     const memoryOverloaded = !!(
       memoryInt && memoryInt >= this.config.getMemoryLimit()
     );
-    return {
-      cpuInt,
-      cpuOverloaded,
-      memoryInt,
-      memoryOverloaded,
-    };
+    return { cpuInt, cpuOverloaded, memoryInt, memoryOverloaded };
   }
 
-  /**
-   * Implement any browserless-core-specific shutdown logic here.
-   * Calls the empty-SDK stop method for downstream implementations.
-   */
   public async shutdown() {
     return await this.stop();
   }
 
-  /**
-   * Left blank for downstream SDK modules to optionally implement.
-   */
   public stop() {}
 }
