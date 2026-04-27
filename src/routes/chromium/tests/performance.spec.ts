@@ -22,10 +22,10 @@ describe('/chromium/performance API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://browserless.io',
+      url: 'https://docs.browserless.io/',
     };
 
-    await fetch(
+    const res = await fetch(
       'http://localhost:3000/chromium/performance?token=browserless',
       {
         body: JSON.stringify(body),
@@ -34,12 +34,14 @@ describe('/chromium/performance API', function () {
         },
         method: 'POST',
       },
-    ).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
-      expect(res.status).to.equal(200);
-    });
+    );
+    const responseBody = await res.text();
+    expect(res.status, `unexpected status; body: ${responseBody}`).to.equal(
+      200,
+    );
+    expect(res.headers.get('content-type')).to.equal(
+      'application/json; charset=UTF-8',
+    );
   });
 
   it('404s GET requests', async () => {
@@ -70,10 +72,10 @@ describe('/chromium/performance API', function () {
           onlyAudits: ['unminified-css'],
         },
       },
-      url: 'https://browserless.io',
+      url: 'https://docs.browserless.io/',
     };
 
-    await fetch(
+    const res = await fetch(
       'http://localhost:3000/chromium/performance?token=browserless',
       {
         body: JSON.stringify(body),
@@ -82,16 +84,18 @@ describe('/chromium/performance API', function () {
         },
         method: 'POST',
       },
-    ).then(async (res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
-      expect(res.status).to.equal(200);
+    );
+    const responseBody = await res.text();
+    expect(res.status, `unexpected status; body: ${responseBody}`).to.equal(
+      200,
+    );
+    expect(res.headers.get('content-type')).to.equal(
+      'application/json; charset=UTF-8',
+    );
 
-      const json = await res.json();
-      expect(json).to.have.property('data');
-      expect(json.data.audits).to.have.all.keys('unminified-css');
-    });
+    const json = JSON.parse(responseBody);
+    expect(json).to.have.property('data');
+    expect(json.data.audits).to.have.all.keys('unminified-css');
   });
 
   it('times out request', async () => {
@@ -148,20 +152,22 @@ describe('/chromium/performance API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://browserless.io',
+      url: 'https://docs.browserless.io/',
     };
 
-    await fetch('http://localhost:3000/chromium/performance', {
+    const res = await fetch('http://localhost:3000/chromium/performance', {
       body: JSON.stringify(body),
       headers: {
         'content-type': 'application/json',
       },
       method: 'POST',
-    }).then((res) => {
-      expect(res.headers.get('content-type')).to.equal(
-        'application/json; charset=UTF-8',
-      );
-      expect(res.status).to.equal(200);
     });
+    const responseBody = await res.text();
+    expect(res.status, `unexpected status; body: ${responseBody}`).to.equal(
+      200,
+    );
+    expect(res.headers.get('content-type')).to.equal(
+      'application/json; charset=UTF-8',
+    );
   });
 });
