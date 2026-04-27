@@ -81,9 +81,16 @@ export class Monitoring extends EventEmitter {
     return { cpuInt, cpuOverloaded, memoryInt, memoryOverloaded };
   }
 
+  /**
+   * Implement any browserless-core-specific shutdown logic here.
+   * Calls the empty-SDK stop method for downstream implementations.
+   */
   public async shutdown() {
     return await this.stop();
   }
 
+  /**
+   * Left blank for downstream SDK modules to optionally implement.
+   */
   public stop() {}
 }
