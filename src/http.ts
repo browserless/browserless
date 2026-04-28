@@ -195,4 +195,11 @@ export interface SystemQueryParameters {
    * Custom session identifier
    */
   trackingId?: string;
+
+  /**
+   * Name of an authenticated profile to hydrate into the browser at launch.
+   * The profile's cookies, localStorage and IndexedDB are injected via CDP
+   * before your code runs. No-op in builds without a profile subsystem.
+   */
+  profile?: string;
 }
