@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/browserless-browserless-badge.png)](https://mseep.ai/app/browserless-browserless)
+
 <!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading no-inline-html -->
 
 <div align="center">
