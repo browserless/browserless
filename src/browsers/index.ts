@@ -30,6 +30,7 @@ import {
   exists,
   generateDataDir,
   getFinalPathSegment,
+  id,
   makeExternalURL,
   noop,
   parseBooleanParam,
@@ -58,11 +59,24 @@ const CHROMIUM_ORPHAN_IDLE_MS = 30 * 60 * 1000;
 const PERIODIC_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
- * Per-attempt backoff for `removeUserDataDir` retries. Chrome typically
- * releases file handles within a few hundred milliseconds of `browser.close()`,
- * so 200ms / 400ms / 800ms covers the realistic EBUSY window.
+ * Wait times between `removeUserDataDir` attempts. Chrome typically
+ * releases file handles within a few hundred milliseconds of
+ * `browser.close()`, so 200ms / 400ms / 800ms covers the realistic
+ * EBUSY window. The loop runs `length + 1` attempts in total: the
+ * first try is unconditional, and each subsequent retry waits for
+ * the corresponding entry in this array before retrying.
  */
 const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
+
+/**
+ * Filename prefix shared by every per-session user-data-dir we create.
+ * The full directory name is `${SESSION_DATA_DIR_PREFIX}${instanceId}-${sessionId}`,
+ * so the `${instanceId}-` segment scopes ownership to a single
+ * BrowserManager instance. Sweeps in the shared base data-dir filter on
+ * the instance-qualified prefix and never touch directories owned by
+ * other manager instances co-located in the same `config.getDataDir()`.
+ */
+const SESSION_DATA_DIR_PREFIX = 'browserless-data-dir-';
 
 /**
  * The chromium-internal subprocess orphan sweep (`org.chromium.Chromium.*`
@@ -122,6 +136,15 @@ export class BrowserManager {
    */
   protected shuttingDown = false;
 
+  /**
+   * Random per-construction identifier woven into every user-data-dir
+   * this manager creates. Two BrowserManager instances sharing a single
+   * `config.getDataDir()` (e.g. multiple processes pointed at the same
+   * /tmp) end up with non-overlapping data-dir name prefixes, so neither
+   * instance's sweep ever sees the other's live profiles.
+   */
+  protected readonly instanceId: string = id();
+
   constructor(
     protected config: Config,
     protected hooks: Hooks,
@@ -151,21 +174,30 @@ export class BrowserManager {
 
     this.log.debug(`Deleting data directory "${userDataDir}"`);
 
-    for (let attempt = 0; attempt < REMOVE_RETRY_BACKOFF_MS.length; attempt++) {
+    // `length + 1` attempts in total: the initial try, then one retry
+    // per backoff entry. The previous `< length` upper bound stopped
+    // after `length` attempts and silently dropped the trailing backoff
+    // entry on the floor, so the array's last value (e.g. 800ms) was
+    // never used as a wait and the matching final retry never ran.
+    const totalAttempts = REMOVE_RETRY_BACKOFF_MS.length + 1;
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
       try {
         await deleteAsync(userDataDir, { force: true });
         this.pendingCleanup.delete(userDataDir);
         return;
       } catch (err) {
-        const isLastAttempt =
-          attempt === REMOVE_RETRY_BACKOFF_MS.length - 1;
+        const isLastAttempt = attempt === totalAttempts - 1;
         if (isLastAttempt) {
           this.log.warn(
-            `Failed to remove user-data-dir "${userDataDir}" after ${REMOVE_RETRY_BACKOFF_MS.length} attempts (${err}); queued for periodic sweep`,
+            `Failed to remove user-data-dir "${userDataDir}" after ${totalAttempts} attempts (${err}); queued for periodic sweep`,
           );
           this.pendingCleanup.add(userDataDir);
           return;
         }
+        // `attempt < REMOVE_RETRY_BACKOFF_MS.length` is guaranteed here
+        // because the only attempt index that could exceed the array is
+        // the final one, which already returned in the `isLastAttempt`
+        // branch above.
         await new Promise((resolve) =>
           global.setTimeout(resolve, REMOVE_RETRY_BACKOFF_MS[attempt]),
         );
@@ -203,10 +235,16 @@ export class BrowserManager {
   }
 
   /**
-   * Walks the configured `dataDir` and removes any `browserless-data-dir-*`
-   * leftovers. Called once at startup, before any new sessions land — every
-   * such dir is guaranteed to be from a prior run (this manager has no
-   * sessions yet) so no PID check is needed.
+   * Walks the configured `dataDir` and removes any orphaned data-dirs
+   * that we own but never cleaned up. Called once at startup, before
+   * any new sessions land.
+   *
+   * The filter is scoped to `${SESSION_DATA_DIR_PREFIX}${instanceId}-`
+   * so a manager whose `config.getDataDir()` is shared with other
+   * BrowserManager instances (multi-process deploys, shared /tmp) only
+   * touches its own leftovers. Other instances' live profiles use a
+   * different `instanceId` segment in the path and are skipped by this
+   * filter.
    */
   protected async sweepOrphanDataDirs(): Promise<void> {
     const baseDir = await this.config.getDataDir();
@@ -220,13 +258,12 @@ export class BrowserManager {
       return;
     }
 
-    const orphans = entries.filter((e) =>
-      e.startsWith('browserless-data-dir-'),
-    );
+    const ownedPrefix = `${SESSION_DATA_DIR_PREFIX}${this.instanceId}-`;
+    const orphans = entries.filter((e) => e.startsWith(ownedPrefix));
     if (orphans.length === 0) return;
 
     this.log.info(
-      `Startup sweep: removing ${orphans.length} orphan data-dir(s) from prior run`,
+      `Startup sweep: removing ${orphans.length} orphan data-dir(s) owned by instance ${this.instanceId}`,
     );
     for (const orphan of orphans) {
       await this.removeUserDataDir(path.join(baseDir, orphan));
@@ -845,11 +882,16 @@ export class BrowserManager {
     }
 
     // Always specify a user-data-dir since plugins can "inject" their own
-    // unless it's playwright which takes care of its own data-dirs
+    // unless it's playwright which takes care of its own data-dirs.
+    // The auto-generated dir name embeds `${instanceId}-` so a
+    // co-located BrowserManager's startup sweep (which filters by
+    // instance prefix) cannot match — and therefore cannot delete —
+    // this instance's profile. Manual `--user-data-dir` paths bypass
+    // this entirely, since the caller owns the path's lifecycle.
     const userDataDir =
       manualUserDataDir ||
       (!this.playwrightBrowserNames.includes(Browser.name)
-        ? await generateDataDir(undefined, this.config)
+        ? await generateDataDir(`${this.instanceId}-${id()}`, this.config)
         : null);
 
     const proxyServerArg = launchOptions.args?.find((arg) =>
@@ -900,6 +942,33 @@ export class BrowserManager {
       stealth: launchOptions?.stealth,
     });
     await this.hooks.browser({ browser, req });
+
+    // Post-launch shutdown check. The earlier check at the top of this
+    // method races with `shutdown()`: a request can pass that gate,
+    // generate a data-dir, launch a browser, and only THEN have
+    // shutdown set the flag and snapshot `this.browsers` — at which
+    // point this in-flight browser would be missing from the snapshot
+    // and never closed, leaking both the Chrome process and the
+    // data-dir. Re-check before registration; if shutdown is now in
+    // progress, tear down what we just created using the same paths
+    // that `close()` and `removeUserDataDir` use, then surface the
+    // same ServerError as the early gate.
+    if (this.shuttingDown) {
+      try {
+        await browser.close();
+      } catch (err) {
+        this.log.warn(
+          `browser.close() rejected during shutdown-race teardown: ${err}`,
+        );
+      }
+      const isTempDataDir = !manualUserDataDir;
+      if (isTempDataDir && userDataDir) {
+        await this.removeUserDataDir(userDataDir);
+      }
+      throw new ServerError(
+        'BrowserManager is shutting down; cannot accept new sessions',
+      );
+    }
 
     const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {

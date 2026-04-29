@@ -39,6 +39,9 @@ class TestableBrowserManager extends BrowserManager {
   public isShuttingDown() {
     return this.shuttingDown;
   }
+  public getInstanceId() {
+    return this.instanceId;
+  }
   public registerSession(browser: object, session: object) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.browsers.set(browser as any, session as any);
@@ -156,49 +159,90 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
   });
 
   describe(`sweepOrphanDataDirs (startup sweep)`, () => {
-    it('removes prior-run browserless-data-dir-* leftovers on construction', async () => {
-      const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
-      await fs.mkdir(path.join(dataDir, 'browserless-data-dir-old1'));
-      await fs.mkdir(path.join(dataDir, 'browserless-data-dir-old2'));
-
-      const config = new Config();
-      await config.setDataDir(dataDir);
-      const manager = new TestableBrowserManager(
-        config,
-        Sinon.createStubInstance(Hooks),
-        Sinon.createStubInstance(FileSystem),
+    it('removes orphan data-dirs scoped to this instance', async () => {
+      const { dataDir, manager } = await makeManager();
+      const instanceId = manager.getInstanceId();
+      // Simulate prior-run leftovers owned by THIS instance (matching
+      // prefix). After construction the startup sweep already ran on
+      // an empty dir; plant the orphans now and run the sweep again
+      // directly.
+      const orphan1 = path.join(
+        dataDir,
+        `browserless-data-dir-${instanceId}-old1`,
       );
-      await manager.getInitCleanupPromise();
+      const orphan2 = path.join(
+        dataDir,
+        `browserless-data-dir-${instanceId}-old2`,
+      );
+      await fs.mkdir(orphan1);
+      await fs.mkdir(orphan2);
 
-      const remaining = await fs.readdir(dataDir);
-      expect(
-        remaining.filter((e) => e.startsWith('browserless-data-dir-')),
-      ).to.have.length(0);
+      await manager.testSweepOrphanDataDirs();
+
+      expect(await pathExists(orphan1)).to.be.false;
+      expect(await pathExists(orphan2)).to.be.false;
       await manager.shutdown();
       await cleanupTestDir(dataDir);
     });
 
-    it('leaves non-browserless entries in dataDir alone', async () => {
+    it('leaves data-dirs owned by other BrowserManager instances untouched', async () => {
+      // Two managers sharing the same `config.getDataDir()`. Manager A's
+      // startup sweep must not touch dirs owned by manager B (different
+      // instanceId prefix), even though both use the same name family.
       const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
-      const friend = path.join(dataDir, 'unrelated-stuff');
-      const orphan = path.join(dataDir, 'browserless-data-dir-zzz');
-      await fs.mkdir(friend);
-      await fs.mkdir(orphan);
-      // Plant a file that should also be untouched.
-      await fs.writeFile(path.join(dataDir, 'a-marker.txt'), 'hi');
 
-      const config = new Config();
-      await config.setDataDir(dataDir);
-      const manager = new TestableBrowserManager(
-        config,
+      const configA = new Config();
+      await configA.setDataDir(dataDir);
+      const managerA = new TestableBrowserManager(
+        configA,
         Sinon.createStubInstance(Hooks),
         Sinon.createStubInstance(FileSystem),
       );
-      await manager.getInitCleanupPromise();
+      await managerA.getInitCleanupPromise();
+
+      const configB = new Config();
+      await configB.setDataDir(dataDir);
+      const managerB = new TestableBrowserManager(
+        configB,
+        Sinon.createStubInstance(Hooks),
+        Sinon.createStubInstance(FileSystem),
+      );
+      await managerB.getInitCleanupPromise();
+
+      // Plant a "live" data-dir owned by manager B.
+      const bDir = path.join(
+        dataDir,
+        `browserless-data-dir-${managerB.getInstanceId()}-live`,
+      );
+      await fs.mkdir(bDir);
+
+      // Manager A re-runs its startup sweep (e.g. simulating a restart).
+      await managerA.testSweepOrphanDataDirs();
+
+      expect(await pathExists(bDir)).to.be.true;
+      await managerA.shutdown();
+      await managerB.shutdown();
+      await cleanupTestDir(dataDir);
+    });
+
+    it('leaves non-browserless entries in dataDir alone', async () => {
+      const { dataDir, manager } = await makeManager();
+      const instanceId = manager.getInstanceId();
+      const friend = path.join(dataDir, 'unrelated-stuff');
+      const ownOrphan = path.join(
+        dataDir,
+        `browserless-data-dir-${instanceId}-zzz`,
+      );
+      await fs.mkdir(friend);
+      await fs.mkdir(ownOrphan);
+      // Plant a file that should also be untouched.
+      await fs.writeFile(path.join(dataDir, 'a-marker.txt'), 'hi');
+
+      await manager.testSweepOrphanDataDirs();
 
       expect(await pathExists(friend)).to.be.true;
       expect(await pathExists(path.join(dataDir, 'a-marker.txt'))).to.be.true;
-      expect(await pathExists(orphan)).to.be.false;
+      expect(await pathExists(ownOrphan)).to.be.false;
       await manager.shutdown();
       await cleanupTestDir(dataDir);
     });
