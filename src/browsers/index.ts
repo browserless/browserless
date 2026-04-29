@@ -588,14 +588,23 @@ export class BrowserManager {
         await browser.close();
       } catch (err) {
         this.log.warn(
-          `browser.close() rejected during session close ("${session.id}"): ${err}; proceeding with data-dir cleanup`,
+          `browser.close() rejected during session close ("${session.id}"): ${err}; proceeding with cleanup`,
         );
       } finally {
+        // Evict the session from the registry unconditionally — sessions
+        // created with an explicit --user-data-dir (isTempDataDir=false)
+        // must still be removed from `this.browsers`, otherwise they
+        // leak into `getAllSessions()` and trackingId lookups as stale
+        // closed-browser entries.
+        this.browsers.delete(browser);
+
+        // Data-dir removal stays guarded: only the dirs WE created
+        // (isTempDataDir=true) are ours to delete. A caller-supplied
+        // --user-data-dir is the caller's lifecycle to manage.
         if (session.isTempDataDir) {
           this.log.debug(
             `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
           );
-          this.browsers.delete(browser);
           await this.removeUserDataDir(session.userDataDir);
         }
       }
