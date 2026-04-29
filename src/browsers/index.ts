@@ -1,3 +1,4 @@
+import * as fs from 'fs/promises';
 import {
   BLESS_PAGE_IDENTIFIER,
   BadRequest,
@@ -39,6 +40,29 @@ import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
+import { tmpdir } from 'os';
+
+/**
+ * How long an `org.chromium.Chromium.*` temp directory must be untouched
+ * before the periodic sweep considers it abandoned. Chrome only writes to
+ * these dirs while a related subprocess is alive, so a 30-minute idle
+ * threshold is well past any realistic active session.
+ */
+const CHROMIUM_ORPHAN_IDLE_MS = 30 * 60 * 1000;
+
+/**
+ * Interval between periodic-sweep runs. Each run drains the
+ * `pendingCleanup` retry queue and walks the host /tmp for chromium-internal
+ * orphans. 5 minutes balances responsiveness against `readdir`/`stat` cost.
+ */
+const PERIODIC_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Per-attempt backoff for `removeUserDataDir` retries. Chrome typically
+ * releases file handles within a few hundred milliseconds of `browser.close()`,
+ * so 200ms / 400ms / 800ms covers the realistic EBUSY window.
+ */
+const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
 
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
@@ -54,11 +78,27 @@ export class BrowserManager {
     WebKitPlaywright.name,
   ];
 
+  /**
+   * Data-dirs whose deletion failed transiently and must be retried by the
+   * periodic sweep. Populated by `removeUserDataDir` after exhausting its
+   * inline retries; drained by `periodicSweep`.
+   */
+  protected pendingCleanup: Set<string> = new Set();
+
+  /**
+   * Handle for the periodic sweep loop, kept so `shutdown` can stop it.
+   */
+  protected periodicSweepHandle: NodeJS.Timeout | null = null;
+
   constructor(
     protected config: Config,
     protected hooks: Hooks,
     protected fileSystem: FileSystem,
-  ) {}
+  ) {
+    // Fire-and-forget startup sweep + periodic loop. Failures inside are
+    // logged but never thrown — cleanup is best-effort by design.
+    void this.initCleanup();
+  }
 
   protected browserIsChrome(b: BrowserInstance) {
     return this.chromeBrowsers.some(
@@ -67,13 +107,149 @@ export class BrowserManager {
   }
 
   protected async removeUserDataDir(userDataDir: string | null) {
-    if (userDataDir && (await exists(userDataDir))) {
-      this.log.debug(`Deleting data directory "${userDataDir}"`);
-      await deleteAsync(userDataDir, { force: true }).catch((err) => {
-        this.log.error(
-          `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
+    if (!userDataDir) return;
+    if (!(await exists(userDataDir))) return;
+
+    this.log.debug(`Deleting data directory "${userDataDir}"`);
+
+    for (let attempt = 0; attempt < REMOVE_RETRY_BACKOFF_MS.length; attempt++) {
+      try {
+        await deleteAsync(userDataDir, { force: true });
+        this.pendingCleanup.delete(userDataDir);
+        return;
+      } catch (err) {
+        const isLastAttempt =
+          attempt === REMOVE_RETRY_BACKOFF_MS.length - 1;
+        if (isLastAttempt) {
+          this.log.warn(
+            `Failed to remove user-data-dir "${userDataDir}" after ${REMOVE_RETRY_BACKOFF_MS.length} attempts (${err}); queued for periodic sweep`,
+          );
+          this.pendingCleanup.add(userDataDir);
+          return;
+        }
+        await new Promise((resolve) =>
+          global.setTimeout(resolve, REMOVE_RETRY_BACKOFF_MS[attempt]),
         );
+      }
+    }
+  }
+
+  /**
+   * Run once at construction: sweep prior-run orphans from the configured
+   * data-dir, then arm the periodic sweep loop. Catches and logs any
+   * failures so a transient FS error never prevents the manager from
+   * starting.
+   */
+  protected async initCleanup(): Promise<void> {
+    try {
+      await this.sweepOrphanDataDirs();
+    } catch (err) {
+      this.log.warn(`Startup orphan sweep failed: ${err}`);
+    }
+    this.periodicSweepHandle = global.setInterval(() => {
+      this.periodicSweep().catch((err) => {
+        this.log.warn(`Periodic sweep failed: ${err}`);
       });
+    }, PERIODIC_SWEEP_INTERVAL_MS);
+  }
+
+  /**
+   * Walks the configured `dataDir` and removes any `browserless-data-dir-*`
+   * leftovers. Called once at startup, before any new sessions land — every
+   * such dir is guaranteed to be from a prior run (this manager has no
+   * sessions yet) so no PID check is needed.
+   */
+  protected async sweepOrphanDataDirs(): Promise<void> {
+    const baseDir = await this.config.getDataDir();
+    if (!(await exists(baseDir))) return;
+
+    let entries: string[];
+    try {
+      entries = await fs.readdir(baseDir);
+    } catch (err) {
+      this.log.warn(`Could not read data-dir "${baseDir}": ${err}`);
+      return;
+    }
+
+    const orphans = entries.filter((e) =>
+      e.startsWith('browserless-data-dir-'),
+    );
+    if (orphans.length === 0) return;
+
+    this.log.info(
+      `Startup sweep: removing ${orphans.length} orphan data-dir(s) from prior run`,
+    );
+    for (const orphan of orphans) {
+      await this.removeUserDataDir(path.join(baseDir, orphan));
+    }
+  }
+
+  /**
+   * Runs every PERIODIC_SWEEP_INTERVAL_MS. Two passes:
+   *
+   * 1. Drain `pendingCleanup` — paths that failed inline retries earlier.
+   *    A previously busy file handle is almost always released by the time
+   *    the periodic sweep fires, so this catches the long-tail EBUSY cases.
+   *
+   * 2. Walk `/tmp` for chromium-internal subprocess orphans
+   *    (`org.chromium.Chromium.*`). Chrome creates these via mkdtemp for
+   *    its renderer/GPU/network/url_fetcher subprocesses and reaps them on
+   *    graceful shutdown — but a parent-process kill (OOM, segfault,
+   *    SIGKILL) leaves them behind. We use mtime-only as the liveness
+   *    signal: any subprocess actively using the dir would have touched it
+   *    within the last few minutes, so 30 min of mtime idleness is a safe
+   *    floor.
+   */
+  protected async periodicSweep(): Promise<void> {
+    // Pass 1: retry queue
+    for (const dir of Array.from(this.pendingCleanup)) {
+      await this.removeUserDataDir(dir);
+    }
+
+    // Pass 2: chromium-internal orphans. These live in the OS temp dir
+    // because Chrome creates them via mkdtemp, which is hard-wired to
+    // os.tmpdir() — independent of our configurable DATA_DIR. Using
+    // dirname(getDataDir()) only matches /tmp in the default config and
+    // silently misses the orphans whenever DATA_DIR points elsewhere.
+    const tmpRoot = tmpdir();
+    let entries: string[];
+    try {
+      entries = await fs.readdir(tmpRoot);
+    } catch (err) {
+      this.log.debug(`Could not read tmp root "${tmpRoot}": ${err}`);
+      return;
+    }
+
+    const now = Date.now();
+    let removed = 0;
+    for (const entry of entries) {
+      if (!entry.startsWith('org.chromium.Chromium.')) continue;
+      const full = path.join(tmpRoot, entry);
+
+      let mtime: Date;
+      try {
+        const stat = await fs.stat(full);
+        if (!stat.isDirectory()) continue;
+        mtime = stat.mtime;
+      } catch {
+        // Disappeared between readdir and stat — fine, move on.
+        continue;
+      }
+
+      if (now - mtime.getTime() < CHROMIUM_ORPHAN_IDLE_MS) continue;
+
+      try {
+        await deleteAsync(full, { force: true });
+        removed++;
+      } catch (err) {
+        this.log.debug(`Could not remove chromium orphan "${full}": ${err}`);
+      }
+    }
+
+    if (removed > 0) {
+      this.log.info(
+        `Periodic sweep removed ${removed} stale chromium-internal orphan(s) from "${tmpRoot}"`,
+      );
     }
   }
 
@@ -309,7 +485,6 @@ export class BrowserManager {
     const connected = session.numbConnected;
     const hasKeepUntil = keepUntil > now;
     const keepOpen = (connected > 0 || hasKeepUntil) && !force;
-    const cleanupACtions: Array<() => Promise<void>> = [];
     const priorTimer = this.timers.get(session.id);
 
     if (priorTimer) {
@@ -340,17 +515,30 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
-      cleanupACtions.push(() => browser.close());
-
-      if (session.isTempDataDir) {
-        this.log.debug(
-          `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+      // Serialise: await Chrome shutdown FIRST so it releases its file
+      // handles, then delete the data-dir. Running these in parallel
+      // (the previous behaviour) raced `deleteAsync` against Chrome
+      // releasing its FDs and produced silent EBUSY/ENOTEMPTY failures
+      // that left orphan profile dirs in `/tmp`.
+      //
+      // Cleanup runs in `finally` so a `browser.close()` rejection
+      // (process already gone, IPC error, etc.) cannot skip the
+      // data-dir delete and leak the orphan we were trying to prevent.
+      try {
+        await browser.close();
+      } catch (err) {
+        this.log.warn(
+          `browser.close() rejected during session close ("${session.id}"): ${err}; proceeding with data-dir cleanup`,
         );
-        this.browsers.delete(browser);
-        cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
+      } finally {
+        if (session.isTempDataDir) {
+          this.log.debug(
+            `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+          );
+          this.browsers.delete(browser);
+          await this.removeUserDataDir(session.userDataDir);
+        }
       }
-
-      await Promise.all(cleanupACtions.map((a) => a()));
     }
   }
 
@@ -665,12 +853,51 @@ export class BrowserManager {
   public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
-    await Promise.all(sessions.map(([b]) => b.close()));
-    const timers = Array.from(this.timers);
-    await Promise.all(timers.map(([, timer]) => clearInterval(timer)));
+
+    // Capture every temp data-dir BEFORE we close the browsers — `close`
+    // would clear the references and we'd lose the paths. Without this,
+    // every SIGTERM (deploy, container restart, config change) leaks
+    // one orphan data-dir per active session into /tmp.
+    const tempDataDirs = sessions
+      .filter(([, session]) => session.isTempDataDir)
+      .map(([, session]) => session.userDataDir)
+      .filter((d): d is string => !!d);
+
+    // Best-effort: a single `b.close()` rejection must not prevent the
+    // remaining browsers from closing, the data-dirs from being removed,
+    // the timers from being cleared, or `stop()` from running. Use
+    // `allSettled` so we always reach the rest of the shutdown sequence.
+    const closeResults = await Promise.allSettled(
+      sessions.map(([b]) => b.close()),
+    );
+    for (const result of closeResults) {
+      if (result.status === 'rejected') {
+        this.log.warn(
+          `browser.close() rejected during shutdown: ${result.reason}; continuing with cleanup`,
+        );
+      }
+    }
+
+    // Chrome processes are now terminated (or known-failed); safe to
+    // delete their data-dirs. `removeUserDataDir` swallows its own
+    // errors internally so this should not reject, but `allSettled` is
+    // cheap insurance.
+    await Promise.allSettled(
+      tempDataDirs.map((dir) => this.removeUserDataDir(dir)),
+    );
+
+    // Timer / state cleanup is unconditional — regardless of how the
+    // close+delete steps went, the manager must end up in a clean
+    // state, with no leaked timers and the periodic sweep stopped.
     this.timers.forEach((t) => clearTimeout(t));
     this.browsers = new Map();
     this.timers = new Map();
+
+    if (this.periodicSweepHandle) {
+      global.clearInterval(this.periodicSweepHandle);
+      this.periodicSweepHandle = null;
+    }
+
     await this.stop();
     this.log.info(`Shutdown complete`);
   }
