@@ -64,6 +64,18 @@ const PERIODIC_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
  */
 const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
 
+/**
+ * The chromium-internal subprocess orphan sweep (`org.chromium.Chromium.*`
+ * dirs in the OS temp directory) walks paths that are NOT
+ * browserless-managed and could in principle be created by other
+ * Chrome-using workloads sharing the same `os.tmpdir()`. Default off so
+ * the SDK is safe to drop into shared environments. Container
+ * deployments where /tmp is owned exclusively by browserless can opt in
+ * with `CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true`.
+ */
+const HOST_CHROMIUM_CLEANUP_ENABLED =
+  process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS === 'true';
+
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
@@ -90,14 +102,35 @@ export class BrowserManager {
    */
   protected periodicSweepHandle: NodeJS.Timeout | null = null;
 
+  /**
+   * Resolves once the startup orphan sweep has completed AND the periodic
+   * sweep loop has been (conditionally) armed. Awaited by:
+   *   - `shutdown()`, so it cannot race with `initCleanup` re-arming the
+   *     sweep handle after we've cleared it.
+   *   - `getBrowserForRequest()`, so a new session cannot create a fresh
+   *     `browserless-data-dir-*` while the startup sweep is mid-walk —
+   *     otherwise the sweep's prefix filter would match (and delete) the
+   *     in-flight dir.
+   */
+  protected initCleanupPromise: Promise<void> | null = null;
+
+  /**
+   * Set true at the very start of `shutdown`. Read by `initCleanup` to
+   * skip arming the periodic sweep when shutdown happened during startup,
+   * and by `getBrowserForRequest` to bail rather than spin up a new
+   * session against a manager that's tearing down.
+   */
+  protected shuttingDown = false;
+
   constructor(
     protected config: Config,
     protected hooks: Hooks,
     protected fileSystem: FileSystem,
   ) {
-    // Fire-and-forget startup sweep + periodic loop. Failures inside are
-    // logged but never thrown — cleanup is best-effort by design.
-    void this.initCleanup();
+    // Track the init promise so shutdown() and request handling can
+    // synchronise against it. Failures inside are logged but never
+    // thrown — cleanup is best-effort by design.
+    this.initCleanupPromise = this.initCleanup();
   }
 
   protected browserIsChrome(b: BrowserInstance) {
@@ -108,7 +141,13 @@ export class BrowserManager {
 
   protected async removeUserDataDir(userDataDir: string | null) {
     if (!userDataDir) return;
-    if (!(await exists(userDataDir))) return;
+    if (!(await exists(userDataDir))) {
+      // Path has vanished (manual cleanup, tmpfs unmount, deleted by
+      // someone else). Drop any stale entry so the periodic sweep
+      // doesn't keep retrying it forever.
+      this.pendingCleanup.delete(userDataDir);
+      return;
+    }
 
     this.log.debug(`Deleting data directory "${userDataDir}"`);
 
@@ -145,6 +184,16 @@ export class BrowserManager {
       await this.sweepOrphanDataDirs();
     } catch (err) {
       this.log.warn(`Startup orphan sweep failed: ${err}`);
+    }
+    // If shutdown was called while the startup sweep was running, do not
+    // arm the periodic sweep — shutdown has already cleared whatever
+    // handle was here previously and a new interval would outlive the
+    // manager.
+    if (this.shuttingDown) {
+      this.log.debug(
+        'Skipping periodic-sweep arm: shutdown was requested during startup sweep',
+      );
+      return;
     }
     this.periodicSweepHandle = global.setInterval(() => {
       this.periodicSweep().catch((err) => {
@@ -211,6 +260,17 @@ export class BrowserManager {
     // os.tmpdir() — independent of our configurable DATA_DIR. Using
     // dirname(getDataDir()) only matches /tmp in the default config and
     // silently misses the orphans whenever DATA_DIR points elsewhere.
+    //
+    // The OS tmp dir can be shared with other workloads, so this pass
+    // is gated behind CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true. Default off
+    // — opt in only when the SDK is the sole owner of /tmp (typical
+    // single-purpose container deployments).
+    if (!HOST_CHROMIUM_CLEANUP_ENABLED) {
+      this.log.debug(
+        'Skipping host-wide chromium-internal orphan sweep; set CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true to enable',
+      );
+      return;
+    }
     const tmpRoot = tmpdir();
     let entries: string[];
     try {
@@ -609,6 +669,20 @@ export class BrowserManager {
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
   ): Promise<BrowserInstance> {
+    // Gate every new session on the startup orphan sweep finishing.
+    // Without this, `generateDataDir(...)` below could race the sweep:
+    // both paths use the `browserless-data-dir-*` prefix in the same
+    // dataDir, and the sweep would happily delete an in-flight new
+    // session's directory because it cannot tell prior-run leftovers
+    // from concurrently-created ones.
+    if (this.initCleanupPromise) {
+      await this.initCleanupPromise;
+    }
+    if (this.shuttingDown) {
+      throw new ServerError(
+        'BrowserManager is shutting down; cannot accept new sessions',
+      );
+    }
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
       req.parsed.searchParams,
@@ -852,6 +926,17 @@ export class BrowserManager {
 
   public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
+    // Set the flag FIRST so `initCleanup` (if still running) sees it and
+    // skips the periodic-sweep arm — otherwise the interval could be
+    // re-armed after we clear it below and outlive the manager.
+    this.shuttingDown = true;
+    if (this.initCleanupPromise) {
+      // Wait for the startup sweep to finish so it cannot complete and
+      // re-arm `periodicSweepHandle` after our `clearInterval` runs.
+      await this.initCleanupPromise.catch(() => {
+        // Already logged inside initCleanup; nothing else to do here.
+      });
+    }
     const sessions = Array.from(this.browsers);
 
     // Capture every temp data-dir BEFORE we close the browsers — `close`
