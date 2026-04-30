@@ -659,13 +659,39 @@ export class BrowserManager {
       (router.onNewPage || noop)(req.parsed || '', page);
     });
 
+    browser.once('close', () => {
+      const orphaned = this.browsers.get(browser);
+      if (!orphaned) {
+        return;
+      }
+      this.log.info(
+        `Browser session "${orphaned.id}" closed unexpectedly, cleaning up data-dir`,
+      );
+      this.browsers.delete(browser);
+      const priorTimer = this.timers.get(orphaned.id);
+      if (priorTimer) {
+        global.clearTimeout(priorTimer);
+        this.timers.delete(orphaned.id);
+      }
+      if (orphaned.isTempDataDir) {
+        this.removeUserDataDir(orphaned.userDataDir);
+      }
+    });
+
     return browser;
   }
 
   public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
-    await Promise.all(sessions.map(([b]) => b.close()));
+    await Promise.all(
+      sessions.map(async ([b, session]) => {
+        await b.close();
+        if (session.isTempDataDir) {
+          await this.removeUserDataDir(session.userDataDir);
+        }
+      }),
+    );
     const timers = Array.from(this.timers);
     await Promise.all(timers.map(([, timer]) => clearInterval(timer)));
     this.timers.forEach((t) => clearTimeout(t));
