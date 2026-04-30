@@ -251,6 +251,17 @@ export class ChromiumCDP extends EventEmitter {
     );
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated.bind(this));
+    this.browser.once('disconnected', () => {
+      if (this.running) {
+        this.logger.info(
+          `${this.constructor.name} disconnected unexpectedly, emitting close`,
+        );
+        this.running = false;
+        this.browser = null;
+        this.browserWSEndpoint = null;
+        this.emit('close');
+      }
+    });
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
     this.logger.info(

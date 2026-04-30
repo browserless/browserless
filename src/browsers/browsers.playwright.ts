@@ -163,6 +163,18 @@ class BasePlaywright extends EventEmitter {
     this.browserWSEndpoint = browserWSEndpoint;
     this.browser = browser;
 
+    browser.on('close', () => {
+      if (this.running) {
+        this.logger.info(
+          `${this.constructor.name} closed unexpectedly, emitting close`,
+        );
+        this.running = false;
+        this.browser = null;
+        this.browserWSEndpoint = null;
+        this.emit('close');
+      }
+    });
+
     return browser;
   }
 
