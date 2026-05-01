@@ -44,12 +44,19 @@ import path from 'path';
 import { tmpdir } from 'os';
 
 /**
- * How long an `org.chromium.Chromium.*` temp directory must be untouched
- * before the periodic sweep considers it abandoned. Chrome only writes to
- * these dirs while a related subprocess is alive, so a 30-minute idle
- * threshold is well past any realistic active session.
+ * How long a tracked temp directory must be untouched before our sweeps
+ * consider it abandoned. Used by both:
+ *   - the startup sweep over `${SESSION_DATA_DIR_PREFIX}*` entries in the
+ *     configured data-dir, where a live Chrome session continuously
+ *     writes profile state (cookies, cache, prefs) so a stale mtime is a
+ *     reliable "no live owner" signal even when the data-dir is shared
+ *     across BrowserManager instances; and
+ *   - the periodic sweep over `org.chromium.Chromium.*` dirs in the OS
+ *     temp dir, which Chrome only writes to while the related subprocess
+ *     is alive.
+ * 30 minutes is well past any realistic active session in either case.
  */
-const CHROMIUM_ORPHAN_IDLE_MS = 30 * 60 * 1000;
+const ORPHAN_IDLE_MS = 30 * 60 * 1000;
 
 /**
  * Interval between periodic-sweep runs. Each run drains the
@@ -70,11 +77,11 @@ const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
 
 /**
  * Filename prefix shared by every per-session user-data-dir we create.
- * The full directory name is `${SESSION_DATA_DIR_PREFIX}${instanceId}-${sessionId}`,
- * so the `${instanceId}-` segment scopes ownership to a single
- * BrowserManager instance. Sweeps in the shared base data-dir filter on
- * the instance-qualified prefix and never touch directories owned by
- * other manager instances co-located in the same `config.getDataDir()`.
+ * The full directory name is `${SESSION_DATA_DIR_PREFIX}${instanceId}-${sessionId}`;
+ * the `${instanceId}-` segment is a debugging/traceability hint, not a
+ * safety boundary. Cross-instance safety in the startup sweep is enforced
+ * by the mtime staleness check, not by name filtering — see
+ * `sweepOrphanDataDirs`.
  */
 const SESSION_DATA_DIR_PREFIX = 'browserless-data-dir-';
 
@@ -121,10 +128,12 @@ export class BrowserManager {
    * sweep loop has been (conditionally) armed. Awaited by:
    *   - `shutdown()`, so it cannot race with `initCleanup` re-arming the
    *     sweep handle after we've cleared it.
-   *   - `getBrowserForRequest()`, so a new session cannot create a fresh
-   *     `browserless-data-dir-*` while the startup sweep is mid-walk —
-   *     otherwise the sweep's prefix filter would match (and delete) the
-   *     in-flight dir.
+   *   - `getBrowserForRequest()`, so the startup sweep finishes before
+   *     new sessions land. The mtime staleness check makes a same-tick
+   *     race a non-issue (a freshly-created dir has fresh mtime and is
+   *     skipped), but the await keeps the request path simpler — it
+   *     never has to reason about a sweep concurrently `stat`-ing a dir
+   *     it's also creating.
    */
   protected initCleanupPromise: Promise<void> | null = null;
 
@@ -137,11 +146,11 @@ export class BrowserManager {
   protected shuttingDown = false;
 
   /**
-   * Random per-construction identifier woven into every user-data-dir
-   * this manager creates. Two BrowserManager instances sharing a single
-   * `config.getDataDir()` (e.g. multiple processes pointed at the same
-   * /tmp) end up with non-overlapping data-dir name prefixes, so neither
-   * instance's sweep ever sees the other's live profiles.
+   * Random per-construction identifier embedded in every user-data-dir
+   * this manager creates. Useful for tracing which dir came from which
+   * process when reading a shared `config.getDataDir()`. Cross-instance
+   * sweep safety is enforced by mtime staleness, not by this id — see
+   * `sweepOrphanDataDirs`.
    */
   protected readonly instanceId: string = id();
 
@@ -235,16 +244,24 @@ export class BrowserManager {
   }
 
   /**
-   * Walks the configured `dataDir` and removes any orphaned data-dirs
-   * that we own but never cleaned up. Called once at startup, before
-   * any new sessions land.
+   * Walks the configured `dataDir` and removes orphaned per-session
+   * data-dirs left over from prior runs. Called once at construction,
+   * before any new sessions land.
    *
-   * The filter is scoped to `${SESSION_DATA_DIR_PREFIX}${instanceId}-`
-   * so a manager whose `config.getDataDir()` is shared with other
-   * BrowserManager instances (multi-process deploys, shared /tmp) only
-   * touches its own leftovers. Other instances' live profiles use a
-   * different `instanceId` segment in the path and are skipped by this
-   * filter.
+   * The dominant leak source is a container restarting (deploy, OOM,
+   * SIGKILL) without finishing graceful shutdown — the previous run's
+   * `${SESSION_DATA_DIR_PREFIX}*` directories survive into the new run
+   * because each fresh `BrowserManager` gets a new random `instanceId`,
+   * so an instance-qualified name filter would never match prior-run
+   * orphans (PR review thread on browserless#5343). Filtering on the
+   * general `SESSION_DATA_DIR_PREFIX` lets us catch them.
+   *
+   * Cross-instance safety (multiple BrowserManager processes sharing the
+   * same `config.getDataDir()`) is enforced by the mtime staleness check
+   * rather than by name scoping: a live Chrome session continuously
+   * writes profile state (cookies, cache, prefs) so a directory idle for
+   * ORPHAN_IDLE_MS is reliably orphaned. A directory owned by another
+   * concurrently-running instance has fresh mtime and is skipped.
    */
   protected async sweepOrphanDataDirs(): Promise<void> {
     const baseDir = await this.config.getDataDir();
@@ -258,15 +275,47 @@ export class BrowserManager {
       return;
     }
 
-    const ownedPrefix = `${SESSION_DATA_DIR_PREFIX}${this.instanceId}-`;
-    const orphans = entries.filter((e) => e.startsWith(ownedPrefix));
-    if (orphans.length === 0) return;
+    const candidates = entries.filter((e) =>
+      e.startsWith(SESSION_DATA_DIR_PREFIX),
+    );
+    if (candidates.length === 0) return;
+
+    const now = Date.now();
+    const orphans: string[] = [];
+    let liveSkipped = 0;
+    for (const entry of candidates) {
+      const full = path.join(baseDir, entry);
+      let mtimeMs: number;
+      try {
+        const stat = await fs.stat(full);
+        if (!stat.isDirectory()) continue;
+        mtimeMs = stat.mtimeMs;
+      } catch {
+        // Vanished between readdir and stat — fine, move on.
+        continue;
+      }
+      if (now - mtimeMs < ORPHAN_IDLE_MS) {
+        liveSkipped++;
+        continue;
+      }
+      orphans.push(full);
+    }
+
+    if (orphans.length === 0) {
+      if (liveSkipped > 0) {
+        this.log.debug(
+          `Startup sweep: ${liveSkipped} data-dir(s) skipped as live (mtime newer than ${ORPHAN_IDLE_MS}ms)`,
+        );
+      }
+      return;
+    }
 
     this.log.info(
-      `Startup sweep: removing ${orphans.length} orphan data-dir(s) owned by instance ${this.instanceId}`,
+      `Startup sweep: removing ${orphans.length} orphan data-dir(s)` +
+        (liveSkipped > 0 ? ` (${liveSkipped} live dir(s) skipped)` : ''),
     );
     for (const orphan of orphans) {
-      await this.removeUserDataDir(path.join(baseDir, orphan));
+      await this.removeUserDataDir(orphan);
     }
   }
 
@@ -333,7 +382,7 @@ export class BrowserManager {
         continue;
       }
 
-      if (now - mtime.getTime() < CHROMIUM_ORPHAN_IDLE_MS) continue;
+      if (now - mtime.getTime() < ORPHAN_IDLE_MS) continue;
 
       try {
         await deleteAsync(full, { force: true });
@@ -883,11 +932,10 @@ export class BrowserManager {
 
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs.
-    // The auto-generated dir name embeds `${instanceId}-` so a
-    // co-located BrowserManager's startup sweep (which filters by
-    // instance prefix) cannot match — and therefore cannot delete —
-    // this instance's profile. Manual `--user-data-dir` paths bypass
-    // this entirely, since the caller owns the path's lifecycle.
+    // The auto-generated name embeds `${instanceId}-` purely for
+    // traceability when multiple BrowserManager processes share a
+    // `config.getDataDir()`. Manual `--user-data-dir` paths bypass this
+    // entirely, since the caller owns the path's lifecycle.
     const userDataDir =
       manualUserDataDir ||
       (!this.playwrightBrowserNames.includes(Browser.name)

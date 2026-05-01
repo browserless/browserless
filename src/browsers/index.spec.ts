@@ -159,13 +159,18 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
   });
 
   describe(`sweepOrphanDataDirs (startup sweep)`, () => {
-    it('removes orphan data-dirs scoped to this instance', async () => {
+    // Helper: backdate a directory's mtime so the staleness check treats
+    // it as orphaned. 1 hour is well past the 30-minute ORPHAN_IDLE_MS
+    // threshold and matches the "prior-run leftover" scenario this
+    // sweep is designed to catch.
+    const ageDir = (p: string) => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      return fs.utimes(p, oneHourAgo, oneHourAgo);
+    };
+
+    it('removes stale orphan data-dirs from prior runs', async () => {
       const { dataDir, manager } = await makeManager();
       const instanceId = manager.getInstanceId();
-      // Simulate prior-run leftovers owned by THIS instance (matching
-      // prefix). After construction the startup sweep already ran on
-      // an empty dir; plant the orphans now and run the sweep again
-      // directly.
       const orphan1 = path.join(
         dataDir,
         `browserless-data-dir-${instanceId}-old1`,
@@ -176,6 +181,8 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       );
       await fs.mkdir(orphan1);
       await fs.mkdir(orphan2);
+      await ageDir(orphan1);
+      await ageDir(orphan2);
 
       await manager.testSweepOrphanDataDirs();
 
@@ -185,10 +192,33 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await cleanupTestDir(dataDir);
     });
 
-    it('leaves data-dirs owned by other BrowserManager instances untouched', async () => {
-      // Two managers sharing the same `config.getDataDir()`. Manager A's
-      // startup sweep must not touch dirs owned by manager B (different
-      // instanceId prefix), even though both use the same name family.
+    it('removes stale orphan dirs whose name embeds a different instanceId (cross-restart cleanup)', async () => {
+      // The dominant leak scenario: a previous run crashed without
+      // graceful shutdown, leaving its data-dirs behind; this run has a
+      // freshly-generated instanceId, so the sweep must NOT scope by
+      // instance prefix or it would never reclaim those dirs.
+      const { dataDir, manager } = await makeManager();
+      const alienInstanceId = 'previous-run-instance-id';
+      const orphan = path.join(
+        dataDir,
+        `browserless-data-dir-${alienInstanceId}-old`,
+      );
+      await fs.mkdir(orphan);
+      await ageDir(orphan);
+
+      await manager.testSweepOrphanDataDirs();
+
+      expect(await pathExists(orphan)).to.be.false;
+      await manager.shutdown();
+      await cleanupTestDir(dataDir);
+    });
+
+    it('leaves fresh data-dirs untouched (treated as live, regardless of instanceId)', async () => {
+      // A directory whose mtime is fresh is presumed to belong to a live
+      // session — either ours (in flight) or another concurrently-running
+      // BrowserManager process sharing this data-dir. Two managers
+      // sharing one `config.getDataDir()` exercises the multi-process
+      // case directly.
       const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
 
       const configA = new Config();
@@ -209,14 +239,16 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       );
       await managerB.getInitCleanupPromise();
 
-      // Plant a "live" data-dir owned by manager B.
+      // A "live" data-dir owned by manager B. mkdir leaves mtime at
+      // `now`, so it falls inside the staleness window.
       const bDir = path.join(
         dataDir,
         `browserless-data-dir-${managerB.getInstanceId()}-live`,
       );
       await fs.mkdir(bDir);
 
-      // Manager A re-runs its startup sweep (e.g. simulating a restart).
+      // Manager A re-runs its sweep (e.g. simulating a restart). It
+      // must not delete manager B's fresh dir.
       await managerA.testSweepOrphanDataDirs();
 
       expect(await pathExists(bDir)).to.be.true;
@@ -235,8 +267,10 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       );
       await fs.mkdir(friend);
       await fs.mkdir(ownOrphan);
+      await ageDir(ownOrphan);
       // Plant a file that should also be untouched.
       await fs.writeFile(path.join(dataDir, 'a-marker.txt'), 'hi');
+      await ageDir(friend);
 
       await manager.testSweepOrphanDataDirs();
 
@@ -347,11 +381,16 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
     it('does not arm periodicSweepHandle when shutdown is called during init', async () => {
       const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
-      // A backlog of orphans makes the startup sweep slow enough for the
-      // race to be observable: shutdown() runs while initCleanup() is
-      // mid-walk.
+      // A backlog of stale orphans makes the startup sweep slow enough
+      // for the race to be observable: shutdown() runs while
+      // initCleanup() is mid-walk. Backdate the mtime so the staleness
+      // check actually queues each dir for deletion (otherwise the
+      // sweep skips them and finishes instantly).
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       for (let i = 0; i < 50; i++) {
-        await fs.mkdir(path.join(dataDir, `browserless-data-dir-init-${i}`));
+        const p = path.join(dataDir, `browserless-data-dir-init-${i}`);
+        await fs.mkdir(p);
+        await fs.utimes(p, oneHourAgo, oneHourAgo);
       }
 
       const config = new Config();
