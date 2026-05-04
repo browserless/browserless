@@ -16,8 +16,17 @@ const noop = () => undefined;
 const webHooks = Sinon.createStubInstance(WebHooks);
 const hooks = Sinon.createStubInstance(Hooks);
 
+const monitorings: Monitoring[] = [];
+const trackMonitoring = (m: Monitoring): Monitoring => {
+  monitorings.push(m);
+  return m;
+};
+
 describe(`Limiter`, () => {
   afterEach(() => {
+    monitorings.forEach((m) => m.stop());
+    monitorings.length = 0;
+
     webHooks.callFailedHealthURL.resetHistory();
     webHooks.callQueueAlertURL.resetHistory();
     webHooks.callRejectAlertURL.resetHistory();
@@ -35,7 +44,7 @@ describe(`Limiter`, () => {
       const config = new Config();
       config.setQueueAlertURL('https://one.one.one.one');
 
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
 
       config.setConcurrent(1);
@@ -72,7 +81,7 @@ describe(`Limiter`, () => {
       const args = ['one', 'two', 'three'];
       const config = new Config();
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(1);
       config.setQueued(0);
       config.setTimeout(-1);
@@ -100,7 +109,7 @@ describe(`Limiter`, () => {
 
   it('waits to run jobs until the first are done', async () => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     config.setConcurrent(1);
     config.setQueued(1);
@@ -123,7 +132,7 @@ describe(`Limiter`, () => {
 
   it('continues to process jobs even if an earlier job errors', (d) => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
 
     config.setConcurrent(1);
@@ -149,7 +158,7 @@ describe(`Limiter`, () => {
 
   it('bubbles up errors', async () => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     const error = new Error('WOW');
 
@@ -181,7 +190,7 @@ describe(`Limiter`, () => {
   it('calls an error handler with arguments if there are too many function calls', () => {
     const args = ['one', 'two', 'three'];
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     config.setConcurrent(1);
     config.setQueued(0);
@@ -208,7 +217,7 @@ describe(`Limiter`, () => {
       const args = ['one', 'two', 'three'];
       const config = new Config();
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(1);
       config.setQueued(0);
       config.setTimeout(10);
@@ -242,7 +251,7 @@ describe(`Limiter`, () => {
   it('allows overriding the timeouts', async () => {
     const config = new Config();
     const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     config.setConcurrent(2);
     config.setQueued(0);
     config.setTimeout(1);
@@ -265,7 +274,7 @@ describe(`Limiter`, () => {
   it(`doesn't call a timeout handler if the job finishes in time`, async () => {
     const config = new Config();
     const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     config.setConcurrent(1);
     config.setQueued(0);
     config.setTimeout(20);
@@ -283,7 +292,7 @@ describe(`Limiter`, () => {
   it(`won't add items to the queue when reached`, () =>
     new Promise((r) => {
       const config = new Config();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
       config.setConcurrent(1);
       config.setQueued(0);
@@ -314,7 +323,7 @@ describe(`Limiter`, () => {
       config.setCPULimit(1);
       config.setMemoryLimit(1);
 
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
       config.setConcurrent(10);
       config.setQueued(10);
@@ -341,7 +350,7 @@ describe(`Limiter`, () => {
       config.setMemoryLimit(100);
 
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(10);
       config.setQueued(10);
       config.setTimeout(-1);

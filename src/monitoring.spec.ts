@@ -4,7 +4,9 @@ import {
   CgroupV2Source,
   Config,
   HostSource,
+  IResourceLoad,
   Logger,
+  MachineStatsSource,
   Monitoring,
   detectMachineStatsSource,
   parseCpuMax,
@@ -488,6 +490,7 @@ describe('Monitoring source wiring', () => {
     expect(logSpy.calledOnce).to.be.true;
     expect(logSpy.firstCall.args[0]).to.match(/source.*fake/i);
     expect(monitoring).to.exist;
+    monitoring.stop();
   });
 
   it('delegates getMachineStats() to the configured source', async () => {
@@ -499,6 +502,7 @@ describe('Monitoring source wiring', () => {
     const monitoring = new Monitoring(config, fakeSource);
     const stats = await monitoring.getMachineStats();
     expect(stats).to.deep.equal({ cpu: 0.7, memory: 0.3 });
+    monitoring.stop();
   });
 
   it('honors MACHINE_STATS_SOURCE=host even on a cgroup host', () => {
@@ -507,5 +511,165 @@ describe('Monitoring source wiring', () => {
     const monitoring = new Monitoring(config);
     // We cannot read protected statsSource; verify behavior via getMachineStats path on dev hosts (HostSource exists). Simply expect construction to succeed.
     expect(monitoring).to.exist;
+    monitoring.stop();
+  });
+});
+
+class ControlledSource implements MachineStatsSource {
+  public readonly name = 'controlled';
+  protected values: Array<{ cpu: number | null; memory: number | null }> = [];
+  protected callCount = 0;
+
+  public setSequence(
+    values: Array<{ cpu: number | null; memory: number | null }>,
+  ) {
+    this.values = values;
+    this.callCount = 0;
+  }
+
+  public async read(): Promise<IResourceLoad> {
+    const i = this.callCount;
+    this.callCount++;
+    if (this.values.length === 0) {
+      return { cpu: 0, memory: 0 };
+    }
+    return this.values[Math.min(i, this.values.length - 1)];
+  }
+}
+
+class TestMonitoring extends Monitoring {
+  public async runSample(): Promise<void> {
+    return this.sample();
+  }
+  public seedCpu(value: number | null): void {
+    this.smoothedCpu = value;
+  }
+  public peekCpuOverloadedState(): boolean {
+    return this.cpuOverloadedState;
+  }
+}
+
+const makeConfig = (overrides: Partial<Record<string, number>> = {}) => {
+  const config = new Config();
+  // Push the timer well beyond the test's lifetime so only manual runSample()
+  // calls drive the EMA — keeps assertions deterministic.
+  config.setCpuSampleIntervalMs(60_000);
+  config.setCpuEmaAlpha(overrides.alpha ?? 0.3);
+  config.setCpuOverloadHysteresis(overrides.hysteresis ?? 10);
+  return config;
+};
+
+describe('Monitoring smoothing and hysteresis', () => {
+  afterEach(() => Sinon.restore());
+
+  it('smooths CPU samples via EMA so a single spike does not trip the threshold', async () => {
+    const config = makeConfig();
+    config.enableHealthChecks(true);
+    config.setCPULimit(80);
+
+    const source = new ControlledSource();
+    source.setSequence([
+      { cpu: 0.6, memory: 0 },
+      { cpu: 0.18, memory: 0 },
+      { cpu: 0.9, memory: 0 },
+      { cpu: 0.22, memory: 0 },
+    ]);
+
+    const monitoring = new TestMonitoring(config, source, () => {});
+    // Constructor consumed the first sample (0.6 → seeded 60%).
+    await monitoring.runSample(); // 0.18 → smoothed ~47.4
+    await monitoring.runSample(); // 0.90 → smoothed ~60.2
+    await monitoring.runSample(); // 0.22 → smoothed ~48.7
+
+    const { cpuInt, cpuOverloaded } = await monitoring.overloaded();
+    expect(cpuInt).to.be.lessThan(80);
+    expect(cpuOverloaded).to.be.false;
+    monitoring.stop();
+  });
+
+  it('enters overloaded only after sustained high load', async () => {
+    const config = makeConfig();
+    config.enableHealthChecks(true);
+    config.setCPULimit(80);
+
+    const source = new ControlledSource();
+    source.setSequence([{ cpu: 0.85, memory: 0 }]);
+
+    const monitoring = new TestMonitoring(config, source, () => {});
+    // Constructor consumes the first 0.85 → smoothed = 85.
+    const { cpuInt, cpuOverloaded } = await monitoring.overloaded();
+    expect(cpuInt).to.equal(85);
+    expect(cpuOverloaded).to.be.true;
+    monitoring.stop();
+  });
+
+  it('applies hysteresis: stays overloaded between exit and enter thresholds', async () => {
+    const config = makeConfig({ hysteresis: 10 });
+    config.enableHealthChecks(true);
+    config.setCPULimit(80);
+
+    const source = new ControlledSource();
+    source.setSequence([{ cpu: 0, memory: 0 }]);
+
+    const monitoring = new TestMonitoring(config, source, () => {});
+    await monitoring.runSample();
+
+    monitoring.seedCpu(85);
+    let result = await monitoring.overloaded();
+    expect(result.cpuOverloaded, 'enters overloaded at >= 80').to.be.true;
+
+    monitoring.seedCpu(75);
+    result = await monitoring.overloaded();
+    expect(result.cpuOverloaded, 'holds at 75 (above exit 70)').to.be.true;
+
+    monitoring.seedCpu(69);
+    result = await monitoring.overloaded();
+    expect(result.cpuOverloaded, 'exits below 70').to.be.false;
+    monitoring.stop();
+  });
+
+  it('blocks overloaded() until the first sample resolves', async () => {
+    const config = makeConfig();
+    config.enableHealthChecks(true);
+    config.setCPULimit(80);
+
+    let resolveRead!: (v: IResourceLoad) => void;
+    const source: MachineStatsSource = {
+      name: 'pending',
+      read: () =>
+        new Promise<IResourceLoad>((r) => {
+          resolveRead = r;
+        }),
+    };
+
+    const monitoring = new TestMonitoring(config, source, () => {});
+    const overloadedPromise = monitoring.overloaded();
+
+    let resolved = false;
+    overloadedPromise.then(() => {
+      resolved = true;
+    });
+    await new Promise((r) => setImmediate(r));
+    expect(resolved, 'should not resolve before first sample').to.be.false;
+
+    resolveRead({ cpu: 0.5, memory: 0.4 });
+    const result = await overloadedPromise;
+    expect(result.cpuInt).to.equal(50);
+    expect(result.cpuOverloaded).to.be.false;
+    monitoring.stop();
+  });
+
+  it('stop() clears the sampler interval', async () => {
+    const config = makeConfig();
+    const source = new ControlledSource();
+    source.setSequence([{ cpu: 0.1, memory: 0 }]);
+
+    const monitoring = new TestMonitoring(config, source, () => {});
+    await monitoring.runSample();
+
+    const clearSpy = Sinon.spy(global, 'clearInterval');
+    monitoring.stop();
+    expect(clearSpy.calledOnce).to.be.true;
+    clearSpy.restore();
   });
 });

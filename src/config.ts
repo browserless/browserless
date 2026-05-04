@@ -180,6 +180,13 @@ export class Config extends EventEmitter {
   )
     .trim()
     .toLowerCase();
+  protected cpuSampleIntervalMs = +(
+    process.env.CPU_SAMPLE_INTERVAL_MS ?? '1000'
+  );
+  protected cpuEmaAlpha = +(process.env.CPU_EMA_ALPHA ?? '0.3');
+  protected cpuOverloadHysteresis = +(
+    process.env.CPU_OVERLOAD_HYSTERESIS ?? '10'
+  );
   protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
   protected healthCheck = !!parseEnvVars(false, 'HEALTH');
   protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
@@ -267,6 +274,24 @@ export class Config extends EventEmitter {
       );
     }
     return value;
+  }
+  public getCpuSampleIntervalMs(): number {
+    return this.cpuSampleIntervalMs;
+  }
+  public getCpuEmaAlpha(): number {
+    return this.cpuEmaAlpha;
+  }
+  public getCpuOverloadHysteresis(): number {
+    return this.cpuOverloadHysteresis;
+  }
+  public setCpuSampleIntervalMs(value: number): number {
+    return (this.cpuSampleIntervalMs = value);
+  }
+  public setCpuEmaAlpha(value: number): number {
+    return (this.cpuEmaAlpha = value);
+  }
+  public setCpuOverloadHysteresis(value: number): number {
+    return (this.cpuOverloadHysteresis = value);
   }
   public getMaxPayloadSize(): number {
     return this.maxPayloadSize;

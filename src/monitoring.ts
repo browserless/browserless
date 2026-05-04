@@ -359,6 +359,16 @@ export function detectMachineStatsSource(
 export class Monitoring extends EventEmitter {
   protected log = new Logger('hardware');
   protected statsSource: MachineStatsSource;
+  // EMA-smoothed CPU percent (0-100). Null until the first sample lands.
+  protected smoothedCpu: number | null = null;
+  // Most recent memory fraction (0-1). Memory is stable; no smoothing needed.
+  protected cachedMemory: number | null = null;
+  // Hysteresis state — flipped on enter/exit thresholds, not on every sample.
+  protected cpuOverloadedState = false;
+  protected samplerHandle: NodeJS.Timeout;
+  // Resolves once the first sample completes, so callers awaiting overloaded()
+  // before the timer has ticked still get a real reading instead of fail-open.
+  protected firstSamplePromise: Promise<void>;
 
   constructor(
     protected config: Config,
@@ -370,6 +380,34 @@ export class Monitoring extends EventEmitter {
       statsSource ?? detectMachineStatsSource(config.getMachineStatsSource());
     const log = logFn ?? ((msg: string) => this.log.info(msg));
     log(`Machine stats source: ${this.statsSource.name}`);
+
+    this.firstSamplePromise = this.sample();
+    this.samplerHandle = setInterval(
+      () => {
+        this.sample();
+      },
+      this.config.getCpuSampleIntervalMs(),
+    );
+    // Don't keep the event loop alive solely for this timer (test runners hang otherwise).
+    this.samplerHandle.unref();
+  }
+
+  protected async sample(): Promise<void> {
+    const { cpu, memory } = await this.statsSource.read();
+
+    if (cpu !== null) {
+      // statsSource returns 0-1 fraction; smoothed value is stored as 0-100 percent.
+      const current = cpu * 100;
+      const alpha = this.config.getCpuEmaAlpha();
+      this.smoothedCpu =
+        this.smoothedCpu === null
+          ? current
+          : alpha * current + (1 - alpha) * this.smoothedCpu;
+    }
+
+    if (memory !== null) {
+      this.cachedMemory = memory;
+    }
   }
 
   public async getMachineStats(): Promise<IResourceLoad> {
@@ -382,19 +420,40 @@ export class Monitoring extends EventEmitter {
     memoryInt: number | null;
     memoryOverloaded: boolean;
   }> {
-    const { cpu, memory } = await this.getMachineStats();
-    const cpuInt = cpu && Math.ceil(cpu * 100);
-    const memoryInt = memory && Math.ceil(memory * 100);
+    if (this.smoothedCpu === null) {
+      await this.firstSamplePromise;
+    }
 
-    this.log.debug(
-      `Checking overload status: CPU ${cpuInt}% Memory ${memoryInt}%`,
-    );
+    const cpuInt =
+      this.smoothedCpu === null ? null : Math.ceil(this.smoothedCpu);
+    const memoryInt =
+      this.cachedMemory === null ? null : Math.ceil(this.cachedMemory * 100);
 
-    const cpuOverloaded = !!(cpuInt && cpuInt >= this.config.getCPULimit());
+    const limit = this.config.getCPULimit();
+    const hysteresis = this.config.getCpuOverloadHysteresis();
+
+    if (cpuInt !== null) {
+      if (!this.cpuOverloadedState && cpuInt >= limit) {
+        this.cpuOverloadedState = true;
+      } else if (this.cpuOverloadedState && cpuInt < limit - hysteresis) {
+        this.cpuOverloadedState = false;
+      }
+    }
+
     const memoryOverloaded = !!(
       memoryInt && memoryInt >= this.config.getMemoryLimit()
     );
-    return { cpuInt, cpuOverloaded, memoryInt, memoryOverloaded };
+
+    this.log.debug(
+      `Checking overload status: CPU ${cpuInt}% (smoothed) Memory ${memoryInt}%`,
+    );
+
+    return {
+      cpuInt,
+      cpuOverloaded: this.cpuOverloadedState,
+      memoryInt,
+      memoryOverloaded,
+    };
   }
 
   /**
@@ -408,5 +467,7 @@ export class Monitoring extends EventEmitter {
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop() {}
+  public stop() {
+    clearInterval(this.samplerHandle);
+  }
 }
