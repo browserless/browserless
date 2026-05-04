@@ -2,6 +2,7 @@ import {
   Browserless,
   BrowserlessSessionJSON,
   Config,
+  Hooks,
   Metrics,
   exists,
   fetchJson,
@@ -10,6 +11,7 @@ import {
 import { chromium } from 'playwright-core';
 import { deleteAsync } from 'del';
 import { expect } from 'chai';
+import fs from 'fs/promises';
 import puppeteer from 'puppeteer-core';
 
 describe('Chromium WebSocket API', function () {
@@ -17,9 +19,10 @@ describe('Chromium WebSocket API', function () {
 
   const start = ({
     config = new Config(),
+    hooks,
     metrics = new Metrics(),
-  }: { config?: Config; metrics?: Metrics } = {}) => {
-    browserless = new Browserless({ config, metrics });
+  }: { config?: Config; hooks?: Hooks; metrics?: Metrics } = {}) => {
+    browserless = new Browserless({ config, hooks, metrics });
     return browserless.start();
   };
 
@@ -221,6 +224,42 @@ describe('Chromium WebSocket API', function () {
     await sleep(1000);
 
     expect(await exists(userDataDir)).to.be.false;
+  });
+
+  // Regression test for PLT-983: when launch (or the post-launch hook) throws,
+  // the auto-generated /tmp/browserless-data-dirs/* directory must be removed,
+  // otherwise repeated failures exhaust inodes on the host.
+  it('deletes user-data-dirs when launch fails', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    const hooks = new Hooks();
+    hooks.browser = async () => {
+      throw new Error('PLT-983 regression: simulated post-launch hook failure');
+    };
+    await start({ config, hooks, metrics });
+
+    const baseDir = await config.getDataDir();
+    const before = await fs.readdir(baseDir).catch((): string[] => []);
+
+    const attempts = 3;
+    const results = await Promise.all(
+      Array.from({ length: attempts }, () =>
+        puppeteer
+          .connect({
+            browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+          })
+          .then(() => 'connected')
+          .catch((err: Error) => err.message),
+      ),
+    );
+    expect(results.every((r) => r !== 'connected')).to.be.true;
+
+    await sleep(1000);
+
+    const after = await fs.readdir(baseDir).catch(() => []);
+    const leaked = after.filter((entry) => !before.includes(entry));
+    expect(leaked).to.deep.equal([]);
   });
 
   it('allows specified user-data-dirs', async () => {

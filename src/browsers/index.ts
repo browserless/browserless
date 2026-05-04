@@ -622,13 +622,21 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
-    await browser.launch({
-      options: launchOptions as BrowserServerOptions,
-      pwVersion,
-      req,
-      stealth: launchOptions?.stealth,
-    });
-    await this.hooks.browser({ browser, req });
+    try {
+      await browser.launch({
+        options: launchOptions as BrowserServerOptions,
+        pwVersion,
+        req,
+        stealth: launchOptions?.stealth,
+      });
+      await this.hooks.browser({ browser, req });
+    } catch (err) {
+      await browser.close().catch(() => undefined);
+      if (!manualUserDataDir) {
+        await this.removeUserDataDir(userDataDir);
+      }
+      throw err;
+    }
 
     const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
