@@ -4,6 +4,8 @@ import {
   Config,
   FileSystem,
   Hooks,
+  Logger,
+  ServerError,
 } from '@browserless.io/browserless';
 import * as fs from 'fs/promises';
 import { expect } from 'chai';
@@ -52,6 +54,9 @@ class TestableBrowserManager extends BrowserManager {
   }
   public browsersSize() {
     return this.browsers.size;
+  }
+  public setShuttingDown(value: boolean) {
+    this.shuttingDown = value;
   }
 }
 
@@ -540,6 +545,137 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
           process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS = prev;
         }
       }
+    });
+  });
+
+  describe(`getBrowserForRequest — launch-vs-shutdown race`, () => {
+    // The post-launch shutdown re-check (index.ts in
+    // `getBrowserForRequest`, after `await browser.launch(...)`) closes
+    // the narrow window where a request passes the early
+    // `shuttingDown` gate, allocates a data-dir, launches a browser,
+    // and only THEN sees `shuttingDown` flip to true. Without the
+    // re-check + teardown, that browser would be missing from the
+    // shutdown's `this.browsers` snapshot and leak its Chrome process
+    // and data-dir.
+    //
+    // The race is hard to reproduce with a real browser launch
+    // (timing depends on Chrome startup), so this drives the path
+    // synthetically: a mock Browser whose `launch()` blocks on an
+    // externally-resolvable gate. The test holds launch in flight,
+    // flips `shuttingDown`, releases launch, and asserts the cleanup
+    // path ran (close called, data-dir removed, ServerError thrown
+    // matching the early gate).
+    it('cleans up the in-flight browser + data-dir when shutdown is set after launch starts', async () => {
+      const { config, manager, dataDir } = await makeManager();
+
+      let resolveLaunchStarted: () => void;
+      const launchStarted = new Promise<void>((r) => {
+        resolveLaunchStarted = r;
+      });
+      let resolveLaunch: () => void;
+      const launchGate = new Promise<void>((r) => {
+        resolveLaunch = r;
+      });
+
+      let createdDataDir: string | null = null;
+      let closeCalled = 0;
+
+      class MockBrowser {
+        constructor(opts: { userDataDir: string | null }) {
+          createdDataDir = opts.userDataDir;
+        }
+        async launch() {
+          resolveLaunchStarted();
+          await launchGate;
+        }
+        async close() {
+          closeCalled++;
+        }
+        on() {}
+        keepUntil() {
+          return 0;
+        }
+        isRunning() {
+          return false;
+        }
+        wsEndpoint() {
+          // Never read on the shutdown-race path (the throw fires
+          // before getFinalPathSegment is called).
+          return null;
+        }
+      }
+
+      const router = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        browser: MockBrowser as any,
+        defaultLaunchOptions: {},
+        path: '/test',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      const req = {
+        parsed: {
+          searchParams: new URLSearchParams(),
+          pathname: '/test',
+          search: '',
+        },
+        headers: { 'user-agent': '' },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      const requestLogger = new Logger('test');
+
+      // Kick off the request; it will allocate a data-dir, construct
+      // MockBrowser, and await launch().
+      const requestPromise = manager.getBrowserForRequest(
+        req,
+        router,
+        requestLogger,
+      );
+
+      // Wait until launch is actually in flight.
+      await launchStarted;
+
+      expect(createdDataDir).to.be.a('string');
+      expect(await pathExists(createdDataDir!)).to.be.true;
+
+      // Flip shuttingDown WHILE launch is still pending. The post-
+      // launch check will observe `true` after launch resolves below.
+      manager.setShuttingDown(true);
+
+      // Release launch so the request resumes into the post-launch
+      // shutdown re-check.
+      resolveLaunch!();
+
+      let caught: Error | null = null;
+      try {
+        await requestPromise;
+      } catch (err) {
+        caught = err as Error;
+      }
+
+      expect(caught, 'request must reject').to.not.be.null;
+      expect(caught).to.be.instanceOf(ServerError);
+      expect(caught!.message).to.match(/shutting down/i);
+
+      // The teardown path must have closed the in-flight browser AND
+      // removed the data-dir we allocated.
+      expect(closeCalled).to.equal(1);
+      expect(await pathExists(createdDataDir!)).to.be.false;
+
+      // The session must NOT have been registered (the race-loss path
+      // throws before the `this.browsers.set(...)` line). Without
+      // this guarantee, the leaked-via-snapshot bug the post-launch
+      // check is meant to prevent would still be present even with
+      // the dir cleanup.
+      expect(manager.browsersSize()).to.equal(0);
+
+      // Also confirm createdDataDir was inside our managed dataDir
+      // (not some unrelated path) — guards against a regression where
+      // the userDataDir variable in the production code is no longer
+      // the one passed to MockBrowser.
+      expect(createdDataDir!.startsWith(await config.getDataDir())).to.be.true;
+      expect(createdDataDir!.startsWith(dataDir)).to.be.true;
     });
   });
 });

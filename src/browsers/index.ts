@@ -130,6 +130,16 @@ export class BrowserManager {
   protected periodicSweepHandle: NodeJS.Timeout | null = null;
 
   /**
+   * Re-entrancy guard for `periodicSweep`. The interval would otherwise
+   * fire a second tick on top of a still-running first tick if a sweep
+   * ever exceeds `PERIODIC_SWEEP_INTERVAL_MS` (large `pendingCleanup`
+   * drain or slow FS). See `periodicSweep` for how this composes with
+   * cross-process safety (idempotent `deleteAsync` + mtime liveness
+   * check), which this flag does NOT provide.
+   */
+  protected sweepInFlight = false;
+
+  /**
    * Resolves once the startup orphan sweep has completed AND the periodic
    * sweep loop has been (conditionally) armed. Awaited by:
    *   - `shutdown()`, so it cannot race with `initCleanup` re-arming the
@@ -214,7 +224,7 @@ export class BrowserManager {
         // the final one, which already returned in the `isLastAttempt`
         // branch above.
         await new Promise((resolve) =>
-          global.setTimeout(resolve, REMOVE_RETRY_BACKOFF_MS[attempt]),
+          setTimeout(resolve, REMOVE_RETRY_BACKOFF_MS[attempt]),
         );
       }
     }
@@ -242,7 +252,7 @@ export class BrowserManager {
       );
       return;
     }
-    this.periodicSweepHandle = global.setInterval(() => {
+    this.periodicSweepHandle = setInterval(() => {
       this.periodicSweep().catch((err) => {
         this.log.warn(`Periodic sweep failed: ${err}`);
       });
@@ -293,7 +303,12 @@ export class BrowserManager {
       const full = path.join(baseDir, entry);
       let mtimeMs: number;
       try {
-        const stat = await fs.stat(full);
+        // lstat (not stat) so a `browserless-data-dir-*` symlink in the
+        // dataDir is treated as a non-directory and skipped — keeps
+        // `deleteAsync({ force: true })` (which weakens `del`'s default
+        // cwd protection) from following an attacker-planted link to a
+        // path outside our managed scope.
+        const stat = await fs.lstat(full);
         if (!stat.isDirectory()) continue;
         mtimeMs = stat.mtimeMs;
       } catch {
@@ -340,68 +355,106 @@ export class BrowserManager {
    *    signal: any subprocess actively using the dir would have touched it
    *    within the last few minutes, so 30 min of mtime idleness is a safe
    *    floor.
+   *
+   * Concurrency model — three layers, addressing different scopes:
+   *
+   *   - **Intra-process re-entrancy** (single instance, slow tick): the
+   *     `sweepInFlight` guard. A tick that runs longer than
+   *     PERIODIC_SWEEP_INTERVAL_MS (large pendingCleanup or slow FS)
+   *     would otherwise have its successor fire on top of it. The guard
+   *     drops the overlapping tick; the next interval picks up where
+   *     the in-flight one left off.
+   *
+   *   - **Same-process, multi-instance** (rare; e.g. tests, future SDK
+   *     compositions): `pendingCleanup` is per-instance, so Pass 1 is
+   *     trivially isolated. Pass 2 walks the shared `os.tmpdir()` and
+   *     could see the same `org.chromium.Chromium.*` entries; safety
+   *     comes from `deleteAsync({ force: true })` treating ENOENT as
+   *     success — second-place deleter exits cleanly.
+   *
+   *   - **Cross-process, shared filesystem** (multi-tenant host with
+   *     bind-mounted /tmp; not the typical dedicated/cloud-unit deploy
+   *     where each container owns its /tmp): no in-memory coordination
+   *     is possible. Same `force: true` idempotency handles concurrent
+   *     deletes; the mtime liveness check protects directories owned
+   *     by another live process (their mtime is fresh because the
+   *     other process keeps writing profile state). If a deployment
+   *     ever needs stronger cross-process guarantees, an advisory
+   *     `flock` on a lock file in dataDir is the natural addition;
+   *     none of the current consumers (1 container = 1 process) need it.
    */
   protected async periodicSweep(): Promise<void> {
-    // Pass 1: retry queue
-    for (const dir of Array.from(this.pendingCleanup)) {
-      await this.removeUserDataDir(dir);
-    }
-
-    // Pass 2: chromium-internal orphans. These live in the OS temp dir
-    // because Chrome creates them via mkdtemp, which is hard-wired to
-    // os.tmpdir() — independent of our configurable DATA_DIR. Using
-    // dirname(getDataDir()) only matches /tmp in the default config and
-    // silently misses the orphans whenever DATA_DIR points elsewhere.
-    //
-    // The OS tmp dir can be shared with other workloads, so this pass
-    // is gated behind CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true. Default off
-    // — opt in only when the SDK is the sole owner of /tmp (typical
-    // single-purpose container deployments).
-    if (!isHostChromiumCleanupEnabled()) {
-      this.log.debug(
-        'Skipping host-wide chromium-internal orphan sweep; set CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true to enable',
-      );
-      return;
-    }
-    const tmpRoot = tmpdir();
-    let entries: string[];
+    if (this.sweepInFlight) return;
+    this.sweepInFlight = true;
     try {
-      entries = await fs.readdir(tmpRoot);
-    } catch (err) {
-      this.log.debug(`Could not read tmp root "${tmpRoot}": ${err}`);
-      return;
-    }
-
-    const now = Date.now();
-    let removed = 0;
-    for (const entry of entries) {
-      if (!entry.startsWith('org.chromium.Chromium.')) continue;
-      const full = path.join(tmpRoot, entry);
-
-      let mtime: Date;
-      try {
-        const stat = await fs.stat(full);
-        if (!stat.isDirectory()) continue;
-        mtime = stat.mtime;
-      } catch {
-        // Disappeared between readdir and stat — fine, move on.
-        continue;
+      // Pass 1: retry queue
+      for (const dir of Array.from(this.pendingCleanup)) {
+        await this.removeUserDataDir(dir);
       }
 
-      if (now - mtime.getTime() < ORPHAN_IDLE_MS) continue;
-
+      // Pass 2: chromium-internal orphans. These live in the OS temp
+      // dir because Chrome creates them via mkdtemp, which is hard-
+      // wired to os.tmpdir() — independent of our configurable
+      // DATA_DIR. Using dirname(getDataDir()) only matches /tmp in
+      // the default config and silently misses the orphans whenever
+      // DATA_DIR points elsewhere.
+      //
+      // The OS tmp dir can be shared with other workloads, so this
+      // pass is gated behind CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true.
+      // Default off — opt in only when the SDK is the sole owner of
+      // /tmp (typical single-purpose container deployments).
+      if (!isHostChromiumCleanupEnabled()) {
+        this.log.debug(
+          'Skipping host-wide chromium-internal orphan sweep; set CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true to enable',
+        );
+        return;
+      }
+      const tmpRoot = tmpdir();
+      let entries: string[];
       try {
-        await deleteAsync(full, { force: true });
-        removed++;
+        entries = await fs.readdir(tmpRoot);
       } catch (err) {
-        this.log.debug(`Could not remove chromium orphan "${full}": ${err}`);
+        this.log.debug(`Could not read tmp root "${tmpRoot}": ${err}`);
+        return;
       }
-    }
 
-    if (removed > 0) {
-      this.log.info(
-        `Periodic sweep removed ${removed} stale chromium-internal orphan(s) from "${tmpRoot}"`,
-      );
+      const now = Date.now();
+      let removed = 0;
+      for (const entry of entries) {
+        if (!entry.startsWith('org.chromium.Chromium.')) continue;
+        const full = path.join(tmpRoot, entry);
+
+        let mtimeMs: number;
+        try {
+          // lstat (not stat) so a symlink planted in /tmp is treated as
+          // a non-directory and skipped — the staleness check below
+          // would otherwise follow it to its target before we know
+          // whether the target is a directory we should be touching.
+          const stat = await fs.lstat(full);
+          if (!stat.isDirectory()) continue;
+          mtimeMs = stat.mtimeMs;
+        } catch {
+          // Disappeared between readdir and stat — fine, move on.
+          continue;
+        }
+
+        if (now - mtimeMs < ORPHAN_IDLE_MS) continue;
+
+        try {
+          await deleteAsync(full, { force: true });
+          removed++;
+        } catch (err) {
+          this.log.debug(`Could not remove chromium orphan "${full}": ${err}`);
+        }
+      }
+
+      if (removed > 0) {
+        this.log.info(
+          `Periodic sweep removed ${removed} stale chromium-internal orphan(s) from "${tmpRoot}"`,
+        );
+      }
+    } finally {
+      this.sweepInFlight = false;
     }
   }
 
@@ -641,7 +694,7 @@ export class BrowserManager {
 
     if (priorTimer) {
       this.log.debug(`Deleting prior keep-until timer for "${session.id}"`);
-      global.clearTimeout(priorTimer);
+      clearTimeout(priorTimer);
     }
 
     this.log.debug(
@@ -655,7 +708,7 @@ export class BrowserManager {
       );
       this.timers.set(
         session.id,
-        global.setTimeout(() => {
+        setTimeout(() => {
           const session = this.browsers.get(browser);
           if (session) {
             this.log.trace(`Timer hit for "${session.id}"`);
@@ -1111,7 +1164,7 @@ export class BrowserManager {
     this.timers = new Map();
 
     if (this.periodicSweepHandle) {
-      global.clearInterval(this.periodicSweepHandle);
+      clearInterval(this.periodicSweepHandle);
       this.periodicSweepHandle = null;
     }
 
