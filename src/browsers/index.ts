@@ -309,12 +309,12 @@ export class BrowserManager {
     const connected = session.numbConnected;
     const hasKeepUntil = keepUntil > now;
     const keepOpen = (connected > 0 || hasKeepUntil) && !force;
-    const cleanupACtions: Array<() => Promise<void>> = [];
     const priorTimer = this.timers.get(session.id);
 
     if (priorTimer) {
       this.log.debug(`Deleting prior keep-until timer for "${session.id}"`);
       global.clearTimeout(priorTimer);
+      this.timers.delete(session.id);
     }
 
     this.log.debug(
@@ -340,17 +340,19 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
-      cleanupACtions.push(() => browser.close());
+      // Await the browser shutdown BEFORE removing the user-data-dir so the
+      // chromium process has fully exited and is no longer writing files
+      // into the directory; running these in parallel races and can leave
+      // residue when chromium creates new files mid-delete.
+      await browser.close().catch(() => undefined);
 
       if (session.isTempDataDir) {
         this.log.debug(
           `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
         );
         this.browsers.delete(browser);
-        cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
+        await this.removeUserDataDir(session.userDataDir);
       }
-
-      await Promise.all(cleanupACtions.map((a) => a()));
     }
   }
 
@@ -673,9 +675,20 @@ export class BrowserManager {
   public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
-    await Promise.all(sessions.map(([b]) => b.close()));
-    const timers = Array.from(this.timers);
-    await Promise.all(timers.map(([, timer]) => clearInterval(timer)));
+    // Force-close every active session so that auto-generated user-data-dirs
+    // are removed alongside their browsers; without this, server shutdown
+    // (SIGTERM/SIGINT/process exit) leaks every in-flight session's
+    // /tmp/browserless-data-dirs/* directory and accumulates inodes over
+    // restarts.
+    await Promise.all(
+      sessions.map(([browser, session]) =>
+        this.close(browser, session, true).catch((err) =>
+          this.log.error(
+            `Error during shutdown cleanup for session "${session.id}": ${err}`,
+          ),
+        ),
+      ),
+    );
     this.timers.forEach((t) => clearTimeout(t));
     this.browsers = new Map();
     this.timers = new Map();

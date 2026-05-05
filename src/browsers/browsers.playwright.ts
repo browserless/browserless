@@ -105,10 +105,11 @@ class BasePlaywright extends EventEmitter {
       this.socket?.destroy();
       this.emit('close');
       this.cleanListeners();
-      this.browser.close();
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      await browser.close().catch(() => undefined);
     }
   }
 

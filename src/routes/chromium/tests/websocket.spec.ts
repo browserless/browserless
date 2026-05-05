@@ -262,6 +262,82 @@ describe('Chromium WebSocket API', function () {
     expect(leaked).to.deep.equal([]);
   });
 
+  // Regression test for PLT-983: the directory must be removed when the
+  // session ends, including when the server itself shuts down with active
+  // sessions still attached (SIGTERM/SIGINT/process exit). Previously
+  // `BrowserManager.shutdown` only closed browsers and never cleaned up
+  // their auto-generated /tmp/browserless-data-dirs/* directories.
+  it('deletes user-data-dirs when the server shuts down with active sessions', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const baseDir = await config.getDataDir();
+    const before = await fs.readdir(baseDir).catch((): string[] => []);
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+    });
+
+    const [{ userDataDir }] = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    ).then((r) => r.json());
+    expect(await exists(userDataDir)).to.be.true;
+
+    // Stop the server WITHOUT first disconnecting the client; this mirrors
+    // the SIGTERM-with-active-sessions case that was leaking before.
+    await browserless.stop();
+
+    expect(await exists(userDataDir)).to.be.false;
+
+    const after = await fs.readdir(baseDir).catch(() => []);
+    const leaked = after.filter((entry) => !before.includes(entry));
+    expect(leaked).to.deep.equal([]);
+
+    // Best-effort disconnect so the puppeteer client cleans up its socket.
+    await browser.disconnect().catch(() => undefined);
+
+    // Replace the shared `browserless` with a stub so the global
+    // `afterEach` does not call `stop()` a second time on an already-shut
+    // HTTP server (whose internal `http.Server` ref is now `null` and
+    // whose `close()` callback would never resolve).
+    browserless = {
+      stop: () => Promise.resolve([]),
+    } as unknown as Browserless;
+  });
+
+  // Regression test for PLT-983: when a session is killed via the
+  // management `/kill/<id>` route (a common operator-driven "session
+  // ended" path), the auto-generated /tmp/browserless-data-dirs/* entry
+  // must be removed even though the WebSocket peer never disconnected.
+  it('deletes user-data-dirs when the session is killed via /kill', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+    });
+
+    const [session] = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    ).then((r) => r.json());
+    const userDataDir: string = session.userDataDir;
+    const killURL: string = session.killURL;
+    expect(await exists(userDataDir)).to.be.true;
+
+    await fetch(`${killURL}?token=browserless`, { method: 'GET' });
+
+    await sleep(1000);
+
+    expect(await exists(userDataDir)).to.be.false;
+
+    // Best-effort disconnect so the puppeteer client cleans up its socket.
+    await browser.disconnect().catch(() => undefined);
+  });
+
   it('allows specified user-data-dirs', async () => {
     const dataDir = '/tmp/data-dir-1';
     const config = new Config();
