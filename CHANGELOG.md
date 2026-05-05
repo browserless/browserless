@@ -1,4 +1,16 @@
-# [Latest](https://github.com/browserless/browserless/compare/v2.48.2...main)
+# [Latest](https://github.com/browserless/browserless/compare/v2.48.3...main)
+
+# [v2.48.3](https://github.com/browserless/browserless/compare/v2.48.2...v2.48.3)
+- Dependency updates.
+- Fix: smooth CPU overload detection with EMA and hysteresis to eliminate spurious 429s.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.42.0`
+  - playwright-core: `1.59.1`, `1.58.2`, `1.57.0`, `1.56.1`, and `1.55.1`.
+  - Chromium: `147.0.7727.0`
+  - Chrome: `147.0.7727.116` (amd64 only)
+  - Firefox: `148.0.2`
+  - Webkit: `26.0`
+  - Edge: `147.0.3912.86` (amd64 only)
 
 # [v2.48.2](https://github.com/browserless/browserless/compare/v2.48.1...v2.48.2)
 - Expose `profile` system query parameter so SDK routes can hydrate authenticated profiles.
