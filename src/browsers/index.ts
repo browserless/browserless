@@ -23,6 +23,7 @@ import {
   Logger,
   NotFound,
   Request,
+  SESSION_DATA_DIR_PREFIX,
   ServerError,
   WebKitPlaywright,
   availableBrowsers,
@@ -75,15 +76,9 @@ const PERIODIC_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
  */
 const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
 
-/**
- * Filename prefix shared by every per-session user-data-dir we create.
- * The full directory name is `${SESSION_DATA_DIR_PREFIX}${instanceId}-${sessionId}`;
- * the `${instanceId}-` segment is a debugging/traceability hint, not a
- * safety boundary. Cross-instance safety in the startup sweep is enforced
- * by the mtime staleness check, not by name filtering — see
- * `sweepOrphanDataDirs`.
- */
-const SESSION_DATA_DIR_PREFIX = 'browserless-data-dir-';
+// `SESSION_DATA_DIR_PREFIX` lives in src/utils.ts next to `generateDataDir`
+// so the create-side and the sweep-side share a single source of truth;
+// it's imported via the package's main barrel above.
 
 /**
  * The chromium-internal subprocess orphan sweep (`org.chromium.Chromium.*`

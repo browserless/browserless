@@ -319,6 +319,20 @@ export const removeNullStringify = (
 export const jsonOrString = (maybeJson: string): unknown | string =>
   safeParse(maybeJson) ?? maybeJson;
 
+/**
+ * Filename prefix shared by every per-session user-data-dir we create.
+ * The full directory name is `${SESSION_DATA_DIR_PREFIX}${instanceId}-${sessionId}`;
+ * the `${instanceId}-` segment is a debugging/traceability hint, not a
+ * safety boundary. Cross-instance safety in the startup sweep is enforced
+ * by an mtime staleness check, not by name filtering — see
+ * `BrowserManager.sweepOrphanDataDirs`.
+ *
+ * Lives here (next to `generateDataDir`, which writes the path) and is
+ * imported by `BrowserManager` so the create-side and sweep-side cannot
+ * drift out of sync.
+ */
+export const SESSION_DATA_DIR_PREFIX = 'browserless-data-dir-';
+
 export const generateDataDir = async (
   sessionId: string = id(),
   config: Config,
@@ -326,7 +340,7 @@ export const generateDataDir = async (
   const baseDirectory = await config.getDataDir();
   const dataDirPath = path.join(
     baseDirectory,
-    `browserless-data-dir-${sessionId}`,
+    `${SESSION_DATA_DIR_PREFIX}${sessionId}`,
   );
 
   if (await exists(dataDirPath)) {
