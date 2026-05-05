@@ -61,6 +61,40 @@ const pathExists = async (p: string) =>
     .then(() => true)
     .catch(() => false);
 
+const cleanupTestDir = async (dir: string) => {
+  await fs.rm(dir, { force: true, recursive: true }).catch(() => undefined);
+};
+
+/**
+ * Per-test cleanup tracker. Every manager constructed inside a spec is
+ * registered here so `afterEach` shuts it down (clearing the periodic-
+ * sweep interval) and removes its data-dir, even when an assertion
+ * throws mid-test. Without this, a failed assertion would leak the
+ * interval (keeping mocha from exiting cleanly) and the temp dir
+ * (cluttering /tmp across runs).
+ */
+const tracked: Array<{ manager: TestableBrowserManager; dataDir: string }> =
+  [];
+const trackedPaths: string[] = [];
+const track = (manager: TestableBrowserManager, dataDir: string) => {
+  tracked.push({ manager, dataDir });
+};
+const trackPath = (p: string) => {
+  trackedPaths.push(p);
+};
+const drainTracked = async () => {
+  while (tracked.length) {
+    const { manager, dataDir } = tracked.pop()!;
+    // shutdown() is idempotent (gated by `shuttingDown`), so re-running
+    // on a manager whose test already shut it down is harmless.
+    await manager.shutdown().catch(() => undefined);
+    await cleanupTestDir(dataDir);
+  }
+  while (trackedPaths.length) {
+    await cleanupTestDir(trackedPaths.pop()!);
+  }
+};
+
 const makeManager = async () => {
   const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
   const config = new Config();
@@ -68,14 +102,11 @@ const makeManager = async () => {
   const fileSystem = Sinon.createStubInstance(FileSystem);
   const hooks = Sinon.createStubInstance(Hooks);
   const manager = new TestableBrowserManager(config, hooks, fileSystem);
+  track(manager, dataDir);
   // Wait for the startup sweep to finish so per-test setup doesn't race
   // against it.
   await manager.getInitCleanupPromise();
   return { config, dataDir, fileSystem, hooks, manager };
-};
-
-const cleanupTestDir = async (dir: string) => {
-  await fs.rm(dir, { force: true, recursive: true }).catch(() => undefined);
 };
 
 interface MockBrowser {
@@ -117,6 +148,13 @@ const makeSession = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe(`BrowserManager — orphan data-dir cleanup`, () => {
+  // Always-runs cleanup. Tests register managers via `track()` (or
+  // implicitly via `makeManager()`); this hook shuts them down and
+  // removes their temp dirs even if an assertion threw.
+  afterEach(async () => {
+    await drainTracked();
+  });
+
   describe(`removeUserDataDir`, () => {
     it('removes an existing data-dir', async () => {
       const { dataDir, manager } = await makeManager();
@@ -126,8 +164,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await manager.testRemoveUserDataDir(target);
 
       expect(await pathExists(target)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('clears pendingCleanup entry when the path no longer exists', async () => {
@@ -139,8 +175,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await manager.testRemoveUserDataDir(ghost);
 
       expect(manager.getPendingCleanup().has(ghost)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('clears pendingCleanup entry on a successful retry', async () => {
@@ -153,8 +187,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(manager.getPendingCleanup().has(target)).to.be.false;
       expect(await pathExists(target)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
   });
 
@@ -188,8 +220,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(await pathExists(orphan1)).to.be.false;
       expect(await pathExists(orphan2)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('removes stale orphan dirs whose name embeds a different instanceId (cross-restart cleanup)', async () => {
@@ -209,8 +239,37 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await manager.testSweepOrphanDataDirs();
 
       expect(await pathExists(orphan)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
+    });
+
+    it('runs via the constructor-triggered initCleanup path', async () => {
+      // Verifies the wiring from `constructor` → `initCleanup` →
+      // `sweepOrphanDataDirs`, not just the direct method invocation
+      // exercised by the other tests in this describe. Plant orphans
+      // BEFORE constructing the manager; the constructor kicks off
+      // initCleanup asynchronously, and we wait on the promise it
+      // exposes to know the sweep has finished.
+      const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
+      trackPath(dataDir);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const orphan = path.join(dataDir, 'browserless-data-dir-prior-run');
+      await fs.mkdir(orphan);
+      await fs.utimes(orphan, oneHourAgo, oneHourAgo);
+
+      const config = new Config();
+      await config.setDataDir(dataDir);
+      const manager = new TestableBrowserManager(
+        config,
+        Sinon.createStubInstance(Hooks),
+        Sinon.createStubInstance(FileSystem),
+      );
+      track(manager, dataDir);
+
+      // Do NOT pre-await via makeManager. The constructor already
+      // kicked off initCleanup; awaiting the promise it exposes is the
+      // only thing we should need.
+      await manager.getInitCleanupPromise();
+
+      expect(await pathExists(orphan)).to.be.false;
     });
 
     it('leaves fresh data-dirs untouched (treated as live, regardless of instanceId)', async () => {
@@ -220,6 +279,7 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       // sharing one `config.getDataDir()` exercises the multi-process
       // case directly.
       const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
+      trackPath(dataDir);
 
       const configA = new Config();
       await configA.setDataDir(dataDir);
@@ -228,6 +288,7 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
         Sinon.createStubInstance(Hooks),
         Sinon.createStubInstance(FileSystem),
       );
+      track(managerA, dataDir);
       await managerA.getInitCleanupPromise();
 
       const configB = new Config();
@@ -237,6 +298,7 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
         Sinon.createStubInstance(Hooks),
         Sinon.createStubInstance(FileSystem),
       );
+      track(managerB, dataDir);
       await managerB.getInitCleanupPromise();
 
       // A "live" data-dir owned by manager B. mkdir leaves mtime at
@@ -252,9 +314,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await managerA.testSweepOrphanDataDirs();
 
       expect(await pathExists(bDir)).to.be.true;
-      await managerA.shutdown();
-      await managerB.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('leaves non-browserless entries in dataDir alone', async () => {
@@ -277,14 +336,12 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       expect(await pathExists(friend)).to.be.true;
       expect(await pathExists(path.join(dataDir, 'a-marker.txt'))).to.be.true;
       expect(await pathExists(ownOrphan)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
   });
 
   describe(`close()`, () => {
     it('evicts the session from the registry even when browser.close() rejects', async () => {
-      const { dataDir, manager } = await makeManager();
+      const { manager } = await makeManager();
       const browser = makeMockBrowser('reject');
       const session = makeSession({
         isTempDataDir: false,
@@ -298,8 +355,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(manager.hasBrowser(browser)).to.be.false;
       expect(browser.close.calledOnce).to.be.true;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('removes a temp data-dir even when browser.close() rejects', async () => {
@@ -315,8 +370,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(await pathExists(target)).to.be.false;
       expect(manager.hasBrowser(browser)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('does NOT remove the data-dir when isTempDataDir is false', async () => {
@@ -335,8 +388,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(await pathExists(external)).to.be.true;
       expect(manager.hasBrowser(browser)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
   });
 
@@ -364,11 +415,10 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       expect(badBrowser.close.calledOnce).to.be.true;
       expect(await pathExists(okDir)).to.be.false;
       expect(await pathExists(badDir)).to.be.false;
-      await cleanupTestDir(dataDir);
     });
 
     it('sets shuttingDown to true and clears periodicSweepHandle', async () => {
-      const { dataDir, manager } = await makeManager();
+      const { manager } = await makeManager();
       expect(manager.isShuttingDown()).to.be.false;
       expect(manager.getPeriodicSweepHandle()).to.not.be.null;
 
@@ -376,11 +426,11 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(manager.isShuttingDown()).to.be.true;
       expect(manager.getPeriodicSweepHandle()).to.be.null;
-      await cleanupTestDir(dataDir);
     });
 
     it('does not arm periodicSweepHandle when shutdown is called during init', async () => {
       const dataDir = await fs.mkdtemp(path.join(tmpdir(), 'bless-bm-test-'));
+      trackPath(dataDir);
       // A backlog of stale orphans makes the startup sweep slow enough
       // for the race to be observable: shutdown() runs while
       // initCleanup() is mid-walk. Backdate the mtime so the staleness
@@ -400,12 +450,12 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
         Sinon.createStubInstance(Hooks),
         Sinon.createStubInstance(FileSystem),
       );
+      track(manager, dataDir);
       // Shut down without first awaiting initCleanupPromise. shutdown's
       // own await on the promise is what we're testing.
       await manager.shutdown();
 
       expect(manager.getPeriodicSweepHandle()).to.be.null;
-      await cleanupTestDir(dataDir);
     });
   });
 
@@ -420,8 +470,6 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
 
       expect(await pathExists(target)).to.be.false;
       expect(manager.getPendingCleanup().has(target)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
     it('drops pendingCleanup entries whose paths have vanished externally', async () => {
@@ -433,28 +481,65 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       await manager.testPeriodicSweep();
 
       expect(manager.getPendingCleanup().has(ghost)).to.be.false;
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
     });
 
-    it('skips host-wide chromium-internal sweep by default (CLEANUP_HOST_CHROMIUM_TEMP_DIRS unset)', async () => {
-      // The env-var read is at module-load time, and the test process
-      // does not set it — so this test exercises the default-safe path.
-      const { dataDir, manager } = await makeManager();
-      const cdir = await fs.mkdtemp(
-        path.join(tmpdir(), 'org.chromium.Chromium.test-'),
-      );
-      // Make it look long-stale so it would be a deletion candidate.
-      const oldTime = new Date(Date.now() - 60 * 60 * 1000);
-      await fs.utimes(cdir, oldTime, oldTime);
+    // The host-wide chromium-internal sweep is gated by
+    // `CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true`. The pair of tests below
+    // exercise both branches in the same process; the gate is read on
+    // each tick (not at module load), so flipping the env var around
+    // each test is sufficient — no module re-imports required. Each
+    // test owns its own `org.chromium.Chromium.*` fixture in the OS
+    // tmpdir (registered with `trackPath` so it gets cleaned up even
+    // when the assertion that asserts it was *not* deleted fails).
+    it('skips host-wide chromium-internal sweep when CLEANUP_HOST_CHROMIUM_TEMP_DIRS is unset', async () => {
+      const prev = process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS;
+      delete process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS;
+      try {
+        const { manager } = await makeManager();
+        const cdir = await fs.mkdtemp(
+          path.join(tmpdir(), 'org.chromium.Chromium.test-'),
+        );
+        trackPath(cdir);
+        // Make it look long-stale so it would be a deletion candidate.
+        const oldTime = new Date(Date.now() - 60 * 60 * 1000);
+        await fs.utimes(cdir, oldTime, oldTime);
 
-      await manager.testPeriodicSweep();
+        await manager.testPeriodicSweep();
 
-      // With Pass 2 gated off, the host-wide chromium dir must survive.
-      expect(await pathExists(cdir)).to.be.true;
-      await fs.rm(cdir, { force: true, recursive: true });
-      await manager.shutdown();
-      await cleanupTestDir(dataDir);
+        // With Pass 2 gated off, the host-wide chromium dir must survive.
+        expect(await pathExists(cdir)).to.be.true;
+      } finally {
+        if (prev === undefined) {
+          delete process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS;
+        } else {
+          process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS = prev;
+        }
+      }
+    });
+
+    it('sweeps host-wide chromium-internal dirs when CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true', async () => {
+      const prev = process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS;
+      process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS = 'true';
+      try {
+        const { manager } = await makeManager();
+        const cdir = await fs.mkdtemp(
+          path.join(tmpdir(), 'org.chromium.Chromium.test-'),
+        );
+        trackPath(cdir);
+        // 1 hour idle is well past the 30-minute ORPHAN_IDLE_MS floor.
+        const oldTime = new Date(Date.now() - 60 * 60 * 1000);
+        await fs.utimes(cdir, oldTime, oldTime);
+
+        await manager.testPeriodicSweep();
+
+        expect(await pathExists(cdir)).to.be.false;
+      } finally {
+        if (prev === undefined) {
+          delete process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS;
+        } else {
+          process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS = prev;
+        }
+      }
     });
   });
 });

@@ -93,8 +93,14 @@ const SESSION_DATA_DIR_PREFIX = 'browserless-data-dir-';
  * the SDK is safe to drop into shared environments. Container
  * deployments where /tmp is owned exclusively by browserless can opt in
  * with `CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true`.
+ *
+ * Evaluated lazily on each periodic-sweep tick (rather than captured at
+ * module load) so process-level test setup can flip the env var between
+ * cases without re-importing the module — and so a runtime
+ * configuration change in long-running services would also take effect
+ * on the next tick.
  */
-const HOST_CHROMIUM_CLEANUP_ENABLED =
+const isHostChromiumCleanupEnabled = () =>
   process.env.CLEANUP_HOST_CHROMIUM_TEMP_DIRS === 'true';
 
 export class BrowserManager {
@@ -351,7 +357,7 @@ export class BrowserManager {
     // is gated behind CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true. Default off
     // — opt in only when the SDK is the sole owner of /tmp (typical
     // single-purpose container deployments).
-    if (!HOST_CHROMIUM_CLEANUP_ENABLED) {
+    if (!isHostChromiumCleanupEnabled()) {
       this.log.debug(
         'Skipping host-wide chromium-internal orphan sweep; set CLEANUP_HOST_CHROMIUM_TEMP_DIRS=true to enable',
       );
