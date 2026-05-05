@@ -26,6 +26,22 @@ describe('Chromium WebSocket API', function () {
     return browserless.start();
   };
 
+  // Bounded polling for cleanup assertions: filesystem and process-exit
+  // timing is non-deterministic, so a fixed sleep flakes on slower CI.
+  const waitFor = async (
+    predicate: () => Promise<boolean>,
+    timeoutMs = 5000,
+    intervalMs = 50,
+  ): Promise<void> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await predicate()) {
+        return;
+      }
+      await sleep(intervalMs);
+    }
+  };
+
   afterEach(async () => {
     await browserless.stop();
   });
@@ -255,7 +271,10 @@ describe('Chromium WebSocket API', function () {
     );
     expect(results.every((r) => r !== 'connected')).to.be.true;
 
-    await sleep(1000);
+    await waitFor(async () => {
+      const after = await fs.readdir(baseDir).catch((): string[] => []);
+      return after.every((entry) => before.includes(entry));
+    });
 
     const after = await fs.readdir(baseDir).catch(() => []);
     const leaked = after.filter((entry) => !before.includes(entry));
@@ -289,6 +308,7 @@ describe('Chromium WebSocket API', function () {
     // the SIGTERM-with-active-sessions case that was leaking before.
     await browserless.stop();
 
+    await waitFor(async () => !(await exists(userDataDir)));
     expect(await exists(userDataDir)).to.be.false;
 
     const after = await fs.readdir(baseDir).catch(() => []);
@@ -330,8 +350,7 @@ describe('Chromium WebSocket API', function () {
 
     await fetch(`${killURL}?token=browserless`, { method: 'GET' });
 
-    await sleep(1000);
-
+    await waitFor(async () => !(await exists(userDataDir)));
     expect(await exists(userDataDir)).to.be.false;
 
     // Best-effort disconnect so the puppeteer client cleans up its socket.
