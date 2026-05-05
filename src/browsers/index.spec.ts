@@ -377,6 +377,54 @@ describe(`BrowserManager — orphan data-dir cleanup`, () => {
       expect(manager.hasBrowser(browser)).to.be.false;
     });
 
+    it('evicts the session from the registry SYNCHRONOUSLY, before browser.close() yields', async () => {
+      // killSessions() and complete() invoke `this.close(...)` without
+      // `await`. The caller (e.g. an HTTP handler responding 204 to
+      // /kill/all) returns as soon as close() yields. If the eviction
+      // from `this.browsers` ran AFTER the first `await browser.close()`,
+      // the next request — say `GET /sessions` or `/chromium?trackingId=X`
+      // for a just-killed X — would still see the dead session for the
+      // duration of browser shutdown (potentially hundreds of ms). The
+      // eviction therefore has to happen in the synchronous prefix of
+      // close(), before any await.
+      const { manager } = await makeManager();
+
+      // browser.close() blocks on a gate that we never resolve until the
+      // assertion is done — so close() is provably still in flight when
+      // we check the map, and any deferred eviction would miss.
+      let resolveClose!: () => void;
+      const closeGate = new Promise<void>((r) => {
+        resolveClose = r;
+      });
+      const browser = {
+        close: Sinon.stub().callsFake(() => closeGate),
+        isRunning: () => false,
+        keepUntil: () => 0,
+        on: () => undefined,
+        trackingId: undefined,
+        wsEndpoint: () => null,
+      };
+      const session = makeSession({
+        isTempDataDir: false,
+        userDataDir: '/some/external/path-not-managed-by-us',
+      });
+      manager.registerSession(browser, session);
+      expect(manager.hasBrowser(browser)).to.be.true;
+
+      // Fire-and-forget call — the close promise is still pending.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const closePromise = manager.close(browser as any, session as any, true);
+
+      // Synchronous check: the map should already be updated, even though
+      // browser.close() is still blocked on `closeGate`.
+      expect(manager.hasBrowser(browser)).to.be.false;
+      expect(browser.close.calledOnce).to.be.true;
+
+      // Release the gate so close() finishes and afterEach doesn't hang.
+      resolveClose();
+      await closePromise;
+    });
+
     it('does NOT remove the data-dir when isTempDataDir is false', async () => {
       const { dataDir, manager } = await makeManager();
       const browser = makeMockBrowser('resolve');

@@ -720,15 +720,31 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
+
+      // Evict from the registry SYNCHRONOUSLY, before any `await`. Both
+      // `killSessions` and `complete` are fire-and-forget callers
+      // (they invoke `this.close(...)` without awaiting), so anything
+      // that happens after the first yield is invisible to them — the
+      // caller has already returned, the HTTP response has already
+      // been sent, and a subsequent `GET /sessions` or trackingId-
+      // uniqueness check on the next request would see the just-killed
+      // session as still active for the duration of `browser.close()`
+      // (potentially hundreds of ms). Pre-PR this delete was
+      // synchronous; this restores that contract while keeping the
+      // unconditional eviction (sessions with isTempDataDir=false used
+      // to leak past close() entirely) and the FD-release-race fix
+      // below.
+      this.browsers.delete(browser);
+
       // Serialise: await Chrome shutdown FIRST so it releases its file
       // handles, then delete the data-dir. Running these in parallel
       // (the previous behaviour) raced `deleteAsync` against Chrome
       // releasing its FDs and produced silent EBUSY/ENOTEMPTY failures
       // that left orphan profile dirs in `/tmp`.
       //
-      // Cleanup runs in `finally` so a `browser.close()` rejection
-      // (process already gone, IPC error, etc.) cannot skip the
-      // data-dir delete and leak the orphan we were trying to prevent.
+      // Data-dir cleanup runs in `finally` so a `browser.close()`
+      // rejection (process already gone, IPC error, etc.) cannot skip
+      // the delete and leak the orphan we were trying to prevent.
       try {
         await browser.close();
       } catch (err) {
@@ -736,13 +752,6 @@ export class BrowserManager {
           `browser.close() rejected during session close ("${session.id}"): ${err}; proceeding with cleanup`,
         );
       } finally {
-        // Evict the session from the registry unconditionally — sessions
-        // created with an explicit --user-data-dir (isTempDataDir=false)
-        // must still be removed from `this.browsers`, otherwise they
-        // leak into `getAllSessions()` and trackingId lookups as stale
-        // closed-browser entries.
-        this.browsers.delete(browser);
-
         // Data-dir removal stays guarded: only the dirs WE created
         // (isTempDataDir=true) are ours to delete. A caller-supplied
         // --user-data-dir is the caller's lifecycle to manage.
