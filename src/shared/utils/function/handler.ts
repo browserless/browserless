@@ -75,7 +75,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
 
     const browserID = getFinalPathSegment(privateWSEndpoint)!;
     const browserWSEndpoint = makeExternalURL(
-      config.getExternalWebSocketAddress(),
+      config.getServerWebSocketAddress(),
       'function',
       'connect',
       browserID,
