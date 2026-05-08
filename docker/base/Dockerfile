@@ -7,7 +7,7 @@ ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
 ARG NODE_VERSION=v24.15.0
-ARG NPM_VERSION=11.13.0
+ARG NPM_VERSION=11.14.0
 
 ENV NODE_VERSION=$NODE_VERSION
 ENV NVM_DIR=/usr/src/.nvm
@@ -19,7 +19,6 @@ ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV LANG="C.UTF-8"
-ENV NODE_ENV=production
 ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
@@ -90,6 +89,11 @@ RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | b
 COPY package.json package-lock.json ./
 
 RUN npm clean-install
+
+# NODE_ENV is set after npm clean-install so devDependencies are present in
+# this base image. Multi-stage browser images use this base for the build
+# stage and then run `npm prune --omit=dev` in the runtime stage.
+ENV NODE_ENV=production
 
 COPY assets assets
 COPY bin bin

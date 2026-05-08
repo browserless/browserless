@@ -396,10 +396,9 @@ const create = async () => {
     if (sdkFile === 'package.json') {
       const sdkPackageJSONTemplate = (await readFile(from)).toString();
       const { version } = await browserlessPackageJSON;
-      const sdkPackageJSON = sdkPackageJSONTemplate.replace(
-        '${BROWSERLESS_VERSION}',
-        version,
-      );
+      const sdkPackageJSON = sdkPackageJSONTemplate
+        .replace('${BROWSERLESS_VERSION}', version)
+        .replace('"name": ""', `"name": "${directory}"`);
       await writeFile(to, sdkPackageJSON);
     } else if ((await fs.lstat(from)).isDirectory()) {
       await fs.mkdir(to);

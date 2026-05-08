@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-# Install all dependencies for tests
-npm cache clean --force && rm -rf ./node_modules && rm ./package-lock.json && npm install
+# Install all dependencies for tests from the lockfile. --include=dev forces
+# devDependencies in even when the runtime image sets NODE_ENV=production.
+npm ci --include=dev
 
 # Setup Env Variables
 export DEBUG=-*
