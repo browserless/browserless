@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 import {
   Logger as BlessLogger,
@@ -156,11 +157,42 @@ export class Browserless extends EventEmitter {
   }
 
   protected async loadPwVersions(): Promise<void> {
-    const { playwrightVersions } = JSON.parse(
-      (await fs.readFile('package.json')).toString(),
+    // Consumer's package.json wins — downstream projects can declare their
+    // own playwrightVersions to override the SDK's defaults. Tolerate a
+    // missing consumer package.json (e.g. CWD detached from the project root)
+    // and fall back to the SDK's map below; surface other read/parse errors.
+    let consumerVersions: { [key: string]: string } | undefined;
+    try {
+      const consumerPkg = JSON.parse(
+        (await fs.readFile('package.json')).toString(),
+      );
+      consumerVersions = consumerPkg.playwrightVersions;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+
+    if (consumerVersions) {
+      this.config.setPwVersions(consumerVersions);
+      return;
+    }
+
+    // SDK consumers don't (and shouldn't have to) mirror the SDK's
+    // playwrightVersions map in their own package.json. Fall back to the
+    // SDK package's own map.
+    const sdkPkgPath = fileURLToPath(
+      new URL('../package.json', import.meta.url),
+    );
+    const { playwrightVersions: sdkVersions } = JSON.parse(
+      (await fs.readFile(sdkPkgPath)).toString(),
     );
 
-    this.config.setPwVersions(playwrightVersions);
+    if (!sdkVersions) {
+      throw new Error(
+        `playwrightVersions is missing from both the consumer's package.json and the SDK's package.json at ${sdkPkgPath}. The SDK package is malformed.`,
+      );
+    }
+
+    this.config.setPwVersions(sdkVersions);
   }
 
   protected async loadInstalledBinaries(): Promise<void> {
