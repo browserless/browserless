@@ -162,10 +162,11 @@ export class ChromiumCDP extends EventEmitter {
       this.emit('close');
       this.cleanListeners();
       this.browser.removeAllListeners();
-      this.browser.close();
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      await browser.close().catch(() => undefined);
     }
   }
 
@@ -251,6 +252,28 @@ export class ChromiumCDP extends EventEmitter {
     );
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated.bind(this));
+    // Propagate unexpected disconnect (Chrome OOM, segfault, host SIGKILL)
+    // as a `close` event on the wrapper. Without this, a spontaneous
+    // exit leaves the BrowserlessSession in BrowserManager.browsers
+    // forever and the user-data-dir leaks. The `if (this.running)`
+    // guard skips re-entry during the normal close() path (which sets
+    // running=false before awaiting the inner close).
+    this.browser.once('disconnected', () => {
+      if (this.running) {
+        this.logger.info(
+          `${this.constructor.name} disconnected unexpectedly, emitting close`,
+        );
+        this.emit('close');
+        this.cleanListeners();
+        // `?.` because `this.emit('close')` above recursively re-enters
+        // wrapper.close() (via BrowserManager's close listener) and nulls
+        // this.browser synchronously before control returns here.
+        this.browser?.removeAllListeners();
+        this.running = false;
+        this.browser = null;
+        this.browserWSEndpoint = null;
+      }
+    });
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
     this.logger.info(
