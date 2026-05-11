@@ -635,6 +635,25 @@ export class Config extends EventEmitter {
   }
 
   /**
+   * Returns the fully-qualified WebSocket URL for the
+   * local server address. Unlike #getExternalWebSocketAddress
+   * this never includes any external load-balancer prefix
+   * (e.g. an encrypted /e/<hex> segment) and is intended for
+   * intra-process connections that must not be routed through
+   * the public LB.
+   *
+   * @returns {string} The local WebSocket URL of the server
+   */
+  public getServerWebSocketAddress(): string {
+    const httpAddress = new URL(this.getServerAddress());
+    httpAddress.protocol = httpAddress.protocol.startsWith('https')
+      ? 'wss:'
+      : 'ws:';
+
+    return httpAddress.href;
+  }
+
+  /**
    * When CORS is enabled, returns relevant CORS headers
    * to requests and for the OPTIONS call. Values can be
    * overridden by specifying `CORS_ALLOW_METHODS`, `CORS_ALLOW_ORIGIN`,
