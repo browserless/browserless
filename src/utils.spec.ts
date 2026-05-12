@@ -4,6 +4,7 @@ import { Socket } from 'net';
 import {
   contentTypes,
   getFinalPathSegment,
+  toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
 
@@ -142,6 +143,49 @@ describe('Utils', () => {
       expect(getHead().code).to.equal(408);
       const parsed = JSON.parse(getBody().trim());
       expect(parsed).to.deep.equal({ error: 'Validation failed' });
+    });
+  });
+
+  describe('#toSetContentOptions', () => {
+    it('returns undefined when input is undefined', () => {
+      expect(toSetContentOptions(undefined)).to.equal(undefined);
+    });
+
+    it('passes through options without waitUntil', () => {
+      expect(toSetContentOptions({ timeout: 1000 })).to.deep.equal({
+        timeout: 1000,
+      });
+    });
+
+    it('passes through supported scalar waitUntil', () => {
+      expect(toSetContentOptions({ waitUntil: 'load' })).to.deep.equal({
+        waitUntil: 'load',
+      });
+    });
+
+    it('strips a scalar networkidle waitUntil', () => {
+      expect(toSetContentOptions({ waitUntil: 'networkidle0' })).to.deep.equal(
+        {},
+      );
+      expect(
+        toSetContentOptions({ timeout: 5, waitUntil: 'networkidle2' }),
+      ).to.deep.equal({ timeout: 5 });
+    });
+
+    it('filters networkidle entries out of waitUntil arrays', () => {
+      expect(
+        toSetContentOptions({
+          waitUntil: ['load', 'networkidle0', 'domcontentloaded'],
+        }),
+      ).to.deep.equal({ waitUntil: ['load', 'domcontentloaded'] });
+    });
+
+    it('drops waitUntil entirely when only networkidle values were supplied', () => {
+      expect(
+        toSetContentOptions({
+          waitUntil: ['networkidle0', 'networkidle2'],
+        }),
+      ).to.deep.equal({});
     });
   });
 });
