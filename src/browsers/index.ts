@@ -40,6 +40,11 @@ import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
 
+// Chrome releases its profile-dir file handles within a few hundred ms
+// of `browser.close()` resolving, so 200/400/800 ms covers the realistic
+// EBUSY/ENOTEMPTY window.
+const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
+
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
@@ -67,13 +72,29 @@ export class BrowserManager {
   }
 
   protected async removeUserDataDir(userDataDir: string | null) {
-    if (userDataDir && (await exists(userDataDir))) {
-      this.log.debug(`Deleting data directory "${userDataDir}"`);
-      await deleteAsync(userDataDir, { force: true }).catch((err) => {
-        this.log.error(
-          `Error cleaning up user-data-dir "${err}" at ${userDataDir}`,
+    if (!userDataDir || !(await exists(userDataDir))) return;
+    this.log.debug(`Deleting data directory "${userDataDir}"`);
+
+    // Retry with backoff to absorb the transient EBUSY/ENOTEMPTY window
+    // that `del` sometimes hits while Chrome is still releasing handles
+    // on the profile directory. Without retries this manifests as a
+    // single logged error and a leaked dir.
+    const totalAttempts = REMOVE_RETRY_BACKOFF_MS.length + 1;
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      try {
+        await deleteAsync(userDataDir, { force: true });
+        return;
+      } catch (err) {
+        if (attempt === totalAttempts - 1) {
+          this.log.error(
+            `Failed to remove user-data-dir "${userDataDir}" after ${totalAttempts} attempts: ${err}`,
+          );
+          return;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, REMOVE_RETRY_BACKOFF_MS[attempt]),
         );
-      });
+      }
     }
   }
 
@@ -309,12 +330,12 @@ export class BrowserManager {
     const connected = session.numbConnected;
     const hasKeepUntil = keepUntil > now;
     const keepOpen = (connected > 0 || hasKeepUntil) && !force;
-    const cleanupACtions: Array<() => Promise<void>> = [];
     const priorTimer = this.timers.get(session.id);
 
     if (priorTimer) {
       this.log.debug(`Deleting prior keep-until timer for "${session.id}"`);
       global.clearTimeout(priorTimer);
+      this.timers.delete(session.id);
     }
 
     this.log.debug(
@@ -332,7 +353,11 @@ export class BrowserManager {
           const session = this.browsers.get(browser);
           if (session) {
             this.log.trace(`Timer hit for "${session.id}"`);
-            this.close(browser, session);
+            this.close(browser, session).catch((err) =>
+              this.log.error(
+                `Error closing session "${session.id}" from timer: ${err}`,
+              ),
+            );
           }
         }, timeout),
       );
@@ -340,17 +365,33 @@ export class BrowserManager {
 
     if (!keepOpen) {
       this.log.debug(`Closing browser session`);
-      cleanupACtions.push(() => browser.close());
+      // Evict synchronously, before any `await`. Both `killSessions` and
+      // `complete` invoke this.close() without awaiting; if eviction ran
+      // after the first yield, a `/kill` would return 204 with the
+      // session still visible to subsequent `/sessions` and trackingId
+      // checks for the duration of browser.close() (hundreds of ms).
+      this.browsers.delete(browser);
 
-      if (session.isTempDataDir) {
-        this.log.debug(
-          `Deleting "${session.userDataDir}" user-data-dir and session from memory`,
+      // Serialise browser shutdown then data-dir removal: chromium
+      // releases its file handles when `browser.close()` resolves, so
+      // running `removeUserDataDir` in parallel produced silent EBUSY
+      // failures and orphaned profile directories. The `finally` block
+      // guarantees data-dir cleanup runs even if `browser.close()`
+      // rejects (process already gone, IPC error, etc.).
+      try {
+        await browser.close();
+      } catch (err) {
+        this.log.warn(
+          `browser.close() rejected for session "${session.id}": ${err}; proceeding with data-dir cleanup`,
         );
-        this.browsers.delete(browser);
-        cleanupACtions.push(() => this.removeUserDataDir(session.userDataDir));
+      } finally {
+        if (session.isTempDataDir) {
+          this.log.debug(
+            `Deleting "${session.userDataDir}" user-data-dir`,
+          );
+          await this.removeUserDataDir(session.userDataDir);
+        }
       }
-
-      await Promise.all(cleanupACtions.map((a) => a()));
     }
   }
 
@@ -367,7 +408,11 @@ export class BrowserManager {
         this.log.debug(
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
-        this.close(browser, session, true);
+        this.close(browser, session, true).catch((err) =>
+          this.log.error(
+            `Error in killSessions for "${session.id}": ${err}`,
+          ),
+        );
         closed++;
       }
     }
@@ -413,7 +458,11 @@ export class BrowserManager {
 
     --session.numbConnected;
 
-    this.close(browser, session);
+    this.close(browser, session).catch((err) =>
+      this.log.error(
+        `Error completing session "${session.id}": ${err}`,
+      ),
+    );
   }
 
   public async getBrowserForRequest(
@@ -622,13 +671,30 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
-    await browser.launch({
-      options: launchOptions as BrowserServerOptions,
-      pwVersion,
-      req,
-      stealth: launchOptions?.stealth,
-    });
-    await this.hooks.browser({ browser, req });
+    try {
+      await browser.launch({
+        options: launchOptions as BrowserServerOptions,
+        pwVersion,
+        req,
+        stealth: launchOptions?.stealth,
+      });
+      await this.hooks.browser({ browser, req });
+    } catch (err) {
+      // No BrowserlessSession exists yet at this point, so the normal
+      // close path cannot reclaim the auto-generated user-data-dir.
+      // Tear down both explicitly before rethrowing. Manual data-dirs
+      // (caller-supplied via --user-data-dir or launchOptions.userDataDir)
+      // are the caller's lifecycle to manage and stay put.
+      await browser.close().catch((closeErr) =>
+        this.log.debug(
+          `browser.close() during launch-failure cleanup also failed: ${closeErr}`,
+        ),
+      );
+      if (!manualUserDataDir && userDataDir) {
+        await this.removeUserDataDir(userDataDir);
+      }
+      throw err;
+    }
 
     const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
@@ -659,15 +725,43 @@ export class BrowserManager {
       (router.onNewPage || noop)(req.parsed || '', page);
     });
 
+    // A still-present session here means nobody called close() — the
+    // underlying process exited on its own (OOM, segfault, SIGKILL).
+    // Route through the unified close path so SDK overrides participate.
+    browser.once('close', () => {
+      const orphaned = this.browsers.get(browser);
+      if (!orphaned) return;
+      this.log.info(
+        `Session "${orphaned.id}" closed unexpectedly, cleaning up`,
+      );
+      this.close(browser, orphaned, true).catch((err) =>
+        this.log.error(
+          `Error cleaning up orphaned session "${orphaned.id}": ${err}`,
+        ),
+      );
+    });
+
     return browser;
   }
 
   public async shutdown(): Promise<void> {
     this.log.info(`Closing down browser instances`);
     const sessions = Array.from(this.browsers);
-    await Promise.all(sessions.map(([b]) => b.close()));
-    const timers = Array.from(this.timers);
-    await Promise.all(timers.map(([, timer]) => clearInterval(timer)));
+    // Route each session through `this.close(..., force=true)` so the
+    // unified close path runs: synchronous eviction, serialised browser
+    // shutdown then data-dir removal, retries, and the `finally` guard.
+    // Errors per-session are logged and do not abort the rest of
+    // shutdown — losing one session's cleanup must not block the
+    // others or leave the process hanging.
+    await Promise.all(
+      sessions.map(([browser, session]) =>
+        this.close(browser, session, true).catch((err) =>
+          this.log.error(
+            `Error during shutdown cleanup for session "${session.id}": ${err}`,
+          ),
+        ),
+      ),
+    );
     this.timers.forEach((t) => clearTimeout(t));
     this.browsers = new Map();
     this.timers = new Map();

@@ -105,10 +105,11 @@ class BasePlaywright extends EventEmitter {
       this.socket?.destroy();
       this.emit('close');
       this.cleanListeners();
-      this.browser.close();
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      await browser.close().catch(() => undefined);
     }
   }
 
@@ -162,6 +163,24 @@ class BasePlaywright extends EventEmitter {
     this.running = true;
     this.browserWSEndpoint = browserWSEndpoint;
     this.browser = browser;
+
+    // Mirror ChromiumCDP: propagate unexpected playwright server exit
+    // as a wrapper-level `close` so BrowserManager can clean up the
+    // session and its user-data-dir. Guard against re-entry from the
+    // normal close() path.
+    browser.once('close', () => {
+      if (this.running) {
+        this.logger.info(
+          `${this.constructor.name} closed unexpectedly, emitting close`,
+        );
+        this.socket?.destroy();
+        this.emit('close');
+        this.cleanListeners();
+        this.running = false;
+        this.browser = null;
+        this.browserWSEndpoint = null;
+      }
+    });
 
     return browser;
   }
