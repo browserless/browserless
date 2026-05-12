@@ -19,9 +19,14 @@ import {
   encryptionAlgo,
   encryptionSep,
 } from '@browserless.io/browserless';
+import {
+  GoToOptions,
+  Page,
+  PuppeteerLifeCycleEvent,
+  SetContentWaitForOptions,
+} from 'puppeteer-core';
 import playwright, { CDPSession } from 'playwright-core';
 import { Duplex } from 'stream';
-import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 import crypto from 'crypto';
 import debug from 'debug';
@@ -743,6 +748,29 @@ export const bestAttemptCatch =
       if (bestAttempt) return;
       throw err;
     };
+
+/**
+ * Adapts goto-style options for `page.setContent`. puppeteer-core 24.43.1
+ * removed `networkidle0`/`networkidle2` from setContent's `waitUntil`
+ * (they were always no-ops for `setContent`, which fires no network).
+ */
+export const toSetContentOptions = (
+  options?: GoToOptions,
+): SetContentWaitForOptions | undefined => {
+  if (!options) return options;
+  const { waitUntil, ...rest } = options;
+  if (waitUntil === undefined) return rest;
+  const events = Array.isArray(waitUntil) ? waitUntil : [waitUntil];
+  const supported = events.filter(
+    (e): e is Exclude<PuppeteerLifeCycleEvent, 'networkidle0' | 'networkidle2'> =>
+      e !== 'networkidle0' && e !== 'networkidle2',
+  );
+  if (supported.length === 0) return rest;
+  return {
+    ...rest,
+    waitUntil: Array.isArray(waitUntil) ? supported : supported[0],
+  };
+};
 
 export const parseBooleanParam = (
   params: URLSearchParams,

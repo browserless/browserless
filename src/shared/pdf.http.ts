@@ -25,6 +25,7 @@ import {
   rejectResourceTypes,
   requestInterceptors,
   sleep,
+  toSetContentOptions,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
@@ -137,7 +138,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
     >;
-    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
 
     if (emulateMediaType) {
       await page.emulateMediaType(emulateMediaType);
@@ -199,9 +199,11 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       });
     }
 
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
+    const gotoResponse = url
+      ? await page.goto(content, gotoOptions).catch(bestAttemptCatch(bestAttempt))
+      : await page
+        .setContent(content, toSetContentOptions(gotoOptions))
+        .catch(bestAttemptCatch(bestAttempt));
 
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
