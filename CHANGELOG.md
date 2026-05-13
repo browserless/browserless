@@ -1,4 +1,23 @@
-# [Latest](https://github.com/browserless/browserless/compare/v2.48.3...main)
+# [Latest](https://github.com/browserless/browserless/compare/v2.49.0...main)
+
+# [v2.49.0](https://github.com/browserless/browserless/compare/v2.48.3...v2.49.0)
+- Dependency updates.
+- Adds support for Playwright 1.60; drops Playwright 1.55.
+- Updates NPM to `11.14.0`.
+- Build: multi-stage Dockerfiles strip dev tooling from runtime images.
+- Fix: route `/function` and `/download` internal WebSocket via local address.
+- Fix: consolidate user-data-dir cleanup across session-end paths.
+- Fix: adapt `setContent` for puppeteer-core 24.43.1.
+- Fix: fall back to bundled `playwrightVersions` when the consumer's `package.json` lacks it.
+- Fix: `start.sh` waits for node to exit so shutdown handlers complete.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `24.43.1`
+  - playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+  - Chromium: `148.0.7778.0`
+  - Chrome: `148.0.7778.167` (amd64 only)
+  - Firefox: `150.0.2`
+  - Webkit: `26.4`
+  - Edge: `148.0.3967.54` (amd64 only)
 
 # [v2.48.3](https://github.com/browserless/browserless/compare/v2.48.2...v2.48.3)
 - Dependency updates.
