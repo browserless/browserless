@@ -127,7 +127,13 @@ export class Browserless extends EventEmitter {
       );
     this.router =
       router ||
-      new Router(this.config, this.browserManager, this.limiter, this.Logger);
+      new Router(
+        this.config,
+        this.browserManager,
+        this.limiter,
+        this.Logger,
+        this.hooks,
+      );
   }
 
   // Filter out routes that are not able to work on the arm64 architecture

@@ -1,10 +1,12 @@
 import {
+  AfterResponse,
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
   Config,
   HTTPManagementRoutes,
   HTTPRoute,
+  Hooks,
   Limiter,
   Logger,
   Methods,
@@ -30,6 +32,7 @@ export class Router extends EventEmitter {
     protected browserManager: BrowserManager,
     protected limiter: Limiter,
     protected logger: typeof Logger,
+    protected hooks: Hooks,
   ) {
     super();
   }
@@ -58,6 +61,49 @@ export class Router extends EventEmitter {
   protected onWebsocketTimeout(_req: Request, socket: stream.Duplex) {
     this.log.error(`Websocket job has timedout, sending 429 response`);
     return writeResponse(socket, 408, 'Request has timed out');
+  }
+
+  /**
+   * Wraps a route handler so that the `after()` lifecycle hook fires when the
+   * handler resolves or rejects. Used for routes that bypass the Limiter
+   * (i.e. `concurrency = false`) so that billing/metrics hooks still run.
+   *
+   * Routes wrapped in `Limiter.limit(...)` already get `after()` fired by the
+   * Limiter's success/error/timeout handlers, so this wrapper is only applied
+   * when the Limiter is not used — callers are responsible for that gating.
+   */
+  protected wrapWithAfterHook<TArgs extends [Request, ...unknown[]], TResult>(
+    handler: (...args: TArgs) => Promise<TResult>,
+  ): (...args: TArgs) => Promise<TResult> {
+    return async (...args: TArgs) => {
+      const start = Date.now();
+      const [req] = args;
+      try {
+        const result = await handler(...args);
+        this.fireAfterHook({ req, start, status: 'successful' });
+        return result;
+      } catch (err) {
+        const error =
+          err instanceof Error
+            ? err
+            : new Error(String(err ?? 'Unknown Error'));
+        this.fireAfterHook({ req, start, status: 'error', error });
+        throw err;
+      }
+    };
+  }
+
+  protected fireAfterHook(jobInfo: AfterResponse) {
+    try {
+      const result = this.hooks.after(jobInfo);
+      if (result && typeof (result as Promise<unknown>).catch === 'function') {
+        (result as Promise<unknown>).catch((err) => {
+          this.log.error(`Error in after() hook: ${err}`);
+        });
+      }
+    } catch (err) {
+      this.log.error(`Error in after() hook: ${err}`);
+    }
   }
 
   protected wrapHTTPHandler(
@@ -177,7 +223,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
         )
-      : wrapped;
+      : this.wrapWithAfterHook(wrapped);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
@@ -208,7 +254,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
         )
-      : wrapped;
+      : this.wrapWithAfterHook(wrapped);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
