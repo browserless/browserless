@@ -46,12 +46,18 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     const isJson = req.headers['content-type']?.includes('json');
     const functionPath = HTTPRoutes.function.replace('?(/)', '');
     const functionAssetLocation = path.join(config.getStatic(), 'function');
+    // Page navigation and the in-page WebSocket both stay on the local
+    // server: the page is served entirely via setRequestInterception, so
+    // there is no reason for its origin to be the external LB. Keeping the
+    // origin local (http://localhost:<port>) also means the in-page WS to
+    // ws://localhost:<port> is same-origin — an HTTPS external address
+    // would otherwise trigger a mixed-content block.
     const functionRequestPath = makeExternalURL(
-      config.getExternalAddress(),
+      config.getServerAddress(),
       functionPath,
     );
     const functionIndexHTML = makeExternalURL(
-      config.getExternalAddress(),
+      config.getServerAddress(),
       functionPath,
       '/index.html',
     );
