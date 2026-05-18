@@ -98,7 +98,7 @@
     "prettier": "^3.8.3",
     "sinon": "^22.0.0",
     "typescript": "^6.0.3",
-    "typescript-json-schema": "^0.67.2"
+    "typescript-json-schema": "^0.67.3"
   },
   "playwrightVersions": {
     "default": "playwright-core",
