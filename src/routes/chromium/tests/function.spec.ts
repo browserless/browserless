@@ -386,4 +386,42 @@ describe('/chromium/function API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('runs functions when behind an HTTPS external load-balancer URL', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    // With an HTTPS external address, navigating the in-page client to the
+    // external URL would make the page a secure context, which then forbids
+    // an in-page WebSocket to ws://localhost:<port> as mixed content. The
+    // handler must therefore navigate the page via the local server address
+    // so the page origin matches the in-page WebSocket origin.
+    config.setExternalAddress(
+      'https://test-external.invalid:9999/e/abc123def456',
+    );
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
 });
