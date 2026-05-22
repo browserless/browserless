@@ -143,6 +143,15 @@ abstract class Route {
   concurrency: boolean = true;
 
   /**
+   * Optional per-request predicate. When it returns true, the limiter skips
+   * both the CPU/memory health-check rejection and the queue-capacity
+   * rejection for this request. Timeouts, metrics, and after-hooks still
+   * apply. Useful for lightweight requests (e.g. reconnects to an in-flight
+   * browser) that should not be turned away by host load or admission caps.
+   */
+  bypassLimits?: (req: Request) => boolean;
+
+  /**
    * Description of the route and what it does. This description
    * is then used in the embedded documentation site.
    */

@@ -177,15 +177,17 @@ export class Limiter extends q {
     overCapacityFn: ErrorFn<TArgs>,
     onTimeoutFn: ErrorFn<TArgs>,
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
+    bypassLimitsFn?: (...args: TArgs) => boolean,
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise(async (res, rej) => {
         const timeout = timeoutOverrideFn(...args) ?? this.timeout;
+        const skipLimits = bypassLimitsFn?.(...args) ?? false;
         this.logQueue(
           `Adding to queue, max time allowed is ${timeout.toLocaleString()}ms`,
         );
 
-        if (this.config.getHealthChecksEnabled()) {
+        if (!skipLimits && this.config.getHealthChecksEnabled()) {
           const { cpuOverloaded, memoryOverloaded } =
             await this.monitor.overloaded();
 
@@ -198,7 +200,7 @@ export class Limiter extends q {
           }
         }
 
-        if (!this.hasCapacity) {
+        if (!skipLimits && !this.hasCapacity) {
           this.logQueue(`Concurrency and queue is at capacity`);
           this.webhooks.callRejectAlertURL();
           this.metrics.addRejected();

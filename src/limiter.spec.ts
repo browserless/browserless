@@ -407,4 +407,112 @@ describe(`Limiter`, () => {
       sandbox.restore();
     }
   });
+
+  it('skips health-check rejection when bypassLimitsFn returns true', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+      sandbox.stub(config, 'getCPULimit').returns(10);
+      sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+      const overloadedSource = {
+        name: 'fake-overloaded',
+        read: async () => ({ cpu: 0.95, memory: 0.1 }),
+      };
+      const monitoring = new Monitoring(config, overloadedSource);
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const handler = sandbox.spy(async (_label: string) => undefined);
+      const bypass = sandbox.stub<[string], boolean>().returns(true);
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
+      await job('arg-zero');
+
+      expect(bypass.calledOnceWith('arg-zero')).to.be.true;
+      expect(overCapacity.called).to.be.false;
+      expect(handler.calledOnce).to.be.true;
+      expect(metrics.get().rejected).to.equal(0);
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('skips queue-capacity rejection when bypassLimitsFn returns true', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(1);
+      config.setQueued(0);
+      config.setTimeout(-1);
+
+      const monitoring = trackMonitoring(new Monitoring(config));
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const slow = async (_label: string) => sleep(50);
+      const reconnect = sandbox.spy(async (_label: string) => undefined);
+      const bypass = (label: string) => label === 'reconnect';
+
+      const slowJob = limiter.limit(slow, overCapacity, asyncNoop, noop, bypass);
+      const reconnectJob = limiter.limit(
+        reconnect,
+        overCapacity,
+        asyncNoop,
+        noop,
+        bypass,
+      );
+
+      const slowPromise = slowJob('fresh');
+      await reconnectJob('reconnect');
+
+      expect(reconnect.calledOnce).to.be.true;
+      expect(overCapacity.called).to.be.false;
+      await slowPromise;
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('still rejects when bypassLimitsFn returns false', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+      sandbox.stub(config, 'getCPULimit').returns(10);
+      sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+      const overloadedSource = {
+        name: 'fake-overloaded',
+        read: async () => ({ cpu: 0.95, memory: 0.1 }),
+      };
+      const monitoring = new Monitoring(config, overloadedSource);
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const handler = sandbox.spy(asyncNoop);
+      const bypass = sandbox.stub().returns(false);
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
+      let rejection: Error | undefined;
+      await job().catch((err) => {
+        rejection = err as Error;
+      });
+
+      expect(rejection).to.be.instanceOf(Error);
+      expect(rejection?.message).to.match(/health check/i);
+      expect(overCapacity.calledOnce).to.be.true;
+      expect(handler.called).to.be.false;
+    } finally {
+      sandbox.restore();
+    }
+  });
 });
