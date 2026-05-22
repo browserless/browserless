@@ -422,7 +422,9 @@ describe(`Limiter`, () => {
         name: 'fake-overloaded',
         read: async () => ({ cpu: 0.95, memory: 0.1 }),
       };
-      const monitoring = new Monitoring(config, overloadedSource);
+      const monitoring = trackMonitoring(
+        new Monitoring(config, overloadedSource),
+      );
       const metrics = new Metrics();
 
       const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
@@ -479,6 +481,37 @@ describe(`Limiter`, () => {
     }
   });
 
+  it('rejects when bypassLimitsFn throws instead of hanging', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+
+      const monitoring = trackMonitoring(new Monitoring(config));
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const handler = sandbox.spy(asyncNoop);
+      const bypass = () => {
+        throw new Error('predicate exploded');
+      };
+
+      const job = limiter.limit(handler, asyncNoop, asyncNoop, noop, bypass);
+      let rejection: Error | undefined;
+      await job().catch((err) => {
+        rejection = err as Error;
+      });
+
+      expect(rejection).to.be.instanceOf(Error);
+      expect(rejection?.message).to.equal('predicate exploded');
+      expect(handler.called).to.be.false;
+    } finally {
+      sandbox.restore();
+    }
+  });
+
   it('still rejects when bypassLimitsFn returns false', async () => {
     const sandbox = Sinon.createSandbox();
     try {
@@ -493,7 +526,9 @@ describe(`Limiter`, () => {
         name: 'fake-overloaded',
         read: async () => ({ cpu: 0.95, memory: 0.1 }),
       };
-      const monitoring = new Monitoring(config, overloadedSource);
+      const monitoring = trackMonitoring(
+        new Monitoring(config, overloadedSource),
+      );
       const metrics = new Metrics();
 
       const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);

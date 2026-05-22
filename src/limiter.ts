@@ -182,7 +182,12 @@ export class Limiter extends q {
     return (...args: TArgs) =>
       new Promise(async (res, rej) => {
         const timeout = timeoutOverrideFn(...args) ?? this.timeout;
-        const skipLimits = bypassLimitsFn?.(...args) ?? false;
+        let skipLimits = false;
+        try {
+          skipLimits = bypassLimitsFn?.(...args) ?? false;
+        } catch (err) {
+          return rej(err instanceof Error ? err : new Error(String(err)));
+        }
         this.logQueue(
           `Adding to queue, max time allowed is ${timeout.toLocaleString()}ms`,
         );
