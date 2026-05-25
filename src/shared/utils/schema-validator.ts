@@ -1,9 +1,5 @@
 import Ajv, { ErrorObject, ValidateFunction } from 'ajv';
 
-interface ValidateOptions {
-  abortEarly?: boolean;
-}
-
 interface ValidationErrorDetail {
   message: string;
   context: { message: string; path: string };
@@ -15,11 +11,15 @@ interface ValidationError {
   details: ValidationErrorDetail[];
 }
 
-interface ValidationResult<T = unknown> {
-  value: T;
+interface ValidationResult {
+  value: unknown;
   error?: ValidationError;
 }
 
+// `allErrors: true` matches the prior joi `abortEarly: false` behavior so clients
+// receive every validation problem in a single response. The CWE-400 footgun
+// (an attacker forcing huge error arrays) is mitigated by the HTTP-layer body
+// size cap (`Config.getMaxPayloadSize()`) enforced before validation runs.
 const ajv = new Ajv({
   allErrors: true,
   strict: false,
@@ -98,7 +98,7 @@ const coerceStringToType = (
     return n;
   }
   if (expected === 'boolean') {
-    if (value === 'true' || value === '') return true;
+    if (value === 'true') return true;
     if (value === 'false') return false;
     return undefined;
   }
@@ -155,24 +155,26 @@ const coerceAgainstSchema = (
     return result;
   }
 
-  // allOf: apply each subschema's coercion in order
+  // allOf: apply each subschema's coercion in order, then continue with the
+  // parent schema's own type/properties below.
   if (Array.isArray(schema.allOf)) {
     let v = input;
     for (const sub of schema.allOf as Record<string, unknown>[]) {
       v = coerceAgainstSchema(v, sub, root, depth + 1, refStack);
     }
-    // Fall through so any type/properties on this schema also apply
     input = v;
   }
 
   // anyOf/oneOf: walk alternatives in DECLARED ORDER and pick the first that
-  // accepts the input (with coercion if applicable). This mirrors joi's
-  // `Joi.alternatives().try(...)` semantics where order matters:
+  // accepts the input (with coercion if applicable). Mirrors joi's
+  // `Joi.alternatives().try(...)` ordering:
   //   - `?launch={"headless":false}` against `[CDPLaunchOptions, string]` →
   //     object alt wins because the string JSON-parses successfully.
   //   - `?launch=eyJ...=` (base64 string, no `{`) against same → string alt wins.
-  //   - `"5"` against `[number, string]` → number wins (convert coerces).
-  //   - `"5"` against `[string, number]` → string wins (no need to convert).
+  //   - `"5"` against `[number, string]` → number wins (coerce).
+  //   - `"5"` against `[string, number]` → string wins (no coercion needed).
+  // `oneOf` is treated identically here for *coercion*; ajv still enforces the
+  // "exactly one matches" semantic at validate time.
   const alts =
     (schema.anyOf as Record<string, unknown>[] | undefined) ??
     (schema.oneOf as Record<string, unknown>[] | undefined);
@@ -181,28 +183,28 @@ const coerceAgainstSchema = (
       for (const alt of alts) {
         const t = inferExpectedType(alt, root);
         if (t === undefined || t === 'string' || t === 'null') {
-          // String matches this alt as-is — stop, no coercion needed.
           return input;
         }
         const coerced = coerceStringToType(input, t);
         if (coerced !== undefined) {
-          // Recurse so nested fields inside the coerced object/array also coerce.
           return coerceAgainstSchema(coerced, alt, root, depth + 1, refStack);
         }
       }
       return input;
     }
     if (Array.isArray(input)) {
-      const arrayAlt = alts.find((a) => inferExpectedType(a, root) === 'array');
-      if (arrayAlt) {
-        return coerceAgainstSchema(input, arrayAlt, root, depth + 1, refStack);
+      for (const alt of alts) {
+        if (inferExpectedType(alt, root) !== 'array') continue;
+        const result = coerceAgainstSchema(input, alt, root, depth + 1, refStack);
+        if (result !== input) return result;
       }
       return input;
     }
     if (input && typeof input === 'object') {
-      const objAlt = alts.find((a) => inferExpectedType(a, root) === 'object');
-      if (objAlt) {
-        return coerceAgainstSchema(input, objAlt, root, depth + 1, refStack);
+      for (const alt of alts) {
+        if (inferExpectedType(alt, root) !== 'object') continue;
+        const result = coerceAgainstSchema(input, alt, root, depth + 1, refStack);
+        if (result !== input) return result;
       }
       return input;
     }
@@ -214,7 +216,10 @@ const coerceAgainstSchema = (
   if (typeof input === 'string') {
     if (!expected || expected === 'string' || expected === 'null') return input;
     const coerced = coerceStringToType(input, expected);
-    return coerced !== undefined ? coerced : input;
+    if (coerced === undefined) return input;
+    return expected === 'object' || expected === 'array'
+      ? coerceAgainstSchema(coerced, schema, root, depth + 1, refStack)
+      : coerced;
   }
 
   if (input && typeof input === 'object' && !Array.isArray(input)) {
@@ -313,18 +318,16 @@ class CompiledSchema {
     this.schema = jsonSchema as Record<string, unknown>;
   }
 
-  // _opts is accepted for joi API parity (e.g., { abortEarly }); ajv always returns all errors.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  validate<T = unknown>(input: unknown, _opts?: ValidateOptions): ValidationResult<T> {
+  validate(input: unknown): ValidationResult {
     const coerced = coerceAgainstSchema(input, this.schema, this.schema, 0, new Set());
     const valid = this.validator(coerced);
     if (valid) {
-      return { value: coerced as T };
+      return { value: coerced };
     }
     const errs = this.validator.errors ?? [];
     const details = formatErrors(errs);
     return {
-      value: coerced as T,
+      value: coerced,
       error: {
         message: details.map((d) => d.message).join('; '),
         details,
@@ -334,22 +337,11 @@ class CompiledSchema {
 }
 
 /**
- * Compile a JSON Schema (Draft-07) into a reusable validator.
+ * Compile a JSON Schema (Draft-07) into a reusable validator. Validators are
+ * compiled once per schema (cached by object identity) so this is safe to call
+ * per-request without re-walking the schema.
  *
- * The returned `CompiledSchema` exposes `.validate(input, opts?)` returning
- * `{ value, error? }`. On failure, `error.details[]` mirrors joi's error
- * shape so call sites that previously used joi/enjoi continue to work.
- * Validators are compiled once per JSON Schema (cached by identity), making
- * this safe to call on every request without re-walking the schema.
- *
- * Recursive coercion (matches joi+enjoi semantics) is applied to the input
- * before validation:
- *   - string -> number/integer/boolean when schema is unambiguously numeric/boolean
- *   - string -> object/array via safe JSON.parse when schema is unambiguously
- *     object/array (proto-pollution keys are stripped)
- *   - never the reverse direction (non-strings are not converted)
- *   - never when the schema is ambiguous (multiple anyOf/oneOf alternatives
- *     including a string alternative)
+ * Coercion semantics are documented on {@link coerceAgainstSchema}.
  *
  * @param jsonSchema A JSON Schema (Draft-07)
  */

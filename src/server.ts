@@ -268,9 +268,7 @@ export class HTTPServer extends EventEmitter {
       this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
         const schema = compileSchema(route.querySchema);
-        const valid = schema.validate(req.queryParams, {
-          abortEarly: false,
-        });
+        const valid = schema.validate(req.queryParams);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -313,7 +311,7 @@ export class HTTPServer extends EventEmitter {
       this.logger.trace(`Validating route payload with BODY schema`);
       try {
         const schema = compileSchema(route.bodySchema);
-        const valid = schema.validate(body, { abortEarly: false });
+        const valid = schema.validate(body);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -406,9 +404,7 @@ export class HTTPServer extends EventEmitter {
         this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
           const schema = compileSchema(route.querySchema);
-          const valid = schema.validate(req.queryParams, {
-            abortEarly: false,
-          });
+          const valid = schema.validate(req.queryParams);
 
           if (valid.error) {
             const errorDetails = valid.error.details

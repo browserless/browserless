@@ -33,7 +33,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -51,7 +51,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -64,7 +64,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -77,7 +77,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -101,14 +101,14 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
   it('accepts a plain string as body (non-JSON mode)', () => {
     const body = 'export default async function () {}';
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -117,7 +117,7 @@ describe('Function API body schema validation', function () {
       context: { role: 'admin' },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.not.be.undefined;
   });
 });

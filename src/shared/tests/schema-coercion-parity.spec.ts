@@ -20,6 +20,16 @@ const loadSchema = async (file: string) =>
   JSON.parse(await fs.readFile(path.join(routes, file), 'utf-8'));
 
 describe('Schema coercion parity (joi+enjoi → ajv)', function () {
+  // Single-browser docker images don't ship chromium route schemas;
+  // skip the suite in that case so firefox/webkit/edge CI doesn't choke.
+  before(async function () {
+    try {
+      await fs.access(path.join(routes, 'pdf.post.body.json'));
+    } catch {
+      this.skip();
+    }
+  });
+
   // Source: https://docs.browserless.io/http-apis/pdf — curl example
   it('accepts the documented /pdf body', async function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));
@@ -115,6 +125,80 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     expect(result.error, result.error?.message).to.be.undefined;
     const v = result.value as { launch: string };
     expect(v.launch).to.equal(encoded);
+  });
+
+  // Joi rejects empty strings for boolean fields; the prior implementation accidentally
+  // coerced "" -> true. Lock the rejection in so the bug cannot regress.
+  it('rejects empty string for a nested boolean field', async function () {
+    const schema = compileSchema(await loadSchema('pdf.post.body.json'));
+    const { error } = schema.validate({
+      url: 'https://example.com/',
+      options: { printBackground: '' },
+    });
+    expect(error).to.not.be.undefined;
+  });
+
+  // Top-level string -> object parse must then recurse so nested stringified
+  // primitives (`"5000"` -> number, `"true"` -> boolean) coerce as joi did.
+  it('recurses after parsing a JSON-string launch so nested fields coerce too', async function () {
+    const querySchema = JSON.parse(
+      await fs.readFile(path.join(routes, 'pdf.post.query.json'), 'utf-8'),
+    );
+    const schema = compileSchema(querySchema);
+    const result = schema.validate({
+      launch: '{"timeout":"5000","ignoreHTTPSErrors":"true","stealth":"false"}',
+    });
+    expect(result.error, result.error?.message).to.be.undefined;
+    const v = result.value as {
+      launch: { timeout: number; ignoreHTTPSErrors: boolean; stealth: boolean };
+    };
+    expect(v.launch.timeout).to.equal(5000);
+    expect(v.launch.ignoreHTTPSErrors).to.equal(true);
+    expect(v.launch.stealth).to.equal(false);
+  });
+
+  // Regression lock for #5384: a schema with `additionalProperties: {}` (the empty
+  // schema, meaning "accept any value") must accept arbitrary values without warning
+  // and without coercing them — empty `{}` carries no type info.
+  it('accepts arbitrary values under additionalProperties: {} (issue #5384)', function () {
+    const schema = compileSchema({
+      type: 'object',
+      properties: { name: { type: 'string' } },
+      additionalProperties: {},
+      required: ['name'],
+    });
+    const input = {
+      name: 'Alice',
+      extra: { nested: [1, 'two', null, true] },
+      stringified: '42',
+    };
+    const result = schema.validate(input);
+    expect(result.error, result.error?.message).to.be.undefined;
+    const v = result.value as Record<string, unknown>;
+    // Empty schema = no coercion target, so values pass through untouched.
+    expect(v.stringified).to.equal('42');
+    expect(v.extra).to.deep.equal({ nested: [1, 'two', null, true] });
+  });
+
+  // Browserless route schemas set `additionalProperties: false` at the top level;
+  // unknown keys must 400. Locks in the ajv config (removeAdditional stays off).
+  it('rejects unknown top-level fields when additionalProperties is false', async function () {
+    const schema = compileSchema(await loadSchema('pdf.post.body.json'));
+    const { error } = schema.validate({ url: 'https://example.com/', bogus: 1 });
+    expect(error).to.not.be.undefined;
+  });
+
+  // Proto-pollution safety: a JSON-string body with __proto__ must parse without
+  // polluting Object.prototype, and the key must be silently dropped by the
+  // reviver. This used to be Bourne's job; safeJsonParse takes over.
+  it('strips __proto__/constructor keys when parsing a JSON-string body', async function () {
+    const querySchema = JSON.parse(
+      await fs.readFile(path.join(routes, 'pdf.post.query.json'), 'utf-8'),
+    );
+    const schema = compileSchema(querySchema);
+    schema.validate({ launch: '{"__proto__":{"polluted":true},"headless":true}' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(({} as any).polluted).to.equal(undefined);
   });
 
   // Negative case — guarantees coercion does not silently accept un-coercible garbage.
