@@ -50,15 +50,13 @@
     "tsconfig.json"
   ],
   "dependencies": {
-    "@hapi/bourne": "^3.0.0",
-    "@hapi/hoek": "^11.0.4",
+    "ajv": "^8.20.0",
     "debug": "^4.4.1",
     "del": "^8.0.1",
     "file-type": "^22.0.1",
     "get-port": "^7.2.0",
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
-    "joi": "^18.2.1",
     "lighthouse": "^13.3.0",
     "micromatch": "^4.0.8",
     "playwright-1.56": "npm:playwright-core@1.56.1",

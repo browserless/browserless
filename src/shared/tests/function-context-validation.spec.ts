@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import EnjoiResolver from '../utils/enjoi-resolver.js';
+import { compileSchema } from '../utils/schema-validator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +17,7 @@ describe('Function API body schema validation', function () {
     );
     try {
       const bodySchema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
-      schema = EnjoiResolver.schema(bodySchema);
+      schema = compileSchema(bodySchema);
     } catch {
       this.skip();
     }
