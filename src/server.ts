@@ -295,6 +295,7 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        req.queryParams = valid.value as typeof req.queryParams;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -338,6 +339,8 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        body = valid.value;
+        req.body = valid.value;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -431,6 +434,7 @@ export class HTTPServer extends EventEmitter {
             );
             return Promise.resolve();
           }
+          req.queryParams = valid.value as typeof req.queryParams;
         } catch (e) {
           this.logger.error(`Error parsing query-params schema`, e);
           writeResponse(

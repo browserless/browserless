@@ -195,16 +195,17 @@ const coerceAgainstSchema = (
     if (Array.isArray(input)) {
       for (const alt of alts) {
         if (inferExpectedType(alt, root) !== 'array') continue;
-        const result = coerceAgainstSchema(input, alt, root, depth + 1, refStack);
-        if (result !== input) return result;
+        // First declared array alternative wins for an array input — return
+        // even when nothing was coerced. ajv enforces the actual contract.
+        return coerceAgainstSchema(input, alt, root, depth + 1, refStack);
       }
       return input;
     }
     if (input && typeof input === 'object') {
       for (const alt of alts) {
         if (inferExpectedType(alt, root) !== 'object') continue;
-        const result = coerceAgainstSchema(input, alt, root, depth + 1, refStack);
-        if (result !== input) return result;
+        // First declared object alternative wins for an object input.
+        return coerceAgainstSchema(input, alt, root, depth + 1, refStack);
       }
       return input;
     }
