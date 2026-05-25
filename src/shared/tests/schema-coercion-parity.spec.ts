@@ -201,6 +201,27 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     expect(({} as any).polluted).to.equal(undefined);
   });
 
+  // anyOf alternatives with disjoint `required` keys: joi tries each branch in
+  // order and skips ones whose required fields are missing. Without this, an
+  // input matching only the second alternative would be silently accepted as
+  // the first alt's shape and never coerced.
+  it('skips anyOf alternatives whose required keys are missing', function () {
+    const schema = compileSchema({
+      type: 'object',
+      properties: {
+        payload: {
+          anyOf: [
+            { type: 'object', required: ['a'], properties: { a: { type: 'number' } } },
+            { type: 'object', required: ['b'], properties: { b: { type: 'number' } } },
+          ],
+        },
+      },
+    });
+    const { value, error } = schema.validate({ payload: { b: '1' } });
+    expect(error, error?.message).to.be.undefined;
+    expect((value as { payload: { b: number } }).payload.b).to.equal(1);
+  });
+
   // Negative case — guarantees coercion does not silently accept un-coercible garbage.
   it('rejects un-coercible nested values', async function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));

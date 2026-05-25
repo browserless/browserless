@@ -86,6 +86,32 @@ const inferExpectedType = (
   return undefined;
 };
 
+/**
+ * Best-effort check that an input *could* validate against a schema alternative.
+ * Used to pick the right `anyOf`/`oneOf` branch for object inputs:
+ *   - if the alternative declares `required: [...]` and the input is missing any
+ *     of those keys, skip this alternative (joi would have rejected and moved on).
+ * This is a heuristic — full validation happens in ajv afterwards.
+ */
+const inputCouldMatchAlt = (
+  alt: Record<string, unknown>,
+  input: Record<string, unknown>,
+  root: Record<string, unknown>,
+): boolean => {
+  let s: Record<string, unknown> | undefined = alt;
+  if (typeof s.$ref === 'string') {
+    s = derefSchema(s.$ref, root);
+    if (!s) return true;
+  }
+  const required = s.required;
+  if (Array.isArray(required)) {
+    for (const key of required) {
+      if (typeof key === 'string' && !(key in input)) return false;
+    }
+  }
+  return true;
+};
+
 const coerceStringToType = (
   value: string,
   expected: string,
@@ -202,9 +228,13 @@ const coerceAgainstSchema = (
       return input;
     }
     if (input && typeof input === 'object') {
+      const obj = input as Record<string, unknown>;
       for (const alt of alts) {
         if (inferExpectedType(alt, root) !== 'object') continue;
-        // First declared object alternative wins for an object input.
+        // First declared object alt whose `required` keys are all present.
+        // This skips alts the input clearly can't match (joi would have done
+        // the same by trying each and continuing past the rejection).
+        if (!inputCouldMatchAlt(alt, obj, root)) continue;
         return coerceAgainstSchema(input, alt, root, depth + 1, refStack);
       }
       return input;
