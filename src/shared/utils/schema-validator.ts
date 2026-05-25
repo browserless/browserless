@@ -83,31 +83,60 @@ const inferExpectedType = (
   }
   if (schema.properties) return 'object';
   if (schema.items) return 'array';
+  if (Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf as Record<string, unknown>[]) {
+      const t = inferExpectedType(sub, root, new Set(seen));
+      if (t) return t;
+    }
+  }
   return undefined;
 };
 
 /**
+ * Recursively collects all `required` keys an alt schema demands, descending
+ * through `$ref` chains and `allOf` so the set is complete before we check
+ * whether the input can match.
+ */
+const collectRequiredKeys = (
+  schema: Record<string, unknown> | undefined,
+  root: Record<string, unknown>,
+  seen: Set<string> = new Set(),
+): Set<string> => {
+  const out = new Set<string>();
+  if (!schema) return out;
+  if (typeof schema.$ref === 'string') {
+    if (seen.has(schema.$ref)) return out;
+    seen.add(schema.$ref);
+    return collectRequiredKeys(derefSchema(schema.$ref, root), root, seen);
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf as Record<string, unknown>[]) {
+      for (const key of collectRequiredKeys(sub, root, new Set(seen))) {
+        out.add(key);
+      }
+    }
+  }
+  if (Array.isArray(schema.required)) {
+    for (const key of schema.required) {
+      if (typeof key === 'string') out.add(key);
+    }
+  }
+  return out;
+};
+
+/**
  * Best-effort check that an input *could* validate against a schema alternative.
- * Used to pick the right `anyOf`/`oneOf` branch for object inputs:
- *   - if the alternative declares `required: [...]` and the input is missing any
- *     of those keys, skip this alternative (joi would have rejected and moved on).
- * This is a heuristic — full validation happens in ajv afterwards.
+ * Used to pick the right `anyOf`/`oneOf` branch for object inputs: skip alts
+ * whose transitively-required keys aren't all present on the input. Full
+ * validation still happens in ajv afterwards.
  */
 const inputCouldMatchAlt = (
   alt: Record<string, unknown>,
   input: Record<string, unknown>,
   root: Record<string, unknown>,
 ): boolean => {
-  let s: Record<string, unknown> | undefined = alt;
-  if (typeof s.$ref === 'string') {
-    s = derefSchema(s.$ref, root);
-    if (!s) return true;
-  }
-  const required = s.required;
-  if (Array.isArray(required)) {
-    for (const key of required) {
-      if (typeof key === 'string' && !(key in input)) return false;
-    }
+  for (const key of collectRequiredKeys(alt, root)) {
+    if (!Object.hasOwn(input, key)) return false;
   }
   return true;
 };

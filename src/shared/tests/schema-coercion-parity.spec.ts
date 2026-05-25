@@ -222,6 +222,34 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     expect((value as { payload: { b: number } }).payload.b).to.equal(1);
   });
 
+  // The required-keys probe must descend through `$ref` chains and `allOf` —
+  // common in TJS-generated schemas where alternatives are `$ref`s into
+  // `definitions` rather than inline objects.
+  it('resolves required keys transitively through $ref and allOf for anyOf skip logic', function () {
+    const schema = compileSchema({
+      type: 'object',
+      properties: {
+        payload: {
+          anyOf: [
+            { $ref: '#/definitions/AltA' },
+            { $ref: '#/definitions/AltB' },
+          ],
+        },
+      },
+      definitions: {
+        AltA: {
+          allOf: [{ required: ['a'] }, { type: 'object', properties: { a: { type: 'number' } } }],
+        },
+        AltB: {
+          allOf: [{ required: ['b'] }, { type: 'object', properties: { b: { type: 'number' } } }],
+        },
+      },
+    });
+    const { value, error } = schema.validate({ payload: { b: '7' } });
+    expect(error, error?.message).to.be.undefined;
+    expect((value as { payload: { b: number } }).payload.b).to.equal(7);
+  });
+
   // Negative case — guarantees coercion does not silently accept un-coercible garbage.
   it('rejects un-coercible nested values', async function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));
