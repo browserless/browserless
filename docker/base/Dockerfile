@@ -76,6 +76,7 @@ RUN apt-get update \
   fonts-ubuntu \
   fonts-wqy-zenhei \
   fonts-open-sans \
+  ttf-mscorefonts-installer \
   && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
   && fc-cache -f -v \
