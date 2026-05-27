@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import EnjoiResolver from '../utils/enjoi-resolver.js';
+import { compileSchema } from '../utils/schema-validator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +17,7 @@ describe('Function API body schema validation', function () {
     );
     try {
       const bodySchema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
-      schema = EnjoiResolver.schema(bodySchema);
+      schema = compileSchema(bodySchema);
     } catch {
       this.skip();
     }
@@ -33,7 +33,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -51,7 +51,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -64,7 +64,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -77,7 +77,7 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -101,14 +101,14 @@ describe('Function API body schema validation', function () {
       },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
   it('accepts a plain string as body (non-JSON mode)', () => {
     const body = 'export default async function () {}';
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.be.undefined;
   });
 
@@ -117,7 +117,7 @@ describe('Function API body schema validation', function () {
       context: { role: 'admin' },
     };
 
-    const { error } = schema.validate(body, { abortEarly: false });
+    const { error } = schema.validate(body);
     expect(error).to.not.be.undefined;
   });
 });

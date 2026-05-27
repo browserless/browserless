@@ -28,7 +28,7 @@ import {
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 
-import EnjoiResolver from './shared/utils/enjoi-resolver.js';
+import { compileSchema } from './shared/utils/schema-validator.js';
 
 export interface HTTPServerOptions {
   concurrent: number;
@@ -267,10 +267,8 @@ export class HTTPServer extends EventEmitter {
     if (route.querySchema) {
       this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
-        const schema = EnjoiResolver.schema(route.querySchema);
-        const valid = schema.validate(req.queryParams, {
-          abortEarly: false,
-        });
+        const schema = compileSchema(route.querySchema);
+        const valid = schema.validate(req.queryParams);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -297,6 +295,7 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        req.queryParams = valid.value as typeof req.queryParams;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -312,8 +311,8 @@ export class HTTPServer extends EventEmitter {
     if (route.bodySchema) {
       this.logger.trace(`Validating route payload with BODY schema`);
       try {
-        const schema = EnjoiResolver.schema(route.bodySchema);
-        const valid = schema.validate(body, { abortEarly: false });
+        const schema = compileSchema(route.bodySchema);
+        const valid = schema.validate(body);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -340,6 +339,8 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        body = valid.value;
+        req.body = valid.value;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -405,10 +406,8 @@ export class HTTPServer extends EventEmitter {
       if (route.querySchema) {
         this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
-          const schema = EnjoiResolver.schema(route.querySchema);
-          const valid = schema.validate(req.queryParams, {
-            abortEarly: false,
-          });
+          const schema = compileSchema(route.querySchema);
+          const valid = schema.validate(req.queryParams);
 
           if (valid.error) {
             const errorDetails = valid.error.details
@@ -435,6 +434,7 @@ export class HTTPServer extends EventEmitter {
             );
             return Promise.resolve();
           }
+          req.queryParams = valid.value as typeof req.queryParams;
         } catch (e) {
           this.logger.error(`Error parsing query-params schema`, e);
           writeResponse(
