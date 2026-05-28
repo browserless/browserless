@@ -1,10 +1,12 @@
 import {
+  AfterResponse,
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
   Config,
   HTTPManagementRoutes,
   HTTPRoute,
+  Hooks,
   Limiter,
   Logger,
   Methods,
@@ -20,18 +22,46 @@ import { EventEmitter } from 'events';
 import micromatch from 'micromatch';
 import stream from 'stream';
 
+// Returned by wrapHTTPHandler / wrapWebSocketHandler when the connection was
+// already closed before any work could run. wrapWithAfterHook checks for it so
+// after() isn't fired for a request that never executed.
+const ROUTE_DID_NOT_RUN = Symbol('route-did-not-run');
+
+const safeStringify = (value: unknown): string | undefined => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+};
+
 export class Router extends EventEmitter {
   protected log = new Logger('router');
   protected httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
   protected webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
+  protected hooks: Hooks;
 
   constructor(
     protected config: Config,
     protected browserManager: BrowserManager,
     protected limiter: Limiter,
     protected logger: typeof Logger,
+    hooks?: Hooks,
   ) {
     super();
+    // Keep hooks optional to avoid breaking SDK consumers that subclass Router
+    // and forward only the original 4 ctor args. The default Hooks.after() is
+    // a no-op, so the silent failure mode here is "no after() firing for
+    // concurrency=false routes" — same as before this PR — and a startup warn
+    // makes it diagnosable.
+    if (hooks) {
+      this.hooks = hooks;
+    } else {
+      this.hooks = new Hooks();
+      this.log.warn(
+        'Router constructed without explicit hooks — after() will use the no-op default for concurrency=false routes. SDK consumers subclassing Router should forward hooks via super(...).',
+      );
+    }
   }
 
   protected getTimeout(req: Request) {
@@ -60,6 +90,57 @@ export class Router extends EventEmitter {
     return writeResponse(socket, 408, 'Request has timed out');
   }
 
+  /**
+   * Wraps a route handler so that the `after()` lifecycle hook fires when the
+   * handler resolves or rejects, for routes that bypass the Limiter
+   * (`concurrency = false`). Without this, downstream after()-driven behavior
+   * (metrics, audit, SDK overrides) would silently disappear for those routes.
+   *
+   * Skips firing when the handler returns the ROUTE_DID_NOT_RUN sentinel —
+   * that means the connection had already closed before the handler ran, so
+   * recording the request would be inaccurate.
+   */
+  protected wrapWithAfterHook<TArgs extends [Request, ...unknown[]], TResult>(
+    handler: (...args: TArgs) => Promise<TResult | typeof ROUTE_DID_NOT_RUN>,
+  ): (...args: TArgs) => Promise<TResult | typeof ROUTE_DID_NOT_RUN> {
+    return async (...args: TArgs) => {
+      const start = Date.now();
+      const [req] = args;
+      try {
+        const result = await handler(...args);
+        if (result !== ROUTE_DID_NOT_RUN) {
+          this.fireAfterHook({ req, start, status: 'successful' });
+        }
+        return result;
+      } catch (err) {
+        const error =
+          err instanceof Error
+            ? err
+            : Object.assign(
+                new Error(
+                  typeof err === 'string'
+                    ? err
+                    : (safeStringify(err) ?? 'Unknown Error'),
+                ),
+                { cause: err },
+              );
+        this.fireAfterHook({ req, start, status: 'error', error });
+        throw error;
+      }
+    };
+  }
+
+  protected fireAfterHook(jobInfo: AfterResponse) {
+    // SDK overrides of Hooks.after may throw synchronously or return a
+    // rejected promise. Promise.resolve(...) normalizes both shapes so a
+    // broken hook never breaks the response path.
+    Promise.resolve()
+      .then(() => this.hooks.after(jobInfo))
+      .catch((err) => {
+        this.log.error(`Error in after() hook: ${err}`);
+      });
+  }
+
   protected wrapHTTPHandler(
     route: HTTPRoute | BrowserHTTPRoute,
     handler: HTTPRoute['handler'] | BrowserHTTPRoute['handler'],
@@ -67,7 +148,7 @@ export class Router extends EventEmitter {
     return async (req: Request, res: Response) => {
       if (!isConnected(res)) {
         this.log.warn(`HTTP Request has closed prior to running`);
-        return Promise.resolve();
+        return ROUTE_DID_NOT_RUN;
       }
       const logger = new this.logger(route.name, req);
       if (
@@ -84,7 +165,7 @@ export class Router extends EventEmitter {
         if (!isConnected(res)) {
           this.log.warn(`HTTP Request has closed prior to running`);
           this.browserManager.complete(browser);
-          return Promise.resolve();
+          return ROUTE_DID_NOT_RUN;
         }
 
         if (!browser) {
@@ -122,7 +203,7 @@ export class Router extends EventEmitter {
     return async (req: Request, socket: stream.Duplex, head: Buffer) => {
       if (!isConnected(socket)) {
         this.log.warn(`WebSocket Request has closed prior to running`);
-        return Promise.resolve();
+        return ROUTE_DID_NOT_RUN;
       }
       const logger = new this.logger(route.name, req);
       if (
@@ -139,7 +220,7 @@ export class Router extends EventEmitter {
         if (!isConnected(socket)) {
           this.log.warn(`WebSocket Request has closed prior to running`);
           this.browserManager.complete(browser);
-          return Promise.resolve();
+          return ROUTE_DID_NOT_RUN;
         }
 
         if (!browser) {
@@ -169,6 +250,8 @@ export class Router extends EventEmitter {
     const bound = route.handler.bind(route);
     const wrapped = this.wrapHTTPHandler(route, bound);
 
+    // Invariant: exactly one of limiter.limit / wrapWithAfterHook wraps the
+    // handler, so hooks.after() fires exactly once per request.
     route.handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
@@ -177,7 +260,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
         )
-      : wrapped;
+      : this.wrapWithAfterHook(wrapped);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
@@ -200,6 +283,8 @@ export class Router extends EventEmitter {
     const bound = route.handler.bind(route);
     const wrapped = this.wrapWebSocketHandler(route, bound);
 
+    // Invariant: exactly one of limiter.limit / wrapWithAfterHook wraps the
+    // handler, so hooks.after() fires exactly once per request.
     route.handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
@@ -208,7 +293,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
         )
-      : wrapped;
+      : this.wrapWithAfterHook(wrapped);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
