@@ -494,11 +494,12 @@ describe(`Limiter`, () => {
 
       const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
       const handler = sandbox.spy(asyncNoop);
+      const overCapacity = sandbox.spy();
       const bypass = () => {
         throw new Error('predicate exploded');
       };
 
-      const job = limiter.limit(handler, asyncNoop, asyncNoop, noop, bypass);
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
       let rejection: Error | undefined;
       await job().catch((err) => {
         rejection = err as Error;
@@ -507,6 +508,9 @@ describe(`Limiter`, () => {
       expect(rejection).to.be.instanceOf(Error);
       expect(rejection?.message).to.equal('predicate exploded');
       expect(handler.called).to.be.false;
+      expect(overCapacity.calledOnce).to.be.true;
+      expect(webHooks.callRejectAlertURL.calledOnce).to.be.true;
+      expect(metrics.get().rejected).to.equal(1);
     } finally {
       sandbox.restore();
     }
