@@ -175,6 +175,7 @@ export class Router extends EventEmitter {
           this.onQueueFullHTTP.bind(this),
           this.onHTTPTimeout.bind(this),
           this.getTimeout.bind(this),
+          route.bypassLimits?.bind(route),
         )
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];
@@ -205,6 +206,7 @@ export class Router extends EventEmitter {
           this.onQueueFullWebSocket.bind(this),
           this.onWebsocketTimeout.bind(this),
           this.getTimeout.bind(this),
+          route.bypassLimits?.bind(route),
         )
       : wrapped;
     route.path = Array.isArray(route.path) ? route.path : [route.path];
