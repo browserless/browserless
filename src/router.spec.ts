@@ -17,7 +17,6 @@ import {
   WebHooks,
   WebSocketRoute,
   contentTypes,
-  sleep,
 } from '@browserless.io/browserless';
 import Sinon, { spy } from 'sinon';
 import { expect } from 'chai';
@@ -86,8 +85,8 @@ const makeRequest = (): Request => {
 };
 
 const makeResponse = (): http.ServerResponse => {
-  // A minimal fake ServerResponse. We need `writeHead` (used by isHTTP) and
-  // `socket.writable = true` (used by isConnected) to be present.
+  // Must look like an http.ServerResponse (writeHead present) and have a
+  // writable socket so the router treats it as a live HTTP connection.
   const fake = {
     writable: true,
     writableEnded: false,
@@ -135,6 +134,19 @@ const buildRouter = () => {
   return { router, hooks, limiter, config, metrics };
 };
 
+// Resolves when the Limiter dispatches its next 'end' event. Used to wait
+// deterministically for the queue's async success/error path to fire after().
+const limiterEnded = (limiter: Limiter): Promise<void> =>
+  new Promise<void>((resolve) => {
+    limiter.addEventListener('end', () => resolve());
+  });
+
+// Lets queued microtasks drain — used after firing a route handler so that
+// fire-and-forget paths like `Promise.resolve().then(...).catch(...)` inside
+// fireAfterHook have a chance to settle before we assert.
+const flushMicrotasks = (): Promise<void> =>
+  new Promise<void>((resolve) => setImmediate(resolve));
+
 describe('Router', () => {
   afterEach(() => {
     monitorings.forEach((m) => m.stop());
@@ -143,23 +155,23 @@ describe('Router', () => {
 
   describe('HTTP route after() lifecycle', () => {
     it('fires after() once with status "successful" for concurrency=true routes', async () => {
-      const { router, hooks } = buildRouter();
+      const { router, hooks, limiter } = buildRouter();
       const inner = spy(async () => 'ok');
       const route = new TestHTTPRoute(inner);
       route.concurrency = true;
       router.registerHTTPRoute(route);
 
+      const ended = limiterEnded(limiter);
       await (
         route.handler as (
           req: Request,
           res: http.ServerResponse,
         ) => Promise<unknown>
       )(makeRequest(), makeResponse());
-      // Wait a tick so queue 'success' event handlers can fire after-hook.
-      await sleep(10);
+      await ended;
 
       expect(inner.calledOnce).to.be.true;
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       expect(hooks.after.firstCall.args[0]).to.have.property(
         'status',
         'successful',
@@ -181,14 +193,14 @@ describe('Router', () => {
       )(makeRequest(), makeResponse());
 
       expect(inner.calledOnce).to.be.true;
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       expect(hooks.after.firstCall.args[0]).to.have.property(
         'status',
         'successful',
       );
     });
 
-    it('fires after() once with status "error" when handler rejects (concurrency=false)', async () => {
+    it('fires after() exactly once with status "error" when handler rejects (concurrency=false)', async () => {
       const { router, hooks } = buildRouter();
       const boom = new Error('boom');
       const inner = spy(async () => {
@@ -211,39 +223,103 @@ describe('Router', () => {
       }
 
       expect(caught).to.equal(boom);
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       const payload = hooks.after.firstCall.args[0];
       expect(payload).to.have.property('status', 'error');
       expect(payload).to.have.property('error', boom);
     });
 
     it('fires after() exactly once (no double-fire) for concurrency=true routes', async () => {
-      const { router, hooks } = buildRouter();
+      const { router, hooks, limiter } = buildRouter();
       const inner = spy(async () => 'ok');
       const route = new TestHTTPRoute(inner);
       route.concurrency = true;
       router.registerHTTPRoute(route);
 
+      const ended = limiterEnded(limiter);
       await (
         route.handler as (
           req: Request,
           res: http.ServerResponse,
         ) => Promise<unknown>
       )(makeRequest(), makeResponse());
-      await sleep(10);
+      await ended;
 
       expect(hooks.after.callCount).to.equal(1);
+    });
+
+    it('does not propagate when hooks.after throws synchronously (concurrency=false)', async () => {
+      const { router, hooks } = buildRouter();
+      hooks.after.throws(new Error('hook-sync-boom'));
+      const inner = spy(async () => 'ok');
+      const route = new TestHTTPRoute(inner);
+      route.concurrency = false;
+      router.registerHTTPRoute(route);
+
+      const result = await (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), makeResponse());
+      await flushMicrotasks();
+
+      expect(inner.calledOnce).to.be.true;
+      expect(result).to.equal('ok');
+    });
+
+    it('does not propagate when hooks.after returns a rejected promise (concurrency=false)', async () => {
+      const { router, hooks } = buildRouter();
+      hooks.after.rejects(new Error('hook-async-boom'));
+      const inner = spy(async () => 'ok');
+      const route = new TestHTTPRoute(inner);
+      route.concurrency = false;
+      router.registerHTTPRoute(route);
+
+      const result = await (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), makeResponse());
+      await flushMicrotasks();
+
+      expect(inner.calledOnce).to.be.true;
+      expect(result).to.equal('ok');
+    });
+
+    it('skips after() when the response was already closed before the handler ran (concurrency=false)', async () => {
+      const { router, hooks } = buildRouter();
+      const inner = spy(async () => 'ok');
+      const route = new TestHTTPRoute(inner);
+      route.concurrency = false;
+      router.registerHTTPRoute(route);
+
+      const closedRes = makeResponse();
+      // Simulate a client that has already disconnected.
+      (closedRes.socket as { writable: boolean }).writable = false;
+
+      await (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), closedRes);
+
+      expect(inner.called).to.be.false;
+      expect(hooks.after.callCount).to.equal(0);
     });
   });
 
   describe('WebSocket route after() lifecycle', () => {
     it('fires after() once with status "successful" for concurrency=true routes', async () => {
-      const { router, hooks } = buildRouter();
+      const { router, hooks, limiter } = buildRouter();
       const inner = spy(async () => undefined);
       const route = new TestWebSocketRoute(inner);
       route.concurrency = true;
       router.registerWebSocketRoute(route);
 
+      const ended = limiterEnded(limiter);
       await (
         route.handler as (
           req: Request,
@@ -251,10 +327,10 @@ describe('Router', () => {
           head: Buffer,
         ) => Promise<unknown>
       )(makeRequest(), makeSocket(), Buffer.alloc(0));
-      await sleep(10);
+      await ended;
 
       expect(inner.calledOnce).to.be.true;
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       expect(hooks.after.firstCall.args[0]).to.have.property(
         'status',
         'successful',
@@ -277,14 +353,14 @@ describe('Router', () => {
       )(makeRequest(), makeSocket(), Buffer.alloc(0));
 
       expect(inner.calledOnce).to.be.true;
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       expect(hooks.after.firstCall.args[0]).to.have.property(
         'status',
         'successful',
       );
     });
 
-    it('fires after() once with status "error" when handler rejects (concurrency=false)', async () => {
+    it('fires after() exactly once with status "error" when handler rejects (concurrency=false)', async () => {
       const { router, hooks } = buildRouter();
       const boom = new Error('ws-boom');
       const inner = spy(async () => {
@@ -308,19 +384,20 @@ describe('Router', () => {
       }
 
       expect(caught).to.equal(boom);
-      expect(hooks.after.calledOnce).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
       const payload = hooks.after.firstCall.args[0];
       expect(payload).to.have.property('status', 'error');
       expect(payload).to.have.property('error', boom);
     });
 
     it('fires after() exactly once (no double-fire) for concurrency=true routes', async () => {
-      const { router, hooks } = buildRouter();
+      const { router, hooks, limiter } = buildRouter();
       const inner = spy(async () => undefined);
       const route = new TestWebSocketRoute(inner);
       route.concurrency = true;
       router.registerWebSocketRoute(route);
 
+      const ended = limiterEnded(limiter);
       await (
         route.handler as (
           req: Request,
@@ -328,9 +405,31 @@ describe('Router', () => {
           head: Buffer,
         ) => Promise<unknown>
       )(makeRequest(), makeSocket(), Buffer.alloc(0));
-      await sleep(10);
+      await ended;
 
       expect(hooks.after.callCount).to.equal(1);
+    });
+
+    it('skips after() when the socket was already closed before the handler ran (concurrency=false)', async () => {
+      const { router, hooks } = buildRouter();
+      const inner = spy(async () => undefined);
+      const route = new TestWebSocketRoute(inner);
+      route.concurrency = false;
+      router.registerWebSocketRoute(route);
+
+      const closedSocket = makeSocket();
+      (closedSocket as { writable: boolean }).writable = false;
+
+      await (
+        route.handler as (
+          req: Request,
+          socket: stream.Duplex,
+          head: Buffer,
+        ) => Promise<unknown>
+      )(makeRequest(), closedSocket, Buffer.alloc(0));
+
+      expect(inner.called).to.be.false;
+      expect(hooks.after.callCount).to.equal(0);
     });
   });
 });
