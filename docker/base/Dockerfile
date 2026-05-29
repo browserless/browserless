@@ -57,6 +57,7 @@ RUN apt-get update \
   gnupg \
   libu2f-udev \
   ssh \
+  unzip \
   wget \
   xvfb \
   libwebp-dev \
