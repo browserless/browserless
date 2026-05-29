@@ -1,4 +1,16 @@
-# [Latest](https://github.com/browserless/browserless/compare/v2.50.0...main)
+# [Latest](https://github.com/browserless/browserless/compare/v2.50.1...main)
+
+# [v2.50.1](https://github.com/browserless/browserless/compare/v2.50.0...v2.50.1)
+- Dependency updates.
+- Fix: make the ajv validator and schema generation safe for NodeNext consumers.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `25.1.0`
+  - playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+  - Chromium: `148.0.7778.0`
+  - Chrome: `148.0.7778.215` (amd64 only)
+  - Firefox: `150.0.2`
+  - Webkit: `26.4`
+  - Edge: `148.0.3967.83` (amd64 only)
 
 # [v2.50.0](https://github.com/browserless/browserless/compare/v2.49.0...v2.50.0)
 - Dependency updates.
