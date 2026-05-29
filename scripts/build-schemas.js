@@ -89,7 +89,19 @@ const buildSchemas = async (
       .filter((r) => r.endsWith(tsExtension))
       .map(async (route) => {
         const routeContents = (await fs.readFile(route)).toString('utf-8');
-        const program = TJS.getProgramFromFiles([route], compilerOptions, './');
+        // Schema generation must be deterministic and independent of the
+        // consumer's runtime module settings. Under moduleResolution
+        // "nodenext"/"node16", types pulled from dual CJS/ESM packages (e.g.
+        // puppeteer-core) serialize as absolute-path
+        // `import("...",{with:{"resolution-mode":"import"}}).Type` $ref names
+        // that the ajv-backed validator cannot resolve at request time. Forcing
+        // the canonical es2022/bundler resolution yields stable, named $refs for
+        // every consumer regardless of how their own tsconfig is configured.
+        const program = TJS.getProgramFromFiles(
+          [route],
+          { ...compilerOptions, module: 'es2022', moduleResolution: 'bundler' },
+          './',
+        );
 
         // prettier-ignore
         const sourceFile = ts.createSourceFile(route, routeContents, ts.ScriptTarget.Latest, true);
