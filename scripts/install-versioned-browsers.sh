@@ -82,7 +82,8 @@ install_browser() {
     echo "  Fetching $(basename "$dir")"
     fetched=0
     for url in "${urls[@]}"; do
-      if curl -fsSL --retry 3 --retry-delay 2 -o "$tmp_zip" "$url"; then fetched=1; break; fi
+      # --connect-timeout/--max-time bound a stalled transfer; --retry alone does not.
+      if curl -fsSL --connect-timeout 15 --max-time 600 --retry 3 --retry-delay 2 -o "$tmp_zip" "$url"; then fetched=1; break; fi
       echo "    mirror failed, trying next: $url" >&2
     done
     [ "$fetched" -eq 1 ] || { fail "all mirrors failed for $dir"; return 1; }
