@@ -1,0 +1,271 @@
+name: Publish Docker Images to GitHub Container Registry
+
+# Reusable publish pipeline shared by docker-publish-latest.yml (main) and
+# docker-publish-stable.yml (v2.* tags).
+#
+# Instead of one runner building every image sequentially for both platforms
+# via QEMU emulation, this fans the work out across NATIVE runners:
+#
+#   base-build   (matrix: amd64 + arm64, native)  build base per-arch, push by digest
+#   base-merge                                     stitch the per-arch digests into
+#                                                  ghcr.io/browserless/base:<tag>
+#   images-build (matrix: image x platform)        build each browser image per-arch
+#                (needs: base-merge)               on its native runner, push by digest
+#   images-merge (matrix: image)                   stitch each image's per-arch digests
+#                (needs: images-build)             into ghcr.io/browserless/<image>:<tag>
+#
+# A multi-arch tag is an OCI image index (manifest list) pointing at one image
+# manifest per platform by digest. `docker buildx imagetools create` builds that
+# index from the per-arch digests -- it pulls/builds nothing, it only writes the
+# index -- so the published tags are identical to today's, just built natively.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: >-
+          Tag to publish the images under (e.g. "latest" or "v2.50.1"). Also
+          used as the VERSION build-arg, i.e. which ghcr.io/browserless/base
+          tag the browser images build FROM.
+        required: true
+        type: string
+      node_version:
+        description: Override the NODE_VERSION build-arg. Empty = use the Dockerfile default.
+        required: false
+        type: string
+        default: ''
+      npm_version:
+        description: Override the NPM_VERSION build-arg. Empty = use the Dockerfile default.
+        required: false
+        type: string
+        default: ''
+      apt_mirror:
+        description: APT mirror for the base image. Empty = upstream archive.ubuntu.com.
+        required: false
+        type: string
+        default: azure.archive.ubuntu.com
+
+env:
+  BASE_IMAGE: ghcr.io/browserless/base
+
+jobs:
+  # ============================================================
+  # Stage 1a: build the base image on each native runner and push
+  # it to the registry by digest (no tag yet).
+  # ============================================================
+  base-build:
+    name: Build base (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64 }
+          - { platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64 }
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Build and push base by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/base/Dockerfile
+          platforms: ${{ matrix.platform }}
+          # NODE_VERSION / NPM_VERSION are only overridden when the caller sets
+          # them; otherwise the Dockerfile defaults remain the single source of
+          # truth. APT_MIRROR="" falls through to upstream in the Dockerfile.
+          build-args: |
+            APT_MIRROR=${{ inputs.apt_mirror }}
+            ${{ inputs.node_version != '' && format('NODE_VERSION={0}', inputs.node_version) || '' }}
+            ${{ inputs.npm_version != '' && format('NPM_VERSION={0}', inputs.npm_version) || '' }}
+          outputs: type=image,name=${{ env.BASE_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-base__${{ matrix.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================
+  # Stage 1b: merge the per-arch base digests into a single tagged
+  # manifest list. Browser images build FROM this tag, so it must
+  # exist before stage 2 starts.
+  # ============================================================
+  base-merge:
+    name: Merge base manifest
+    runs-on: ubuntu-24.04
+    needs: base-build
+    # TAG is passed via env rather than interpolated into run: scripts to avoid
+    # template/shell injection from the caller-supplied tag.
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Download base digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-base__*
+          merge-multiple: true
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Create and push base manifest list
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
+          docker buildx imagetools create -t "${BASE_IMAGE}:${TAG}" \
+            $(printf "${BASE_IMAGE}@sha256:%s " *)
+
+      - name: Inspect base manifest
+        run: docker buildx imagetools inspect "${BASE_IMAGE}:${TAG}"
+
+  # ============================================================
+  # Stage 2: build each browser image on its native runner and push
+  # by digest. chrome and edge are linux/amd64 only (Chrome stable
+  # and Edge are not supported on arm64), so they have no arm64 row.
+  # ============================================================
+  images-build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    needs: base-merge
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: chromium,     file: chromium, platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
+          - { image: chromium,     file: chromium, platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: '' }
+          - { image: chrome,       file: chrome,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
+          - { image: edge,         file: edge,     platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
+          - { image: firefox,      file: firefox,  platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
+          - { image: firefox,      file: firefox,  platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: '' }
+          - { image: webkit,       file: webkit,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
+          - { image: webkit,       file: webkit,   platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
+          - { image: webkit-heavy, file: webkit,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
+          - { image: webkit-heavy, file: webkit,   platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
+          - { image: multi,        file: multi,    platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
+          - { image: multi,        file: multi,    platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
+          - { image: multi-heavy,  file: multi,    platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
+          - { image: multi-heavy,  file: multi,    platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Build and push ${{ matrix.image }} by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/${{ matrix.file }}/Dockerfile
+          platforms: ${{ matrix.platform }}
+          # VERSION selects which base tag to build FROM (== the publish tag).
+          # `extra` carries INSTALL_WEBKIT_VERSIONS for webkit/multi; it is a
+          # blank line for the other images and ignored by build-push-action.
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            ${{ matrix.extra }}
+          outputs: type=image,name=ghcr.io/browserless/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image }}__${{ matrix.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================
+  # Stage 3: merge each image's per-arch digests into its published
+  # manifest list. Single-platform images (chrome, edge) merge their
+  # one digest into a normal single-arch tag.
+  # ============================================================
+  images-merge:
+    name: Merge ${{ matrix.image }} manifest
+    runs-on: ubuntu-24.04
+    needs: images-build
+    # TAG is passed via env rather than interpolated into run: scripts to avoid
+    # template/shell injection from the caller-supplied tag.
+    env:
+      TAG: ${{ inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - chromium
+          - chrome
+          - edge
+          - firefox
+          - webkit
+          - webkit-heavy
+          - multi
+          - multi-heavy
+    steps:
+      - name: Download ${{ matrix.image }} digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          # The "__" delimiter prevents the webkit pattern from also matching
+          # webkit-heavy digests (and multi from matching multi-heavy).
+          pattern: digest-${{ matrix.image }}__*
+          merge-multiple: true
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Create and push ${{ matrix.image }} manifest list
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
+          docker buildx imagetools create -t "ghcr.io/browserless/${{ matrix.image }}:${TAG}" \
+            $(printf "ghcr.io/browserless/${{ matrix.image }}@sha256:%s " *)
+
+      - name: Inspect ${{ matrix.image }} manifest
+        run: docker buildx imagetools inspect "ghcr.io/browserless/${{ matrix.image }}:${TAG}"
