@@ -65,6 +65,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -115,6 +117,10 @@ jobs:
     name: Merge base manifest
     runs-on: ubuntu-24.04
     needs: base-build
+    # TAG is passed via env rather than interpolated into run: scripts to avoid
+    # template/shell injection from the caller-supplied tag.
+    env:
+      TAG: ${{ inputs.tag }}
     steps:
       - name: Download base digests
         uses: actions/download-artifact@v8
@@ -134,11 +140,11 @@ jobs:
         working-directory: ${{ runner.temp }}/digests
         run: |
           # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
-          docker buildx imagetools create -t "${BASE_IMAGE}:${{ inputs.tag }}" \
+          docker buildx imagetools create -t "${BASE_IMAGE}:${TAG}" \
             $(printf "${BASE_IMAGE}@sha256:%s " *)
 
       - name: Inspect base manifest
-        run: docker buildx imagetools inspect "${BASE_IMAGE}:${{ inputs.tag }}"
+        run: docker buildx imagetools inspect "${BASE_IMAGE}:${TAG}"
 
   # ============================================================
   # Stage 2: build each browser image on its native runner and push
@@ -170,6 +176,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -219,6 +227,10 @@ jobs:
     name: Merge ${{ matrix.image }} manifest
     runs-on: ubuntu-24.04
     needs: images-build
+    # TAG is passed via env rather than interpolated into run: scripts to avoid
+    # template/shell injection from the caller-supplied tag.
+    env:
+      TAG: ${{ inputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -252,8 +264,8 @@ jobs:
         working-directory: ${{ runner.temp }}/digests
         run: |
           # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
-          docker buildx imagetools create -t "ghcr.io/browserless/${{ matrix.image }}:${{ inputs.tag }}" \
+          docker buildx imagetools create -t "ghcr.io/browserless/${{ matrix.image }}:${TAG}" \
             $(printf "ghcr.io/browserless/${{ matrix.image }}@sha256:%s " *)
 
       - name: Inspect ${{ matrix.image }} manifest
-        run: docker buildx imagetools inspect "ghcr.io/browserless/${{ matrix.image }}:${{ inputs.tag }}"
+        run: docker buildx imagetools inspect "ghcr.io/browserless/${{ matrix.image }}:${TAG}"
