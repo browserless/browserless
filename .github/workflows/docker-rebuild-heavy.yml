@@ -13,17 +13,20 @@ name: Rebuild Heavy Docker Images (manual)
 # base is rebuilt because the heavy images build FROM base:<tag> and the fixed
 # install script extracts with the system `unzip` that the fix adds to base.
 
+# Trigger: pushed changes to THIS file on the build/v2.50.1 branch. Scoping to
+# the workflow's own path means it fires on the push that introduces it and does
+# NOT re-fire on later, unrelated pushes to the branch. To re-run, push a no-op
+# change to this file (or re-run from the Actions UI).
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag to rebuild/republish base + heavy images under (e.g. "v2.50.1").
-        required: true
-        type: string
-        default: v2.50.1
+  push:
+    branches:
+      - build/v2.50.1
+    paths:
+      - .github/workflows/docker-rebuild-heavy.yml
 
 env:
   BASE_IMAGE: ghcr.io/browserless/base
+  TAG: v2.50.1
 
 jobs:
   # ============================================================
@@ -90,8 +93,6 @@ jobs:
     name: Merge base manifest
     runs-on: ubuntu-24.04
     needs: base-build
-    env:
-      TAG: ${{ inputs.tag }}
     steps:
       - name: Download base digests
         uses: actions/download-artifact@v8
@@ -157,7 +158,7 @@ jobs:
           file: ./docker/${{ matrix.file }}/Dockerfile
           platforms: ${{ matrix.platform }}
           build-args: |
-            VERSION=${{ inputs.tag }}
+            VERSION=${{ env.TAG }}
             INSTALL_WEBKIT_VERSIONS=true
           outputs: type=image,name=ghcr.io/browserless/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
 
@@ -183,8 +184,6 @@ jobs:
     name: Merge ${{ matrix.image }} manifest
     runs-on: ubuntu-24.04
     needs: images-build
-    env:
-      TAG: ${{ inputs.tag }}
     strategy:
       fail-fast: false
       matrix:
