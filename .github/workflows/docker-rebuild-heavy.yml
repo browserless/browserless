@@ -1,0 +1,221 @@
+name: Rebuild Heavy Docker Images (manual)
+
+# Manually rebuild and republish ONLY the heavy images (and the base they build
+# FROM) under an existing tag, on native per-arch runners.
+#
+# Why this exists: the versioned-webkit install (INSTALL_WEBKIT_VERSIONS=true)
+# deadlocked on Node 24.16 inside Playwright's bundled yauzl, hanging the
+# webkit-heavy / multi-heavy builds. The fix lives in docker/base/Dockerfile
+# (adds unzip) and scripts/install-versioned-browsers.sh. Only base + the two
+# heavy images are affected; the already-published non-heavy images are correct
+# and are intentionally NOT rebuilt here.
+#
+# base is rebuilt because the heavy images build FROM base:<tag> and the fixed
+# install script extracts with the system `unzip` that the fix adds to base.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to rebuild/republish base + heavy images under (e.g. "v2.50.1").
+        required: true
+        type: string
+        default: v2.50.1
+
+env:
+  BASE_IMAGE: ghcr.io/browserless/base
+
+jobs:
+  # ============================================================
+  # Stage 1a: rebuild the base image per-arch (it now carries the
+  # unzip fix) and push by digest.
+  # ============================================================
+  base-build:
+    name: Build base (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64 }
+          - { platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64 }
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Build and push base by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/base/Dockerfile
+          platforms: ${{ matrix.platform }}
+          # NODE_VERSION / NPM_VERSION default from the Dockerfile (single source
+          # of truth). APT_MIRROR matches the stable publish workflow.
+          build-args: |
+            APT_MIRROR=azure.archive.ubuntu.com
+          outputs: type=image,name=${{ env.BASE_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-base__${{ matrix.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================
+  # Stage 1b: merge the per-arch base digests into base:<tag>. The
+  # heavy images build FROM this tag, so it must exist first.
+  # ============================================================
+  base-merge:
+    name: Merge base manifest
+    runs-on: ubuntu-24.04
+    needs: base-build
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Download base digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-base__*
+          merge-multiple: true
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Create and push base manifest list
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
+          docker buildx imagetools create -t "${BASE_IMAGE}:${TAG}" \
+            $(printf "${BASE_IMAGE}@sha256:%s " *)
+
+      - name: Inspect base manifest
+        run: docker buildx imagetools inspect "${BASE_IMAGE}:${TAG}"
+
+  # ============================================================
+  # Stage 2: rebuild the heavy images per-arch FROM base:<tag> with
+  # INSTALL_WEBKIT_VERSIONS=true (the path the fix repairs).
+  # ============================================================
+  images-build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    needs: base-merge
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: webkit-heavy, file: webkit, platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64 }
+          - { image: webkit-heavy, file: webkit, platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64 }
+          - { image: multi-heavy,  file: multi,  platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64 }
+          - { image: multi-heavy,  file: multi,  platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64 }
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Build and push ${{ matrix.image }} by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/${{ matrix.file }}/Dockerfile
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            VERSION=${{ inputs.tag }}
+            INSTALL_WEBKIT_VERSIONS=true
+          outputs: type=image,name=ghcr.io/browserless/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image }}__${{ matrix.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # ============================================================
+  # Stage 3: merge each heavy image's per-arch digests into its
+  # published manifest list.
+  # ============================================================
+  images-merge:
+    name: Merge ${{ matrix.image }} manifest
+    runs-on: ubuntu-24.04
+    needs: images-build
+    env:
+      TAG: ${{ inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - webkit-heavy
+          - multi-heavy
+    steps:
+      - name: Download ${{ matrix.image }} digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-${{ matrix.image }}__*
+          merge-multiple: true
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_PASSWORD }}
+
+      - name: Create and push ${{ matrix.image }} manifest list
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ghcr.io/browserless/${{ matrix.image }}
+        run: |
+          # shellcheck disable=SC2046  # intentional word-splitting: one arg per digest
+          docker buildx imagetools create -t "${IMAGE}:${TAG}" \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect ${{ matrix.image }} manifest
+        env:
+          IMAGE: ghcr.io/browserless/${{ matrix.image }}
+        run: docker buildx imagetools inspect "${IMAGE}:${TAG}"
