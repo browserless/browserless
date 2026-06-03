@@ -44,5 +44,12 @@ const cleanup = async () => {
   );
   await extract(zipPath, { dir: extractPath });
   await rename(deepPath, finalPath);
-  await cleanup();
-})();
+})()
+  .catch((err) => {
+    console.error(`Failed to install devtools from ${devtoolsUrl}:`, err);
+    process.exitCode = 1;
+  })
+  // Always remove the transient zip/temp dir, on success and failure alike.
+  // Each op in cleanup() swallows its own error, so this never masks the
+  // failure reported above.
+  .finally(cleanup);
