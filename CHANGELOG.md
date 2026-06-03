@@ -1,4 +1,20 @@
-# [Latest](https://github.com/browserless/browserless/compare/v2.50.1...main)
+# [Latest](https://github.com/browserless/browserless/compare/v2.51.0...main)
+
+# [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
+- Dependency updates.
+- Feat: expose `route` on the `after()` AfterResponse hook.
+- Feat: add a new `watch` command with live reload for development.
+- Fix: block `file://` URLs in Playwright WebSocket routes.
+- Fix: extract devtools and adblock with the system `unzip`.
+- Fix: speed up `build:schemas` call.
+- Supports the following libraries and browsers:
+  - puppeteer-core: `25.1.0`
+  - playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+  - Chromium: `148.0.7778.0`
+  - Chrome: `149.0.7827.53` (amd64 only)
+  - Firefox: `150.0.2`
+  - Webkit: `26.4`
+  - Edge: `148.0.3967.96` (amd64 only)
 
 # [v2.50.1](https://github.com/browserless/browserless/compare/v2.50.0...v2.50.1)
 - Dependency updates.
