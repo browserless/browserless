@@ -19,16 +19,23 @@ const deepPath = path.join(
   'resources',
   'inspector',
 );
-const zipStream = fs.createWriteStream(zipPath);
-
 const cleanup = async () => {
   return await Promise.all([
-    unlink(zipPath),
-    rm(extractPath, { recursive: true }),
+    unlink(zipPath).catch(() => {}),
+    rm(extractPath, { recursive: true }).catch(() => {}),
   ]);
 };
 
 (async () => {
+  // The devtools snapshot is pinned to a fixed URL, so once it's been
+  // downloaded there's no need to re-fetch it on every build. Set
+  // FORCE_DEVTOOLS=true to bypass the cache.
+  if (fs.existsSync(finalPath) && process.env.FORCE_DEVTOOLS !== 'true') {
+    return;
+  }
+
+  const zipStream = fs.createWriteStream(zipPath);
+
   await rm(finalPath, { recursive: true }).catch(() => {});
   await new Promise((resolve, reject) =>
     https.get(devtoolsUrl, (response) => {
@@ -37,4 +44,5 @@ const cleanup = async () => {
   );
   await extract(zipPath, { dir: extractPath });
   await rename(deepPath, finalPath);
-})().finally(cleanup);
+  await cleanup();
+})();
