@@ -5,6 +5,7 @@ import {
   Logger,
   Metrics,
   Monitoring,
+  Route,
   TooManyRequests,
   WebHooks,
 } from '@browserless.io/browserless';
@@ -22,6 +23,7 @@ interface Job {
   onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
+  route?: Route;
 }
 
 export class Limiter extends q {
@@ -100,6 +102,7 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'successful',
+      route: job.route,
     } as AfterResponse);
   }
 
@@ -120,6 +123,7 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'timedout',
+      route: job.route,
     } as AfterResponse);
 
     next();
@@ -139,6 +143,7 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'error',
+      route: job.route,
       error:
         error instanceof Error
           ? error
@@ -178,6 +183,7 @@ export class Limiter extends q {
     onTimeoutFn: ErrorFn<TArgs>,
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
     bypassLimitsFn?: (...args: TArgs) => boolean,
+    route?: Route,
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise(async (res, rej) => {
@@ -259,6 +265,7 @@ export class Limiter extends q {
           onTimeoutFn: () => onTimeoutFn(...args),
           start: Date.now(),
           timeout,
+          route,
         });
 
         this.push(job);

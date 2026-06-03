@@ -13,6 +13,7 @@ import {
   PathTypes,
   Request,
   Response,
+  Route,
   WebSocketRoute,
   contentTypes,
   isConnected,
@@ -102,6 +103,7 @@ export class Router extends EventEmitter {
    */
   protected wrapWithAfterHook<TArgs extends [Request, ...unknown[]], TResult>(
     handler: (...args: TArgs) => Promise<TResult | typeof ROUTE_DID_NOT_RUN>,
+    route?: Route,
   ): (...args: TArgs) => Promise<TResult | typeof ROUTE_DID_NOT_RUN> {
     return async (...args: TArgs) => {
       const start = Date.now();
@@ -109,7 +111,7 @@ export class Router extends EventEmitter {
       try {
         const result = await handler(...args);
         if (result !== ROUTE_DID_NOT_RUN) {
-          this.fireAfterHook({ req, start, status: 'successful' });
+          this.fireAfterHook({ req, start, status: 'successful', route });
         }
         return result;
       } catch (err) {
@@ -124,7 +126,7 @@ export class Router extends EventEmitter {
                 ),
                 { cause: err },
               );
-        this.fireAfterHook({ req, start, status: 'error', error });
+        this.fireAfterHook({ req, start, status: 'error', error, route });
         throw error;
       }
     };
@@ -259,8 +261,9 @@ export class Router extends EventEmitter {
           this.onHTTPTimeout.bind(this),
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
+          route,
         )
-      : this.wrapWithAfterHook(wrapped);
+      : this.wrapWithAfterHook(wrapped, route);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
@@ -292,8 +295,9 @@ export class Router extends EventEmitter {
           this.onWebsocketTimeout.bind(this),
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
+          route,
         )
-      : this.wrapWithAfterHook(wrapped);
+      : this.wrapWithAfterHook(wrapped, route);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
