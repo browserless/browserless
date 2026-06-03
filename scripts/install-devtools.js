@@ -1,5 +1,5 @@
 import { rename, rm, unlink } from 'fs/promises';
-import extract from 'extract-zip';
+import { extractZip } from './extract-zip-native.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import https from 'https';
@@ -42,7 +42,7 @@ const cleanup = async () => {
       response.pipe(zipStream).on('close', resolve).on('error', reject);
     }),
   );
-  await extract(zipPath, { dir: extractPath });
+  await extractZip(zipPath, extractPath);
   await rename(deepPath, finalPath);
 })()
   .catch((err) => {

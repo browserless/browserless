@@ -13,8 +13,8 @@ import path, { join } from 'path';
 import { Readable } from 'stream';
 import { deleteAsync } from 'del';
 import { cp } from 'fs/promises';
+import { extractZip } from './extract-zip-native.js';
 import os from 'os';
-import unzip from 'extract-zip';
 
 (async () => {
   const extensionsDir = join(process.cwd(), 'extensions');
@@ -59,7 +59,7 @@ import unzip from 'extract-zip';
   const json = await data.json();
 
   await downloadUrlToDirectory(json.assets[0].browser_download_url, zipFile);
-  await unzip(zipFile, { dir: tmpDir });
+  await extractZip(zipFile, tmpDir);
 
   const findExtensionDir = (dir) => {
     const items = readdirSync(dir);
