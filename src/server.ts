@@ -481,7 +481,10 @@ export class HTTPServer extends EventEmitter {
   }
 
   /**
-   * Left blank for downstream SDK modules to optionally implement.
+   * Triggers a graceful shutdown of the HTTP server. Downstream SDK modules
+   * may override this to implement additional cleanup on shutdown.
    */
-  public stop() {}
+  public stop(): void {
+    void this.shutdown();
+  }
 }
