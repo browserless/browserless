@@ -22,6 +22,7 @@
     "build:openapi": "node scripts/build-open-api.js",
     "build:ts": "tsc",
     "build:tests": "npm run build:ts && npm run build:function && npm run install:debugger",
+    "changelog:versions": "node scripts/changelog-browser-versions.js",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
     "watch": "node scripts/watch.js",

@@ -1,0 +1,38 @@
+name: PR Title
+
+# Releases are cut by release-please from Conventional Commit messages. PRs are
+# squash-merged, so the PR title becomes the squashed commit subject that
+# release-please parses for the changelog and version bump — enforce it here.
+#
+# Lives in its own workflow (not pr-checks.yml) so it can run on `edited` to
+# re-check when a title is fixed, without re-running the heavy Docker tests.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Validate Conventional Commit title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Keep in sync with release-please-config.json's changelog-sections.
+          types: |
+            feat
+            fix
+            perf
+            revert
+            build
+            chore
+            ci
+            docs
+            style
+            refactor
+            test
