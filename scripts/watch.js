@@ -193,7 +193,11 @@ const startWatchers = () => {
     };
 
     const onChange = (_event, filename) => {
-      if (!filename || !filename.endsWith('.ts') || filename.endsWith('.d.ts')) {
+      if (
+        !filename ||
+        !filename.endsWith('.ts') ||
+        filename.endsWith('.d.ts')
+      ) {
         return;
       }
       clearTimeout(timer);
