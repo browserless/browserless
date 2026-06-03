@@ -184,9 +184,12 @@ export const writeResponse = (
   const CTTHeader = contentType.toLowerCase().includes('charset=')
     ? contentType
     : `${contentType}; charset=${encodings.utf8}`;
-  const body = isJSON && isError
-    ? JSON.stringify({ error: message instanceof Error ? message.message : message })
-    : message;
+  const body =
+    isJSON && isError
+      ? JSON.stringify({
+          error: message instanceof Error ? message.message : message,
+        })
+      : message;
 
   if (isHTTP(writeable)) {
     const response = writeable;
@@ -563,7 +566,7 @@ export const queryParamsToObject = (
     {} as ReturnType<typeof queryParamsToObject>,
   );
 
-const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const wrapUserFunction = (fn: string) => {
   // Handle async definitions
@@ -650,7 +653,7 @@ export const scrollThroughPage = async (page: Page) => {
   }, viewport.height);
 };
 
-export const noop = (): void => { };
+export const noop = (): void => {};
 
 export const once = <A extends unknown[], R, T>(
   fn: (this: T, ...arg: A) => R,
@@ -744,10 +747,10 @@ export class Timeout extends Error {
 
 export const bestAttemptCatch =
   (bestAttempt: boolean) =>
-    (err: Error): void => {
-      if (bestAttempt) return;
-      throw err;
-    };
+  (err: Error): void => {
+    if (bestAttempt) return;
+    throw err;
+  };
 
 /**
  * Adapts goto-style options for `page.setContent`. puppeteer-core 24.43.1
@@ -762,7 +765,9 @@ export const toSetContentOptions = (
   if (waitUntil === undefined) return rest;
   const events = Array.isArray(waitUntil) ? waitUntil : [waitUntil];
   const supported = events.filter(
-    (e): e is Exclude<PuppeteerLifeCycleEvent, 'networkidle0' | 'networkidle2'> =>
+    (
+      e,
+    ): e is Exclude<PuppeteerLifeCycleEvent, 'networkidle0' | 'networkidle2'> =>
       e !== 'networkidle0' && e !== 'networkidle2',
   );
   if (supported.length === 0) return rest;
@@ -903,12 +908,12 @@ export const printLogo = (docsLink: string, debugURL?: string | boolean) => `
   /*prettier-ignore*/
   debugURL ? `
 | Debbuger: ${debugURL}` : ""
-  }
+}
 ---------------------------------------------------------
 ${gradient(
-    '#ff1a8c',
-    '#ffea00',
-  )(`
+  '#ff1a8c',
+  '#ffea00',
+)(`
 
 █▓▒
 ████▒

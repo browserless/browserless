@@ -35,7 +35,11 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));
     const { error } = schema.validate({
       url: 'https://example.com/',
-      options: { displayHeaderFooter: true, printBackground: false, format: 'A0' },
+      options: {
+        displayHeaderFooter: true,
+        printBackground: false,
+        format: 'A0',
+      },
     });
     expect(error, error?.message).to.be.undefined;
   });
@@ -46,10 +50,16 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));
     const result = schema.validate({
       url: 'https://example.com/',
-      options: { displayHeaderFooter: 'true', printBackground: 'false', format: 'A0' },
+      options: {
+        displayHeaderFooter: 'true',
+        printBackground: 'false',
+        format: 'A0',
+      },
     });
     expect(result.error, result.error?.message).to.be.undefined;
-    const v = result.value as { options: { displayHeaderFooter: boolean; printBackground: boolean } };
+    const v = result.value as {
+      options: { displayHeaderFooter: boolean; printBackground: boolean };
+    };
     expect(v.options.displayHeaderFooter).to.equal(true);
     expect(v.options.printBackground).to.equal(false);
   });
@@ -85,7 +95,9 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
       context: { pageNumber: '2', maxQuotes: '3' },
     });
     expect(result.error, result.error?.message).to.be.undefined;
-    const v = result.value as { context: { pageNumber: unknown; maxQuotes: unknown } };
+    const v = result.value as {
+      context: { pageNumber: unknown; maxQuotes: unknown };
+    };
     expect(v.context.pageNumber).to.equal('2');
     expect(v.context.maxQuotes).to.equal('3');
   });
@@ -109,7 +121,9 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
       await fs.readFile(path.join(routes, 'pdf.post.query.json'), 'utf-8'),
     );
     const schema = compileSchema(querySchema);
-    const result = schema.validate({ launch: '{"headless":false,"args":["--no-sandbox"]}' });
+    const result = schema.validate({
+      launch: '{"headless":false,"args":["--no-sandbox"]}',
+    });
     expect(result.error, result.error?.message).to.be.undefined;
     const v = result.value as { launch: { headless: boolean; args: string[] } };
     expect(v.launch).to.deep.equal({ headless: false, args: ['--no-sandbox'] });
@@ -184,7 +198,10 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
   // unknown keys must 400. Locks in the ajv config (removeAdditional stays off).
   it('rejects unknown top-level fields when additionalProperties is false', async function () {
     const schema = compileSchema(await loadSchema('pdf.post.body.json'));
-    const { error } = schema.validate({ url: 'https://example.com/', bogus: 1 });
+    const { error } = schema.validate({
+      url: 'https://example.com/',
+      bogus: 1,
+    });
     expect(error).to.not.be.undefined;
   });
 
@@ -196,7 +213,9 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
       await fs.readFile(path.join(routes, 'pdf.post.query.json'), 'utf-8'),
     );
     const schema = compileSchema(querySchema);
-    schema.validate({ launch: '{"__proto__":{"polluted":true},"headless":true}' });
+    schema.validate({
+      launch: '{"__proto__":{"polluted":true},"headless":true}',
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(({} as any).polluted).to.equal(undefined);
   });
@@ -211,8 +230,16 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
       properties: {
         payload: {
           anyOf: [
-            { type: 'object', required: ['a'], properties: { a: { type: 'number' } } },
-            { type: 'object', required: ['b'], properties: { b: { type: 'number' } } },
+            {
+              type: 'object',
+              required: ['a'],
+              properties: { a: { type: 'number' } },
+            },
+            {
+              type: 'object',
+              required: ['b'],
+              properties: { b: { type: 'number' } },
+            },
           ],
         },
       },
@@ -238,10 +265,16 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
       },
       definitions: {
         AltA: {
-          allOf: [{ required: ['a'] }, { type: 'object', properties: { a: { type: 'number' } } }],
+          allOf: [
+            { required: ['a'] },
+            { type: 'object', properties: { a: { type: 'number' } } },
+          ],
         },
         AltB: {
-          allOf: [{ required: ['b'] }, { type: 'object', properties: { b: { type: 'number' } } }],
+          allOf: [
+            { required: ['b'] },
+            { type: 'object', properties: { b: { type: 'number' } } },
+          ],
         },
       },
     });

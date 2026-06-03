@@ -395,7 +395,9 @@ export class Config extends EventEmitter {
     this.installedBinaries.set(browserType, binaries);
   }
 
-  public getInstalledBinaries(browserType: string): Array<[number, string, string]> {
+  public getInstalledBinaries(
+    browserType: string,
+  ): Array<[number, string, string]> {
     return this.installedBinaries.get(browserType) ?? [];
   }
 

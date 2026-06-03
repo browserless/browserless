@@ -378,7 +378,9 @@ describe('Chromium WebSocket API', function () {
     // kill from the kernel: no graceful shutdown, no WebSocket close
     // initiated by the peer.
     const browserManager = (
-      browserless as unknown as { browserManager: { browsers: Map<unknown, unknown> } }
+      browserless as unknown as {
+        browserManager: { browsers: Map<unknown, unknown> };
+      }
     ).browserManager;
     const [wrapper] = Array.from(browserManager.browsers.keys()) as Array<{
       process: () => { kill: (sig: string) => void } | null;

@@ -205,7 +205,13 @@ const coerceAgainstSchema = (
     const target = derefSchema(schema.$ref, root);
     if (!target) return input;
     refStack.add(schema.$ref);
-    const result = coerceAgainstSchema(input, target, root, depth + 1, refStack);
+    const result = coerceAgainstSchema(
+      input,
+      target,
+      root,
+      depth + 1,
+      refStack,
+    );
     refStack.delete(schema.$ref);
     return result;
   }
@@ -320,7 +326,8 @@ const coerceAgainstSchema = (
   if (Array.isArray(input)) {
     if (expected && expected !== 'array') return input;
     const items = schema.items;
-    if (!items || typeof items !== 'object' || Array.isArray(items)) return input;
+    if (!items || typeof items !== 'object' || Array.isArray(items))
+      return input;
     const itemSchema = items as Record<string, unknown>;
     let out: unknown[] = input;
     let cloned = false;
@@ -348,7 +355,9 @@ const coerceAgainstSchema = (
 
 const formatErrors = (errors: ErrorObject[]): ValidationErrorDetail[] =>
   errors.map((err) => {
-    const path = err.instancePath ? err.instancePath.split('/').filter(Boolean) : [];
+    const path = err.instancePath
+      ? err.instancePath.split('/').filter(Boolean)
+      : [];
     const message = err.message ?? 'validation failed';
     const labeled =
       err.instancePath && err.instancePath.length > 0
@@ -379,7 +388,13 @@ class CompiledSchema {
   }
 
   validate(input: unknown): ValidationResult {
-    const coerced = coerceAgainstSchema(input, this.schema, this.schema, 0, new Set());
+    const coerced = coerceAgainstSchema(
+      input,
+      this.schema,
+      this.schema,
+      0,
+      new Set(),
+    );
     const valid = this.validator(coerced);
     if (valid) {
       return { value: coerced };

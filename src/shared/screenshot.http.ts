@@ -204,10 +204,12 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     }
 
     const gotoResponse = url
-      ? await page.goto(content, gotoOptions).catch(bestAttemptCatch(bestAttempt))
+      ? await page
+          .goto(content, gotoOptions)
+          .catch(bestAttemptCatch(bestAttempt))
       : await page
-        .setContent(content, toSetContentOptions(gotoOptions))
-        .catch(bestAttemptCatch(bestAttempt));
+          .setContent(content, toSetContentOptions(gotoOptions))
+          .catch(bestAttemptCatch(bestAttempt));
 
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {

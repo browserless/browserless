@@ -121,7 +121,7 @@ const buildOpenAPI = async (
         const isWebSocket = routeModule.includes('/ws/') || name.endsWith('ws');
         const paths = (
           Array.isArray(route.path) ? route.path : [route.path]
-        ).map((p) => p === '?(/)' ? '/' : p.replace(/\?\(\/\)/g, ''));
+        ).map((p) => (p === '?(/)' ? '/' : p.replace(/\?\(\/\)/g, '')));
         const [path, ...alternativePaths] = paths;
 
         const {

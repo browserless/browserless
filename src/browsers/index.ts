@@ -386,9 +386,7 @@ export class BrowserManager {
         );
       } finally {
         if (session.isTempDataDir) {
-          this.log.debug(
-            `Deleting "${session.userDataDir}" user-data-dir`,
-          );
+          this.log.debug(`Deleting "${session.userDataDir}" user-data-dir`);
           await this.removeUserDataDir(session.userDataDir);
         }
       }
@@ -409,9 +407,7 @@ export class BrowserManager {
           `Closing browser via killSessions BrowserId: "${session.id}", trackingId: "${session.trackingId}"`,
         );
         this.close(browser, session, true).catch((err) =>
-          this.log.error(
-            `Error in killSessions for "${session.id}": ${err}`,
-          ),
+          this.log.error(`Error in killSessions for "${session.id}": ${err}`),
         );
         closed++;
       }
@@ -459,9 +455,7 @@ export class BrowserManager {
     --session.numbConnected;
 
     this.close(browser, session).catch((err) =>
-      this.log.error(
-        `Error completing session "${session.id}": ${err}`,
-      ),
+      this.log.error(`Error completing session "${session.id}": ${err}`),
     );
   }
 
@@ -685,11 +679,13 @@ export class BrowserManager {
       // Tear down both explicitly before rethrowing. Manual data-dirs
       // (caller-supplied via --user-data-dir or launchOptions.userDataDir)
       // are the caller's lifecycle to manage and stay put.
-      await browser.close().catch((closeErr) =>
-        this.log.debug(
-          `browser.close() during launch-failure cleanup also failed: ${closeErr}`,
-        ),
-      );
+      await browser
+        .close()
+        .catch((closeErr) =>
+          this.log.debug(
+            `browser.close() during launch-failure cleanup also failed: ${closeErr}`,
+          ),
+        );
       if (!manualUserDataDir && userDataDir) {
         await this.removeUserDataDir(userDataDir);
       }

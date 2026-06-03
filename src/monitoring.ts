@@ -382,12 +382,9 @@ export class Monitoring extends EventEmitter {
     log(`Machine stats source: ${this.statsSource.name}`);
 
     this.firstSamplePromise = this.sample();
-    this.samplerHandle = setInterval(
-      () => {
-        this.sample();
-      },
-      this.config.getCpuSampleIntervalMs(),
-    );
+    this.samplerHandle = setInterval(() => {
+      this.sample();
+    }, this.config.getCpuSampleIntervalMs());
     // Don't keep the event loop alive solely for this timer (test runners hang otherwise).
     this.samplerHandle.unref();
   }

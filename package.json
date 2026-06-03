@@ -24,6 +24,7 @@
     "build:tests": "npm run build:ts && npm run build:function && npm run install:debugger",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
+    "watch": "npm run build:dev && node scripts/watch.js",
     "install:adblock": "node scripts/install-adblock.js",
     "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit msedge",

@@ -461,7 +461,13 @@ describe(`Limiter`, () => {
       const reconnect = sandbox.spy(async (_label: string) => undefined);
       const bypass = (label: string) => label === 'reconnect';
 
-      const slowJob = limiter.limit(slow, overCapacity, asyncNoop, noop, bypass);
+      const slowJob = limiter.limit(
+        slow,
+        overCapacity,
+        asyncNoop,
+        noop,
+        bypass,
+      );
       const reconnectJob = limiter.limit(
         reconnect,
         overCapacity,

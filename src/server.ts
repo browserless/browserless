@@ -61,7 +61,11 @@ export class HTTPServer extends EventEmitter {
     );
   }
 
-  protected handleErrorRequest(e: Error, res: Response | stream.Duplex, req?: Request) {
+  protected handleErrorRequest(
+    e: Error,
+    res: Response | stream.Duplex,
+    req?: Request,
+  ) {
     const contentType = req?.headers['content-type'] as contentTypes;
 
     if (e instanceof BadRequest) {
@@ -224,7 +228,11 @@ export class HTTPServer extends EventEmitter {
       this.logger.warn(
         `No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`,
       );
-      writeResponse(res, 404, 'Not Found: Please verify the endpoint URL, the HTTP method (e.g., POST, GET), and check that your Content-Type header is supported (e.g., application/json). See: https://docs.browserless.io/rest-apis/intro');
+      writeResponse(
+        res,
+        404,
+        'Not Found: Please verify the endpoint URL, the HTTP method (e.g., POST, GET), and check that your Content-Type header is supported (e.g., application/json). See: https://docs.browserless.io/rest-apis/intro',
+      );
       return Promise.resolve();
     }
 
@@ -327,9 +335,7 @@ export class HTTPServer extends EventEmitter {
             )
             .join('\n');
 
-          this.logger.warn(
-            `HTTP body validation failed:${errorDetails}`,
-          );
+          this.logger.warn(`HTTP body validation failed:${errorDetails}`);
 
           writeResponse(
             res,
@@ -477,5 +483,5 @@ export class HTTPServer extends EventEmitter {
   /**
    * Left blank for downstream SDK modules to optionally implement.
    */
-  public stop() { }
+  public stop() {}
 }

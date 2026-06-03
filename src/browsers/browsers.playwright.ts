@@ -34,7 +34,10 @@ class BasePlaywright extends EventEmitter {
   protected executablePath = () =>
     playwright[this.playwrightBrowserType].executablePath();
   protected async resolveExecutablePath(pwVersion: string): Promise<string> {
-    return this.config.resolveExecutablePath(this.playwrightBrowserType, pwVersion);
+    return this.config.resolveExecutablePath(
+      this.playwrightBrowserType,
+      pwVersion,
+    );
   }
   protected keepUntilMS = 0;
 
