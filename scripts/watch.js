@@ -26,8 +26,11 @@ import path from 'path';
  *                       node --watch restart, so the server picks them up too.
  *
  * Heavy one-time assets (adblock list, devtools snapshot, debugger, function
- * bundle) are produced by the `build:dev` run that precedes this script in the
- * `watch` npm task, so they are not rebuilt on every change.
+ * bundle) are produced by a one-shot `build:dev` that runs first, below. That
+ * prep step is intentionally NOT a gate: if it fails (e.g. a TypeScript error),
+ * we still bring up the watchers so the dev loop is available to fix the very
+ * breakage that caused the failure. `node --watch` keeps the server process
+ * alive across a crashing first boot and recovers once the tree compiles again.
  *
  * Set WATCH_SCHEMAS=false to skip schema regeneration (the slowest step) if you
  * are not touching request/response shapes.
@@ -44,11 +47,38 @@ const localBin = (name) =>
 
 const children = [];
 
+// Spawning with shell: true (required for Windows .cmd shims) means a plain
+// child.kill() only reaches the shell wrapper, leaving the node/tsc descendants
+// running and the dev port bound. Kill the whole tree instead: taskkill /t on
+// Windows, and the child's process group (negative pid, enabled by detached)
+// on POSIX.
+const killTree = (child) => {
+  if (!child || !child.pid) return;
+  try {
+    if (isWin) {
+      spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+        stdio: 'ignore',
+      });
+    } else {
+      process.kill(-child.pid, 'SIGTERM');
+    }
+  } catch {
+    // The process (group) may already be gone; fall back to a direct kill.
+    try {
+      child.kill('SIGTERM');
+    } catch {
+      // Already dead.
+    }
+  }
+};
+
 const run = (label, command, args, { shell = false, onStdout } = {}) => {
   // When a caller wants to inspect output (e.g. to detect tsc's first compile)
   // we pipe stdout and forward it; otherwise inherit straight through.
   const stdio = onStdout ? ['inherit', 'pipe', 'inherit'] : 'inherit';
-  const child = spawn(command, args, { cwd, shell, stdio });
+  // detached on POSIX puts the child in its own process group so killTree can
+  // signal the entire group on shutdown; Windows relies on taskkill /t instead.
+  const child = spawn(command, args, { cwd, detached: !isWin, shell, stdio });
   children.push(child);
   if (onStdout && child.stdout) {
     child.stdout.on('data', (chunk) => {
@@ -76,7 +106,7 @@ const shutdown = (code = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const child of children) {
-    child.kill('SIGTERM');
+    killTree(child);
   }
   process.exit(code);
 };
@@ -113,65 +143,94 @@ const startServer = () => {
   );
 };
 
-// 1. Keep build/ in sync with src/. --preserveWatchOutput stops tsc from
-//    clearing the screen on every recompile and stomping the server logs.
-//    We scan tsc's output for its "Watching for file changes" banner, which it
-//    prints once the (re)compile is done, and only then boot the server so the
-//    first build/ write doesn't trigger an immediate node --watch restart.
-run('tsc', localBin('tsc'), ['--watch', '--preserveWatchOutput'], {
-  onStdout: (text) => {
-    if (/Watching for file changes/.test(text)) startServer();
-  },
-  shell: isWin,
-});
+const startWatchers = () => {
+  if (shuttingDown) return;
 
-// Fallback: if tsc's banner never matches (e.g. a future flag change), start
-// the server anyway after a short grace period so the loop is never stuck.
-setTimeout(startServer, 15000);
+  // 1. Keep build/ in sync with src/. --preserveWatchOutput stops tsc from
+  //    clearing the screen on every recompile and stomping the server logs.
+  //    We scan tsc's output for its "Watching for file changes" banner, which
+  //    it prints once the (re)compile is done, and only then boot the server so
+  //    the first build/ write doesn't trigger an immediate node --watch restart.
+  run('tsc', localBin('tsc'), ['--watch', '--preserveWatchOutput'], {
+    onStdout: (text) => {
+      if (/Watching for file changes/.test(text)) startServer();
+    },
+    shell: isWin,
+  });
 
-// 3. Regenerate per-route JSON schemas when route sources change. tsc needs a
-//    moment to emit the updated .d.ts files that build-schemas reads, so this
-//    is debounced; the resulting JSON writes also trigger the server restart.
-if (watchSchemas) {
-  let timer = null;
-  let running = false;
-  let pending = false;
+  // Fallback: if tsc's banner never matches (e.g. a future flag change), start
+  // the server anyway after a short grace period so the loop is never stuck.
+  setTimeout(startServer, 15000);
 
-  const rebuildSchemas = () => {
-    if (running) {
-      pending = true;
-      return;
-    }
-    running = true;
-    console.error('[watch] regenerating route schemas...');
-    const child = spawn(process.execPath, ['scripts/build-schemas.js'], {
-      cwd,
-      stdio: 'inherit',
-    });
-    children.push(child);
-    child.on('exit', () => {
-      running = false;
-      if (pending) {
-        pending = false;
-        rebuildSchemas();
+  // 3. Regenerate per-route JSON schemas when route sources change. tsc needs a
+  //    moment to emit the updated .d.ts files that build-schemas reads, so this
+  //    is debounced; the resulting JSON writes also trigger the server restart.
+  if (watchSchemas) {
+    let timer = null;
+    let running = false;
+    let pending = false;
+
+    const rebuildSchemas = () => {
+      if (running) {
+        pending = true;
+        return;
       }
-    });
-  };
+      running = true;
+      console.error('[watch] regenerating route schemas...');
+      const child = spawn(process.execPath, ['scripts/build-schemas.js'], {
+        cwd,
+        detached: !isWin,
+        stdio: 'inherit',
+      });
+      children.push(child);
+      child.on('exit', () => {
+        running = false;
+        if (pending) {
+          pending = false;
+          rebuildSchemas();
+        }
+      });
+    };
 
-  const onChange = (_event, filename) => {
-    if (!filename || !filename.endsWith('.ts') || filename.endsWith('.d.ts')) {
-      return;
-    }
-    clearTimeout(timer);
-    timer = setTimeout(rebuildSchemas, 2000);
-  };
+    const onChange = (_event, filename) => {
+      if (!filename || !filename.endsWith('.ts') || filename.endsWith('.d.ts')) {
+        return;
+      }
+      clearTimeout(timer);
+      timer = setTimeout(rebuildSchemas, 2000);
+    };
 
-  watch(path.join(cwd, 'src', 'routes'), { recursive: true }, onChange);
-  watch(path.join(cwd, 'src', 'shared'), { recursive: true }, onChange);
-}
+    watch(path.join(cwd, 'src', 'routes'), { recursive: true }, onChange);
+    watch(path.join(cwd, 'src', 'shared'), { recursive: true }, onChange);
+  }
 
-console.error(
-  `[watch] watching src/ — edit a file to recompile & restart the server. ${
-    watchSchemas ? '' : '(schema regen disabled) '
-  }Ctrl-C to stop.`,
-);
+  console.error(
+    `[watch] watching src/ — edit a file to recompile & restart the server. ${
+      watchSchemas ? '' : '(schema regen disabled) '
+    }Ctrl-C to stop.`,
+  );
+};
+
+// Build the heavy one-time assets and produce an initial compile before
+// watching. This is deliberately not gated: even if it fails we proceed to
+// startWatchers() so the dev loop comes up and can fix the breakage.
+console.error('[watch] running initial build:dev (assets + compile)...');
+const prep = spawn(isWin ? 'npm.cmd' : 'npm', ['run', 'build:dev'], {
+  cwd,
+  detached: !isWin,
+  shell: isWin,
+  stdio: 'inherit',
+});
+children.push(prep);
+prep.on('error', (err) => {
+  console.error(`[watch] failed to run build:dev: ${err.message}`);
+  startWatchers();
+});
+prep.on('exit', (code) => {
+  if (code !== 0) {
+    console.error(
+      `[watch] initial build:dev exited (code=${code}); starting watchers anyway.`,
+    );
+  }
+  startWatchers();
+});
