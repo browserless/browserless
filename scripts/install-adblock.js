@@ -17,6 +17,18 @@ import os from 'os';
 import unzip from 'extract-zip';
 
 (async () => {
+  const extensionsDir = join(process.cwd(), 'extensions');
+  const uBlockLiteDir = join(extensionsDir, 'ublocklite');
+
+  // Skip the network round-trip when the extension is already installed.
+  // Set FORCE_ADBLOCK=true to re-fetch the latest uBlock Origin Lite release.
+  if (
+    existsSync(join(uBlockLiteDir, 'manifest.json')) &&
+    process.env.FORCE_ADBLOCK !== 'true'
+  ) {
+    return;
+  }
+
   const tmpDir = path.join(os.tmpdir(), '_ublite' + Date.now());
 
   // Create temporary directory if it doesn't exist
@@ -25,8 +37,6 @@ import unzip from 'extract-zip';
   }
 
   const zipFile = tmpDir + '/ublock.zip';
-  const extensionsDir = join(process.cwd(), 'extensions');
-  const uBlockLiteDir = join(extensionsDir, 'ublocklite');
 
   const downloadUrlToDirectory = (url, dir) =>
     fetch(url).then(
