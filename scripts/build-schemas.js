@@ -137,7 +137,7 @@ const buildSchemas = async (
         : [];
 
       return Promise.all(
-        schemas.map((schemaName) => {
+        schemas.map(async (schemaName) => {
           // Resolve the exported name to its underlying declaration symbol,
           // following re-export aliases (`export { BodySchema } from '...'`).
           // This covers interfaces, type aliases (`export type ResponseSchema
@@ -163,7 +163,11 @@ const buildSchemas = async (
             const schema = stripHashSuffixes(
               generator.getSchemaForSymbol(uniqueName),
             );
-            return fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
+            // Await the write inside the try so a failed write is caught here
+            // and logged, rather than rejecting the parent Promise.all and
+            // aborting the whole build.
+            await fs.writeFile(jsonPath, JSON.stringify(schema, null, '  '));
+            return jsonPath;
           } catch (e) {
             console.error(
               `Error generating schema: (${routeName}) (${jsonPath}): ${e}`,
