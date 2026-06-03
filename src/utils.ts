@@ -957,3 +957,97 @@ export const isMatch = (text: string, pattern: string) => {
 
 export const getFinalPathSegment = (pathname: string): string | undefined =>
   pathname.split(/[?#&]/)[0].split('/').filter(Boolean).pop();
+
+/**
+ * Canonicalize a candidate URL value so trivial obfuscations cannot bypass a
+ * prefix-based blocklist:
+ *
+ *   - `FILE:///etc/passwd` / `File:///etc/passwd` — Chromium normalizes URL
+ *     schemes case-insensitively; force-lowercase.
+ *   - `  file:///etc/passwd` / `\tfile://...` — WHATWG URL parsing trims
+ *     leading whitespace before parsing.
+ *   - `f\x01ile://...` (embedded control char) — `new URL()` parses
+ *     `file://...` cleanly after we strip ASCII control chars, so the
+ *     canonical lower-cased form goes through the `try` branch. The
+ *     `catch` fallback is only reached if a value remains unparseable
+ *     after stripping.
+ *   - `file:/etc/passwd` (single slash) — `new URL()` canonicalizes to
+ *     `file:///etc/passwd`, matching Chromium's behavior.
+ *   - `view-source:file:///etc/passwd` — view-source is a wrapper that loads
+ *     the inner URL; strip recursively before matching.
+ *
+ * Returns a lower-cased canonical form. Falls back to a stripped/lowercased
+ * raw string when `new URL()` cannot parse — prefix matching still works.
+ */
+export const normalizeUrlForBlocklist = (value: string): string => {
+  // Strip ASCII control chars (including embedded NUL) before any parsing
+  // attempt — Chromium drops these during URL canonicalization, so a
+  // `\0file://…` payload would otherwise reach the fallback branch with the
+  // NUL intact and fail prefix matching.
+  let s = value.trim().replace(/[\x00-\x1f]/g, '');
+  while (/^view-source:/i.test(s)) s = s.slice('view-source:'.length);
+  try {
+    return new URL(s).href.toLowerCase();
+  } catch {
+    return s.toLowerCase();
+  }
+};
+
+/**
+ * Walks a JSON-RPC message tree looking for any field named `url`
+ * (case-insensitive) whose value, after `normalizeUrlForBlocklist`, begins
+ * with one of the supplied patterns. Returns the matched pattern, or `null`
+ * when nothing matches.
+ *
+ * Source of truth for the blocklist is `Config.getBlockedURLPatterns()`; the
+ * CDP request-event guard reads the same patterns. This helper additionally
+ * normalizes the candidate URL because Playwright JSON-RPC frames carry the
+ * client's raw string, while puppeteer's `page.on('request')` sees a URL
+ * Chromium has already canonicalized.
+ *
+ * Only inspects keys named `url` (case-insensitive — `URL`, `Url` match
+ * too). JSON values that happen to contain a `file://` substring in
+ * arbitrary user data (e.g. the return value of `page.evaluate()`) are
+ * left alone.
+ */
+export const findBlockedUrlInMessage = (
+  message: unknown,
+  patterns: string[],
+): string | null => {
+  if (patterns.length === 0) return null;
+  const lcPatterns = patterns.map((p) => p.toLowerCase());
+  const stack: unknown[] = [message];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (!cur || typeof cur !== 'object') continue;
+    for (const [k, v] of Object.entries(cur as Record<string, unknown>)) {
+      if (k.toLowerCase() === 'url' && typeof v === 'string') {
+        const norm = normalizeUrlForBlocklist(v);
+        const idx = lcPatterns.findIndex((p) => norm.startsWith(p));
+        if (idx !== -1) return patterns[idx];
+      }
+      if (v && typeof v === 'object') stack.push(v);
+    }
+  }
+  return null;
+};
+
+/**
+ * Decode a `ws` frame payload to a UTF-8 string regardless of binary/text
+ * opcode. Under the default `binaryType: 'nodebuffer'` (ws ≥ 8, which this
+ * package pins), `ws` delivers both text and binary frames as a `Buffer`;
+ * the `Buffer[]` branch is defensive against `binaryType: 'fragments'` (not
+ * enabled by callers) and the `ArrayBuffer` branch covers `'arraybuffer'`.
+ *
+ * Decoding every frame — including binary ones — is deliberate: we cannot
+ * assume the upstream server only honors text-opcode JSON. If a JSON
+ * command were shipped as a binary frame and the bridge skipped it, the
+ * filter would be bypassable.
+ */
+export const wsFrameToString = (
+  data: Buffer | ArrayBuffer | Buffer[],
+): string => {
+  if (Buffer.isBuffer(data)) return data.toString('utf-8');
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf-8');
+  return Buffer.from(data).toString('utf-8');
+};

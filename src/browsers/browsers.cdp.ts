@@ -7,6 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
+  findBlockedUrlInMessage,
   noop,
   once,
   ublockLitePath,
@@ -106,33 +107,33 @@ export class ChromiumCDP extends EventEmitter {
           this.logger.warn(`"${req.failure()?.errorText}": ${req.url()}`);
         });
 
-        page.on('request', async (request) => {
-          this.logger.trace(`${request.method()}: ${request.url()}`);
-          if (
-            !this.config.getAllowFileProtocol() &&
-            request.url().startsWith('file://')
-          ) {
+        const terminateIfBlocked = (
+          url: string,
+          direction: 'request' | 'response',
+        ): void => {
+          // Wrap as `{ url }` so we share the Playwright bridge's
+          // normalize + match helper rather than duplicating it.
+          const blocked = findBlockedUrlInMessage(
+            { url },
+            this.config.getBlockedURLPatterns(),
+          );
+          if (blocked) {
             this.logger.error(
-              `File protocol request found in request to ${this.constructor.name}, terminating`,
+              `Blocked URL pattern "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
             );
             page.close().catch(noop);
             this.close();
           }
+        };
+
+        page.on('request', async (request) => {
+          this.logger.trace(`${request.method()}: ${request.url()}`);
+          terminateIfBlocked(request.url(), 'request');
         });
 
         page.on('response', async (response) => {
           this.logger.trace(`${response.status()}: ${response.url()}`);
-
-          if (
-            !this.config.getAllowFileProtocol() &&
-            response.url().startsWith('file://')
-          ) {
-            this.logger.error(
-              `File protocol request found in response to ${this.constructor.name}, terminating`,
-            );
-            page.close().catch(noop);
-            this.close();
-          }
+          terminateIfBlocked(response.url(), 'response');
         });
 
         this.emit('newPage', page);
