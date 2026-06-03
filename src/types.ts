@@ -42,6 +42,12 @@ export interface AfterResponse {
   start: number;
   status: 'successful' | 'error' | 'timedout';
   error?: Error;
+  /**
+   * The route that handled the request, when one matched — so `after()`
+   * consumers can identify which route ran without re-matching the request
+   * against the router. Omitted when no route ran (e.g. an unmatched 404).
+   */
+  route?: Route;
 }
 
 export interface BrowserHook {
@@ -92,7 +98,7 @@ type defaultLaunchOptions =
   | BrowserlessLaunch
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
-abstract class Route {
+export abstract class Route {
   constructor(
     protected _browserManager: Browserless['browserManager'],
     protected _config: Browserless['config'],
