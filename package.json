@@ -11,7 +11,7 @@
     ".": "./build/exports.js"
   },
   "bin": {
-    "browserless": "./bin/browserless.js"
+    "browserless": "bin/browserless.js"
   },
   "scripts": {
     "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
@@ -90,7 +90,7 @@
     "cross-env": "^10.1.0",
     "env-cmd": "^11.0.0",
     "esbuild": "^0.28.0",
-    "esbuild-plugin-polyfill-node": "^0.3.0",
+    "esbuild-plugins-node-modules-polyfill": "^1.8.1",
     "eslint": "^10.4.1",
     "gunzip-maybe": "^1.4.2",
     "marked": "^18.0.3",
@@ -99,6 +99,11 @@
     "sinon": "^22.0.0",
     "typescript": "^6.0.3",
     "typescript-json-schema": "^0.67.3"
+  },
+  "overrides": {
+    "esbuild-plugins-node-modules-polyfill": {
+      "esbuild": "$esbuild"
+    }
   },
   "playwrightVersions": {
     "default": "playwright-core",
