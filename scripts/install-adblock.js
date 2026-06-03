@@ -90,4 +90,9 @@ import os from 'os';
   await deleteAsync(zipFile, { force: true }).catch((err) => {
     console.warn('Could not delete temporary download file: ' + err.message);
   });
-})();
+})().catch((err) => {
+  console.error(
+    `Failed to install the uBlock Origin Lite extension: ${err.message}`,
+  );
+  process.exitCode = 1;
+});

@@ -20,7 +20,23 @@ const execFileAsync = promisify(execFile);
  * @param {string} destDir Directory to extract into (created if missing)
  */
 export const extractZip = async (zipPath, destDir) => {
-  // -q: quiet; -o: overwrite existing files without prompting (an interactive
-  // prompt would hang a non-interactive build).
-  await execFileAsync('unzip', ['-q', '-o', zipPath, '-d', destDir]);
+  try {
+    // -q: quiet; -o: overwrite existing files without prompting (an interactive
+    // prompt would hang a non-interactive build).
+    await execFileAsync('unzip', ['-q', '-o', zipPath, '-d', destDir]);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      throw new Error(
+        `Cannot extract "${zipPath}": the "unzip" binary was not found on PATH. ` +
+          `Install it and re-run — e.g. "brew install unzip" (macOS), ` +
+          `"apt-get install unzip" (Debian/Ubuntu), or "apk add unzip" (Alpine).`,
+      );
+    }
+    // Non-zero exit (e.g. a corrupt/partial download): surface unzip's own
+    // stderr so the cause is visible rather than a bare exit code.
+    const detail = (err.stderr || err.message || '').toString().trim();
+    throw new Error(
+      `Failed to unzip "${zipPath}" into "${destDir}": ${detail}`,
+    );
+  }
 };
