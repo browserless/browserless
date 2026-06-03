@@ -60,8 +60,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64 }
-          - { platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64 }
+          - {
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+            }
+          - {
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+            }
     steps:
       - name: Check out the repo
         uses: actions/checkout@v6
@@ -159,20 +167,118 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { image: chromium,     file: chromium, platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
-          - { image: chromium,     file: chromium, platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: '' }
-          - { image: chrome,       file: chrome,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
-          - { image: edge,         file: edge,     platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
-          - { image: firefox,      file: firefox,  platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: '' }
-          - { image: firefox,      file: firefox,  platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: '' }
-          - { image: webkit,       file: webkit,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
-          - { image: webkit,       file: webkit,   platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
-          - { image: webkit-heavy, file: webkit,   platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
-          - { image: webkit-heavy, file: webkit,   platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
-          - { image: multi,        file: multi,    platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
-          - { image: multi,        file: multi,    platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=false' }
-          - { image: multi-heavy,  file: multi,    platform: linux/amd64, runner: ubuntu-24.04,     pair: linux-amd64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
-          - { image: multi-heavy,  file: multi,    platform: linux/arm64, runner: ubuntu-24.04-arm, pair: linux-arm64, extra: 'INSTALL_WEBKIT_VERSIONS=true' }
+          - {
+              image: chromium,
+              file: chromium,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: '',
+            }
+          - {
+              image: chromium,
+              file: chromium,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: '',
+            }
+          - {
+              image: chrome,
+              file: chrome,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: '',
+            }
+          - {
+              image: edge,
+              file: edge,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: '',
+            }
+          - {
+              image: firefox,
+              file: firefox,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: '',
+            }
+          - {
+              image: firefox,
+              file: firefox,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: '',
+            }
+          - {
+              image: webkit,
+              file: webkit,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=false',
+            }
+          - {
+              image: webkit,
+              file: webkit,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=false',
+            }
+          - {
+              image: webkit-heavy,
+              file: webkit,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=true',
+            }
+          - {
+              image: webkit-heavy,
+              file: webkit,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=true',
+            }
+          - {
+              image: multi,
+              file: multi,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=false',
+            }
+          - {
+              image: multi,
+              file: multi,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=false',
+            }
+          - {
+              image: multi-heavy,
+              file: multi,
+              platform: linux/amd64,
+              runner: ubuntu-24.04,
+              pair: linux-amd64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=true',
+            }
+          - {
+              image: multi-heavy,
+              file: multi,
+              platform: linux/arm64,
+              runner: ubuntu-24.04-arm,
+              pair: linux-arm64,
+              extra: 'INSTALL_WEBKIT_VERSIONS=true',
+            }
     steps:
       - name: Check out the repo
         uses: actions/checkout@v6

@@ -193,9 +193,7 @@ export class Limiter extends q {
           skipLimits = bypassLimitsFn?.(...args) ?? false;
         } catch (err) {
           const error = err instanceof Error ? err : new Error(String(err));
-          this.logger.error(
-            `bypassLimits predicate threw: ${error.message}`,
-          );
+          this.logger.error(`bypassLimits predicate threw: ${error.message}`);
           this.webhooks.callRejectAlertURL();
           this.metrics.addRejected();
           overCapacityFn(...args);

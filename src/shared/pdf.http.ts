@@ -132,7 +132,9 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     }
 
     if (options?.fullPage && (options?.height || options?.format)) {
-      throw new BadRequest(`"fullPage" option cannot be used with "height" or "format" options.`);
+      throw new BadRequest(
+        `"fullPage" option cannot be used with "height" or "format" options.`,
+      );
     }
 
     const page = (await browser.newPage()) as UnwrapPromise<
@@ -200,10 +202,12 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     }
 
     const gotoResponse = url
-      ? await page.goto(content, gotoOptions).catch(bestAttemptCatch(bestAttempt))
+      ? await page
+          .goto(content, gotoOptions)
+          .catch(bestAttemptCatch(bestAttempt))
       : await page
-        .setContent(content, toSetContentOptions(gotoOptions))
-        .catch(bestAttemptCatch(bestAttempt));
+          .setContent(content, toSetContentOptions(gotoOptions))
+          .catch(bestAttemptCatch(bestAttempt));
 
     if (addStyleTag.length) {
       for (const tag in addStyleTag) {
@@ -251,7 +255,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
         res.setHeader(key, value);
       }
     }
-
 
     if (options?.fullPage) {
       const height = await page

@@ -97,14 +97,12 @@ describe('cgroup v2 parsers', () => {
 
   describe('parseCpuStatUsageUsec', () => {
     it('extracts usage_usec', () => {
-      const content =
-        'usage_usec 12345\nuser_usec 6000\nsystem_usec 6345\n';
+      const content = 'usage_usec 12345\nuser_usec 6000\nsystem_usec 6345\n';
       expect(parseCpuStatUsageUsec(content)).to.equal(12345);
     });
 
     it('ignores unknown fields added by future kernels', () => {
-      const content =
-        'usage_usec 999\nfuture_field 42\nuser_usec 500\n';
+      const content = 'usage_usec 999\nfuture_field 42\nuser_usec 500\n';
       expect(parseCpuStatUsageUsec(content)).to.equal(999);
     });
 
