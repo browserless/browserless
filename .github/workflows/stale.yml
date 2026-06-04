@@ -13,7 +13,7 @@ jobs:
   stale:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v10
         with:
           # Mark an issue stale after 30 days of inactivity, then close it
           # after a further 60 days (90 days of inactivity in total).
