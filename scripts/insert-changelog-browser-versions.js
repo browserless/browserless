@@ -47,11 +47,14 @@ const head = lines.slice(0, start + 1); // up to and including the version headi
 const section = lines.slice(start + 1, end);
 const tail = lines.slice(end); // starts at the next "## " heading (or empty)
 
-// Drop any existing marker block within this section before re-inserting.
+// Drop any existing marker block within this section before re-inserting. If a
+// START is somehow left without a matching END, remove from START to the end of
+// the section so we never leave a duplicate/stray marker behind.
 const sStart = section.findIndex((l) => l.includes(START));
 if (sStart !== -1) {
   const sEnd = section.findIndex((l, i) => i >= sStart && l.includes(END));
-  if (sEnd !== -1) section.splice(sStart, sEnd - sStart + 1);
+  const count = sEnd === -1 ? section.length - sStart : sEnd - sStart + 1;
+  section.splice(sStart, count);
 }
 // Trim trailing blank lines so the block sits flush at the end of the section.
 while (section.length && section[section.length - 1].trim() === '')
