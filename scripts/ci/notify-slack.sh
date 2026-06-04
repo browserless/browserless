@@ -22,6 +22,11 @@ payload=$(jq -n \
   '{text: ":package: *<\($release_url)|\($tag)>* of @browserless.io/browserless published to npm."}')
 
 curl --fail-with-body \
+  --connect-timeout 10 \
+  --max-time 30 \
+  --retry 3 \
+  --retry-delay 2 \
+  --retry-all-errors \
   --request POST \
   --url "$SLACK_WEBHOOK_URL" \
   --header 'Content-Type: application/json' \

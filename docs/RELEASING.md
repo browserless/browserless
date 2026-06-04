@@ -6,7 +6,7 @@ together, on the same version. Day-to-day you only review and merge a PR.
 
 ## The flow
 
-```
+```text
 commits land on main (Conventional Commits)
         │
         ▼

@@ -32,7 +32,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # No git push/pull after checkout, so don't persist credentials.
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Node 24
         uses: actions/setup-node@v6
@@ -50,8 +53,11 @@ jobs:
       - name: Publish to npm
         run: npm publish --access public
 
+      # The package is already published by this point; a Slack hiccup must not
+      # mark the release as failed.
       - name: Notify Slack
         if: success()
+        continue-on-error: true
         run: bash scripts/ci/notify-slack.sh
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASES_WEBHOOK }}
