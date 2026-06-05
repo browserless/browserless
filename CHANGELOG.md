@@ -1,5 +1,3 @@
-# Changelog
-
 # [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
 - Dependency updates.
 - Feat: expose `route` on the `after()` AfterResponse hook.
