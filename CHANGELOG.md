@@ -1,6 +1,15 @@
 # Changelog
 
-# [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
+## [2.51.1](https://github.com/browserless/browserless/compare/v2.51.0...v2.51.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* resolve npm publish/build warnings ([#5411](https://github.com/browserless/browserless/issues/5411)) ([ede6c25](https://github.com/browserless/browserless/commit/ede6c253cb72ca4ef16b50854b47cdfa99c37d84))
+
+## Changelog
+
+## [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
 - Dependency updates.
 - Feat: expose `route` on the `after()` AfterResponse hook.
 - Feat: add a new `watch` command with live reload for development.
@@ -16,7 +25,7 @@
   - Webkit: `26.4`
   - Edge: `148.0.3967.96` (amd64 only)
 
-# [v2.50.1](https://github.com/browserless/browserless/compare/v2.50.0...v2.50.1)
+## [v2.50.1](https://github.com/browserless/browserless/compare/v2.50.0...v2.50.1)
 - Dependency updates.
 - Fix: make the ajv validator and schema generation safe for NodeNext consumers.
 - Supports the following libraries and browsers:
@@ -28,7 +37,7 @@
   - Webkit: `26.4`
   - Edge: `148.0.3967.83` (amd64 only)
 
-# [v2.50.0](https://github.com/browserless/browserless/compare/v2.49.0...v2.50.0)
+## [v2.50.0](https://github.com/browserless/browserless/compare/v2.49.0...v2.50.0)
 - Dependency updates.
 - Updates NodeJS to `24.16.0`.
 - Updates NPM to `11.16.0`.
@@ -48,7 +57,7 @@
   - Webkit: `26.4`
   - Edge: `148.0.3967.83` (amd64 only)
 
-# [v2.49.0](https://github.com/browserless/browserless/compare/v2.48.3...v2.49.0)
+## [v2.49.0](https://github.com/browserless/browserless/compare/v2.48.3...v2.49.0)
 - Dependency updates.
 - Adds support for Playwright 1.60; drops Playwright 1.55.
 - Updates NPM to `11.14.0`.
@@ -67,7 +76,7 @@
   - Webkit: `26.4`
   - Edge: `148.0.3967.54` (amd64 only)
 
-# [v2.48.3](https://github.com/browserless/browserless/compare/v2.48.2...v2.48.3)
+## [v2.48.3](https://github.com/browserless/browserless/compare/v2.48.2...v2.48.3)
 - Dependency updates.
 - Fix: smooth CPU overload detection with EMA and hysteresis to eliminate spurious 429s.
 - Supports the following libraries and browsers:
@@ -79,7 +88,7 @@
   - Webkit: `26.0`
   - Edge: `147.0.3912.86` (amd64 only)
 
-# [v2.48.2](https://github.com/browserless/browserless/compare/v2.48.1...v2.48.2)
+## [v2.48.2](https://github.com/browserless/browserless/compare/v2.48.1...v2.48.2)
 - Expose `profile` system query parameter so SDK routes can hydrate authenticated profiles.
 - Supports the following libraries and browsers:
   - puppeteer-core: `24.42.0`
@@ -90,7 +99,7 @@
   - Webkit: `26.0`
   - Edge: `147.0.3912.86` (amd64 only)
 
-# [v2.48.1](https://github.com/browserless/browserless/compare/v2.48.0...v2.48.1)
+## [v2.48.1](https://github.com/browserless/browserless/compare/v2.48.0...v2.48.1)
 - Dependency updates.
 - Fix: cgroup-aware `MAX_CPU_PERCENT` and `MAX_MEMORY_PERCENT` in Docker.
 - Fix: stabilize performance tests.
@@ -103,7 +112,7 @@
   - Webkit: `26.0`
   - Edge: `147.0.3912.86` (amd64 only)
 
-# [v2.48.0](https://github.com/browserless/browserless/compare/v2.47.0...v2.48.0)
+## [v2.48.0](https://github.com/browserless/browserless/compare/v2.47.0...v2.48.0)
 - Dependency updates.
 - Updates NodeJS to `24.15.0`.
 - Updates NPM to `11.13.0`.
@@ -117,7 +126,7 @@
   - Webkit: `26.0`
   - Edge: `147.0.3912.86` (amd64 only)
 
-# [v2.47.0](https://github.com/browserless/browserless/compare/v2.46.0...v2.47.0)
+## [v2.47.0](https://github.com/browserless/browserless/compare/v2.46.0...v2.47.0)
 - Dependency updates.
 - Updates NPM to `11.12.1`.
 - Adds support for Playwright 1.59.
@@ -132,7 +141,7 @@
   - Webkit: `26.0`
   - Edge: `147.0.3912.60` (amd64 only)
 
-# [v2.46.0](https://github.com/browserless/browserless/compare/v2.45.0...v2.46.0)
+## [v2.46.0](https://github.com/browserless/browserless/compare/v2.45.0...v2.46.0)
 - Dependency updates.
 - Updates NodeJS to `24.14.1`.
 - Fix: replace Record and Parameters utility types with index signatures to fix schema validation.
@@ -145,7 +154,7 @@
   - Webkit: `26.0`
   - Edge: `146.0.3856.62` (amd64 only)
 
-# [v2.45.0](https://github.com/browserless/browserless/compare/v2.44.0...v2.45.0)
+## [v2.45.0](https://github.com/browserless/browserless/compare/v2.44.0...v2.45.0)
 - Dependency updates.
 - Fix: include required array in OpenAPI request body schema.
 - Chore: remove unnecessary ts-node dependency.
@@ -159,7 +168,7 @@
   - Webkit: `26.0`
   - Edge: `146.0.3856.62` (amd64 only)
 
-# [v2.44.0](https://github.com/browserless/browserless/compare/v2.43.0...v2.44.0)
+## [v2.44.0](https://github.com/browserless/browserless/compare/v2.43.0...v2.44.0)
 - Dependency updates.
 - Updates NPM to `11.12.0`.
 - Supports the following libraries and browsers:
@@ -171,7 +180,7 @@
   - Webkit: `26.0`
   - Edge: `146.0.3856.62` (amd64 only)
 
-# [v2.43.0](https://github.com/browserless/browserless/compare/v2.42.0...v2.43.0)
+## [v2.43.0](https://github.com/browserless/browserless/compare/v2.42.0...v2.43.0)
 - Dependency updates.
 - Updates NPM to `11.11.1`.
 - Fix: allow multiple Playwright binaries for WebKit.
@@ -187,7 +196,7 @@
   - Edge: `145.0.3800.97` (amd64 only)
 
 
-# [v2.42.0](https://github.com/browserless/browserless/compare/v2.41.0...v2.42.0)
+## [v2.42.0](https://github.com/browserless/browserless/compare/v2.41.0...v2.42.0)
 - Dependency updates.
 - Updates NodeJS to `24.14.0`.
 - Updates NPM to `11.10.1`.
@@ -200,7 +209,7 @@
   - Webkit: `26.0`
   - Edge: `144.0.3719.115` (amd64 only)
 
-# [v2.41.0](https://github.com/browserless/browserless/compare/v2.40.0...v2.41.0)
+## [v2.41.0](https://github.com/browserless/browserless/compare/v2.40.0...v2.41.0)
 - Dependency updates.
 - Updates NPM to `11.10.0`.
 - Supports the following libraries and browsers:
@@ -212,7 +221,7 @@
   - Webkit: `26.0`
   - Edge: `144.0.3719.115` (amd64 only)
 
-# [v2.40.0](https://github.com/browserless/browserless/compare/v2.39.0...v2.40.0)
+## [v2.40.0](https://github.com/browserless/browserless/compare/v2.39.0...v2.40.0)
 - Dependency updates.
 - Updates NodeJS to `24.13.1`.
 - Updates NPM to `11.9.0`.
@@ -227,7 +236,7 @@
   - Webkit: `26.0`
   - Edge: `144.0.3719.115` (amd64 only)
 
-# [v2.39.0](https://github.com/browserless/browserless/compare/v2.38.4...v2.39.0)
+## [v2.39.0](https://github.com/browserless/browserless/compare/v2.38.4...v2.39.0)
 - Dependency updates.
 - Adds support for Playwright 1.58.
 - Docker image optimisations.
@@ -240,7 +249,7 @@
   - Webkit: `26.0`
   - Edge: `144.0.3719.104` (amd64 only)
 
-# [v2.38.4](https://github.com/browserless/browserless/compare/v2.38.3...v2.38.4)
+## [v2.38.4](https://github.com/browserless/browserless/compare/v2.38.3...v2.38.4)
 - Dependency updates.
 - Updates NodeJS to `24.13.0`.
 - Supports the following libraries and browsers:
@@ -252,7 +261,7 @@
   - Webkit: `26.0`
   - Edge: `143.0.3650.139` (amd64 only)
 
-# [v2.38.3](https://github.com/browserless/browserless/compare/v2.38.2...v2.38.3)
+## [v2.38.3](https://github.com/browserless/browserless/compare/v2.38.2...v2.38.3)
 - Adds support for Playwright 1.57
 - Supports the following libraries and browsers:
   - puppeteer-core: `24.35.0`
@@ -263,7 +272,7 @@
   - Webkit: `26.0`
   - Edge: `143.0.3650.139` (amd64 only)
 
-# [v2.38.2](https://github.com/browserless/browserless/compare/v2.38.1...v2.38.2)
+## [v2.38.2](https://github.com/browserless/browserless/compare/v2.38.1...v2.38.2)
 
 - Standardizes on how path parsing works internally, exports the utility as well.
 - Supports the following libraries and browsers:
@@ -275,7 +284,7 @@
   - Webkit: `26.0`
   - Edge: `141.0.3537.99` (amd64 only)
 
-# [v2.38.1](https://github.com/browserless/browserless/compare/v2.38.0...v2.38.1)
+## [v2.38.1](https://github.com/browserless/browserless/compare/v2.38.0...v2.38.1)
 
 - Dependency updates.
 - Bugfix when a trailing slash is present in /function API call.
@@ -288,7 +297,7 @@
   - Webkit: `26.0`
   - Edge: `141.0.3537.99` (amd64 only)
 
-# [v2.38.0](https://github.com/browserless/chrome/compare/v2.37.1...v2.38.0)
+## [v2.38.0](https://github.com/browserless/chrome/compare/v2.37.1...v2.38.0)
 
 - Dependency updates.
 - Supports the following libraries and browsers:
@@ -300,7 +309,7 @@
   - Webkit: `26.0`
   - Edge: `141.0.3537.99` (amd64 only)
 
-# [v2.37.1](https://github.com/browserless/chrome/compare/v2.37.1...v2.37.0)
+## [v2.37.1](https://github.com/browserless/chrome/compare/v2.37.1...v2.37.0)
 
 - Dependency updates.
 - Handling of `ignoreHTTPSErrors` to `acceptInsecureCerts`.
@@ -314,7 +323,7 @@
   - Webkit: `26.0`
   - Edge: `141.0.3537.57` (amd64 only)
 
-# [v2.37.0](https://github.com/browserless/chrome/compare/v2.36.0...v2.37.0)
+## [v2.37.0](https://github.com/browserless/chrome/compare/v2.36.0...v2.37.0)
 
 - Dependency updates.
 - Adds a new `/function/connect` route to distinguish function API calls and not have them add to concurrency.
@@ -328,7 +337,7 @@
   - Webkit: `26.0`
   - Edge: `140.0.3485.94` (amd64 only)
 
-# [v2.36.0](https://github.com/browserless/chrome/compare/v2.34.1...v2.36.0)
+## [v2.36.0](https://github.com/browserless/chrome/compare/v2.34.1...v2.36.0)
 
 - Dependency updates.
 - Updates base image to Ubuntu `24.04`.
@@ -350,12 +359,12 @@
   - Webkit: `26.0`
   - Edge: `140.0.3485.81` (amd64 only)
 
-# [v2.34.1](https://github.com/browserless/chrome/compare/v2.34.0...v2.34.1)
+## [v2.34.1](https://github.com/browserless/chrome/compare/v2.34.0...v2.34.1)
 
 - Dependency updates.
 - Fixes an issue with absolute path in swagger.json docs.
 
-# [v2.34.0](https://github.com/browserless/chrome/compare/v2.33.0...v2.34.0)
+## [v2.34.0](https://github.com/browserless/chrome/compare/v2.33.0...v2.34.0)
 
 - Dependency updates.
 - README spelling fixes.
@@ -367,7 +376,7 @@
 - Fixes an issue in API's where a `requestInterceptor` has a `body` with base64 encoded content. This is now properly handled and fulfills the request.
 - Minor internal changes and spec file updates.
 
-# [v2.33.0](https://github.com/browserless/chrome/compare/v2.32.1...v2.33.0)
+## [v2.33.0](https://github.com/browserless/chrome/compare/v2.32.1...v2.33.0)
 
 - Dependency updates.
 - Fix `page`'s created by playwright's `context` object hanging.
@@ -383,13 +392,13 @@
   - Webkit: 26.0
   - Edge: 138.0.3351.83 (amd64 only)
 
-# [v2.32.1](https://github.com/browserless/chrome/compare/v2.32.0...v2.32.1)
+## [v2.32.1](https://github.com/browserless/chrome/compare/v2.32.0...v2.32.1)
 
 - Dependency updates.
 - Fixes an in request shimming when no params are sent.
 - Fixes an issue in OpenAPI JSON schema parsing on routes with `.d` in their name.
 
-# [v2.32.0](https://github.com/browserless/chrome/compare/v2.31.1...v2.32.0)
+## [v2.32.0](https://github.com/browserless/chrome/compare/v2.31.1...v2.32.0)
 
 - Dependency updates.
 - Bump nodeJS to 24.2.0.
@@ -405,31 +414,31 @@
   - Webkit: 18.5
   - Edge: 137.0.3296.93 (amd64 only)
 
-# [v2.31.1](https://github.com/browserless/chrome/compare/v2.31.0...v2.31.1)
+## [v2.31.1](https://github.com/browserless/chrome/compare/v2.31.0...v2.31.1)
 
 - Dependency updates.
 - Fixes an issue where ARM64 Platforms attempt to load non-compatible routes.
 
-# [v2.31.0](https://github.com/browserless/chrome/compare/v2.30.1...v2.31.0)
+## [v2.31.0](https://github.com/browserless/chrome/compare/v2.30.1...v2.31.0)
 
 - Dependency updates -- including fix for tar-fs.
 - Bumps `puppeteer-core` to `24.10.0`.
 - Remove stray console.log's in route building.
 - Fixes for duplicative user-data-dir flags (fixes CI issues).
 
-# [v2.30.1](https://github.com/browserless/chrome/compare/v2.30.0...v2.30.1)
+## [v2.30.1](https://github.com/browserless/chrome/compare/v2.30.0...v2.30.1)
 
 - Dependency updates.
 - Cleans up the embedded Open API docs.
 - Prettier
 
-# [v2.30.0](https://github.com/browserless/chrome/compare/v2.29.0...v2.30.0)
+## [v2.30.0](https://github.com/browserless/chrome/compare/v2.29.0...v2.30.0)
 
 - Dependency updates.
 - Bumps `puppeteer-core` to `24.8.2`.
 - Fixes a small issue in SDK OpenAPI docgen when overwriting an existing route.
 
-# [v2.29.0](https://github.com/browserless/chrome/compare/v2.28.0...v2.29.0)
+## [v2.29.0](https://github.com/browserless/chrome/compare/v2.28.0...v2.29.0)
 
 - Dependency updates.
 - The `build` command for SDK projects will no longer run `clean` prior.
@@ -438,25 +447,25 @@
 - Formatting, and stray console message cleanup.
 - Logo fixes in README.md file.
 
-# [v2.28.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.28.0)
+## [v2.28.0](https://github.com/browserless/chrome/compare/v2.27.0...v2.28.0)
 
 - Dependency updates.
 - Propagate library process exit codes through for SDK project commands.
 - Better error messaging when queuing and concurrency are full.
 - No browser binary changes.
 
-# [v2.27.0](https://github.com/browserless/chrome/compare/v2.26.1...v2.27.0)
+## [v2.27.0](https://github.com/browserless/chrome/compare/v2.26.1...v2.27.0)
 
 - Dependency updates.
 - New `MAX_PAYLOAD_SIZE` env variable for specifying a max-payload size in HTTP-based APIs. Value is a number specified in bytes, so `10485760` = 10MB.
 - Consolidation of HTTP and Websocket Error handling into a singular method.
 
-# [v2.26.1](https://github.com/browserless/chrome/compare/v2.26.0...v2.26.1)
+## [v2.26.1](https://github.com/browserless/chrome/compare/v2.26.0...v2.26.1)
 
 - Dependency updates.
 - Fix http routes being ignored in SDK projects.
 
-# [v2.26.0](https://github.com/browserless/chrome/compare/v2.25.2...v2.26.0)
+## [v2.26.0](https://github.com/browserless/chrome/compare/v2.25.2...v2.26.0)
 
 - Dependency updates.
 - Moves relevant ad-blocking infrastructure over to uBlock Lite.
@@ -472,7 +481,7 @@
   - Firefox: 135.0
   - Webkit: 18.4
 
-# [v2.25.2](https://github.com/browserless/chrome/compare/v2.25.1...v2.25.2)
+## [v2.25.2](https://github.com/browserless/chrome/compare/v2.25.1...v2.25.2)
 
 - Dependency updates.
 - Fixes to the `/session` API to include proper host and port.
@@ -485,11 +494,11 @@
   - Firefox: 134.0
   - Webkit: 18.2
 
-# [v2.25.1](https://github.com/browserless/chrome/compare/v2.25.0...v2.25.1)
+## [v2.25.1](https://github.com/browserless/chrome/compare/v2.25.0...v2.25.1)
 
 - Removes edge from `arm64` builds due to lack of support.
 
-# [v2.25.0](https://github.com/browserless/chrome/compare/v2.24.3...v2.25.0)
+## [v2.25.0](https://github.com/browserless/chrome/compare/v2.24.3...v2.25.0)
 
 - Dependency updates.
 - Supports:
@@ -505,14 +514,14 @@
 - Code formatting fixes
 - Link fixes in certain READMEs
 
-# [v2.24.3](https://github.com/browserless/chrome/compare/v2.24.2...v2.24.3)
+## [v2.24.3](https://github.com/browserless/chrome/compare/v2.24.2...v2.24.3)
 
 - Dependency updates.
 - Pins Ubuntu@22.04 in Github Actions.
 - Fixes `headless` types to use `--headless=new` when prior libraries attempt to do `--headless=old` (older playwright).
 - Typing fixes.
 
-# [v2.24.2](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.2)
+## [v2.24.2](https://github.com/browserless/chrome/compare/v2.24.1...v2.24.2)
 
 - Dependency updates.
 - Fix issues with Firefox when using a proxy.
@@ -520,12 +529,12 @@
 - Lint fixes.
 - Link fixes in this CHANGELOG.md file.
 
-# [v2.24.1](https://github.com/browserless/chrome/compare/v2.24.0...v2.24.1)
+## [v2.24.1](https://github.com/browserless/chrome/compare/v2.24.0...v2.24.1)
 
 - Dependency updates.
 - Fixes for /performance API in SDK projects.
 
-# [v2.24.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.24.0)
+## [v2.24.0](https://github.com/browserless/chrome/compare/v2.23.0...v2.24.0)
 
 - Dependency updates.
 - Supports:
@@ -541,24 +550,24 @@
 - Add support for `trackingId` and `/kill/{id}` and `/kill/all`.
 - Prettier, internal fixes and improvements.
 
-# [v2.23.0](https://github.com/browserless/chrome/compare/v2.22.0...v2.23.0)
+## [v2.23.0](https://github.com/browserless/chrome/compare/v2.22.0...v2.23.0)
 
 - Dependency updates.
 - Fixes `--proxy-bypass-list` CLI arguments not being passed through with function API.
 - Addition of `fonts-open-sans` to image.
 
-# [v2.22.0](https://github.com/browserless/chrome/compare/v2.21.1...v2.22.0)
+## [v2.22.0](https://github.com/browserless/chrome/compare/v2.21.1...v2.22.0)
 
 - Dependency updates.
 - New SDK project command of `npm run install:browsers` to help with browser management.
 - SDK projects now appropriately handle routes when only certain browsers are available.
 
-# [v2.21.1](https://github.com/browserless/chrome/compare/v2.21.0...v2.21.1)
+## [v2.21.1](https://github.com/browserless/chrome/compare/v2.21.0...v2.21.1)
 
 - Dependency updates.
 - Ensure we don't load Chrome routes for SDK projects running linux/arm64.
 
-# [v2.21.0](https://github.com/browserless/chrome/compare/v2.20.2...v2.21.0)
+## [v2.21.0](https://github.com/browserless/chrome/compare/v2.20.2...v2.21.0)
 
 - Dependency updates.
 - Supports:
@@ -567,17 +576,17 @@
 - Stream PDF using createPDFStream() in the PDF APIs.
 - Inject file-system managers in browser-manager.
 
-# [v2.20.2](https://github.com/browserless/chrome/compare/v2.20.1...v2.20.2)
+## [v2.20.2](https://github.com/browserless/chrome/compare/v2.20.1...v2.20.2)
 
 - Dependency updates.
 - Adds a fix to SDK routes that might not require a browser but browserless will still make one.
 
-# [v2.20.1](https://github.com/browserless/chrome/compare/v2.20.0...v2.20.1)
+## [v2.20.1](https://github.com/browserless/chrome/compare/v2.20.0...v2.20.1)
 
 - Dependency updates.
 - Fix issues where connecting to a bad /devtools/page route can cause 500's.
 
-# [v2.20.0](https://github.com/browserless/chrome/compare/v2.19.0...v2.20.)
+## [v2.20.0](https://github.com/browserless/chrome/compare/v2.19.0...v2.20.)
 
 - Dependency updates.
 - Supports `puppeteer@23.3.0`.
@@ -589,7 +598,7 @@
 - Windows fixes for SDK projects.
 - README link fixes.
 
-# [v2.19.0](https://github.com/browserless/chrome/compare/v2.18.0...v2.19.0)
+## [v2.19.0](https://github.com/browserless/chrome/compare/v2.18.0...v2.19.0)
 
 - Dependency updates.
 - Drop `sort-keys` for eslint integrations.
@@ -597,7 +606,7 @@
 - Disable `auth` when using Chrome's internal `/page` APIs.
 - Small fixes for new eslint rules.
 
-# [v2.18.0](https://github.com/browserless/chrome/compare/v2.17.0...v2.18.0)
+## [v2.18.0](https://github.com/browserless/chrome/compare/v2.17.0...v2.18.0)
 
 - Dependency updates.
 - Supports `puppeteer-core@23.1.1`.
@@ -605,7 +614,7 @@
 - Trailing slashes on routes now won't 404, so `/chrome` and `/chrome/` are treated as the same and will route properly.
 - `/function` API now works properly when applying a 3rd-party proxy.
 
-# [v2.17.0](https://github.com/browserless/chrome/compare/v2.16.1...v2.17.0)
+## [v2.17.0](https://github.com/browserless/chrome/compare/v2.16.1...v2.17.0)
 
 - Dependency updates.
 - Hide token in logs on startup.
@@ -618,24 +627,24 @@
   - 'Access-Control-Expose-Headers': CORS_EXPOSE_HEADERS (default: '\*')
   - 'Access-Control-Max-Age': CORS_MAX_AGE (default: '2592000')
 
-# [v2.16.1](https://github.com/browserless/chrome/compare/v2.16.0...v2.16.1)
+## [v2.16.1](https://github.com/browserless/chrome/compare/v2.16.0...v2.16.1)
 
 - Dependency updates.
 - Fixes numerous SDK issues when creating and building new projects.
 
-# [v2.16.0](https://github.com/browserless/chrome/compare/v2.15.0...v2.16.0)
+## [v2.16.0](https://github.com/browserless/chrome/compare/v2.15.0...v2.16.0)
 
 - Dependency updates.
 - Better extension handling and merging when passing in custom extensions.
 - Fixes a bug where a failed job (error thrown) causes the internal queue to drain.
 - Prettier and other source improvements.
 
-# [v2.15.0](https://github.com/browserless/chrome/compare/v2.14.0...v2.15.0)
+## [v2.15.0](https://github.com/browserless/chrome/compare/v2.14.0...v2.15.0)
 
 - Bug fix to avoid removing healthy jobs from limiter when a job fails
 - Dependency updates.
 
-# [v2.14.0](https://github.com/browserless/chrome/compare/v2.13.0...v2.14.0)
+## [v2.14.0](https://github.com/browserless/chrome/compare/v2.13.0...v2.14.0)
 
 **Potentially Breaking**
 
@@ -643,7 +652,7 @@
 - Devtools now bundled into the repository at build-time for the `/debugger` route.
 - Dependency updates.
 
-# [v2.13.0](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
+## [v2.13.0](https://github.com/browserless/chrome/compare/v2.12.0...v2.13.0)
 
 **Potentially Breaking**
 
@@ -655,7 +664,7 @@
 - Prettier fixes.
 - Dependency updates.
 
-# [v2.12.0](https://github.com/browserless/chrome/compare/v2.11.0...v2.12.0)
+## [v2.12.0](https://github.com/browserless/chrome/compare/v2.11.0...v2.12.0)
 
 **Potentially Breaking**
 
@@ -666,18 +675,18 @@
 - Support for multi-version playwright (puppeteer coming soon). Browserless now checks the version in the User-Agent header and loads the appropriate playwright server for it.
 - Dependency updates.
 
-# [v2.11.0](https://github.com/browserless/chrome/compare/v2.10.0...v2.11.0)
+## [v2.11.0](https://github.com/browserless/chrome/compare/v2.10.0...v2.11.0)
 
 - Wrap the pressure response in a pressure key.
 - New `keepAlive` property on browser objects for downstream SDK projects to flag.
 - Dependency updates.
 
-# [v2.10.0](https://github.com/browserless/chrome/compare/v2.9.0...v2.10.0)
+## [v2.10.0](https://github.com/browserless/chrome/compare/v2.9.0...v2.10.0)
 
 - Adds back in the `/pressure` API from V1.
 - Dependency updates.
 
-# [v2.9.0](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
+## [v2.9.0](https://github.com/browserless/chrome/compare/v2.8.0...v2.9.0)
 
 - Dependency updates.
 - Debugger is now included and mounted under the `/debugger` path.
@@ -686,7 +695,7 @@
 - Allows "HEAD" requests for most "GET"-based APIs.
 -
 
-# [v2.8.0](https://github.com/browserless/chrome/compare/v2.7.1...v2.8.0)
+## [v2.8.0](https://github.com/browserless/chrome/compare/v2.7.1...v2.8.0)
 
 **April 12, 2024**
 **Potentially Breaking**
@@ -699,24 +708,24 @@
 - Numerous SDK fixes and updates in the CLI.
 - Dependency updates.
 
-# [v2.7.1](https://github.com/browserless/chrome/compare/v2.7.0...v2.7.1)
+## [v2.7.1](https://github.com/browserless/chrome/compare/v2.7.0...v2.7.1)
 
 **April 11, 2024**
 
 - Fixes a boot-looping issue due to bad startup script. Adds tests for this as well.
 - Dependency updates.
 
-# [v2.7.0](https://github.com/browserless/chrome/compare/v2.6.1...v2.7.0)
+## [v2.7.0](https://github.com/browserless/chrome/compare/v2.6.1...v2.7.0)
 
 - Support for Running GPUs
 - Dependency updates.
 
-# [v2.6.1](https://github.com/browserless/chrome/compare/v2.6.0...v2.6.1)
+## [v2.6.1](https://github.com/browserless/chrome/compare/v2.6.0...v2.6.1)
 
 - Fixes for function API calls when behind an external URL.
 - Dependency updates.
 
-# [v2.6.0](https://github.com/browserless/chrome/compare/v2.5.0...v2.6.0)
+## [v2.6.0](https://github.com/browserless/chrome/compare/v2.5.0...v2.6.0)
 
 - Adds a `GET /active` route that responds with no message and a `204` http code.
 - Move to NodeJS 20.12.0.
@@ -725,7 +734,7 @@
 - Better logging around 404'd HTTP requests.
 - Dependency updates.
 
-# [v2.5.0](https://github.com/browserless/chrome/compare/v2.4.0...v2.5.0)
+## [v2.5.0](https://github.com/browserless/chrome/compare/v2.4.0...v2.5.0)
 
 - `Config` now allows for programmatic getting and setting of the external address.
 - Support for a new `Hooks` module for setting up hooks in a more SDK-friendly manner.
@@ -738,7 +747,7 @@
 - `README.md` updates.
 - Dependency updates.
 
-# [v2.4.0](https://github.com/browserless/chrome/compare/v2.3.0...v2.4.0)
+## [v2.4.0](https://github.com/browserless/chrome/compare/v2.3.0...v2.4.0)
 
 **Potentially Breaking**
 
@@ -754,7 +763,7 @@
 - Fixes issues with `addStyleTag` happening before `goto` calls in REST APIs.
 - Dependency updates.
 
-# [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
+## [v2.3.0](https://github.com/browserless/chrome/compare/v2.2.0...v2.3.0)
 
 **Potentially Breaking**
 
@@ -764,7 +773,7 @@
 - Fixes and other general improvements.
 - Dependency updates.
 
-# [v2.2.0](https://github.com/browserless/chrome/compare/v2.1.0...v2.2.0)
+## [v2.2.0](https://github.com/browserless/chrome/compare/v2.1.0...v2.2.0)
 
 **Potentially Breaking**
 
@@ -790,7 +799,7 @@
 - More unit-tests for the Chrome /json APIs.
 - Dependency updates.
 
-# [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
+## [v2.1.0](https://github.com/browserless/browserless/compare/v2.0.0-beta-1...v2.1.0)
 
 - Dependency updates.
 - Name is now `@browserless.io/browserless` to reflect our npm package.
@@ -804,7 +813,7 @@
 - README updates and fixes.
 - Numerous link and copyright fixes.
 
-# [v2.0.0](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
+## [v2.0.0](https://github.com/browserless/chrome/compare/master...feat/browserless-2.0)
 
 browserless 2.0.0 represents the best body of work after running browserless for over 5 years. It contains mostly the same functionality and more, and is rebuilt to be more modular and offer a NodeJS SDK. It's also much lighter and faster than prior versions and includes a lot of semantic changes.
 
@@ -828,7 +837,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 
 - Many docker parameters have been renamed, but are backwards compatible. See config.ts for details.
 
-# [v1.61.0](https://github.com/browserless/chrome/compare/v1.60.2...v1.61.0)
+## [v1.61.0](https://github.com/browserless/chrome/compare/v1.60.2...v1.61.0)
 
 - **FINAL of V1 for browserless/chrome. [See notes on V2 here](https://github.com/browserless/chrome/pull/3345)**
 - Dependency updates.
@@ -838,13 +847,13 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes an issue where keep-alive chrome instances aren't properly tracked when `browser.close` is called.
 - Fix improper handling of HTTP writing on bare sockets with 500 errors.
 
-# [v1.60.2](https://github.com/browserless/chrome/compare/v1.60.1...v1.60.2)
+## [v1.60.2](https://github.com/browserless/chrome/compare/v1.60.1...v1.60.2)
 
 - Dependency updates.
 - Fixes an issue where calls to GET /sessions sometimes return blank results.
 - Drop puppeteer `21.3.1` in favor of `21.3.6`.
 
-# [v1.60.1](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
+## [v1.60.1](https://github.com/browserless/chrome/compare/v1.60.0...v1.60.1)
 
 - Dependency updates.
 - Drop the `partner` repo from builds as we no longer use it for installing `flash`.
@@ -856,7 +865,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Replaces legacy `request` module with Node's native `fetch` for webhooks.
 - Drops `node-fetch` across the board in favor of `fetch` native.
 
-# [v1.60.0](https://github.com/browserless/chrome/compare/v1.59.0...v1.60.0)
+## [v1.60.0](https://github.com/browserless/chrome/compare/v1.59.0...v1.60.0)
 
 - Dependency updates.
 - New build arguments in our Dockerfile to apply different named base repo.
@@ -871,7 +880,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Allow using a host's display by setting `DISPLAY` env variable.
 - Link fixes in README.md.
 
-# [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
+## [v1.59.0](https://github.com/browserless/chrome/compare/v1.58.0...v1.59.0)
 
 - Dependency updates.
 - Bump to Ubuntu Kinetic release + updates to use relevant packages.
@@ -879,7 +888,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Supports playwright `1.33`, `1.32`, `1.31`, and `1.29.`. Drops support for earlier versions.
 - Ad-blocking and other request-interception in browserless is graceful using the `isInterceptResolutionHandled` method.
 
-# [v1.58.0](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
+## [v1.58.0](https://github.com/browserless/chrome/compare/v1.57.0...v1.58.0)
 
 - Dependency updates.
 - Documentation link fixes.
@@ -893,7 +902,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Adds support for `--headless=new`.
 - Fixes an issue where user-data-dirs aren't deleted due to a crashed container.
 
-# [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
+## [v1.57.0](https://github.com/browserless/chrome/compare/v1.56.0...v1.57.0)
 
 - Dependency updates.
 - Add back in `puppeteer@13.1.3` for PDF/Screenshot performance.
@@ -906,7 +915,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
   - 1.26.1
   - 1.27.1
 
-# [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
+## [v1.56.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.56.0)
 
 - Dependency updates.
 - Fixes various puppeteer issues with regards to revision information and browser-fetching.
@@ -914,7 +923,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Small fix for route error handling.
 - Better selenium W3C support.
 
-# [v1.55.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.54.1)
+## [v1.55.0](https://github.com/browserless/chrome/compare/v1.55.0...v1.54.1)
 
 **Potentially Breaking**
 
@@ -932,7 +941,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - A new `PORT` arg is available at build time in order to specify a PORT to listen onto.
 - Updated links for browserless documentation in docs.
 
-# [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
+## [v1.54.1](https://github.com/browserless/chrome/compare/v1.54.1...v1.54.0)
 
 - Dependency updates.
 - Add `browser.json` file to git tags.
@@ -941,7 +950,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fix: add the `userDataDir` option so that we don't fill disks when using `stealth`.
 - Fix: allow `disconnect` listeners to fire before closing.
 
-# [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
+## [v1.54.0](https://github.com/browserless/chrome/compare/v1.53.0...v1.54.0)
 
 - Dependency updates.
 - Move to using `mocha` for better esm support.
@@ -949,7 +958,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Utilize puppeteer `14.4.1` for `chrome-stable`.
 - New internal `getCDPClient` for loading a page's CPD connection.
 
-# [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
+## [v1.53.0](https://github.com/browserless/chrome/compare/v1.52.1...v1.53.0)
 
 - Dependency updates.
 - Bump `browserless:base` to `1.16.0`.
@@ -958,14 +967,14 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Update puppeteer 13 from `13.5.2` to `13.6.0` (revision `982053`).
 - README updates.
 
-# [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
+## [v1.52.1](https://github.com/browserless/chrome/compare/v1.52.0...v1.52.1)
 
 - Dependency updates.
 - Playwright example correction in README.md.
 - Use revision `970485` for puppeteer 13.x.x, `latest`, chrome-stable and `arm64`.
 - When using `KEEPALIVE` and `PREBOOT`, don't create new blank pages, and use the existing one instead.
 
-# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+## [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
 
 - Dependency updates.
 - Added in new fonts: `fonts-gfs-neohellenic`.
@@ -982,7 +991,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
 - Add in more unit and integration tests.
 
-# [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
+## [v1.52.0](https://github.com/browserless/chrome/compare/v1.51.1...v1.52.0)
 
 - Dependency updates.
 - Added in new fonts: `fonts-gfs-neohellenic`.
@@ -999,12 +1008,12 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes an issue where using a user-data-dir that doesn't exist causes chrome to crash.
 - Add in more unit and integration tests.
 
-# [v1.51.1](https://github.com/browserless/chrome/compare/v1.51.0...v1.51.1)
+## [v1.51.1](https://github.com/browserless/chrome/compare/v1.51.0...v1.51.1)
 
 - Dependency updates.
 - Updates the `vm2` module to `3.9.7`.
 
-# [v1.51.0](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
+## [v1.51.0](https://github.com/browserless/chrome/compare/v1.50.0...v1.51.0)
 
 - Dependency updates.
 - New `viewport` option inside of the content API.
@@ -1015,7 +1024,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes an issue where playwright tries to use a pre-booted chrome instance.
 - Small type updates.
 
-# [v1.50.0](https://github.com/browserless/chrome/compare/v1.49.1...v1.50.0)
+## [v1.50.0](https://github.com/browserless/chrome/compare/v1.49.1...v1.50.0)
 
 - Dependency updates.
 - Drops support for `puppeteer-4.0.1` in favor of `puppeteer-12.0.1`.
@@ -1030,19 +1039,19 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Drop support for `heapdump` due to its age and lack of platform varieties.
 - New `/metrics/total` route for summing up all statistics in a single JSON payload.
 
-# [v1.49.1](https://github.com/browserless/chrome/compare/v1.49.0...v1.49.1)
+## [v1.49.1](https://github.com/browserless/chrome/compare/v1.49.0...v1.49.1)
 
 - Dependency updates.
 - Fix webhook not using timeout URL.
 
-# [v1.49.0](https://github.com/browserless/chrome/compare/v1.48.0...v1.49.0)
+## [v1.49.0](https://github.com/browserless/chrome/compare/v1.48.0...v1.49.0)
 
 - Dependency updates.
 - Support for ARM64 builds by dropping flash for it.
 - Bump puppeteer 10.2.0 for 10.4.0.
 - New puppeteer-hook for injecting a puppeteer-compatible library, eg. puppeteer-extra.
 
-# [v1.48.0](https://github.com/browserless/chrome/compare/v1.47.0...v1.48.0)
+## [v1.48.0](https://github.com/browserless/chrome/compare/v1.47.0...v1.48.0)
 
 **Potentially Breaking**
 
@@ -1056,7 +1065,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Makes API calls use `setContent` properly now (no more one-time network interception). This fixes certain issues with images not loading in PDFs and screenshots.
 - Fix some typings in tests.
 
-# [v1.47.0](https://github.com/browserless/chrome/compare/v1.46.0...v1.47.0)
+## [v1.47.0](https://github.com/browserless/chrome/compare/v1.46.0...v1.47.0)
 
 - Dependency updates.
 - Bump `browserless/base` to `1.11.0`.
@@ -1068,7 +1077,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fix `someObject.hasOwnProperty` to `Object.prototype.hasOwnProperty.call`.
 -
 
-# [v1.46.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
+## [v1.46.0](https://github.com/browserless/chrome/compare/v1.45.0...v1.46.0)
 
 - Dependency updates.
 - Move to Node 16.x.x.
@@ -1083,13 +1092,13 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes `DEFAULT_STEALTH` for self-hosted deployments.
 - Improvements on how chrome is closed.
 
-# [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
+## [1.45.0](https://github.com/browserless/chrome/compare/v1.44.0...v1.45.0)
 
 - Dependency Updates.
 - Support for [playwright proxies](https://github.com/browserless/chrome/commit/0903795e936b93a511ec04f7ae35c03397682905).
 - Fixes an issue with larger headers potentially causing load-balancers to crash and fail.
 
-# [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
+## [v1.44.0](https://github.com/browserless/chrome/compare/v1.43.0...v1.44.0)
 
 **Potentially Breaking**
 
@@ -1107,14 +1116,14 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - `detached` functions now return a `trackingId` when present.
 - More types, tests, and utility consolidation.
 
-# [v1.43.0](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
+## [v1.43.0](https://github.com/browserless/chrome/compare/v1.42.0...v1.43.0)
 
 - Dependency Updates.
 - Fixes an issue where --user-data-dirs aren't deleted properly, potentially filling disks.
 - Changes CPU/Memory checks to be user-based and not the entire OS.
 - Adds tests for the user-data-dir issue.
 
-# [v1.42.0](https://github.com/browserless/chrome/compare/v1.41.0...v1.42.0)
+## [v1.42.0](https://github.com/browserless/chrome/compare/v1.41.0...v1.42.0)
 
 - Dependency Updates.
 - Move to Node 14!
@@ -1125,36 +1134,36 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes `ignoreDefaultArgs` in chrome stable.
 - Ensure temp user-data-dirs are always cleaned up.
 
-# [v1.41.0](https://github.com/browserless/chrome/compare/v1.40.2...v1.41.0)
+## [v1.41.0](https://github.com/browserless/chrome/compare/v1.40.2...v1.41.0)
 
 - Dependency Updates.
 - New `SESSION_CHECK_FAIL_URL` webhook for when pre-session checks fail.
 - Health checks now take the last two CPU/Memory samples to determine if a failure (5 minutes).
 
-# [v1.40.2](https://github.com/browserless/chrome/compare/v1.40.1...v1.40.2)
+## [v1.40.2](https://github.com/browserless/chrome/compare/v1.40.1...v1.40.2)
 
 - Dependency Updates.
 - Fix potentially unhandled stream error events when closing chrome.
 - Bump puppeteer to 5.4.1 for major 5.
 
-# [v1.40.1](https://github.com/browserless/chrome/compare/v1.40.0...v1.40.1)
+## [v1.40.1](https://github.com/browserless/chrome/compare/v1.40.0...v1.40.1)
 
 - Dependency Updates
 - New `SOCKET_CLOSE_METHOD` for better load-balancing behavior when under load.
 
-# [v1.40.0](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
+## [v1.40.0](https://github.com/browserless/chrome/compare/v1.39.0...v1.40.0)
 
 - Dependency Updates
 - Support for playwright 1.4.0 and greater. [See more here](https://github.com/microsoft/playwright/issues/4054).
 - New `PRE_REQUEST_HEALTH_CHECK` env variable to check CPU/Memory prior to running a session. Set `MAX_CPU_PERCENT` or `MAX_MEMORY_PERCENT` for setting these thresholds. Responds with a `503` HTTP code if CPU/Memory are high on any inbound session (API, puppeteer or webdriver).
 
-# [v1.39.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
+## [v1.39.0](https://github.com/browserless/chrome/compare/v1.38.0...v1.39.0)
 
 - Dependency Updates
 - Fixes a crash due to `browser.close` streams not completing properly.
 - Adds a `dumpio` query-string parameter for launching with puppeteer.
 
-# [v1.38.0](https://github.com/browserless/chrome/compare/v1.37.2...v1.38.0)
+## [v1.38.0](https://github.com/browserless/chrome/compare/v1.37.2...v1.38.0)
 
 - Dependency Updates
 - Fixes a memory leak when browsers don't close properly.
@@ -1163,18 +1172,18 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - CodeQL implemented.
 - README fixes.
 
-# [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.2)
+## [v1.37.2](https://github.com/browserless/chrome/compare/v1.37.1...v1.37.2)
 
 - Dependency Updates
 - Fixes an issue where the webserver can crash after rejecting a request.
 - Fixes deployment script not waiting for zip files to be finished unzipped.
 
-# [1.37.1](https://github.com/browserless/chrome/compare/v1.37.0...v1.37.1)
+## [1.37.1](https://github.com/browserless/chrome/compare/v1.37.0...v1.37.1)
 
 - Dependency Updates
 - Fixes an issue in webdriver not starting properly.
 
-# [1.37.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.37.0)
+## [1.37.0](https://github.com/browserless/chrome/compare/v1.36.0...v1.37.0)
 
 **Potentially Breaking**
 
@@ -1187,7 +1196,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes an issue for secured containers using prometheus (plus tests).
 - Support for puppeteer `5.2.1`
 
-# [1.36.0](https://github.com/browserless/chrome/compare/v1.35.0...v1.36.0)
+## [1.36.0](https://github.com/browserless/chrome/compare/v1.35.0...v1.36.0)
 
 - Dependency Updates
 - Drops support for puppeteer `2.0.0` and `3.0.4`, please use `2.1.1` and `3.3.0` for those revisions.
@@ -1195,14 +1204,14 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Bug-fix with the server randomly closing with an uncaught error event thrown from inside underlying socket connection.
 - Adds back in `--disable-dev-shm-usage` to default arguments for better SHM performance.
 
-# [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
+## [1.35.0](https://github.com/browserless/chrome/compare/v1.34.0...v1.35.0)
 
 - Dependency Updates
 - New `maxTime`, `minTime`, `meanTime` and `totalTime` of all sessions for a given period in /stats.
 - Bugfix on CPU/Memory triggering health failure webhooks.
 - Fix issues in websocket errors by awaiting browser.close (or 5 seconds, whichever is quickest).
 
-# [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
+## [v1.34.0](https://github.com/browserless/chrome/compare/v1.33.1...v1.34.0)
 
 **Potentially Breaking**
 
@@ -1218,12 +1227,12 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes `trackingId` on pre-booted sessions.
 - `about:blank` pages now are returned in the `/sessions` API for transparency of open sessions/browsers.
 
-# [1.33.1](https://github.com/browserless/chrome/compare/v1.33.0...v1.33.1)
+## [1.33.1](https://github.com/browserless/chrome/compare/v1.33.0...v1.33.1)
 
 - Dependency updates.
 - Fix socket errors from accidentally firing error webhooks.
 
-# [1.33.0](https://github.com/browserless/chrome/compare/v1.32.0...v1.33.0)
+## [1.33.0](https://github.com/browserless/chrome/compare/v1.32.0...v1.33.0)
 
 - Drops support for puppeteer 1.17.x and 1.18.x
 - Support for puppeteer 3.0.x
@@ -1231,38 +1240,38 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fix reject stat firing on debugger pages not being found
 - Consolidates more types.
 
-# [1.32.0](https://github.com/browserless/chrome/compare/v1.31.1...v1.32.0)
+## [1.32.0](https://github.com/browserless/chrome/compare/v1.31.1...v1.32.0)
 
 - Dependency Updates.
 - Adds roboto fonts.
 - Updates `pressure` API to take account of running browsers in the `running` count.
 - Adds `maxConcurrent`, `maxQueued`, `cpu` and `memory` to pressure.
 
-# [1.31.1](https://github.com/browserless/chrome/compare/v1.31.0...v1.31.1)
+## [1.31.1](https://github.com/browserless/chrome/compare/v1.31.0...v1.31.1)
 
 - Dependency Updates.
 - Fixes a small issue where XVFB doesn't start properly during an automated restart.
 
-# [1.31.0](https://github.com/browserless/chrome/compare/v1.30.0...v1.31.0)
+## [1.31.0](https://github.com/browserless/chrome/compare/v1.30.0...v1.31.0)
 
 - Dependency Updates.
 - Allows `trackingId` on uploaded files to save in the appropriate tracking-ID folder.
 - New `userAgent` param for setting user-agent in API requests.
 - Fixes an issue where chrome wasn't being closed in rare cases.
 
-# [1.30.0](https://github.com/browserless/chrome/compare/v1.29.1...v1.30.0)
+## [1.30.0](https://github.com/browserless/chrome/compare/v1.29.1...v1.30.0)
 
 - Dependency Updates.
 - Updates to Node 13 for speed and memory improvements.
 - browserless/base@1.4.0
 
-# [1.29.1](https://github.com/browserless/chrome/compare/v1.29.0...v1.29.1)
+## [1.29.1](https://github.com/browserless/chrome/compare/v1.29.0...v1.29.1)
 
 - Dependency Updates.
 - Fixes how deploy script determines errors when running child commands.
 - Fixes issues when many selenium sessions can potentially fill up disk space.
 
-# [1.29.0](https://github.com/browserless/chrome/compare/v1.28.0...v1.29.0)
+## [1.29.0](https://github.com/browserless/chrome/compare/v1.28.0...v1.29.0)
 
 - Dependency updates.
 - Uses `pipe`'s for most API calls and other internal endpoints for faster/better throughput. Works only for `headless` API/puppeteer calls.
@@ -1271,7 +1280,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Before hooks no longer end requests forcefully -- external hooks must manually end the request/sockets themselves.
 - Properly passes socket errors to the error handler/webhook
 
-# [1.28.0](https://github.com/browserless/chrome/compare/v1.27.0...v1.28.0)
+## [1.28.0](https://github.com/browserless/chrome/compare/v1.27.0...v1.28.0)
 
 - Dependency updates.
 - Sets a system-default font of Ubuntu for most sites that use `system-ui` in their font declarations.
@@ -1279,20 +1288,20 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - New `PROXY_HOST`, `PROXY_PORT` and `PROXY_SSL` for external load-balancers. [See docsite for more info](https://www.browserless.io/docs/docker.html#using-a-proxy).
 - Moves over to GH actions over Travis for CI.
 
-# [1.27.0](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
+## [1.27.0](https://github.com/browserless/chrome/compare/v1.26.1...v1.27.0)
 
 - Dependency updates.
 - New `manipulate` params for screenshots, allowing for resizing, flipping and more.
 - Better tracking of chrome-process for cleanup of zombied sessions.
 
-# [1.26.1](https://github.com/browserless/chrome/compare/v1.26.0...v1.26.1)
+## [1.26.1](https://github.com/browserless/chrome/compare/v1.26.0...v1.26.1)
 
 - Dependency updates.
 - Added `git` as a dependency in dockerfile for git-based npm dependencies to work.
 - Fixed an issue in `start.sh` so that errors bubble up properly and close the process.
 - Bumps `browserless/base` to `1.2.0`.
 
-# [1.26.0](https://github.com/browserless/chrome/compare/v1.25.0...v1.26.0)
+## [1.26.0](https://github.com/browserless/chrome/compare/v1.25.0...v1.26.0)
 
 - Dependency updates.
 - Dropping pre-push hooks for speed.
@@ -1302,7 +1311,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Uses `page.setViewport` when `--window-size` is set in params to help with screenshots not appearing properly (chromedriver only).
 -
 
-# [1.25.0](https://github.com/browserless/chrome/compare/v1.24.0...v1.25.0)
+## [1.25.0](https://github.com/browserless/chrome/compare/v1.24.0...v1.25.0)
 
 - Dependency updates.
 - Stricter build-time arguments for chromium and chromedriver assets.
@@ -1311,7 +1320,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Drop support for `puppeteer@1.17.0`.
 - Proper support for parsing `ignoreDefaultArgs` query-parameters.
 
-# [1.24.0](https://github.com/browserless/chrome/compare/v1.23.1...v1.24.0)
+## [1.24.0](https://github.com/browserless/chrome/compare/v1.23.1...v1.24.0)
 
 - Dependency updates.
 - Bugfix on our debugger's play button being off-center.
@@ -1320,13 +1329,13 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - WebSocket (Socket) exception handling and logging.
 - More integration and unit tests added.
 
-# [1.23.1](https://github.com/browserless/chrome/compare/v1.23.0...v1.23.1)
+## [1.23.1](https://github.com/browserless/chrome/compare/v1.23.0...v1.23.1)
 
 - Fixes an issue in chromedriver where commands would hang.
 - Fixes an issue in chromedriver sessions not being removed properly.
 - Fixes and pins the base image so that headful sessions work again.
 
-# [1.23.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
+## [1.23.0](https://github.com/browserless/chrome/compare/v1.22.0...v1.23.0)
 
 - Dependency updates.
 - Use `apt-get` to install `dumb-init`.
@@ -1336,7 +1345,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixes issues when PREBOOT_CHROME and KEEPALIVE are true.
 - Updates protocol and host information in ad-blocking.
 
-# [1.22.0](https://github.com/browserless/chrome/compare/v1.21.0...v1.22.0)
+## [1.22.0](https://github.com/browserless/chrome/compare/v1.21.0...v1.22.0)
 
 - Dependency updates.
 - Removal of unnecessary '--disable-dev-shm-usage'
@@ -1344,7 +1353,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - New `/kill/${id}` route for remotely killing a certain browser.
 - Allowing of sub-child routes in workspaces.
 
-# [1.21.0](https://github.com/browserless/chrome/compare/v1.20.0...v1.21.0)
+## [1.21.0](https://github.com/browserless/chrome/compare/v1.20.0...v1.21.0)
 
 - Dependency updates.
 - New `viewport` property option for PDF endpoint.
@@ -1352,12 +1361,12 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Fixed a bug where hardware monitoring can cause the container to restart/crash.
 - Fixes an issue with the file-chooser API not working in puppeteer.
 
-# [1.20.0](https://github.com/browserless/chrome/compare/v1.19.0...v1.20.0)
+## [1.20.0](https://github.com/browserless/chrome/compare/v1.19.0...v1.20.0)
 
 - Dependency updates.
 - New `/scrape` API!
 
-# [1.19.0](https://github.com/browserless/chrome/compare/v1.18.0...v1.19.0)
+## [1.19.0](https://github.com/browserless/chrome/compare/v1.18.0...v1.19.0)
 
 - Dependency updates.
 - Fixes chrome-stable's binary chromedriver.
@@ -1372,7 +1381,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Function API's can now run incognito mode with a new Docker param.
 -
 
-# [1.18.0](https://github.com/browserless/chrome/compare/v1.17.0...v1.18.0)
+## [1.18.0](https://github.com/browserless/chrome/compare/v1.17.0...v1.18.0)
 
 - Dependency updates
 - Better `IS_DOCKER` check for kubernetes.
@@ -1387,7 +1396,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - New prometheus support!
 - Fixing issues with keeping chrome alive (only closing once TTL is met).
 
-# [1.17.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
+## [1.17.0](https://github.com/browserless/chrome/compare/v1.16.0...v1.17.0)
 
 - Dependency updates
 - Splitting docker images into two repositories for faster builds and pulls
@@ -1397,7 +1406,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Updating `deviceScaleFactor` in API's for more granular control.
 - Better chromedriver failure messages.
 
-# [1.16.0](https://github.com/browserless/chrome/compare/v1.15.0...v1.16.0)
+## [1.16.0](https://github.com/browserless/chrome/compare/v1.15.0...v1.16.0)
 
 - Adding `ffmpeg` to the docker dependency list.
 - Add `timecut` as a dependency for recording.
@@ -1407,18 +1416,18 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Use `SIGKILL` for killing chromedriver.
 - `/json/version` now returns a `webSocketDebuggerUrl`.
 
-# [1.15.0](https://github.com/browserless/chrome/compare/v1.14.1...v1.15.0)
+## [1.15.0](https://github.com/browserless/chrome/compare/v1.14.1...v1.15.0)
 
 - New `page` and `browser` hooks for docker images that `FROM` browserless.
 - `bluebird` added as a module for `function` and other endpoints.
 - More dependency updates.
 
-# [1.14.1](https://github.com/browserless/chrome/compare/v1.14.0...v1.14.1)
+## [1.14.1](https://github.com/browserless/chrome/compare/v1.14.0...v1.14.1)
 
 - Bugfix when running multiple "headfull" sessions.
 - Dependency updates.
 
-# [1.14.0](https://github.com/browserless/chrome/compare/v1.13.0...v1.14.0)
+## [1.14.0](https://github.com/browserless/chrome/compare/v1.13.0...v1.14.0)
 
 - New `WORKSPACE_DELETE_EXPIRED` and `WORKSPACE_EXPIRE_DAYS` to auto-cleanup workspace dirs.
 - README.md cleanup now that HTTPS is no longer required.
@@ -1430,20 +1439,20 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - New internal scheduler module, making future things like cron-based jobs a possibility.
 - Better internal types.
 
-# [1.13.0](https://github.com/browserless/chrome/compare/v1.12.0...v1.13.0)
+## [1.13.0](https://github.com/browserless/chrome/compare/v1.12.0...v1.13.0)
 
 - A minor refactor to consolidate calls to `url.parse` for performance gains.
 - Introduces a per-session based timeout that overrides the global timeout.
 - Consolidates authorization checks to remove duplication.
 - Moves more types into their backing modules in order to better consolidate files.
 
-# [1.12.0](https://github.com/browserless/chrome/compare/v1.11.0...v1.12.0)
+## [1.12.0](https://github.com/browserless/chrome/compare/v1.11.0...v1.12.0)
 
 - Set's a non-conflicting `WORKSPACE_DIR` and `DEFAULT_USER_DATA_DIR` in docker by default.
 - Drops support for puppeteer `1.15.0` and adds `1.19.0`.
 - Web-based debugger now sends cookies for docker deployments that are secure.
 
-# [1.11.0](https://github.com/browserless/chrome/compare/v1.10.0...v1.11.0)
+## [1.11.0](https://github.com/browserless/chrome/compare/v1.10.0...v1.11.0)
 
 - Live debugger is now self-hosted, no more enforced https though it's still recommended.
 - Consolidated build steps.
@@ -1454,7 +1463,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Support for `/json/new` protocol.
 - Dependency updates.
 
-# [1.10.0](https://github.com/browserless/chrome/compare/v1.9.0...v1.10.0)
+## [1.10.0](https://github.com/browserless/chrome/compare/v1.9.0...v1.10.0)
 
 - Dropped support for puppeteer `1.9.0 => 1.14.0`.
 - Added support for puppeteer `1.16.0 => 1.18.0`.
@@ -1468,14 +1477,14 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - The debugger now filters out `about:blank` pages, and includes sessions by Selenium.
 - Workspace support for selenium-based integrations.
 
-# [1.9.0](https://github.com/browserless/chrome/compare/v1.8.0...v1.9.0)
+## [1.9.0](https://github.com/browserless/chrome/compare/v1.8.0...v1.9.0)
 
 - Better handling of browser/socket closing in puppeteer integrations.
 - Numerous screencast fixes.
 - Moved all GH links to new repo location.
 - Dep updates.
 
-# [1.8.0](https://github.com/browserless/chrome/compare/v1.7.0...v1.8.0)
+## [1.8.0](https://github.com/browserless/chrome/compare/v1.7.0...v1.8.0)
 
 - Better windows dev experience.
 - Indian font support.
@@ -1483,12 +1492,12 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Dependency updates.
 - DEFAULT env variables for launching pre-booted Chrome.
 
-# 1.7.0
+## 1.7.0
 
 - Dep updates
 - New `?blockAds` query-parameter for disabling 3rd-party ad calls.
 
-# 1.6.0
+## 1.6.0
 
 - New `authenticate` and `setExtraHTTPHeaders` params for the `content`, `pdf`, and `screenshot` APIs. Useful for using proxies in our REST APIs.
 - Fixed a bunch of bugs inside of the webdriver integration, making it more REST-ful.
@@ -1496,7 +1505,7 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - New `DISABLE_AUTO_SET_DOWNLOAD_BEHAVIOR` for mitigating errors in puppeteer < 1.15.0.
 - Bumped Puppeteer to 1.15.0.
 
-# 1.5.0
+## 1.5.0
 
 - New `/session` API (and accompanying routes) for display/viewing active sesions in a remote debugger(!).
 - New `?pause` query-param for pausing sessions prior to running them (useful for the live debug viewer).
@@ -1505,21 +1514,21 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - Move to use `node@10`.
 - No more `no-implicit-any`'s inside the codebase.
 
-# 1.4.0
+## 1.4.0
 
 - During connection, we now set the download dir of REST and puppeteer sessions. Cloud users and docker users no longer have to manually set this field, and the `/workspace` API references it as well!
 
-# 1.3.1
+## 1.3.1
 
-# Fixes
+## Fixes
 
 - New deploy.js file to do deployments "on-prem"
 - Updated new builds for puppeteer 1.12.2 and 1.13.0
 - Fixes an issues in CORS handling
 
-# 1.3.0
+## 1.3.0
 
-# Minor changes
+## Minor changes
 
 - The `screenshot`, `function`, `pdf`, and `content` API's now accept new content-types for easier POSTing of small payloads (see docsite).
 - The `screencast` API can now start/stop recording programmatically via a `startScreencast` and `stopScreencast` params (see docsite).
@@ -1527,26 +1536,26 @@ browserless 2.0.0 represents the best body of work after running browserless for
 - A new `timeout` query-option for session-based timeouts vs using the global one.
 - New `requestInterceptors` for injection custom request behavior.
 
-# Fixes
+## Fixes
 
 - Numerous default fixes in the APIs.
 - Stray consoles removed :)
 - Consolidated download behavior in `screencast` and `download` APIs
 
-# 1.2.0
+## 1.2.0
 
-# Minor Changes
+## Minor Changes
 
 - New `requestInterceptors` for the /screenshot API, [allowing you to mock data in response to a request](https://github.com/browserless/chrome/pull/119).
 - Code debugger now transmits code over-the-wire via cookies to avoid URL max-length issues.
 - Now supports cookie-based authentication via a `browserless_token=TOKEN;` cookie.
 
-# Fixes
+## Fixes
 
 - [Comments in the debugger won't break it.](https://github.com/browserless/chrome/issues/118)
 - Requests that are rejected due to auth reasons aren't logged in stats.
 
-# 1.1.0
+## 1.1.0
 
 With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Both use-cases are tightly coupled to the file-system, and can leave you scratching your head as to what's going one. For more information and detailed documentation, please refer to our doc-site at https://www.browserless.io/
 
@@ -1562,7 +1571,7 @@ With 1.1.0 we offer a refined way of dealing with both downloads and uploads. Bo
 - Renamed the `browserless-web-service` module to just `browserless` for simplicity.
 - Moved the `DOWNLOAD_DIR` to `WORKSPACE_DIR` since it handles both uploads and downloads.
 
-# 1.0.0
+## 1.0.0
 
 🥁 -- Stable version 1.0 is here! While this doesn't include major functionality changes, it _does_ change how the docker builds are generated going forward. The versioning will now contain two pieces of crucial information: the version of the _browserless_ service + the version of Chrome under-the-hood. For instance `1.2.3-puppeteer-1.10.0` is browserless at `1.2.3`, exposing puppeteer at `1.10.0`.
 
