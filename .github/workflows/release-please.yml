@@ -1,0 +1,114 @@
+name: Release Please
+
+# Maintains a single "Release PR" off main. As conventional-commit changes land,
+# release-please bumps package.json, regenerates CHANGELOG.md, and updates
+# .release-please-manifest.json on that PR. Merging the PR creates the GitHub
+# Release and the vX.Y.Z tag, which in turn triggers npm-publish.yml and the
+# existing docker-publish-stable.yml (both listen on v2.* tags).
+#
+# The Release PR opens as a draft and is NOT auto-merged: the open PR is the
+# manual editing window. The browser-versions job below regenerates the
+# "Supports the following libraries and browsers" block from the published multi
+# image and commits it straight into CHANGELOG.md on the Release PR branch, so it
+# is there when you review. Reword entries as needed, then mark ready and merge.
+#
+# Two triggers feed the browser-versions refresh:
+#   - push to main: opens/updates the Release PR and inserts the block right away
+#     (from the current multi:latest, which may briefly predate this push).
+#   - workflow_run on "Publish Latest Docker Images …" completion: once the new
+#     multi:latest finishes building, re-run and re-insert so the block converges
+#     to the versions that will actually ship — no extra push needed.
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ['Publish Latest Docker Images to GitHub Container Registry']
+    types: [completed]
+    branches: [main]
+
+# Serialize runs so the push- and workflow_run-triggered runs can't push to the
+# Release PR branch concurrently. Don't cancel an in-flight release-please run.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    # On workflow_run, only proceed when the image build actually succeeded.
+    # (On push the second clause is never evaluated.)
+    if: >-
+      github.event_name == 'push' ||
+      github.event.workflow_run.conclusion == 'success'
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
+      pr_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName }}
+    steps:
+      # App token (not GITHUB_TOKEN) so the tag/PR it creates can trigger the
+      # downstream npm-publish and docker-publish workflows.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
+          private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # When a Release PR exists, regenerate the "Supports the following libraries and
+  # browsers" block from the published multi image and commit it into CHANGELOG.md
+  # on the Release PR branch. Runs after release-please (which recreates that
+  # branch each run) on both triggers — push to main, and once the new
+  # multi:latest finishes building (workflow_run) — so the block converges to the
+  # shipping versions. The insert is idempotent and scoped to the newest section.
+  browser-versions:
+    needs: release-please
+    if: needs.release-please.outputs.pr_number
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      # Check out the Release PR branch so the changelog commit lands on it.
+      # GITHUB_TOKEN is used to push, which intentionally does NOT re-trigger
+      # workflows (no release-please loop).
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-please.outputs.pr_branch }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      # multi:latest tracks main, so it is the image this release will ship.
+      # Anonymous pull works for public packages; log in for reliability.
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Insert browser/library versions into the changelog
+        run: |
+          node scripts/changelog-browser-versions.js > "${RUNNER_TEMP}/block.md"
+          node scripts/insert-changelog-browser-versions.js CHANGELOG.md < "${RUNNER_TEMP}/block.md"
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md already up to date."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add CHANGELOG.md
+          git commit -m 'chore: add browser versions to changelog'
+          git push

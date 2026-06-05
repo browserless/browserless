@@ -1,4 +1,4 @@
-# [Latest](https://github.com/browserless/browserless/compare/v2.51.0...main)
+# Changelog
 
 # [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
 - Dependency updates.
