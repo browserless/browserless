@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.51.2](https://github.com/browserless/browserless/compare/v2.51.1...v2.51.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* add repository field to package.json for npm provenance ([#5423](https://github.com/browserless/browserless/issues/5423)) ([be3af3a](https://github.com/browserless/browserless/commit/be3af3abc134333de7d2e56f21384b84ebfffd12))
+
 ## [2.51.1](https://github.com/browserless/browserless/compare/v2.51.0...v2.51.1) (2026-06-08)
 
 
