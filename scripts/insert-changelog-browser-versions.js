@@ -2,9 +2,9 @@
 //
 // insert-changelog-browser-versions.js
 //
-// Inserts a generated "Supports the following libraries and browsers:" block
-// into the newest (top) release section of CHANGELOG.md. Reads the block from
-// stdin — pair it with changelog-browser-versions.js:
+// Inserts a generated "Supported Libraries & Browsers" section into the newest
+// (top) release section of CHANGELOG.md. Reads the block from stdin — pair it
+// with changelog-browser-versions.js:
 //
 //   node scripts/changelog-browser-versions.js \
 //     | node scripts/insert-changelog-browser-versions.js [CHANGELOG.md]
