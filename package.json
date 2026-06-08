@@ -4,6 +4,10 @@
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/browserless/browserless.git"
+  },
   "type": "module",
   "types": "./build/exports.d.ts",
   "main": "./build/exports.js",
