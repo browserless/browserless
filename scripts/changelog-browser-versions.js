@@ -2,9 +2,9 @@
 //
 // changelog-browser-versions.js
 //
-// Emits the "Supports the following libraries and browsers:" block for the
-// CHANGELOG by introspecting a built browserless image, so the versions in a
-// release reflect what actually shipped rather than a hand-typed guess.
+// Emits the "Supported Libraries & Browsers" changelog section by introspecting
+// a built browserless image, so the versions in a release reflect what actually
+// shipped rather than a hand-typed guess.
 //
 // It runs ONE container off the multi image and, inside it:
 //   - reads puppeteer-core + the pinned playwright-core versions from
@@ -154,15 +154,19 @@ if (!data.edge)
     'WARN: Edge version unavailable (expected on a non-amd64 image).',
   );
 
+// Emitted as its own `###` section so release-please's changelog renders it
+// alongside "Features"/"Bug Fixes" rather than folding it into the previous
+// section's bullet list.
 const block = [
-  '- Supports the following libraries and browsers:',
-  `  - puppeteer-core: \`${data.puppeteer}\``,
-  `  - playwright-core: ${sentenceList(data.playwright)}`,
-  `  - Chromium: ${tick(data.chromium)}`,
-  `  - Chrome: ${amd64Only(data.chrome)}`,
-  `  - Firefox: ${tick(data.firefox)}`,
-  `  - Webkit: ${tick(data.webkit)}`,
-  `  - Edge: ${amd64Only(data.edge)}`,
+  '### Supported Libraries & Browsers',
+  '',
+  `- puppeteer-core: \`${data.puppeteer}\``,
+  `- playwright-core: ${sentenceList(data.playwright)}`,
+  `- Chromium: ${tick(data.chromium)}`,
+  `- Chrome: ${amd64Only(data.chrome)}`,
+  `- Firefox: ${tick(data.firefox)}`,
+  `- Webkit: ${tick(data.webkit)}`,
+  `- Edge: ${amd64Only(data.edge)}`,
 ].join('\n');
 
 process.stdout.write(block + '\n');
