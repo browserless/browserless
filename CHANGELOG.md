@@ -7,6 +7,19 @@
 
 * resolve npm publish/build warnings ([#5411](https://github.com/browserless/browserless/issues/5411)) ([ede6c25](https://github.com/browserless/browserless/commit/ede6c253cb72ca4ef16b50854b47cdfa99c37d84))
 
+<!-- browser-versions:start -->
+
+- Supports the following libraries and browsers:
+  - puppeteer-core: `25.1.0`
+  - playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+  - Chromium: `148.0.7778.96`
+  - Chrome: `149.0.7827.53` (amd64 only)
+  - Firefox: `150.0.2`
+  - Webkit: `26.4`
+  - Edge: `149.0.4022.52` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [v2.51.0](https://github.com/browserless/browserless/compare/v2.50.1...v2.51.0)
 - Dependency updates.
 - Feat: expose `route` on the `after()` AfterResponse hook.
