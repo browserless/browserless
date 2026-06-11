@@ -69,7 +69,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     });
     const { contentType, payload, page } = await handler(req, browser);
 
-    logger.info(`Got function response of "${contentType}"`);
+    logger.debug(`Got function response of "${contentType}"`);
     page.close();
     page.removeAllListeners();
 

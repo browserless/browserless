@@ -73,7 +73,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
         `.browserless.download.${id()}`,
       );
 
-      logger.info(`Generating a download directory at "${downloadPath}"`);
+      logger.debug(`Generating a download directory at "${downloadPath}"`);
       await mkdir(downloadPath);
       const handler = functionHandler(config, logger, { downloadPath });
       const response = await handler(req, browser).catch((e) => {
