@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.52.0](https://github.com/browserless/browserless/compare/v2.51.2...v2.52.0) (2026-06-11)
+
+
+### Features
+
+* bypass limiter for /devtools/browser/* reconnect route ([#5431](https://github.com/browserless/browserless/issues/5431)) ([f209655](https://github.com/browserless/browserless/commit/f209655336532639522782537a1c8fb20fd60708))
+
 ## [2.51.2](https://github.com/browserless/browserless/compare/v2.51.1...v2.51.2) (2026-06-08)
 
 
