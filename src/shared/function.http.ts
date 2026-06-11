@@ -81,7 +81,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
       if (!type) {
         throw new BadRequest(`Couldn't determine function's response type.`);
       } else {
-        logger.info(`Sending file-type response of "${type}"`);
+        logger.debug(`Sending file-type response of "${type}"`);
         const readStream = new Stream.PassThrough();
         readStream.end(response);
         res.setHeader('Content-Type', type);

@@ -89,7 +89,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.info('PDF API invoked with body:', req.body);
+    logger.debug('PDF API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'application/pdf'

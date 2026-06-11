@@ -91,7 +91,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.info('Screenshot API invoked with body:', req.body);
+    logger.debug('Screenshot API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'image/png'

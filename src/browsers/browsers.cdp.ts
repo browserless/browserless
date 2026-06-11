@@ -55,7 +55,7 @@ export class ChromiumCDP extends EventEmitter {
     this.blockAds = blockAds;
     this.logger = logger;
 
-    this.logger.info(`Starting new ${this.constructor.name} instance`);
+    this.logger.debug(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
@@ -92,7 +92,7 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('pageerror', (err) => {
-          this.logger.warn(err);
+          this.logger.debug(err);
         });
 
         page.on('framenavigated', (frame) => {
@@ -104,7 +104,7 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('requestfailed', (req) => {
-          this.logger.warn(`"${req.failure()?.errorText}": ${req.url()}`);
+          this.logger.debug(`"${req.failure()?.errorText}": ${req.url()}`);
         });
 
         const terminateIfBlocked = (
@@ -157,7 +157,7 @@ export class ChromiumCDP extends EventEmitter {
 
   public async close(): Promise<void> {
     if (this.browser) {
-      this.logger.info(
+      this.logger.debug(
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.emit('close');
@@ -184,7 +184,7 @@ export class ChromiumCDP extends EventEmitter {
     stealth,
   }: BrowserLauncherOptions): Promise<Browser> {
     this.port = await getPort();
-    this.logger.info(`${this.constructor.name} got open port ${this.port}`);
+    this.logger.debug(`${this.constructor.name} got open port ${this.port}`);
 
     const extensionLaunchArgs = options.args?.find((a) =>
       a.startsWith('--load-extension'),
@@ -247,7 +247,7 @@ export class ChromiumCDP extends EventEmitter {
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
-    this.logger.info(
+    this.logger.debug(
       finalOptions,
       `Launching ${this.constructor.name} Handler`,
     );
@@ -261,7 +261,7 @@ export class ChromiumCDP extends EventEmitter {
     // running=false before awaiting the inner close).
     this.browser.once('disconnected', () => {
       if (this.running) {
-        this.logger.info(
+        this.logger.warn(
           `${this.constructor.name} disconnected unexpectedly, emitting close`,
         );
         this.emit('close');
@@ -277,7 +277,7 @@ export class ChromiumCDP extends EventEmitter {
     });
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
-    this.logger.info(
+    this.logger.debug(
       `${this.constructor.name} is running on ${this.browserWSEndpoint}`,
     );
 
@@ -317,7 +317,7 @@ export class ChromiumCDP extends EventEmitter {
         );
       }
       socket.once('close', resolve);
-      this.logger.info(
+      this.logger.debug(
         `Proxying ${req.parsed.href} to ${this.constructor.name}`,
       );
 
@@ -376,7 +376,7 @@ export class ChromiumCDP extends EventEmitter {
       this.browser?.process()?.once('close', close);
       socket.once('close', close);
 
-      this.logger.info(
+      this.logger.debug(
         `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 

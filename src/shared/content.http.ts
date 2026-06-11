@@ -83,7 +83,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.info('Content API invoked with body:', req.body);
+    logger.debug('Content API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html

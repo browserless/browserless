@@ -148,7 +148,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           }
         })
         .on('end', () => {
-          logger.info(`Downloads successfully sent`);
+          logger.debug(`Downloads successfully sent`);
           rmDownload();
           return resolve();
         })

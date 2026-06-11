@@ -241,7 +241,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ) {
-    logger.info('Scrape API invoked with body:', req.body);
+    logger.debug('Scrape API invoked with body:', req.body);
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html
