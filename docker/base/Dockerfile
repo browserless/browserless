@@ -83,7 +83,7 @@ RUN apt-get update \
   && fc-cache -f -v \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash &&\
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION &&\
   npm install -g npm@$NPM_VERSION
