@@ -310,6 +310,35 @@ export const safeParse = (maybeJson: string): unknown | null => {
   }
 };
 
+const sensitiveBodyFields = [
+  'authenticate',
+  'authorization',
+  'cookies',
+  'headers',
+  'password',
+  'setExtraHTTPHeaders',
+  'token',
+];
+
+/**
+ * Returns a shallow copy of a request body safe for logging: fields that can
+ * carry credentials (cookies, auth headers, passwords) are replaced with a
+ * `[redacted]` marker.
+ */
+export const redactSensitiveBodyFields = (body: unknown): unknown => {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return body;
+  }
+  return Object.fromEntries(
+    Object.entries(body).map(([key, value]) => [
+      key,
+      sensitiveBodyFields.includes(key) && value !== undefined
+        ? '[redacted]'
+        : value,
+    ]),
+  );
+};
+
 export const removeNullStringify = (
   json: unknown,
   allowNull = true,

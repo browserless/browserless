@@ -21,6 +21,7 @@ import {
   dedent,
   isBase64Encoded,
   noop,
+  redactSensitiveBodyFields,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
@@ -89,7 +90,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.debug('PDF API invoked with body:', req.body);
+    logger.debug(
+      'PDF API invoked with body:',
+      redactSensitiveBodyFields(req.body),
+    );
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'application/pdf'

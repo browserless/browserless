@@ -20,6 +20,7 @@ import {
   contentTypes,
   isBase64Encoded,
   noop,
+  redactSensitiveBodyFields,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
@@ -83,7 +84,10 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.debug('Content API invoked with body:', req.body);
+    logger.debug(
+      'Content API invoked with body:',
+      redactSensitiveBodyFields(req.body),
+    );
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html
