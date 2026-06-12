@@ -2,6 +2,9 @@ name: Leak Check
 
 on: [workflow_call, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   Leak-Check:
     runs-on: ubuntu-24.04
