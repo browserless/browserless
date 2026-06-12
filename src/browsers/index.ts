@@ -197,8 +197,14 @@ export class BrowserManager {
       }
 
       const { port } = new URL(wsEndpoint);
-      const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
-      const protocolJSON = await res.json();
+      const protocolJSON = await this.fetchBrowserJSON<object>(
+        `http://127.0.0.1:${port}/json/protocol`,
+      );
+      if (!protocolJSON) {
+        throw new Error(
+          'There was an error fetching /json/protocol from the browser',
+        );
+      }
 
       this.protocolJSONCache = protocolJSON;
       return protocolJSON;
@@ -252,10 +258,17 @@ export class BrowserManager {
       }
 
       const { port } = new URL(wsEndpoint);
-      const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-      meta = await res.json();
+      meta = await this.fetchBrowserJSON<Record<string, string>>(
+        `http://127.0.0.1:${port}/json/version`,
+      );
     } finally {
       browser.close().catch(noop);
+    }
+
+    if (!meta) {
+      throw new ServerError(
+        'There was an error fetching /json/version from the browser',
+      );
     }
 
     const { 'WebKit-Version': webkitVersion } = meta;
@@ -267,13 +280,13 @@ export class BrowserManager {
     this.versionJSONCache = {
       ...meta,
       'Debugger-Version': debuggerVersion,
-    };
+    } as unknown as Omit<CDPJSONPayload, 'webSocketDebuggerUrl'>;
 
     return {
       ...meta,
       'Debugger-Version': debuggerVersion,
       webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
-    };
+    } as unknown as CDPJSONPayload;
   }
 
   /**
