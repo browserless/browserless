@@ -370,6 +370,45 @@ describe(`Limiter`, () => {
       });
     }));
 
+  it('excludes queue wait time from the reported job duration', async () => {
+    const config = new Config();
+    const monitoring = trackMonitoring(new Monitoring(config));
+    const metrics = new Metrics();
+    config.setConcurrent(1);
+    config.setQueued(1);
+
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    limiter.timeout = 10000;
+
+    const queueWaitMs = 200;
+    const executionMs = 50;
+
+    const blockingHandler = async () => sleep(queueWaitMs);
+    const queuedHandler = async () => sleep(executionMs);
+
+    const blockingJob = limiter.limit(
+      blockingHandler, asyncNoop, asyncNoop, noop,
+    );
+    const queuedJob = limiter.limit(
+      queuedHandler, asyncNoop, asyncNoop, noop,
+    );
+
+    const queuedAt = Date.now();
+    blockingJob();
+    await queuedJob();
+    await sleep(50);
+
+    const afterArgs = hooks.after.getCall(1).args[0];
+    const billedStart: number = afterArgs.start;
+
+    // The billed start must be AFTER the queue wait ended
+    expect(billedStart - queuedAt).to.be.greaterThanOrEqual(queueWaitMs - 20);
+
+    // The billed duration should approximate execution time, not execution + wait
+    const billedDuration = Date.now() - billedStart;
+    expect(billedDuration).to.be.lessThan(executionMs + 150);
+  });
+
   it('rejects via overCapacityFn when MachineStatsSource reports CPU overloaded', async () => {
     const sandbox = Sinon.createSandbox();
     try {

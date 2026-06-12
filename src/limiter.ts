@@ -247,6 +247,7 @@ export class Limiter extends q {
         }
 
         const bound: () => Promise<TResult | unknown> = async () => {
+          job.start = Date.now();
           this.logQueue(`Starting new job`);
           this.metrics.addRunning();
 
