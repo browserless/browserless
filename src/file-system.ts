@@ -38,19 +38,22 @@ export class FileSystem extends EventEmitter {
   ): Promise<void> {
     const prior = this.writeChains.get(path) ?? Promise.resolve();
     const task = prior.then(async () => {
-      const contents = await this.read(path, shouldEncode);
+      // Work on a copy — read() returns the live cached array, and the
+      // cache must only reflect the new entry once the disk write has
+      // succeeded, or a failed write leaves cache and file diverged.
+      const contents = [...(await this.read(path, shouldEncode))];
 
       contents.push(newContent);
       if (maxEntries && contents.length > maxEntries) {
         contents.splice(0, contents.length - maxEntries);
       }
-      this.fsMap.set(path, contents);
 
       const encoded = shouldEncode
         ? await encrypt(contents.join('\n'), this.currentAESKey)
         : contents.join('\n');
 
       await writeFile(path, encoded.toString());
+      this.fsMap.set(path, contents);
       await this.recordMtime(path);
     });
 
