@@ -6,6 +6,9 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  leak-check:
+    uses: ./.github/workflows/leak-check.yml
+
   test-chrome:
     uses: ./.github/workflows/docker-chrome.yml
 
