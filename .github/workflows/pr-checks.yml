@@ -29,5 +29,13 @@ jobs:
 
   automerge:
     needs:
-      [lint, test-chrome, test-chromium, test-firefox, test-webkit, test-multi]
+      [
+        lint,
+        leak-check,
+        test-chrome,
+        test-chromium,
+        test-firefox,
+        test-webkit,
+        test-multi,
+      ]
     uses: ./.github/workflows/merge-dependabot.yml
