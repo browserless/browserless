@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.52.0",
+  "version": "2.52.1",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -94,7 +94,7 @@
     "chai": "^6.2.2",
     "cross-env": "^10.1.0",
     "env-cmd": "^11.0.0",
-    "esbuild": "^0.28.0",
+    "esbuild": "^0.28.1",
     "esbuild-plugins-node-modules-polyfill": "^1.8.1",
     "eslint": "^10.4.1",
     "gunzip-maybe": "^1.4.2",

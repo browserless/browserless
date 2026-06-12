@@ -63,7 +63,7 @@ class BasePlaywright extends EventEmitter {
     this.config = config;
     this.logger = logger;
 
-    this.logger.info(`Starting new ${this.constructor.name} instance`);
+    this.logger.debug(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
@@ -109,7 +109,7 @@ class BasePlaywright extends EventEmitter {
 
   public async close(): Promise<void> {
     if (this.browser) {
-      this.logger.info(
+      this.logger.debug(
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.socket?.destroy();
@@ -155,7 +155,7 @@ class BasePlaywright extends EventEmitter {
     launcherOpts: BrowserLauncherOptions,
   ): Promise<playwright.BrowserServer> {
     const { options, pwVersion } = launcherOpts;
-    this.logger.info(`Launching ${this.constructor.name} Handler`);
+    this.logger.debug(`Launching ${this.constructor.name} Handler`);
 
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
     const opts = this.makeLaunchOptions(options);
@@ -167,7 +167,7 @@ class BasePlaywright extends EventEmitter {
     });
     const browserWSEndpoint = browser.wsEndpoint();
 
-    this.logger.info(
+    this.logger.debug(
       `${this.constructor.name} is running on ${browserWSEndpoint}`,
     );
     this.running = true;
@@ -180,7 +180,7 @@ class BasePlaywright extends EventEmitter {
     // normal close() path.
     browser.once('close', () => {
       if (this.running) {
-        this.logger.info(
+        this.logger.warn(
           `${this.constructor.name} closed unexpectedly, emitting close`,
         );
         this.socket?.destroy();
@@ -239,7 +239,7 @@ class BasePlaywright extends EventEmitter {
           `No browserWSEndpoint found, did you launch first?`,
         );
       }
-      this.logger.info(
+      this.logger.debug(
         `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 

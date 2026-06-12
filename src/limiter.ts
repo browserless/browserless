@@ -218,7 +218,9 @@ export class Limiter extends q {
                 this.webhooks.callFailedHealthURL();
                 this.metrics.addRejected();
                 overCapacityFn(...args);
-                return rej(new Error(`Health checks have failed, rejecting`));
+                return rej(
+                  new TooManyRequests(`Health checks have failed, rejecting`),
+                );
               }
             }
           }
@@ -248,6 +250,8 @@ export class Limiter extends q {
           }
 
           const bound: () => Promise<TResult | unknown> = async () => {
+            // Billing clock starts at execution, not queue admission
+            job.start = Date.now();
             this.logQueue(`Starting new job`);
             this.metrics.addRunning();
 

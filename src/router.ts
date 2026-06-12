@@ -112,12 +112,12 @@ export class Router extends EventEmitter {
   }
 
   protected onQueueFullHTTP(_req: Request, res: Response) {
-    this.log.warn(`Queue is full, sending 429 response`);
+    this.log.debug(`Queue is full, sending 429 response`);
     return writeResponse(res, 429, 'Too many requests');
   }
 
   protected onQueueFullWebSocket(_req: Request, socket: stream.Duplex) {
-    this.log.warn(`Queue is full, sending 429 response`);
+    this.log.debug(`Queue is full, sending 429 response`);
     return writeResponse(socket, 429, 'Too many requests');
   }
 

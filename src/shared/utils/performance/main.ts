@@ -79,7 +79,7 @@ export default async ({
 
     child.on('message', (payload: Message) => {
       if (payload.event === 'created') {
-        logger.info(`Child process is up, sending performance request`);
+        logger.debug(`Child process is up, sending performance request`);
         return child.send({
           config,
           event: 'start',
@@ -89,7 +89,7 @@ export default async ({
       }
 
       if (payload.event === 'complete') {
-        logger.info(`Performance gathered, closing and resolving request`);
+        logger.debug(`Performance gathered, closing and resolving request`);
         close(child.pid);
         return resolve({
           data: payload.data,

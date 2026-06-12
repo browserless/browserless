@@ -137,7 +137,7 @@ export default class StaticGetRoute extends HTTPRoute {
       return;
     }
 
-    logger.info(`Found new file "${foundFilePath}", caching path and serving`);
+    logger.debug(`Found new file "${foundFilePath}", caching path and serving`);
 
     const contentType = mimeTypes.get(path.extname(foundFilePath));
 
