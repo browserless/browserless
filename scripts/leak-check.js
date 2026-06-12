@@ -168,10 +168,16 @@ const scenarios = (wave) => [
     const browser = await puppeteer.connect({
       browserWSEndpoint: `${WS}?token=${TOKEN}`,
     });
-    const page = await browser.newPage();
-    await page.setContent('<h1>ws leak check</h1>');
-    await page.close();
-    await browser.disconnect();
+    // The finally guarantees the WS client disconnects even when page
+    // setup throws — a leaked client would hold its server session open
+    // and skew the very counters this harness asserts on.
+    try {
+      const page = await browser.newPage();
+      await page.setContent('<h1>ws leak check</h1>');
+      await page.close();
+    } finally {
+      await browser.disconnect().catch(() => undefined);
+    }
   }),
 ];
 
