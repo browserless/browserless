@@ -77,6 +77,10 @@ export class Browserless extends EventEmitter {
   server?: HTTPServer;
   metricsSaveInterval: number = 5 * 60 * 1000;
   metricsSaveIntervalID?: NodeJS.Timer;
+  // Most-recent entries kept in the metrics JSON file (~35 days at the
+  // default 5-minute cadence). Without a cap the file — and the in-memory
+  // cache plus every /metrics response built from it — grows forever.
+  metricsMaxEntries: number = 10_000;
 
   constructor({
     browserManager,
@@ -266,6 +270,7 @@ export class Browserless extends EventEmitter {
         metricsPath,
         JSON.stringify(aggregatedStats),
         false,
+        this.metricsMaxEntries,
       );
     }
   }
@@ -277,10 +282,15 @@ export class Browserless extends EventEmitter {
       );
     }
 
-    clearInterval(this.metricsSaveInterval);
+    // Clear the running timer (not the interval duration) or both timers
+    // keep firing and each one resets the other's metrics window.
+    clearInterval(this.metricsSaveIntervalID as unknown as number);
     this.metricsSaveInterval = interval;
     this.metricsSaveIntervalID = setInterval(
-      this.saveMetrics,
+      () =>
+        this.saveMetrics().catch((err) =>
+          this.logger.error(`Error saving metrics: ${err}`),
+        ),
       this.metricsSaveInterval,
     );
   }
@@ -511,7 +521,10 @@ export class Browserless extends EventEmitter {
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
-      () => this.saveMetrics(),
+      () =>
+        this.saveMetrics().catch((err) =>
+          this.logger.error(`Error saving metrics: ${err}`),
+        ),
       this.metricsSaveInterval,
     );
   }

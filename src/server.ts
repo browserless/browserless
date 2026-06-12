@@ -90,7 +90,9 @@ export class HTTPServer extends EventEmitter {
 
     this.logger.error(`Error handling request: ${e}\n${e.stack}`);
 
-    return writeResponse(res, 500, e.toString());
+    // Full details are logged above — don't echo internals (paths, stack
+    // fragments, library errors) back to the client.
+    return writeResponse(res, 500, 'Internal Server Error');
   }
 
   protected onHTTPUnauthorized(_req: Request, res: Response) {
@@ -171,12 +173,24 @@ export class HTTPServer extends EventEmitter {
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) {
+    const req = request as Request;
+    // Any throw out of this method is an unhandled rejection on the
+    // 'request' listener, which kills the whole process — catch and map
+    // to an error response instead.
+    try {
+      await this.handleRequestUnsafe(req, res);
+    } catch (e: unknown) {
+      this.handleErrorRequest(e as Error, res, req);
+    }
+  }
+
+  protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
+    const request = req as http.IncomingMessage;
     request.url = moveTokenToHeader(request);
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
 
-    const req = request as Request;
     const proceed = await this.hooks.before({ req, res });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
@@ -372,13 +386,35 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
+    const req = request as Request;
+
+    // A client resetting the connection mid-handshake emits 'error' on the
+    // raw socket; with no listener that's an uncaught exception that kills
+    // the process.
+    socket.on('error', (err) => {
+      this.logger.error(`WebSocket socket error: ${err.message}`);
+    });
+
+    // Same rationale as handleRequest: a throw here is an unhandled
+    // rejection on the 'upgrade' listener and crashes the process.
+    try {
+      await this.handleWebSocketUnsafe(req, socket, head);
+    } catch (e: unknown) {
+      this.handleErrorRequest(e as Error, socket, req);
+    }
+  }
+
+  protected async handleWebSocketUnsafe(
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) {
+    const request = req as http.IncomingMessage;
     request.url = moveTokenToHeader(request);
 
     this.logger.trace(
       `Handling inbound WebSocket request on "${request.url || ''}"`,
     );
-
-    const req = request as Request;
     const proceed = await this.hooks.before({ head, req, socket });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);

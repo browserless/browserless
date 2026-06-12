@@ -141,155 +141,165 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       ReturnType<ChromiumCDP['newPage']>
     >;
 
-    if (emulateMediaType) {
-      await page.emulateMediaType(emulateMediaType);
-    }
-
-    if (cookies.length) {
-      await page.setCookie(...cookies);
-    }
-
-    if (viewport) {
-      await page.setViewport(viewport);
-    }
-
-    if (userAgent) {
-      await page.setUserAgent(userAgent);
-    }
-
-    if (authenticate) {
-      await page.authenticate(authenticate);
-    }
-
-    if (setExtraHTTPHeaders) {
-      await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
-    }
-
-    if (setJavaScriptEnabled) {
-      await page.setJavaScriptEnabled(setJavaScriptEnabled);
-    }
-
-    if (
-      rejectRequestPattern.length ||
-      requestInterceptors.length ||
-      rejectResourceTypes.length
-    ) {
-      await page.setRequestInterception(true);
-
-      page.on('request', (req) => {
-        if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
-        ) {
-          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
-          return req.abort();
-        }
-        const interceptor = requestInterceptors.find((r) =>
-          req.url().match(r.pattern),
-        );
-        if (interceptor) {
-          return req.respond({
-            ...interceptor.response,
-            body: interceptor.response.body
-              ? isBase64Encoded(interceptor.response.body as string)
-                ? Buffer.from(interceptor.response.body, 'base64')
-                : interceptor.response.body
-              : undefined,
-          });
-        }
-        return req.continue();
-      });
-    }
-
-    const gotoResponse = url
-      ? await page
-          .goto(content, gotoOptions)
-          .catch(bestAttemptCatch(bestAttempt))
-      : await page
-          .setContent(content, toSetContentOptions(gotoOptions))
-          .catch(bestAttemptCatch(bestAttempt));
-
-    if (addStyleTag.length) {
-      for (const tag in addStyleTag) {
-        await page.addStyleTag(addStyleTag[tag]);
+    // Close the page on every exit path — a throw below (bad selector,
+    // navigation failure, timeout) must not leak the page into a
+    // keep-alive browser.
+    try {
+      if (emulateMediaType) {
+        await page.emulateMediaType(emulateMediaType);
       }
-    }
 
-    if (addScriptTag.length) {
-      for (const tag in addScriptTag) {
-        await page.addScriptTag(addScriptTag[tag]);
+      if (cookies.length) {
+        await page.setCookie(...cookies);
       }
-    }
 
-    if (waitForTimeout) {
-      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForFunction) {
-      await waitForFn(page, waitForFunction).catch(
-        bestAttemptCatch(bestAttempt),
-      );
-    }
-
-    if (waitForSelector) {
-      const { selector, hidden, timeout, visible } = waitForSelector;
-      await page
-        .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForEvent) {
-      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    const headers = {
-      'X-Response-Code': gotoResponse?.status(),
-      'X-Response-IP': gotoResponse?.remoteAddress().ip,
-      'X-Response-Port': gotoResponse?.remoteAddress().port,
-      'X-Response-Status': gotoResponse?.statusText(),
-      'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-    };
-
-    for (const [key, value] of Object.entries(headers)) {
-      if (value !== undefined) {
-        res.setHeader(key, value);
+      if (viewport) {
+        await page.setViewport(viewport);
       }
-    }
 
-    if (options?.fullPage) {
-      const height = await page
-        .evaluate(() => {
-          const body = document.body;
-          const html = document.documentElement;
+      if (userAgent) {
+        await page.setUserAgent(userAgent);
+      }
 
-          return Math.max(
-            body.scrollHeight,
-            body.offsetHeight,
-            html.clientHeight,
-            html.scrollHeight,
-            html.offsetHeight,
+      if (authenticate) {
+        await page.authenticate(authenticate);
+      }
+
+      if (setExtraHTTPHeaders) {
+        await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+      }
+
+      if (setJavaScriptEnabled) {
+        await page.setJavaScriptEnabled(setJavaScriptEnabled);
+      }
+
+      if (
+        rejectRequestPattern.length ||
+        requestInterceptors.length ||
+        rejectResourceTypes.length
+      ) {
+        await page.setRequestInterception(true);
+
+        page.on('request', (req) => {
+          if (
+            !!rejectRequestPattern.find((pattern) =>
+              req.url().match(pattern),
+            ) ||
+            rejectResourceTypes.includes(req.resourceType())
+          ) {
+            logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+            return req.abort();
+          }
+          const interceptor = requestInterceptors.find((r) =>
+            req.url().match(r.pattern),
           );
-        })
-        .catch((e) => {
-          logger.warn('Failed to evaluate page height:', e);
-          return 480; // default Puppeteer viewport height
+          if (interceptor) {
+            return req.respond({
+              ...interceptor.response,
+              body: interceptor.response.body
+                ? isBase64Encoded(interceptor.response.body as string)
+                  ? Buffer.from(interceptor.response.body, 'base64')
+                  : interceptor.response.body
+                : undefined,
+            });
+          }
+          return req.continue();
         });
-      options.height = height;
+      }
+
+      const gotoResponse = url
+        ? await page
+            .goto(content, gotoOptions)
+            .catch(bestAttemptCatch(bestAttempt))
+        : await page
+            .setContent(content, toSetContentOptions(gotoOptions))
+            .catch(bestAttemptCatch(bestAttempt));
+
+      if (addStyleTag.length) {
+        for (const tag in addStyleTag) {
+          await page.addStyleTag(addStyleTag[tag]);
+        }
+      }
+
+      if (addScriptTag.length) {
+        for (const tag in addScriptTag) {
+          await page.addScriptTag(addScriptTag[tag]);
+        }
+      }
+
+      if (waitForTimeout) {
+        await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForFunction) {
+        await waitForFn(page, waitForFunction).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      if (waitForSelector) {
+        const { selector, hidden, timeout, visible } = waitForSelector;
+        await page
+          .waitForSelector(selector, { hidden, timeout, visible })
+          .catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForEvent) {
+        await waitForEvt(page, waitForEvent).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      const headers = {
+        'X-Response-Code': gotoResponse?.status(),
+        'X-Response-IP': gotoResponse?.remoteAddress().ip,
+        'X-Response-Port': gotoResponse?.remoteAddress().port,
+        'X-Response-Status': gotoResponse?.statusText(),
+        'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      };
+
+      for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined) {
+          res.setHeader(key, value);
+        }
+      }
+
+      if (options?.fullPage) {
+        const height = await page
+          .evaluate(() => {
+            const body = document.body;
+            const html = document.documentElement;
+
+            return Math.max(
+              body.scrollHeight,
+              body.offsetHeight,
+              html.clientHeight,
+              html.scrollHeight,
+              html.offsetHeight,
+            );
+          })
+          .catch((e) => {
+            logger.warn('Failed to evaluate page height:', e);
+            return 480; // default Puppeteer viewport height
+          });
+        options.height = height;
+      }
+
+      const pdfStream = await page.createPDFStream(options);
+      const writableStream = new WritableStream({
+        write(chunk) {
+          res.write(chunk);
+        },
+        close() {
+          res.end();
+        },
+      });
+      await pdfStream.pipeTo(writableStream);
+
+      logger.debug('PDF API request completed');
+    } finally {
+      page.removeAllListeners();
+      page.close().catch(noop);
     }
-
-    const pdfStream = await page.createPDFStream(options);
-    const writableStream = new WritableStream({
-      write(chunk) {
-        res.write(chunk);
-      },
-      close() {
-        res.end();
-      },
-    });
-    await pdfStream.pipeTo(writableStream);
-
-    page.close().catch(noop);
-
-    logger.debug('PDF API request completed');
   }
 }

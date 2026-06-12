@@ -262,11 +262,26 @@ class BasePlaywright extends EventEmitter {
       let settled = false;
       let clientWS: WebSocket | undefined;
       let upstreamWS: WebSocket | undefined;
+      // Drops the bridge listeners (and the frame buffers their closures
+      // retain) at teardown instead of waiting for GC — under reconnect
+      // churn that retention adds up. A noop 'error' listener stays on so
+      // a late ECONNRESET during the closing handshake can't become an
+      // uncaught exception.
+      const detachBridgeListeners = (ws?: WebSocket) => {
+        if (!ws) return;
+        ws.removeAllListeners('message');
+        ws.removeAllListeners('open');
+        ws.removeAllListeners('close');
+        ws.removeAllListeners('error');
+        ws.on('error', () => {});
+      };
       const finish = (err?: Error) => {
         if (settled) return;
         settled = true;
         safeClose(clientWS);
         safeClose(upstreamWS);
+        detachBridgeListeners(clientWS);
+        detachBridgeListeners(upstreamWS);
         if (err) reject(err);
         else resolve();
       };
