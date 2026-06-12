@@ -217,7 +217,7 @@ export class Limiter extends q {
               this.webhooks.callFailedHealthURL();
               this.metrics.addRejected();
               overCapacityFn(...args);
-              return rej(new Error(`Health checks have failed, rejecting`));
+              return rej(new TooManyRequests(`Health checks have failed, rejecting`));
             }
           }
         }
