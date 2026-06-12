@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.52.1](https://github.com/browserless/browserless/compare/v2.52.0...v2.52.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* move remaining per-request route logs to debug ([b89b94e](https://github.com/browserless/browserless/commit/b89b94e24a55ae8fe56389a009e010a1d2f0271a))
+* redact credential-bearing fields from request-body debug logs ([b606f8a](https://github.com/browserless/browserless/commit/b606f8a912700bdfdfd51933ebb030bb2d774711))
+* set job start time at execution start, not queue time ([#5436](https://github.com/browserless/browserless/issues/5436)) ([a121257](https://github.com/browserless/browserless/commit/a1212578dc513f6bb3d0bfbad83dc998d3c3941b))
+* right-size log levels for per-request and page-relayed logs ([90711d6](https://github.com/browserless/browserless/commit/90711d6b89702191c276ac1fbdb3ad13a1cc61e3), [5d432f1](https://github.com/browserless/browserless/commit/5d432f1c6293d470b6c76216a62e3f13a5772516))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+- Chromium: `148.0.7778.96`
+- Chrome: `149.0.7827.114` (amd64 only)
+- Firefox: `150.0.2`
+- Webkit: `26.4`
+- Edge: `149.0.4022.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.52.0](https://github.com/browserless/browserless/compare/v2.51.2...v2.52.0) (2026-06-11)
 
 
