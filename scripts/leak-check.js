@@ -24,9 +24,8 @@ import { tmpdir } from 'os';
 // Must be set before the package import below evaluates Config — default
 // logging would otherwise drown the per-wave report lines.
 process.env.DEBUG ??= 'quiet';
-const { Browserless, Config, Metrics } = await import(
-  '@browserless.io/browserless'
-);
+const { Browserless, Config, Metrics } =
+  await import('@browserless.io/browserless');
 
 if (typeof global.gc !== 'function') {
   console.error('Run with --expose-gc: node --expose-gc scripts/leak-check.js');
@@ -62,8 +61,9 @@ const settleAndMeasure = async () => {
 
 const mb = (n) => `${(n / 1024 / 1024).toFixed(2)}MB`;
 
-// Run thunks with bounded concurrency; failures are collected, not thrown —
-// the point is lifecycle behavior under errors, not request success.
+// Run thunks with bounded concurrency; failures are collected, not thrown,
+// so one bad request doesn't abort the wave — they're reported in the
+// final verdict instead.
 const pool = async (thunks, width = 4) => {
   const failures = [];
   const queue = [...thunks];
@@ -82,51 +82,66 @@ const pool = async (thunks, width = 4) => {
   return failures;
 };
 
-const drain = async (res) => {
+const drain = async (res, expectedStatuses = [200]) => {
   // Consume the body so sockets/streams actually complete
   await res.arrayBuffer().catch(() => undefined);
+  if (!expectedStatuses.includes(res.status)) {
+    throw new Error(
+      `${res.url}: expected status ${expectedStatuses.join('/')}, got ${res.status}`,
+    );
+  }
   return res;
 };
 
 const scenarios = (wave) => [
   // Router + static-fallback + 404 error path
-  ...Array.from({ length: 30 }, (_, i) => () =>
-    fetch(`${HTTP}/leak-check-nope-${wave}-${i}`).then(drain),
+  ...Array.from(
+    { length: 30 },
+    (_, i) => () =>
+      fetch(`${HTTP}/leak-check-nope-${wave}-${i}`).then((r) =>
+        drain(r, [404]),
+      ),
   ),
 
   // Unauthorized path (metrics counters, early return)
-  ...Array.from({ length: 5 }, () => () =>
-    fetch(`${HTTP}/sessions?token=wrong-token`).then(drain),
+  ...Array.from(
+    { length: 5 },
+    () => () =>
+      fetch(`${HTTP}/sessions?token=wrong-token`).then((r) => drain(r, [401])),
   ),
 
   // Management APIs (file-system cache, monitoring, session JSON)
-  ...['/metrics', '/pressure', '/sessions', '/config'].map((p) => () =>
-    fetch(`${HTTP}${p}?token=${TOKEN}`).then(drain),
+  ...['/metrics', '/pressure', '/sessions', '/config'].map(
+    (p) => () => fetch(`${HTTP}${p}?token=${TOKEN}`).then(drain),
   ),
 
   // Cached version endpoint (one throwaway browser total, not per call)
   () => fetch(`${HTTP}/json/version?token=${TOKEN}`).then(drain),
 
   // Happy-path browser HTTP route
-  ...Array.from({ length: 5 }, (_, i) => () =>
-    fetch(`${HTTP}/chromium/content?token=${TOKEN}`, {
-      body: JSON.stringify({ html: `<h1>wave ${wave} run ${i}</h1>` }),
-      headers: { 'content-type': 'application/json' },
-      method: 'POST',
-    }).then(drain),
+  ...Array.from(
+    { length: 5 },
+    (_, i) => () =>
+      fetch(`${HTTP}/chromium/content?token=${TOKEN}`, {
+        body: JSON.stringify({ html: `<h1>wave ${wave} run ${i}</h1>` }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      }).then(drain),
   ),
 
   // Error path inside a browser route: selector never matches → 400 →
   // page must be torn down by the finally
-  ...Array.from({ length: 4 }, () => () =>
-    fetch(`${HTTP}/chromium/screenshot?token=${TOKEN}`, {
-      body: JSON.stringify({
-        html: '<h1>err path</h1>',
-        selector: '#does-not-exist',
-      }),
-      headers: { 'content-type': 'application/json' },
-      method: 'POST',
-    }).then(drain),
+  ...Array.from(
+    { length: 4 },
+    () => () =>
+      fetch(`${HTTP}/chromium/screenshot?token=${TOKEN}`, {
+        body: JSON.stringify({
+          html: '<h1>err path</h1>',
+          selector: '#does-not-exist',
+        }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      }).then((r) => drain(r, [400])),
   ),
 
   // Client disconnects mid-request: response race must complete the
@@ -194,10 +209,12 @@ const main = async () => {
   console.log(`Server up on :${PORT} — ${WAVES} waves, ~60 requests each\n`);
 
   const results = [];
+  const requestFailures = [];
 
   for (let wave = 1; wave <= WAVES; wave++) {
     const startedAt = Date.now();
     const failures = await pool(scenarios(wave));
+    requestFailures.push(...failures.map((f) => `wave ${wave}: ${f}`));
     // Let in-flight teardown (browser closes, dir deletes) finish
     await sleep(2000);
 
@@ -256,6 +273,7 @@ const main = async () => {
     );
   if (last.state.fsCacheEntries > 5)
     problems.push(`file-system cache has ${last.state.fsCacheEntries} entries`);
+  problems.push(...requestFailures);
   problems.push(...processErrors);
 
   console.log(
