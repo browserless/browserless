@@ -11,6 +11,20 @@
 * right-size log levels for per-request and page-relayed logs ([90711d6](https://github.com/browserless/browserless/commit/90711d6b89702191c276ac1fbdb3ad13a1cc61e3))
 * right-size log levels for per-request and page-relayed logs ([5d432f1](https://github.com/browserless/browserless/commit/5d432f1c6293d470b6c76216a62e3f13a5772516))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+- Chromium: `148.0.7778.96`
+- Chrome: `149.0.7827.114` (amd64 only)
+- Firefox: `150.0.2`
+- Webkit: `26.4`
+- Edge: `149.0.4022.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.52.0](https://github.com/browserless/browserless/compare/v2.51.2...v2.52.0) (2026-06-11)
 
 
