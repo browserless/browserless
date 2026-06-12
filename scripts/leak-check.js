@@ -17,9 +17,7 @@
  * Usage: npm run build:ts && node --expose-gc scripts/leak-check.js
  */
 import { readdir } from 'fs/promises';
-import path from 'path';
 import puppeteer from 'puppeteer-core';
-import { tmpdir } from 'os';
 
 // Must be set before the package import below evaluates Config — default
 // logging would otherwise drown the per-wave report lines.
@@ -181,10 +179,8 @@ const scenarios = (wave) => [
   }),
 ];
 
-const countDataDirs = async () => {
-  const dir = path.join(tmpdir(), 'browserless-data-dirs');
-  return (await readdir(dir).catch(() => [])).length;
-};
+const countDataDirs = async (dir) =>
+  (await readdir(dir).catch(() => [])).length;
 
 const internals = (browserless) => {
   // Protected fields are reachable at runtime; this is a dev-only check
@@ -212,6 +208,7 @@ const main = async () => {
 
   const browserless = new Browserless({ config, metrics: new Metrics() });
   await browserless.start();
+  const dataDir = await config.getDataDir();
   console.log(`Server up on :${PORT} — ${WAVES} waves, ~60 requests each\n`);
 
   const results = [];
@@ -226,7 +223,7 @@ const main = async () => {
 
     const mem = await settleAndMeasure();
     const state = internals(browserless);
-    const dataDirs = await countDataDirs();
+    const dataDirs = await countDataDirs(dataDir);
     results.push({ dataDirs, mem, state, wave });
 
     console.log(
