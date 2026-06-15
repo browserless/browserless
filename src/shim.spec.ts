@@ -193,6 +193,19 @@ describe('Request Shimming', () => {
     });
   });
 
+  describe('malformed launch', () => {
+    it('falls back to an empty launch object when launch is not a JSON object', () => {
+      // `?launch="foo"` parses to the primitive string "foo"; a legacy param
+      // triggers the shim, which then writes onto the parsed launch value. It
+      // must fall back to {} rather than throw on the non-object.
+      const url = 'wss://localhost?stealth=true&launch="foo"';
+      const final = 'wss://localhost/?launch={"stealth":true}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
   describe('token shimming', () => {
     it('converts token query parameters to an authorization header', () => {
       const url = 'wss://localhost?token=12345';

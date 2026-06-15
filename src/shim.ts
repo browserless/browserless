@@ -47,8 +47,18 @@ export function shimLegacyRequests(url: URL): URL {
     cliSwitches.length || shimParam.some((name) => names.includes(name));
 
   if (hasLegacyParams) {
-    const launchParams: CDPLaunchOptions =
-      safeParse(convertIfBase64(searchParams.get('launch') || '{}')) || {};
+    const parsedLaunch = safeParse(
+      convertIfBase64(searchParams.get('launch') || '{}'),
+    );
+    // The shim writes onto launchParams below, so fall back to {} unless the
+    // parsed value is a plain object — a primitive/array `launch` would throw.
+    const launchParams = (
+      parsedLaunch &&
+      typeof parsedLaunch === 'object' &&
+      !Array.isArray(parsedLaunch)
+        ? parsedLaunch
+        : {}
+    ) as CDPLaunchOptions;
     const ignoreDefaultArgs =
       searchParams.get('ignoreDefaultArgs') ?? launchParams.ignoreDefaultArgs;
     const ignoreHTTPSErrors =
