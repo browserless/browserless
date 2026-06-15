@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.52.2](https://github.com/browserless/browserless/compare/v2.52.1...v2.52.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ci:** use squash strategy for dependabot auto-merge ([#5441](https://github.com/browserless/browserless/issues/5441)) ([c88bb0b](https://github.com/browserless/browserless/commit/c88bb0bba06771b798b4260c47b4a71951b58ff4))
+* harden reliability, memory, and performance hot paths ([#5439](https://github.com/browserless/browserless/issues/5439)) ([d6f137f](https://github.com/browserless/browserless/commit/d6f137fc398cd69cc24a9a28a364dc97c5f9394e))
+
 ## [2.52.1](https://github.com/browserless/browserless/compare/v2.52.0...v2.52.1) (2026-06-12)
 
 
