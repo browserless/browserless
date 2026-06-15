@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.52.2](https://github.com/browserless/browserless/compare/v2.52.1...v2.52.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ci:** use squash strategy for dependabot auto-merge ([#5441](https://github.com/browserless/browserless/issues/5441)) ([c88bb0b](https://github.com/browserless/browserless/commit/c88bb0bba06771b798b4260c47b4a71951b58ff4))
+* harden reliability, memory, and performance hot paths ([#5439](https://github.com/browserless/browserless/issues/5439)) ([d6f137f](https://github.com/browserless/browserless/commit/d6f137fc398cd69cc24a9a28a364dc97c5f9394e))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.60.0`, `1.59.1`, `1.58.2`, `1.57.0`, and `1.56.1`.
+- Chromium: `148.0.7778.96`
+- Chrome: `149.0.7827.114` (amd64 only)
+- Firefox: `150.0.2`
+- Webkit: `26.4`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.52.1](https://github.com/browserless/browserless/compare/v2.52.0...v2.52.1) (2026-06-12)
 
 
