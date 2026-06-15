@@ -32,8 +32,19 @@
   </p>
 
   <p>
+    <!--
+      Docker pulls badge.
+      `browserless-docker-pulls.netlify.app/pulls` is browserless's own in-house
+      aggregator (see commit "Add a new in-house docker pull aggregator"),
+      maintained by the browserless team and hosted on Netlify. It sums the pull
+      counts of the browserless Docker Hub repositories and returns them as a
+      shields.io endpoint payload. If the endpoint is unavailable the badge simply
+      renders shields.io's default error state; to drop the dependency entirely,
+      swap this for shields.io's native `https://img.shields.io/docker/pulls/browserless/chrome`
+      badge (single repo) instead.
+    -->
     <a href="https://hub.docker.com/r/browserless/chrome">
-      <img src="https://img.shields.io/docker/pulls/browserless/chrome?style=flat-square" alt="Docker pulls" />
+      <img src="https://img.shields.io/endpoint?url=https://browserless-docker-pulls.netlify.app/pulls&style=flat-square" alt="Docker pulls" />
     </a>
     <a href="https://github.com/browserless/browserless">
       <img src="https://img.shields.io/github/stars/browserless/browserless?style=flat-square" alt="GitHub stars" />
