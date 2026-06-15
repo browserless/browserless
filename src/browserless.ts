@@ -266,7 +266,10 @@ export class Browserless extends EventEmitter {
 
     if (metricsPath) {
       this.logger.info(`Saving metrics to "${metricsPath}"`);
-      this.fileSystem.append(
+      // Awaited so a write rejection surfaces through saveMetrics()'s caller
+      // (the setInterval .catch below) instead of becoming an unhandled
+      // rejection — append() returns the raw, rejectable write task.
+      await this.fileSystem.append(
         metricsPath,
         JSON.stringify(aggregatedStats),
         false,

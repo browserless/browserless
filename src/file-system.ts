@@ -26,8 +26,11 @@ export class FileSystem extends EventEmitter {
    * @param path The filepath to persist contents to
    * @param newContent A string of new content to add to the file
    * @param shouldEncode Whether contents are AES encoded on disk
-   * @param maxEntries When set, only the most recent N entries are kept,
-   * bounding both the file and its in-memory cache
+   * @param maxEntries When set (a positive integer), only the most recent N
+   * entries are kept, bounding both the file and its in-memory cache. Throws
+   * for a non-integer or non-positive value — a negative count would splice
+   * away the entry just appended (silent data loss) and 0 would disable the
+   * cap it was meant to enforce.
    * @returns void
    */
   public async append(
@@ -36,6 +39,15 @@ export class FileSystem extends EventEmitter {
     shouldEncode: boolean,
     maxEntries?: number,
   ): Promise<void> {
+    if (
+      maxEntries !== undefined &&
+      (!Number.isInteger(maxEntries) || maxEntries < 1)
+    ) {
+      throw new Error(
+        `maxEntries must be a positive integer when set, got "${maxEntries}"`,
+      );
+    }
+
     const prior = this.writeChains.get(path) ?? Promise.resolve();
     const task = prior.then(async () => {
       // Work on a copy — read() returns the live cached array, and the
@@ -59,10 +71,16 @@ export class FileSystem extends EventEmitter {
 
     // Keep the chain alive past failures so one bad write doesn't wedge
     // every subsequent append to this path.
-    this.writeChains.set(
-      path,
-      task.catch(() => undefined),
-    );
+    const chain = task.catch(() => undefined);
+    this.writeChains.set(path, chain);
+    // Reclaim the entry once this chain settles — unless a newer append for
+    // the same path has already replaced it — so the map doesn't retain one
+    // resolved promise per distinct path for the life of the process.
+    void chain.finally(() => {
+      if (this.writeChains.get(path) === chain) {
+        this.writeChains.delete(path);
+      }
+    });
 
     return task;
   }
