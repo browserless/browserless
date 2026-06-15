@@ -33,7 +33,7 @@
 
   <p>
     <a href="https://hub.docker.com/r/browserless/chrome">
-      <img src="https://img.shields.io/docker/pulls/browserless/chrome?style=flat-square" alt="Docker pulls" />
+      <img src="https://img.shields.io/endpoint?url=https://browserless-docker-pulls.netlify.app/pulls&style=flat-square" alt="Docker pulls" />
     </a>
     <a href="https://github.com/browserless/browserless">
       <img src="https://img.shields.io/github/stars/browserless/browserless?style=flat-square" alt="GitHub stars" />
