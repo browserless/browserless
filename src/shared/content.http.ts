@@ -132,127 +132,137 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
       ReturnType<ChromiumCDP['newPage']>
     >;
 
-    if (emulateMediaType) {
-      await page.emulateMediaType(emulateMediaType);
-    }
+    // Close the page on every exit path — a throw below (bad selector,
+    // navigation failure, timeout) must not leak the page into a
+    // keep-alive browser.
+    try {
+      if (emulateMediaType) {
+        await page.emulateMediaType(emulateMediaType);
+      }
 
-    if (cookies.length) {
-      await page.setCookie(...cookies);
-    }
+      if (cookies.length) {
+        await page.setCookie(...cookies);
+      }
 
-    if (viewport) {
-      await page.setViewport(viewport);
-    }
+      if (viewport) {
+        await page.setViewport(viewport);
+      }
 
-    if (userAgent) {
-      await page.setUserAgent(userAgent);
-    }
+      if (userAgent) {
+        await page.setUserAgent(userAgent);
+      }
 
-    if (authenticate) {
-      await page.authenticate(authenticate);
-    }
+      if (authenticate) {
+        await page.authenticate(authenticate);
+      }
 
-    if (setExtraHTTPHeaders) {
-      await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
-    }
+      if (setExtraHTTPHeaders) {
+        await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+      }
 
-    if (setJavaScriptEnabled) {
-      await page.setJavaScriptEnabled(setJavaScriptEnabled);
-    }
+      if (setJavaScriptEnabled) {
+        await page.setJavaScriptEnabled(setJavaScriptEnabled);
+      }
 
-    if (
-      rejectRequestPattern.length ||
-      requestInterceptors.length ||
-      rejectResourceTypes.length
-    ) {
-      await page.setRequestInterception(true);
+      if (
+        rejectRequestPattern.length ||
+        requestInterceptors.length ||
+        rejectResourceTypes.length
+      ) {
+        await page.setRequestInterception(true);
 
-      page.on('request', (req) => {
-        if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
-        ) {
-          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
-          return req.abort();
+        page.on('request', (req) => {
+          if (
+            !!rejectRequestPattern.find((pattern) =>
+              req.url().match(pattern),
+            ) ||
+            rejectResourceTypes.includes(req.resourceType())
+          ) {
+            logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+            return req.abort();
+          }
+          const interceptor = requestInterceptors.find((r) =>
+            req.url().match(r.pattern),
+          );
+          if (interceptor) {
+            return req.respond({
+              ...interceptor.response,
+              body: interceptor.response.body
+                ? isBase64Encoded(interceptor.response.body as string)
+                  ? Buffer.from(interceptor.response.body, 'base64')
+                  : interceptor.response.body
+                : undefined,
+            });
+          }
+          return req.continue();
+        });
+      }
+
+      const gotoResponse = url
+        ? await page
+            .goto(content, gotoOptions)
+            .catch(bestAttemptCatch(bestAttempt))
+        : await page
+            .setContent(content, toSetContentOptions(gotoOptions))
+            .catch(bestAttemptCatch(bestAttempt));
+
+      if (addStyleTag.length) {
+        for (const tag in addStyleTag) {
+          await page.addStyleTag(addStyleTag[tag]);
         }
-        const interceptor = requestInterceptors.find((r) =>
-          req.url().match(r.pattern),
+      }
+
+      if (addScriptTag.length) {
+        for (const tag in addScriptTag) {
+          await page.addScriptTag(addScriptTag[tag]);
+        }
+      }
+
+      if (waitForTimeout) {
+        await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForFunction) {
+        await waitForFn(page, waitForFunction).catch(
+          bestAttemptCatch(bestAttempt),
         );
-        if (interceptor) {
-          return req.respond({
-            ...interceptor.response,
-            body: interceptor.response.body
-              ? isBase64Encoded(interceptor.response.body as string)
-                ? Buffer.from(interceptor.response.body, 'base64')
-                : interceptor.response.body
-              : undefined,
-          });
-        }
-        return req.continue();
-      });
-    }
+      }
 
-    const gotoResponse = url
-      ? await page
-          .goto(content, gotoOptions)
-          .catch(bestAttemptCatch(bestAttempt))
-      : await page
-          .setContent(content, toSetContentOptions(gotoOptions))
+      if (waitForSelector) {
+        const { selector, hidden, timeout, visible } = waitForSelector;
+        await page
+          .waitForSelector(selector, { hidden, timeout, visible })
           .catch(bestAttemptCatch(bestAttempt));
-
-    if (addStyleTag.length) {
-      for (const tag in addStyleTag) {
-        await page.addStyleTag(addStyleTag[tag]);
       }
-    }
 
-    if (addScriptTag.length) {
-      for (const tag in addScriptTag) {
-        await page.addScriptTag(addScriptTag[tag]);
+      if (waitForEvent) {
+        await waitForEvt(page, waitForEvent).catch(
+          bestAttemptCatch(bestAttempt),
+        );
       }
-    }
 
-    if (waitForTimeout) {
-      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
-    }
+      const headers = {
+        'X-Response-Code': gotoResponse?.status(),
+        'X-Response-IP': gotoResponse?.remoteAddress().ip,
+        'X-Response-Port': gotoResponse?.remoteAddress().port,
+        'X-Response-Status': gotoResponse?.statusText(),
+        'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      };
 
-    if (waitForFunction) {
-      await waitForFn(page, waitForFunction).catch(
-        bestAttemptCatch(bestAttempt),
-      );
-    }
-
-    if (waitForSelector) {
-      const { selector, hidden, timeout, visible } = waitForSelector;
-      await page
-        .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForEvent) {
-      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    const headers = {
-      'X-Response-Code': gotoResponse?.status(),
-      'X-Response-IP': gotoResponse?.remoteAddress().ip,
-      'X-Response-Port': gotoResponse?.remoteAddress().port,
-      'X-Response-Status': gotoResponse?.statusText(),
-      'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-    };
-
-    for (const [key, value] of Object.entries(headers)) {
-      if (value !== undefined) {
-        res.setHeader(key, value);
+      for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined) {
+          res.setHeader(key, value);
+        }
       }
+
+      const markup = await page.content();
+
+      logger.info('Content API request completed');
+
+      return writeResponse(res, 200, markup, contentTypes.html);
+    } finally {
+      page.removeAllListeners();
+      page.close().catch(noop);
     }
-
-    const markup = await page.content();
-
-    page.close().catch(noop);
-
-    logger.info('Content API request completed');
-
-    return writeResponse(res, 200, markup, contentTypes.html);
   }
 }

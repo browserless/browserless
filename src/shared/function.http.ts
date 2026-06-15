@@ -70,8 +70,8 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     const { contentType, payload, page } = await handler(req, browser);
 
     logger.debug(`Got function response of "${contentType}"`);
-    page.close();
     page.removeAllListeners();
+    page.close().catch(() => {});
 
     if (contentType === 'uint8array') {
       const response = new Uint8Array(payload as Buffer);

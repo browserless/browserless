@@ -111,12 +111,16 @@ export class ChromiumCDP extends EventEmitter {
           url: string,
           direction: 'request' | 'response',
         ): void => {
+          // Read patterns per call (they can change at runtime) but skip
+          // the normalize/match work entirely in the common empty case —
+          // this runs for every network request and response.
+          const patterns = this.config.getBlockedURLPatterns();
+          if (!patterns.length) {
+            return;
+          }
           // Wrap as `{ url }` so we share the Playwright bridge's
           // normalize + match helper rather than duplicating it.
-          const blocked = findBlockedUrlInMessage(
-            { url },
-            this.config.getBlockedURLPatterns(),
-          );
+          const blocked = findBlockedUrlInMessage({ url }, patterns);
           if (blocked) {
             this.logger.error(
               `Blocked URL pattern "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
@@ -310,29 +314,39 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      if (!this.browserWSEndpoint || !this.browser) {
-        throw new ServerError(
-          `No browserWSEndpoint found, did you launch first?`,
-        );
-      }
-      socket.once('close', resolve);
-      this.logger.debug(
-        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+    // Throws and rejections here (newPage failing, browser gone) must
+    // propagate to the caller — inside a promise-executor they'd be
+    // swallowed, the promise would never settle, and the browser would
+    // never be released back to the manager.
+    if (!this.browserWSEndpoint || !this.browser) {
+      throw new ServerError(
+        `No browserWSEndpoint found, did you launch first?`,
       );
+    }
 
-      const shouldMakePage = req.parsed.pathname.includes(
-        BLESS_PAGE_IDENTIFIER,
-      );
-      const page = shouldMakePage ? await this.browser.newPage() : null;
-      const pathname = page
-        ? path.join('/devtools', '/page', this.getPageId(page))
-        : req.parsed.pathname;
-      const target = new URL(pathname, this.browserWSEndpoint).href;
-      req.url = '';
+    this.logger.debug(
+      `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+    );
 
-      // Delete headers known to cause issues
-      delete req.headers.origin;
+    const shouldMakePage = req.parsed.pathname.includes(BLESS_PAGE_IDENTIFIER);
+    const page = shouldMakePage ? await this.browser.newPage() : null;
+    const pathname = page
+      ? path.join('/devtools', '/page', this.getPageId(page))
+      : req.parsed.pathname;
+    const target = new URL(pathname, this.browserWSEndpoint).href;
+    req.url = '';
+
+    // Delete headers known to cause issues
+    delete req.headers.origin;
+
+    return new Promise((resolve, reject) => {
+      // The page made for this connection lives only as long as the
+      // client socket — without this, keep-alive browsers accumulate a
+      // renderer per reconnect cycle.
+      socket.once('close', () => {
+        page?.close().catch(noop);
+        resolve();
+      });
 
       this.proxy.ws(
         req,
@@ -346,6 +360,7 @@ export class ChromiumCDP extends EventEmitter {
           this.logger.error(
             `Error proxying session to ${this.constructor.name}: ${error}`,
           );
+          page?.close().catch(noop);
           this.close();
           return reject(error);
         },

@@ -45,6 +45,7 @@ export class Logger {
    */
   public setSessionContext(context: SessionContext): void {
     this.sessionContext = { ...this.sessionContext, ...context };
+    this.cachedContextPrefix = null;
   }
 
   /**
@@ -55,6 +56,7 @@ export class Logger {
    */
   public setSessionValue(key: string, value: string): void {
     this.sessionContext[key] = value;
+    this.cachedContextPrefix = null;
   }
 
   /**
@@ -64,11 +66,18 @@ export class Logger {
     return { ...this.sessionContext };
   }
 
+  // Cached so high-volume logging doesn't rebuild the same strings on
+  // every call; invalidated when session context changes.
+  protected cachedContextPrefix: string | null = null;
+
   /**
    * Builds the context prefix that will be included in every log message.
    * Format: [IP] [trackingId=xxx] [sessionId=xxx] [path] [method]
    */
   protected get contextPrefix(): string {
+    if (this.cachedContextPrefix !== null) {
+      return this.cachedContextPrefix;
+    }
     const parts: string[] = [];
 
     // Add IP address
@@ -91,60 +100,45 @@ export class Logger {
       parts.push(`[${this.sessionContext.method} ${this.sessionContext.path}]`);
     }
 
-    return parts.length > 0 ? parts.join(' ') : '';
+    return (this.cachedContextPrefix = parts.length > 0 ? parts.join(' ') : '');
+  }
+
+  // Skips prefix construction entirely when the underlying debug namespace
+  // is disabled (the common case for trace/debug in production). Falls
+  // through when `enabled` is absent, e.g. SDK overrides with plain fns.
+  protected emit(fn: (...args: unknown[]) => void, messages: unknown[]) {
+    if ((fn as { enabled?: boolean }).enabled === false) {
+      return;
+    }
+    const prefix = this.contextPrefix;
+    if (prefix) {
+      fn(prefix, ...messages);
+    } else {
+      fn(...messages);
+    }
   }
 
   public trace(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._trace(prefix, ...messages);
-    } else {
-      this._trace(...messages);
-    }
+    this.emit(this._trace, messages);
   }
 
   public debug(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._debug(prefix, ...messages);
-    } else {
-      this._debug(...messages);
-    }
+    this.emit(this._debug, messages);
   }
 
   public info(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._info(prefix, ...messages);
-    } else {
-      this._info(...messages);
-    }
+    this.emit(this._info, messages);
   }
 
   public warn(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._warn(prefix, ...messages);
-    } else {
-      this._warn(...messages);
-    }
+    this.emit(this._warn, messages);
   }
 
   public error(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._error(prefix, ...messages);
-    } else {
-      this._error(...messages);
-    }
+    this.emit(this._error, messages);
   }
 
   public fatal(...messages: unknown[]) {
-    const prefix = this.contextPrefix;
-    if (prefix) {
-      this._fatal(prefix, ...messages);
-    } else {
-      this._fatal(...messages);
-    }
+    this.emit(this._fatal, messages);
   }
 }

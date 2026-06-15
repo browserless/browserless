@@ -49,6 +49,14 @@ export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
+  // /json/version and /json/protocol are invariant for the life of the
+  // installed binary — cache them so we don't boot a whole Chromium per
+  // metadata request.
+  protected protocolJSONCache: object | null = null;
+  protected versionJSONCache: Omit<
+    CDPJSONPayload,
+    'webSocketDebuggerUrl'
+  > | null = null;
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -59,16 +67,66 @@ export class BrowserManager {
     WebKitPlaywright.name,
   ];
 
+  // user-data-dirs whose deletion exhausted its retries; retried on an
+  // interval so a transient handle-hold doesn't permanently leak disk.
+  protected orphanedDataDirs: Set<string> = new Set();
+  protected orphanedDataDirSweeper: NodeJS.Timeout;
+
   constructor(
     protected config: Config,
     protected hooks: Hooks,
     protected fileSystem: FileSystem,
-  ) {}
+  ) {
+    this.orphanedDataDirSweeper = setInterval(
+      () => this.sweepOrphanedDataDirs(),
+      5 * 60 * 1000,
+    );
+    // Don't hold the process open for the sweeper
+    this.orphanedDataDirSweeper.unref?.();
+  }
 
   protected browserIsChrome(b: BrowserInstance) {
     return this.chromeBrowsers.some(
       (chromeBrowser) => b instanceof chromeBrowser,
     );
+  }
+
+  protected async sweepOrphanedDataDirs(): Promise<void> {
+    for (const dir of this.orphanedDataDirs) {
+      if (!(await exists(dir))) {
+        this.orphanedDataDirs.delete(dir);
+        continue;
+      }
+      try {
+        await deleteAsync(dir, { force: true });
+        this.orphanedDataDirs.delete(dir);
+        this.log.info(`Reclaimed previously-orphaned user-data-dir "${dir}"`);
+      } catch (err) {
+        this.log.debug(
+          `Orphaned user-data-dir "${dir}" still undeletable: ${err}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Fetches JSON from a local browser's HTTP endpoint with a hard timeout
+   * so a wedged Chrome can't stall management APIs; returns null on any
+   * failure (browser died, non-200, malformed JSON).
+   */
+  protected async fetchBrowserJSON<T>(url: string): Promise<T | null> {
+    try {
+      const response = await fetch(url, {
+        headers: { Host: '127.0.0.1' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        return null;
+      }
+      return (await response.json()) as T;
+    } catch {
+      return null;
+    }
   }
 
   protected async removeUserDataDir(userDataDir: string | null) {
@@ -87,8 +145,9 @@ export class BrowserManager {
       } catch (err) {
         if (attempt === totalAttempts - 1) {
           this.log.error(
-            `Failed to remove user-data-dir "${userDataDir}" after ${totalAttempts} attempts: ${err}`,
+            `Failed to remove user-data-dir "${userDataDir}" after ${totalAttempts} attempts: ${err}; queueing for background retry`,
           );
+          this.orphanedDataDirs.add(userDataDir);
           return;
         }
         await new Promise((resolve) =>
@@ -108,6 +167,9 @@ export class BrowserManager {
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
   public async getProtocolJSON(logger: Logger): Promise<object> {
+    if (this.protocolJSONCache) {
+      return this.protocolJSONCache;
+    }
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
         (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
@@ -122,20 +184,33 @@ export class BrowserManager {
       logger,
       userDataDir: null,
     });
-    await browser.launch({ options: {} });
-    const wsEndpoint = browser.wsEndpoint();
 
-    if (!wsEndpoint) {
-      throw new Error('There was an error launching the browser');
+    // The finally guarantees the throwaway browser dies even when the
+    // fetch or JSON parse throws — otherwise every failed request here
+    // leaked a Chrome process.
+    try {
+      await browser.launch({ options: {} });
+      const wsEndpoint = browser.wsEndpoint();
+
+      if (!wsEndpoint) {
+        throw new Error('There was an error launching the browser');
+      }
+
+      const { port } = new URL(wsEndpoint);
+      const protocolJSON = await this.fetchBrowserJSON<object>(
+        `http://127.0.0.1:${port}/json/protocol`,
+      );
+      if (!protocolJSON) {
+        throw new Error(
+          'There was an error fetching /json/protocol from the browser',
+        );
+      }
+
+      this.protocolJSONCache = protocolJSON;
+      return protocolJSON;
+    } finally {
+      browser.close().catch(noop);
     }
-
-    const { port } = new URL(wsEndpoint);
-    const res = await fetch(`http://127.0.0.1:${port}/json/protocol`);
-    const protocolJSON = await res.json();
-
-    browser.close();
-
-    return protocolJSON;
   }
 
   /**
@@ -144,6 +219,15 @@ export class BrowserManager {
    * When both Chrome and Chromium are installed, defaults to Chromium.
    */
   public async getVersionJSON(logger: Logger): Promise<CDPJSONPayload> {
+    // The external address can change at runtime, so only the static
+    // browser metadata is cached; webSocketDebuggerUrl is recomputed.
+    if (this.versionJSONCache) {
+      return {
+        ...this.versionJSONCache,
+        webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
+      } as CDPJSONPayload;
+    }
+
     this.log.debug(`Launching Chromium to generate /json/version results`);
     const Browser = (await availableBrowsers).find((InstalledBrowser) =>
       this.chromeBrowsers.some(
@@ -160,27 +244,49 @@ export class BrowserManager {
       logger,
       userDataDir: null,
     });
-    await browser.launch({ options: {} });
-    const wsEndpoint = browser.wsEndpoint();
 
-    if (!wsEndpoint) {
-      throw new ServerError('There was an error launching the browser');
+    // The finally guarantees the throwaway browser dies even when the
+    // fetch or JSON parse throws — otherwise every failed request here
+    // leaked a Chrome process.
+    let meta;
+    try {
+      await browser.launch({ options: {} });
+      const wsEndpoint = browser.wsEndpoint();
+
+      if (!wsEndpoint) {
+        throw new ServerError('There was an error launching the browser');
+      }
+
+      const { port } = new URL(wsEndpoint);
+      meta = await this.fetchBrowserJSON<Record<string, string>>(
+        `http://127.0.0.1:${port}/json/version`,
+      );
+    } finally {
+      browser.close().catch(noop);
     }
 
-    const { port } = new URL(wsEndpoint);
-    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-    const meta = await res.json();
-
-    browser.close();
+    if (!meta) {
+      throw new ServerError(
+        'There was an error fetching /json/version from the browser',
+      );
+    }
 
     const { 'WebKit-Version': webkitVersion } = meta;
-    const debuggerVersion = webkitVersion.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)[1];
+    // Some builds format WebKit-Version without an embedded hash — degrade
+    // to an empty Debugger-Version rather than throwing on [1] of null.
+    const debuggerVersion =
+      webkitVersion?.match(/\s\(@(\b[0-9a-f]{5,40}\b)/)?.[1] ?? '';
+
+    this.versionJSONCache = {
+      ...meta,
+      'Debugger-Version': debuggerVersion,
+    } as unknown as Omit<CDPJSONPayload, 'webSocketDebuggerUrl'>;
 
     return {
       ...meta,
       'Debugger-Version': debuggerVersion,
       webSocketDebuggerUrl: this.config.getExternalWebSocketAddress(),
-    };
+    } as unknown as CDPJSONPayload;
   }
 
   /**
@@ -199,13 +305,10 @@ export class BrowserManager {
         const wsEndpoint = browser.wsEndpoint();
         if (isChromeLike && wsEndpoint) {
           const port = new URL(wsEndpoint).port;
-          const response = await fetch(`http://127.0.0.1:${port}/json/list`, {
-            headers: {
-              Host: '127.0.0.1',
-            },
-          });
-          if (response.ok) {
-            const cdpJSON: Array<CDPJSONPayload> = await response.json();
+          const cdpJSON = await this.fetchBrowserJSON<Array<CDPJSONPayload>>(
+            `http://127.0.0.1:${port}/json/list`,
+          );
+          if (cdpJSON) {
             return cdpJSON.map((c) => {
               const webSocketDebuggerURL = new URL(c.webSocketDebuggerUrl);
               const devtoolsFrontendURL = new URL(
@@ -277,16 +380,10 @@ export class BrowserManager {
 
     if (this.browserIsChrome(browser) && internalWSEndpoint) {
       const browserURI = new URL(internalWSEndpoint);
-      const response = await fetch(
+      const body = await this.fetchBrowserJSON<Array<CDPJSONPayload>>(
         `http://127.0.0.1:${browserURI.port}/json/list`,
-        {
-          headers: {
-            Host: '127.0.0.1',
-          },
-        },
       );
-      if (response.ok) {
-        const body = await response.json();
+      if (body) {
         for (const page of body) {
           const pageURI = new URL(page.webSocketDebuggerUrl);
           const devtoolsFrontendUrl =
@@ -313,7 +410,7 @@ export class BrowserManager {
             browserWSEndpoint,
             devtoolsFrontendUrl,
             webSocketDebuggerUrl,
-          });
+          } as unknown as (typeof sessions)[number]);
         }
       }
     }
@@ -422,11 +519,20 @@ export class BrowserManager {
   ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
 
-    let formattedSessions: BrowserlessSessionJSON[] = [];
-    for (const [browser, session] of sessions) {
-      const formattedSession = await this.generateSessionJson(browser, session);
-      formattedSessions.push(...formattedSession);
-    }
+    // Query browsers concurrently and tolerate individual failures — one
+    // wedged or mid-shutdown browser shouldn't stall or 500 /sessions.
+    let formattedSessions: BrowserlessSessionJSON[] = (
+      await Promise.all(
+        sessions.map(([browser, session]) =>
+          this.generateSessionJson(browser, session).catch((err) => {
+            this.log.warn(
+              `Error generating session JSON for "${session.id}": ${err}`,
+            );
+            return [];
+          }),
+        ),
+      )
+    ).flat();
 
     if (trackingId) {
       formattedSessions = formattedSessions.filter(
@@ -542,22 +648,10 @@ export class BrowserManager {
               const { port } = new URL(
                 browser.wsEndpoint() as unknown as string,
               );
-              const response = await fetch(
+              const body = await this.fetchBrowserJSON<Array<CDPJSONPayload>>(
                 `http://127.0.0.1:${port}/json/list`,
-                {
-                  headers: {
-                    Host: '127.0.0.1',
-                  },
-                },
-              ).catch(() => ({
-                json: () => Promise.resolve([]),
-                ok: false,
-              }));
-              if (response.ok) {
-                const body: Array<CDPJSONPayload> = await response.json();
-                return body.map((b) => ({ ...b, browser }));
-              }
-              return [];
+              );
+              return body ? body.map((b) => ({ ...b, browser })) : [];
             }),
         );
         const found = allPages.flat().find((b) => b.id === id);
@@ -759,6 +853,9 @@ export class BrowserManager {
       ),
     );
     this.timers.forEach((t) => clearTimeout(t));
+    clearInterval(this.orphanedDataDirSweeper);
+    // Last-chance reclaim of dirs whose deletion failed during sessions
+    await this.sweepOrphanedDataDirs();
     this.browsers = new Map();
     this.timers = new Map();
     await this.stop();

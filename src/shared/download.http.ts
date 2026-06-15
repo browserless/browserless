@@ -66,91 +66,90 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      const config = this.config();
-      const downloadPath = path.join(
-        await config.getDownloadsDir(),
-        `.browserless.download.${id()}`,
-      );
+    const config = this.config();
+    const downloadPath = path.join(
+      await config.getDownloadsDir(),
+      `.browserless.download.${id()}`,
+    );
 
-      logger.debug(`Generating a download directory at "${downloadPath}"`);
-      await mkdir(downloadPath);
-      const handler = functionHandler(config, logger, { downloadPath });
-      const response = await handler(req, browser).catch((e) => {
-        logger.error(`Error running download code handler: "${e}"`);
-        reject(e);
+    logger.debug(`Generating a download directory at "${downloadPath}"`);
+    await mkdir(downloadPath);
+    const handler = functionHandler(config, logger, { downloadPath });
+    const { page } = await handler(req, browser).catch((e) => {
+      logger.error(`Error running download code handler: "${e}"`);
+      throw e;
+    });
+
+    logger.debug(`Download function has returned, finding downloads...`);
+    async function checkIfDownloadComplete(): Promise<string | null> {
+      if (res.headersSent) {
+        logger.trace(
+          `Request headers have been sent, terminating download watch.`,
+        );
         return null;
-      });
-
-      if (!response) {
-        return;
+      }
+      const [fileName] = await readdir(downloadPath);
+      if (!fileName || fileName.endsWith('.crdownload')) {
+        await sleep(500);
+        return checkIfDownloadComplete();
       }
 
-      const { page } = response;
-      logger.debug(`Download function has returned, finding downloads...`);
-      async function checkIfDownloadComplete(): Promise<string | null> {
-        if (res.headersSent) {
-          logger.trace(
-            `Request headers have been sent, terminating download watch.`,
-          );
-          return null;
-        }
-        const [fileName] = await readdir(downloadPath);
-        if (!fileName || fileName.endsWith('.crdownload')) {
-          await sleep(500);
-          return checkIfDownloadComplete();
-        }
+      logger.debug(`All files have finished downloading`);
 
-        logger.debug(`All files have finished downloading`);
+      return path.join(downloadPath, fileName);
+    }
 
-        return path.join(downloadPath, fileName);
-      }
-
-      const filePath = await checkIfDownloadComplete();
+    let filePath: string | null = null;
+    try {
+      filePath = await checkIfDownloadComplete();
+    } finally {
       logger.debug(`Closing pages.`);
-      page.close();
       page.removeAllListeners();
+      page.close().catch(() => {});
+    }
 
-      const rmDownload = once(
-        () =>
-          filePath &&
-          deleteAsync(filePath, { force: true })
-            .then(() => {
-              logger.debug(
-                `Successfully deleted downloads from disk at "${filePath}"`,
-              );
-            })
-            .catch((err) => {
-              logger.error(
-                `Error cleaning up downloaded files: "${err}" at "${filePath}"`,
-              );
-            }),
-      );
-
-      if (res.headersSent || !filePath) {
-        rmDownload();
-        return;
-      }
-      const contentType = mimeTypes.get(path.extname(filePath));
-      if (contentType) {
-        res.setHeader('Content-Type', contentType);
-      }
-
-      return createReadStream(filePath)
-        .on('error', (error) => {
-          if (error) {
-            rmDownload();
-            return reject(
-              new NotFound(
-                `Couldn't locate or send downloads in "${downloadPath}"`,
-              ),
+    const rmDownload = once(
+      () =>
+        filePath &&
+        deleteAsync(filePath, { force: true })
+          .then(() => {
+            logger.debug(
+              `Successfully deleted downloads from disk at "${filePath}"`,
             );
-          }
+          })
+          .catch((err) => {
+            logger.error(
+              `Error cleaning up downloaded files: "${err}" at "${filePath}"`,
+            );
+          }),
+    );
+
+    // Settle (rather than hang) when nothing was downloaded or a timeout
+    // already wrote the response — otherwise this request holds its
+    // concurrency slot until the global timeout fires.
+    if (res.headersSent || !filePath) {
+      rmDownload();
+      return;
+    }
+    const contentType = mimeTypes.get(path.extname(filePath));
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+
+    return new Promise((resolve, reject) => {
+      createReadStream(filePath as string)
+        .on('error', () => {
+          rmDownload();
+          reject(
+            new NotFound(
+              `Couldn't locate or send downloads in "${downloadPath}"`,
+            ),
+          );
         })
         .on('end', () => {
           logger.debug(`Downloads successfully sent`);
           rmDownload();
-          return resolve();
+          resolve();
         })
         .pipe(res);
     });

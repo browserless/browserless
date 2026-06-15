@@ -41,6 +41,12 @@ export class Router extends EventEmitter {
   protected httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
   protected webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
   protected hooks: Hooks;
+  // Glob-to-regex compilation is expensive enough to matter when it runs
+  // per-route per-request, so matchers are compiled once at registration.
+  protected pathMatchers = new WeakMap<
+    HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
+    Array<(test: string) => boolean>
+  >();
 
   constructor(
     protected config: Config,
@@ -63,6 +69,40 @@ export class Router extends EventEmitter {
         'Router constructed without explicit hooks — after() will use the no-op default for concurrency=false routes. SDK consumers subclassing Router should forward hooks via super(...).',
       );
     }
+  }
+
+  protected routeMatches(
+    route:
+      | HTTPRoute
+      | BrowserHTTPRoute
+      | WebSocketRoute
+      | BrowserWebsocketRoute,
+    pathname: string,
+  ): boolean {
+    const matchers = this.pathMatchers.get(route);
+    if (matchers) {
+      return matchers.some((m) => m(pathname));
+    }
+    // Routes added without going through register* (SDK subclasses
+    // mutating the arrays directly) fall back to per-call compilation.
+    return (route.path as Array<PathTypes>).some((p) =>
+      micromatch.isMatch(pathname, p),
+    );
+  }
+
+  protected compilePathMatchers(
+    route:
+      | HTTPRoute
+      | BrowserHTTPRoute
+      | WebSocketRoute
+      | BrowserWebsocketRoute,
+  ) {
+    this.pathMatchers.set(
+      route,
+      (route.path as Array<PathTypes>).map((p) =>
+        micromatch.matcher(p as string),
+      ),
+    );
   }
 
   protected getTimeout(req: Request) {
@@ -265,6 +305,7 @@ export class Router extends EventEmitter {
         )
       : this.wrapWithAfterHook(wrapped, route);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
+    this.compilePathMatchers(route);
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
       route.path.includes(path),
@@ -299,6 +340,7 @@ export class Router extends EventEmitter {
         )
       : this.wrapWithAfterHook(wrapped, route);
     route.path = Array.isArray(route.path) ? route.path : [route.path];
+    this.compilePathMatchers(route);
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();
     const duplicatePaths = registeredPaths.filter((path) =>
       route.path.includes(path),
@@ -327,10 +369,7 @@ export class Router extends EventEmitter {
     return (
       this.httpRoutes.find(
         (r) =>
-          // Once registered, paths are always an array here.
-          (r.path as Array<PathTypes>).some((p) =>
-            micromatch.isMatch(req.parsed.pathname, p),
-          ) &&
+          this.routeMatches(r, req.parsed.pathname) &&
           r.method === (req.method?.toLocaleLowerCase() as Methods) &&
           (accepts.some((a) => a.includes('*/*')) ||
             r.contentTypes.some((contentType) =>
@@ -346,10 +385,7 @@ export class Router extends EventEmitter {
   public async getRouteForWebSocketRequest(req: Request) {
     const { pathname } = req.parsed;
 
-    return this.webSocketRoutes.find((r) =>
-      // Once registered, paths are always an array here.
-      (r.path as Array<PathTypes>).some((p) => micromatch.isMatch(pathname, p)),
-    );
+    return this.webSocketRoutes.find((r) => this.routeMatches(r, pathname));
   }
 
   /**
