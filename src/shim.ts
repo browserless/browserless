@@ -47,8 +47,9 @@ export function shimLegacyRequests(url: URL): URL {
     cliSwitches.length || shimParam.some((name) => names.includes(name));
 
   if (hasLegacyParams) {
-    const launchParams: CDPLaunchOptions =
-      safeParse(convertIfBase64(searchParams.get('launch') || '{}')) || {};
+    const launchParams = (safeParse(
+      convertIfBase64(searchParams.get('launch') || '{}'),
+    ) || {}) as CDPLaunchOptions;
     const ignoreDefaultArgs =
       searchParams.get('ignoreDefaultArgs') ?? launchParams.ignoreDefaultArgs;
     const ignoreHTTPSErrors =

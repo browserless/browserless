@@ -396,6 +396,11 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   timeout?: number;
   userDataDir?: string;
   waitForInitialPage?: boolean;
+  // `launch` is a passthrough to puppeteer.launch(): the parsed object is
+  // spread straight to the launcher, which ignores keys it doesn't recognize.
+  // Forward launcher options outside this documented subset rather than
+  // rejecting the connection.
+  [key: string]: unknown;
 }
 
 export interface BrowserLauncherOptions {
@@ -420,6 +425,11 @@ export interface BrowserServerOptions {
   };
   timeout?: number;
   tracesDir?: string;
+  // `launch` is a passthrough to playwright.launchServer(): the parsed object
+  // is spread straight to the launcher, which ignores keys it doesn't
+  // recognize. Forward launcher options outside this documented subset rather
+  // than rejecting the connection.
+  [key: string]: unknown;
 }
 
 export interface BrowserlessSession {
