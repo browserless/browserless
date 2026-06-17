@@ -10,6 +10,7 @@ import {
   Methods,
   Request,
   SystemQueryParameters,
+  assertNavigationAllowed,
   contentTypes,
   jsonResponse,
 } from '@browserless.io/browserless';
@@ -52,6 +53,13 @@ export default class PerformancePost extends BrowserHTTPRoute {
     browser: BrowserInstance,
   ): Promise<void> {
     const config = this.config();
+    const { url } = req.body as BodySchema;
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
+
     const response = await main({
       browser,
       context: req.body as BodySchema,
