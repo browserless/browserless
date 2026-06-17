@@ -24,6 +24,59 @@ enum PlaywrightBrowserTypes {
   webkit = 'webkit',
 }
 
+/**
+ * Features browserless disables on top of the launched Playwright version's
+ * defaults. Chrome For Test (used by Playwright 1.57+) enforces Local Network
+ * Access checks that block WebSocket connections to localhost, which browserless
+ * relies on. See https://github.com/browserless/browserless/issues/5450
+ */
+export const browserlessChromiumDisabledFeatures: readonly string[] = [
+  'LocalNetworkAccessChecks',
+];
+
+const DISABLE_FEATURES_FLAG = '--disable-features';
+
+/**
+ * Extract every comma-joined value across all `--disable-features=` tokens in
+ * `args` (e.g. `['--disable-features=A,B', '--disable-features=C']` -> `['A','B','C']`).
+ */
+export const parseDisableFeatures = (args: readonly string[]): string[] =>
+  args
+    .filter((arg) => arg.startsWith(`${DISABLE_FEATURES_FLAG}=`))
+    .flatMap((arg) => arg.slice(arg.indexOf('=') + 1).split(','))
+    .map((feature) => feature.trim())
+    .filter(Boolean);
+
+/**
+ * Collapse every `--disable-features` token in `args` into a single trailing
+ * flag holding the union of the launched Playwright version's disabled features
+ * (resolved via `Config#getChromiumDisabledFeatures`), browserless's additions,
+ * and any caller-supplied features.
+ *
+ * `--disable-features` is single-valued on Chromium's command line: when it
+ * appears more than once Chrome keeps ONLY the last occurrence (values are not
+ * unioned). Playwright emits its own list first and appends caller args after
+ * it, so this merged flag — appended last — is the one Chromium keeps, and must
+ * therefore carry Playwright's list or those features are silently re-enabled
+ * (e.g. RenderDocument). See https://github.com/browserless/browserless/issues/5450
+ */
+export const withMergedChromiumDisableFeatures = (
+  args: readonly string[],
+  playwrightDisabledFeatures: readonly string[],
+): string[] => {
+  const merged = [
+    ...new Set([
+      ...playwrightDisabledFeatures,
+      ...browserlessChromiumDisabledFeatures,
+      ...parseDisableFeatures(args),
+    ]),
+  ];
+  return [
+    ...args.filter((arg) => !arg.startsWith(`${DISABLE_FEATURES_FLAG}=`)),
+    `${DISABLE_FEATURES_FLAG}=${merged.join(',')}`,
+  ];
+};
+
 class BasePlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
@@ -71,7 +124,7 @@ class BasePlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  protected makeLaunchOptions(opts: BrowserServerOptions) {
+  protected makeLaunchOptions(opts: BrowserServerOptions, pwVersion?: string) {
     // Strip headless=old as it'll cause issues with newer Chromium
     const args = (opts.args ?? []).filter((a) => !a.includes('--headless=old'));
     const hasHeadless =
@@ -85,10 +138,16 @@ class BasePlaywright extends EventEmitter {
     return {
       ...opts,
       args: [
-        ...args,
-        // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
-        // This is needed to allow WebSocket connections to localhost.
-        `--disable-features=LocalNetworkAccessChecks`,
+        // Merge browserless's required toggles into a single --disable-features
+        // flag. Chromium keeps only the LAST --disable-features on the command
+        // line, so a standalone flag would clobber the list the launched
+        // Playwright version passes, re-enabling features it disables (e.g.
+        // RenderDocument). The list is version-specific, resolved via Config.
+        // See https://github.com/browserless/browserless/issues/5450
+        ...withMergedChromiumDisableFeatures(
+          args,
+          this.config.getChromiumDisabledFeatures(pwVersion),
+        ),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath(),
@@ -163,7 +222,7 @@ class BasePlaywright extends EventEmitter {
     this.logger.debug(`Launching ${this.constructor.name} Handler`);
 
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
-    const opts = this.makeLaunchOptions(options);
+    const opts = this.makeLaunchOptions(options, pwVersion);
     const executablePath = await this.resolveExecutablePath(pwVersion!);
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
