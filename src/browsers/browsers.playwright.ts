@@ -24,6 +24,89 @@ enum PlaywrightBrowserTypes {
   webkit = 'webkit',
 }
 
+/**
+ * Chromium features Playwright disables by default — a 1:1 mirror of
+ * playwright-core's internal `chromiumSwitches` `disabledFeatures` list
+ * (verified against playwright-core 1.61.0).
+ *
+ * Why browserless re-declares them: `--disable-features` is a single-valued
+ * Chromium switch. When it appears more than once on the command line, Chrome
+ * keeps ONLY the last occurrence — the values are not unioned. Playwright emits
+ * its `--disable-features=<list>` first and appends caller args after it, so the
+ * flag browserless adds is the one Chrome keeps. If that flag does not itself
+ * carry Playwright's list, every feature Playwright disables (e.g. RenderDocument)
+ * is silently re-enabled.
+ * See https://github.com/browserless/browserless/issues/5450
+ *
+ * This list MUST stay 1:1 with the installed Playwright version. The drift test
+ * in browsers.playwright.spec.ts launches Playwright and fails if it adds or
+ * removes any feature relative to this array.
+ */
+export const playwrightChromiumDisabledFeatures: readonly string[] = [
+  'AvoidUnnecessaryBeforeUnloadCheckSync',
+  'BoundaryEventDispatchTracksNodeRemoval',
+  'DestroyProfileOnBrowserClose',
+  'DialMediaRouteProvider',
+  'GlobalMediaControls',
+  'HttpsUpgrades',
+  'LensOverlay',
+  'MediaRouter',
+  'PaintHolding',
+  'ThirdPartyStoragePartitioning',
+  'Translate',
+  'AutoDeElevate',
+  'RenderDocument',
+  'OptimizationHints',
+  'msForceBrowserSignIn',
+  'msEdgeUpdateLaunchServicesPreferredVersion',
+];
+
+/**
+ * Features browserless disables on top of Playwright's defaults. Chrome For Test
+ * (used by Playwright 1.57+) enforces Local Network Access checks that block
+ * WebSocket connections to localhost, which browserless relies on.
+ * See https://github.com/browserless/browserless/issues/5450
+ */
+export const browserlessChromiumDisabledFeatures: readonly string[] = [
+  'LocalNetworkAccessChecks',
+];
+
+const DISABLE_FEATURES_FLAG = '--disable-features';
+
+/**
+ * Extract every comma-joined value across all `--disable-features=` tokens in
+ * `args` (e.g. `['--disable-features=A,B', '--disable-features=C']` -> `['A','B','C']`).
+ */
+export const parseDisableFeatures = (args: readonly string[]): string[] =>
+  args
+    .filter((arg) => arg.startsWith(`${DISABLE_FEATURES_FLAG}=`))
+    .flatMap((arg) => arg.slice(arg.indexOf('=') + 1).split(','))
+    .map((feature) => feature.trim())
+    .filter(Boolean);
+
+/**
+ * Collapse every `--disable-features` token in `args` into a single trailing
+ * flag holding the union of Playwright's defaults, browserless's additions, and
+ * any caller-supplied features. The merged flag is appended last so it is the
+ * `--disable-features` occurrence Chromium keeps (see the note on
+ * {@link playwrightChromiumDisabledFeatures}).
+ */
+export const withMergedChromiumDisableFeatures = (
+  args: readonly string[],
+): string[] => {
+  const merged = [
+    ...new Set([
+      ...playwrightChromiumDisabledFeatures,
+      ...browserlessChromiumDisabledFeatures,
+      ...parseDisableFeatures(args),
+    ]),
+  ];
+  return [
+    ...args.filter((arg) => !arg.startsWith(`${DISABLE_FEATURES_FLAG}=`)),
+    `${DISABLE_FEATURES_FLAG}=${merged.join(',')}`,
+  ];
+};
+
 class BasePlaywright extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
@@ -85,10 +168,12 @@ class BasePlaywright extends EventEmitter {
     return {
       ...opts,
       args: [
-        ...args,
-        // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
-        // This is needed to allow WebSocket connections to localhost.
-        `--disable-features=LocalNetworkAccessChecks`,
+        // Merge browserless's required toggles into a single --disable-features
+        // flag. Chromium keeps only the LAST --disable-features on the command
+        // line, so a standalone flag would clobber the list Playwright passes,
+        // re-enabling features it disables (e.g. RenderDocument).
+        // See https://github.com/browserless/browserless/issues/5450
+        ...withMergedChromiumDisableFeatures(args),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath(),
