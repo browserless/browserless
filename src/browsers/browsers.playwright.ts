@@ -25,9 +25,11 @@ enum PlaywrightBrowserTypes {
 }
 
 /**
- * Chromium features Playwright disables by default — a 1:1 mirror of
- * playwright-core's internal `chromiumSwitches` `disabledFeatures` list
- * (verified against playwright-core 1.61.0).
+ * Chromium features Playwright disables by default, mirrored per supported
+ * Playwright version. browserless can launch any of several pinned Playwright
+ * versions (see `Config.loadPwVersion` / the `playwrightVersions` map in
+ * package.json), and their `chromiumSwitches` `disabledFeatures` lists differ
+ * slightly between versions.
  *
  * Why browserless re-declares them: `--disable-features` is a single-valued
  * Chromium switch. When it appears more than once on the command line, Chrome
@@ -38,9 +40,13 @@ enum PlaywrightBrowserTypes {
  * is silently re-enabled.
  * See https://github.com/browserless/browserless/issues/5450
  *
- * This list MUST stay 1:1 with the installed Playwright version. The drift test
- * in browsers.playwright.spec.ts launches Playwright and fails if it adds or
- * removes any feature relative to this array.
+ * These lists MUST stay 1:1 with the installed Playwright versions. The drift
+ * test in browsers.playwright.spec.ts launches each pinned version and fails if
+ * any adds or removes a feature relative to the mirror for that version.
+ *
+ * This is the default list — what the pinned `playwright-core` emits (currently
+ * 1.61, and identical for 1.60). Versions whose list differs are overridden in
+ * {@link playwrightChromiumDisabledFeaturesByVersion}.
  */
 export const playwrightChromiumDisabledFeatures: readonly string[] = [
   'AvoidUnnecessaryBeforeUnloadCheckSync',
@@ -60,6 +66,66 @@ export const playwrightChromiumDisabledFeatures: readonly string[] = [
   'msForceBrowserSignIn',
   'msEdgeUpdateLaunchServicesPreferredVersion',
 ];
+
+// 1.58 and 1.59 match the default except the ms*/Edge features, which Playwright
+// began disabling in 1.60.
+const playwright158And159DisabledFeatures: readonly string[] = [
+  'AvoidUnnecessaryBeforeUnloadCheckSync',
+  'BoundaryEventDispatchTracksNodeRemoval',
+  'DestroyProfileOnBrowserClose',
+  'DialMediaRouteProvider',
+  'GlobalMediaControls',
+  'HttpsUpgrades',
+  'LensOverlay',
+  'MediaRouter',
+  'PaintHolding',
+  'ThirdPartyStoragePartitioning',
+  'Translate',
+  'AutoDeElevate',
+  'RenderDocument',
+  'OptimizationHints',
+];
+
+/**
+ * Per-version overrides for Playwright versions whose `disabledFeatures` list
+ * differs from {@link playwrightChromiumDisabledFeatures}. Keyed by the
+ * major.minor `pwVersion` (see `pwVersionRegex`). Versions not listed here
+ * (e.g. '1.60', '1.61', 'default') use the default list.
+ */
+export const playwrightChromiumDisabledFeaturesByVersion: Readonly<
+  Record<string, readonly string[]>
+> = {
+  // 1.57 still disables AcceptCHFrame (crbug.com/1348106) and does not yet
+  // disable BoundaryEventDispatchTracksNodeRemoval or the ms*/Edge features.
+  '1.57': [
+    'AcceptCHFrame',
+    'AvoidUnnecessaryBeforeUnloadCheckSync',
+    'DestroyProfileOnBrowserClose',
+    'DialMediaRouteProvider',
+    'GlobalMediaControls',
+    'HttpsUpgrades',
+    'LensOverlay',
+    'MediaRouter',
+    'PaintHolding',
+    'ThirdPartyStoragePartitioning',
+    'Translate',
+    'AutoDeElevate',
+    'RenderDocument',
+    'OptimizationHints',
+  ],
+  '1.58': playwright158And159DisabledFeatures,
+  '1.59': playwright158And159DisabledFeatures,
+};
+
+/**
+ * Resolve the disabled-features mirror for a `pwVersion` key ('1.57', '1.61',
+ * 'default', …). Falls back to the default list for current/unknown versions.
+ */
+export const chromiumDisabledFeaturesForPwVersion = (
+  pwVersion?: string,
+): readonly string[] =>
+  (pwVersion && playwrightChromiumDisabledFeaturesByVersion[pwVersion]) ||
+  playwrightChromiumDisabledFeatures;
 
 /**
  * Features browserless disables on top of Playwright's defaults. Chrome For Test
@@ -86,17 +152,18 @@ export const parseDisableFeatures = (args: readonly string[]): string[] =>
 
 /**
  * Collapse every `--disable-features` token in `args` into a single trailing
- * flag holding the union of Playwright's defaults, browserless's additions, and
- * any caller-supplied features. The merged flag is appended last so it is the
- * `--disable-features` occurrence Chromium keeps (see the note on
- * {@link playwrightChromiumDisabledFeatures}).
+ * flag holding the union of the launched Playwright version's defaults,
+ * browserless's additions, and any caller-supplied features. The merged flag is
+ * appended last so it is the `--disable-features` occurrence Chromium keeps (see
+ * the note on {@link playwrightChromiumDisabledFeatures}).
  */
 export const withMergedChromiumDisableFeatures = (
   args: readonly string[],
+  pwVersion?: string,
 ): string[] => {
   const merged = [
     ...new Set([
-      ...playwrightChromiumDisabledFeatures,
+      ...chromiumDisabledFeaturesForPwVersion(pwVersion),
       ...browserlessChromiumDisabledFeatures,
       ...parseDisableFeatures(args),
     ]),
@@ -154,7 +221,7 @@ class BasePlaywright extends EventEmitter {
     this.removeAllListeners();
   }
 
-  protected makeLaunchOptions(opts: BrowserServerOptions) {
+  protected makeLaunchOptions(opts: BrowserServerOptions, pwVersion?: string) {
     // Strip headless=old as it'll cause issues with newer Chromium
     const args = (opts.args ?? []).filter((a) => !a.includes('--headless=old'));
     const hasHeadless =
@@ -170,10 +237,11 @@ class BasePlaywright extends EventEmitter {
       args: [
         // Merge browserless's required toggles into a single --disable-features
         // flag. Chromium keeps only the LAST --disable-features on the command
-        // line, so a standalone flag would clobber the list Playwright passes,
-        // re-enabling features it disables (e.g. RenderDocument).
+        // line, so a standalone flag would clobber the list the launched
+        // Playwright version passes, re-enabling features it disables (e.g.
+        // RenderDocument). The list is version-specific, hence pwVersion.
         // See https://github.com/browserless/browserless/issues/5450
-        ...withMergedChromiumDisableFeatures(args),
+        ...withMergedChromiumDisableFeatures(args, pwVersion),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath(),
@@ -248,7 +316,7 @@ class BasePlaywright extends EventEmitter {
     this.logger.debug(`Launching ${this.constructor.name} Handler`);
 
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
-    const opts = this.makeLaunchOptions(options);
+    const opts = this.makeLaunchOptions(options, pwVersion);
     const executablePath = await this.resolveExecutablePath(pwVersion!);
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
