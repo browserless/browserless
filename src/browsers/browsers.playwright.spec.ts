@@ -11,9 +11,7 @@ import {
   FirefoxPlaywright,
   WebKitPlaywright,
   browserlessChromiumDisabledFeatures,
-  chromiumDisabledFeaturesForPwVersion,
   parseDisableFeatures,
-  playwrightChromiumDisabledFeatures,
   withMergedChromiumDisableFeatures,
 } from './browsers.playwright.js';
 import net, { AddressInfo } from 'net';
@@ -837,9 +835,13 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   }) => unknown;
   // Build a launcher's args, dropping the empty strings launch() filters out
   // before handing them to launchServer.
-  const launchArgs = (Ctor: PwCtor, args: string[]): string[] => {
+  const launchArgs = (
+    Ctor: PwCtor,
+    args: string[],
+    config: Config = new Config(),
+  ): string[] => {
     const instance = new Ctor({
-      config: new Config(),
+      config,
       logger: new Logger('test'),
       userDataDir: null,
     });
@@ -848,20 +850,45 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       .args.filter((a) => !!a);
   };
 
+  // The default per-version list browserless ships (current Playwright).
+  const defaultFeatures = new Config().getChromiumDisabledFeatures();
+
+  describe('Config.getChromiumDisabledFeatures (overridable seam)', () => {
+    it('returns the default list for current/unknown versions', () => {
+      const cfg = new Config();
+      for (const v of [undefined, 'default', '1.60', '1.61', '1.99']) {
+        expect(cfg.getChromiumDisabledFeatures(v)).to.deep.equal(
+          defaultFeatures,
+        );
+      }
+      expect(defaultFeatures).to.include('RenderDocument');
+      expect(defaultFeatures).to.include(
+        'BoundaryEventDispatchTracksNodeRemoval',
+      );
+      expect(defaultFeatures).to.not.include('AcceptCHFrame');
+    });
+
+    it('returns a version-specific list where it differs (1.57)', () => {
+      const f157 = new Config().getChromiumDisabledFeatures('1.57');
+      expect(f157).to.include('AcceptCHFrame');
+      expect(f157).to.not.include('BoundaryEventDispatchTracksNodeRemoval');
+    });
+  });
+
   describe('withMergedChromiumDisableFeatures', () => {
     it('collapses everything into exactly one --disable-features flag', () => {
-      const out = withMergedChromiumDisableFeatures([
-        '--disable-features=CallerOne',
-        '--foo',
-      ]);
+      const out = withMergedChromiumDisableFeatures(
+        ['--disable-features=CallerOne', '--foo'],
+        defaultFeatures,
+      );
       expect(disableFeaturesFlags(out)).to.have.lengthOf(1);
     });
 
-    it('includes every Playwright default and every browserless addition', () => {
+    it('includes the provided Playwright list and every browserless addition', () => {
       const features = parseDisableFeatures(
-        withMergedChromiumDisableFeatures([]),
+        withMergedChromiumDisableFeatures([], defaultFeatures),
       );
-      for (const f of playwrightChromiumDisabledFeatures) {
+      for (const f of defaultFeatures) {
         expect(features, `missing Playwright feature "${f}"`).to.include(f);
       }
       for (const f of browserlessChromiumDisabledFeatures) {
@@ -869,22 +896,22 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       }
     });
 
-    it('keeps RenderDocument (Playwright) AND LocalNetworkAccessChecks (browserless) together', () => {
+    it('keeps the Playwright list AND LocalNetworkAccessChecks together', () => {
       // Core regression: the old standalone
       // `--disable-features=LocalNetworkAccessChecks` overrode Playwright's list
       // and re-enabled RenderDocument.
       const features = parseDisableFeatures(
-        withMergedChromiumDisableFeatures([]),
+        withMergedChromiumDisableFeatures([], defaultFeatures),
       );
       expect(features).to.include('RenderDocument');
       expect(features).to.include('LocalNetworkAccessChecks');
     });
 
     it('merges caller-supplied --disable-features rather than dropping them', () => {
-      const out = withMergedChromiumDisableFeatures([
-        '--disable-features=CallerOne,CallerTwo',
-        '--window-size=800,600',
-      ]);
+      const out = withMergedChromiumDisableFeatures(
+        ['--disable-features=CallerOne,CallerTwo', '--window-size=800,600'],
+        defaultFeatures,
+      );
       expect(disableFeaturesFlags(out)).to.have.lengthOf(1);
       const features = parseDisableFeatures(out);
       expect(features).to.include('CallerOne');
@@ -897,34 +924,14 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
 
     it('never emits duplicate features', () => {
       const features = parseDisableFeatures(
-        withMergedChromiumDisableFeatures([
-          '--disable-features=RenderDocument,LocalNetworkAccessChecks,Translate',
-        ]),
+        withMergedChromiumDisableFeatures(
+          [
+            '--disable-features=RenderDocument,LocalNetworkAccessChecks,Translate',
+          ],
+          defaultFeatures,
+        ),
       );
       expect(features.length).to.equal(new Set(features).size);
-    });
-
-    it('selects the per-version disabled-features list for older pwVersions', () => {
-      // 1.57 disables AcceptCHFrame and does NOT yet disable
-      // BoundaryEventDispatchTracksNodeRemoval; the default (1.61) is the
-      // opposite. browserless's LocalNetworkAccessChecks is always present.
-      const f157 = parseDisableFeatures(
-        withMergedChromiumDisableFeatures([], '1.57'),
-      );
-      expect(f157).to.include('AcceptCHFrame');
-      expect(f157).to.not.include('BoundaryEventDispatchTracksNodeRemoval');
-      expect(f157).to.include('LocalNetworkAccessChecks');
-
-      const fDefault = parseDisableFeatures(
-        withMergedChromiumDisableFeatures([]),
-      );
-      expect(fDefault).to.not.include('AcceptCHFrame');
-      expect(fDefault).to.include('BoundaryEventDispatchTracksNodeRemoval');
-
-      // Current/unknown versions fall back to the default list.
-      expect(
-        parseDisableFeatures(withMergedChromiumDisableFeatures([], '1.61')),
-      ).to.deep.equal(fDefault);
     });
   });
 
@@ -935,6 +942,20 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const features = parseDisableFeatures(args);
       expect(features).to.include('RenderDocument');
       expect(features).to.include('LocalNetworkAccessChecks');
+    });
+
+    it('resolves the list via Config#getChromiumDisabledFeatures (overridable)', () => {
+      class CustomConfig extends Config {
+        public getChromiumDisabledFeatures(): readonly string[] {
+          return ['CustomFeatureX'];
+        }
+      }
+      const features = parseDisableFeatures(
+        launchArgs(ChromiumPlaywright, [], new CustomConfig()),
+      );
+      expect(features).to.include('CustomFeatureX'); // from the override
+      expect(features).to.include('LocalNetworkAccessChecks'); // additions still merged
+      expect(features).to.not.include('RenderDocument'); // default list replaced
     });
 
     it('does not add chromium --disable-features to Firefox or WebKit', () => {
@@ -1017,9 +1038,10 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
 
     // Fake executable relies on a POSIX shebang; browserless runs on Linux.
     const itPosix = process.platform === 'win32' ? it.skip : it;
+    const config = new Config();
 
     // 1:1 drift guard per supported version — fails if a pinned Playwright adds
-    // or removes a feature relative to the mirror resolved for that version.
+    // or removes a feature relative to Config.getChromiumDisabledFeatures(version).
     for (const [version, modName] of Object.entries(SUPPORTED_PW_VERSIONS)) {
       itPosix(
         `mirror for PW ${version} matches the installed Playwright exactly`,
@@ -1030,20 +1052,18 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
           expect(live, `empty --disable-features for ${version}`).to.not.be
             .empty;
 
-          const expected = new Set(
-            chromiumDisabledFeaturesForPwVersion(version),
-          );
+          const expected = new Set(config.getChromiumDisabledFeatures(version));
           const liveSet = new Set(live);
           const added = [...liveSet].filter((f) => !expected.has(f));
           const removed = [...expected].filter((f) => !liveSet.has(f));
 
           expect(
             added,
-            `PW ${version} disables feature(s) not mirrored — update playwrightChromiumDisabledFeatures(ByVersion)`,
+            `PW ${version} disables feature(s) not in Config.getChromiumDisabledFeatures('${version}') — update config.ts`,
           ).to.deep.equal([]);
           expect(
             removed,
-            `PW ${version} no longer disables feature(s) still mirrored — update playwrightChromiumDisabledFeatures(ByVersion)`,
+            `PW ${version} no longer disables feature(s) still in Config.getChromiumDisabledFeatures('${version}') — update config.ts`,
           ).to.deep.equal([]);
         },
       ).timeout(60000);
