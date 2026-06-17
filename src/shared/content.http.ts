@@ -15,6 +15,7 @@ import {
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
+  assertNavigationAllowed,
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
@@ -127,6 +128,13 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
     if (!content) {
       throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
+
+    const config = browser.getConfig();
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
 
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>

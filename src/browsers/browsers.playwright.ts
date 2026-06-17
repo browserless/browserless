@@ -7,6 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
+  findBlockedNavigationInMessage,
   findBlockedUrlInMessage,
   wsFrameToString,
 } from '@browserless.io/browserless';
@@ -105,6 +106,10 @@ class BasePlaywright extends EventEmitter {
 
   public isRunning(): boolean {
     return this.running;
+  }
+
+  public getConfig(): Config {
+    return this.config;
   }
 
   public async close(): Promise<void> {
@@ -366,6 +371,15 @@ class BasePlaywright extends EventEmitter {
           const stems = blockPatterns
             .map((p) => p.split(':')[0].toLowerCase())
             .filter((s) => s.length > 0);
+          // Opt-in private-network ranges (null = disabled). Scheme blocking
+          // stays in `blockPatterns` above. Unlike the CDP page-event guard —
+          // which sees every request/response URL — the range check here is
+          // scoped to explicit navigation frames (see findBlockedNavigationInMessage)
+          // so it cannot over-block non-navigation frames that carry a `url`
+          // (cookies, routes). The trade-off: a server-initiated redirect to a
+          // private host (a request event, not a `goto`) is not caught on this
+          // path; explicit navigations are.
+          const blockRanges = this.config.getBlockedNetworkRanges();
 
           // Parse before matching — a raw-substring fast-path would miss
           // JSON Unicode escapes (`"file://..."` has no literal
@@ -376,7 +390,7 @@ class BasePlaywright extends EventEmitter {
             direction: 'client→upstream' | 'upstream→client',
             isBinary: boolean,
           ): string | null => {
-            if (blockPatterns.length === 0) return null;
+            if (blockPatterns.length === 0 && !blockRanges) return null;
             const str = wsFrameToString(data);
             let parsed: unknown;
             try {
@@ -401,6 +415,10 @@ class BasePlaywright extends EventEmitter {
             const hit = findBlockedUrlInMessage(parsed, blockPatterns);
             if (hit) {
               return `Blocked URL pattern "${hit}" in ${this.constructor.name} ${direction} message`;
+            }
+            const navHit = findBlockedNavigationInMessage(parsed, blockRanges);
+            if (navHit) {
+              return `Blocked navigation to "${navHit}" in ${this.constructor.name} ${direction} message`;
             }
             return null;
           };

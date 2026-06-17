@@ -765,6 +765,14 @@ export class NotFound extends Error {
     errorLog(this.message);
   }
 }
+export class Forbidden extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'Forbidden';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
 export class Timeout extends Error {
   constructor(message: string) {
     super(message);

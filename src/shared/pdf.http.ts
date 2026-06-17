@@ -15,6 +15,7 @@ import {
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
+  assertNavigationAllowed,
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
@@ -140,6 +141,13 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
         `"fullPage" option cannot be used with "height" or "format" options.`,
       );
     }
+
+    const config = browser.getConfig();
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
 
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
