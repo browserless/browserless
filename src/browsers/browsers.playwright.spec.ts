@@ -461,6 +461,71 @@ describe('BasePlaywright URL filter', () => {
       await waitFor(() => playwright.wsEndpoint() === null);
     });
 
+    it('blocks a Frame.goto to a private host when network ranges are configured', async () => {
+      // A consumer opts in by overriding getBlockedNetworkRanges() — the same
+      // mechanism a downstream SDK consumer uses to enable SSRF blocking.
+      (
+        playwright as unknown as { config: Config }
+      ).config.getBlockedNetworkRanges = () => ({
+        ipv4Prefixes: ['0.', '127.', '169.254.'],
+        ipv6Prefixes: ['::1', '::', 'fc', 'fd', 'fe80:', '::ffff:'],
+        protocols: [],
+        hostnames: ['localhost'],
+      });
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+      await new Promise<void>((resolve, reject) => {
+        client.on('open', () => resolve());
+        client.on('error', reject);
+      });
+      const closeEvent = new Promise<{ code: number; reason: string }>(
+        (resolve) =>
+          client.on('close', (code, reason) =>
+            resolve({ code, reason: reason.toString() }),
+          ),
+      );
+      client.send(
+        JSON.stringify({
+          id: 3,
+          method: 'goto',
+          params: { url: 'http://169.254.169.254/latest/meta-data' },
+        }),
+      );
+      const close = await closeEvent;
+      expect(close.code).to.equal(1008);
+      expect(close.reason).to.match(/Blocked navigation/);
+      expect(upstreamMessages).to.have.lengthOf(0);
+      await waitFor(() => playwright.wsEndpoint() === null);
+    });
+
+    it('forwards a Frame.goto to a public host even with network ranges configured', async () => {
+      (
+        playwright as unknown as { config: Config }
+      ).config.getBlockedNetworkRanges = () => ({
+        ipv4Prefixes: ['127.', '169.254.'],
+        ipv6Prefixes: ['::1'],
+        protocols: [],
+        hostnames: ['localhost'],
+      });
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+      await new Promise<void>((resolve, reject) => {
+        client.on('open', () => resolve());
+        client.on('error', reject);
+      });
+      client.send(
+        JSON.stringify({
+          id: 4,
+          method: 'goto',
+          params: { url: 'https://example.com/' },
+        }),
+      );
+      await waitFor(() => upstreamMessages.length >= 1);
+      expect(upstreamMessages).to.have.lengthOf(1);
+      expect(JSON.parse(upstreamMessages[0]).params.url).to.equal(
+        'https://example.com/',
+      );
+      client.close();
+    });
+
     it('blocks a Frame.goto carrying file:// sent as a BINARY frame', async () => {
       const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
       await new Promise<void>((resolve, reject) => {

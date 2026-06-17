@@ -7,7 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
-  findBlockedUrlInMessage,
+  findBlockedNavigationUrl,
   noop,
   once,
   ublockLitePath,
@@ -111,19 +111,22 @@ export class ChromiumCDP extends EventEmitter {
           url: string,
           direction: 'request' | 'response',
         ): void => {
-          // Read patterns per call (they can change at runtime) but skip
-          // the normalize/match work entirely in the common empty case —
-          // this runs for every network request and response.
+          // Read config per call (it can change at runtime) but skip the
+          // normalize/match work entirely in the common case where nothing is
+          // configured to block — this runs for every request and response.
           const patterns = this.config.getBlockedURLPatterns();
-          if (!patterns.length) {
+          const ranges = this.config.getBlockedNetworkRanges();
+          if (!patterns.length && !ranges) {
             return;
           }
-          // Wrap as `{ url }` so we share the Playwright bridge's
-          // normalize + match helper rather than duplicating it.
-          const blocked = findBlockedUrlInMessage({ url }, patterns);
+          // Scheme blocklist (e.g. file://) plus the private-network classifier.
+          // Top-level navigations are rejected earlier (with a clean status) by
+          // the route handlers; this is the runtime backstop for subresources
+          // and mid-flight redirects, so it terminates the session.
+          const blocked = findBlockedNavigationUrl(url, patterns, ranges);
           if (blocked) {
             this.logger.error(
-              `Blocked URL pattern "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
+              `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
             );
             page.close().catch(noop);
             this.close();
@@ -147,6 +150,10 @@ export class ChromiumCDP extends EventEmitter {
 
   public isRunning(): boolean {
     return this.running;
+  }
+
+  public getConfig(): Config {
+    return this.config;
   }
 
   public async newPage(): Promise<Page> {

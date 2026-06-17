@@ -5,6 +5,7 @@ import {
   untildify,
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
+import type { NetworkRangeSet } from './network-security.js';
 import debug from 'debug';
 import { fileURLToPath } from 'url';
 import { mkdir } from 'fs/promises';
@@ -272,6 +273,18 @@ export class Config extends EventEmitter {
    */
   public getBlockedURLPatterns(): string[] {
     return this.allowFileProtocol ? [] : ['file://'];
+  }
+  /**
+   * Returns the private-network destinations the browser is not allowed to
+   * navigate to, or `null` to disable private-network navigation blocking
+   * entirely (the default). Subclasses opt in by returning a
+   * {@link NetworkRangeSet} describing the loopback / link-local / cloud-
+   * metadata / RFC1918 ranges to block — the matcher never changes, only the
+   * range set fed to it. Scheme blocking (e.g. `file://`) stays in
+   * {@link getBlockedURLPatterns}.
+   */
+  public getBlockedNetworkRanges(): NetworkRangeSet | null {
+    return null;
   }
   public getCPULimit(): number {
     return this.maxCpu;

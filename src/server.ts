@@ -5,6 +5,7 @@ import {
   BadRequest,
   Logger as BlessLogger,
   Config,
+  Forbidden,
   HTTPRoute,
   Hooks,
   Metrics,
@@ -74,6 +75,10 @@ export class HTTPServer extends EventEmitter {
 
     if (e instanceof NotFound) {
       return writeResponse(res, 404, e.message, contentType);
+    }
+
+    if (e instanceof Forbidden) {
+      return writeResponse(res, 403, e.message, contentType);
     }
 
     if (e instanceof Unauthorized) {

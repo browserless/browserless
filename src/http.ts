@@ -16,6 +16,11 @@ export const errorCodes = {
     description: `The request is missing, or contains bad, authorization credentials.`,
     message: 'HTTP/1.1 401 Unauthorized',
   },
+  403: {
+    code: 403,
+    description: `The request targets a destination that is not allowed.`,
+    message: 'HTTP/1.1 403 Forbidden',
+  },
   404: {
     code: 404,
     description: `Resource couldn't be found.`,
