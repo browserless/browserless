@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.53.0](https://github.com/browserless/browserless/compare/v2.52.2...v2.53.0) (2026-06-17)
+
+
+### Features
+
+* Add a new in-house docker pull aggregator ([#5444](https://github.com/browserless/browserless/issues/5444)) ([d3ec928](https://github.com/browserless/browserless/commit/d3ec928600d3d75a7bc26ca3cf182aaf2368fb50))
+* opt-in private-network navigation guard with 403 for blocked navigations ([#5451](https://github.com/browserless/browserless/issues/5451)) ([678f221](https://github.com/browserless/browserless/commit/678f22193dda18474069e277f986ab944a9e4ee0))
+
+
+### Bug Fixes
+
+* merge --disable-features instead of clobbering Playwright's list ([#5450](https://github.com/browserless/browserless/issues/5450)) ([#5452](https://github.com/browserless/browserless/issues/5452)) ([b791f06](https://github.com/browserless/browserless/commit/b791f06e6c263ab888e9b06c4c90b5803d073168))
+
 ## [2.52.2](https://github.com/browserless/browserless/compare/v2.52.1...v2.52.2) (2026-06-15)
 
 
