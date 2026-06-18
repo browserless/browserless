@@ -7,6 +7,20 @@
 
 * expose browserless Chromium disabled-features as an overridable Config seam ([#5455](https://github.com/browserless/browserless/issues/5455)) ([5f7b536](https://github.com/browserless/browserless/commit/5f7b5363fe3034017147daadaf7db4ad7928b121))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.61.0`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.155` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.53.1](https://github.com/browserless/browserless/compare/v2.53.0...v2.53.1) (2026-06-18)
 
 
