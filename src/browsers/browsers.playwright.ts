@@ -439,6 +439,9 @@ class BasePlaywright extends EventEmitter {
           // private host (a request event, not a `goto`) is not caught on this
           // path; explicit navigations are.
           const blockRanges = this.config.getBlockedNetworkRanges();
+          // The server's own origin is exempt (same as the CDP guard) so a
+          // navigation to browserless's own pages is never blocked.
+          const selfHosts = this.config.getSelfNavigationHosts();
 
           // Parse before matching — a raw-substring fast-path would miss
           // JSON Unicode escapes (`"file://..."` has no literal
@@ -475,7 +478,11 @@ class BasePlaywright extends EventEmitter {
             if (hit) {
               return `Blocked URL pattern "${hit}" in ${this.constructor.name} ${direction} message`;
             }
-            const navHit = findBlockedNavigationInMessage(parsed, blockRanges);
+            const navHit = findBlockedNavigationInMessage(
+              parsed,
+              blockRanges,
+              selfHosts,
+            );
             if (navHit) {
               return `Blocked navigation to "${navHit}" in ${this.constructor.name} ${direction} message`;
             }

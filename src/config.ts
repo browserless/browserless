@@ -789,14 +789,16 @@ export class Config extends EventEmitter {
    */
   public getSelfNavigationHosts(): string[] {
     const hosts = new Set<string>();
-    for (const address of [
-      this.getServerAddress(),
-      this.getServerWebSocketAddress(),
+    for (const getAddress of [
+      () => this.getServerAddress(),
+      () => this.getServerWebSocketAddress(),
     ]) {
       try {
-        hosts.add(new URL(address).host);
+        // Resolve each address inside the try so a throwing getter (e.g. an
+        // unparseable server address) is contained rather than escaping.
+        hosts.add(new URL(getAddress()).host);
       } catch {
-        // Skip an unparseable address rather than fail the guard.
+        // Skip a throwing/unparseable address rather than fail the guard.
       }
     }
     return [...hosts];

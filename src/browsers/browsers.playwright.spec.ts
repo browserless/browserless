@@ -532,6 +532,36 @@ describe('BasePlaywright URL filter', () => {
       client.close();
     });
 
+    it("forwards a Frame.goto to the server's own origin even when localhost is blocked", async () => {
+      // The self-origin allowance (Config.getSelfNavigationHosts) must flow
+      // through the bridge so a Playwright session can still load browserless's
+      // own pages — matching the CDP guard.
+      (
+        playwright as unknown as { config: Config }
+      ).config.getBlockedNetworkRanges = () => ({
+        ipv4Prefixes: ['0.', '127.', '169.254.'],
+        ipv6Prefixes: ['::1'],
+        protocols: [],
+        hostnames: ['localhost'],
+      });
+      const [selfHost] = (
+        playwright as unknown as { config: Config }
+      ).config.getSelfNavigationHosts();
+      const selfUrl = `http://${selfHost}/function/index.html`;
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+      await new Promise<void>((resolve, reject) => {
+        client.on('open', () => resolve());
+        client.on('error', reject);
+      });
+      client.send(
+        JSON.stringify({ id: 5, method: 'goto', params: { url: selfUrl } }),
+      );
+      await waitFor(() => upstreamMessages.length >= 1);
+      expect(upstreamMessages).to.have.lengthOf(1);
+      expect(JSON.parse(upstreamMessages[0]).params.url).to.equal(selfUrl);
+      client.close();
+    });
+
     it('blocks a Frame.goto carrying file:// sent as a BINARY frame', async () => {
       const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
       await new Promise<void>((resolve, reject) => {
