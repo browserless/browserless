@@ -132,6 +132,34 @@ describe('Network Security', () => {
         .to.be.false;
       expect(isBlockedNavigationUrl('not-a-url', null)).to.be.false;
     });
+
+    it('allows an otherwise-blocked host when it is in allowedHosts, port-specific', () => {
+      const allowed = ['0.0.0.0:3000', 'localhost:3000'];
+      // The server's own origin (host:port) is allowed even though the host is
+      // in the blocklist — lets the browser load browserless's own pages.
+      expect(
+        isBlockedNavigationUrl(
+          'http://0.0.0.0:3000/function/index.html',
+          RANGES,
+          allowed,
+        ),
+      ).to.be.false;
+      expect(
+        isBlockedNavigationUrl(
+          'ws://0.0.0.0:3000/function/connect/x',
+          RANGES,
+          allowed,
+        ),
+      ).to.be.false;
+      expect(isBlockedNavigationUrl('http://localhost:3000/', RANGES, allowed))
+        .to.be.false;
+      // A different port on the same loopback host stays blocked.
+      expect(isBlockedNavigationUrl('http://0.0.0.0:5432/', RANGES, allowed)).to
+        .be.true;
+      // allowedHosts never overrides a metadata/private destination elsewhere.
+      expect(isBlockedNavigationUrl('http://169.254.169.254/', RANGES, allowed))
+        .to.be.true;
+    });
   });
 
   describe('isBlockedNavigationIP', () => {

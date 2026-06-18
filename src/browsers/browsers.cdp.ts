@@ -122,8 +122,15 @@ export class ChromiumCDP extends EventEmitter {
           // Scheme blocklist (e.g. file://) plus the private-network classifier.
           // Top-level navigations are rejected earlier (with a clean status) by
           // the route handlers; this is the runtime backstop for subresources
-          // and mid-flight redirects, so it terminates the session.
-          const blocked = findBlockedNavigationUrl(url, patterns, ranges);
+          // and mid-flight redirects, so it terminates the session. The server's
+          // own origin is exempt so this can't sever browserless's own pages
+          // (e.g. the /function runtime, which loads from the local server).
+          const blocked = findBlockedNavigationUrl(
+            url,
+            patterns,
+            ranges,
+            this.config.getSelfNavigationHosts(),
+          );
           if (blocked) {
             this.logger.error(
               `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,

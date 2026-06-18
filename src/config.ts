@@ -778,6 +778,31 @@ export class Config extends EventEmitter {
   }
 
   /**
+   * The `host[:port]` values that resolve to this server itself. The navigation
+   * guard treats these as always-allowed so the browser can load browserless's
+   * own pages — e.g. the `/function` runtime page and its same-origin
+   * WebSocket — even when the server binds an address the blocklist would
+   * otherwise reject (commonly `0.0.0.0`/`localhost`). Port-specific, so other
+   * services sharing the loopback host stay blocked.
+   *
+   * @returns {string[]} The server's own host[:port] values
+   */
+  public getSelfNavigationHosts(): string[] {
+    const hosts = new Set<string>();
+    for (const address of [
+      this.getServerAddress(),
+      this.getServerWebSocketAddress(),
+    ]) {
+      try {
+        hosts.add(new URL(address).host);
+      } catch {
+        // Skip an unparseable address rather than fail the guard.
+      }
+    }
+    return [...hosts];
+  }
+
+  /**
    * When CORS is enabled, returns relevant CORS headers
    * to requests and for the OPTIONS call. Values can be
    * overridden by specifying `CORS_ALLOW_METHODS`, `CORS_ALLOW_ORIGIN`,
