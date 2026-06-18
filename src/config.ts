@@ -777,6 +777,45 @@ export class Config extends EventEmitter {
     return httpAddress.href;
   }
 
+  private selfNavigationHostsMemo?: { key: string; hosts: string[] };
+
+  /**
+   * The `host[:port]` values that resolve to this server itself. The navigation
+   * guard treats these as always-allowed so the browser can load browserless's
+   * own pages — e.g. the `/function` runtime page and its same-origin
+   * WebSocket — even when the server binds an address the blocklist would
+   * otherwise reject (commonly `0.0.0.0`/`localhost`). Port-specific, so other
+   * services sharing the loopback host stay blocked.
+   *
+   * @returns {string[]} The server's own host[:port] values
+   */
+  public getSelfNavigationHosts(): string[] {
+    // The navigation backstop calls this for every request and response when
+    // the guard is active, so memoize the URL parsing. `host` is readonly and
+    // `port` is fixed once the server binds, but key the memo on host:port so a
+    // runtime #setPort still recomputes rather than serving a stale value.
+    const key = `${this.host}:${this.port}`;
+    if (this.selfNavigationHostsMemo?.key === key) {
+      return this.selfNavigationHostsMemo.hosts;
+    }
+    const hosts = new Set<string>();
+    for (const getAddress of [
+      () => this.getServerAddress(),
+      () => this.getServerWebSocketAddress(),
+    ]) {
+      try {
+        // Resolve each address inside the try so a throwing getter (e.g. an
+        // unparseable server address) is contained rather than escaping.
+        hosts.add(new URL(getAddress()).host);
+      } catch {
+        // Skip a throwing/unparseable address rather than fail the guard.
+      }
+    }
+    const resolved = [...hosts];
+    this.selfNavigationHostsMemo = { key, hosts: resolved };
+    return resolved;
+  }
+
   /**
    * When CORS is enabled, returns relevant CORS headers
    * to requests and for the OPTIONS call. Values can be

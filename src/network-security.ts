@@ -64,10 +64,16 @@ const isBlockedNavigationHost = (
  *
  * Returns `false` when `ranges` is `null` (blocking disabled). Returns `true`
  * (blocked) for unparseable URLs as a safety measure.
+ *
+ * `allowedHosts` is an optional set of `host[:port]` values (matched against the
+ * URL's `host`, so it is port-specific) that are never blocked — used to let the
+ * browser reach the server's own origin (see `Config.getSelfNavigationHosts()`)
+ * even when it binds an address the range set would otherwise reject.
  */
 export const isBlockedNavigationUrl = (
   rawUrl: string,
   ranges: NetworkRangeSet | null,
+  allowedHosts?: readonly string[],
 ): boolean => {
   if (!ranges) return false;
   const normalized = normalizeUrlForBlocklist(rawUrl);
@@ -75,7 +81,9 @@ export const isBlockedNavigationUrl = (
     return true;
   }
   try {
-    return isBlockedNavigationHost(new URL(normalized).hostname, ranges);
+    const { host, hostname } = new URL(normalized);
+    if (allowedHosts?.includes(host)) return false;
+    return isBlockedNavigationHost(hostname, ranges);
   } catch {
     return true;
   }
@@ -114,9 +122,10 @@ export const findBlockedNavigationUrl = (
   url: string,
   patterns: string[],
   ranges: NetworkRangeSet | null,
+  allowedHosts?: readonly string[],
 ): string | null =>
   findBlockedUrlInMessage({ url }, patterns) ??
-  (isBlockedNavigationUrl(url, ranges) ? url : null);
+  (isBlockedNavigationUrl(url, ranges, allowedHosts) ? url : null);
 
 /**
  * Whether a wire-protocol method initiates a navigation, across the CDP and
@@ -142,6 +151,7 @@ const isNavigationMethod = (method: string): boolean =>
 export const findBlockedNavigationInMessage = (
   message: unknown,
   ranges: NetworkRangeSet | null,
+  allowedHosts?: readonly string[],
 ): string | null => {
   if (!ranges || !message || typeof message !== 'object') return null;
   const { method, params } = message as {
@@ -152,7 +162,7 @@ export const findBlockedNavigationInMessage = (
     typeof method === 'string' &&
     isNavigationMethod(method) &&
     typeof params?.url === 'string' &&
-    isBlockedNavigationUrl(params.url, ranges)
+    isBlockedNavigationUrl(params.url, ranges, allowedHosts)
   ) {
     return params.url;
   }
@@ -169,9 +179,10 @@ export const assertNavigationAllowed = (
   url: string | undefined,
   patterns: string[],
   ranges: NetworkRangeSet | null,
+  allowedHosts?: readonly string[],
 ): void => {
   if (!url) return;
-  const blocked = findBlockedNavigationUrl(url, patterns, ranges);
+  const blocked = findBlockedNavigationUrl(url, patterns, ranges, allowedHosts);
   if (blocked) {
     throw new Forbidden(`Navigation to "${blocked}" is not allowed`);
   }
