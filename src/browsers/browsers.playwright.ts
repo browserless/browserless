@@ -16,6 +16,7 @@ import playwright, { Page } from 'playwright-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import type { IncomingMessage } from 'http';
+import { browserlessChromiumDisabledFeatures } from '../config.js';
 import path from 'path';
 
 enum PlaywrightBrowserTypes {
@@ -23,16 +24,6 @@ enum PlaywrightBrowserTypes {
   firefox = 'firefox',
   webkit = 'webkit',
 }
-
-/**
- * Features browserless disables on top of the launched Playwright version's
- * defaults. Chrome For Test (used by Playwright 1.57+) enforces Local Network
- * Access checks that block WebSocket connections to localhost, which browserless
- * relies on. See https://github.com/browserless/browserless/issues/5450
- */
-export const browserlessChromiumDisabledFeatures: readonly string[] = [
-  'LocalNetworkAccessChecks',
-];
 
 const DISABLE_FEATURES_FLAG = '--disable-features';
 
@@ -63,11 +54,12 @@ export const parseDisableFeatures = (args: readonly string[]): string[] =>
 export const withMergedChromiumDisableFeatures = (
   args: readonly string[],
   playwrightDisabledFeatures: readonly string[],
+  browserlessDisabledFeatures: readonly string[] = browserlessChromiumDisabledFeatures,
 ): string[] => {
   const merged = [
     ...new Set([
       ...playwrightDisabledFeatures,
-      ...browserlessChromiumDisabledFeatures,
+      ...browserlessDisabledFeatures,
       ...parseDisableFeatures(args),
     ]),
   ];
@@ -147,6 +139,7 @@ class BasePlaywright extends EventEmitter {
         ...withMergedChromiumDisableFeatures(
           args,
           this.config.getChromiumDisabledFeatures(pwVersion),
+          this.config.getBrowserlessChromiumDisabledFeatures(),
         ),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],

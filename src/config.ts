@@ -194,6 +194,19 @@ const chromiumDisabledFeaturesByPwVersion: Readonly<
   '1.59': playwright158And159DisabledFeatures,
 };
 
+/**
+ * Features browserless disables on the Playwright launch path on top of the
+ * launched version's defaults. Chrome For Test (Playwright 1.57+) enforces Local
+ * Network Access checks that block WebSocket connections to localhost, which
+ * browserless relies on. Exposed as an overridable seam via
+ * `Config#getBrowserlessChromiumDisabledFeatures` so subclasses can disable
+ * additional features without forking the launcher.
+ * See https://github.com/browserless/browserless/issues/5450
+ */
+export const browserlessChromiumDisabledFeatures: readonly string[] = [
+  'LocalNetworkAccessChecks',
+];
+
 export class Config extends EventEmitter {
   protected readonly debug = getDebug();
   protected readonly host = process.env.HOST ?? 'localhost';
@@ -323,6 +336,17 @@ export class Config extends EventEmitter {
       (pwVersion && chromiumDisabledFeaturesByPwVersion[pwVersion]) ||
       defaultChromiumDisabledFeatures
     );
+  }
+
+  /**
+   * Chromium features browserless disables on the Playwright launch path, on top
+   * of the launched version's defaults (`getChromiumDisabledFeatures`). Override
+   * — extending via `super` — to disable additional features. Unlike the version
+   * list this is not validated against Playwright, so browserless- or
+   * deployment-specific features can be added here.
+   */
+  public getBrowserlessChromiumDisabledFeatures(): readonly string[] {
+    return browserlessChromiumDisabledFeatures;
   }
 
   /**

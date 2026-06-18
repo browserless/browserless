@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import {
   Config,
   Logger,
+  browserlessChromiumDisabledFeatures,
   findBlockedUrlInMessage,
   normalizeUrlForBlocklist,
   wsFrameToString,
@@ -10,7 +11,6 @@ import {
   ChromiumPlaywright,
   FirefoxPlaywright,
   WebKitPlaywright,
-  browserlessChromiumDisabledFeatures,
   parseDisableFeatures,
   withMergedChromiumDisableFeatures,
 } from './browsers.playwright.js';
@@ -987,6 +987,23 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       expect(features).to.include('CustomFeatureX'); // from the override
       expect(features).to.include('LocalNetworkAccessChecks'); // additions still merged
       expect(features).to.not.include('RenderDocument'); // default list replaced
+    });
+
+    it('merges Config#getBrowserlessChromiumDisabledFeatures (overridable)', () => {
+      class CustomConfig extends Config {
+        public getBrowserlessChromiumDisabledFeatures(): readonly string[] {
+          return [
+            ...super.getBrowserlessChromiumDisabledFeatures(),
+            'DeploymentFeatureX',
+          ];
+        }
+      }
+      const features = parseDisableFeatures(
+        launchArgs(ChromiumPlaywright, [], new CustomConfig()),
+      );
+      expect(features).to.include('DeploymentFeatureX'); // added by the override
+      expect(features).to.include('LocalNetworkAccessChecks'); // base list kept
+      expect(features).to.include('RenderDocument'); // version mirror kept
     });
 
     it('does not add chromium --disable-features to Firefox or WebKit', () => {
