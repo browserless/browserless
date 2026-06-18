@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.53.1](https://github.com/browserless/browserless/compare/v2.53.0...v2.53.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* allow the server's own origin through the opt-in navigation guard ([#5453](https://github.com/browserless/browserless/issues/5453)) ([e541012](https://github.com/browserless/browserless/commit/e541012707cfbec5634cf5a8352a2406c72d4fde))
+
 ## [2.53.0](https://github.com/browserless/browserless/compare/v2.52.2...v2.53.0) (2026-06-17)
 
 
