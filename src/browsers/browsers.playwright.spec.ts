@@ -532,7 +532,7 @@ describe('BasePlaywright URL filter', () => {
       client.close();
     });
 
-    it("forwards a Frame.goto to the server's own origin even when localhost is blocked", async () => {
+    it('forwards a Frame.goto to the server origin even when localhost is blocked', async () => {
       // The self-origin allowance (Config.getSelfNavigationHosts) must flow
       // through the bridge so a Playwright session can still load browserless's
       // own pages — matching the CDP guard.
@@ -547,6 +547,7 @@ describe('BasePlaywright URL filter', () => {
       const [selfHost] = (
         playwright as unknown as { config: Config }
       ).config.getSelfNavigationHosts();
+      expect(selfHost).to.be.a('string').and.not.be.empty;
       const selfUrl = `http://${selfHost}/function/index.html`;
       const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
       await new Promise<void>((resolve, reject) => {
