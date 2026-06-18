@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.54.0](https://github.com/browserless/browserless/compare/v2.53.1...v2.54.0) (2026-06-18)
+
+
+### Features
+
+* expose browserless Chromium disabled-features as an overridable Config seam ([#5455](https://github.com/browserless/browserless/issues/5455)) ([5f7b536](https://github.com/browserless/browserless/commit/5f7b5363fe3034017147daadaf7db4ad7928b121))
+
 ## [2.53.1](https://github.com/browserless/browserless/compare/v2.53.0...v2.53.1) (2026-06-18)
 
 
