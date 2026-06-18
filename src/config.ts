@@ -777,6 +777,8 @@ export class Config extends EventEmitter {
     return httpAddress.href;
   }
 
+  private selfNavigationHostsMemo?: { key: string; hosts: string[] };
+
   /**
    * The `host[:port]` values that resolve to this server itself. The navigation
    * guard treats these as always-allowed so the browser can load browserless's
@@ -788,6 +790,14 @@ export class Config extends EventEmitter {
    * @returns {string[]} The server's own host[:port] values
    */
   public getSelfNavigationHosts(): string[] {
+    // The navigation backstop calls this for every request and response when
+    // the guard is active, so memoize the URL parsing. `host` is readonly and
+    // `port` is fixed once the server binds, but key the memo on host:port so a
+    // runtime #setPort still recomputes rather than serving a stale value.
+    const key = `${this.host}:${this.port}`;
+    if (this.selfNavigationHostsMemo?.key === key) {
+      return this.selfNavigationHostsMemo.hosts;
+    }
     const hosts = new Set<string>();
     for (const getAddress of [
       () => this.getServerAddress(),
@@ -801,7 +811,9 @@ export class Config extends EventEmitter {
         // Skip a throwing/unparseable address rather than fail the guard.
       }
     }
-    return [...hosts];
+    const resolved = [...hosts];
+    this.selfNavigationHostsMemo = { key, hosts: resolved };
+    return resolved;
   }
 
   /**

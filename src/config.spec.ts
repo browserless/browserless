@@ -21,5 +21,16 @@ describe('Config', () => {
       expect(hosts).to.have.lengthOf(1);
       expect(hosts[0]).to.match(/:54321$/);
     });
+
+    it('reflects a runtime port change rather than serving a stale memo', () => {
+      const config = new Config();
+      config.setPort(3000);
+      expect(config.getSelfNavigationHosts()[0]).to.match(/:3000$/);
+      // The result is memoized per request on the navigation hot path, but the
+      // server binds its real port via #setPort, so the memo must key off the
+      // current host:port and recompute when it changes.
+      config.setPort(4000);
+      expect(config.getSelfNavigationHosts()[0]).to.match(/:4000$/);
+    });
   });
 });
