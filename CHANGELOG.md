@@ -7,6 +7,20 @@
 
 * allow the server's own origin through the opt-in navigation guard ([#5453](https://github.com/browserless/browserless/issues/5453)) ([e541012](https://github.com/browserless/browserless/commit/e541012707cfbec5634cf5a8352a2406c72d4fde))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.61.0`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.155` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.53.0](https://github.com/browserless/browserless/compare/v2.52.2...v2.53.0) (2026-06-17)
 
 
