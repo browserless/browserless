@@ -7,6 +7,11 @@
 
 * **ci:** isolate per-image manifest merges so one image can't block latest ([#5462](https://github.com/browserless/browserless/issues/5462)) ([d976361](https://github.com/browserless/browserless/commit/d9763618a12cfc9608ca27c09244b1c4124a2458))
 
+
+### Build System & Runtime
+
+* bump Node to 24.17.0 and npm to 11.17.0 ([#5464](https://github.com/browserless/browserless/issues/5464)) ([05abdae](https://github.com/browserless/browserless/commit/05abdaebd2cbe5b4a43cadacd5358d00a8904c14))
+
 <!-- browser-versions:start -->
 
 ### Supported Libraries & Browsers
