@@ -99,7 +99,7 @@
     "eslint": "^10.5.0",
     "gunzip-maybe": "^1.4.2",
     "marked": "^18.0.5",
-    "mocha": "^12.0.0-beta-10",
+    "mocha": "^12.0.0-rc.1",
     "prettier": "^3.8.4",
     "sinon": "^22.0.0",
     "typescript": "^6.0.3",
