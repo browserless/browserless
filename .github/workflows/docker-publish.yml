@@ -333,6 +333,16 @@ jobs:
     name: Merge ${{ matrix.image }} manifest
     runs-on: ubuntu-24.04
     needs: images-build
+    # Run even when some images-build legs failed. images-build is one matrix
+    # job, so a single failed leg (one image on one arch) marks the whole job
+    # "failed"; a plain `needs:` would then SKIP every merge leg and leave the
+    # published tags (including :latest) pointing at the previous release for
+    # ALL images -- not just the one that failed. !cancelled() lets the good
+    # images publish anyway, while `result != 'skipped'` still bails out when
+    # the upstream base never built. Each leg below refuses to publish unless
+    # it has the full set of per-arch digests for its OWN image, so a partial
+    # build fails that one tag loudly instead of shipping a single-arch image.
+    if: ${{ !cancelled() && needs.images-build.result != 'skipped' }}
     # TAG is passed via env rather than interpolated into run: scripts to avoid
     # template/shell injection from the caller-supplied tag.
     env:
@@ -340,15 +350,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image:
-          - chromium
-          - chrome
-          - edge
-          - firefox
-          - webkit
-          - webkit-heavy
-          - multi
-          - multi-heavy
+        # `arches` is the number of per-arch digests this image is built for
+        # (chrome and edge are amd64-only); the merge step asserts that many
+        # digests are present before publishing.
+        include:
+          - { image: chromium, arches: 2 }
+          - { image: chrome, arches: 1 }
+          - { image: edge, arches: 1 }
+          - { image: firefox, arches: 2 }
+          - { image: webkit, arches: 2 }
+          - { image: webkit-heavy, arches: 2 }
+          - { image: multi, arches: 2 }
+          - { image: multi-heavy, arches: 2 }
     steps:
       - name: Download ${{ matrix.image }} digests
         uses: actions/download-artifact@v8
@@ -365,6 +378,23 @@ jobs:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USERNAME }}
           password: ${{ secrets.GHCR_PASSWORD }}
+
+      # Guard the decoupling above: now that this leg runs even when a sibling
+      # image failed, make sure THIS image is whole before tagging. Missing a
+      # per-arch digest means its build failed, so fail this tag rather than
+      # publish a single-arch manifest under a name that promises both arches.
+      - name: Verify ${{ matrix.image }} per-arch digests are complete
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ matrix.image }}
+          EXPECTED: ${{ matrix.arches }}
+        run: |
+          found=$(find . -maxdepth 1 -type f | wc -l | tr -d '[:space:]')
+          echo "Found ${found} digest(s) for ${IMAGE}, expected ${EXPECTED}."
+          if [ "${found}" -ne "${EXPECTED}" ]; then
+            echo "::error::Refusing to publish ${IMAGE}:${TAG} -- incomplete build (${found}/${EXPECTED} arches present). This image's build failed; other images publish unaffected."
+            exit 1
+          fi
 
       - name: Create and push ${{ matrix.image }} manifest list
         working-directory: ${{ runner.temp }}/digests
