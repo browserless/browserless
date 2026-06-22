@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.54.1](https://github.com/browserless/browserless/compare/v2.54.0...v2.54.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **ci:** isolate per-image manifest merges so one image can't block latest ([#5462](https://github.com/browserless/browserless/issues/5462)) ([d976361](https://github.com/browserless/browserless/commit/d9763618a12cfc9608ca27c09244b1c4124a2458))
+
 ## [2.54.0](https://github.com/browserless/browserless/compare/v2.53.1...v2.54.0) (2026-06-18)
 
 
