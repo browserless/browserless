@@ -384,12 +384,17 @@ jobs:
       # per-arch digest means its build failed, so fail this tag rather than
       # publish a single-arch manifest under a name that promises both arches.
       - name: Verify ${{ matrix.image }} per-arch digests are complete
-        working-directory: ${{ runner.temp }}/digests
         env:
           IMAGE: ${{ matrix.image }}
           EXPECTED: ${{ matrix.arches }}
+          DIGESTS: ${{ runner.temp }}/digests
         run: |
-          found=$(find . -maxdepth 1 -type f | wc -l | tr -d '[:space:]')
+          # mkdir instead of a `working-directory:` on this path so the
+          # descriptive error below still fires when ALL of this image's build
+          # legs failed and download-artifact left no digests directory behind
+          # (a missing working-directory aborts the step before the check runs).
+          mkdir -p "${DIGESTS}"
+          found=$(find "${DIGESTS}" -maxdepth 1 -type f | wc -l | tr -d '[:space:]')
           echo "Found ${found} digest(s) for ${IMAGE}, expected ${EXPECTED}."
           if [ "${found}" -ne "${EXPECTED}" ]; then
             echo "::error::Refusing to publish ${IMAGE}:${TAG} -- incomplete build (${found}/${EXPECTED} arches present). This image's build failed; other images publish unaffected."
