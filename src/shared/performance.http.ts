@@ -45,7 +45,7 @@ export default class PerformancePost extends BrowserHTTPRoute {
   description = `Run lighthouse performance audits with a supplied "url" in your JSON payload.`;
   method = Methods.post;
   path = [HTTPRoutes.chromiumPerformance, HTTPRoutes.performance];
-  tags = [APITags.browserManagement];
+  tags = [APITags.scrapingContent];
   async handler(
     req: Request,
     res: ServerResponse,
