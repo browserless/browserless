@@ -25,7 +25,7 @@ export default class ChromiumFunctionConnectWebSocketRoute extends BrowserWebsoc
     `Internally used by the POST /function API to connect the underlying client-side code to. Not intended for direct use but documented for completeness and to distinguish between other reconnect style calls.`,
   );
   path = WebsocketRoutes.functionClientConnect;
-  tags = [APITags.browserWS];
+  tags = [APITags.webSocketAPIs];
   async handler(
     req: Request,
     socket: Duplex,
