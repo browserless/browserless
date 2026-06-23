@@ -27,7 +27,7 @@ export default class ChromiumBrowserWebSocketRoute extends BrowserWebsocketRoute
     must already be launched in order to not return a 404.`,
   );
   path = WebsocketRoutes.browser;
-  tags = [APITags.browserWS];
+  tags = [APITags.webSocketAPIs];
   async handler(
     req: Request,
     socket: Duplex,

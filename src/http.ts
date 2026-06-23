@@ -148,6 +148,19 @@ export enum APITags {
   'browserAPI' = 'Browser REST APIs',
   'browserWS' = 'Browser WebSocket APIs',
   'management' = 'Management REST APIs',
+  'screenshotsPDFs' = 'Screenshots & PDFs',
+  'scrapingContent' = 'Scraping & Content',
+  'functionsDownloads' = 'Functions & Downloads',
+  'sessionsConnections' = 'Sessions & Connections',
+  'crawling' = 'Crawling',
+  'unblockStealth' = 'Unblock & Stealth',
+  'browserManagement' = 'Browser Management',
+  'profiles' = 'Profiles',
+  'proxy' = 'Proxy',
+  'integrations' = 'Integrations',
+  'legacyChrome' = 'Legacy (chrome prefix)',
+  'webSocketAPIs' = 'WebSocket APIs',
+  'cdpExtensions' = 'CDP Extensions',
 }
 
 export interface Request extends http.IncomingMessage {

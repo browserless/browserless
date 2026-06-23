@@ -22,7 +22,7 @@ export default class ChromiumCDPWebSocketRoute extends BrowserWebsocketRoute {
   concurrency = true;
   description = `Launch and connect to Chromium with a library like puppeteer or others that work over chrome-devtools-protocol.`;
   path = [WebsocketRoutes['/'], WebsocketRoutes.chromium];
-  tags = [APITags.browserWS];
+  tags = [APITags.webSocketAPIs];
   async handler(
     req: Request,
     socket: Duplex,

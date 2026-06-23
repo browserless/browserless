@@ -26,7 +26,7 @@ export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRo
     WebsocketRoutes.playwrightChromium,
     WebsocketRoutes.chromiumPlaywright,
   ];
-  tags = [APITags.browserWS];
+  tags = [APITags.webSocketAPIs];
   async handler(
     req: Request,
     socket: Duplex,

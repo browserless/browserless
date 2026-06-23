@@ -25,7 +25,7 @@ export default class MetricsTotalGetRoute extends HTTPRoute {
   description = `Gets total metric details summed from the time the server started.`;
   method = Methods.get;
   path = HTTPManagementRoutes.metricsTotal;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     const fileSystem = this.fileSystem();
     const config = this.config();

@@ -25,7 +25,7 @@ export default class ChromiumJSONProtocolGetRoute extends HTTPRoute {
   description = `Returns Protocol JSON meta-data that Chrome and Chromium come with.`;
   method = Methods.get;
   path = HTTPRoutes.jsonProtocol;
-  tags = [APITags.browserAPI];
+  tags = [APITags.sessionsConnections];
 
   async handler(_req: Request, res: Response, logger: Logger): Promise<void> {
     const browserManager = this.browserManager();

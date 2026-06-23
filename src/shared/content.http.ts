@@ -74,7 +74,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
   description = `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`;
   method = Methods.post;
   path = [HTTPRoutes.content, HTTPRoutes.chromiumContent];
-  tags = [APITags.browserAPI];
+  tags = [APITags.scrapingContent];
   async handler(
     req: Request,
     res: ServerResponse,

@@ -93,7 +93,7 @@ export default class MetaGetRoute extends HTTPRoute {
   description = `Returns a JSON payload of the current system versions, including the core API version.`;
   method = Methods.get;
   path = HTTPManagementRoutes.meta;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     const installedBrowsers = await availableBrowsers;
     const response: ResponseSchema = {

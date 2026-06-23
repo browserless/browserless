@@ -29,7 +29,7 @@ export default class KillGetRoute extends HTTPRoute {
   description = `Kill running sessions based on BrowserId or TrackingId.`;
   method = Methods.get;
   path = HTTPManagementRoutes.kill;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
 
   async handler(req: Request, res: ServerResponse): Promise<void> {
     const target = req.parsed.pathname.split('/')[2];

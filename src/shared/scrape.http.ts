@@ -215,7 +215,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
   `);
   method = Methods.post;
   path = [HTTPRoutes.scrape, HTTPRoutes.chromiumScrape];
-  tags = [APITags.browserAPI];
+  tags = [APITags.scrapingContent];
   async handler(
     req: Request,
     res: ServerResponse,

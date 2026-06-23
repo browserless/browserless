@@ -23,7 +23,7 @@ export default class MetricsGetRoute extends HTTPRoute {
   description = `Returns a list of metric details as far back as possible.`;
   method = Methods.get;
   path = HTTPManagementRoutes.metrics;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     const fileSystem = this.fileSystem();
     const config = this.config();

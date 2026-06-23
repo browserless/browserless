@@ -42,7 +42,7 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
   `);
   method = Methods.put;
   path = HTTPRoutes.jsonNew;
-  tags = [APITags.browserAPI];
+  tags = [APITags.sessionsConnections];
 
   async handler(_req: Request, res: Response): Promise<void> {
     const config = this.config();

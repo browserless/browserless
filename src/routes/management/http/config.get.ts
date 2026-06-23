@@ -43,7 +43,7 @@ export default class ConfigGetRoute extends HTTPRoute {
   description = `Returns a JSON payload of the current system configuration.`;
   method = Methods.get;
   path = HTTPManagementRoutes.config;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     const config = this.config();
 

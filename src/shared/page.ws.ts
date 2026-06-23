@@ -28,7 +28,7 @@ export default class ChromiumPageWebSocketRoute extends BrowserWebsocketRoute {
     or by finding the page's unique ID from your library of choice.`,
   );
   path = WebsocketRoutes.page;
-  tags = [APITags.browserWS];
+  tags = [APITags.webSocketAPIs];
   async handler(
     req: Request,
     socket: Duplex,

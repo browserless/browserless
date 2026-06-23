@@ -30,7 +30,7 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
   description = `Returns a JSON payload that acts as a pass-through to the DevTools /json/version protocol in Chrome and Chromium.`;
   method = Methods.get;
   path = HTTPRoutes.jsonVersion;
-  tags = [APITags.browserAPI];
+  tags = [APITags.sessionsConnections];
   async handler(req: Request, res: Response, logger: Logger): Promise<void> {
     const baseUrl = req.parsed.host;
     const protocol = req.parsed.protocol.includes('s') ? 'wss' : 'ws';

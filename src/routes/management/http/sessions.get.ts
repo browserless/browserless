@@ -29,7 +29,7 @@ export default class SessionsGetRoute extends HTTPRoute {
   description = `Lists all currently running sessions and relevant meta-data excluding potentially open pages.`;
   method = Methods.get;
   path = HTTPManagementRoutes.sessions;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(req: Request, res: ServerResponse): Promise<void> {
     const trackingId = (req.queryParams.trackingId as string) || undefined;
     const browserManager = this.browserManager();

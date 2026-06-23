@@ -78,7 +78,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
   `);
   method = Methods.post;
   path = [HTTPRoutes.pdf, HTTPRoutes.chromiumPdf];
-  tags = [APITags.browserAPI];
+  tags = [APITags.screenshotsPDFs];
   async handler(
     req: Request,
     res: ServerResponse,

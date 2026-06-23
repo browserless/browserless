@@ -24,7 +24,7 @@ export default class ActiveGetRoute extends HTTPRoute {
   `);
   method = Methods.get;
   path = HTTPManagementRoutes.active;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     return writeResponse(res, 204, '', contentTypes.text);
   }

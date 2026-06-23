@@ -82,7 +82,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
   `);
   method = Methods.post;
   path = [HTTPRoutes.screenshot, HTTPRoutes.chromiumScreenshot];
-  tags = [APITags.browserAPI];
+  tags = [APITags.screenshotsPDFs];
   async handler(
     req: Request,
     res: ServerResponse,

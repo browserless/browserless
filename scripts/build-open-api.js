@@ -6,7 +6,6 @@ import { join, parse } from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
-import { marked } from 'marked';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const moduleMain = import.meta.url.endsWith(process.argv[1]);
@@ -19,6 +18,129 @@ const swaggerJSONMinimal = join(
   'swagger.min.json',
 );
 const packageJSONPath = join(__dirname, '..', 'package.json');
+
+const openAPITags = [
+  {
+    name: 'Screenshots & PDFs',
+    description:
+      'Endpoints for capturing full-page or element screenshots and generating PDF documents from web pages. Use the root `/screenshot` and `/pdf` routes for quick captures, or browser-specific variants for fine-grained control.',
+    'x-displayName': 'Screenshots & PDFs',
+  },
+  {
+    name: 'Scraping & Content',
+    description:
+      'Endpoints for loading pages and extracting HTML, text, and structured data. Use `/chromium/content` for raw HTML and `/chromium/scrape` for selector-based extraction.',
+    'x-displayName': 'Scraping & Content',
+  },
+  {
+    name: 'Functions & Downloads',
+    description:
+      'Endpoints for running custom JavaScript functions in a browser context and downloading the resulting files. Useful for generating exports, running headless scripts, and retrieving binary assets.',
+    'x-displayName': 'Functions & Downloads',
+  },
+  {
+    name: 'Sessions & Connections',
+    description:
+      'Endpoints for creating, managing, and reconnecting to browser sessions. Includes the JSON/CDP discovery endpoints and BQL session management.',
+    'x-displayName': 'Sessions & Connections',
+  },
+  {
+    name: 'Crawling',
+    description:
+      'Endpoints for launching, monitoring, and managing multi-page crawl jobs. Submit a crawl, poll for status, or cancel an in-progress crawl.',
+    'x-displayName': 'Crawling',
+  },
+  {
+    name: 'Unblock & Stealth',
+    description:
+      'Endpoints for bypassing bot detection and anti-scraping measures. Use `/unblock` for aggressive anti-bot challenges and the BQL stealth variants for fingerprint-randomized automation.',
+    'x-displayName': 'Unblock & Stealth',
+  },
+  {
+    name: 'Browser Management',
+    description:
+      'Endpoints for inspecting active sessions, terminating browsers, and retrieving server metadata. Use `/active` to list running sessions and `/kill` to terminate them.',
+    'x-displayName': 'Browser Management',
+  },
+  {
+    name: 'Profiles',
+    description:
+      'Endpoints for creating, updating, and managing persistent browser profiles that preserve cookies, localStorage, and IndexedDB state across sessions.',
+    'x-displayName': 'Profiles',
+  },
+  {
+    name: 'Proxy',
+    description:
+      'Endpoints for discovering available proxy locations and configuring residential or datacenter proxying.\n\n> The Residential proxy is only available for Enterprise and Cloud plans.\n\nAdd these parameters to your library or API calls:\n\n- `?proxy=residential` — Use the residential proxy (6 units/MB).\n- `?proxy=datacenter` — Use the datacenter proxy pool (2 units/MB). Cheaper but more easily detected.\n- `?proxyCountry=us` — Two-digit ISO country code.\n- `?proxySticky=true` — Keep the same IP for the entire session. Recommended for most cases.\n- `?proxyPreset=px_gov01` — Website-specific proxy configuration.',
+    'x-displayName': 'Proxy',
+  },
+  {
+    name: 'Integrations',
+    description:
+      'Endpoints for connecting external services to Browserless. Currently supports 1Password integration for secure credential injection into browser sessions.',
+    'x-displayName': 'Integrations',
+  },
+  {
+    name: 'Legacy (chrome prefix)',
+    description:
+      'Deprecated `/chrome/*` endpoints that mirror the newer `/chromium/*` equivalents. These remain documented for backward compatibility but new integrations should use the `/chromium/*` routes instead.',
+    'x-displayName': 'Legacy (chrome prefix)',
+    'x-traitTag': true,
+  },
+  {
+    name: 'WebSocket APIs',
+    description:
+      'WebSocket and CDP connection endpoints for Puppeteer, Playwright, and raw DevTools Protocol clients. Connect via `wss://` to launch or attach to browser instances.',
+    'x-displayName': 'WebSocket APIs',
+  },
+  {
+    name: 'CDP Extensions',
+    description:
+      'Browserless-specific Chrome DevTools Protocol extensions invoked via `cdp.send()`. These commands enhance open-source libraries with features like live URLs, captcha solving, session reconnect, and page identification.',
+    'x-displayName': 'CDP Extensions',
+  },
+];
+
+const openAPITagGroups = [
+  {
+    name: 'Core APIs',
+    tags: ['Screenshots & PDFs', 'Scraping & Content', 'Functions & Downloads'],
+  },
+  {
+    name: 'Browser Control',
+    tags: ['Sessions & Connections', 'Browser Management', 'Crawling'],
+  },
+  {
+    name: 'Anti-Bot & Stealth',
+    tags: ['Unblock & Stealth', 'Proxy'],
+  },
+  {
+    name: 'Auth & Profiles',
+    tags: ['Profiles', 'Integrations'],
+  },
+  {
+    name: 'WebSocket / CDP',
+    tags: ['WebSocket APIs', 'CDP Extensions'],
+  },
+];
+
+const openAPIDescription = [
+  'Complete API reference for [Browserless](https://www.browserless.io), a headless-browser-as-a-service platform.',
+  'Browse the REST, WebSocket, and CDP extension endpoints below to automate screenshots, PDFs, scraping, stealth browsing, and more.',
+  '',
+  '# Software Keys',
+  '',
+  'The Enterprise image supports time-limited software keys that allow usage for a specific period without requiring any external connections or callbacks.',
+  'These keys are cryptographically secure and cannot be reverse engineered. When a key expires, the container will exit with a semantic error code.',
+  '',
+  '## Using a Software Key',
+  '',
+  'To use a software key, set the `KEY` environment variable when running the container:',
+  '',
+  '```bash',
+  'docker run -e KEY=your-generated-key browserless/enterprise',
+  '```',
+].join('\n');
 
 const readFileOrNull = async (path) => {
   if (!path) {
@@ -60,10 +182,6 @@ const buildOpenAPI = async (
     ]);
 
   const isWin = process.platform === 'win32';
-  const readme = (await fs.readFile('README.md').catch(() => '')).toString();
-  const changelog = marked.parse(
-    (await fs.readFile('CHANGELOG.md').catch(() => '')).toString(),
-  );
 
   const [httpRoutes, wsRoutes] = await getRouteFiles(new Config());
   const swaggerJSON = {
@@ -80,7 +198,8 @@ const buildOpenAPI = async (
     openapi: '3.0.0',
     paths: {},
     servers: [],
-    // Inject routes here...
+    tags: openAPITags,
+    'x-tagGroups': openAPITagGroups,
   };
 
   const routeMetaData = await Promise.all(
@@ -286,7 +405,7 @@ const buildOpenAPI = async (
     swaggerJSONMinimal,
     JSON.stringify(swaggerJSON, null, '  '),
   );
-  swaggerJSON.info.description = readme + `\n# Changelog\n` + changelog;
+  swaggerJSON.info.description = openAPIDescription;
   await fs.writeFile(swaggerJSONPath, JSON.stringify(swaggerJSON, null, '  '));
 };
 

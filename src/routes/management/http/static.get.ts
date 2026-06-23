@@ -59,7 +59,7 @@ export default class StaticGetRoute extends HTTPRoute {
   description = `Serves static files inside of this "static" directory. Content-types will vary depending on the type =of file being returned.`;
   method = Methods.get;
   path = HTTPManagementRoutes.static;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(
     req: Request,
     res: ServerResponse,

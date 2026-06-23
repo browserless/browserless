@@ -80,7 +80,7 @@ export default class PressureGetRoute extends HTTPRoute {
   description = `Returns a JSON body of stats related to the pressure being created on the instance.`;
   method = Methods.get;
   path = HTTPManagementRoutes.pressure;
-  tags = [APITags.management];
+  tags = [APITags.browserManagement];
   async handler(_req: Request, res: ServerResponse): Promise<void> {
     const monitoring = this.monitoring();
     const config = this.config();
