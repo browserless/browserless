@@ -41,6 +41,13 @@ export interface AfterResponse {
   req: Request;
   start: number;
   status: 'successful' | 'error' | 'timedout';
+  error?: Error;
+  /**
+   * The route that handled the request, when one matched — so `after()`
+   * consumers can identify which route ran without re-matching the request
+   * against the router. Omitted when no route ran (e.g. an unmatched 404).
+   */
+  route?: Route;
 }
 
 export interface BrowserHook {
@@ -91,7 +98,7 @@ type defaultLaunchOptions =
   | BrowserlessLaunch
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
-abstract class Route {
+export abstract class Route {
   constructor(
     protected _browserManager: Browserless['browserManager'],
     protected _config: Browserless['config'],
@@ -140,6 +147,15 @@ abstract class Route {
    * concurrency limit defined in your configuration.
    */
   concurrency: boolean = true;
+
+  /**
+   * Optional per-request predicate. When it returns true, the limiter skips
+   * both the CPU/memory health-check rejection and the queue-capacity
+   * rejection for this request. Timeouts, metrics, and after-hooks still
+   * apply. Useful for lightweight requests (e.g. reconnects to an in-flight
+   * browser) that should not be turned away by host load or admission caps.
+   */
+  bypassLimits?: (req: Request) => boolean;
 
   /**
    * Description of the route and what it does. This description
@@ -237,6 +253,13 @@ abstract class BasicHTTPRoute extends Route {
    * The allowed methods ("GET", "POST", etc) this route can utilize and match against.
    */
   abstract method: Methods;
+
+  /**
+   * A function that can run before the requests is parsed and any query or body validation is run.
+   * Useful if you need to alter something about the request to conform it or otherwise. This
+   * hook is ran after any "global" hooks have run.
+   */
+  before?: (req: Request, res: http.ServerResponse) => Promise<boolean>;
 }
 
 /**
@@ -298,6 +321,15 @@ export abstract class WebSocketRoute extends Route {
     head: Buffer,
     logger: Logger,
   ): Promise<unknown>;
+
+  /**
+   * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
+   */
+  before?: (
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) => Promise<boolean>;
 }
 
 /**
@@ -327,6 +359,15 @@ export abstract class BrowserWebsocketRoute extends Route {
    * creation. Useful for injecting behaviors or other functionality.
    */
   onNewPage?: (url: URL, page: Page) => Promise<void>;
+
+  /**
+   * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
+   */
+  before?: (
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) => Promise<boolean>;
 }
 
 interface BrowserlessLaunch {
@@ -347,12 +388,19 @@ export interface CDPLaunchOptions extends BrowserlessLaunch {
   dumpio?: boolean;
   headless?: boolean | 'shell';
   ignoreDefaultArgs?: boolean | string[];
+  /** @deprecated use acceptInsecureCerts field instead */
   ignoreHTTPSErrors?: boolean;
+  acceptInsecureCerts?: boolean;
   slowMo?: number;
   stealth?: boolean;
   timeout?: number;
   userDataDir?: string;
   waitForInitialPage?: boolean;
+  // `launch` is a passthrough to puppeteer.launch(): the parsed object is
+  // spread straight to the launcher, which ignores keys it doesn't recognize.
+  // Forward launcher options outside this documented subset rather than
+  // rejecting the connection.
+  [key: string]: unknown;
 }
 
 export interface BrowserLauncherOptions {
@@ -377,6 +425,11 @@ export interface BrowserServerOptions {
   };
   timeout?: number;
   tracesDir?: string;
+  // `launch` is a passthrough to playwright.launchServer(): the parsed object
+  // is spread straight to the launcher, which ignores keys it doesn't
+  // recognize. Forward launcher options outside this documented subset rather
+  // than rejecting the connection.
+  [key: string]: unknown;
 }
 
 export interface BrowserlessSession {
@@ -414,6 +467,14 @@ export interface BrowserlessSessionFullJSON extends BrowserlessSessionJSON {
     url: string;
   }[];
 }
+
+export type ContextValue =
+  | string
+  | number
+  | boolean
+  | null
+  | ContextValue[]
+  | { [key: string]: ContextValue };
 
 export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 
@@ -516,7 +577,13 @@ export type requestInterceptors = {
    * corresponding responses to use in order to fulfill those requests.
    */
   pattern: string;
-  response: Partial<ResponseForRequest>;
+  response: Partial<Omit<ResponseForRequest, 'body'>> & {
+    /**
+     * A string representation of the body to return. Can be a base64-encoded
+     * string but please omit any leading content-type data (eg "data:image/png;base64,").
+     */
+    body?: string;
+  };
 };
 
 export interface IResourceLoad {
@@ -619,6 +686,7 @@ export const BrowserlessChromeRoutes = {
   ChromeCDPWebSocketRoute: 'ChromeCDPWebSocketRoute',
   ChromeContentPostRoute: 'ChromeContentPostRoute',
   ChromeDownloadPostRoute: 'ChromeDownloadPostRoute',
+  ChromeFunctionConnectWebSocketRoute: 'ChromeFunctionConnectWebSocketRoute',
   ChromeFunctionPostRoute: 'ChromeFunctionPostRoute',
   ChromeJSONListGetRoute: 'ChromeJSONListGetRoute',
   ChromeJSONNewPutRoute: 'ChromeJSONNewPutRoute',
@@ -637,6 +705,7 @@ export const BrowserlessEdgeRoutes = {
   EdgeCDPWebSocketRoute: 'EdgeCDPWebSocketRoute',
   EdgeContentPostRoute: 'EdgeContentPostRoute',
   EdgeDownloadPostRoute: 'EdgeDownloadPostRoute',
+  EdgeFunctionConnectWebSocketRoute: 'EdgeFunctionConnectWebSocketRoute',
   EdgeFunctionPostRoute: 'EdgeFunctionPostRoute',
   EdgeJSONListGetRoute: 'EdgeJSONListGetRoute',
   EdgeJSONNewPutRoute: 'EdgeJSONNewPutRoute',
@@ -655,6 +724,8 @@ export const BrowserlessChromiumRoutes = {
   ChromiumCDPWebSocketRoute: 'ChromiumCDPWebSocketRoute',
   ChromiumContentPostRoute: 'ChromiumContentPostRoute',
   ChromiumDownloadPostRoute: 'ChromiumDownloadPostRoute',
+  ChromiumFunctionConnectWebSocketRoute:
+    'ChromiumFunctionConnectWebSocketRoute',
   ChromiumFunctionPostRoute: 'ChromiumFunctionPostRoute',
   ChromiumJSONListGetRoute: 'ChromiumJSONListGetRoute',
   ChromiumJSONNewPutRoute: 'ChromiumJSONNewPutRoute',

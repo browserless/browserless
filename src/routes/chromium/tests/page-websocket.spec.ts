@@ -1,6 +1,6 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import puppeteer, { Connection } from 'puppeteer-core';
-import { NodeWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/node/NodeWebSocketTransport.js';
+import { NodeWebSocketTransport } from 'puppeteer-core/internal/node/NodeWebSocketTransport.js';
 import { expect } from 'chai';
 
 describe('WebSocket Page API', function () {
@@ -27,7 +27,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
@@ -78,7 +78,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
@@ -106,7 +106,7 @@ describe('WebSocket Page API', function () {
       browserWSEndpoint: `ws://localhost:3000?token=browserless`,
     });
     const page = await browser.newPage();
-    await page.goto('https://example.com/');
+    await page.goto('https://one.one.one.one/');
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/im-a-banana`;
 
     // Connect to raw page target without authorization

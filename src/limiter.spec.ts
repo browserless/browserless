@@ -16,8 +16,17 @@ const noop = () => undefined;
 const webHooks = Sinon.createStubInstance(WebHooks);
 const hooks = Sinon.createStubInstance(Hooks);
 
+const monitorings: Monitoring[] = [];
+const trackMonitoring = (m: Monitoring): Monitoring => {
+  monitorings.push(m);
+  return m;
+};
+
 describe(`Limiter`, () => {
   afterEach(() => {
+    monitorings.forEach((m) => m.stop());
+    monitorings.length = 0;
+
     webHooks.callFailedHealthURL.resetHistory();
     webHooks.callQueueAlertURL.resetHistory();
     webHooks.callRejectAlertURL.resetHistory();
@@ -33,9 +42,9 @@ describe(`Limiter`, () => {
   it('limits and queues function calls, calls hooks, and calls queue alert urls', async () => {
     return new Promise((resolve, reject) => {
       const config = new Config();
-      config.setQueueAlertURL('https://example.com');
+      config.setQueueAlertURL('https://one.one.one.one');
 
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
 
       config.setConcurrent(1);
@@ -72,7 +81,7 @@ describe(`Limiter`, () => {
       const args = ['one', 'two', 'three'];
       const config = new Config();
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(1);
       config.setQueued(0);
       config.setTimeout(-1);
@@ -100,7 +109,7 @@ describe(`Limiter`, () => {
 
   it('waits to run jobs until the first are done', async () => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     config.setConcurrent(1);
     config.setQueued(1);
@@ -123,7 +132,7 @@ describe(`Limiter`, () => {
 
   it('continues to process jobs even if an earlier job errors', (d) => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
 
     config.setConcurrent(1);
@@ -149,7 +158,7 @@ describe(`Limiter`, () => {
 
   it('bubbles up errors', async () => {
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     const error = new Error('WOW');
 
@@ -181,7 +190,7 @@ describe(`Limiter`, () => {
   it('calls an error handler with arguments if there are too many function calls', () => {
     const args = ['one', 'two', 'three'];
     const config = new Config();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     const metrics = new Metrics();
     config.setConcurrent(1);
     config.setQueued(0);
@@ -208,7 +217,7 @@ describe(`Limiter`, () => {
       const args = ['one', 'two', 'three'];
       const config = new Config();
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(1);
       config.setQueued(0);
       config.setTimeout(10);
@@ -242,7 +251,7 @@ describe(`Limiter`, () => {
   it('allows overriding the timeouts', async () => {
     const config = new Config();
     const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     config.setConcurrent(2);
     config.setQueued(0);
     config.setTimeout(1);
@@ -265,7 +274,7 @@ describe(`Limiter`, () => {
   it(`doesn't call a timeout handler if the job finishes in time`, async () => {
     const config = new Config();
     const metrics = new Metrics();
-    const monitoring = new Monitoring(config);
+    const monitoring = trackMonitoring(new Monitoring(config));
     config.setConcurrent(1);
     config.setQueued(0);
     config.setTimeout(20);
@@ -283,7 +292,7 @@ describe(`Limiter`, () => {
   it(`won't add items to the queue when reached`, () =>
     new Promise((r) => {
       const config = new Config();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
       config.setConcurrent(1);
       config.setQueued(0);
@@ -314,7 +323,7 @@ describe(`Limiter`, () => {
       config.setCPULimit(1);
       config.setMemoryLimit(1);
 
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       const metrics = new Metrics();
       config.setConcurrent(10);
       config.setQueued(10);
@@ -341,7 +350,7 @@ describe(`Limiter`, () => {
       config.setMemoryLimit(100);
 
       const metrics = new Metrics();
-      const monitoring = new Monitoring(config);
+      const monitoring = trackMonitoring(new Monitoring(config));
       config.setConcurrent(10);
       config.setQueued(10);
       config.setTimeout(-1);
@@ -360,4 +369,234 @@ describe(`Limiter`, () => {
         r(undefined);
       });
     }));
+
+  it('excludes queue wait time from the reported job duration', async () => {
+    const config = new Config();
+    const monitoring = trackMonitoring(new Monitoring(config));
+    const metrics = new Metrics();
+    config.setConcurrent(1);
+    config.setQueued(1);
+
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    limiter.timeout = 10000;
+
+    const queueWaitMs = 200;
+    const executionMs = 50;
+
+    const blockingHandler = async () => sleep(queueWaitMs);
+    const queuedHandler = async () => sleep(executionMs);
+
+    const blockingJob = limiter.limit(
+      blockingHandler, asyncNoop, asyncNoop, noop,
+    );
+    const queuedJob = limiter.limit(
+      queuedHandler, asyncNoop, asyncNoop, noop,
+    );
+
+    const queuedAt = Date.now();
+    blockingJob();
+    await queuedJob();
+    await sleep(50);
+
+    const afterArgs = hooks.after.getCall(1).args[0];
+    const billedStart: number = afterArgs.start;
+
+    // The billed start must be AFTER the queue wait ended
+    expect(billedStart - queuedAt).to.be.greaterThanOrEqual(queueWaitMs - 20);
+
+    // The billed duration should approximate execution time, not execution + wait
+    const billedDuration = Date.now() - billedStart;
+    expect(billedDuration).to.be.lessThan(executionMs + 150);
+  });
+
+  it('rejects via overCapacityFn when MachineStatsSource reports CPU overloaded', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+      // MAX_CPU_PERCENT defaults to 99; force a low ceiling.
+      sandbox.stub(config, 'getCPULimit').returns(10);
+      sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+      const overloadedSource = {
+        name: 'fake-overloaded',
+        read: async () => ({ cpu: 0.95, memory: 0.1 }),
+      };
+      const monitoring = new Monitoring(config, overloadedSource);
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const handler = sandbox.spy(asyncNoop);
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop);
+      let rejection: Error | undefined;
+      await job().catch((err) => {
+        rejection = err as Error;
+      });
+
+      expect(rejection).to.be.instanceOf(Error);
+      expect(rejection?.message).to.match(/health check/i);
+      expect(overCapacity.calledOnce).to.be.true;
+      expect(handler.called).to.be.false;
+      expect(metrics.get().rejected).to.equal(1);
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('skips health-check rejection when bypassLimitsFn returns true', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+      sandbox.stub(config, 'getCPULimit').returns(10);
+      sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+      const overloadedSource = {
+        name: 'fake-overloaded',
+        read: async () => ({ cpu: 0.95, memory: 0.1 }),
+      };
+      const monitoring = trackMonitoring(
+        new Monitoring(config, overloadedSource),
+      );
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const handler = sandbox.spy(async (_label: string) => undefined);
+      const bypass = sandbox.stub<[string], boolean>().returns(true);
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
+      await job('arg-zero');
+
+      expect(bypass.calledOnceWith('arg-zero')).to.be.true;
+      expect(overCapacity.called).to.be.false;
+      expect(handler.calledOnce).to.be.true;
+      expect(metrics.get().rejected).to.equal(0);
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('skips queue-capacity rejection when bypassLimitsFn returns true', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(1);
+      config.setQueued(0);
+      config.setTimeout(-1);
+
+      const monitoring = trackMonitoring(new Monitoring(config));
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const slow = async (_label: string) => sleep(50);
+      const reconnect = sandbox.spy(async (_label: string) => undefined);
+      const bypass = (label: string) => label === 'reconnect';
+
+      const slowJob = limiter.limit(
+        slow,
+        overCapacity,
+        asyncNoop,
+        noop,
+        bypass,
+      );
+      const reconnectJob = limiter.limit(
+        reconnect,
+        overCapacity,
+        asyncNoop,
+        noop,
+        bypass,
+      );
+
+      const slowPromise = slowJob('fresh');
+      await reconnectJob('reconnect');
+
+      expect(reconnect.calledOnce).to.be.true;
+      expect(overCapacity.called).to.be.false;
+      await slowPromise;
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('rejects when bypassLimitsFn throws instead of hanging', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+
+      const monitoring = trackMonitoring(new Monitoring(config));
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const handler = sandbox.spy(asyncNoop);
+      const overCapacity = sandbox.spy();
+      const bypass = () => {
+        throw new Error('predicate exploded');
+      };
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
+      let rejection: Error | undefined;
+      await job().catch((err) => {
+        rejection = err as Error;
+      });
+
+      expect(rejection).to.be.instanceOf(Error);
+      expect(rejection?.message).to.equal('predicate exploded');
+      expect(handler.called).to.be.false;
+      expect(overCapacity.calledOnce).to.be.true;
+      expect(webHooks.callRejectAlertURL.calledOnce).to.be.true;
+      expect(metrics.get().rejected).to.equal(1);
+    } finally {
+      sandbox.restore();
+    }
+  });
+
+  it('still rejects when bypassLimitsFn returns false', async () => {
+    const sandbox = Sinon.createSandbox();
+    try {
+      const config = new Config();
+      config.setConcurrent(5);
+      config.setQueued(5);
+      config.setTimeout(-1);
+      sandbox.stub(config, 'getCPULimit').returns(10);
+      sandbox.stub(config, 'getHealthChecksEnabled').returns(true);
+
+      const overloadedSource = {
+        name: 'fake-overloaded',
+        read: async () => ({ cpu: 0.95, memory: 0.1 }),
+      };
+      const monitoring = trackMonitoring(
+        new Monitoring(config, overloadedSource),
+      );
+      const metrics = new Metrics();
+
+      const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+      const overCapacity = sandbox.spy();
+      const handler = sandbox.spy(asyncNoop);
+      const bypass = sandbox.stub().returns(false);
+
+      const job = limiter.limit(handler, overCapacity, asyncNoop, noop, bypass);
+      let rejection: Error | undefined;
+      await job().catch((err) => {
+        rejection = err as Error;
+      });
+
+      expect(rejection).to.be.instanceOf(Error);
+      expect(rejection?.message).to.match(/health check/i);
+      expect(overCapacity.calledOnce).to.be.true;
+      expect(handler.called).to.be.false;
+    } finally {
+      sandbox.restore();
+    }
+  });
 });

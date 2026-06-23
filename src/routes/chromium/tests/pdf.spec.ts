@@ -22,7 +22,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -64,7 +64,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: '() => 5 + 5',
       },
@@ -89,7 +89,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForFunction: {
         fn: 'async () => new Promise(resolve => resolve(5))',
       },
@@ -114,7 +114,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       waitForSelector: {
         selector: 'h1',
       },
@@ -167,8 +167,8 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      cookies: [{ domain: 'example.com', name: 'foo', value: 'bar' }],
-      url: 'https://example.com',
+      cookies: [{ domain: 'one.one.one.one', name: 'foo', value: 'bar' }],
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -191,7 +191,7 @@ describe('/chromium/pdf API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch(
@@ -218,7 +218,7 @@ describe('/chromium/pdf API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -252,7 +252,7 @@ describe('/chromium/pdf API', function () {
           },
         },
       ],
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -277,7 +277,7 @@ describe('/chromium/pdf API', function () {
       gotoOptions: {
         waitUntil: `networkidle2`,
       },
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -324,7 +324,7 @@ describe('/chromium/pdf API', function () {
       options: {
         landscape: true,
       },
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
@@ -346,7 +346,7 @@ describe('/chromium/pdf API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
       viewport: {
         deviceScaleFactor: 3,
         height: 100,
@@ -370,7 +370,7 @@ describe('/chromium/pdf API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chromium/pdf', {
@@ -387,6 +387,85 @@ describe('/chromium/pdf API', function () {
       expect(res.headers.get('x-response-por')).to.not.be.undefined;
       expect(res.headers.get('content-type')).to.equal('application/pdf');
       expect(res.status).to.equal(200);
+    });
+  });
+
+  it('returns 400 when payload size exceeds maximum allowed size', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    config.setMaxPayloadSize(100); // Set a very small max payload size for testing
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    // Create a large payload that exceeds the 100 byte limit
+    const body = {
+      html: 'a'.repeat(200), // Create a 200 byte string
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const errorText = await res.text();
+      expect(res.status).to.equal(400);
+      expect(errorText).to.include('Request payload size');
+      expect(errorText).to.include('exceeds maximum allowed size');
+    });
+  });
+
+  it('sets fullPage height correctly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const body = {
+      html: `
+      <body style="background-color: red; height: 1920px">
+        <h1>Hello World</h1>
+      </body>
+    `,
+      options: { fullPage: true },
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      await res.body?.pipeTo(new WritableStream({}));
+      expect(res.headers.get('content-type')).to.equal('application/pdf');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('does not allow fullPage option with height or format options', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      html: '<h1>Hello World</h1>',
+      options: { fullPage: true, height: 100, format: 'A4' },
+    };
+
+    await fetch('http://localhost:3000/chromium/pdf?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      expect(res.status).to.equal(400);
+      const { error } = await res.json();
+      expect(error).to.include(
+        '"fullPage" option cannot be used with "height" or "format" options.',
+      );
     });
   });
 });

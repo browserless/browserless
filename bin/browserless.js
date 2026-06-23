@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-undef */
 'use strict';
 import {
   Browserless,
@@ -52,9 +51,9 @@ process
     console.debug(`SIGUSR2 received, saving and closing down`);
     process.exit(0);
   })
-  .once('exit', () => {
-    console.debug(`Process is finished, exiting`);
-    process.exit(0);
+  .once('exit', (c) => {
+    console.debug(`Process finished with code ${c}, exiting`);
+    process.exit(c);
   });
 
 const log = debug('browserless.io:sdk:log');
@@ -144,9 +143,6 @@ const clean = async () =>
  * and validation. Doesn't start the HTTP server.
  */
 const build = async () => {
-  log(`Cleaning build directory`);
-  await clean();
-
   log(`Compiling TypeScript`);
   await buildTypeScript(buildDir, projectDir);
 
@@ -294,9 +290,9 @@ const start = async (dev = false) => {
       await browserless.stop();
       process.exit(0);
     })
-    .once('exit', () => {
-      debug(`Process is finished, exiting`);
-      process.exit(0);
+    .once('exit', (c) => {
+      console.debug(`Process finished with code ${c}, exiting`);
+      process.exit(c);
     });
 };
 
@@ -400,10 +396,9 @@ const create = async () => {
     if (sdkFile === 'package.json') {
       const sdkPackageJSONTemplate = (await readFile(from)).toString();
       const { version } = await browserlessPackageJSON;
-      const sdkPackageJSON = sdkPackageJSONTemplate.replace(
-        '${BROWSERLESS_VERSION}',
-        version,
-      );
+      const sdkPackageJSON = sdkPackageJSONTemplate
+        .replace('${BROWSERLESS_VERSION}', version)
+        .replace('"name": ""', `"name": "${directory}"`);
       await writeFile(to, sdkPackageJSON);
     } else if ((await fs.lstat(from)).isDirectory()) {
       await fs.mkdir(to);

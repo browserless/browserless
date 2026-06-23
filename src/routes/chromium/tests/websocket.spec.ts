@@ -2,6 +2,7 @@ import {
   Browserless,
   BrowserlessSessionJSON,
   Config,
+  Hooks,
   Metrics,
   exists,
   fetchJson,
@@ -10,6 +11,7 @@ import {
 import { chromium } from 'playwright-core';
 import { deleteAsync } from 'del';
 import { expect } from 'chai';
+import fs from 'fs/promises';
 import puppeteer from 'puppeteer-core';
 
 describe('Chromium WebSocket API', function () {
@@ -17,10 +19,27 @@ describe('Chromium WebSocket API', function () {
 
   const start = ({
     config = new Config(),
+    hooks,
     metrics = new Metrics(),
-  }: { config?: Config; metrics?: Metrics } = {}) => {
-    browserless = new Browserless({ config, metrics });
+  }: { config?: Config; hooks?: Hooks; metrics?: Metrics } = {}) => {
+    browserless = new Browserless({ config, hooks, metrics });
     return browserless.start();
+  };
+
+  // Bounded polling for cleanup assertions. Filesystem + process-exit
+  // timing is non-deterministic, so a fixed sleep flakes on slower CI.
+  // Throws on timeout so a failure is loud, not silent.
+  const waitFor = async (
+    predicate: () => Promise<boolean>,
+    timeoutMs = 5000,
+    intervalMs = 50,
+  ): Promise<void> => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await predicate()) return;
+      await sleep(intervalMs);
+    }
+    throw new Error(`waitFor timed out after ${timeoutMs}ms`);
   };
 
   afterEach(async () => {
@@ -49,6 +68,8 @@ describe('Chromium WebSocket API', function () {
     const browser = await chromium.connectOverCDP(
       `ws://localhost:3000/chromium?token=browserless`,
     );
+    const context = await browser.newContext();
+    await context.newPage();
 
     await browser.close();
   });
@@ -216,13 +237,164 @@ describe('Chromium WebSocket API', function () {
     expect(await exists(userDataDir)).to.be.true;
 
     await browser.disconnect();
-    await sleep(1000);
+    await waitFor(async () => !(await exists(userDataDir)));
+  });
 
-    expect(await exists(userDataDir)).to.be.false;
+  it('deletes user-data-dirs when launch fails', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    const hooks = new Hooks();
+    hooks.browser = async () => {
+      throw new Error('simulated post-launch hook failure');
+    };
+    await start({ config, hooks, metrics });
+
+    const baseDir = await config.getDataDir();
+    const before = await fs.readdir(baseDir).catch((): string[] => []);
+
+    const attempts = 3;
+    const results = await Promise.all(
+      Array.from({ length: attempts }, () =>
+        puppeteer
+          .connect({
+            browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+          })
+          .then(() => 'connected')
+          .catch((err: Error) => err.message),
+      ),
+    );
+    expect(results.every((r) => r !== 'connected')).to.be.true;
+    // Distinguish from infrastructure failures (ECONNREFUSED, bad
+    // token → 401, etc.) which would never have produced a data-dir
+    // in the first place. The hook throwing produces a 500 from the
+    // route handler.
+    expect(results.every((r) => r.includes('500'))).to.be.true;
+
+    await waitFor(async () => {
+      const after = await fs.readdir(baseDir).catch((): string[] => []);
+      return after.every((entry) => before.includes(entry));
+    });
+
+    const after = await fs.readdir(baseDir).catch(() => []);
+    const leaked = after.filter((entry) => !before.includes(entry));
+    expect(leaked).to.deep.equal([]);
+  });
+
+  it('deletes user-data-dirs when the server shuts down with active sessions', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const baseDir = await config.getDataDir();
+    const before = await fs.readdir(baseDir).catch((): string[] => []);
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+    });
+
+    const sessionsRes = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    );
+    expect(sessionsRes.status).to.equal(200);
+    const [{ userDataDir }] = await sessionsRes.json();
+    expect(await exists(userDataDir)).to.be.true;
+
+    // Stop WITHOUT first disconnecting the client; mirrors the
+    // SIGTERM-with-active-sessions case that was leaking.
+    await browserless.stop();
+
+    await waitFor(async () => !(await exists(userDataDir)));
+    const after = await fs.readdir(baseDir).catch(() => []);
+    expect(after.filter((e) => !before.includes(e))).to.deep.equal([]);
+
+    await browser.disconnect().catch(() => undefined);
+
+    // Replace the shared `browserless` with a stub so the global
+    // `afterEach` does not call stop() a second time on an already
+    // shut-down HTTP server.
+    browserless = {
+      stop: () => Promise.resolve([]),
+    } as unknown as Browserless;
+  });
+
+  it('deletes user-data-dirs when the session is killed via /kill', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+    });
+
+    const preKillRes = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    );
+    expect(preKillRes.status).to.equal(200);
+    const [session] = await preKillRes.json();
+    const userDataDir: string = session.userDataDir;
+    const killURL: string = session.killURL;
+    expect(await exists(userDataDir)).to.be.true;
+
+    const killResponse = await fetch(`${killURL}?token=browserless`, {
+      method: 'GET',
+    });
+    expect(killResponse.status).to.equal(204);
+
+    // Synchronous-eviction contract: by the time /kill returns, the
+    // session must no longer be visible to /sessions, even though
+    // browser.close() may still be running.
+    const postKillRes = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    );
+    expect(postKillRes.status).to.equal(200);
+    expect(await postKillRes.json()).to.deep.equal([]);
+
+    await waitFor(async () => !(await exists(userDataDir)));
+    await browser.disconnect().catch(() => undefined);
+  });
+
+  it('deletes user-data-dirs when the browser exits unexpectedly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const client = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless`,
+    });
+
+    const sessionsRes = await fetch(
+      'http://localhost:3000/sessions?token=browserless',
+    );
+    expect(sessionsRes.status).to.equal(200);
+    const [{ userDataDir }] = await sessionsRes.json();
+    expect(await exists(userDataDir)).to.be.true;
+
+    // Reach into the manager to grab the wrapper, then kill the
+    // underlying chromium process directly. This simulates an OOM
+    // kill from the kernel: no graceful shutdown, no WebSocket close
+    // initiated by the peer.
+    const browserManager = (
+      browserless as unknown as {
+        browserManager: { browsers: Map<unknown, unknown> };
+      }
+    ).browserManager;
+    const [wrapper] = Array.from(browserManager.browsers.keys()) as Array<{
+      process: () => { kill: (sig: string) => void } | null;
+    }>;
+    const chromiumProcess = wrapper.process();
+    expect(chromiumProcess).to.not.be.null;
+    chromiumProcess!.kill('SIGKILL');
+
+    await waitFor(async () => !(await exists(userDataDir)), 10000);
+    await client.disconnect().catch(() => undefined);
   });
 
   it('allows specified user-data-dirs', async () => {
-    const dataDir = '/tmp/data-dir';
+    const dataDir = '/tmp/data-dir-1';
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
@@ -508,6 +680,76 @@ describe('Chromium WebSocket API', function () {
     });
 
     await browser.disconnect();
+  });
+
+  it('launches headless correctly', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const getVersion = () => {
+      return document.querySelector('#command_line')?.textContent;
+    };
+
+    const runPuppeteer = async (launch: string) => {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+      });
+
+      const page = await browser.newPage();
+      await page.goto('chrome://version/');
+      const command = await page.evaluate(getVersion);
+      await browser.close();
+
+      return command;
+    };
+
+    const runPlaywright = async (launch: string) => {
+      const browser = await chromium.connect(
+        `ws://localhost:3000/chromium/playwright?token=browserless&launch=${launch}`,
+      );
+
+      const page = await browser.newPage();
+      await page.goto('chrome://version/');
+      const command = await page.evaluate(getVersion);
+      await browser.close();
+
+      return command;
+    };
+
+    // Test headless=new
+    let launch = JSON.stringify({
+      args: ['--headless=new'],
+    });
+
+    let pptrCommand = await runPuppeteer(launch);
+    let pwCommand = await runPlaywright(launch);
+
+    expect(pptrCommand).to.include('--headless=new');
+    expect(pwCommand).to.include('--headless=new');
+
+    // Test headless false
+    launch = JSON.stringify({
+      headless: false,
+    });
+
+    pptrCommand = await runPuppeteer(launch);
+    pwCommand = await runPlaywright(launch);
+
+    expect(pptrCommand).not.to.include('--headless');
+    expect(pwCommand).not.to.include('--headless');
+
+    // Test headless true (should default to headless=new for puppeteer and headless for playwright)
+    launch = JSON.stringify({
+      headless: true,
+    });
+
+    pptrCommand = await runPuppeteer(launch);
+    pwCommand = await runPlaywright(launch);
+
+    expect(pptrCommand).to.include('--headless=new');
+    expect(pwCommand).to.include('--headless');
   });
 
   it('Throws an error while creating a session with invalid trackingId', async () => {

@@ -7,6 +7,7 @@ import {
   ServerError,
   chromeExecutablePath,
   edgeExecutablePath,
+  findBlockedNavigationUrl,
   noop,
   once,
   ublockLitePath,
@@ -34,6 +35,7 @@ export class ChromiumCDP extends EventEmitter {
   protected logger: Logger;
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
+  protected keepUntilMS = 0;
 
   constructor({
     blockAds,
@@ -53,7 +55,7 @@ export class ChromiumCDP extends EventEmitter {
     this.blockAds = blockAds;
     this.logger = logger;
 
-    this.logger.info(`Starting new ${this.constructor.name} instance`);
+    this.logger.debug(`Starting new ${this.constructor.name} instance`);
   }
 
   protected cleanListeners() {
@@ -62,7 +64,12 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   public keepUntil() {
-    return 0;
+    return this.keepUntilMS;
+  }
+
+  public setKeepUntil(timeout: number) {
+    this.keepUntilMS = timeout;
+    return this.keepUntilMS;
   }
 
   public getPageId(page: Page): string {
@@ -85,7 +92,7 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('pageerror', (err) => {
-          this.logger.warn(err);
+          this.logger.debug(err);
         });
 
         page.on('framenavigated', (frame) => {
@@ -97,36 +104,50 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('requestfailed', (req) => {
-          this.logger.warn(`"${req.failure()?.errorText}": ${req.url()}`);
+          this.logger.debug(`"${req.failure()?.errorText}": ${req.url()}`);
         });
 
-        page.on('request', async (request) => {
-          this.logger.trace(`${request.method()}: ${request.url()}`);
-          if (
-            !this.config.getAllowFileProtocol() &&
-            request.url().startsWith('file://')
-          ) {
+        const terminateIfBlocked = (
+          url: string,
+          direction: 'request' | 'response',
+        ): void => {
+          // Read config per call (it can change at runtime) but skip the
+          // normalize/match work entirely in the common case where nothing is
+          // configured to block — this runs for every request and response.
+          const patterns = this.config.getBlockedURLPatterns();
+          const ranges = this.config.getBlockedNetworkRanges();
+          if (!patterns.length && !ranges) {
+            return;
+          }
+          // Scheme blocklist (e.g. file://) plus the private-network classifier.
+          // Top-level navigations are rejected earlier (with a clean status) by
+          // the route handlers; this is the runtime backstop for subresources
+          // and mid-flight redirects, so it terminates the session. The server's
+          // own origin is exempt so this can't sever browserless's own pages
+          // (e.g. the /function runtime, which loads from the local server).
+          const blocked = findBlockedNavigationUrl(
+            url,
+            patterns,
+            ranges,
+            this.config.getSelfNavigationHosts(),
+          );
+          if (blocked) {
             this.logger.error(
-              `File protocol request found in request to ${this.constructor.name}, terminating`,
+              `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
             );
             page.close().catch(noop);
             this.close();
           }
+        };
+
+        page.on('request', async (request) => {
+          this.logger.trace(`${request.method()}: ${request.url()}`);
+          terminateIfBlocked(request.url(), 'request');
         });
 
         page.on('response', async (response) => {
           this.logger.trace(`${response.status()}: ${response.url()}`);
-
-          if (
-            !this.config.getAllowFileProtocol() &&
-            response.url().startsWith('file://')
-          ) {
-            this.logger.error(
-              `File protocol request found in response to ${this.constructor.name}, terminating`,
-            );
-            page.close().catch(noop);
-            this.close();
-          }
+          terminateIfBlocked(response.url(), 'response');
         });
 
         this.emit('newPage', page);
@@ -136,6 +157,10 @@ export class ChromiumCDP extends EventEmitter {
 
   public isRunning(): boolean {
     return this.running;
+  }
+
+  public getConfig(): Config {
+    return this.config;
   }
 
   public async newPage(): Promise<Page> {
@@ -150,16 +175,17 @@ export class ChromiumCDP extends EventEmitter {
 
   public async close(): Promise<void> {
     if (this.browser) {
-      this.logger.info(
+      this.logger.debug(
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.emit('close');
       this.cleanListeners();
       this.browser.removeAllListeners();
-      this.browser.close();
+      const browser = this.browser;
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
+      await browser.close().catch(() => undefined);
     }
   }
 
@@ -176,7 +202,7 @@ export class ChromiumCDP extends EventEmitter {
     stealth,
   }: BrowserLauncherOptions): Promise<Browser> {
     this.port = await getPort();
-    this.logger.info(`${this.constructor.name} got open port ${this.port}`);
+    this.logger.debug(`${this.constructor.name} got open port ${this.port}`);
 
     const extensionLaunchArgs = options.args?.find((a) =>
       a.startsWith('--load-extension'),
@@ -219,6 +245,9 @@ export class ChromiumCDP extends EventEmitter {
       args: [
         `--remote-debugging-port=${this.port}`,
         `--no-sandbox`,
+        // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
+        // This is needed to allow WebSocket connections to localhost.
+        `--disable-features=LocalNetworkAccessChecks`,
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
@@ -236,15 +265,37 @@ export class ChromiumCDP extends EventEmitter {
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
 
-    this.logger.info(
+    this.logger.debug(
       finalOptions,
       `Launching ${this.constructor.name} Handler`,
     );
     this.browser = (await launch(finalOptions)) as Browser;
     this.browser.on('targetcreated', this.onTargetCreated.bind(this));
+    // Propagate unexpected disconnect (Chrome OOM, segfault, host SIGKILL)
+    // as a `close` event on the wrapper. Without this, a spontaneous
+    // exit leaves the BrowserlessSession in BrowserManager.browsers
+    // forever and the user-data-dir leaks. The `if (this.running)`
+    // guard skips re-entry during the normal close() path (which sets
+    // running=false before awaiting the inner close).
+    this.browser.once('disconnected', () => {
+      if (this.running) {
+        this.logger.warn(
+          `${this.constructor.name} disconnected unexpectedly, emitting close`,
+        );
+        this.emit('close');
+        this.cleanListeners();
+        // `?.` because `this.emit('close')` above recursively re-enters
+        // wrapper.close() (via BrowserManager's close listener) and nulls
+        // this.browser synchronously before control returns here.
+        this.browser?.removeAllListeners();
+        this.running = false;
+        this.browser = null;
+        this.browserWSEndpoint = null;
+      }
+    });
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
-    this.logger.info(
+    this.logger.debug(
       `${this.constructor.name} is running on ${this.browserWSEndpoint}`,
     );
 
@@ -277,29 +328,39 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      if (!this.browserWSEndpoint || !this.browser) {
-        throw new ServerError(
-          `No browserWSEndpoint found, did you launch first?`,
-        );
-      }
-      socket.once('close', resolve);
-      this.logger.info(
-        `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+    // Throws and rejections here (newPage failing, browser gone) must
+    // propagate to the caller — inside a promise-executor they'd be
+    // swallowed, the promise would never settle, and the browser would
+    // never be released back to the manager.
+    if (!this.browserWSEndpoint || !this.browser) {
+      throw new ServerError(
+        `No browserWSEndpoint found, did you launch first?`,
       );
+    }
 
-      const shouldMakePage = req.parsed.pathname.includes(
-        BLESS_PAGE_IDENTIFIER,
-      );
-      const page = shouldMakePage ? await this.browser.newPage() : null;
-      const pathname = page
-        ? path.join('/devtools', '/page', this.getPageId(page))
-        : req.parsed.pathname;
-      const target = new URL(pathname, this.browserWSEndpoint).href;
-      req.url = '';
+    this.logger.debug(
+      `Proxying ${req.parsed.href} to ${this.constructor.name}`,
+    );
 
-      // Delete headers known to cause issues
-      delete req.headers.origin;
+    const shouldMakePage = req.parsed.pathname.includes(BLESS_PAGE_IDENTIFIER);
+    const page = shouldMakePage ? await this.browser.newPage() : null;
+    const pathname = page
+      ? path.join('/devtools', '/page', this.getPageId(page))
+      : req.parsed.pathname;
+    const target = new URL(pathname, this.browserWSEndpoint).href;
+    req.url = '';
+
+    // Delete headers known to cause issues
+    delete req.headers.origin;
+
+    return new Promise((resolve, reject) => {
+      // The page made for this connection lives only as long as the
+      // client socket — without this, keep-alive browsers accumulate a
+      // renderer per reconnect cycle.
+      socket.once('close', () => {
+        page?.close().catch(noop);
+        resolve();
+      });
 
       this.proxy.ws(
         req,
@@ -313,6 +374,7 @@ export class ChromiumCDP extends EventEmitter {
           this.logger.error(
             `Error proxying session to ${this.constructor.name}: ${error}`,
           );
+          page?.close().catch(noop);
           this.close();
           return reject(error);
         },
@@ -343,7 +405,7 @@ export class ChromiumCDP extends EventEmitter {
       this.browser?.process()?.once('close', close);
       socket.once('close', close);
 
-      this.logger.info(
+      this.logger.debug(
         `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 

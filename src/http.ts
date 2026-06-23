@@ -16,6 +16,11 @@ export const errorCodes = {
     description: `The request is missing, or contains bad, authorization credentials.`,
     message: 'HTTP/1.1 401 Unauthorized',
   },
+  403: {
+    code: 403,
+    description: `The request targets a destination that is not allowed.`,
+    message: 'HTTP/1.1 403 Forbidden',
+  },
   404: {
     code: 404,
     description: `Resource couldn't be found.`,
@@ -35,6 +40,11 @@ export const errorCodes = {
     code: 500,
     description: `An internal error occurred when handling the request.`,
     message: 'HTTP/1.1 500 Internal Server Error',
+  },
+  503: {
+    code: 503,
+    description: `Service is unavailable.`,
+    message: 'HTTP/1.1 503 Service Unavailable',
   },
 } as const;
 
@@ -83,12 +93,13 @@ export enum WebsocketRoutes {
   '/' = '?(/)',
   browser = '/devtools/browser/*',
   chrome = '/chrome?(/)',
-  edge = '/edge?(/)',
   chromePlaywright = '/chrome/playwright?(/)',
-  edgePlaywright = '/edge/playwright?(/)',
   chromium = '/chromium?(/)',
   chromiumPlaywright = '/chromium/playwright?(/)',
+  edge = '/edge?(/)',
+  edgePlaywright = '/edge/playwright?(/)',
   firefoxPlaywright = '/firefox/playwright?(/)',
+  functionClientConnect = '/function/connect/*',
   page = '/devtools/page/*',
   playwrightChrome = '/playwright/chrome?(/)',
   playwrightChromium = '/playwright/chromium?(/)',
@@ -202,4 +213,11 @@ export interface SystemQueryParameters {
    * Custom session identifier
    */
   trackingId?: string;
+
+  /**
+   * Name of an authenticated profile to hydrate into the browser at launch.
+   * The profile's cookies, localStorage and IndexedDB are injected via CDP
+   * before your code runs. No-op in builds without a profile subsystem.
+   */
+  profile?: string;
 }

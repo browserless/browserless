@@ -1,0 +1,27 @@
+# Build-context excludes. Keep in sync with what docker/*/Dockerfile COPY:
+# fonts, package.json, package-lock.json, assets, bin, extensions, external,
+# scripts, static, src, tsconfig.json, CHANGELOG.md, LICENSE, NOTICE.txt,
+# README.md. Nothing below is consumed by those COPY steps, so excluding it
+# never changes image contents -- it only shrinks the context sent to the
+# builder (the bulk of which is node_modules + .git).
+
+# Dependencies & compiled output -- regenerated inside the image
+# (base runs `npm clean-install`; builder stages run `npm run build`).
+node_modules
+build
+
+# Version control & CI -- never copied into any image
+.git
+.gitignore
+.github
+
+# Editor / OS cruft
+.vscode
+.idea
+.DS_Store
+
+# Local environment & logs -- must never end up in an image
+.env
+.env.*
+*.log
+npm-debug.log*

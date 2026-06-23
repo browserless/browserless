@@ -1,5 +1,5 @@
 import { rename, rm, unlink } from 'fs/promises';
-import extract from 'extract-zip';
+import { extractZip } from './extract-zip-native.js';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import https from 'https';
@@ -19,22 +19,37 @@ const deepPath = path.join(
   'resources',
   'inspector',
 );
-const zipStream = fs.createWriteStream(zipPath);
-
 const cleanup = async () => {
   return await Promise.all([
-    unlink(zipPath),
-    rm(extractPath, { recursive: true }),
+    unlink(zipPath).catch(() => {}),
+    rm(extractPath, { recursive: true }).catch(() => {}),
   ]);
 };
 
 (async () => {
+  // The devtools snapshot is pinned to a fixed URL, so once it's been
+  // downloaded there's no need to re-fetch it on every build. Set
+  // FORCE_DEVTOOLS=true to bypass the cache.
+  if (fs.existsSync(finalPath) && process.env.FORCE_DEVTOOLS !== 'true') {
+    return;
+  }
+
+  const zipStream = fs.createWriteStream(zipPath);
+
   await rm(finalPath, { recursive: true }).catch(() => {});
   await new Promise((resolve, reject) =>
     https.get(devtoolsUrl, (response) => {
       response.pipe(zipStream).on('close', resolve).on('error', reject);
     }),
   );
-  await extract(zipPath, { dir: extractPath });
+  await extractZip(zipPath, extractPath);
   await rename(deepPath, finalPath);
-})().finally(cleanup);
+})()
+  .catch((err) => {
+    console.error(`Failed to install devtools from ${devtoolsUrl}:`, err);
+    process.exitCode = 1;
+  })
+  // Always remove the transient zip/temp dir, on success and failure alike.
+  // Each op in cleanup() swallows its own error, so this never masks the
+  // failure reported above.
+  .finally(cleanup);

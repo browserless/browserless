@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 import {
   Logger as BlessLogger,
@@ -28,6 +29,7 @@ import {
   WebSocketRoute,
   availableBrowsers,
   dedent,
+  exists,
   getRouteFiles,
   makeExternalURL,
   normalizeFileProtocol,
@@ -39,6 +41,10 @@ import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
 
 const routeSchemas = ['body', 'query'];
+
+const isArm64 = process.arch === 'arm64';
+const isMacOS = process.platform === 'darwin';
+const unavailableARM64Browsers = ['edge', 'chrome'];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -71,6 +77,10 @@ export class Browserless extends EventEmitter {
   server?: HTTPServer;
   metricsSaveInterval: number = 5 * 60 * 1000;
   metricsSaveIntervalID?: NodeJS.Timer;
+  // Most-recent entries kept in the metrics JSON file (~35 days at the
+  // default 5-minute cadence). Without a cap the file — and the in-memory
+  // cache plus every /metrics response built from it — grows forever.
+  metricsMaxEntries: number = 10_000;
 
   constructor({
     browserManager,
@@ -121,15 +131,109 @@ export class Browserless extends EventEmitter {
       );
     this.router =
       router ||
-      new Router(this.config, this.browserManager, this.limiter, this.Logger);
+      new Router(
+        this.config,
+        this.browserManager,
+        this.limiter,
+        this.Logger,
+        this.hooks,
+      );
+  }
+
+  // Filter out routes that are not able to work on the arm64 architecture
+  // and log a message as to why that is (can't run Chrome on non-apple arm64)
+  protected filterNonMacArm64Browsers(
+    route:
+      | HTTPRoute
+      | BrowserHTTPRoute
+      | WebSocketRoute
+      | BrowserWebsocketRoute,
+  ) {
+    if (
+      isArm64 &&
+      !isMacOS &&
+      'browser' in route &&
+      route.browser &&
+      unavailableARM64Browsers.some((b) =>
+        route.browser.name.toLowerCase().includes(b),
+      )
+    ) {
+      this.logger.warn(
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "${route.browser.name}").`,
+      );
+      return false;
+    }
+    return true;
   }
 
   protected async loadPwVersions(): Promise<void> {
-    const { playwrightVersions } = JSON.parse(
-      (await fs.readFile('package.json')).toString(),
+    // Consumer's package.json wins — downstream projects can declare their
+    // own playwrightVersions to override the SDK's defaults. Tolerate a
+    // missing consumer package.json (e.g. CWD detached from the project root)
+    // and fall back to the SDK's map below; surface other read/parse errors.
+    let consumerVersions: { [key: string]: string } | undefined;
+    try {
+      const consumerPkg = JSON.parse(
+        (await fs.readFile('package.json')).toString(),
+      );
+      consumerVersions = consumerPkg.playwrightVersions;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    }
+
+    if (consumerVersions) {
+      this.config.setPwVersions(consumerVersions);
+      return;
+    }
+
+    // SDK consumers don't (and shouldn't have to) mirror the SDK's
+    // playwrightVersions map in their own package.json. Fall back to the
+    // SDK package's own map.
+    const sdkPkgPath = fileURLToPath(
+      new URL('../package.json', import.meta.url),
+    );
+    const { playwrightVersions: sdkVersions } = JSON.parse(
+      (await fs.readFile(sdkPkgPath)).toString(),
     );
 
-    this.config.setPwVersions(playwrightVersions);
+    if (!sdkVersions) {
+      throw new Error(
+        `playwrightVersions is missing from both the consumer's package.json and the SDK's package.json at ${sdkPkgPath}. The SDK package is malformed.`,
+      );
+    }
+
+    this.config.setPwVersions(sdkVersions);
+  }
+
+  protected async loadInstalledBinaries(): Promise<void> {
+    const pwVersions = this.config.getPwVersions();
+    const browserTypes = ['chromium', 'firefox', 'webkit'] as const;
+
+    await Promise.all(
+      browserTypes.map(async (browserType) => {
+        const installed: Array<[number, string, string]> = [];
+
+        await Promise.all(
+          Object.keys(pwVersions).map(async (version) => {
+            const minor = parseFloat(version);
+            if (isNaN(minor)) return;
+
+            try {
+              const pw = await this.config.loadPwVersion(version);
+              const exePath = pw[browserType].executablePath();
+              if (await exists(exePath)) {
+                installed.push([minor, version, exePath]);
+              }
+            } catch {
+              // Package not installed, skip
+            }
+          }),
+        );
+
+        installed.sort(([a], [b]) => a - b);
+        this.config.setInstalledBinaries(browserType, installed);
+      }),
+    );
   }
 
   protected async saveMetrics(): Promise<void> {
@@ -162,10 +266,14 @@ export class Browserless extends EventEmitter {
 
     if (metricsPath) {
       this.logger.info(`Saving metrics to "${metricsPath}"`);
-      this.fileSystem.append(
+      // Awaited so a write rejection surfaces through saveMetrics()'s caller
+      // (the setInterval .catch below) instead of becoming an unhandled
+      // rejection — append() returns the raw, rejectable write task.
+      await this.fileSystem.append(
         metricsPath,
         JSON.stringify(aggregatedStats),
         false,
+        this.metricsMaxEntries,
       );
     }
   }
@@ -177,10 +285,15 @@ export class Browserless extends EventEmitter {
       );
     }
 
-    clearInterval(this.metricsSaveInterval);
+    // Clear the running timer (not the interval duration) or both timers
+    // keep firing and each one resets the other's metrics window.
+    clearInterval(this.metricsSaveIntervalID as unknown as number);
     this.metricsSaveInterval = interval;
     this.metricsSaveIntervalID = setInterval(
-      this.saveMetrics,
+      () =>
+        this.saveMetrics().catch((err) =>
+          this.logger.error(`Error saving metrics: ${err}`),
+        ),
       this.metricsSaveInterval,
     );
   }
@@ -251,11 +364,14 @@ export class Browserless extends EventEmitter {
     const debuggerURL =
       hasDebugger &&
       makeExternalURL(this.config.getExternalAddress(), `/debugger/?token=xxx`);
-    const docsLink = makeExternalURL(this.config.getExternalAddress(), '/docs');
+    const docsLink = makeExternalURL(
+      this.config.getExternalAddress(),
+      '/docs/',
+    );
 
     this.logger.info(printLogo(docsLink, debuggerURL));
     this.logger.info(`Running as user "${userInfo().username}"`);
-    this.logger.info('Starting import of HTTP Routes');
+    this.logger.debug('Starting import of HTTP Routes');
 
     for (const httpRoute of [
       ...this.httpRouteFiles,
@@ -304,7 +420,7 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    this.logger.info('Starting import of WebSocket Routes');
+    this.logger.debug('Starting import of WebSocket Routes');
     for (const wsRoute of [
       ...this.webSocketRouteFiles,
       ...internalWsRouteFiles,
@@ -352,37 +468,45 @@ export class Browserless extends EventEmitter {
       }
     }
 
-    const allRoutes = [...httpRoutes, ...wsRoutes];
+    const allRoutes: [
+      (HTTPRoute | BrowserHTTPRoute)[],
+      (WebSocketRoute | BrowserWebsocketRoute)[],
+    ] = [
+      [...httpRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
+      [...wsRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
+    ];
+
     // Validate that we have the browsers they are asking for
-    allRoutes.forEach((route) => {
-      if (
-        'browser' in route &&
-        route.browser &&
-        internalBrowsers.includes(route.browser) &&
-        !installedBrowsers.some((b) => b.name === route.browser?.name)
-      ) {
-        throw new Error(
-          dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
-            Installed Browsers: ${installedBrowsers.join(', ')}`),
-        );
-      }
-    });
-
-    const duplicateNamedRoutes = allRoutes
+    allRoutes
+      .flat()
+      .map((route) => {
+        if (
+          'browser' in route &&
+          route.browser &&
+          internalBrowsers.includes(route.browser) &&
+          !installedBrowsers.some((b) => b.name === route.browser?.name)
+        ) {
+          throw new Error(
+            dedent(`Couldn't load route "${route.path}" due to missing browser binary for "${route.browser?.name}".
+            Installed Browsers: ${installedBrowsers.map((b) => b.name).join(', ')}`),
+          );
+        }
+        return route;
+      })
       .filter((e, i, a) => a.findIndex((r) => r.name === e.name) !== i)
-      .map((r) => r.name);
+      .map((r) => r.name)
+      .forEach((name) => {
+        this.logger.warn(
+          `Found duplicate routing names. Route names must be unique: ${name}`,
+        );
+      });
 
-    if (duplicateNamedRoutes.length) {
-      this.logger.warn(
-        `Found duplicate routing names. Route names must be unique:`,
-        duplicateNamedRoutes,
-      );
-    }
+    const [filteredHTTPRoutes, filteredWSRoutes] = allRoutes;
 
-    httpRoutes.forEach((r) => this.router.registerHTTPRoute(r));
-    wsRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
+    filteredHTTPRoutes.forEach((r) => this.router.registerHTTPRoute(r));
+    filteredWSRoutes.forEach((r) => this.router.registerWebSocketRoute(r));
 
-    this.logger.info(
+    this.logger.debug(
       `Imported and validated all route files, starting up server.`,
     );
 
@@ -396,10 +520,14 @@ export class Browserless extends EventEmitter {
     );
 
     await this.loadPwVersions();
+    await this.loadInstalledBinaries();
     await this.server.start();
-    this.logger.info(`Starting metrics collection.`);
+    this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
-      () => this.saveMetrics(),
+      () =>
+        this.saveMetrics().catch((err) =>
+          this.logger.error(`Error saving metrics: ${err}`),
+        ),
       this.metricsSaveInterval,
     );
   }

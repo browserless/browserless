@@ -1,10 +1,33 @@
+import * as http from 'http';
 import {
   CDPLaunchOptions,
   convertIfBase64,
   safeParse,
 } from '@browserless.io/browserless';
 
-const shimParam = ['headless', 'stealth', 'ignoreDefaultArgs', 'slowMo'];
+const shimParam = [
+  'headless',
+  'stealth',
+  'ignoreDefaultArgs',
+  'slowMo',
+  'ignoreHTTPSErrors',
+];
+
+/**
+ * Obfuscates the ?token parameter by shifting it to a header instead of a query-parameter.
+ */
+export function moveTokenToHeader(req: http.IncomingMessage): string {
+  const parsed = new URL(req.url || '', 'http://localhost');
+  const token = parsed.searchParams.get('token');
+
+  if (token) {
+    parsed.searchParams.delete('token');
+    req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
+    req.url = parsed.pathname + parsed.search;
+  }
+
+  return req.url!;
+}
 
 /**
  * Given a legacy connect or API call, this shim will
@@ -21,11 +44,21 @@ export function shimLegacyRequests(url: URL): URL {
 
   const cliSwitches = params.filter(([name]) => name.startsWith('--'));
   const hasLegacyParams =
-    cliSwitches || shimParam.some((name) => names.includes(name));
+    cliSwitches.length || shimParam.some((name) => names.includes(name));
 
   if (hasLegacyParams) {
-    const launchParams: CDPLaunchOptions =
-      safeParse(convertIfBase64(searchParams.get('launch') || '{}')) || {};
+    const parsedLaunch = safeParse(
+      convertIfBase64(searchParams.get('launch') || '{}'),
+    );
+    // The shim writes onto launchParams below, so fall back to {} unless the
+    // parsed value is a plain object — a primitive/array `launch` would throw.
+    const launchParams = (
+      parsedLaunch &&
+      typeof parsedLaunch === 'object' &&
+      !Array.isArray(parsedLaunch)
+        ? parsedLaunch
+        : {}
+    ) as CDPLaunchOptions;
     const ignoreDefaultArgs =
       searchParams.get('ignoreDefaultArgs') ?? launchParams.ignoreDefaultArgs;
     const ignoreHTTPSErrors =
@@ -55,6 +88,20 @@ export function shimLegacyRequests(url: URL): URL {
       launchParams.ignoreHTTPSErrors === undefined
     ) {
       launchParams.ignoreHTTPSErrors = ignoreHTTPSErrors !== 'false';
+    }
+
+    // When acceptInsecureCerts is set, ignoreHTTPSErrors is ignored
+    if (launchParams.acceptInsecureCerts !== undefined) {
+      launchParams.ignoreHTTPSErrors = undefined;
+    }
+
+    // When ignoreHTTPSErrors sent, convert it to acceptInsecureCerts
+    if (
+      typeof ignoreHTTPSErrors !== 'undefined' &&
+      launchParams.acceptInsecureCerts === undefined
+    ) {
+      launchParams.acceptInsecureCerts = ignoreHTTPSErrors !== 'false';
+      launchParams.ignoreHTTPSErrors = undefined;
     }
 
     if (

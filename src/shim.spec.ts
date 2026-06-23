@@ -1,5 +1,9 @@
+import * as http from 'http';
 import { expect } from 'chai';
-import { shimLegacyRequests } from '@browserless.io/browserless';
+import {
+  shimLegacyRequests,
+  moveTokenToHeader,
+} from '@browserless.io/browserless';
 
 describe('Request Shimming', () => {
   describe('headless', () => {
@@ -149,6 +153,91 @@ describe('Request Shimming', () => {
       const shimmed = shimLegacyRequests(new URL(url));
 
       expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
+  describe('no params', () => {
+    it('does not alter URLS when no params are set', () => {
+      const url = 'wss://localhost';
+      const final = 'wss://localhost/';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+
+    it('does not alter URLS when unknown params are set', () => {
+      const url = 'wss://localhost?silly=banana';
+      const final = 'wss://localhost/?silly=banana';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
+  describe('insecure certs', () => {
+    it('converts ignoreHTTPSErrors to acceptInsecureCerts', () => {
+      const url = 'wss://localhost?ignoreHTTPSErrors';
+      const final = 'wss://localhost/?launch={"acceptInsecureCerts":true}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+
+    it('acceptInsecureCerts takes precedence over ignoreHTTPSErrors', () => {
+      const url =
+        'wss://localhost?ignoreHTTPSErrors&launch={"acceptInsecureCerts":false}';
+      const final = 'wss://localhost/?launch={"acceptInsecureCerts":false}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
+  describe('malformed launch', () => {
+    it('falls back to an empty launch object when launch is not a JSON object', () => {
+      // `?launch="foo"` parses to the primitive string "foo"; a legacy param
+      // triggers the shim, which then writes onto the parsed launch value. It
+      // must fall back to {} rather than throw on the non-object.
+      const url = 'wss://localhost?stealth=true&launch="foo"';
+      const final = 'wss://localhost/?launch={"stealth":true}';
+      const shimmed = shimLegacyRequests(new URL(url));
+
+      expect(decodeURIComponent(shimmed.href)).to.equal(final);
+    });
+  });
+
+  describe('token shimming', () => {
+    it('converts token query parameters to an authorization header', () => {
+      const url = 'wss://localhost?token=12345';
+      const shimmed = moveTokenToHeader({
+        url,
+        headers: {},
+      } as unknown as http.IncomingMessage);
+
+      expect(shimmed).not.to.include('?token=');
+    });
+
+    it('converts the token to a proper header', () => {
+      const url = 'wss://localhost?token=12345';
+      const request = { url, headers: {} } as unknown as http.IncomingMessage;
+
+      moveTokenToHeader(request);
+
+      expect(request.headers.authorization).to.eql('Bearer 12345');
+    });
+
+    it('does no conversion if an authorization header is already present', () => {
+      const oldAuth = 'Bearer foo-bar';
+      const url = 'wss://localhost?token=12345';
+      const request = {
+        url,
+        headers: { authorization: oldAuth },
+      } as unknown as http.IncomingMessage;
+
+      const shimmed = moveTokenToHeader(request);
+
+      expect(shimmed).not.to.include('?token=');
+      expect(request.headers.authorization).to.eql(oldAuth);
     });
   });
 });

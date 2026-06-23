@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-/* eslint-disable no-undef */
 
 'use strict';
 
 import { build } from 'esbuild';
 import fs from 'fs/promises';
 import { join } from 'path';
-import { polyfillNode } from 'esbuild-plugin-polyfill-node';
+import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 
 const html = (contents) => `<!DOCTYPE html>
 <html lang="en">
@@ -34,7 +33,7 @@ const htmlLocation = join(process.cwd(), 'static/function/index.html');
     entryPoints,
     outfile,
     plugins: [
-      polyfillNode({
+      nodeModulesPolyfillPlugin({
         globals: {
           process: false,
         },

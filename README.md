@@ -1,195 +1,236 @@
-<!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading -->
+<!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading no-inline-html -->
 
-![browserless.io logo](/assets/logo.png)
+<div align="center">
+  <a href="https://browserless.io" align="center">
+    <center align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="600">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg" width="600">
+        <img src="./assets/logo.svg" alt="Browserless logo" width="600">
+      </picture>
+    </center>
+  </a>
 
-![Docker Pulls](https://img.shields.io/docker/pulls/browserless/chrome)
-![GitHub package.json version (subfolder of monorepo)](https://img.shields.io/github/package-json/v/browserless/chrome)
-![Chrome CI](https://github.com/browserless/chrome/actions/workflows/docker-chromium.yml/badge.svg)
-![Firefox CI](https://github.com/browserless/chrome/actions/workflows/docker-firefox.yml/badge.svg)
-![Webkit CI](https://github.com/browserless/chrome/actions/workflows/docker-webkit.yml/badge.svg)
-![Multi CI](https://github.com/browserless/chrome/actions/workflows/docker-multi.yml/badge.svg)
+  <h3>Deploy headless browsers in Docker. Run on our cloud or bring your own.</h3>
 
-> [!NOTE]  
-> Looking to bypass bot detectors and solve captchas? [We would recommend using BrowserQL as our stealthiest option](https://www.browserless.io/feature/browserql).
+  <p>
+    <a href="https://browserless.io/">
+      <img src="https://img.shields.io/badge/🧪_Try_on_Cloud-4A90E2?style=for-the-badge" alt="Try on Cloud" />
+    </a>
+    &nbsp;&nbsp;
+    <a href="#-1-minute-quickstart">
+      <img src="https://img.shields.io/badge/📦_Run_Locally-34A853?style=for-the-badge" alt="Run Locally" />
+    </a>
+    &nbsp;&nbsp;
+    <a href="https://docs.browserless.io/">
+      <img src="https://img.shields.io/badge/📘_Dev_Docs-5C6AC4?style=for-the-badge" alt="Developer Docs" />
+    </a>
+  </p>
 
-Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
+  <p>
+    <a href="https://trendshift.io/repositories/4378" target="_blank"><img src="https://trendshift.io/api/badge/repositories/4378" alt="browserless%2Fbrowserless | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+  </p>
 
-We take care of common issues such as missing system-fonts, missing external libraries, and performance improvements, along with edge-cases like downloading files and managing sessions. For details, check out the documentation site built into the project which includes Open API docs.
+  <p>
+    <!--
+      Docker pulls badge.
+      `browserless-docker-pulls.netlify.app/pulls` is browserless's own in-house
+      aggregator (see commit "Add a new in-house docker pull aggregator"),
+      maintained by the browserless team and hosted on Netlify. It sums the pull
+      counts of the browserless Docker Hub repositories and returns them as a
+      shields.io endpoint payload. If the endpoint is unavailable the badge simply
+      renders shields.io's default error state; to drop the dependency entirely,
+      swap this for shields.io's native `https://img.shields.io/docker/pulls/browserless/chrome`
+      badge (single repo) instead.
+    -->
+    <a href="https://hub.docker.com/r/browserless/chrome">
+      <img src="https://img.shields.io/endpoint?url=https://browserless-docker-pulls.netlify.app/pulls&style=flat-square" alt="Docker pulls" />
+    </a>
+    <a href="https://github.com/browserless/browserless">
+      <img src="https://img.shields.io/github/stars/browserless/browserless?style=flat-square" alt="GitHub stars" />
+    </a>
+    <a href="https://github.com/browserless/browserless/tags">
+      <img src="https://img.shields.io/github/package-json/v/browserless/chrome?style=flat-square" alt="Version" />
+    </a>
+    <a href="https://status.browserless.io/">
+      <img src="https://img.shields.io/badge/Status-Operational-success?style=flat-square" alt="Status" />
+    </a>
+  </p>
+</div>
 
-If you've been struggling to deploy headless browsers without running into issues or bloated resource requirements, then Browserless was built for you. Run the browsers in [our cloud](https://browserless.io/) or your own, [free for non-commercial uses](https://github.com/browserless/browserless#licensing).
+<br>
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [External links](#external-links)
-- [Features](#features)
-- [How it works](#how-it-works)
-  - [Docker](#docker)
-  - [Hosting Providers](#hosting-providers)
-  - [Puppeteer](#puppeteer)
-  - [Playwright](#playwright)
-- [Extending (NodeJS SDK)](#extending-nodejs-sdk)
-- [Debugger](#debugger)
-  - [Install debugger](#install-debugger)
-- [Usage with other libraries](#usage-with-other-libraries)
-- [Motivations](#motivations)
-- [Licensing](#licensing)
+- [Get Started in Seconds](#-get-started-in-seconds)
+- [Features](#-features)
+- [Customisable Deployment Options](#-customisable-deployment-options)
+- [Why Browserless?](#-why-browserless)
+- [Licensing](#-licensing)
 
-## External links
 
-1. [Full documentation site](https://docs.browserless.io/)
-2. [Live Debugger (using browserless.io)](https://chrome.browserless.io/)
-3. [Docker](https://github.com/browserless/browserless/pkgs/container/base)
+## 🚀 Get Started in Seconds!
 
-## Features
+Get up and running in three simple steps:
 
-### General
-
-- Parallelism and request-queueing are built-in + configurable.
-- Fonts and emoji's working out-of-the-box.
-- Debug Viewer for actively viewing/debugging running sessions.
-- An interactive puppeteer debugger, so you can see what the headless browser is doing and use its DevTools.
-- Works with unforked Puppeteer and Playwright.
-- Configurable session timers and health-checks to keep things running smoothly.
-- Error tolerant: if Chrome dies it won't.
-- Support for running and development on Apple's M1 machines
-
-### Cloud-only
-
-Our [cloud accounts](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
-
-- [BrowserQL](https://www.browserless.io/feature/browserql) for avoiding detectors and solving captchas
-- [Hybrid automations](https://www.browserless.io/blog/hybrid-automations-for-puppeteer/) for streaming login windows during scripts
-- [/reconnect API](https://www.browserless.io/blog/reconnect-api) for keeping browsers alive for reuse
-- [REST APIs](https://www.browserless.io/feature/rest-apis) for tasks such as retrieving HTML, PDFs or Lighthouse metrics
-- Inbuilt [residential proxy](https://www.browserless.io/blog/residential-proxying/)
-- SSO, tokens and user roles
-
-## How it works
-
-Browserless listens for both incoming websocket requests, generally issued by most libraries, as well as pre-build REST APIs to do common functions (PDF generation, images and so on). When a websocket connects to Browserless it starts Chrome and proxies your request into it. Once the session is done then it closes and awaits for more connections. Some libraries use Chrome's HTTP endpoints, like `/json` to inspect debug-able targets, which Browserless also supports.
-
-You still execute the script itself which gives you total control over what library you want to choose and when to do upgrades. This also comes with the benefit of keep your code proprietary and able to run on numerous platforms. We simply take care of all the browser-aspects and offer a management layer on top of the browser.
-
-### Docker
-
-> [!TIP]
-> See more options on our [full documentation site](https://docs.browserless.io/baas/docker/quickstart).
-
-1. `docker run -p 3000:3000 ghcr.io/browserless/chromium`
-2. Visit `http://localhost:3000/docs` to see the documentation site.
-3. See more at our [docker package](https://github.com/browserless/browserless/pkgs/container/base).
-
-### Hosting Providers
-
-We offer a first-class hosted product located [here](https://browserless.io). Alternatively you can host this image on just about any major platform that offers hosting for docker. Our hosted service takes care of all the machine provisioning, notifications, dashboards and monitoring plus more:
-
-- Easily upgrade and toggle between versions at the press of a button. No managing repositories and other code artifacts.
-- Never need to update or pull anything from docker. There's literally zero software to install to get started.
-- Scale your consumption up or down with different plans. We support up to thousands of concurrent sessions at a given time.
-
-If you're interested in using this image for commercial aspects, then please read the below section on licensing.
-
-### Puppeteer
-
-Puppeteer allows you to specify a remote location for chrome via the `browserWSEndpoint` option. Setting this for Browserless is a single line of code change.
-
-**Before**
-
-```js
-const browser = await puppeteer.launch();
+### Step 1: Run the Docker image
+```bash
+docker run -p 3000:3000 ghcr.io/browserless/chromium
 ```
+### Step 2: Open the docs in your browser
+Visit http://localhost:3000/docs
 
-**After**
+**✅ Success!** Your browser service is live at `ws://localhost:3000`
+
+### Step 3: Connect your script with Puppeteer or Playwright
+
+<details open>
+<summary><b>📘 Puppeteer Example</b></summary>
 
 ```js
+import puppeteer from 'puppeteer-core';
+
 const browser = await puppeteer.connect({
   browserWSEndpoint: 'ws://localhost:3000',
 });
+
+const page = await browser.newPage();
+await page.goto('https://example.com');
+console.log(await page.title());
+await browser.close();
 ```
 
-### Playwright
+</details>
 
-We support running with playwright via their their browser's remote connection protocols interface out of the box. Just make sure that your Docker image, playwright browser type _and_ endpoint match:
-
-**Before**
+<details>
+<summary><b>🎭 Playwright Example</b></summary>
 
 ```js
-import pw from "playwright";
-const browser = await pw.firefox.launch();
-```
-
-**After**
-
-```sh
-docker run -p 3000:3000 ghcr.io/browserless/firefox
-# or ghcr.io/browserless/multi for all the browsers
-```
-
-```js
-import pw from "playwright-core";
+import pw from 'playwright-core';
 
 const browser = await pw.firefox.connect(
-  'ws://localhost:3000/firefox/playwright',
+  'ws://localhost:3000/firefox/playwright'
 );
+
+const page = await browser.newPage();
+await page.goto('https://example.com');
+console.log(await page.title());
+await browser.close();
 ```
 
-After that, the rest of your code remains the same with no other changes required.
+ **Note:** Use `ghcr.io/browserless/firefox` or `ghcr.io/browserless/multi` for Firefox/Webkit support.
 
-## Extending (NodeJS SDK)
+</details>
 
-Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
+</br>
 
-## Debugger
-
-You can install a first-party interactive debugger for Browserless, that makes writing scripts faster and interactive. You can take advantage of things like `debugger;` calls and the page's console output to see what's happening on the page while your script is running. All of the Chrome devtools are there at your disposal.
-
-![browserless.io logo](/assets/debugger.png)
-
-A small list of features includes:
-
-- Running `debugger;` and `console.log` calls
-- Errors in the script are caught and show up in the console tab
-- DOM inspection, watch network requests, and even see how the page is rendering
-- Exporting you debugging script as a Node project
-- Everything included in Chrome DevTools
-
-### Install debugger
-
-Installing the debugger is as simple as running the `install:debugger` script _after_ the project has been built. This way:
-
-```sh
-$ npm run build
-$ npm run install:debugger #or npm install:dev
+### Output:
+```
+Example Domain
 ```
 
-You will then see the debugger url during the startup process.
 
-```log
----------------------------------------------------------
-| browserless.io
-| To read documentation and more, load in your browser:
-|
-| OpenAPI: http://localhost:3000/docs
-| Full Documentation: https://docs.browserless.io/
-| Debbuger: http://localhost:3000/debugger/?token=6R0W53R135510
----------------------------------------------------------
-```
+## ✨ Features
 
-## Usage with other libraries
+### General Features
 
-Most libraries allow you to specify a remote instance of Chrome to interact with. They are either looking for a websocket endpoint, a host and port, or some address. Browserless supports these by default, however if you're having issues please make an issue in this project and we'll try and work with the library authors to get them integrated with browserless. Please note that in V2 we no longer support selenium or webdriver integrations.
+- **Parallelism and queueing** — Handle multiple sessions with configurable concurrency limits
+- **Debug Viewer** — Actively view and debug running browser sessions in real-time
+- **Unforked libraries** — Works seamlessly with standard Puppeteer and Playwright
+- **Fonts & emoji** — All system fonts and emoji support out-of-the-box
+- **Configurable timeouts** — Set session timers and health-checks to keep things running smoothly
+- **Error tolerant** — If Chrome crashes, Browserless won't
+- **ARM64 architecture support** — Full support for ARM64 platforms including Apple Silicon; some browsers (Edge, Chrome) have limited ARM64 compatibility
 
-You can find a much larger list of supported libraries [on our documentation site](https://docs.browserless.io/libraries/puppeteer).
+### Premium Features
 
-## Motivations
+Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
 
-Running Chrome on lambda or on your own is a fantastic idea but in practice is quite challenging in production. You're met with pretty tough cloud limits, possibly building Chrome yourself, and then dealing with odd invocation issues should everything else go ok. A lot of issues in various repositories are due to just challenges of getting Chrome running smoothly in AWS (see [here](https://github.com/GoogleChrome/puppeteer/issues?q=is%3Aissue+is%3Aopen+sort%3Acomments-desc)). You can see for yourself by going to nearly any library and sorting issues by most commented.
+- **[BrowserQL](https://www.browserless.io/feature/browserql)** for avoiding detectors and solving captchas
+- **[Hybrid automations](https://docs.browserless.io/baas/interactive-browser-sessions/hybrid-automation)** for streaming live browser sessions during scripts
+- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/persisting-state)** for persisting browser state (cookies, cache, localStorage) across multiple sessions with configurable data retention up to 90 days
+- **[Session Replay](https://docs.browserless.io/baas/interactive-browser-sessions/session-replay)** for recording and debugging browser sessions with event capture and video playback
+- **[Chrome Extensions Support](https://docs.browserless.io/baas/features/browser-extensions)** for loading custom extensions including ad blockers, captcha solvers, etc.
+- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with Captcha solving, fingerprint randomization, and residential proxy rotation
+- **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
+- **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/)** for automatic IP rotation and geo-targeting with residential proxy networks
+- **[/smart-scrape API](https://docs.browserless.io/rest-apis/smart-scrape)** for intelligently scraping any URL using cascading strategies (HTTP fetch, proxy, headless browser, captcha solving)
+- **[/crawl API](https://docs.browserless.io/rest-apis/crawl)** for asynchronously crawling entire websites and scraping every discovered page into structured, LLM-ready data
+- **[/map API](https://docs.browserless.io/rest-apis/map)** for discovering all URLs on a website via sitemaps and link extraction, with search-based relevance ranking
+- **[/search API](https://docs.browserless.io/rest-apis/search)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
+- **[MCP Server](https://docs.browserless.io/mcp/browserless-mcp-server)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
+- **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
 
-Getting Chrome running well in docker is also a challenge as there's quiet a few packages you need in order to get Chrome running. Once that's done then there's still missing fonts, getting libraries to work with it, and having limitations on service reliability. This is also ignoring CVEs, access-controls, and scaling strategies.
+## 🚢 Customisable Deployment Options
 
-All of these issues prompted us to build a first-class image and workflow for interacting with Chrome in a more streamlined way. With Browserless you never have to worry about fonts, extra packages, library support, security, or anything else. It just works reliably like any other modern web service. On top of that it comes with a prescribed approach on how you interact with Chrome, which is through socket connections (similar to a database or any other external appliance). What this means is that you get the ability to drive Chrome remotely without having to do updates/releases to the thing that runs Chrome since it's divorced from your application.
+Select the deployment model that best fits your needs:
 
-## Licensing
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🔓 Open Source (Self-Hosted)
+
+Free, self-hosted solution with core browser automation capabilities.
+
+**Best for:** Testing, development, and small projects
+
+[↓ Quickstart above](#-get-started-in-seconds)
+
+</td>
+<td width="50%" valign="top">
+
+### 🏢 Enterprise Docker (Self-Hosted)
+
+Full Enterprise features in a self-hosted container.
+
+**Best for:** Production workloads requiring data sovereignty
+
+[→ Learn More](https://www.browserless.io/pricing/)
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ☁️ Cloud (Self-Serve)
+
+Fully managed, pay-as-you-go service with automatic scaling.
+
+**Best for:** Quick starts and rapid prototyping
+
+[→ Start Free](https://browserless.io/)
+
+</td>
+<td width="50%" valign="top">
+
+### 🔒 Private Deployment
+
+Custom Enterprise infrastructure across major cloud providers.
+
+**Best for:** Large-scale enterprise deployments
+
+[→ Contact Sales](https://www.browserless.io/contact)
+
+</td>
+</tr>
+</table>
+
+
+> **Want to dive deeper?** Check out this [detailed guide](./LEARN_MORE.md) for advanced stuff including Docker configuration, hosting providers, SDK extensions, and more.
+
+
+## 💡 Why Browserless?
+
+**Running Chrome in the cloud or CI sucks.**
+
+Missing fonts. Random crashes. Dependency hell. Lambda limits. You know the drill.
+
+**Browserless solves this** by handling browsers as a managed service — locally or in our cloud — so you can focus on automation, not infrastructure. We've taken care of the hard parts: system packages, font libraries, security patches, scaling strategies, and CVEs.
+
+You still own your script. You still control your code. We just make sure the Browser runs smoothly, every time.
+
+## 📜 Licensing
 
 SPDX-License-Identifier: SSPL-1.0 OR Browserless Commercial License.
 
@@ -203,3 +244,11 @@ If you want to use Browserless to build commercial sites, applications, or in a 
 Not only does it grant you a license to run such a critical piece of infrastructure, but you are also supporting further innovation in this space and our ability to contribute to it.
 
 If you are creating an open source application under a license compatible with the Server Side License 1.0, you may use Browserless under those terms.
+
+<div align="center">
+
+**Happy hacking!**
+
+Need help? Reach out to us at **support@browserless.io**
+
+</div>

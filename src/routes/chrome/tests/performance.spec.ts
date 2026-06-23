@@ -22,7 +22,7 @@ describe('/chrome/performance API', function () {
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/performance?token=browserless', {
@@ -96,7 +96,7 @@ describe('/chrome/performance API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/performance?token=browserless', {
@@ -119,7 +119,7 @@ describe('/chrome/performance API', function () {
     await start({ config, metrics });
 
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/performance?token=browserless', {
@@ -136,7 +136,7 @@ describe('/chrome/performance API', function () {
   it('allows requests without token when auth token is not set', async () => {
     await start();
     const body = {
-      url: 'https://example.com',
+      url: 'https://one.one.one.one',
     };
 
     await fetch('http://localhost:3000/chrome/performance', {

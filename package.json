@@ -1,17 +1,21 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.26.1",
+  "version": "2.54.1",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/browserless/browserless.git"
+  },
   "type": "module",
-  "types": "./src/exports.ts",
+  "types": "./build/exports.d.ts",
   "main": "./build/exports.js",
   "exports": {
     ".": "./build/exports.js"
   },
   "bin": {
-    "browserless": "./bin/browserless.js"
+    "browserless": "bin/browserless.js"
   },
   "scripts": {
     "build": "npm run clean && npm run build:ts && npm run install:adblock && npm run build:schemas && npm run build:devtools && npm run build:openapi",
@@ -21,16 +25,20 @@
     "build:schemas": "node scripts/build-schemas.js",
     "build:openapi": "node scripts/build-open-api.js",
     "build:ts": "tsc",
+    "build:tests": "npm run build:ts && npm run build:function && npm run install:debugger",
+    "changelog:versions": "node scripts/changelog-browser-versions.js",
     "clean": "node scripts/clean.js",
     "dev": "npm run build:dev && env-cmd -f .env node build",
+    "watch": "node scripts/watch.js",
     "install:adblock": "node scripts/install-adblock.js",
     "install:debugger": "node scripts/install-debugger.js",
     "install:browsers": "node node_modules/playwright-core/cli.js install chromium firefox webkit msedge",
     "install:dev": "npm run install:browsers && npm run install:debugger",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts --fix",
+    "lint": "cross-env eslint . --fix",
     "prepack": "npm run build:dev",
     "prettier": "prettier '{src,functions,scripts,bin,external,.github}/**/*.{js,ts,json,yml,yaml,md}' --log-level error --write",
-    "test": "cross-env DEBUG=quiet mocha",
+    "test": "npm run build:tests && cross-env DEBUG=quiet mocha",
+    "coverage": "npm run build:ts && c8 --reporter=text --reporter=html --reporter=lcov cross-env DEBUG=quiet mocha",
     "start": "env-cmd -f .env node build"
   },
   "files": [
@@ -48,115 +56,78 @@
     "tsconfig.json"
   ],
   "dependencies": {
-    "debug": "^4.4.0",
-    "del": "^8.0.0",
-    "enjoi": "^9.0.1",
-    "file-type": "^20.4.1",
-    "get-port": "^7.1.0",
+    "ajv": "^8.20.0",
+    "debug": "^4.4.1",
+    "del": "^8.0.1",
+    "file-type": "^22.0.1",
+    "get-port": "^7.2.0",
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
-    "lighthouse": "^12.5.0",
+    "lighthouse": "^13.4.0",
     "micromatch": "^4.0.8",
-    "playwright-1.47": "npm:playwright-core@1.47.2",
-    "playwright-1.48": "npm:playwright-core@1.48.2",
-    "playwright-1.49": "npm:playwright-core@1.49.1",
-    "playwright-1.50": "npm:playwright-core@1.50.1",
-    "playwright-core": "1.51.1",
-    "puppeteer-core": "24.4.0",
+    "playwright-1.57": "npm:playwright-core@1.57.0",
+    "playwright-1.58": "npm:playwright-core@1.58.2",
+    "playwright-1.59": "npm:playwright-core@1.59.1",
+    "playwright-1.60": "npm:playwright-core@1.60.0",
+    "playwright-core": "1.61.0",
+    "puppeteer-core": "25.1.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
-    "systeminformation": "^5.25.11",
-    "tar-fs": "^3.0.8"
+    "systeminformation": "^5.31.8",
+    "tar-fs": "^3.1.2",
+    "ws": "^8.18.0"
   },
-  "optionalDependencies": {
-    "@types/chai": "^5.2.1",
-    "@types/debug": "^4.1.12",
+  "devDependencies": {
+    "@types/chai": "^5.2.3",
+    "@types/debug": "^4.1.13",
     "@types/gradient-string": "^1.1.6",
-    "@types/http-proxy": "^1.17.16",
-    "@types/micromatch": "^4.0.9",
+    "@types/http-proxy": "^1.17.17",
+    "@types/micromatch": "^4.0.10",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.13.14",
-    "@types/sinon": "^17.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.28.0",
-    "@typescript-eslint/parser": "^8.28.0",
-    "assert": "^2.0.0",
-    "chai": "^5.2.0",
-    "cross-env": "^7.0.3",
-    "env-cmd": "^10.1.0",
-    "esbuild": "^0.25.1",
-    "esbuild-plugin-polyfill-node": "^0.3.0",
-    "eslint": "^9.23.0",
-    "extract-zip": "^2.0.1",
+    "@types/node": "^26.0.0",
+    "@types/sinon": "^21.0.1",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
+    "c8": "^11.0.0",
+    "chai": "^6.2.2",
+    "cross-env": "^10.1.0",
+    "env-cmd": "^11.0.0",
+    "esbuild": "^0.28.1",
+    "esbuild-plugins-node-modules-polyfill": "^1.8.1",
+    "eslint": "^10.5.0",
     "gunzip-maybe": "^1.4.2",
-    "marked": "^15.0.7",
-    "mocha": "^11.1.0",
-    "move-file": "^3.1.0",
-    "prettier": "^3.5.3",
-    "sinon": "^20.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.3",
-    "typescript-json-schema": "^0.65.1"
+    "marked": "^18.0.5",
+    "mocha": "^12.0.0-rc.1",
+    "prettier": "^3.8.4",
+    "sinon": "^22.0.0",
+    "typescript": "^6.0.3",
+    "typescript-json-schema": "^0.67.3"
+  },
+  "overrides": {
+    "esbuild-plugins-node-modules-polyfill": {
+      "esbuild": "$esbuild"
+    }
   },
   "playwrightVersions": {
     "default": "playwright-core",
-    "1.51": "playwright-core",
-    "1.50": "playwright-1.50",
-    "1.49": "playwright-1.49",
-    "1.48": "playwright-1.48",
-    "1.47": "playwright-1.47"
+    "1.61": "playwright-core",
+    "1.60": "playwright-1.60",
+    "1.59": "playwright-1.59",
+    "1.58": "playwright-1.58",
+    "1.57": "playwright-1.57"
   },
-  "eslintConfig": {
-    "root": true,
-    "parser": "@typescript-eslint/parser",
-    "plugins": [
-      "@typescript-eslint"
-    ],
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
-    ],
-    "ignorePatterns": [
-      "node_modules/*",
-      "static/*",
-      "**.spec.ts",
-      "build/*",
-      ".DS_Store",
-      ".no-git/*",
-      "*.log"
-    ],
-    "rules": {
-      "semi": [
-        2,
-        "always"
-      ],
-      "no-async-promise-executor": 0,
-      "@typescript-eslint/ban-ts-comment": 0,
-      "@typescript-eslint/no-var-requires": 0,
-      "sort-imports": [
-        "error",
-        {
-          "ignoreCase": false,
-          "ignoreDeclarationSort": false,
-          "ignoreMemberSort": false,
-          "memberSyntaxSortOrder": [
-            "none",
-            "all",
-            "multiple",
-            "single"
-          ],
-          "allowSeparatedGroups": true
-        }
-      ]
-    }
+  "engines": {
+    "node": ">=24",
+    "npm": "^11.7.0"
   },
   "mocha": {
+    "bail": true,
     "extension": [
-      "ts"
+      "js"
     ],
-    "loader": "ts-node/esm",
-    "spec": "src/**/*.spec.ts",
+    "spec": "build/**/*.spec.js",
     "timeout": 45000,
     "slow": 5000
   },

@@ -6,6 +6,7 @@ import {
   BrowserlessRoutes,
   CDPLaunchOptions,
   ChromiumCDP,
+  ContextValue,
   HTTPRoutes,
   Logger,
   Methods,
@@ -22,7 +23,7 @@ import functionHandler from './utils/function/handler.js';
 
 interface JSONSchema {
   code: string;
-  context?: Record<string, string | number>;
+  context?: { [key: string]: ContextValue };
 }
 
 export type BodySchema = JSONSchema | string;
@@ -53,7 +54,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
   Values returned from the function are checked and an appropriate content-type and response is sent back
   to your HTTP call.`);
   method = Methods.post;
-  path = [HTTPRoutes.function, HTTPRoutes.chromiumFunction];
+  path = [HTTPRoutes.chromiumFunction, HTTPRoutes.function];
   tags = [APITags.functionsDownloads];
   async handler(
     req: Request,
@@ -62,12 +63,15 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
     browser: BrowserInstance,
   ): Promise<void> {
     const config = this.config();
-    const handler = functionHandler(config, logger);
+    const timeout = req.parsed.searchParams.get('timeout');
+    const handler = functionHandler(config, logger, {
+      protocolTimeout: timeout ? +timeout : undefined,
+    });
     const { contentType, payload, page } = await handler(req, browser);
 
-    logger.info(`Got function response of "${contentType}"`);
-    page.close();
+    logger.debug(`Got function response of "${contentType}"`);
     page.removeAllListeners();
+    page.close().catch(() => {});
 
     if (contentType === 'uint8array') {
       const response = new Uint8Array(payload as Buffer);
@@ -77,7 +81,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
       if (!type) {
         throw new BadRequest(`Couldn't determine function's response type.`);
       } else {
-        logger.info(`Sending file-type response of "${type}"`);
+        logger.debug(`Sending file-type response of "${type}"`);
         const readStream = new Stream.PassThrough();
         readStream.end(response);
         res.setHeader('Content-Type', type);

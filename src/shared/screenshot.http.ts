@@ -15,16 +15,20 @@ import {
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
+  assertNavigationAllowed,
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
   dedent,
+  isBase64Encoded,
   noop,
+  redactSensitiveBodyFields,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
   scrollThroughPage,
   sleep,
+  toSetContentOptions,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
@@ -57,7 +61,7 @@ export interface BodySchema {
   requestInterceptors?: Array<requestInterceptors>;
   scrollPage?: boolean;
   selector?: string;
-  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+  setExtraHTTPHeaders?: { [key: string]: string };
   setJavaScriptEnabled?: boolean;
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
@@ -81,7 +85,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     cookies, user-agents, setting timers and network mocks.
   `);
   method = Methods.post;
-  path = [HTTPRoutes.screenshot, HTTPRoutes.chromiumScreenshot];
+  path = [HTTPRoutes.chromiumScreenshot, HTTPRoutes.screenshot];
   tags = [APITags.screenshotsPDFs];
   async handler(
     req: Request,
@@ -89,7 +93,10 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.info('Screenshot API invoked with body:', req.body);
+    logger.debug(
+      'Screenshot API invoked with body:',
+      redactSensitiveBodyFields(req.body),
+    );
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'image/png'
@@ -137,135 +144,163 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
       throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
+    const config = browser.getConfig();
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
+
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
     >;
-    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
 
-    if (emulateMediaType) {
-      await page.emulateMediaType(emulateMediaType);
-    }
+    // Close the page on every exit path — a throw below (bad selector,
+    // navigation failure, timeout) must not leak the page into a
+    // keep-alive browser.
+    try {
+      if (emulateMediaType) {
+        await page.emulateMediaType(emulateMediaType);
+      }
 
-    if (cookies.length) {
-      await page.setCookie(...cookies);
-    }
+      if (cookies.length) {
+        await page.setCookie(...cookies);
+      }
 
-    if (viewport) {
-      await page.setViewport(viewport);
-    }
+      if (viewport) {
+        await page.setViewport(viewport);
+      }
 
-    if (userAgent) {
-      await page.setUserAgent(userAgent);
-    }
+      if (userAgent) {
+        await page.setUserAgent(userAgent);
+      }
 
-    if (authenticate) {
-      await page.authenticate(authenticate);
-    }
+      if (authenticate) {
+        await page.authenticate(authenticate);
+      }
 
-    if (setExtraHTTPHeaders) {
-      await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
-    }
+      if (setExtraHTTPHeaders) {
+        await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+      }
 
-    if (setJavaScriptEnabled) {
-      await page.setJavaScriptEnabled(setJavaScriptEnabled);
-    }
+      if (setJavaScriptEnabled) {
+        await page.setJavaScriptEnabled(setJavaScriptEnabled);
+      }
 
-    if (
-      rejectRequestPattern.length ||
-      requestInterceptors.length ||
-      rejectResourceTypes.length
-    ) {
-      await page.setRequestInterception(true);
+      if (
+        rejectRequestPattern.length ||
+        requestInterceptors.length ||
+        rejectResourceTypes.length
+      ) {
+        await page.setRequestInterception(true);
 
-      page.on('request', (req) => {
-        if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
-        ) {
-          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
-          return req.abort();
+        page.on('request', (req) => {
+          if (
+            !!rejectRequestPattern.find((pattern) =>
+              req.url().match(pattern),
+            ) ||
+            rejectResourceTypes.includes(req.resourceType())
+          ) {
+            logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+            return req.abort();
+          }
+          const interceptor = requestInterceptors.find((r) =>
+            req.url().match(r.pattern),
+          );
+          if (interceptor) {
+            return req.respond({
+              ...interceptor.response,
+              body: interceptor.response.body
+                ? isBase64Encoded(interceptor.response.body as string)
+                  ? Buffer.from(interceptor.response.body, 'base64')
+                  : interceptor.response.body
+                : undefined,
+            });
+          }
+          return req.continue();
+        });
+      }
+
+      const gotoResponse = url
+        ? await page
+            .goto(content, gotoOptions)
+            .catch(bestAttemptCatch(bestAttempt))
+        : await page
+            .setContent(content, toSetContentOptions(gotoOptions))
+            .catch(bestAttemptCatch(bestAttempt));
+
+      if (addStyleTag.length) {
+        for (const tag in addStyleTag) {
+          await page.addStyleTag(addStyleTag[tag]);
         }
-        const interceptor = requestInterceptors.find((r) =>
-          req.url().match(r.pattern),
+      }
+
+      if (addScriptTag.length) {
+        for (const tag in addScriptTag) {
+          await page.addScriptTag(addScriptTag[tag]);
+        }
+      }
+
+      if (waitForTimeout) {
+        await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForFunction) {
+        await waitForFn(page, waitForFunction).catch(
+          bestAttemptCatch(bestAttempt),
         );
-        if (interceptor) {
-          return req.respond(interceptor.response);
+      }
+
+      if (waitForSelector) {
+        const { selector, hidden, timeout, visible } = waitForSelector;
+        await page
+          .waitForSelector(selector, { hidden, timeout, visible })
+          .catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForEvent) {
+        await waitForEvt(page, waitForEvent).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      if (scrollPage) {
+        await scrollThroughPage(page);
+      }
+
+      const headers = {
+        'X-Response-Code': gotoResponse?.status(),
+        'X-Response-IP': gotoResponse?.remoteAddress().ip,
+        'X-Response-Port': gotoResponse?.remoteAddress().port,
+        'X-Response-Status': gotoResponse?.statusText(),
+        'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      };
+
+      for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined) {
+          res.setHeader(key, value);
         }
-        return req.continue();
-      });
-    }
-
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
-
-    if (addStyleTag.length) {
-      for (const tag in addStyleTag) {
-        await page.addStyleTag(addStyleTag[tag]);
       }
-    }
 
-    if (addScriptTag.length) {
-      for (const tag in addScriptTag) {
-        await page.addScriptTag(addScriptTag[tag]);
+      const target: ElementHandle | Page | null = selector
+        ? await page.$(selector)
+        : page;
+
+      if (!target) {
+        throw new BadRequest('Element not found on page!');
       }
+
+      const buffer = (await (target as Page).screenshot(options)) as Buffer;
+
+      const readStream = new Stream.PassThrough();
+      readStream.end(buffer);
+
+      await new Promise((r) => readStream.pipe(res).once('close', r));
+
+      logger.debug('Screenshot API request completed');
+    } finally {
+      page.removeAllListeners();
+      page.close().catch(noop);
     }
-
-    if (waitForTimeout) {
-      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForFunction) {
-      await waitForFn(page, waitForFunction).catch(
-        bestAttemptCatch(bestAttempt),
-      );
-    }
-
-    if (waitForSelector) {
-      const { selector, hidden, timeout, visible } = waitForSelector;
-      await page
-        .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForEvent) {
-      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (scrollPage) {
-      await scrollThroughPage(page);
-    }
-
-    const headers = {
-      'X-Response-Code': gotoResponse?.status(),
-      'X-Response-IP': gotoResponse?.remoteAddress().ip,
-      'X-Response-Port': gotoResponse?.remoteAddress().port,
-      'X-Response-Status': gotoResponse?.statusText(),
-      'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-    };
-
-    for (const [key, value] of Object.entries(headers)) {
-      if (value !== undefined) {
-        res.setHeader(key, value);
-      }
-    }
-
-    const target: ElementHandle | Page | null = selector
-      ? await page.$(selector)
-      : page;
-
-    if (!target) {
-      throw new BadRequest('Element not found on page!');
-    }
-
-    const buffer = (await (target as Page).screenshot(options)) as Buffer;
-
-    const readStream = new Stream.PassThrough();
-    readStream.end(buffer);
-
-    await new Promise((r) => readStream.pipe(res).once('close', r));
-
-    page.close().catch(noop);
-    logger.info('Screenshot API request completed');
   }
 }

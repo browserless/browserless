@@ -15,15 +15,19 @@ import {
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
+  assertNavigationAllowed,
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
   dedent,
+  isBase64Encoded,
   noop,
+  redactSensitiveBodyFields,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
   sleep,
+  toSetContentOptions,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
@@ -39,11 +43,13 @@ export interface BodySchema {
   emulateMediaType?: Parameters<Page['emulateMediaType']>[0];
   gotoOptions?: Parameters<Page['goto']>[1];
   html?: Parameters<Page['setContent']>[0];
-  options?: Parameters<Page['pdf']>[0];
+  options?: Parameters<Page['pdf']>[0] & {
+    fullPage?: boolean;
+  };
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
-  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+  setExtraHTTPHeaders?: { [key: string]: string };
   setJavaScriptEnabled?: boolean;
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
@@ -77,7 +83,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     selectors, timers and more.
   `);
   method = Methods.post;
-  path = [HTTPRoutes.pdf, HTTPRoutes.chromiumPdf];
+  path = [HTTPRoutes.chromiumPdf, HTTPRoutes.pdf];
   tags = [APITags.screenshotsPDFs];
   async handler(
     req: Request,
@@ -85,7 +91,10 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ): Promise<void> {
-    logger.info('PDF API invoked with body:', req.body);
+    logger.debug(
+      'PDF API invoked with body:',
+      redactSensitiveBodyFields(req.body),
+    );
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? 'application/pdf'
@@ -127,128 +136,182 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
-    const page = (await browser.newPage()) as UnwrapPromise<
-      ReturnType<ChromiumCDP['newPage']>
-    >;
-    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
-
-    if (emulateMediaType) {
-      await page.emulateMediaType(emulateMediaType);
-    }
-
-    if (cookies.length) {
-      await page.setCookie(...cookies);
-    }
-
-    if (viewport) {
-      await page.setViewport(viewport);
-    }
-
-    if (userAgent) {
-      await page.setUserAgent(userAgent);
-    }
-
-    if (authenticate) {
-      await page.authenticate(authenticate);
-    }
-
-    if (setExtraHTTPHeaders) {
-      await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
-    }
-
-    if (setJavaScriptEnabled) {
-      await page.setJavaScriptEnabled(setJavaScriptEnabled);
-    }
-
-    if (
-      rejectRequestPattern.length ||
-      requestInterceptors.length ||
-      rejectResourceTypes.length
-    ) {
-      await page.setRequestInterception(true);
-
-      page.on('request', (req) => {
-        if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
-        ) {
-          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
-          return req.abort();
-        }
-        const interceptor = requestInterceptors.find((r) =>
-          req.url().match(r.pattern),
-        );
-        if (interceptor) {
-          return req.respond(interceptor.response);
-        }
-        return req.continue();
-      });
-    }
-
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
-
-    if (addStyleTag.length) {
-      for (const tag in addStyleTag) {
-        await page.addStyleTag(addStyleTag[tag]);
-      }
-    }
-
-    if (addScriptTag.length) {
-      for (const tag in addScriptTag) {
-        await page.addScriptTag(addScriptTag[tag]);
-      }
-    }
-
-    if (waitForTimeout) {
-      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForFunction) {
-      await waitForFn(page, waitForFunction).catch(
-        bestAttemptCatch(bestAttempt),
+    if (options?.fullPage && (options?.height || options?.format)) {
+      throw new BadRequest(
+        `"fullPage" option cannot be used with "height" or "format" options.`,
       );
     }
 
-    if (waitForSelector) {
-      const { selector, hidden, timeout, visible } = waitForSelector;
-      await page
-        .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(bestAttemptCatch(bestAttempt));
-    }
+    const config = browser.getConfig();
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
 
-    if (waitForEvent) {
-      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
-    }
+    const page = (await browser.newPage()) as UnwrapPromise<
+      ReturnType<ChromiumCDP['newPage']>
+    >;
 
-    const headers = {
-      'X-Response-Code': gotoResponse?.status(),
-      'X-Response-IP': gotoResponse?.remoteAddress().ip,
-      'X-Response-Port': gotoResponse?.remoteAddress().port,
-      'X-Response-Status': gotoResponse?.statusText(),
-      'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-    };
-
-    for (const [key, value] of Object.entries(headers)) {
-      if (value !== undefined) {
-        res.setHeader(key, value);
+    // Close the page on every exit path — a throw below (bad selector,
+    // navigation failure, timeout) must not leak the page into a
+    // keep-alive browser.
+    try {
+      if (emulateMediaType) {
+        await page.emulateMediaType(emulateMediaType);
       }
+
+      if (cookies.length) {
+        await page.setCookie(...cookies);
+      }
+
+      if (viewport) {
+        await page.setViewport(viewport);
+      }
+
+      if (userAgent) {
+        await page.setUserAgent(userAgent);
+      }
+
+      if (authenticate) {
+        await page.authenticate(authenticate);
+      }
+
+      if (setExtraHTTPHeaders) {
+        await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+      }
+
+      if (setJavaScriptEnabled) {
+        await page.setJavaScriptEnabled(setJavaScriptEnabled);
+      }
+
+      if (
+        rejectRequestPattern.length ||
+        requestInterceptors.length ||
+        rejectResourceTypes.length
+      ) {
+        await page.setRequestInterception(true);
+
+        page.on('request', (req) => {
+          if (
+            !!rejectRequestPattern.find((pattern) =>
+              req.url().match(pattern),
+            ) ||
+            rejectResourceTypes.includes(req.resourceType())
+          ) {
+            logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+            return req.abort();
+          }
+          const interceptor = requestInterceptors.find((r) =>
+            req.url().match(r.pattern),
+          );
+          if (interceptor) {
+            return req.respond({
+              ...interceptor.response,
+              body: interceptor.response.body
+                ? isBase64Encoded(interceptor.response.body as string)
+                  ? Buffer.from(interceptor.response.body, 'base64')
+                  : interceptor.response.body
+                : undefined,
+            });
+          }
+          return req.continue();
+        });
+      }
+
+      const gotoResponse = url
+        ? await page
+            .goto(content, gotoOptions)
+            .catch(bestAttemptCatch(bestAttempt))
+        : await page
+            .setContent(content, toSetContentOptions(gotoOptions))
+            .catch(bestAttemptCatch(bestAttempt));
+
+      if (addStyleTag.length) {
+        for (const tag in addStyleTag) {
+          await page.addStyleTag(addStyleTag[tag]);
+        }
+      }
+
+      if (addScriptTag.length) {
+        for (const tag in addScriptTag) {
+          await page.addScriptTag(addScriptTag[tag]);
+        }
+      }
+
+      if (waitForTimeout) {
+        await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForFunction) {
+        await waitForFn(page, waitForFunction).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      if (waitForSelector) {
+        const { selector, hidden, timeout, visible } = waitForSelector;
+        await page
+          .waitForSelector(selector, { hidden, timeout, visible })
+          .catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForEvent) {
+        await waitForEvt(page, waitForEvent).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      const headers = {
+        'X-Response-Code': gotoResponse?.status(),
+        'X-Response-IP': gotoResponse?.remoteAddress().ip,
+        'X-Response-Port': gotoResponse?.remoteAddress().port,
+        'X-Response-Status': gotoResponse?.statusText(),
+        'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      };
+
+      for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined) {
+          res.setHeader(key, value);
+        }
+      }
+
+      if (options?.fullPage) {
+        const height = await page
+          .evaluate(() => {
+            const body = document.body;
+            const html = document.documentElement;
+
+            return Math.max(
+              body.scrollHeight,
+              body.offsetHeight,
+              html.clientHeight,
+              html.scrollHeight,
+              html.offsetHeight,
+            );
+          })
+          .catch((e) => {
+            logger.warn('Failed to evaluate page height:', e);
+            return 480; // default Puppeteer viewport height
+          });
+        options.height = height;
+      }
+
+      const pdfStream = await page.createPDFStream(options);
+      const writableStream = new WritableStream({
+        write(chunk) {
+          res.write(chunk);
+        },
+        close() {
+          res.end();
+        },
+      });
+      await pdfStream.pipeTo(writableStream);
+
+      logger.debug('PDF API request completed');
+    } finally {
+      page.removeAllListeners();
+      page.close().catch(noop);
     }
-
-    const pdfStream = await page.createPDFStream(options);
-    const writableStream = new WritableStream({
-      write(chunk) {
-        res.write(chunk);
-      },
-      close() {
-        res.end();
-      },
-    });
-    await pdfStream.pipeTo(writableStream);
-
-    page.close().catch(noop);
-
-    logger.info('PDF API request completed');
   }
 }
