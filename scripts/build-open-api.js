@@ -131,7 +131,7 @@ const openAPIDescription = [
   'The API surface includes REST endpoints (JSON in, JSON or binary out), WebSocket connections for direct CDP/Playwright/Puppeteer access, and [CDP extensions](https://docs.browserless.io/open-api#tag/CDP-Extensions) that expose Browserless-specific commands like `liveURL`, `solveCaptcha`, and `saveProfile`.',
   'For the open-source container API, see the [GitHub repository](https://github.com/browserless/browserless).',
   '',
-  '## Just getting started?',
+  '## Just Getting Started?',
   '',
   'Check out the [Quick Start guide](https://docs.browserless.io/baas/start) to launch your first session, or explore the [BrowserQL IDE](https://docs.browserless.io/browserql/overview) for a GraphQL-based automation workflow.',
   '',
