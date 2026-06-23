@@ -184,7 +184,7 @@ export type Response = http.ServerResponse;
 
 export interface SystemQueryParameters {
   /**
-   * Whether or nor to load ad-blocking extensions for the session.
+   * Whether or not to load ad-blocking extensions for the session.
    * This currently uses uBlock-Lite and may cause certain sites
    * to not load properly.
    */
