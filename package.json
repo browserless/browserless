@@ -70,7 +70,7 @@
     "playwright-1.59": "npm:playwright-core@1.59.1",
     "playwright-1.60": "npm:playwright-core@1.60.0",
     "playwright-core": "1.61.0",
-    "puppeteer-core": "25.1.0",
+    "puppeteer-core": "25.2.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "queue": "^7.0.0",
