@@ -85,7 +85,6 @@ const openAPITags = [
     description:
       'Deprecated `/chrome/*` endpoints that mirror the newer `/chromium/*` equivalents. These remain documented for backward compatibility but new integrations should use the `/chromium/*` routes instead.',
     'x-displayName': 'Legacy (chrome prefix)',
-    'x-traitTag': true,
   },
   {
     name: 'WebSocket APIs',
@@ -121,6 +120,10 @@ const openAPITagGroups = [
   {
     name: 'WebSocket / CDP',
     tags: ['WebSocket APIs', 'CDP Extensions'],
+  },
+  {
+    name: 'Legacy',
+    tags: ['Legacy (chrome prefix)'],
   },
 ];
 
