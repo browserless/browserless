@@ -23,79 +23,79 @@ const openAPITags = [
   {
     name: 'Screenshots & PDFs',
     description:
-      'Endpoints for capturing full-page or element screenshots and generating PDF documents from web pages. Use the root `/screenshot` and `/pdf` routes for quick captures, or browser-specific variants for fine-grained control.',
+      'Capture full-page or element screenshots and generate PDFs from web pages. The root `/screenshot` and `/pdf` routes work for most cases. Use browser-specific variants like `/edge/screenshot` when you need a particular engine.',
     'x-displayName': 'Screenshots & PDFs',
   },
   {
     name: 'Scraping & Content',
     description:
-      'Endpoints for loading pages and extracting HTML, text, and structured data. Use `/chromium/content` for raw HTML and `/chromium/scrape` for selector-based extraction.',
+      'Load pages and extract HTML, text, or structured data. `/chromium/content` returns raw HTML. `/chromium/scrape` runs `querySelectorAll` against the rendered DOM and returns matched elements. `/smart-scrape` cascades through multiple extraction strategies automatically.',
     'x-displayName': 'Scraping & Content',
   },
   {
     name: 'Functions & Downloads',
     description:
-      'Endpoints for running custom JavaScript functions in a browser context and downloading the resulting files. Useful for generating exports, running headless scripts, and retrieving binary assets.',
+      'Run custom JavaScript in a browser context and retrieve the resulting files. Use `/function` to execute a Puppeteer or Playwright script server-side, and `/download` to capture binary assets triggered by in-page actions.',
     'x-displayName': 'Functions & Downloads',
   },
   {
     name: 'Sessions & Connections',
     description:
-      'Endpoints for creating, managing, and reconnecting to browser sessions. Includes the JSON/CDP discovery endpoints and BQL session management.',
+      'Create persistent browser sessions, reconnect to running browsers, and query CDP metadata. `/session` spins up a session that outlives a single WebSocket connection. `/reconnect/:id` reattaches to it later.',
     'x-displayName': 'Sessions & Connections',
   },
   {
     name: 'Crawling',
     description:
-      'Endpoints for launching, monitoring, and managing multi-page crawl jobs. Submit a crawl, poll for status, or cancel an in-progress crawl.',
+      'Launch, monitor, and cancel multi-page crawl jobs. `POST /crawl` starts a crawl, `GET /crawl/:id` polls for progress, and `DELETE /crawl/:id` cancels it.',
     'x-displayName': 'Crawling',
   },
   {
     name: 'Unblock & Stealth',
     description:
-      'Endpoints for bypassing bot detection and anti-scraping measures. Use `/unblock` for aggressive anti-bot challenges and the BQL stealth variants for fingerprint-randomized automation.',
+      'Bypass bot detection and anti-scraping measures. `/unblock` handles aggressive anti-bot challenges end-to-end. The BQL stealth variants (`/chromium/bql`, `/chrome/bql`) randomize browser fingerprints for longer-running automation.',
     'x-displayName': 'Unblock & Stealth',
   },
   {
     name: 'Browser Management',
     description:
-      'Endpoints for inspecting active sessions, terminating browsers, and retrieving server metadata. Use `/active` to list running sessions and `/kill` to terminate them.',
+      'Inspect running sessions, terminate browsers, and retrieve server metadata. `/active` lists current sessions, `/kill/:id` terminates one, and `/meta` returns server configuration.',
     'x-displayName': 'Browser Management',
   },
   {
     name: 'Profiles',
     description:
-      'Endpoints for creating, updating, and managing persistent browser profiles that preserve cookies, localStorage, and IndexedDB state across sessions.',
+      'Create and manage persistent browser profiles that preserve cookies, localStorage, and IndexedDB across sessions. Capture a logged-in state once with `Browserless.saveProfile`, then rehydrate it on any future session with `?profile=<name>`.',
     'x-displayName': 'Profiles',
   },
   {
     name: 'Proxy',
     description:
-      'Endpoints for discovering available proxy locations and configuring residential or datacenter proxying.\n\n> The Residential proxy is only available for Enterprise and Cloud plans.\n\nAdd these parameters to your library or API calls:\n\n- `?proxy=residential` — Use the residential proxy (6 units/MB).\n- `?proxy=datacenter` — Use the datacenter proxy pool (2 units/MB). Cheaper but more easily detected.\n- `?proxyCountry=us` — Two-digit ISO country code.\n- `?proxySticky=true` — Keep the same IP for the entire session. Recommended for most cases.\n- `?proxyPreset=px_gov01` — Website-specific proxy configuration.',
+      'Discover available proxy locations and configure residential or datacenter routing for your sessions.\n\n> Residential proxies are only available on Enterprise and Cloud plans.\n\nAdd these parameters to your library or API calls:\n\n- `?proxy=residential` — residential proxy (6 units/MB).\n- `?proxy=datacenter` — datacenter proxy pool (2 units/MB). Cheaper but more easily detected.\n- `?proxyCountry=us` — two-digit ISO country code.\n- `?proxySticky=true` — keep the same IP for the entire session. Recommended for most cases.\n- `?proxyPreset=px_gov01` — website-specific proxy configuration.',
     'x-displayName': 'Proxy',
   },
   {
     name: 'Integrations',
     description:
-      'Endpoints for connecting external services to Browserless. Currently supports 1Password integration for secure credential injection into browser sessions.',
+      'Connect external services to browser sessions. Currently supports 1Password for injecting stored credentials into a session without exposing secrets in your code.',
     'x-displayName': 'Integrations',
   },
   {
     name: 'Legacy (chrome prefix)',
     description:
-      'Deprecated `/chrome/*` endpoints that mirror the newer `/chromium/*` equivalents. These remain documented for backward compatibility but new integrations should use the `/chromium/*` routes instead.',
+      'Deprecated `/chrome/*` endpoints that mirror the newer `/chromium/*` equivalents. Still documented for backward compatibility, but new integrations should use `/chromium/*` routes.',
     'x-displayName': 'Legacy (chrome prefix)',
   },
   {
     name: 'WebSocket APIs',
     description:
-      'WebSocket and CDP connection endpoints for Puppeteer, Playwright, and raw DevTools Protocol clients. Connect via `wss://` to launch or attach to browser instances.',
+      'Connect Puppeteer, Playwright, or raw DevTools Protocol clients over WebSocket. Launch a browser with `wss://` and get back a CDP session for full programmatic control.',
     'x-displayName': 'WebSocket APIs',
   },
   {
     name: 'CDP Extensions',
     description:
-      'Browserless-specific Chrome DevTools Protocol extensions invoked via `cdp.send()`. These commands enhance open-source libraries with features like live URLs, captcha solving, session reconnect, and page identification.',
+      'Browserless-specific Chrome DevTools Protocol methods you call via `cdp.send()`. These add live URLs (`Browserless.liveURL`), captcha solving (`Browserless.solveCaptcha`), session reconnect, and page identification to any Puppeteer or Playwright session.',
     'x-displayName': 'CDP Extensions',
   },
 ];
@@ -128,11 +128,9 @@ const openAPITagGroups = [
 ];
 
 const openAPIDescription = [
-  'This is the API reference for **Browserless Enterprise and Cloud** deployments.',
-  'Use these endpoints to capture screenshots and PDFs, scrape and extract content, run custom browser functions, solve CAPTCHAs, bypass bot detection with stealth browsing, manage authenticated browser profiles, and orchestrate crawls — all through a managed headless browser infrastructure.',
+  'This is the API reference for **Browserless Enterprise and Cloud** deployments. You\'ll find endpoints for capturing screenshots and PDFs, scraping content, running custom browser functions, solving CAPTCHAs, bypassing bot detection with stealth browsing, managing authenticated browser profiles, and orchestrating crawls.',
   '',
-  'The API surface includes REST endpoints (JSON in, JSON or binary out), WebSocket connections for direct CDP/Playwright/Puppeteer access, and [CDP extensions](https://docs.browserless.io/open-api#tag/CDP-Extensions) that expose Browserless-specific commands like `liveURL`, `solveCaptcha`, and `saveProfile`.',
-  'For the open-source container API, see the [GitHub repository](https://github.com/browserless/browserless).',
+  'The API includes REST endpoints (JSON in, JSON or binary out), WebSocket connections for direct CDP/Playwright/Puppeteer access, and [CDP extensions](https://docs.browserless.io/open-api#tag/CDP-Extensions) that expose Browserless-specific commands like `liveURL`, `solveCaptcha`, and `saveProfile`. For the open-source container API, see the [GitHub repository](https://github.com/browserless/browserless).',
   '',
   '## Just Getting Started?',
   '',
@@ -140,7 +138,7 @@ const openAPIDescription = [
   '',
   '## Base URL',
   '',
-  'All API requests are made to your deployment\'s base URL. For Browserless Cloud:',
+  'All API requests go to your deployment\'s base URL. For Browserless Cloud:',
   '',
   '```plaintext',
   'https://production-sfo.browserless.io',
@@ -150,22 +148,21 @@ const openAPIDescription = [
   '',
   '## Authentication',
   '',
-  'Authenticate every request by including your API token as a query parameter:',
+  'Include your API token as a query parameter on every request:',
   '',
   '```plaintext',
   'https://production-sfo.browserless.io/chromium/content?token=YOUR_API_TOKEN',
   '```',
   '',
-  'Tokens are managed from the [Account dashboard](https://www.browserless.io/account). Self-hosted deployments set the token via the `TOKEN` environment variable. See [connection details](https://docs.browserless.io/baas/connection) for full authentication options.',
+  'Tokens are managed from the [Account dashboard](https://www.browserless.io/account). Self-hosted deployments set the token via the `TOKEN` environment variable. See [connection details](https://docs.browserless.io/baas/connection) for all authentication options.',
   '',
   '## Changelog',
   '',
   'For release notes and version history, see the [Enterprise Changelog](https://docs.browserless.io/enterprise/changelog).',
   '',
-  '## Software Keys',
+  '## Software keys',
   '',
-  'Self-hosted Enterprise deployments use time-limited software keys for offline licensing — no external connections or callbacks required.',
-  'Keys are cryptographically secure and cannot be reverse engineered. When a key expires, the container exits with a semantic error code.',
+  'Self-hosted Enterprise deployments use time-limited software keys for offline licensing. No external connections or callbacks are required. Keys are cryptographically secure and can\'t be reverse engineered. When a key expires, the container exits with a semantic error code.',
   '',
   'To use a software key, set the `KEY` environment variable when running the container:',
   '',
