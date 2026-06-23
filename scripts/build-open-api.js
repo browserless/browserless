@@ -125,8 +125,10 @@ const openAPITagGroups = [
 ];
 
 const openAPIDescription = [
-  'The Browserless API provides REST, WebSocket, and [CDP extension](https://docs.browserless.io/open-api#tag/CDP-Extensions) endpoints for headless browser automation at scale.',
+  'This is the API reference for **Browserless Enterprise and Cloud** deployments.',
+  'It covers REST, WebSocket, and [CDP extension](https://docs.browserless.io/open-api#tag/CDP-Extensions) endpoints for headless browser automation at scale.',
   'It accepts JSON request bodies, returns JSON or binary responses, and uses standard HTTP status codes.',
+  'For the open-source container API, see the [GitHub repository](https://github.com/browserless/browserless).',
   '',
   '## Just getting started?',
   '',
