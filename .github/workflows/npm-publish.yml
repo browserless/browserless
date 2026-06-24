@@ -33,7 +33,7 @@ jobs:
       id-token: write
     steps:
       # No git push/pull after checkout, so don't persist credentials.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
