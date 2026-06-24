@@ -81,7 +81,7 @@ jobs:
       # Check out the Release PR branch so the changelog commit lands on it.
       # GITHUB_TOKEN is used to push, which intentionally does NOT re-trigger
       # workflows (no release-please loop).
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
 
