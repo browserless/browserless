@@ -20,7 +20,7 @@
         { "type": "docs", "hidden": true },
         { "type": "style", "hidden": true },
         { "type": "refactor", "hidden": true },
-        { "type": "build", "hidden": true }
+        { "type": "build", "section": "Build System & Runtime" }
       ]
     }
   }

@@ -1,5 +1,73 @@
 # Changelog
 
+## [2.54.1](https://github.com/browserless/browserless/compare/v2.54.0...v2.54.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **ci:** isolate per-image manifest merges so one image can't block latest ([#5462](https://github.com/browserless/browserless/issues/5462)) ([d976361](https://github.com/browserless/browserless/commit/d9763618a12cfc9608ca27c09244b1c4124a2458))
+
+
+### Build System & Runtime
+
+* bump Node to 24.17.0 and npm to 11.17.0 ([#5464](https://github.com/browserless/browserless/issues/5464)) ([05abdae](https://github.com/browserless/browserless/commit/05abdaebd2cbe5b4a43cadacd5358d00a8904c14))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.61.0`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.155` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.54.0](https://github.com/browserless/browserless/compare/v2.53.1...v2.54.0) (2026-06-18)
+
+
+### Features
+
+* expose browserless Chromium disabled-features as an overridable Config seam ([#5455](https://github.com/browserless/browserless/issues/5455)) ([5f7b536](https://github.com/browserless/browserless/commit/5f7b5363fe3034017147daadaf7db4ad7928b121))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.61.0`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.155` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.53.1](https://github.com/browserless/browserless/compare/v2.53.0...v2.53.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* allow the server's own origin through the opt-in navigation guard ([#5453](https://github.com/browserless/browserless/issues/5453)) ([e541012](https://github.com/browserless/browserless/commit/e541012707cfbec5634cf5a8352a2406c72d4fde))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.1.0`
+- playwright-core: `1.61.0`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.155` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.69` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.53.0](https://github.com/browserless/browserless/compare/v2.52.2...v2.53.0) (2026-06-17)
 
 

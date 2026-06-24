@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import {
   Config,
   Logger,
+  browserlessChromiumDisabledFeatures,
   findBlockedUrlInMessage,
   normalizeUrlForBlocklist,
   wsFrameToString,
@@ -10,7 +11,6 @@ import {
   ChromiumPlaywright,
   FirefoxPlaywright,
   WebKitPlaywright,
-  browserlessChromiumDisabledFeatures,
   parseDisableFeatures,
   withMergedChromiumDisableFeatures,
 } from './browsers.playwright.js';
@@ -532,6 +532,37 @@ describe('BasePlaywright URL filter', () => {
       client.close();
     });
 
+    it('forwards a Frame.goto to the server origin even when localhost is blocked', async () => {
+      // The self-origin allowance (Config.getSelfNavigationHosts) must flow
+      // through the bridge so a Playwright session can still load browserless's
+      // own pages — matching the CDP guard.
+      (
+        playwright as unknown as { config: Config }
+      ).config.getBlockedNetworkRanges = () => ({
+        ipv4Prefixes: ['0.', '127.', '169.254.'],
+        ipv6Prefixes: ['::1'],
+        protocols: [],
+        hostnames: ['localhost'],
+      });
+      const [selfHost] = (
+        playwright as unknown as { config: Config }
+      ).config.getSelfNavigationHosts();
+      expect(selfHost).to.be.a('string').and.not.be.empty;
+      const selfUrl = `http://${selfHost}/function/index.html`;
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+      await new Promise<void>((resolve, reject) => {
+        client.on('open', () => resolve());
+        client.on('error', reject);
+      });
+      client.send(
+        JSON.stringify({ id: 5, method: 'goto', params: { url: selfUrl } }),
+      );
+      await waitFor(() => upstreamMessages.length >= 1);
+      expect(upstreamMessages).to.have.lengthOf(1);
+      expect(JSON.parse(upstreamMessages[0]).params.url).to.equal(selfUrl);
+      client.close();
+    });
+
     it('blocks a Frame.goto carrying file:// sent as a BINARY frame', async () => {
       const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
       await new Promise<void>((resolve, reject) => {
@@ -956,6 +987,23 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       expect(features).to.include('CustomFeatureX'); // from the override
       expect(features).to.include('LocalNetworkAccessChecks'); // additions still merged
       expect(features).to.not.include('RenderDocument'); // default list replaced
+    });
+
+    it('merges Config#getBrowserlessChromiumDisabledFeatures (overridable)', () => {
+      class CustomConfig extends Config {
+        public getBrowserlessChromiumDisabledFeatures(): readonly string[] {
+          return [
+            ...super.getBrowserlessChromiumDisabledFeatures(),
+            'DeploymentFeatureX',
+          ];
+        }
+      }
+      const features = parseDisableFeatures(
+        launchArgs(ChromiumPlaywright, [], new CustomConfig()),
+      );
+      expect(features).to.include('DeploymentFeatureX'); // added by the override
+      expect(features).to.include('LocalNetworkAccessChecks'); // base list kept
+      expect(features).to.include('RenderDocument'); // version mirror kept
     });
 
     it('does not add chromium --disable-features to Firefox or WebKit', () => {

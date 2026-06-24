@@ -194,6 +194,19 @@ const chromiumDisabledFeaturesByPwVersion: Readonly<
   '1.59': playwright158And159DisabledFeatures,
 };
 
+/**
+ * Features browserless disables on the Playwright launch path on top of the
+ * launched version's defaults. Chrome For Test (Playwright 1.57+) enforces Local
+ * Network Access checks that block WebSocket connections to localhost, which
+ * browserless relies on. Exposed as an overridable seam via
+ * `Config#getBrowserlessChromiumDisabledFeatures` so subclasses can disable
+ * additional features without forking the launcher.
+ * See https://github.com/browserless/browserless/issues/5450
+ */
+export const browserlessChromiumDisabledFeatures: readonly string[] = [
+  'LocalNetworkAccessChecks',
+];
+
 export class Config extends EventEmitter {
   protected readonly debug = getDebug();
   protected readonly host = process.env.HOST ?? 'localhost';
@@ -323,6 +336,17 @@ export class Config extends EventEmitter {
       (pwVersion && chromiumDisabledFeaturesByPwVersion[pwVersion]) ||
       defaultChromiumDisabledFeatures
     );
+  }
+
+  /**
+   * Chromium features browserless disables on the Playwright launch path, on top
+   * of the launched version's defaults (`getChromiumDisabledFeatures`). Override
+   * — extending via `super` — to disable additional features. Unlike the version
+   * list this is not validated against Playwright, so browserless- or
+   * deployment-specific features can be added here.
+   */
+  public getBrowserlessChromiumDisabledFeatures(): readonly string[] {
+    return browserlessChromiumDisabledFeatures;
   }
 
   /**
@@ -775,6 +799,45 @@ export class Config extends EventEmitter {
       : 'ws:';
 
     return httpAddress.href;
+  }
+
+  private selfNavigationHostsMemo?: { key: string; hosts: string[] };
+
+  /**
+   * The `host[:port]` values that resolve to this server itself. The navigation
+   * guard treats these as always-allowed so the browser can load browserless's
+   * own pages — e.g. the `/function` runtime page and its same-origin
+   * WebSocket — even when the server binds an address the blocklist would
+   * otherwise reject (commonly `0.0.0.0`/`localhost`). Port-specific, so other
+   * services sharing the loopback host stay blocked.
+   *
+   * @returns {string[]} The server's own host[:port] values
+   */
+  public getSelfNavigationHosts(): string[] {
+    // The navigation backstop calls this for every request and response when
+    // the guard is active, so memoize the URL parsing. `host` is readonly and
+    // `port` is fixed once the server binds, but key the memo on host:port so a
+    // runtime #setPort still recomputes rather than serving a stale value.
+    const key = `${this.host}:${this.port}`;
+    if (this.selfNavigationHostsMemo?.key === key) {
+      return this.selfNavigationHostsMemo.hosts;
+    }
+    const hosts = new Set<string>();
+    for (const getAddress of [
+      () => this.getServerAddress(),
+      () => this.getServerWebSocketAddress(),
+    ]) {
+      try {
+        // Resolve each address inside the try so a throwing getter (e.g. an
+        // unparseable server address) is contained rather than escaping.
+        hosts.add(new URL(getAddress()).host);
+      } catch {
+        // Skip a throwing/unparseable address rather than fail the guard.
+      }
+    }
+    const resolved = [...hosts];
+    this.selfNavigationHostsMemo = { key, hosts: resolved };
+    return resolved;
   }
 
   /**
