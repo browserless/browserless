@@ -137,7 +137,18 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
 
     page.on('response', (res) => {
       if (!res.ok()) {
-        logger.warn(`Received a non-200 response for request "${res.url()}"`);
+        const status = res.status();
+        const msg = `Received a ${status} response for request "${res.url()}"`;
+        // Keep actionable failures at warn — server errors (5xx) and
+        // blocking/rate-limit responses (403, 429: target down or
+        // bot-detection). Routine sub-resource misses (favicon 404s,
+        // redirects, etc.) are expected during a page load and just noise,
+        // so log those at debug (the sibling page.on handlers above use trace).
+        if (status >= 500 || status === 403 || status === 429) {
+          logger.warn(msg);
+        } else {
+          logger.debug(msg);
+        }
       }
     });
 
