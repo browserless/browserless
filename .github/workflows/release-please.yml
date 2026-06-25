@@ -43,8 +43,7 @@ jobs:
     # On workflow_run, only proceed when the image build actually succeeded.
     # (On push the second clause is never evaluated.)
     if: >-
-      github.event_name == 'push' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
@@ -82,13 +81,16 @@ jobs:
       # Check out the Release PR branch so the changelog commit lands on it.
       # GITHUB_TOKEN is used to push, which intentionally does NOT re-trigger
       # workflows (no release-please loop).
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: 24
+          check-latest: true
+      - name: Ensure npm >= 11.10.0 (min-release-age support)
+        run: npm install -g npm@11.17.0 --ignore-scripts
 
       # multi:latest tracks main, so it is the image this release will ship.
       # Anonymous pull works for public packages; log in for reliability.

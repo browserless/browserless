@@ -10,10 +10,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6.4.0
         with:
           node-version: '24'
+          check-latest: true
+      - name: Ensure npm >= 11.10.0 (min-release-age support)
+        run: npm install -g npm@11.17.0 --ignore-scripts
 
       - name: Install modules
         uses: nick-fields/retry@v4
