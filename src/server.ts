@@ -354,7 +354,10 @@ export class HTTPServer extends EventEmitter {
             )
             .join('\n');
 
-          this.logger.warn(`HTTP body validation failed:${errorDetails}`);
+          // Client error: the request body failed schema validation and we
+          // return 400 below with the details. Not operator-actionable, so
+          // log at debug rather than warn.
+          this.logger.debug(`HTTP body validation failed:${errorDetails}`);
 
           writeResponse(
             res,
