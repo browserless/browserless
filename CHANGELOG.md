@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.54.2](https://github.com/browserless/browserless/compare/v2.54.1...v2.54.2) (2026-06-26)
+
+
+### Bug Fixes
+
+* log expected request/response conditions at debug, not warn ([#5474](https://github.com/browserless/browserless/issues/5474)) ([f2ab247](https://github.com/browserless/browserless/commit/f2ab247a3bf0e44eafe849656f56a1b96b652bbf))
+
 ## [2.54.1](https://github.com/browserless/browserless/compare/v2.54.0...v2.54.1) (2026-06-22)
 
 
