@@ -6,6 +6,7 @@ import {
   ChromiumCDP,
   ChromiumPlaywright,
   Config,
+  ErrorCode,
   FirefoxPlaywright,
   HTTPManagementRoutes,
   HTTPRoutes,
@@ -221,6 +222,12 @@ export abstract class Route {
    * array of paths that this route can handle.
    */
   abstract path: PathTypes | Array<PathTypes>;
+
+  /**
+   * Optional per-route error codes beyond the defaults (400, 401, 404, 408, 429, 500).
+   * Merged with the global error codes in the OpenAPI documentation.
+   */
+  errorCodes?: Record<number, ErrorCode>;
 
   /**
    * The tag(s) for the route to categorize it in the

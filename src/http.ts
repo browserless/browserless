@@ -5,6 +5,12 @@ import {
 
 import http from 'http';
 
+export interface ErrorCode {
+  readonly code: number;
+  readonly description: string;
+  readonly message: string;
+}
+
 export const errorCodes = {
   400: {
     code: 400,
@@ -46,7 +52,7 @@ export const errorCodes = {
     description: `Service is unavailable.`,
     message: 'HTTP/1.1 503 Service Unavailable',
   },
-} as const;
+} as const satisfies Record<number, ErrorCode>;
 
 export const okCodes = {
   200: {
@@ -59,12 +65,12 @@ export const okCodes = {
     description: `The request ran successfully, but no response was necessary.`,
     message: 'HTTP/1.1 204 No Content',
   },
-} as const;
+} as const satisfies Record<number, ErrorCode>;
 
 export const codes = {
   ...errorCodes,
   ...okCodes,
-} as const;
+} as const satisfies Record<number, ErrorCode>;
 
 export enum contentTypes {
   any = '*/*',

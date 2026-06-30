@@ -132,6 +132,7 @@ const buildOpenAPI = async (
           accepts,
           contentTypes,
           title,
+          errorCodes: routeErrorCodes,
         } = route;
 
         const routeDocs = [description];
@@ -158,6 +159,7 @@ const buildOpenAPI = async (
           response: isWebSocket
             ? null
             : JSON.parse(await readFileOrNull(response)),
+          routeErrorCodes,
           tags,
           title,
         };
@@ -176,6 +178,7 @@ const buildOpenAPI = async (
         },
         responses: {
           ...errorCodes,
+          ...(r.routeErrorCodes || {}),
         },
         summary: r.path,
         tags: r.tags,
