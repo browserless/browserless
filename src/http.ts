@@ -11,7 +11,7 @@ export interface ErrorCode {
   readonly message: string;
 }
 
-export const errorCodes: Record<number, ErrorCode> = {
+export const errorCodes: Readonly<Record<number, ErrorCode>> = {
   400: {
     code: 400,
     description: `The request contains errors or didn't properly encode content.`,
@@ -54,7 +54,7 @@ export const errorCodes: Record<number, ErrorCode> = {
   },
 };
 
-export const okCodes: Record<number, ErrorCode> = {
+export const okCodes: Readonly<Record<number, ErrorCode>> = {
   200: {
     code: 200,
     description: `The request ran successfully and returned an OK response.`,
@@ -67,7 +67,7 @@ export const okCodes: Record<number, ErrorCode> = {
   },
 };
 
-export const codes: Record<number, ErrorCode> = {
+export const codes: Readonly<Record<number, ErrorCode>> = {
   ...errorCodes,
   ...okCodes,
 };
