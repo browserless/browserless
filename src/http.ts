@@ -11,7 +11,7 @@ export interface ErrorCode {
   readonly message: string;
 }
 
-export const errorCodes: Readonly<Record<number, ErrorCode>> = {
+export const errorCodes = {
   400: {
     code: 400,
     description: `The request contains errors or didn't properly encode content.`,
@@ -52,9 +52,9 @@ export const errorCodes: Readonly<Record<number, ErrorCode>> = {
     description: `Service is unavailable.`,
     message: 'HTTP/1.1 503 Service Unavailable',
   },
-};
+} as const satisfies Record<number, ErrorCode>;
 
-export const okCodes: Readonly<Record<number, ErrorCode>> = {
+export const okCodes = {
   200: {
     code: 200,
     description: `The request ran successfully and returned an OK response.`,
@@ -65,12 +65,12 @@ export const okCodes: Readonly<Record<number, ErrorCode>> = {
     description: `The request ran successfully, but no response was necessary.`,
     message: 'HTTP/1.1 204 No Content',
   },
-};
+} as const satisfies Record<number, ErrorCode>;
 
-export const codes: Readonly<Record<number, ErrorCode>> = {
+export const codes = {
   ...errorCodes,
   ...okCodes,
-};
+} as const satisfies Record<number, ErrorCode>;
 
 export enum contentTypes {
   any = '*/*',
