@@ -7,6 +7,20 @@
 
 * support per-route error codes in Swagger build pipeline ([#5480](https://github.com/browserless/browserless/issues/5480)) ([5c12843](https://github.com/browserless/browserless/commit/5c12843535cec650aee7478a34341cca7b0193bc))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.2.1`
+- playwright-core: `1.61.1`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `149.0.7827.200` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `149.0.4022.98` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.54.2](https://github.com/browserless/browserless/compare/v2.54.1...v2.54.2) (2026-06-26)
 
 
