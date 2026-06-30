@@ -5,7 +5,13 @@ import {
 
 import http from 'http';
 
-export const errorCodes = {
+export interface ErrorCode {
+  readonly code: number;
+  readonly description: string;
+  readonly message: string;
+}
+
+export const errorCodes: Record<number, ErrorCode> = {
   400: {
     code: 400,
     description: `The request contains errors or didn't properly encode content.`,
@@ -36,9 +42,9 @@ export const errorCodes = {
     description: `An internal error occurred when handling the request.`,
     message: 'HTTP/1.1 500 Internal Server Error',
   },
-} as const;
+};
 
-export const okCodes = {
+export const okCodes: Record<number, ErrorCode> = {
   200: {
     code: 200,
     description: `The request ran successfully and returned an OK response.`,
@@ -49,12 +55,12 @@ export const okCodes = {
     description: `The request ran successfully, but no response was necessary.`,
     message: 'HTTP/1.1 204 No Content',
   },
-} as const;
+};
 
-export const codes = {
+export const codes: Record<number, ErrorCode> = {
   ...errorCodes,
   ...okCodes,
-} as const;
+};
 
 export enum contentTypes {
   any = '*/*',
