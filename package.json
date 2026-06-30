@@ -96,11 +96,11 @@
     "env-cmd": "^11.0.0",
     "esbuild": "^0.28.1",
     "esbuild-plugins-node-modules-polyfill": "^1.8.2",
-    "eslint": "^10.5.0",
+    "eslint": "^10.6.0",
     "gunzip-maybe": "^1.4.2",
     "marked": "^18.0.5",
     "mocha": "^12.0.0-rc.1",
-    "prettier": "^3.8.4",
+    "prettier": "^3.8.5",
     "sinon": "^22.0.0",
     "typescript": "^6.0.3",
     "typescript-json-schema": "^0.67.3"
