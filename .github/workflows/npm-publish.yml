@@ -1,0 +1,66 @@
+name: Publish to npm
+
+# Fires on the vX.Y.Z tag that release-please creates when its Release PR is
+# merged. The same tag also triggers docker-publish-stable.yml, so one merge
+# ships the npm package and all Docker images together on the same version.
+#
+# Browser/unit tests are NOT re-run here: they run via pr-checks.yml on the
+# Release PR before it is merged, and they require Docker/browser images that a
+# bare runner does not have. This job only builds and publishes the SDK package.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# Serialize publishes per-tag — two rapid pushes to the same ref would otherwise
+# race two `npm publish` jobs, with the loser failing 403 (already published).
+# cancel-in-progress: false because cancelling a mid-flight publish would leave
+# the npm registry inconsistent with the GitHub Release.
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.ref_name }}
+  RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # No git push/pull after checkout, so don't persist credentials.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          check-latest: true
+      - name: Ensure npm >= 11.10.0 (min-release-age support)
+        run: npm install -g npm@11.17.0 --ignore-scripts
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm publish` runs the prepack hook (build:dev), which compiles
+      # TypeScript and assembles the published artifacts. Provenance is attached
+      # automatically via npm trusted publishing (OIDC, id-token: write).
+      - name: Publish to npm
+        run: npm publish --access public
+
+      # The package is already published by this point; a Slack hiccup must not
+      # mark the release as failed.
+      - name: Notify Slack
+        if: success()
+        continue-on-error: true
+        run: bash scripts/ci/notify-slack.sh
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASES_WEBHOOK }}

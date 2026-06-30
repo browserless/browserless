@@ -1,0 +1,53 @@
+name: Leak Check
+
+on: [workflow_call, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  Leak-Check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version: '24'
+          check-latest: true
+      - name: Ensure npm >= 11.10.0 (min-release-age support)
+        run: npm install -g npm@11.17.0 --ignore-scripts
+
+      - name: Install modules
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: npm clean-install
+
+      - name: Build
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: npm run build
+
+      # The server refuses to start when a route's browser binary is missing,
+      # and the local build contains routes for every browser — so Firefox and
+      # WebKit are needed even though the harness only drives Chromium. Chrome
+      # and Edge are preinstalled on the runner.
+      # NOTE it's important to not use npx playwright-core here since it'll likely install
+      # a more recent version than we potentially have in our own package.json
+      - name: Install browsers
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 15
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: ./node_modules/playwright-core/cli.js install --with-deps chromium firefox webkit
+
+      - name: Run leak check
+        run: node --expose-gc scripts/leak-check.js
+        timeout-minutes: 15

@@ -23,8 +23,8 @@ export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRo
   concurrency = true;
   description = `Connect to Chromium with any playwright style library.`;
   path = [
-    WebsocketRoutes.playwrightChromium,
     WebsocketRoutes.chromiumPlaywright,
+    WebsocketRoutes.playwrightChromium,
   ];
   tags = [APITags.browserWS];
   async handler(

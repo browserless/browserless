@@ -18,5 +18,11 @@
   "license": "",
   "dependencies": {
     "@browserless.io/browserless": "^${BROWSERLESS_VERSION}"
+  },
+  "devDependencies": {
+    "marked": "^18.0.3",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-json-schema": "^0.67.2"
   }
 }

@@ -6,7 +6,7 @@ import os from 'os';
 
 import { deleteAsync } from 'del';
 import gunzip from 'gunzip-maybe';
-import { moveFile } from 'move-file';
+import { cp } from 'fs/promises';
 import tar from 'tar-fs';
 
 const registryURL = 'https://registry.npmjs.org/@browserless.io/debugger/';
@@ -52,7 +52,7 @@ const getLatestVersion = async () => {
     process.exit(1);
   });
 
-  await moveFile(untarDir, debuggerDir);
+  await cp(untarDir, debuggerDir, { recursive: true });
   await deleteAsync(tmp, { force: true });
 })().catch((error) => {
   console.error(`An error occurred: ${error.message}`);

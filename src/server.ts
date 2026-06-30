@@ -1,9 +1,11 @@
 import * as http from 'http';
+import * as net from 'net';
 import * as stream from 'stream';
 import {
   BadRequest,
   Logger as BlessLogger,
   Config,
+  Forbidden,
   HTTPRoute,
   Hooks,
   Metrics,
@@ -19,6 +21,7 @@ import {
   contentTypes,
   convertPathToURL,
   isMatch,
+  moveTokenToHeader,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -26,8 +29,7 @@ import {
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 
-// @ts-ignore
-import Enjoi from 'enjoi';
+import { compileSchema } from './shared/utils/schema-validator.js';
 
 export interface HTTPServerOptions {
   concurrent: number;
@@ -60,6 +62,44 @@ export class HTTPServer extends EventEmitter {
     );
   }
 
+  protected handleErrorRequest(
+    e: Error,
+    res: Response | stream.Duplex,
+    req?: Request,
+  ) {
+    const contentType = req?.headers['content-type'] as contentTypes;
+
+    if (e instanceof BadRequest) {
+      return writeResponse(res, 400, e.message, contentType);
+    }
+
+    if (e instanceof NotFound) {
+      return writeResponse(res, 404, e.message, contentType);
+    }
+
+    if (e instanceof Forbidden) {
+      return writeResponse(res, 403, e.message, contentType);
+    }
+
+    if (e instanceof Unauthorized) {
+      return writeResponse(res, 401, e.message, contentType);
+    }
+
+    if (e instanceof TooManyRequests) {
+      return writeResponse(res, 429, e.message, contentType);
+    }
+
+    if (e instanceof Timeout) {
+      return writeResponse(res, 408, e.message, contentType);
+    }
+
+    this.logger.error(`Error handling request: ${e}\n${e.stack}`);
+
+    // Full details are logged above — don't echo internals (paths, stack
+    // fragments, library errors) back to the client.
+    return writeResponse(res, 500, 'Internal Server Error');
+  }
+
   protected onHTTPUnauthorized(_req: Request, res: Response) {
     this.logger.error(
       `HTTP request is not properly authorized, responding with 401`,
@@ -80,7 +120,7 @@ export class HTTPServer extends EventEmitter {
     this.logger.info(`HTTP Server is starting`);
 
     this.server.on('request', this.handleRequest.bind(this));
-    this.server.on('upgrade', this.handleWebSocket.bind(this));
+    this.server.on('upgrade', this.handleUpgrade.bind(this));
 
     const listenMessage = [
       `HTTP Server is listening on ${this.config.getServerAddress()}`,
@@ -102,15 +142,60 @@ export class HTTPServer extends EventEmitter {
     });
   }
 
+  protected handleUpgrade(
+    request: http.IncomingMessage,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) {
+    if (request.headers.upgrade?.toLowerCase() === 'websocket') {
+      return this.handleWebSocket(request, socket, head);
+    }
+
+    // Non-WebSocket upgrade (h2c, etc.) — process as normal HTTP
+    // per RFC 7230 Section 6.7.
+    this.logger.trace(
+      `Non-WebSocket upgrade request (Upgrade: ${request.headers.upgrade}), handling as HTTP`,
+    );
+
+    socket.on('error', (err) => {
+      this.logger.error(
+        `Socket error during non-WebSocket upgrade handling: ${err.message}`,
+      );
+    });
+
+    const res = new http.ServerResponse(request);
+    res.assignSocket(socket as unknown as net.Socket);
+
+    res.on('finish', () => {
+      res.detachSocket(socket as unknown as net.Socket);
+      (socket as unknown as net.Socket).destroySoon();
+    });
+
+    return this.handleRequest(request, res);
+  }
+
   protected async handleRequest(
     request: http.IncomingMessage,
     res: http.ServerResponse,
   ) {
+    const req = request as Request;
+    // Any throw out of this method is an unhandled rejection on the
+    // 'request' listener, which kills the whole process — catch and map
+    // to an error response instead.
+    try {
+      await this.handleRequestUnsafe(req, res);
+    } catch (e: unknown) {
+      this.handleErrorRequest(e as Error, res, req);
+    }
+  }
+
+  protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
+    const request = req as http.IncomingMessage;
+    request.url = moveTokenToHeader(request);
     this.logger.trace(
-      `Handling inbound HTTP request on "${request.method}: ${request.url}"`,
+      `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
 
-    const req = request as Request;
     const proceed = await this.hooks.before({ req, res });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
@@ -159,17 +244,25 @@ export class HTTPServer extends EventEmitter {
     const route = await this.router.getRouteForHTTPRequest(req);
 
     if (!route) {
-      this.logger.error(
+      this.logger.warn(
         `No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`,
       );
-      writeResponse(res, 404, 'Not Found');
+      writeResponse(
+        res,
+        404,
+        'Not Found: Please verify the endpoint URL, the HTTP method (e.g., POST, GET), and check that your Content-Type header is supported (e.g., application/json). See: https://docs.browserless.io/rest-apis/intro',
+      );
       return Promise.resolve();
     }
 
     this.logger.trace(`Found matching HTTP route handler "${route.path}"`);
 
+    if (route.before && !(await route.before(req, res))) {
+      return;
+    }
+
     if (route?.auth) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url}"`);
+      this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
@@ -177,7 +270,13 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    const body = await readBody(req);
+    let body;
+    try {
+      body = await readBody(req, this.config.getMaxPayloadSize());
+    } catch (e: unknown) {
+      return this.handleErrorRequest(e as Error, res, req);
+    }
+
     req.body = body;
     req.queryParams = queryParamsToObject(req.parsed.searchParams);
 
@@ -195,10 +294,8 @@ export class HTTPServer extends EventEmitter {
     if (route.querySchema) {
       this.logger.trace(`Validating route query-params with QUERY schema`);
       try {
-        const schema = Enjoi.schema(route.querySchema);
-        const valid = schema.validate(req.queryParams, {
-          abortEarly: false,
-        });
+        const schema = compileSchema(route.querySchema);
+        const valid = schema.validate(req.queryParams);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -225,6 +322,7 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        req.queryParams = valid.value as typeof req.queryParams;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -240,8 +338,8 @@ export class HTTPServer extends EventEmitter {
     if (route.bodySchema) {
       this.logger.trace(`Validating route payload with BODY schema`);
       try {
-        const schema = Enjoi.schema(route.bodySchema);
-        const valid = schema.validate(body, { abortEarly: false });
+        const schema = compileSchema(route.bodySchema);
+        const valid = schema.validate(body);
 
         if (valid.error) {
           const errorDetails = valid.error.details
@@ -256,9 +354,10 @@ export class HTTPServer extends EventEmitter {
             )
             .join('\n');
 
-          this.logger.error(
-            `HTTP body contain errors sending 400:${errorDetails}`,
-          );
+          // Client error: the request body failed schema validation and we
+          // return 400 below with the details. Not operator-actionable, so
+          // log at debug rather than warn.
+          this.logger.debug(`HTTP body validation failed:${errorDetails}`);
 
           writeResponse(
             res,
@@ -268,6 +367,8 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+        body = valid.value;
+        req.body = valid.value;
       } catch (e) {
         this.logger.error(`Error parsing body schema`, e);
         writeResponse(
@@ -285,29 +386,7 @@ export class HTTPServer extends EventEmitter {
       .then(() => {
         this.logger.trace('HTTP connection complete');
       })
-      .catch((e) => {
-        if (e instanceof BadRequest) {
-          return writeResponse(res, 400, e.message);
-        }
-
-        if (e instanceof NotFound) {
-          return writeResponse(res, 404, e.message);
-        }
-
-        if (e instanceof Unauthorized) {
-          return writeResponse(res, 401, e.message);
-        }
-
-        if (e instanceof TooManyRequests) {
-          return writeResponse(res, 429, e.message);
-        }
-
-        if (e instanceof Timeout) {
-          return writeResponse(res, 408, e.message);
-        }
-
-        return writeResponse(res, 500, e.toString());
-      });
+      .catch((e) => this.handleErrorRequest(e, res, req));
   }
 
   protected async handleWebSocket(
@@ -315,9 +394,35 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
-    this.logger.trace(`Handling inbound WebSocket request on "${request.url}"`);
-
     const req = request as Request;
+
+    // A client resetting the connection mid-handshake emits 'error' on the
+    // raw socket; with no listener that's an uncaught exception that kills
+    // the process.
+    socket.on('error', (err) => {
+      this.logger.error(`WebSocket socket error: ${err.message}`);
+    });
+
+    // Same rationale as handleRequest: a throw here is an unhandled
+    // rejection on the 'upgrade' listener and crashes the process.
+    try {
+      await this.handleWebSocketUnsafe(req, socket, head);
+    } catch (e: unknown) {
+      this.handleErrorRequest(e as Error, socket, req);
+    }
+  }
+
+  protected async handleWebSocketUnsafe(
+    req: Request,
+    socket: stream.Duplex,
+    head: Buffer,
+  ) {
+    const request = req as http.IncomingMessage;
+    request.url = moveTokenToHeader(request);
+
+    this.logger.trace(
+      `Handling inbound WebSocket request on "${request.url || ''}"`,
+    );
     const proceed = await this.hooks.before({ head, req, socket });
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
@@ -333,6 +438,10 @@ export class HTTPServer extends EventEmitter {
         `Found matching WebSocket route handler "${route.path}"`,
       );
 
+      if (route.before && !(await route.before(req, socket, head))) {
+        return;
+      }
+
       if (route?.auth) {
         this.logger.trace(
           `Authorizing WebSocket request to "${req.parsed.href}"`,
@@ -347,10 +456,8 @@ export class HTTPServer extends EventEmitter {
       if (route.querySchema) {
         this.logger.trace(`Validating route query-params with QUERY schema`);
         try {
-          const schema = Enjoi.schema(route.querySchema);
-          const valid = schema.validate(req.queryParams, {
-            abortEarly: false,
-          });
+          const schema = compileSchema(route.querySchema);
+          const valid = schema.validate(req.queryParams);
 
           if (valid.error) {
             const errorDetails = valid.error.details
@@ -365,8 +472,8 @@ export class HTTPServer extends EventEmitter {
               )
               .join('\n');
 
-            this.logger.error(
-              `WebSocket query-params contain errors sending 400:${errorDetails}`,
+            this.logger.warn(
+              `WebSocket query-params validation failed:${errorDetails}`,
             );
 
             writeResponse(
@@ -377,6 +484,7 @@ export class HTTPServer extends EventEmitter {
             );
             return Promise.resolve();
           }
+          req.queryParams = valid.value as typeof req.queryParams;
         } catch (e) {
           this.logger.error(`Error parsing query-params schema`, e);
           writeResponse(
@@ -394,32 +502,10 @@ export class HTTPServer extends EventEmitter {
         .then(() => {
           this.logger.trace('Websocket connection complete');
         })
-        .catch((e) => {
-          if (e instanceof BadRequest) {
-            return writeResponse(socket, 400, e.message);
-          }
-
-          if (e instanceof NotFound) {
-            return writeResponse(socket, 404, e.message);
-          }
-
-          if (e instanceof Unauthorized) {
-            return writeResponse(socket, 401, e.message);
-          }
-
-          if (e instanceof TooManyRequests) {
-            return writeResponse(socket, 429, e.message);
-          }
-
-          this.logger.error(
-            `Error handling request at "${route.path}": ${e}\n${e.stack}`,
-          );
-
-          return writeResponse(socket, 500, e.message);
-        });
+        .catch((e) => this.handleErrorRequest(e, socket, req));
     }
 
-    this.logger.error(
+    this.logger.warn(
       `No matching WebSocket route handler for "${req.parsed.href}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
@@ -427,7 +513,7 @@ export class HTTPServer extends EventEmitter {
 
   public async shutdown(): Promise<void> {
     this.logger.info(`HTTP Server is shutting down`);
-    await new Promise((r) => this.server.close(r));
+    await new Promise((r) => this.server?.close(r));
 
     if (this.server) {
       this.server.removeAllListeners();
@@ -439,7 +525,10 @@ export class HTTPServer extends EventEmitter {
   }
 
   /**
-   * Left blank for downstream SDK modules to optionally implement.
+   * Triggers a graceful shutdown of the HTTP server. Downstream SDK modules
+   * may override this to implement additional cleanup on shutdown.
    */
-  public stop() {}
+  public stop(): void {
+    void this.shutdown();
+  }
 }

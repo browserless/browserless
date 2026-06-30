@@ -1,31 +1,101 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
-LABEL org.opencontainers.image.source https://github.com/browserless/browserless
+LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v22.11.0
+ARG NODE_VERSION=v24.18.0
+ARG NPM_VERSION=11.17.0
 
 ENV NODE_VERSION=$NODE_VERSION
-ENV NVM_DIR /usr/src/.nvm
-ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
-ENV PATH $NODE_PATH:$PATH
+ENV NVM_DIR=/usr/src/.nvm
+ENV NODE_PATH=$NVM_DIR/versions/node/$NODE_VERSION/bin
+ENV PATH=$NODE_PATH:$PATH
 ENV APP_DIR=$APP_DIR
 ENV TZ=$TZ
 ENV DEBIAN_FRONTEND=$DEBIAN_FRONTEND
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV LANG="C.UTF-8"
-ENV NODE_ENV=production
 ENV DEBUG_COLORS=true
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/bin/playwright-browsers
 
-RUN mkdir -p $APP_DIR $NVM_DIR
+RUN mkdir -p $APP_DIR $NVM_DIR && \
+  groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
+  mkdir -p /home/blessuser/Downloads && \
+  chown -R blessuser:blessuser /home/blessuser
 
 WORKDIR $APP_DIR
+
+COPY fonts/* /usr/share/fonts/truetype/
+
+# Optional apt mirror override. Unset by default so external builders keep the
+# upstream archive.ubuntu.com + security.ubuntu.com defaults untouched. CI
+# passes azure.archive.ubuntu.com to avoid timeouts from GitHub-hosted
+# (Azure-backed) runners; when set, both archive and security are routed
+# through it since the Azure mirror carries noble-security as well.
+ARG APT_MIRROR=
+RUN if [ -n "${APT_MIRROR}" ]; then \
+    sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
+      /etc/apt/sources.list.d/ubuntu.sources; \
+  fi
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends software-properties-common \
+  && add-apt-repository universe \
+  && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+  && add-apt-repository multiverse \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  dumb-init \
+  git \
+  gnupg \
+  libu2f-udev \
+  ssh \
+  unzip \
+  wget \
+  xvfb \
+  libwebp-dev \
+  python3 python3-pip python3-setuptools \
+  # Font packages
+  fontconfig \
+  fonts-freefont-ttf \
+  fonts-gfs-neohellenic \
+  fonts-indic \
+  fonts-ipafont-gothic \
+  fonts-kacst \
+  fonts-liberation \
+  fonts-noto-cjk \
+  fonts-noto-color-emoji \
+  fonts-roboto \
+  fonts-thai-tlwg \
+  fonts-ubuntu \
+  fonts-wqy-zenhei \
+  fonts-open-sans \
+  ttf-mscorefonts-installer \
+  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
+  && update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
+  && fc-cache -f -v \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
+
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash &&\
+  . $NVM_DIR/nvm.sh &&\
+  nvm install $NODE_VERSION &&\
+  npm install -g npm@$NPM_VERSION
+
+COPY package.json package-lock.json ./
+
+RUN npm clean-install
+
+# NODE_ENV is set after npm clean-install so devDependencies are present in
+# this base image. Multi-stage browser images use this base for the build
+# stage and then run `npm prune --omit=dev` in the runtime stage.
+ENV NODE_ENV=production
 
 COPY assets assets
 COPY bin bin
@@ -34,37 +104,6 @@ COPY external external
 COPY scripts scripts
 COPY static static
 
-COPY CHANGELOG.md .
-COPY LICENSE .
-COPY NOTICE.txt .
-COPY package.json .
-COPY package-lock.json .
-COPY README.md .
-COPY tsconfig.json .
+COPY CHANGELOG.md LICENSE NOTICE.txt README.md tsconfig.json ./
 
-RUN apt-get update && apt-get install -y \
-  ca-certificates \
-  curl \
-  dumb-init \
-  git \
-  gnupg \
-  libu2f-udev \
-  software-properties-common \
-  ssh \
-  wget \
-  xvfb
-
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash &&\
-  . $NVM_DIR/nvm.sh &&\
-  nvm install $NODE_VERSION
-
-RUN add-apt-repository universe && apt-get update && \
-  apt-get install -y python3.10 python3-pip && \
-  update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-  update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-
-RUN groupadd -r blessuser && useradd --uid ${BLESS_USER_ID} -r -g blessuser -G audio,video blessuser && \
-  mkdir -p /home/blessuser/Downloads && \
-  chown -R blessuser:blessuser /home/blessuser
-
-RUN npm i --production=false
+EXPOSE $PORT

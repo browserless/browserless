@@ -3,6 +3,7 @@ import {
   BrowserInstance,
   ChromiumCDP,
   Config,
+  ContextValue,
   HTTPRoutes,
   Logger,
   Request,
@@ -11,8 +12,8 @@ import {
   contentTypes,
   convertIfBase64,
   exists,
+  getFinalPathSegment,
   getTokenFromRequest,
-  id,
   makeExternalURL,
   mimeTypes,
 } from '@browserless.io/browserless';
@@ -29,11 +30,12 @@ declare global {
 
 interface JSONSchema {
   code: string;
-  context?: Record<string, string | number>;
+  context?: { [key: string]: ContextValue };
 }
 
 interface HandlerOptions {
   downloadPath?: string;
+  protocolTimeout?: number;
 }
 
 export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
@@ -44,12 +46,18 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     const isJson = req.headers['content-type']?.includes('json');
     const functionPath = HTTPRoutes.function.replace('?(/)', '');
     const functionAssetLocation = path.join(config.getStatic(), 'function');
+    // Page navigation and the in-page WebSocket both stay on the local
+    // server: the page is served entirely via setRequestInterception, so
+    // there is no reason for its origin to be the external LB. Keeping the
+    // origin local (http://localhost:<port>) also means the in-page WS to
+    // ws://localhost:<port> is same-origin — an HTTPS external address
+    // would otherwise trigger a mixed-content block.
     const functionRequestPath = makeExternalURL(
-      config.getExternalAddress(),
+      config.getServerAddress(),
       functionPath,
     );
     const functionIndexHTML = makeExternalURL(
-      config.getExternalAddress(),
+      config.getServerAddress(),
       functionPath,
       '/index.html',
     );
@@ -63,17 +71,23 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
 
     const context = JSON.stringify(rawContext);
     const code = convertIfBase64(rawCode);
-    const browserWSEndpoint = browser.publicWSEndpoint(
-      getTokenFromRequest(req) ?? '',
-    );
+    const privateWSEndpoint = browser.wsEndpoint();
 
-    if (!browserWSEndpoint) {
+    if (!privateWSEndpoint) {
       throw new ServerError(
         `No browser endpoint was found, is the browser running?`,
       );
     }
 
-    const functionCodeJS = `browserless-function-${id()}.js`;
+    const browserID = getFinalPathSegment(privateWSEndpoint)!;
+    const browserWSEndpoint = makeExternalURL(
+      config.getServerWebSocketAddress(),
+      'function',
+      'connect',
+      browserID,
+      '?token=' + getTokenFromRequest(req),
+    );
+    const functionCodeJS = `browserless-function-${browserID}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
     >;
@@ -87,7 +101,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
      */
     page.on('request', async (request) => {
       const requestUrl = request.url();
-      logger.info(`Outbound Page Request: "${requestUrl}"`);
+      logger.trace(`Outbound Page Request: "${requestUrl}"`);
       if (requestUrl.startsWith(functionRequestPath)) {
         const filename = path.basename(requestUrl);
         if (filename === functionCodeJS) {
@@ -101,7 +115,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
         if (await exists(filePath)) {
           const contentType = mimeTypes.get(path.extname(filePath));
           return request.respond({
-            body: await fs.readFileSync(filePath).toString(),
+            body: await fs.promises.readFile(filePath, 'utf-8'),
             contentType: contentType,
             status: 200,
           });
@@ -115,13 +129,26 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
           status: 404,
         });
       }
-      logger.info(`Request: "${requestUrl}" no responder found, continuing...`);
+      logger.trace(
+        `Request: "${requestUrl}" no responder found, continuing...`,
+      );
       return request.continue();
     });
 
     page.on('response', (res) => {
       if (!res.ok()) {
-        logger.warn(`Received a non-200 response for request "${res.url()}"`);
+        const status = res.status();
+        const msg = `Received a ${status} response for request "${res.url()}"`;
+        // Keep actionable failures at warn — server errors (5xx) and
+        // blocking/rate-limit responses (403, 429: target down or
+        // bot-detection). Routine sub-resource misses (favicon 404s,
+        // redirects, etc.) are expected during a page load and just noise,
+        // so log those at debug (the sibling page.on handlers above use trace).
+        if (status >= 500 || status === 403 || status === 429) {
+          logger.warn(msg);
+        } else {
+          logger.debug(msg);
+        }
       }
     });
 
@@ -129,47 +156,56 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
       logger.trace(`${event.type()}: ${event.text()}`);
     });
 
-    await page.goto(functionIndexHTML);
+    // The page only escapes this function via the success return below —
+    // any throw from goto/evaluate must close it here or it leaks for the
+    // life of the browser.
+    try {
+      await page.goto(functionIndexHTML);
 
-    const { contentType, payload } = await page
-      .evaluate(
-        async (
+      const { contentType, payload } = await page
+        .evaluate(
+          async (
+            browserWSEndpoint,
+            context,
+            functionCodeJS,
+            serializedOptions,
+          ) => {
+            const [{ default: code }] = await Promise.all([
+              import('./' + functionCodeJS),
+            ]);
+            console.log('/function.js: imported successfully.');
+            console.log(
+              `/function.js: BrowserlessFunctionRunner: ${typeof window.BrowserlessFunctionRunner}`,
+            );
+            const helper = new window.BrowserlessFunctionRunner();
+            const options = JSON.parse(serializedOptions);
+            console.log('/function.js: executing puppeteer code.');
+
+            return helper.start({
+              browserWSEndpoint,
+              code,
+              context: JSON.parse(context || `{}`),
+              options,
+            });
+          },
           browserWSEndpoint,
           context,
           functionCodeJS,
-          serializedOptions,
-        ) => {
-          const [{ default: code }] = await Promise.all([
-            import('./' + functionCodeJS),
-          ]);
-          console.log('/function.js: imported successfully.');
-          console.log(
-            `/function.js: BrowserlessFunctionRunner: ${typeof window.BrowserlessFunctionRunner}`,
-          );
-          const helper = new window.BrowserlessFunctionRunner();
-          const options = JSON.parse(serializedOptions);
-          console.log('/function.js: executing puppeteer code.');
+          JSON.stringify(options),
+        )
+        .catch((e) => {
+          logger.error(`Error running code: ${e}`);
+          throw new BadRequest(e.message);
+        });
 
-          return helper.start({
-            browserWSEndpoint,
-            code,
-            context: JSON.parse(context || `{}`),
-            options,
-          });
-        },
-        browserWSEndpoint,
-        context,
-        functionCodeJS,
-        JSON.stringify(options),
-      )
-      .catch((e) => {
-        logger.error(`Error running code: ${e}`);
-        throw new BadRequest(e.message);
-      });
-
-    return {
-      contentType,
-      page,
-      payload,
-    };
+      return {
+        contentType,
+        page,
+        payload,
+      };
+    } catch (e) {
+      page.removeAllListeners();
+      page.close().catch(() => {});
+      throw e;
+    }
   };

@@ -1,4 +1,9 @@
 {
   "extends": "./node_modules/@browserless.io/browserless/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": ["node"],
+    "paths": {}
+  },
   "include": ["./src/**/*"]
 }

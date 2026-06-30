@@ -1,17 +1,23 @@
-import { Config, fetchTimeout, noop } from '@browserless.io/browserless';
+import { Config, Logger, fetchTimeout } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 
 export class WebHooks extends EventEmitter {
+  protected logger = new Logger('webhooks');
+
   constructor(protected config: Config) {
     super();
   }
 
   protected callURL(url: string | null) {
     if (url) {
+      // Log failures (don't rethrow) — a dead alert URL shouldn't affect
+      // request handling, but it must be diagnosable.
       return fetchTimeout(url, {
         method: 'GET',
         timeout: 10000,
-      }).catch(noop);
+      }).catch((err) =>
+        this.logger.warn(`Failed calling webhook URL "${url}": ${err}`),
+      );
     }
 
     return;
@@ -39,6 +45,12 @@ export class WebHooks extends EventEmitter {
 
   public callErrorAlertURL(message: string) {
     const url = this.config.getErrorAlertURL();
+
+    // No alert URL configured is the normal case — don't fall through to
+    // `new URL('')` and log a spurious "Invalid URL" on every errored request.
+    if (!url) {
+      return;
+    }
 
     try {
       const fullURL = new URL(url ?? '');

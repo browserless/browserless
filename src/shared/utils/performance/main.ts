@@ -1,4 +1,5 @@
 import { Message, mainOptions } from './types.js';
+import { Timeout } from '@browserless.io/browserless';
 import { fork } from 'child_process';
 import path from 'path';
 
@@ -26,16 +27,40 @@ export default async ({
       timeout !== -1
         ? setTimeout(() => {
             close(child.pid);
+            // Settle the promise — without this a timed-out run hangs the
+            // request until the global limiter timeout.
+            reject(new Timeout(`Performance run timed out after ${timeout}ms`));
           }, timeout)
         : null;
 
     const close = (pid?: number) => {
       if (closed) return;
-      if (pid) process.kill(pid, 'SIGINT');
-      if (timeoutId) clearTimeout(timeoutId);
       closed = true;
+      if (timeoutId) clearTimeout(timeoutId);
       timeoutId = null;
+      if (pid) {
+        // The child may have already exited; ESRCH here would otherwise be
+        // an uncaught exception inside a timer callback.
+        try {
+          process.kill(pid, 'SIGINT');
+        } catch {
+          // Process already gone
+        }
+      }
     };
+
+    // A child killed externally (OOM, SIGKILL) never sends 'complete' or
+    // 'error' — settle instead of hanging the request.
+    child.on('exit', (code) => {
+      if (!closed) {
+        close();
+        reject(
+          new Error(
+            `Performance child process exited unexpectedly with code ${code}`,
+          ),
+        );
+      }
+    });
 
     const { url, config = DEFAULT_AUDIT_CONFIG, budgets } = context;
 
@@ -54,7 +79,7 @@ export default async ({
 
     child.on('message', (payload: Message) => {
       if (payload.event === 'created') {
-        logger.info(`Child process is up, sending performance request`);
+        logger.debug(`Child process is up, sending performance request`);
         return child.send({
           config,
           event: 'start',
@@ -64,7 +89,7 @@ export default async ({
       }
 
       if (payload.event === 'complete') {
-        logger.info(`Performance gathered, closing and resolving request`);
+        logger.debug(`Performance gathered, closing and resolving request`);
         close(child.pid);
         return resolve({
           data: payload.data,

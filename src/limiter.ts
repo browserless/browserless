@@ -5,6 +5,7 @@ import {
   Logger,
   Metrics,
   Monitoring,
+  Route,
   TooManyRequests,
   WebHooks,
 } from '@browserless.io/browserless';
@@ -22,6 +23,7 @@ interface Job {
   onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
+  route?: Route;
 }
 
 export class Limiter extends q {
@@ -42,22 +44,22 @@ export class Limiter extends q {
     });
     this.queued = config.getQueued();
 
-    this.logger.info(
+    this.logger.debug(
       `Concurrency: ${this.concurrency} queue: ${this.queued} timeout: ${this.timeout}ms`,
     );
 
     config.on('concurrent', (concurrency: number) => {
-      this.logger.info(`Concurrency updated to ${concurrency}`);
+      this.logger.debug(`Concurrency updated to ${concurrency}`);
       this.concurrency = concurrency;
     });
 
     config.on('queued', (queued: number) => {
-      this.logger.info(`Queue updated to ${queued}`);
+      this.logger.debug(`Queue updated to ${queued}`);
       this.queued = queued;
     });
 
     config.on('timeout', (timeout: number) => {
-      this.logger.info(`Timeout updated to ${timeout}ms`);
+      this.logger.debug(`Timeout updated to ${timeout}ms`);
       this.timeout = timeout <= 0 ? 0 : timeout;
     });
 
@@ -91,7 +93,7 @@ export class Limiter extends q {
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
     const timeUsed = Date.now() - job.start;
-    this.logger.info(
+    this.logger.debug(
       `Job has succeeded after ${timeUsed.toLocaleString()}ms of activity.`,
     );
     this.metrics.addSuccessful(Date.now() - job.start);
@@ -100,6 +102,7 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'successful',
+      route: job.route,
     } as AfterResponse);
   }
 
@@ -114,12 +117,13 @@ export class Limiter extends q {
     );
     this.metrics.addTimedout(Date.now() - job.start);
     this.webhooks.callTimeoutAlertURL();
-    this.logger.info(`Calling timeout handler`);
+    this.logger.debug(`Calling timeout handler`);
     job?.onTimeoutFn(job);
     this.jobEnd({
       req: job.args[0],
       start: job.start,
       status: 'timedout',
+      route: job.route,
     } as AfterResponse);
 
     next();
@@ -130,7 +134,7 @@ export class Limiter extends q {
   }: {
     detail: { error: unknown; job: Job };
   }) {
-    this.logger.info(
+    this.logger.debug(
       `Recording failed stat, cleaning up: "${error?.toString()}"`,
     );
     this.metrics.addError(Date.now() - job.start);
@@ -139,11 +143,16 @@ export class Limiter extends q {
       req: job.args[0],
       start: job.start,
       status: 'error',
+      route: job.route,
+      error:
+        error instanceof Error
+          ? error
+          : new Error(error?.toString() ?? 'Unknown Error'),
     } as AfterResponse);
   }
 
   protected logQueue(message: string) {
-    this.logger.info(
+    this.logger.debug(
       `(Running: ${this.executing}, Pending: ${this.waiting}) ${message} `,
     );
   }
@@ -173,67 +182,104 @@ export class Limiter extends q {
     overCapacityFn: ErrorFn<TArgs>,
     onTimeoutFn: ErrorFn<TArgs>,
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
+    bypassLimitsFn?: (...args: TArgs) => boolean,
+    route?: Route,
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
-      new Promise(async (res, rej) => {
-        const timeout = timeoutOverrideFn(...args) ?? this.timeout;
-        this.logQueue(
-          `Adding to queue, max time allowed is ${timeout.toLocaleString()}ms`,
-        );
-
-        if (this.config.getHealthChecksEnabled()) {
-          const { cpuOverloaded, memoryOverloaded } =
-            await this.monitor.overloaded();
-
-          if (cpuOverloaded || memoryOverloaded) {
-            this.logQueue(`Health checks have failed, rejecting`);
-            this.webhooks.callFailedHealthURL();
+      new Promise((res, rej) => {
+        const admit = async () => {
+          const timeout = timeoutOverrideFn(...args) ?? this.timeout;
+          let skipLimits = false;
+          try {
+            skipLimits = bypassLimitsFn?.(...args) ?? false;
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            this.logger.error(`bypassLimits predicate threw: ${error.message}`);
+            this.webhooks.callRejectAlertURL();
             this.metrics.addRejected();
             overCapacityFn(...args);
-            return rej(new Error(`Health checks have failed, rejecting`));
+            return rej(error);
           }
-        }
-
-        if (!this.hasCapacity) {
-          this.logQueue(`Concurrency and queue is at capacity`);
-          this.webhooks.callRejectAlertURL();
-          this.metrics.addRejected();
-          overCapacityFn(...args);
-          return rej(
-            new TooManyRequests(`Concurrency and queue is at capacity`),
+          this.logQueue(
+            `Adding to queue, max time allowed is ${timeout.toLocaleString()}ms`,
           );
-        }
 
-        if (this.willQueue) {
-          this.logQueue(`Concurrency is at capacity, queueing`);
-          this.webhooks.callQueueAlertURL();
-          this.metrics.addQueued();
-        }
+          if (this.config.getHealthChecksEnabled()) {
+            const { cpuOverloaded, memoryOverloaded } =
+              await this.monitor.overloaded();
 
-        const bound: () => Promise<TResult | unknown> = async () => {
-          this.logQueue(`Starting new job`);
-          this.metrics.addRunning();
-
-          try {
-            const result = await limitFn(...args);
-            res(result);
-            return;
-          } catch (err) {
-            rej(err);
-            throw err;
+            if (cpuOverloaded || memoryOverloaded) {
+              if (skipLimits) {
+                this.logQueue(
+                  `Health checks failed but limits bypassed; admitting`,
+                );
+              } else {
+                this.logQueue(`Health checks have failed, rejecting`);
+                this.webhooks.callFailedHealthURL();
+                this.metrics.addRejected();
+                overCapacityFn(...args);
+                return rej(
+                  new TooManyRequests(`Health checks have failed, rejecting`),
+                );
+              }
+            }
           }
+
+          if (!this.hasCapacity) {
+            if (skipLimits) {
+              this.logQueue(`At capacity but limits bypassed; admitting`);
+            } else {
+              this.logQueue(`Concurrency and queue is at capacity`);
+              this.webhooks.callRejectAlertURL();
+              this.metrics.addRejected();
+              overCapacityFn(...args);
+              const concurrencyLimit = this.concurrency;
+              const queueLimit = this.queued;
+              return rej(
+                new TooManyRequests(
+                  `Your plan allows ${concurrencyLimit} concurrent sessions and ${queueLimit} queued requests, but both limits have been reached. Possible causes: 1) Your plan has reached maximum capacity, 2) Your token may not have access to this version, 3) Your requests are coming too quickly.`,
+                ),
+              );
+            }
+          }
+
+          if (this.willQueue) {
+            this.logQueue(`Concurrency is at capacity, queueing`);
+            this.webhooks.callQueueAlertURL();
+            this.metrics.addQueued();
+          }
+
+          const bound: () => Promise<TResult | unknown> = async () => {
+            // Billing clock starts at execution, not queue admission
+            job.start = Date.now();
+            this.logQueue(`Starting new job`);
+            this.metrics.addRunning();
+
+            try {
+              const result = await limitFn(...args);
+              res(result);
+              return;
+            } catch (err) {
+              rej(err);
+              throw err;
+            }
+          };
+
+          const job: Job = Object.assign(bound, {
+            args,
+            onTimeoutFn: () => onTimeoutFn(...args),
+            start: Date.now(),
+            timeout,
+            route,
+          });
+
+          this.push(job);
         };
 
-        const job: Job = Object.assign(bound, {
-          args,
-          onTimeoutFn: () => onTimeoutFn(...args),
-          start: Date.now(),
-          timeout,
-        });
-
-        this.push(job);
-
-        return bound;
+        // An async executor swallows its own rejections: if anything in
+        // admit() throws (e.g. monitor.overloaded() rejecting), the outer
+        // promise would never settle and the request would hang forever.
+        admit().catch(rej);
       });
   }
 

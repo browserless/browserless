@@ -20,17 +20,21 @@ import {
   WaitForEventOptions,
   WaitForFunctionOptions,
   WaitForSelectorOptions,
+  assertNavigationAllowed,
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
   debugScreenshotOpts,
   dedent,
+  isBase64Encoded,
   jsonResponse,
   noop,
+  redactSensitiveBodyFields,
   rejectRequestPattern,
   rejectResourceTypes,
   requestInterceptors,
   sleep,
+  toSetContentOptions,
   waitForEvent as waitForEvt,
   waitForFunction as waitForFn,
 } from '@browserless.io/browserless';
@@ -51,7 +55,7 @@ export interface BodySchema {
   rejectRequestPattern?: rejectRequestPattern[];
   rejectResourceTypes?: rejectResourceTypes[];
   requestInterceptors?: Array<requestInterceptors>;
-  setExtraHTTPHeaders?: Parameters<Page['setExtraHTTPHeaders']>[0];
+  setExtraHTTPHeaders?: { [key: string]: string };
   setJavaScriptEnabled?: boolean;
   url?: Parameters<Page['goto']>[0];
   userAgent?: Parameters<Page['setUserAgent']>[0];
@@ -156,7 +160,10 @@ export interface ResponseSchema {
   } | null;
 }
 
-const scrape = async (elements: ScrapeElementSelector[]) => {
+const scrape = async (
+  elements: ScrapeElementSelector[],
+  bestAttempt = false,
+) => {
   const wait = (selector: string, timeout = 30000) => {
     return new Promise<void>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -174,9 +181,23 @@ const scrape = async (elements: ScrapeElementSelector[]) => {
     });
   };
 
-  await Promise.all(
-    elements.map(({ selector, timeout }) => wait(selector, timeout)),
-  );
+  if (bestAttempt) {
+    const results = await Promise.allSettled(
+      elements.map(({ selector, timeout }) => wait(selector, timeout)),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn(
+          `Selector "${elements[index].selector}" failed: ${result.reason.message}`,
+        );
+      }
+    });
+  } else {
+    await Promise.all(
+      elements.map(({ selector, timeout }) => wait(selector, timeout)),
+    );
+  }
 
   return elements.map(({ selector }) => {
     const $els = [...document.querySelectorAll(selector)] as HTMLElement[];
@@ -214,7 +235,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     property. Responds with an array of JSON objects.
   `);
   method = Methods.post;
-  path = [HTTPRoutes.scrape, HTTPRoutes.chromiumScrape];
+  path = [HTTPRoutes.chromiumScrape, HTTPRoutes.scrape];
   tags = [APITags.browserAPI];
   async handler(
     req: Request,
@@ -222,7 +243,10 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
     logger: Logger,
     browser: BrowserInstance,
   ) {
-    logger.info('Scrape API invoked with body:', req.body);
+    logger.debug(
+      'Scrape API invoked with body:',
+      redactSensitiveBodyFields(req.body),
+    );
     const contentType =
       !req.headers.accept || req.headers.accept?.includes('*')
         ? contentTypes.html
@@ -265,180 +289,214 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
       throw new BadRequest(`One of "url" or "html" properties are required.`);
     }
 
+    const config = browser.getConfig();
+    assertNavigationAllowed(
+      url,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+    );
+
     const page = (await browser.newPage()) as UnwrapPromise<
       ReturnType<ChromiumCDP['newPage']>
     >;
-    const gotoCall = url ? page.goto.bind(page) : page.setContent.bind(page);
     const messages: string[] = [];
     const outbound: OutBoundRequest[] = [];
     const inbound: InBoundRequest[] = [];
 
-    if (debugOpts?.console) {
-      page.on('console', (msg) => messages.push(msg.text()));
-    }
+    // Close the page on every exit path — a throw below (evaluate timeout,
+    // navigation failure) must not leak the page into a keep-alive browser.
+    try {
+      if (debugOpts?.console) {
+        page.on('console', (msg) => messages.push(msg.text()));
+      }
 
-    if (debugOpts?.network) {
-      page.setRequestInterception(true);
+      if (debugOpts?.network) {
+        page.setRequestInterception(true);
 
-      page.on('request', (req) => {
-        outbound.push({
-          headers: req.headers(),
-          method: req.method(),
-          url: req.url(),
+        page.on('request', (req) => {
+          outbound.push({
+            headers: req.headers(),
+            method: req.method(),
+            url: req.url(),
+          });
+          if (
+            !(
+              rejectRequestPattern.length ||
+              requestInterceptors.length ||
+              rejectResourceTypes.length
+            )
+          ) {
+            req.continue();
+          }
         });
-        req.continue();
-      });
 
-      page.on('response', (res) => {
-        inbound.push({
-          headers: res.headers(),
-          status: res.status(),
-          url: res.url(),
+        page.on('response', (res) => {
+          inbound.push({
+            headers: res.headers(),
+            status: res.status(),
+            url: res.url(),
+          });
         });
-      });
-    }
+      }
 
-    if (emulateMediaType) {
-      await page.emulateMediaType(emulateMediaType);
-    }
+      if (emulateMediaType) {
+        await page.emulateMediaType(emulateMediaType);
+      }
 
-    if (cookies.length) {
-      await page.setCookie(...cookies);
-    }
+      if (cookies.length) {
+        await page.setCookie(...cookies);
+      }
 
-    if (viewport) {
-      await page.setViewport(viewport);
-    }
+      if (viewport) {
+        await page.setViewport(viewport);
+      }
 
-    if (userAgent) {
-      await page.setUserAgent(userAgent);
-    }
+      if (userAgent) {
+        await page.setUserAgent(userAgent);
+      }
 
-    if (authenticate) {
-      await page.authenticate(authenticate);
-    }
+      if (authenticate) {
+        await page.authenticate(authenticate);
+      }
 
-    if (setExtraHTTPHeaders) {
-      await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
-    }
+      if (setExtraHTTPHeaders) {
+        await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
+      }
 
-    if (setJavaScriptEnabled) {
-      await page.setJavaScriptEnabled(setJavaScriptEnabled);
-    }
+      if (setJavaScriptEnabled) {
+        await page.setJavaScriptEnabled(setJavaScriptEnabled);
+      }
 
-    if (
-      rejectRequestPattern.length ||
-      requestInterceptors.length ||
-      rejectResourceTypes.length
-    ) {
-      await page.setRequestInterception(true);
+      if (
+        rejectRequestPattern.length ||
+        requestInterceptors.length ||
+        rejectResourceTypes.length
+      ) {
+        await page.setRequestInterception(true);
 
-      page.on('request', (req) => {
-        if (
-          !!rejectRequestPattern.find((pattern) => req.url().match(pattern)) ||
-          rejectResourceTypes.includes(req.resourceType())
-        ) {
-          logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
-          return req.abort();
+        page.on('request', (req) => {
+          if (
+            rejectResourceTypes.includes(req.resourceType()) ||
+            !!rejectRequestPattern.find((pattern) => req.url().match(pattern))
+          ) {
+            logger.debug(`Aborting request ${req.method()}: ${req.url()}`);
+            return req.abort();
+          }
+          const interceptor = requestInterceptors.find((r) =>
+            req.url().match(r.pattern),
+          );
+          if (interceptor) {
+            return req.respond({
+              ...interceptor.response,
+              body: interceptor.response.body
+                ? isBase64Encoded(interceptor.response.body as string)
+                  ? Buffer.from(interceptor.response.body, 'base64')
+                  : interceptor.response.body
+                : undefined,
+            });
+          }
+          return req.continue();
+        });
+      }
+
+      const gotoResponse = url
+        ? await page
+            .goto(content, gotoOptions)
+            .catch(bestAttemptCatch(bestAttempt))
+        : await page
+            .setContent(content, toSetContentOptions(gotoOptions))
+            .catch(bestAttemptCatch(bestAttempt));
+
+      if (addStyleTag.length) {
+        for (const tag in addStyleTag) {
+          await page.addStyleTag(addStyleTag[tag]);
         }
-        const interceptor = requestInterceptors.find((r) =>
-          req.url().match(r.pattern),
+      }
+
+      if (addScriptTag.length) {
+        for (const tag in addScriptTag) {
+          await page.addScriptTag(addScriptTag[tag]);
+        }
+      }
+
+      if (waitForTimeout) {
+        await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForFunction) {
+        await waitForFn(page, waitForFunction).catch(
+          bestAttemptCatch(bestAttempt),
         );
-        if (interceptor) {
-          return req.respond(interceptor.response);
+      }
+
+      if (waitForSelector) {
+        const { selector, hidden, timeout, visible } = waitForSelector;
+        await page
+          .waitForSelector(selector, { hidden, timeout, visible })
+          .catch(bestAttemptCatch(bestAttempt));
+      }
+
+      if (waitForEvent) {
+        await waitForEvt(page, waitForEvent).catch(
+          bestAttemptCatch(bestAttempt),
+        );
+      }
+
+      const headers = {
+        'X-Response-Code': gotoResponse?.status(),
+        'X-Response-IP': gotoResponse?.remoteAddress().ip,
+        'X-Response-Port': gotoResponse?.remoteAddress().port,
+        'X-Response-Status': gotoResponse?.statusText(),
+        'X-Response-URL': gotoResponse?.url().substring(0, 1000),
+      };
+
+      for (const [key, value] of Object.entries(headers)) {
+        if (value !== undefined) {
+          res.setHeader(key, value);
         }
-        return req.continue();
-      });
-    }
-
-    const gotoResponse = await gotoCall(content, gotoOptions).catch(
-      bestAttemptCatch(bestAttempt),
-    );
-
-    if (addStyleTag.length) {
-      for (const tag in addStyleTag) {
-        await page.addStyleTag(addStyleTag[tag]);
       }
+
+      const data = await page
+        .evaluate(scrape, elements, bestAttempt)
+        .catch((e) => {
+          if (e.message.includes('Timed out')) {
+            throw new Timeout(e);
+          }
+          throw e;
+        });
+
+      const [debugHTML, screenshot, pageCookies] = await Promise.all([
+        debugOpts?.html ? (page.content() as Promise<string>) : null,
+        debugOpts?.screenshot
+          ? (page.screenshot(debugScreenshotOpts) as unknown as Promise<string>)
+          : null,
+        debugOpts?.cookies ? page.cookies() : null,
+      ]);
+
+      const debugData = debugOpts
+        ? {
+            console: messages,
+            cookies: pageCookies,
+            html: debugHTML,
+            network: {
+              inbound,
+              outbound,
+            },
+            screenshot,
+          }
+        : null;
+
+      const response: ResponseSchema = {
+        data,
+        debug: debugData,
+      };
+
+      logger.debug('Scrape API request completed');
+
+      return jsonResponse(res, 200, response, false);
+    } finally {
+      page.removeAllListeners();
+      page.close().catch(noop);
     }
-
-    if (addScriptTag.length) {
-      for (const tag in addScriptTag) {
-        await page.addScriptTag(addScriptTag[tag]);
-      }
-    }
-
-    if (waitForTimeout) {
-      await sleep(waitForTimeout).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForFunction) {
-      await waitForFn(page, waitForFunction).catch(
-        bestAttemptCatch(bestAttempt),
-      );
-    }
-
-    if (waitForSelector) {
-      const { selector, hidden, timeout, visible } = waitForSelector;
-      await page
-        .waitForSelector(selector, { hidden, timeout, visible })
-        .catch(bestAttemptCatch(bestAttempt));
-    }
-
-    if (waitForEvent) {
-      await waitForEvt(page, waitForEvent).catch(bestAttemptCatch(bestAttempt));
-    }
-
-    const headers = {
-      'X-Response-Code': gotoResponse?.status(),
-      'X-Response-IP': gotoResponse?.remoteAddress().ip,
-      'X-Response-Port': gotoResponse?.remoteAddress().port,
-      'X-Response-Status': gotoResponse?.statusText(),
-      'X-Response-URL': gotoResponse?.url().substring(0, 1000),
-    };
-
-    for (const [key, value] of Object.entries(headers)) {
-      if (value !== undefined) {
-        res.setHeader(key, value);
-      }
-    }
-
-    const data = await page.evaluate(scrape, elements).catch((e) => {
-      if (e.message.includes('Timed out')) {
-        throw new Timeout(e);
-      }
-      throw e;
-    });
-
-    const [debugHTML, screenshot, pageCookies] = await Promise.all([
-      debugOpts?.html ? (page.content() as Promise<string>) : null,
-      debugOpts?.screenshot
-        ? (page.screenshot(debugScreenshotOpts) as unknown as Promise<string>)
-        : null,
-      debugOpts?.cookies ? page.cookies() : null,
-    ]);
-
-    const debugData = debugOpts
-      ? {
-          console: messages,
-          cookies: pageCookies,
-          html: debugHTML,
-          network: {
-            inbound,
-            outbound,
-          },
-          screenshot,
-        }
-      : null;
-
-    const response: ResponseSchema = {
-      data,
-      debug: debugData,
-    };
-
-    page.close().catch(noop);
-
-    logger.info('Scrape API request completed');
-
-    return jsonResponse(res, 200, response, false);
   }
 }

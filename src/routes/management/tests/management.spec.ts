@@ -1,4 +1,10 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import * as http from 'http';
+import {
+  exists,
+  Browserless,
+  Config,
+  Metrics,
+} from '@browserless.io/browserless';
 import { expect } from 'chai';
 
 describe('Management APIs', function () {
@@ -14,14 +20,17 @@ describe('Management APIs', function () {
   };
 
   afterEach(async () => {
-    await browserless.stop();
+    if (browserless) {
+      await browserless.stop();
+      browserless = undefined as unknown as Browserless;
+    }
   });
 
   describe('CORS', () => {
     it('allows Single Origin OPTIONS requests', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('https://example.com');
+      config.setCORSOrigin('https://one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -29,14 +38,14 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://example.com',
+            Origin: 'https://one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://example.com',
+        'https://one.one.one.one',
       );
     });
 
@@ -51,21 +60,21 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://example.com',
+            Origin: 'https://one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://example.com',
+        'https://one.one.one.one',
       );
     });
 
     it('allows glob-matched OPTIONS requests', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('*.example.com');
+      config.setCORSOrigin('*.one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -73,21 +82,21 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://subdomain.example.com',
+            Origin: 'https://subdomain.one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://subdomain.example.com',
+        'https://subdomain.one.one.one.one',
       );
     });
 
     it('allows glob-matched OPTIONS requests with OR patterns', async () => {
       const config = new Config();
       config.enableCORS(true);
-      config.setCORSOrigin('https://(abc|xyz).example.com');
+      config.setCORSOrigin('https://(abc|xyz).one.one.one.one');
       await start({ config });
 
       const r = await fetch(
@@ -95,14 +104,39 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://abc.example.com',
+            Origin: 'https://abc.one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(204);
       expect(r.headers.get('access-control-allow-origin')).to.equal(
-        'https://abc.example.com',
+        'https://abc.one.one.one.one',
+      );
+    });
+
+    it('allows glob-matched OPTIONS requests with OR patterns across two domains', async () => {
+      const config = new Config();
+      config.enableCORS(true);
+      config.setCORSOrigin(
+        '(https://(abc|xyz).one.one.one.one|https://deploy-preview-*.netlify.app)',
+      );
+      await start({ config });
+
+      const r = await fetch(
+        'http://localhost:3000/config?token=6R0W53R135510',
+        {
+          method: 'OPTIONS',
+          headers: {
+            Origin:
+              'https://deploy-preview-123--funky-monkey-12345.netlify.app',
+          },
+        },
+      );
+
+      expect(r.status).to.equal(204);
+      expect(r.headers.get('access-control-allow-origin')).to.equal(
+        'https://deploy-preview-123--funky-monkey-12345.netlify.app',
       );
     });
 
@@ -117,12 +151,124 @@ describe('Management APIs', function () {
         {
           method: 'OPTIONS',
           headers: {
-            Origin: 'https://subdomain.example.com',
+            Origin: 'https://subdomain.one.one.one.one',
           },
         },
       );
 
       expect(r.status).to.equal(404);
+    });
+  });
+
+  describe('Static Files Serving', () => {
+    it('serves docs pages', async () => {
+      await start();
+
+      await fetch(
+        'http://localhost:3000/docs/index.html?token=6R0W53R135510',
+      ).then(async (res) => {
+        expect(res.status).to.equal(200);
+        expect(res.headers.get('content-type')).to.equal('text/html');
+        const content = await res.text();
+        expect(content).to.include('<title>Browserless Docs</title>');
+      });
+
+      await fetch(
+        'http://localhost:3000/docs/docs.js?token=6R0W53R135510',
+      ).then(async (res) => {
+        expect(res.status).to.equal(200);
+        expect(res.headers.get('content-type')).to.equal(
+          'application/javascript',
+        );
+        const content = await res.text();
+        expect(content).to.be.an('string');
+      });
+    });
+
+    it('serves swagger.json', async () => {
+      await start();
+
+      await fetch(
+        'http://localhost:3000/docs/swagger.json?token=6R0W53R135510',
+      ).then(async (res) => {
+        expect(res.status).to.equal(200);
+        expect(res.headers.get('content-type')).to.equal('application/json');
+        const content = await res.json();
+        expect(content).to.be.an('object');
+      });
+    });
+
+    it('returns 404 if debugger is disabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+
+      await start({ config });
+
+      await fetch(
+        'http://localhost:3000/debugger/some-file.html?token=6R0W53R135510',
+      ).then(async (res) => {
+        expect(res.status).to.equal(404);
+        expect(res.headers.get('content-type')).to.equal(
+          'text/plain; charset=UTF-8',
+        );
+      });
+    });
+
+    it('returns 404 for /debugger without trailing slash when debugger is disabled', async () => {
+      process.env.ENABLE_DEBUGGER = 'false';
+      const config = new Config();
+      config.setToken('6R0W53R135510');
+
+      await start({ config });
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(404);
+    });
+
+    it('redirects /debugger to /debugger/', async function () {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+
+      if (!(await exists(config.getDebuggerDir()))) {
+        // skips in case of firefox and webkit, where debugger is not installed
+        this.skip();
+      }
+
+      await start({ config });
+
+      const res = await fetch(
+        'http://localhost:3000/debugger?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/debugger/');
+    });
+
+    it('redirects /docs to /docs/', async () => {
+      await start();
+
+      const res = await fetch(
+        'http://localhost:3000/docs?token=6R0W53R135510',
+        { redirect: 'manual' },
+      );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal('/docs/');
+    });
+
+    it('handles requests without authentication token for static files', async () => {
+      await start();
+
+      await fetch('http://localhost:3000/docs/index.html').then(async (res) => {
+        expect(res.status).to.equal(200);
+        expect(res.headers.get('content-type')).to.equal('text/html');
+      });
     });
   });
 
@@ -246,6 +392,22 @@ describe('Management APIs', function () {
       `http://localhost:3000/kill/invalid-session?token=6R0W53R135510`,
     ).then(async (res) => {
       expect(res.status).to.equal(404);
+    });
+  });
+
+  it('handles non-WebSocket upgrade requests (h2c) as normal HTTP', async () => {
+    await start();
+
+    await new Promise<http.IncomingMessage>((resolve, reject) => {
+      http
+        .get(
+          'http://localhost:3000/config?token=6R0W53R135510',
+          { headers: { Connection: 'Upgrade', Upgrade: 'h2c' } },
+          resolve,
+        )
+        .on('error', reject);
+    }).then(async (res) => {
+      expect(res.statusCode).to.equal(200);
     });
   });
 });

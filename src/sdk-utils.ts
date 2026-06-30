@@ -13,19 +13,23 @@ const ignore = ['node_modules', 'dist', '.next', '.cache', 'coverage'];
 
 const execAsync = promisify(exec);
 
-const waitForCommand = async (
-  cmd: string,
-  workingDirectory: string,
-): Promise<void> =>
-  execAsync(cmd, { cwd: workingDirectory }).then(({ stderr }) => {
-    if (stderr) {
-      console.warn(
-        `Command produced the following stderr entries: \n${stderr}`,
+const waitForCommand = async (cmd: string, workingDirectory: string) =>
+  execAsync(cmd, { cwd: workingDirectory })
+    .then(({ stderr }) => {
+      if (stderr) {
+        console.warn(
+          `Command produced the following stderr entries: \n${stderr}`,
+        );
+      }
+      return;
+    })
+    .catch((e) => {
+      console.error(
+        `Error running command: "${cmd}" at directory: "${workingDirectory}"`,
+        e,
       );
-    }
-
-    return;
-  });
+      process.exit(1);
+    });
 
 export const getArgSwitches = () => {
   return process.argv.reduce(

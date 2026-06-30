@@ -4,15 +4,33 @@ on: [workflow_call]
 
 jobs:
   Test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node-version: ['v24.18.0']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Build the base layer
-        run: docker build -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:latest .
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build --build-arg NODE_VERSION=${{ matrix.node-version }} --build-arg APT_MIRROR=azure.archive.ubuntu.com -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:${{ matrix.node-version }} .
 
       - name: Build the Chrome image
-        run: docker build --build-arg VERSION=latest -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:latest .
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker build --build-arg VERSION=${{ matrix.node-version }} -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:${{ matrix.node-version }} .
 
       - name: Test the Chrome image
-        run: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/chrome:latest
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/chrome:${{ matrix.node-version }}

@@ -1,6 +1,6 @@
 import { Browser, Page } from 'puppeteer-core';
-import { BrowserWebSocketTransport } from 'puppeteer-core/lib/esm/puppeteer/common/BrowserWebSocketTransport.js';
-import { _connectToCdpBrowser as connect } from 'puppeteer-core/lib/esm/puppeteer/cdp/BrowserConnector.js';
+import { BrowserWebSocketTransport } from 'puppeteer-core/internal/common/BrowserWebSocketTransport.js';
+import { _connectToCdpBrowser as connect } from 'puppeteer-core/internal/cdp/BrowserConnector.js';
 
 type codeHandler = (params: {
   context: unknown;
@@ -21,6 +21,7 @@ export class FunctionRunner {
     context: unknown;
     options: {
       downloadPath?: string;
+      protocolTimeout?: number;
     };
   }) {
     console.log(`/function.js: Got endpoint: "${data.browserWSEndpoint}"`);
@@ -31,6 +32,7 @@ export class FunctionRunner {
       headers: {
         Host: '127.0.0.1',
       },
+      protocolTimeout: options.protocolTimeout,
     };
 
     this.browser = (await connect(
