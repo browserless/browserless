@@ -88,7 +88,7 @@
     "@types/node": "^26.0.1",
     "@types/sinon": "^21.0.1",
     "@types/ws": "^8.5.13",
-    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.61.1",
     "c8": "^11.0.0",
     "chai": "^6.2.2",
@@ -100,7 +100,7 @@
     "gunzip-maybe": "^1.4.2",
     "marked": "^18.0.5",
     "mocha": "^12.0.0-rc.1",
-    "prettier": "^3.9.1",
+    "prettier": "^3.9.4",
     "sinon": "^22.0.0",
     "typescript": "^6.0.3",
     "typescript-json-schema": "^0.67.3"
