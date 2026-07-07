@@ -1,7 +1,7 @@
 <!-- markdownlint-disable commands-show-output first-line-h1 no-emphasis-as-heading no-inline-html -->
 
 <div align="center">
-  <a href="https://browserless.io" align="center">
+  <a href="https://browserless.io?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=top-banner" align="center">
     <center align="center">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="600">
@@ -14,15 +14,15 @@
   <h3>Deploy headless browsers in Docker. Run on our cloud or bring your own.</h3>
 
   <p>
-    <a href="https://browserless.io/">
+    <a href="https://browserless.io?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=try-on-cloud">
       <img src="https://img.shields.io/badge/🧪_Try_on_Cloud-4A90E2?style=for-the-badge" alt="Try on Cloud" />
     </a>
     &nbsp;&nbsp;
-    <a href="#-1-minute-quickstart">
+    <a href="#-get-started-in-seconds">
       <img src="https://img.shields.io/badge/📦_Run_Locally-34A853?style=for-the-badge" alt="Run Locally" />
     </a>
     &nbsp;&nbsp;
-    <a href="https://docs.browserless.io/">
+    <a href="https://docs.browserless.io/?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=dev-docs">
       <img src="https://img.shields.io/badge/📘_Dev_Docs-5C6AC4?style=for-the-badge" alt="Developer Docs" />
     </a>
   </p>
@@ -144,22 +144,22 @@ Example Domain
 
 ### Premium Features
 
-Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/pricing/) include all the general features plus extras, such as:
+Our [Self-serve cloud and Enterprise offerings](https://www.browserless.io/pricing/?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features) include all the general features plus extras, such as:
 
-- **[BrowserQL](https://www.browserless.io/feature/browserql)** for avoiding detectors and solving captchas
-- **[Hybrid automations](https://docs.browserless.io/baas/interactive-browser-sessions/hybrid-automation)** for streaming live browser sessions during scripts
-- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/persisting-state)** for persisting browser state (cookies, cache, localStorage) across multiple sessions with configurable data retention up to 90 days
-- **[Session Replay](https://docs.browserless.io/baas/interactive-browser-sessions/session-replay)** for recording and debugging browser sessions with event capture and video playback
-- **[Chrome Extensions Support](https://docs.browserless.io/baas/features/browser-extensions)** for loading custom extensions including ad blockers, captcha solvers, etc.
-- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview)** for enhanced anti-detection with Captcha solving, fingerprint randomization, and residential proxy rotation
-- **[REST APIs](https://www.browserless.io/feature/rest-apis)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
-- **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/)** for automatic IP rotation and geo-targeting with residential proxy networks
-- **[/smart-scrape API](https://docs.browserless.io/rest-apis/smart-scrape)** for intelligently scraping any URL using cascading strategies (HTTP fetch, proxy, headless browser, captcha solving)
-- **[/crawl API](https://docs.browserless.io/rest-apis/crawl)** for asynchronously crawling entire websites and scraping every discovered page into structured, LLM-ready data
-- **[/map API](https://docs.browserless.io/rest-apis/map)** for discovering all URLs on a website via sitemaps and link extraction, with search-based relevance ranking
-- **[/search API](https://docs.browserless.io/rest-apis/search)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
-- **[MCP Server](https://docs.browserless.io/mcp/browserless-mcp-server)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
-- **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks)** for queue alerts, rejections, timeouts, errors, and health failures
+- **[BrowserQL](https://www.browserless.io/feature/browserql?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for avoiding detectors and solving captchas
+- **[Hybrid automations](https://docs.browserless.io/baas/interactive-browser-sessions/hybrid-automation?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for streaming live browser sessions during scripts
+- **[Persistent Sessions](https://docs.browserless.io/baas/session-management/persisting-state?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for persisting browser state (cookies, cache, localStorage) across multiple sessions with configurable data retention up to 90 days
+- **[Session Replay](https://docs.browserless.io/baas/interactive-browser-sessions/session-replay?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for recording and debugging browser sessions with event capture and video playback
+- **[Chrome Extensions Support](https://docs.browserless.io/baas/features/browser-extensions?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for loading custom extensions including ad blockers, captcha solvers, etc.
+- **[Advanced Captcha/Stealth Routes](https://docs.browserless.io/browserql/bot-detection/overview?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for enhanced anti-detection with Captcha solving, fingerprint randomization, and residential proxy rotation
+- **[REST APIs](https://www.browserless.io/feature/rest-apis?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for tasks such as retrieving HTML, PDFs or Screenshot etc.
+- **[Inbuilt residential proxy](https://www.browserless.io/blog/residential-proxying/?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for automatic IP rotation and geo-targeting with residential proxy networks
+- **[/smart-scrape API](https://docs.browserless.io/rest-apis/smart-scrape?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for intelligently scraping any URL using cascading strategies (HTTP fetch, proxy, headless browser, captcha solving)
+- **[/crawl API](https://docs.browserless.io/rest-apis/crawl?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for asynchronously crawling entire websites and scraping every discovered page into structured, LLM-ready data
+- **[/map API](https://docs.browserless.io/rest-apis/map?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for discovering all URLs on a website via sitemaps and link extraction, with search-based relevance ranking
+- **[/search API](https://docs.browserless.io/rest-apis/search?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for searching the web and optionally scraping each result page into structured formats (markdown, HTML, links, or screenshots)
+- **[MCP Server](https://docs.browserless.io/mcp/browserless-mcp-server?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for connecting AI assistants (Claude Desktop, Cursor, VS Code, Windsurf) directly to Browserless browser automation
+- **[Webhook Integrations](https://docs.browserless.io/enterprise/docker/webhooks?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=features)** for queue alerts, rejections, timeouts, errors, and health failures
 
 ## 🚢 Customisable Deployment Options
 
@@ -186,7 +186,7 @@ Full Enterprise features in a self-hosted container.
 
 **Best for:** Production workloads requiring data sovereignty
 
-[→ Learn More](https://www.browserless.io/pricing/)
+[→ Learn More](https://www.browserless.io/pricing?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=enterprise-docker)
 
 </td>
 </tr>
@@ -199,7 +199,7 @@ Fully managed, pay-as-you-go service with automatic scaling.
 
 **Best for:** Quick starts and rapid prototyping
 
-[→ Start Free](https://browserless.io/)
+[→ Start Free](https://browserless.io/?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=cloud-self-serve)
 
 </td>
 <td width="50%" valign="top">
@@ -210,7 +210,7 @@ Custom Enterprise infrastructure across major cloud providers.
 
 **Best for:** Large-scale enterprise deployments
 
-[→ Contact Sales](https://www.browserless.io/contact)
+[→ Contact Sales](https://www.browserless.io/contact?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=private-deployment)
 
 </td>
 </tr>
@@ -234,7 +234,7 @@ You still own your script. You still control your code. We just make sure the Br
 
 SPDX-License-Identifier: SSPL-1.0 OR Browserless Commercial License.
 
-If you want to use Browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/contact). A commercial license grants you:
+If you want to use Browserless to build commercial sites, applications, or in a continuous-integration system that's closed-source then you'll need to purchase a commercial license. This allows you to keep your software proprietary whilst still using browserless. [You can purchase a commercial license here](https://www.browserless.io/contact?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=licensing). A commercial license grants you:
 
 - Priority support on issues and features.
 - On-premise running as well as running on public cloud providers for commercial/CI purposes for proprietary systems.
