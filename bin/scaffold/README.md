@@ -236,6 +236,61 @@ export default class ChromiumWebSocketRoute extends BrowserWebsocketRoute {
 
 Many more examples can be seen in `src/routes` as we use this same routing semantic internally.
 
+### Typing handler arguments
+
+Each route primitive is generic over its handler argument types. Every type parameter defaults to the built-in type, so most routes never touch them — but you can supply your own to get accurate typing inside the handler without casting.
+
+| Class                   | Type parameters (with defaults)                            |
+| ----------------------- | ---------------------------------------------------------- |
+| `HTTPRoute`             | `<Req = Request, Log = Logger>`                            |
+| `BrowserHTTPRoute`      | `<Browser = BrowserInstance, Req = Request, Log = Logger>` |
+| `WebSocketRoute`        | `<Req = Request, Log = Logger>`                            |
+| `BrowserWebsocketRoute` | `<Browser = BrowserInstance, Req = Request, Log = Logger>` |
+
+- `Browser` narrows the `browser` argument to the concrete browser your route launches (e.g. `ChromiumCDP`) instead of the built-in `BrowserInstance` union. Pass a subclass of a built-in browser, or a wider type of your own.
+- `Req` lets you use your own subtype of `Request` when a `before` hook augments the request object (e.g. attaching an authenticated user). The same type flows into `auth`, `bypassLimits`, and `before`.
+- `Log` lets you use a `Logger` subclass if you ship a custom logger.
+
+Without a type parameter the `browser` argument is the `BrowserInstance` union, so you'd have to narrow it yourself before calling browser-specific methods. Pinning it removes that step:
+
+```ts
+import {
+  APITags,
+  BrowserHTTPRoute,
+  ChromiumCDP,
+  Logger,
+  Methods,
+  Request,
+  contentTypes,
+} from '@browserless.io/browserless';
+import { ServerResponse } from 'http';
+
+// Browser is pinned to ChromiumCDP; Req and Log keep their defaults.
+export default class ScreenshotPostRoute extends BrowserHTTPRoute<ChromiumCDP> {
+  name = 'ScreenshotPostRoute';
+  accepts = [contentTypes.json];
+  auth = true;
+  browser = ChromiumCDP;
+  concurrency = true;
+  contentTypes = [contentTypes.png];
+  description = 'Screenshot a page with a strongly-typed browser argument.';
+  method = Methods.post;
+  path = ['/my-screenshot'];
+  tags = [APITags.browserAPI];
+
+  async handler(
+    req: Request,
+    res: ServerResponse,
+    logger: Logger,
+    browser: ChromiumCDP, // typed as ChromiumCDP -- no cast needed
+  ): Promise<void> {
+    // browser.* is fully typed against ChromiumCDP here
+  }
+}
+```
+
+The type parameters are positional and `Browser` comes first, so to override only `Req` or `Log` on a browser route you must also pass `Browser` (use the default `BrowserInstance` if you don't want to narrow it): `BrowserHTTPRoute<BrowserInstance, MyRequest>`.
+
 ## Utilities
 
 Browserless comes out-of-the-box with many utilities and functions to help with extending. Below are a few that we think are helpful and you may wish to use. All exports, including types, in browserless happen in the `@browserless.io/browserless` dependency, so simply require them from that path.
