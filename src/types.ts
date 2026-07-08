@@ -99,7 +99,7 @@ type defaultLaunchOptions =
   | BrowserlessLaunch
   | ((req: Request) => CDPLaunchOptions | BrowserlessLaunch);
 
-export abstract class Route {
+export abstract class Route<Req extends Request = Request> {
   constructor(
     protected _browserManager: Browserless['browserManager'],
     protected _config: Browserless['config'],
@@ -120,7 +120,7 @@ export abstract class Route {
    * A boolean, or a function that returns a boolean, on
    * whether the route requires an API token to access.
    */
-  auth: boolean | ((req: Request) => Promise<boolean>) = true;
+  auth: boolean | ((req: Req) => Promise<boolean>) = true;
 
   /**
    * The schematic of the submitted BODY (typically)
@@ -156,7 +156,7 @@ export abstract class Route {
    * apply. Useful for lightweight requests (e.g. reconnects to an in-flight
    * browser) that should not be turned away by host load or admission caps.
    */
-  bypassLimits?: (req: Request) => boolean;
+  bypassLimits?: (req: Req) => boolean;
 
   /**
    * Description of the route and what it does. This description
@@ -241,7 +241,9 @@ export abstract class Route {
  * browser in order to fulfill requests. Used by downstream HTTPRoute
  * and WebSocketRoute
  */
-abstract class BasicHTTPRoute extends Route {
+abstract class BasicHTTPRoute<
+  Req extends Request = Request,
+> extends Route<Req> {
   /**
    * The allowed Content-Types that this route can read and handle.
    * If a request comes in with a Content-Type of 'application/json', then
@@ -266,21 +268,24 @@ abstract class BasicHTTPRoute extends Route {
    * Useful if you need to alter something about the request to conform it or otherwise. This
    * hook is ran after any "global" hooks have run.
    */
-  before?: (req: Request, res: http.ServerResponse) => Promise<boolean>;
+  before?: (req: Req, res: http.ServerResponse) => Promise<boolean>;
 }
 
 /**
  * A HTTP-based route, with a handler, that can fulfill requests without
  * a browser required.
  */
-export abstract class HTTPRoute extends BasicHTTPRoute {
+export abstract class HTTPRoute<
+  Req extends Request = Request,
+  Log extends Logger = Logger,
+> extends BasicHTTPRoute<Req> {
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
   abstract handler(
-    req: Request,
+    req: Req,
     res: http.ServerResponse,
-    logger: Logger,
+    logger: Log,
   ): Promise<unknown>;
 }
 
@@ -289,7 +294,11 @@ export abstract class HTTPRoute extends BasicHTTPRoute {
  * requires a browser in order to do so. Handler will then be called
  * with a 3rd argument of the browser class specified.
  */
-export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
+export abstract class BrowserHTTPRoute<
+  Browser extends BrowserInstance = BrowserInstance,
+  Req extends Request = Request,
+  Log extends Logger = Logger,
+> extends BasicHTTPRoute<Req> {
   defaultLaunchOptions?: defaultLaunchOptions;
 
   abstract browser: BrowserClasses;
@@ -297,12 +306,17 @@ export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
   /**
    * Handles an inbound HTTP request with a 3rd param of the predefined
    * browser used for the route -- only Chrome CDP is support currently.
+   *
+   * All handler argument types default to the built-in types, but downstream
+   * SDK projects can supply their own (a subclass or a wider type) via the
+   * `Browser`, `Req`, and `Log` type parameters to get accurate typing inside
+   * their handler without casting.
    */
   abstract handler(
-    req: Request,
+    req: Req,
     res: http.ServerResponse,
-    logger: Logger,
-    browser: BrowserInstance,
+    logger: Log,
+    browser: Browser,
   ): Promise<unknown>;
 
   /**
@@ -316,24 +330,27 @@ export abstract class BrowserHTTPRoute extends BasicHTTPRoute {
  * A WebSocket-based route, with a handler, that can fulfill requests
  * that do not require a browser in order to operate.
  */
-export abstract class WebSocketRoute extends Route {
+export abstract class WebSocketRoute<
+  Req extends Request = Request,
+  Log extends Logger = Logger,
+> extends Route<Req> {
   browser = null;
 
   /**
    * Handles an inbound Websocket request, and handles the connection
    */
   abstract handler(
-    req: Request,
+    req: Req,
     socket: stream.Duplex,
     head: Buffer,
-    logger: Logger,
+    logger: Log,
   ): Promise<unknown>;
 
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
   before?: (
-    req: Request,
+    req: Req,
     socket: stream.Duplex,
     head: Buffer,
   ) => Promise<boolean>;
@@ -344,7 +361,11 @@ export abstract class WebSocketRoute extends Route {
  * that need a browser. Handler is called with an additional argument of
  * browser (the browser class required to run the route).
  */
-export abstract class BrowserWebsocketRoute extends Route {
+export abstract class BrowserWebsocketRoute<
+  Browser extends BrowserInstance = BrowserInstance,
+  Req extends Request = Request,
+  Log extends Logger = Logger,
+> extends Route<Req> {
   abstract browser: BrowserClasses;
 
   defaultLaunchOptions?: defaultLaunchOptions;
@@ -352,13 +373,18 @@ export abstract class BrowserWebsocketRoute extends Route {
   /**
    * Handles an inbound Websocket request, and handles the connection
    * with the prior set browser being injected.
+   *
+   * All handler argument types default to the built-in types, but downstream
+   * SDK projects can supply their own (a subclass or a wider type) via the
+   * `Browser`, `Req`, and `Log` type parameters to get accurate typing inside
+   * their handler without casting.
    */
   abstract handler(
-    req: Request,
+    req: Req,
     socket: stream.Duplex,
     head: Buffer,
-    logger: Logger,
-    browser: BrowserInstance,
+    logger: Log,
+    browser: Browser,
   ): Promise<unknown>;
 
   /**
@@ -371,7 +397,7 @@ export abstract class BrowserWebsocketRoute extends Route {
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
   before?: (
-    req: Request,
+    req: Req,
     socket: stream.Duplex,
     head: Buffer,
   ) => Promise<boolean>;
