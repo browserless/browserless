@@ -10,6 +10,12 @@ updates:
     open-pull-requests-limit: 10
     cooldown:
       default-days: 3
+    ignore:
+      # TypeScript 7 (native/Go compiler) ships without a JS API; blocked until
+      # typescript-eslint and typescript-json-schema support it.
+      # See https://github.com/typescript-eslint/typescript-eslint/issues/10940
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     groups:
       types:
         patterns:
