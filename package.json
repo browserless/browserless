@@ -102,7 +102,7 @@
     "mocha": "^12.0.0-rc.1",
     "prettier": "^3.9.5",
     "sinon": "^22.0.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "typescript-json-schema": "^0.67.3"
   },
   "overrides": {
