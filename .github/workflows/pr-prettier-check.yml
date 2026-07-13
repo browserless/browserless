@@ -14,6 +14,9 @@ jobs:
         with:
           # Full history so origin/<base> exists for the merge-base diff below.
           fetch-depth: 0
+          # Nothing after checkout needs git credentials; keep the token away
+          # from the npx-executed steps below.
+          persist-credentials: false
 
       - uses: actions/setup-node@v6.4.0
         with:
@@ -27,5 +30,8 @@ jobs:
       - name: Check formatting of changed files
         run: |
           VERSION=$(node -p "require('./package-lock.json').packages['node_modules/prettier'].version")
+          # The lockfile is PR-controlled: accept only an exact semver so npx
+          # cannot be steered to a tag or range.
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Unexpected prettier version in package-lock.json: $VERSION"; exit 1; }
           git diff -z --name-only --diff-filter=ACMRT "origin/${GITHUB_BASE_REF}...HEAD" \
-            | xargs -0 -r npx --yes "prettier@${VERSION}" --check --ignore-unknown
+            | xargs -0 -r npx --yes "prettier@${VERSION}" --check --ignore-unknown --
