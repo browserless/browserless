@@ -790,6 +790,48 @@ export const bestAttemptCatch =
   };
 
 /**
+ * Errors thrown by `page.content()` (and other CDP evaluations) when the
+ * page's execution context is torn down by an in-flight navigation — e.g. a
+ * client-side redirect fired right after `DOMContentLoaded`. These are
+ * transient: retrying once the DOM settles yields the serialized markup.
+ */
+const navigationTeardownError =
+  /(Execution context was destroyed|Cannot find context with specified id|Session closed|frame got detached)/i;
+
+/**
+ * Reads a page's serialized HTML, tolerating in-flight navigations.
+ *
+ * `page.content()` evaluates in the page's execution context; when a
+ * client-side redirect navigates the page mid-read, that context is destroyed
+ * and the call throws. Rather than surfacing a 500, wait for the navigation to
+ * settle and re-read, up to `retries` times.
+ */
+export const getPageContent = async (
+  page: Page,
+  {
+    retries = 3,
+    timeout = 30_000,
+  }: { retries?: number; timeout?: number } = {},
+): Promise<string> => {
+  try {
+    return await page.content();
+  } catch (err) {
+    const isTeardown =
+      err instanceof Error && navigationTeardownError.test(err.message);
+
+    if (retries <= 0 || !isTeardown) {
+      throw err;
+    }
+
+    await page
+      .waitForNavigation({ timeout, waitUntil: 'domcontentloaded' })
+      .catch(noop);
+
+    return getPageContent(page, { retries: retries - 1, timeout });
+  }
+};
+
+/**
  * Adapts goto-style options for `page.setContent`. puppeteer-core 24.43.1
  * removed `networkidle0`/`networkidle2` from setContent's `waitUntil`
  * (they were always no-ops for `setContent`, which fires no network).
