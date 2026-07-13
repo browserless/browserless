@@ -546,10 +546,7 @@ export class Hooks extends EventEmitter {
   // No return value or type required.
   browser(args: {
     browser:
-      | ChromiumCDP
-      | FirefoxPlaywright
-      | ChromiumPlaywright
-      | WebkitPlaywright;
+      ChromiumCDP | FirefoxPlaywright | ChromiumPlaywright | WebkitPlaywright;
     meta: URL;
   }): Promise<unknown> {
     return Promise.resolve(undefined);

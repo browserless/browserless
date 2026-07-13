@@ -73,10 +73,7 @@ export class Router extends EventEmitter {
 
   protected routeMatches(
     route:
-      | HTTPRoute
-      | BrowserHTTPRoute
-      | WebSocketRoute
-      | BrowserWebsocketRoute,
+      HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
     pathname: string,
   ): boolean {
     const matchers = this.pathMatchers.get(route);
@@ -92,10 +89,7 @@ export class Router extends EventEmitter {
 
   protected compilePathMatchers(
     route:
-      | HTTPRoute
-      | BrowserHTTPRoute
-      | WebSocketRoute
-      | BrowserWebsocketRoute,
+      HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
   ) {
     this.pathMatchers.set(
       route,

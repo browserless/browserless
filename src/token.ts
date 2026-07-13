@@ -17,10 +17,7 @@ export class Token extends EventEmitter {
   public async isAuthorized(
     req: Request,
     route:
-      | BrowserHTTPRoute
-      | BrowserWebsocketRoute
-      | HTTPRoute
-      | WebSocketRoute,
+      BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute,
   ): Promise<boolean> {
     const token = this.config.getToken();
 

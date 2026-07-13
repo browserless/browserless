@@ -40,7 +40,7 @@ browserless 2.xx was designed and developed for the sole purpose of making brows
 - Unknown parameters will fail with 4xx errors since they're unrecognized.
 - No more pre-booting or keep-alive as they can cause so many problems.
 - A typescript-first workflow. All routes are strongly typed with a prescriptive approach so you can add your own.
-- Forcing of best practices: we generate a unique TOKEN when none is present, meaning you *must* have a token at all times.
+- Forcing of best practices: we generate a unique TOKEN when none is present, meaning you _must_ have a token at all times.
 - Better logging and built-in doc-site with all parameters and definitions.
 - Enhanced and comprehensive security.
 
@@ -111,11 +111,11 @@ We have changed where we serve our Docker images from docker hub to Github's con
 
 ## Libraries
 
-We tried to keep library changes as little as possible since the compromise the core of the platform. However, one change is the consolidation of *all* launch options into a single query string parameter of a JSON-stringified "launch". Connect calls are now more strict with query parameters. Any unknown parameter will cause connect calls to fail since they aren't supported by browserless. In version 1.xx unknown parameters were simply ignored.
+We tried to keep library changes as little as possible since the compromise the core of the platform. However, one change is the consolidation of _all_ launch options into a single query string parameter of a JSON-stringified "launch". Connect calls are now more strict with query parameters. Any unknown parameter will cause connect calls to fail since they aren't supported by browserless. In version 1.xx unknown parameters were simply ignored.
 
 browserless 2.xx shims old launch options query parameters internally, so it'll fix 1.xx requests for you. Here's a few examples of this so you can make any changes in code.
 
-It is *highly recommended* the parameters after `launch=` be base64 for proper recognition. Failure to base64 encode will nearly guarantee these parameters are not accepted if they have characters such as curly braces or brackets.
+It is _highly recommended_ the parameters after `launch=` be base64 for proper recognition. Failure to base64 encode will nearly guarantee these parameters are not accepted if they have characters such as curly braces or brackets.
 
 ### Launch flags
 
@@ -149,7 +149,7 @@ browserless 2.xx shims old launch options query parameters internally, so it'll 
 
 ```js
 // CommonJS no longer supported
-module.exports = async({ page }) => {
+module.exports = async ({ page }) => {
   await page.goto('https://example.com');
 
   // No longer need to response with this object schematic
@@ -157,18 +157,18 @@ module.exports = async({ page }) => {
     data: await page.screenshot(),
     type: 'image/png',
   };
-}
+};
 ```
 
 **After**
 
 ```js
 // Use the "export default" keywords
-export default async({ page }) => {
+export default async ({ page }) => {
   await page.goto('https://example.com');
   // No longer need to tell what type
   return await page.screenshot();
-}
+};
 ```
 
 ### Request with requires
@@ -179,31 +179,35 @@ export default async({ page }) => {
 // npm packages are no longer supported
 const url = require('url');
 
-module.exports = async({ page }) => {
+module.exports = async ({ page }) => {
   await page.goto('https://example.com');
-  const links = await page.evaluate(() => [...document.querySelectorAll('a')].map(l => l.href));
+  const links = await page.evaluate(() =>
+    [...document.querySelectorAll('a')].map((l) => l.href),
+  );
   const parsed = links.map((link) => url.parse(link));
 
   return {
     data: parsed,
     type: 'application/json',
   };
-}
+};
 ```
 
 **After**
 
 ```js
-export default async({ page }) => {
+export default async ({ page }) => {
   await page.goto('https://example.com');
-  const links = await page.evaluate(() => [...document.querySelectorAll('a')].map(l => l.href));
+  const links = await page.evaluate(() =>
+    [...document.querySelectorAll('a')].map((l) => l.href),
+  );
 
   // Can use URL and other browser-based APIs as well as load them
   // with `import` syntax from hosts like unpkg
   const parsed = links.map((link) => new URL(link));
 
   return parsed;
-}
+};
 ```
 
 ## /pdf

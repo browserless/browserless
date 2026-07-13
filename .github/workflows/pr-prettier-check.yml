@@ -1,0 +1,31 @@
+name: PR Prettier Check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so origin/<base> exists for the merge-base diff below.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6.4.0
+        with:
+          node-version-file: .nvmrc
+
+      # Runs the exact Prettier version from package-lock.json — the same one
+      # devs get from `npm install` and the pre-commit hook uses — without
+      # paying for a full `npm ci`. Mirrors the pre-commit lint-staged
+      # semantics: changed files only, --ignore-unknown, .prettierignore
+      # respected.
+      - name: Check formatting of changed files
+        run: |
+          VERSION=$(node -p "require('./package-lock.json').packages['node_modules/prettier'].version")
+          git diff -z --name-only --diff-filter=ACMRT "origin/${GITHUB_BASE_REF}...HEAD" \
+            | xargs -0 -r npx --yes "prettier@${VERSION}" --check --ignore-unknown

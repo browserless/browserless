@@ -51,10 +51,7 @@ type Implements<T> = {
 };
 
 type routeInstances =
-  | HTTPRoute
-  | BrowserHTTPRoute
-  | WebSocketRoute
-  | BrowserWebsocketRoute;
+  HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute;
 
 export class Browserless extends EventEmitter {
   protected logger: BlessLogger;
@@ -144,10 +141,7 @@ export class Browserless extends EventEmitter {
   // and log a message as to why that is (can't run Chrome on non-apple arm64)
   protected filterNonMacArm64Browsers(
     route:
-      | HTTPRoute
-      | BrowserHTTPRoute
-      | WebSocketRoute
-      | BrowserWebsocketRoute,
+      HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
   ) {
     if (
       isArm64 &&
@@ -441,8 +435,7 @@ export class Browserless extends EventEmitter {
           default: Route,
         }: {
           default:
-            | Implements<WebSocketRoute>
-            | Implements<BrowserWebsocketRoute>;
+            Implements<WebSocketRoute> | Implements<BrowserWebsocketRoute>;
         } = await import(wsImport + `?cb=${Date.now()}`);
         const route = new Route(
           this.browserManager,

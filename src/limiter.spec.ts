@@ -387,11 +387,12 @@ describe(`Limiter`, () => {
     const queuedHandler = async () => sleep(executionMs);
 
     const blockingJob = limiter.limit(
-      blockingHandler, asyncNoop, asyncNoop, noop,
+      blockingHandler,
+      asyncNoop,
+      asyncNoop,
+      noop,
     );
-    const queuedJob = limiter.limit(
-      queuedHandler, asyncNoop, asyncNoop, noop,
-    );
+    const queuedJob = limiter.limit(queuedHandler, asyncNoop, asyncNoop, noop);
 
     const queuedAt = Date.now();
     blockingJob();
