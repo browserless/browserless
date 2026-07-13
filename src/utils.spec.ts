@@ -4,9 +4,11 @@ import { Socket } from 'net';
 import {
   contentTypes,
   getFinalPathSegment,
+  getPageContent,
   toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
+import { Page } from 'puppeteer-core';
 
 describe('Utils', () => {
   describe('#getFinalPathSegment', () => {
@@ -143,6 +145,70 @@ describe('Utils', () => {
       expect(getHead().code).to.equal(408);
       const parsed = JSON.parse(getBody().trim());
       expect(parsed).to.deep.equal({ error: 'Validation failed' });
+    });
+  });
+
+  describe('#getPageContent', () => {
+    const makePage = (
+      content: () => Promise<string>,
+      waitForNavigation: () => Promise<unknown> = () => Promise.resolve(),
+    ): { page: Page; contentCalls: () => number } => {
+      const calls = { count: 0 };
+      const page = {
+        content: () => {
+          calls.count += 1;
+          return content();
+        },
+        waitForNavigation,
+      } as unknown as Page;
+      return { contentCalls: () => calls.count, page };
+    };
+
+    it('returns markup on the first successful read', async () => {
+      const { page, contentCalls } = makePage(() =>
+        Promise.resolve('<html></html>'),
+      );
+      expect(await getPageContent(page)).to.equal('<html></html>');
+      expect(contentCalls()).to.equal(1);
+    });
+
+    it('retries after a navigation teardown error and returns markup', async () => {
+      const results = [
+        () =>
+          Promise.reject(
+            new Error(
+              'Execution context was destroyed, most likely because of a navigation.',
+            ),
+          ),
+        () => Promise.resolve('<html>ok</html>'),
+      ];
+      const { page, contentCalls } = makePage(() => results.shift()!());
+      expect(await getPageContent(page)).to.equal('<html>ok</html>');
+      expect(contentCalls()).to.equal(2);
+    });
+
+    it('rethrows non-navigation errors without retrying', async () => {
+      const { page, contentCalls } = makePage(() =>
+        Promise.reject(new Error('boom')),
+      );
+      let thrown: Error | undefined;
+      await getPageContent(page).catch((err) => {
+        thrown = err;
+      });
+      expect(thrown?.message).to.equal('boom');
+      expect(contentCalls()).to.equal(1);
+    });
+
+    it('rethrows the teardown error once retries are exhausted', async () => {
+      const { page, contentCalls } = makePage(() =>
+        Promise.reject(new Error('Execution context was destroyed')),
+      );
+      let thrown: Error | undefined;
+      await getPageContent(page, { retries: 2 }).catch((err) => {
+        thrown = err;
+      });
+      expect(thrown?.message).to.include('Execution context was destroyed');
+      expect(contentCalls()).to.equal(3);
     });
   });
 

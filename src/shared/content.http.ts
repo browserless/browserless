@@ -19,6 +19,7 @@ import {
   bestAttempt,
   bestAttemptCatch,
   contentTypes,
+  getPageContent,
   isBase64Encoded,
   noop,
   redactSensitiveBodyFields,
@@ -263,7 +264,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
         }
       }
 
-      const markup = await page.content();
+      const markup = await getPageContent(page);
 
       logger.info('Content API request completed');
 
