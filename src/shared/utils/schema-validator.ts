@@ -292,8 +292,7 @@ const coerceAgainstSchema = (
     if (expected && expected !== 'object') return input;
     const source = input as Record<string, unknown>;
     const props = schema.properties as
-      | Record<string, Record<string, unknown>>
-      | undefined;
+      Record<string, Record<string, unknown>> | undefined;
     const additional = schema.additionalProperties;
     const additionalSchema =
       additional && typeof additional === 'object' && !Array.isArray(additional)

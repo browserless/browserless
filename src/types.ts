@@ -26,10 +26,7 @@ import {
 } from 'puppeteer-core';
 
 export type PathTypes =
-  | HTTPRoutes
-  | WebsocketRoutes
-  | HTTPManagementRoutes
-  | string;
+  HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
 
 export interface BeforeRequest {
   head?: Buffer;
@@ -77,10 +74,7 @@ export type BrowserClasses =
   | typeof WebKitPlaywright;
 
 export type BrowserInstance =
-  | ChromiumCDP
-  | ChromiumPlaywright
-  | FirefoxPlaywright
-  | WebKitPlaywright;
+  ChromiumCDP | ChromiumPlaywright | FirefoxPlaywright | WebKitPlaywright;
 
 export interface BrowserJSON {
   Browser: string;
@@ -349,11 +343,7 @@ export abstract class WebSocketRoute<
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
-  before?: (
-    req: Req,
-    socket: stream.Duplex,
-    head: Buffer,
-  ) => Promise<boolean>;
+  before?: (req: Req, socket: stream.Duplex, head: Buffer) => Promise<boolean>;
 }
 
 /**
@@ -396,11 +386,7 @@ export abstract class BrowserWebsocketRoute<
   /**
    * Handles an inbound HTTP request, and supplies the Request and Response objects from node's HTTP request event
    */
-  before?: (
-    req: Req,
-    socket: stream.Duplex,
-    head: Buffer,
-  ) => Promise<boolean>;
+  before?: (req: Req, socket: stream.Duplex, head: Buffer) => Promise<boolean>;
 }
 
 interface BrowserlessLaunch {

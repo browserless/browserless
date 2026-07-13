@@ -60,11 +60,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {
-              platform: linux/amd64,
-              runner: ubuntu-24.04,
-              pair: linux-amd64,
-            }
+          - { platform: linux/amd64, runner: ubuntu-24.04, pair: linux-amd64 }
           - {
               platform: linux/arm64,
               runner: ubuntu-24.04-arm,

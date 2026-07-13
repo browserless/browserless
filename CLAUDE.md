@@ -58,6 +58,7 @@ npm run install:browsers
 Routes are organized by browser type: `chrome/`, `chromium/`, `edge/`, `firefox/`, `webkit/`, `management/`
 
 Each browser folder contains:
+
 - `http/` - REST API routes (e.g., `pdf.post.ts`, `screenshot.post.ts`)
 - `ws/` - WebSocket routes (e.g., `browser.ts`, `playwright.ts`)
 - `tests/` - Test files
@@ -67,6 +68,7 @@ Route naming convention: `{action}.{method}.ts` (e.g., `pdf.post.ts`, `json-list
 ### Shared Route Logic (`src/shared/`)
 
 Browser-specific routes often re-export from shared implementations:
+
 ```typescript
 // src/routes/chromium/http/pdf.post.ts
 export { default } from '../../../shared/pdf.http.js';
@@ -75,6 +77,7 @@ export { default } from '../../../shared/pdf.http.js';
 ### Route Types
 
 Four route primitives (defined in `src/types.ts`):
+
 - **`HTTPRoute`** - Basic HTTP route without browser
 - **`BrowserHTTPRoute`** - HTTP route that requires a browser instance
 - **`WebSocketRoute`** - WebSocket route without browser
@@ -85,12 +88,14 @@ Routes specify: `name`, `path`, `method`, `accepts`, `contentTypes`, `auth`, `co
 ### Schema Generation
 
 Routes export TypeScript interfaces (`BodySchema`, `QuerySchema`, `ResponseSchema`) that are automatically converted to:
+
 - Runtime JSON Schema validation
 - OpenAPI documentation (served at `/docs`)
 
 ### Docker Images
 
 Located in `docker/` with browser-specific Dockerfiles:
+
 - `base/` - Base image with Node.js and browserless core
 - `chromium/`, `chrome/`, `firefox/`, `webkit/`, `edge/` - Single browser images
 - `multi/` - All browsers combined
@@ -108,6 +113,7 @@ Located in `docker/` with browser-specific Dockerfiles:
 ### Extending via SDK
 
 The SDK allows extending browserless functionality. Key extension points:
+
 - Custom routes (`*.http.ts`, `*.websocket.ts`)
 - Module overrides: `config.ts`, `hooks.ts`, `limiter.ts`, `metrics.ts`, etc.
 - Disabled routes via `disabled-routes.ts`
@@ -117,6 +123,7 @@ Run `npx @browserless.io/browserless create` to scaffold an SDK project.
 ### Environment Configuration
 
 Key environment variables (see `src/config.ts`):
+
 - `PORT` - Server port (default: 3000)
 - `TOKEN` - Authentication token
 - `CONCURRENT` - Max concurrent sessions
@@ -165,6 +172,7 @@ Every module has a `stop()` method (left blank) that SDK extensions can override
 ## Hooks System
 
 Four lifecycle hooks in `src/hooks.ts`:
+
 - `before({ req, res?, socket?, head? })` - Before request processing. Return `false` to reject (you must write response).
 - `after({ req, start, status, error? })` - After request completion
 - `page({ meta, page })` - On new Page creation
@@ -175,6 +183,7 @@ Legacy hook injection via `external/*.js` files (before.js, after.js, browser.js
 ## Key Utilities
 
 Import from `@browserless.io/browserless`:
+
 - `writeResponse(res, code, message)` / `jsonResponse(res, code, object)` - Response helpers
 - `readBody(req, maxSize)` - Parse request body
 - `BadRequest`, `Unauthorized`, `NotFound`, `Timeout`, `TooManyRequests`, `ServerError` - Error classes (throw to return appropriate HTTP codes)
