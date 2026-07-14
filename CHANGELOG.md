@@ -14,6 +14,20 @@
 * replace unmaintained puppeteer-extra stealth chain with [@zorilla](https://github.com/zorilla) forks ([#5501](https://github.com/browserless/browserless/issues/5501)) ([3792f07](https://github.com/browserless/browserless/commit/3792f070bf8fe4ecc73acbeef6a4a767709768b2))
 * retry page.content() on navigation teardown in content API (SCRAP-604) ([#5499](https://github.com/browserless/browserless/issues/5499)) ([d2388de](https://github.com/browserless/browserless/commit/d2388de968bc80be517eb16c012e300d405170b0))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.3.0`
+- playwright-core: `1.61.1`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `150.0.7871.114` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `150.0.4078.65` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.54.2](https://github.com/browserless/browserless/compare/v2.54.1...v2.54.2) (2026-06-26)
 
 
