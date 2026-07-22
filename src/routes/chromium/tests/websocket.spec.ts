@@ -1,8 +1,10 @@
 import {
   Browserless,
   BrowserlessSessionJSON,
+  CDPJSONPayload,
   Config,
   Hooks,
+  Logger,
   Metrics,
   exists,
   fetchJson,
@@ -13,6 +15,19 @@ import { deleteAsync } from 'del';
 import { expect } from 'chai';
 import fs from 'fs/promises';
 import puppeteer from 'puppeteer-core';
+import WebSocket from 'ws';
+
+class CapturingLogger extends Logger {
+  static messages: string[] = [];
+
+  public trace(...messages: unknown[]) {
+    CapturingLogger.messages.push(messages.join(' '));
+  }
+
+  public warn(...messages: unknown[]) {
+    CapturingLogger.messages.push(messages.join(' '));
+  }
+}
 
 describe('Chromium WebSocket API', function () {
   let browserless: Browserless;
@@ -57,6 +72,143 @@ describe('Chromium WebSocket API', function () {
     });
 
     await browser.close();
+  });
+
+  it('returns externally routable DevTools URLs from /json/list', async () => {
+    const token = 'token&with#a+percent%';
+    const config = new Config();
+    config.setToken(token);
+    config.setExternalAddress('https://browserless.example.com/prefix/');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=${encodeURIComponent(token)}`,
+    });
+    const page = await browser.newPage();
+    // @ts-ignore
+    const pageId = page.target()._targetId;
+    const pages = (await fetchJson(
+      `http://localhost:3000/json/list?token=${encodeURIComponent(token)}`,
+    )) as CDPJSONPayload[];
+    const result = pages.find(({ id }) => id === pageId)!;
+    const webSocketURL = new URL(result.webSocketDebuggerUrl);
+    const frontendURL = new URL(result.devtoolsFrontendUrl);
+    const nestedURL = new URL(`wss://${frontendURL.searchParams.get('wss')}`);
+
+    expect(webSocketURL.host).to.equal('browserless.example.com');
+    expect(webSocketURL.pathname).to.equal(`/prefix/devtools/page/${pageId}`);
+    expect(webSocketURL.searchParams.has('token')).to.be.false;
+    expect(frontendURL.origin).to.equal('https://browserless.example.com');
+    expect(frontendURL.pathname).to.equal('/prefix/devtools/inspector.html');
+    expect(frontendURL.searchParams.has('ws')).to.be.false;
+    expect(nestedURL.host).to.equal('browserless.example.com');
+    expect(nestedURL.pathname).to.equal(`/prefix/devtools/page/${pageId}`);
+    expect(nestedURL.searchParams.get('token')).to.equal(token);
+
+    await browser.close();
+  });
+
+  it('returns externally routable DevTools URLs from /sessions', async () => {
+    const token = 'token&with#a+percent%';
+    const config = new Config();
+    config.setToken(token);
+    config.setExternalAddress('https://browserless.example.com/prefix/');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const browser = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=${encodeURIComponent(token)}`,
+    });
+    const page = await browser.newPage();
+    // @ts-ignore
+    const pageId = page.target()._targetId;
+    const sessions = (await fetchJson(
+      `http://localhost:3000/sessions?token=${encodeURIComponent(token)}`,
+    )) as Array<BrowserlessSessionJSON & Partial<CDPJSONPayload>>;
+    const result = sessions.find(({ id }) => id === pageId)!;
+    const webSocketURL = new URL(result.webSocketDebuggerUrl!);
+    const frontendURL = new URL(
+      result.devtoolsFrontendUrl!,
+      config.getExternalAddress(),
+    );
+    const nestedURL = new URL(`wss://${frontendURL.searchParams.get('wss')}`);
+
+    expect(webSocketURL.host).to.equal('browserless.example.com');
+    expect(webSocketURL.pathname).to.equal(`/prefix/devtools/page/${pageId}`);
+    expect(webSocketURL.searchParams.has('token')).to.be.false;
+    expect(frontendURL.pathname).to.equal('/prefix/devtools/inspector.html');
+    expect(frontendURL.searchParams.has('ws')).to.be.false;
+    expect(nestedURL.host).to.equal('browserless.example.com');
+    expect(nestedURL.pathname).to.equal(`/prefix/devtools/page/${pageId}`);
+    expect(nestedURL.searchParams.get('token')).to.equal(token);
+
+    await browser.close();
+  });
+
+  it('redacts nested tokens from all server request URL logs', async () => {
+    const authToken = 'browserless';
+    const nestedToken = 'nested-log-secret';
+    const config = new Config();
+    config.setToken(authToken);
+    const metrics = new Metrics();
+    CapturingLogger.messages = [];
+    browserless = new Browserless({
+      Logger: CapturingLogger,
+      config,
+      metrics,
+    });
+    await browserless.start();
+    (
+      browserless.server as unknown as {
+        logger: Logger;
+      }
+    ).logger = new CapturingLogger('server');
+
+    const nestedURL = new URL(
+      'wss://browserless.example.com/devtools/page/page-id',
+    );
+    nestedURL.searchParams.set('token', nestedToken);
+    const nestedTarget = encodeURIComponent(
+      `${nestedURL.host}${nestedURL.pathname}${nestedURL.search}`,
+    );
+
+    await fetch(
+      `http://localhost:3000/json/list?token=${authToken}&wss=${nestedTarget}`,
+    );
+    await fetch(`http://localhost:3000/missing?wss=${nestedTarget}`);
+
+    const requestWebSocket = (path: string) =>
+      new Promise<void>((resolve, reject) => {
+        const socket = new WebSocket(`ws://localhost:3000${path}`);
+        const timeout = setTimeout(
+          () => reject(new Error(`WebSocket request timed out for ${path}`)),
+          5000,
+        );
+        const done = () => {
+          clearTimeout(timeout);
+          socket.close();
+          resolve();
+        };
+        socket.once('open', done);
+        socket.once('unexpected-response', (_request, response) => {
+          response.resume();
+          done();
+        });
+        socket.once('error', reject);
+      });
+
+    await requestWebSocket(
+      `/devtools/page/BLESSTEST?token=${authToken}&wss=${nestedTarget}`,
+    );
+    await requestWebSocket(`/missing?wss=${nestedTarget}`);
+
+    const requestURLLogs = CapturingLogger.messages.filter((message) =>
+      /request to|request on|route handler for/i.test(message),
+    );
+    expect(requestURLLogs).not.to.be.empty;
+    expect(requestURLLogs.join('\n')).not.to.include(nestedToken);
+    expect(requestURLLogs.join('\n')).to.include('redacted');
   });
 
   it('runs chromium Playwright-CDP requests', async () => {
