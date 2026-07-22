@@ -58,7 +58,7 @@
   ],
   "dependencies": {
     "@zorilla/puppeteer-extra": "^1.0.2",
-    "@zorilla/puppeteer-extra-plugin-stealth": "^1.0.4",
+    "@zorilla/puppeteer-extra-plugin-stealth": "^2.0.0",
     "ajv": "^8.20.0",
     "debug": "^4.4.1",
     "del": "^8.0.1",
