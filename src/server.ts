@@ -20,6 +20,7 @@ import {
   WebSocketRoute,
   contentTypes,
   convertPathToURL,
+  formatRequestURLForLog,
   isMatch,
   moveTokenToHeader,
   queryParamsToObject,
@@ -193,7 +194,7 @@ export class HTTPServer extends EventEmitter {
     const request = req as http.IncomingMessage;
     request.url = moveTokenToHeader(request);
     this.logger.trace(
-      `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
+      `Handling inbound HTTP request on "${request.method}: ${formatRequestURLForLog(request.url || '')}"`,
     );
 
     const proceed = await this.hooks.before({ req, res });
@@ -245,7 +246,7 @@ export class HTTPServer extends EventEmitter {
 
     if (!route) {
       this.logger.warn(
-        `No matching HTTP route handler for "${req.method}: ${req.parsed.href}"`,
+        `No matching HTTP route handler for "${req.method}: ${formatRequestURLForLog(req.parsed.href)}"`,
       );
       writeResponse(
         res,
@@ -262,7 +263,9 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (route?.auth) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
+      this.logger.trace(
+        `Authorizing HTTP request to "${formatRequestURLForLog(request.url || '')}"`,
+      );
       const isPermitted = await this.token.isAuthorized(req, route);
 
       if (!isPermitted) {
@@ -421,7 +424,7 @@ export class HTTPServer extends EventEmitter {
     request.url = moveTokenToHeader(request);
 
     this.logger.trace(
-      `Handling inbound WebSocket request on "${request.url || ''}"`,
+      `Handling inbound WebSocket request on "${formatRequestURLForLog(request.url || '')}"`,
     );
     const proceed = await this.hooks.before({ head, req, socket });
     req.parsed = convertPathToURL(request.url || '', this.config);
@@ -444,7 +447,7 @@ export class HTTPServer extends EventEmitter {
 
       if (route?.auth) {
         this.logger.trace(
-          `Authorizing WebSocket request to "${req.parsed.href}"`,
+          `Authorizing WebSocket request to "${formatRequestURLForLog(req.parsed.href)}"`,
         );
         const isPermitted = await this.token.isAuthorized(req, route);
 
@@ -506,7 +509,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     this.logger.warn(
-      `No matching WebSocket route handler for "${req.parsed.href}"`,
+      `No matching WebSocket route handler for "${formatRequestURLForLog(req.parsed.href)}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
   }

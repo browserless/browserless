@@ -669,7 +669,10 @@ export interface CDPJSONPayload {
   description: string;
 
   /**
-   * The fully-qualified URL of the Devtools inspector app.
+   * The fully-qualified URL of the DevTools inspector app. When
+   * authentication is configured, this URL can contain the API token inside
+   * its nested `ws` or `wss` parameter. Treat the entire URL as
+   * credential-bearing and redact query strings from access logs.
    */
   devtoolsFrontendUrl: string;
 
