@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.55.1](https://github.com/browserless/browserless/compare/v2.55.0...v2.55.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* record HTTP client disconnects as errors ([#5518](https://github.com/browserless/browserless/issues/5518)) ([ff32364](https://github.com/browserless/browserless/commit/ff32364c98b91ee6880b46477783c5e261f76323))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.3.0`
+- playwright-core: `1.61.1`, `1.60.0`, `1.59.1`, `1.58.2`, and `1.57.0`.
+- Chromium: `149.0.7827.55`
+- Chrome: `150.0.7871.114` (amd64 only)
+- Firefox: `151.0`
+- Webkit: `26.5`
+- Edge: `150.0.4078.65` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.55.0](https://github.com/browserless/browserless/compare/v2.54.2...v2.55.0) (2026-07-14)
 
 
