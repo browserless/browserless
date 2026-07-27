@@ -23,9 +23,9 @@ import { EventEmitter } from 'events';
 import micromatch from 'micromatch';
 import stream from 'stream';
 
-// Returned by wrapHTTPHandler / wrapWebSocketHandler when the connection was
-// already closed before any work could run. wrapWithAfterHook checks for it so
-// after() isn't fired for a request that never executed.
+// Returned when the connection was already closed before any route lifecycle
+// or limiter work could begin, so after() isn't fired for a request that never
+// executed.
 const ROUTE_DID_NOT_RUN = Symbol('route-did-not-run');
 
 const safeStringify = (value: unknown): string | undefined => {
@@ -184,7 +184,7 @@ export class Router extends EventEmitter {
     return async (req: Request, res: Response) => {
       if (!isConnected(res)) {
         this.log.warn(`HTTP Request has closed prior to running`);
-        return ROUTE_DID_NOT_RUN;
+        throw new Error(`Request closed prior to writing results`);
       }
       const logger = new this.logger(route.name, req);
       if (
@@ -201,7 +201,7 @@ export class Router extends EventEmitter {
         if (!isConnected(res)) {
           this.log.warn(`HTTP Request has closed prior to running`);
           this.browserManager.complete(browser);
-          return ROUTE_DID_NOT_RUN;
+          throw new Error(`Request closed prior to writing results`);
         }
 
         if (!browser) {
@@ -288,7 +288,7 @@ export class Router extends EventEmitter {
 
     // Invariant: exactly one of limiter.limit / wrapWithAfterHook wraps the
     // handler, so hooks.after() fires exactly once per request.
-    route.handler = route.concurrency
+    const handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
           this.onQueueFullHTTP.bind(this),
@@ -298,6 +298,16 @@ export class Router extends EventEmitter {
           route,
         )
       : this.wrapWithAfterHook(wrapped, route);
+
+    route.handler = async (req: Request, res: Response) => {
+      if (!isConnected(res)) {
+        this.log.warn(`HTTP Request has closed prior to running`);
+        return ROUTE_DID_NOT_RUN;
+      }
+
+      return handler(req, res);
+    };
+
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     this.compilePathMatchers(route);
     const registeredPaths = this.httpRoutes.map((r) => r.path).flat();
