@@ -3,7 +3,9 @@ import * as http from 'http';
 import * as stream from 'stream';
 import {
   APITags,
+  BrowserHTTPRoute,
   BrowserManager,
+  ChromiumCDP,
   Config,
   HTTPRoute,
   Hooks,
@@ -35,6 +37,31 @@ class TestHTTPRoute extends HTTPRoute {
   public method = Methods.get;
   public name = 'test-http';
   public path: string | string[] = '/__test__';
+  public tags: APITags[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(public override handler: any) {
+    super(
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+    );
+  }
+}
+
+class TestBrowserHTTPRoute extends BrowserHTTPRoute {
+  public accepts = [contentTypes.any];
+  public auth = false;
+  public browser = ChromiumCDP;
+  public contentTypes = [contentTypes.text];
+  public description = 'test';
+  public method = Methods.get;
+  public name = 'test-browser-http';
+  public path: string | string[] = '/__test_browser__';
   public tags: APITags[] = [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,7 +158,7 @@ const buildRouter = () => {
 
   const router = new Router(config, browserManager, limiter, Logger, hooks);
 
-  return { router, hooks, limiter, config, metrics };
+  return { router, hooks, limiter, config, metrics, browserManager };
 };
 
 // Resolves when the Limiter dispatches its next 'end' event. Used to wait
@@ -176,6 +203,46 @@ describe('Router', () => {
         'status',
         'successful',
       );
+    });
+
+    it('fires after() with status "error" when the response closes during browser startup', async () => {
+      const { router, hooks, limiter, browserManager } = buildRouter();
+      const response = makeResponse();
+      const browser = {} as never;
+      const inner = spy(async () => 'ok');
+      const route = new TestBrowserHTTPRoute(inner);
+      route.concurrency = true;
+
+      browserManager.getBrowserForRequest.callsFake(async () => {
+        (response.socket as { writable: boolean }).writable = false;
+        return browser;
+      });
+
+      router.registerHTTPRoute(route);
+
+      const ended = limiterEnded(limiter);
+      let caught: unknown;
+      try {
+        await (
+          route.handler as (
+            req: Request,
+            res: http.ServerResponse,
+          ) => Promise<unknown>
+        )(makeRequest(), response);
+      } catch (err) {
+        caught = err;
+      }
+      await ended;
+
+      expect(caught).to.be.instanceOf(Error);
+      expect((caught as Error).message).to.equal(
+        'Request closed prior to writing results',
+      );
+      expect(inner.called).to.be.false;
+      expect(browserManager.complete.calledOnceWith(browser)).to.be.true;
+      expect(hooks.after.callCount).to.equal(1);
+      expect(hooks.after.firstCall.args[0]).to.have.property('status', 'error');
+      expect(hooks.after.firstCall.args[0]).to.have.property('error', caught);
     });
 
     it('fires after() once with status "successful" for concurrency=false routes', async () => {
@@ -308,6 +375,96 @@ describe('Router', () => {
 
       expect(inner.called).to.be.false;
       expect(hooks.after.callCount).to.equal(0);
+    });
+
+    it('skips after() when the response closed before limiter admission', async () => {
+      const { router, hooks } = buildRouter();
+      const inner = spy(async () => 'ok');
+      const route = new TestHTTPRoute(inner);
+      route.concurrency = true;
+      router.registerHTTPRoute(route);
+
+      const closedRes = makeResponse();
+      (closedRes.socket as { writable: boolean }).writable = false;
+
+      await (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), closedRes);
+      await flushMicrotasks();
+
+      expect(inner.called).to.be.false;
+      expect(hooks.after.callCount).to.equal(0);
+    });
+
+    it('fires after() with status "error" when the response closes in the limiter queue', async () => {
+      const { router, hooks, limiter, config } = buildRouter();
+      config.setConcurrent(1);
+
+      let startFirst!: () => void;
+      const firstStarted = new Promise<void>((resolve) => {
+        startFirst = resolve;
+      });
+      let finishFirst!: () => void;
+      const firstFinished = new Promise<void>((resolve) => {
+        finishFirst = resolve;
+      });
+      const inner = spy(async () => {
+        if (inner.callCount === 1) {
+          startFirst();
+          await firstFinished;
+        }
+        return 'ok';
+      });
+      const route = new TestHTTPRoute(inner);
+      route.concurrency = true;
+      router.registerHTTPRoute(route);
+
+      const ended = limiterEnded(limiter);
+      const first = (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), makeResponse());
+      await firstStarted;
+
+      const queuedResponse = makeResponse();
+      let queuedError: unknown;
+      const queued = (
+        route.handler as (
+          req: Request,
+          res: http.ServerResponse,
+        ) => Promise<unknown>
+      )(makeRequest(), queuedResponse).catch((err) => {
+        queuedError = err;
+      });
+      (queuedResponse.socket as { writable: boolean }).writable = false;
+      finishFirst();
+
+      await Promise.all([first, queued]);
+      await ended;
+
+      expect(queuedError).to.be.instanceOf(Error);
+      expect((queuedError as Error).message).to.equal(
+        'Request closed prior to writing results',
+      );
+      expect(inner.callCount).to.equal(1);
+      expect(hooks.after.callCount).to.equal(2);
+      expect(hooks.after.firstCall.args[0]).to.have.property(
+        'status',
+        'successful',
+      );
+      expect(hooks.after.secondCall.args[0]).to.have.property(
+        'status',
+        'error',
+      );
+      expect(hooks.after.secondCall.args[0]).to.have.property(
+        'error',
+        queuedError,
+      );
     });
   });
 
