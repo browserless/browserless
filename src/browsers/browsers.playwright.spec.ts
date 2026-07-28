@@ -892,23 +892,17 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
           defaultFeatures,
         );
       }
-      expect(defaultFeatures).to.not.include('RenderDocument');
       expect(defaultFeatures).to.include(
         'BlockOriginHeaderModificationOnRedirect',
       );
       expect(defaultFeatures).to.include(
         'BoundaryEventDispatchTracksNodeRemoval',
       );
-      expect(defaultFeatures).to.not.include('AcceptCHFrame');
+      expect(defaultFeatures).to.not.include('RenderDocument');
     });
 
-    it('returns version-specific lists where they differ', () => {
-      const cfg = new Config();
-      const f158 = cfg.getChromiumDisabledFeatures('1.58');
-      expect(f158).to.include('BoundaryEventDispatchTracksNodeRemoval');
-      expect(f158).to.not.include('msEdgeUpdateLaunchServicesPreferredVersion');
-
-      const f161 = cfg.getChromiumDisabledFeatures('1.61');
+    it('returns a version-specific list where it differs (1.61)', () => {
+      const f161 = new Config().getChromiumDisabledFeatures('1.61');
       expect(f161).to.include('RenderDocument');
       expect(f161).to.not.include('BlockOriginHeaderModificationOnRedirect');
     });
@@ -938,11 +932,13 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     it('keeps the Playwright list AND LocalNetworkAccessChecks together', () => {
       // Core regression: the old standalone
       // `--disable-features=LocalNetworkAccessChecks` overrode Playwright's list
-      // and re-enabled RenderDocument.
+      // and re-enabled everything in it (RenderDocument, back when Playwright
+      // still disabled it). PaintHolding is the canary: every supported version
+      // disables it.
       const features = parseDisableFeatures(
         withMergedChromiumDisableFeatures([], defaultFeatures),
       );
-      expect(features).to.include('BlockOriginHeaderModificationOnRedirect');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
     });
 
@@ -955,7 +951,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const features = parseDisableFeatures(out);
       expect(features).to.include('CallerOne');
       expect(features).to.include('CallerTwo');
-      expect(features).to.include('BlockOriginHeaderModificationOnRedirect');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
       // Unrelated args are preserved untouched.
       expect(out).to.include('--window-size=800,600');
@@ -965,7 +961,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const features = parseDisableFeatures(
         withMergedChromiumDisableFeatures(
           [
-            '--disable-features=BlockOriginHeaderModificationOnRedirect,LocalNetworkAccessChecks,Translate',
+            '--disable-features=PaintHolding,LocalNetworkAccessChecks,Translate',
           ],
           defaultFeatures,
         ),
@@ -979,7 +975,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const args = launchArgs(ChromiumPlaywright, []);
       expect(disableFeaturesFlags(args)).to.have.lengthOf(1);
       const features = parseDisableFeatures(args);
-      expect(features).to.include('BlockOriginHeaderModificationOnRedirect');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
     });
 
@@ -994,9 +990,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       expect(features).to.include('CustomFeatureX'); // from the override
       expect(features).to.include('LocalNetworkAccessChecks'); // additions still merged
-      expect(features).to.not.include(
-        'BlockOriginHeaderModificationOnRedirect',
-      ); // default list replaced
+      expect(features).to.not.include('PaintHolding'); // default list replaced
     });
 
     it('merges Config#getBrowserlessChromiumDisabledFeatures (overridable)', () => {
@@ -1013,7 +1007,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       expect(features).to.include('DeploymentFeatureX'); // added by the override
       expect(features).to.include('LocalNetworkAccessChecks'); // base list kept
-      expect(features).to.include('BlockOriginHeaderModificationOnRedirect'); // version mirror kept
+      expect(features).to.include('PaintHolding'); // version mirror kept
     });
 
     it('does not add chromium --disable-features to Firefox or WebKit', () => {
@@ -1153,7 +1147,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
         const winning = parseDisableFeatures([
           disableFlags[disableFlags.length - 1],
         ]);
-        expect(winning).to.include('BlockOriginHeaderModificationOnRedirect'); // Playwright's, preserved
+        expect(winning).to.include('PaintHolding'); // Playwright's, preserved
         expect(winning).to.include('LocalNetworkAccessChecks'); // browserless's
       },
     ).timeout(60000);

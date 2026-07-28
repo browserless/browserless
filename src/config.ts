@@ -131,6 +131,28 @@ const getDebug = () => {
  * installed Playwright versions — see the drift test in
  * browsers.playwright.spec.ts.
  */
+const defaultChromiumDisabledFeatures: readonly string[] = [
+  'AvoidUnnecessaryBeforeUnloadCheckSync',
+  'BoundaryEventDispatchTracksNodeRemoval',
+  'DestroyProfileOnBrowserClose',
+  'DialMediaRouteProvider',
+  'GlobalMediaControls',
+  'HttpsUpgrades',
+  'LensOverlay',
+  'MediaRouter',
+  'PaintHolding',
+  'ThirdPartyStoragePartitioning',
+  'BlockOriginHeaderModificationOnRedirect',
+  'Translate',
+  'AutoDeElevate',
+  'OptimizationHints',
+  'msForceBrowserSignIn',
+  'msEdgeUpdateLaunchServicesPreferredVersion',
+];
+
+// 1.60 and 1.61 still disable RenderDocument (dropped in 1.62) and do not yet
+// disable BlockOriginHeaderModificationOnRedirect (added in 1.62 for
+// crbug/Chromium 149's redirect-header rejection).
 const playwright160And161DisabledFeatures: readonly string[] = [
   'AvoidUnnecessaryBeforeUnloadCheckSync',
   'BoundaryEventDispatchTracksNodeRemoval',
@@ -150,15 +172,8 @@ const playwright160And161DisabledFeatures: readonly string[] = [
   'msEdgeUpdateLaunchServicesPreferredVersion',
 ];
 
-const defaultChromiumDisabledFeatures: readonly string[] = [
-  ...playwright160And161DisabledFeatures.filter(
-    (feature) => feature !== 'RenderDocument',
-  ),
-  'BlockOriginHeaderModificationOnRedirect',
-];
-
-// 1.58 and 1.59 match 1.60 and 1.61 except the ms*/Edge features, which
-// Playwright began disabling in 1.60.
+// 1.58 and 1.59 match 1.60/1.61 except the ms*/Edge features, which Playwright
+// began disabling in 1.60.
 const playwright158And159DisabledFeatures: readonly string[] = [
   'AvoidUnnecessaryBeforeUnloadCheckSync',
   'BoundaryEventDispatchTracksNodeRemoval',
