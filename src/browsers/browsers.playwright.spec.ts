@@ -887,22 +887,24 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   describe('Config.getChromiumDisabledFeatures (overridable seam)', () => {
     it('returns the default list for current/unknown versions', () => {
       const cfg = new Config();
-      for (const v of [undefined, 'default', '1.60', '1.61', '1.99']) {
+      for (const v of [undefined, 'default', '1.62', '1.99']) {
         expect(cfg.getChromiumDisabledFeatures(v)).to.deep.equal(
           defaultFeatures,
         );
       }
-      expect(defaultFeatures).to.include('RenderDocument');
+      expect(defaultFeatures).to.include(
+        'BlockOriginHeaderModificationOnRedirect',
+      );
       expect(defaultFeatures).to.include(
         'BoundaryEventDispatchTracksNodeRemoval',
       );
-      expect(defaultFeatures).to.not.include('AcceptCHFrame');
+      expect(defaultFeatures).to.not.include('RenderDocument');
     });
 
-    it('returns a version-specific list where it differs (1.57)', () => {
-      const f157 = new Config().getChromiumDisabledFeatures('1.57');
-      expect(f157).to.include('AcceptCHFrame');
-      expect(f157).to.not.include('BoundaryEventDispatchTracksNodeRemoval');
+    it('returns a version-specific list where it differs (1.61)', () => {
+      const f161 = new Config().getChromiumDisabledFeatures('1.61');
+      expect(f161).to.include('RenderDocument');
+      expect(f161).to.not.include('BlockOriginHeaderModificationOnRedirect');
     });
   });
 
@@ -930,11 +932,13 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     it('keeps the Playwright list AND LocalNetworkAccessChecks together', () => {
       // Core regression: the old standalone
       // `--disable-features=LocalNetworkAccessChecks` overrode Playwright's list
-      // and re-enabled RenderDocument.
+      // and re-enabled everything in it (RenderDocument, back when Playwright
+      // still disabled it). PaintHolding is the canary: every supported version
+      // disables it.
       const features = parseDisableFeatures(
         withMergedChromiumDisableFeatures([], defaultFeatures),
       );
-      expect(features).to.include('RenderDocument');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
     });
 
@@ -947,7 +951,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const features = parseDisableFeatures(out);
       expect(features).to.include('CallerOne');
       expect(features).to.include('CallerTwo');
-      expect(features).to.include('RenderDocument');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
       // Unrelated args are preserved untouched.
       expect(out).to.include('--window-size=800,600');
@@ -957,7 +961,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const features = parseDisableFeatures(
         withMergedChromiumDisableFeatures(
           [
-            '--disable-features=RenderDocument,LocalNetworkAccessChecks,Translate',
+            '--disable-features=PaintHolding,LocalNetworkAccessChecks,Translate',
           ],
           defaultFeatures,
         ),
@@ -971,7 +975,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       const args = launchArgs(ChromiumPlaywright, []);
       expect(disableFeaturesFlags(args)).to.have.lengthOf(1);
       const features = parseDisableFeatures(args);
-      expect(features).to.include('RenderDocument');
+      expect(features).to.include('PaintHolding');
       expect(features).to.include('LocalNetworkAccessChecks');
     });
 
@@ -986,7 +990,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       expect(features).to.include('CustomFeatureX'); // from the override
       expect(features).to.include('LocalNetworkAccessChecks'); // additions still merged
-      expect(features).to.not.include('RenderDocument'); // default list replaced
+      expect(features).to.not.include('PaintHolding'); // default list replaced
     });
 
     it('merges Config#getBrowserlessChromiumDisabledFeatures (overridable)', () => {
@@ -1003,7 +1007,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       expect(features).to.include('DeploymentFeatureX'); // added by the override
       expect(features).to.include('LocalNetworkAccessChecks'); // base list kept
-      expect(features).to.include('RenderDocument'); // version mirror kept
+      expect(features).to.include('PaintHolding'); // version mirror kept
     });
 
     it('does not add chromium --disable-features to Firefox or WebKit', () => {
@@ -1022,11 +1026,11 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     // real dependency installed in node_modules (see package.json
     // `playwrightVersions`). The mirror must match each one.
     const SUPPORTED_PW_VERSIONS: Readonly<Record<string, string>> = {
-      '1.57': 'playwright-1.57',
       '1.58': 'playwright-1.58',
       '1.59': 'playwright-1.59',
       '1.60': 'playwright-1.60',
-      '1.61': 'playwright-core',
+      '1.61': 'playwright-1.61',
+      '1.62': 'playwright-core',
     };
 
     type ChromiumLauncher = {
@@ -1123,7 +1127,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       "browserless's merged --disable-features is the one Chromium keeps",
       async () => {
         const argv = await captureLaunchArgv(
-          await chromiumFor(SUPPORTED_PW_VERSIONS['1.61']),
+          await chromiumFor(SUPPORTED_PW_VERSIONS['1.62']),
           launchArgs(ChromiumPlaywright, []),
         );
         const disableFlags = disableFeaturesFlags(argv);
@@ -1134,7 +1138,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
         const winning = parseDisableFeatures([
           disableFlags[disableFlags.length - 1],
         ]);
-        expect(winning).to.include('RenderDocument'); // Playwright's, preserved
+        expect(winning).to.include('PaintHolding'); // Playwright's, preserved
         expect(winning).to.include('LocalNetworkAccessChecks'); // browserless's
       },
     ).timeout(60000);
