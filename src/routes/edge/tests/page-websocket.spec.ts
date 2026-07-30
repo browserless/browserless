@@ -81,20 +81,35 @@ describe('WebSocket Page API', function () {
     await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
-    const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
+    const pageURL = `ws://localhost:3000/devtools/page/${pageId}`;
 
-    // Connect to raw page target without authorization
+    // A token-less connection to the raw page target must be refused when a
+    // TOKEN is configured. The prior assertion lived only inside `catch`, so
+    // it passed vacuously whenever the connection was (wrongly) accepted.
+    let acceptedWithoutToken = false;
     try {
-      new Connection(
-        webSocketDebuggerUrl,
-        await NodeWebSocketTransport.create(webSocketDebuggerUrl),
-      );
+      const transport = await NodeWebSocketTransport.create(pageURL);
+      acceptedWithoutToken = true;
+      transport.close();
     } catch (err: unknown) {
-      //@ts-ignore
+      // @ts-ignore
       expect(err.message).to.include('401');
-    } finally {
-      browser.close();
     }
+    expect(
+      acceptedWithoutToken,
+      'token-less page WebSocket connection must be rejected when TOKEN is set',
+    ).to.be.false;
+
+    // The same target still connects and accepts CDP commands WITH the token.
+    const authedURL = `${pageURL}?token=browserless`;
+    const cdp = new Connection(
+      authedURL,
+      await NodeWebSocketTransport.create(authedURL),
+    );
+    const result = await cdp.send('Page.enable');
+    cdp.dispose();
+    await browser.close();
+    expect(result);
   });
 
   it('404s pages not found', async () => {

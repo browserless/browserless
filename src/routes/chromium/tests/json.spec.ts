@@ -120,6 +120,35 @@ describe('/json/ API', function () {
     expect(resJSON.description).to.equal('');
   });
 
+  it('encodes the token in the /json/new DevTools URL', async () => {
+    const token = 'token&with#a+percent%';
+    const config = new Config();
+    config.setToken(token);
+    config.setExternalAddress('https://browserless.example.com/prefix/');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      `http://localhost:3000/json/new?token=${encodeURIComponent(token)}`,
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(200);
+    const resJSON = await res.json();
+    const frontendURL = new URL(
+      resJSON.devtoolsFrontendUrl,
+      config.getExternalAddress(),
+    );
+    const nestedURL = new URL(`wss://${frontendURL.searchParams.get('wss')}`);
+
+    expect(frontendURL.pathname).to.equal('/prefix/devtools/inspector.html');
+    expect(frontendURL.searchParams.has('ws')).to.be.false;
+    expect(nestedURL.host).to.equal('browserless.example.com');
+    expect(nestedURL.pathname).to.equal('/prefix/devtools/page/' + resJSON.id);
+    expect(nestedURL.searchParams.get('token')).to.equal(token);
+    expect(new URL(resJSON.webSocketDebuggerUrl).searchParams.has('token')).to
+      .be.false;
+  });
+
   it('rejects unauthorized requests to PUT /json/new', async () => {
     const config = new Config();
     config.setToken('browserless');

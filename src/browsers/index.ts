@@ -29,7 +29,9 @@ import {
   exists,
   generateDataDir,
   getFinalPathSegment,
+  makeDevtoolsFrontendURL,
   makeExternalURL,
+  makeExternalWebSocketURL,
   noop,
   parseBooleanParam,
   parseStringParam,
@@ -294,9 +296,11 @@ export class BrowserManager {
    * their respective /json/list contents. URLs are modified so that subsequent
    * calls can be forwarded to the appropriate destination
    */
-  public async getJSONList(): Promise<Array<CDPJSONPayload>> {
+  public async getJSONList(
+    token?: string | null,
+  ): Promise<Array<CDPJSONPayload>> {
     const externalAddress = this.config.getExternalWebSocketAddress();
-    const externalURL = new URL(externalAddress);
+    const externalHTTPAddress = this.config.getExternalAddress();
     const sessions = Array.from(this.browsers);
 
     const cdpResponse = await Promise.all(
@@ -310,33 +314,38 @@ export class BrowserManager {
           );
           if (cdpJSON) {
             return cdpJSON.map((c) => {
-              const webSocketDebuggerURL = new URL(c.webSocketDebuggerUrl);
-              const devtoolsFrontendURL = new URL(
-                c.devtoolsFrontendUrl,
+              const internalWebSocketURL = new URL(c.webSocketDebuggerUrl);
+              const webSocketDebuggerURL = makeExternalWebSocketURL(
                 externalAddress,
+                internalWebSocketURL.pathname,
               );
-              const wsQuery = devtoolsFrontendURL.searchParams.get('ws');
-
-              if (wsQuery) {
-                const paramName = externalURL.protocol.startsWith('wss')
-                  ? 'wss'
-                  : 'ws';
-                devtoolsFrontendURL.searchParams.set(
-                  paramName,
-                  path.join(
-                    webSocketDebuggerURL.host,
-                    webSocketDebuggerURL.pathname,
-                  ),
-                );
-              }
-
-              webSocketDebuggerURL.host = externalURL.host;
-              webSocketDebuggerURL.port = externalURL.port;
-              webSocketDebuggerURL.protocol = externalURL.protocol;
+              const authorizedWebSocketURL = makeExternalWebSocketURL(
+                externalAddress,
+                internalWebSocketURL.pathname,
+                token,
+              );
+              const internalDevtoolsFrontendURL = new URL(
+                c.devtoolsFrontendUrl,
+                externalHTTPAddress,
+              );
+              const devtoolsFrontendURL = new URL(externalHTTPAddress);
+              devtoolsFrontendURL.pathname = path.posix.join(
+                devtoolsFrontendURL.pathname,
+                '/devtools/inspector.html',
+              );
+              const hasWebSocketTarget =
+                internalDevtoolsFrontendURL.searchParams.has('ws') ||
+                internalDevtoolsFrontendURL.searchParams.has('wss');
+              const externalDevtoolsFrontendURL = hasWebSocketTarget
+                ? makeDevtoolsFrontendURL(
+                    devtoolsFrontendURL,
+                    authorizedWebSocketURL,
+                  )
+                : devtoolsFrontendURL;
 
               return {
                 ...c,
-                devtoolsFrontendUrl: devtoolsFrontendURL.href,
+                devtoolsFrontendUrl: externalDevtoolsFrontendURL.href,
                 webSocketDebuggerUrl: webSocketDebuggerURL.href,
               };
             });
@@ -354,6 +363,7 @@ export class BrowserManager {
   protected async generateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
+    token?: string | null,
   ) {
     const serverHTTPAddress = this.config.getExternalAddress();
     const serverWSAddress = this.config.getExternalWebSocketAddress();
@@ -375,8 +385,6 @@ export class BrowserManager {
     ];
 
     const internalWSEndpoint = browser.wsEndpoint();
-    const externalURI = new URL(serverHTTPAddress);
-    const externalProtocol = externalURI.protocol === 'https:' ? 'wss' : 'ws';
 
     if (this.browserIsChrome(browser) && internalWSEndpoint) {
       const browserURI = new URL(internalWSEndpoint);
@@ -386,23 +394,36 @@ export class BrowserManager {
       if (body) {
         for (const page of body) {
           const pageURI = new URL(page.webSocketDebuggerUrl);
+          const webSocketURL = makeExternalWebSocketURL(
+            serverWSAddress,
+            pageURI.pathname,
+          );
+          const authorizedWebSocketURL = makeExternalWebSocketURL(
+            serverWSAddress,
+            pageURI.pathname,
+            token,
+          );
+          const frontendURL = new URL(serverHTTPAddress);
+          frontendURL.pathname = path.posix.join(
+            frontendURL.pathname,
+            '/devtools/inspector.html',
+          );
+          const externalDevtoolsFrontendURL = makeDevtoolsFrontendURL(
+            frontendURL,
+            authorizedWebSocketURL,
+          );
           const devtoolsFrontendUrl =
-            `/devtools/inspector.html?${externalProtocol}=${externalURI.host}${externalURI.pathname}${pageURI.pathname}`.replace(
-              /\/\//gi,
-              '/',
-            );
+            externalDevtoolsFrontendURL.pathname +
+            externalDevtoolsFrontendURL.search;
 
           // /devtools/browser/b733c56b-8543-489c-b27b-28e12d966c01
-          const browserWSEndpoint = new URL(
-            browserURI.pathname,
+          const browserWSEndpoint = makeExternalWebSocketURL(
             serverWSAddress,
+            browserURI.pathname,
           ).href;
 
           // /devtools/page/802B1FDAD5F75E9BCE92D066DFF13253
-          const webSocketDebuggerUrl = new URL(
-            pageURI.pathname,
-            serverWSAddress,
-          ).href;
+          const webSocketDebuggerUrl = webSocketURL.href;
 
           sessions.push({
             ...sessions[0],
@@ -516,6 +537,7 @@ export class BrowserManager {
 
   public async getAllSessions(
     trackingId?: string,
+    token?: string | null,
   ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
 
@@ -524,7 +546,7 @@ export class BrowserManager {
     let formattedSessions: BrowserlessSessionJSON[] = (
       await Promise.all(
         sessions.map(([browser, session]) =>
-          this.generateSessionJson(browser, session).catch((err) => {
+          this.generateSessionJson(browser, session, token).catch((err) => {
             this.log.warn(
               `Error generating session JSON for "${session.id}": ${err}`,
             );

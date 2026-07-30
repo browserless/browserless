@@ -310,6 +310,59 @@ export const safeParse = (maybeJson: string): unknown | null => {
   }
 };
 
+const redactNestedToken = (protocol: string, value: string): string => {
+  try {
+    const nested = new URL(`${protocol}://${value}`);
+    if (!nested.searchParams.has('token')) {
+      return value;
+    }
+
+    nested.searchParams.set('token', '[redacted]');
+    return `${nested.host}${nested.pathname}${nested.search}`;
+  } catch {
+    const queryIndex = value.indexOf('?');
+    if (queryIndex === -1) {
+      return value;
+    }
+
+    const searchParams = new URLSearchParams(value.slice(queryIndex + 1));
+    if (!searchParams.has('token')) {
+      return value;
+    }
+
+    searchParams.set('token', '[redacted]');
+    return `${value.slice(0, queryIndex)}?${searchParams}`;
+  }
+};
+
+/**
+ * Returns a request URL safe for logging without mutating the request used for
+ * authentication and routing. Tokens nested in DevTools `ws` and `wss`
+ * parameters are redacted as well as top-level token parameters.
+ */
+export function formatRequestURLForLog(url: string): string {
+  const isAbsoluteURL = URL.canParse(url);
+  const parsed = new URL(url, 'http://localhost');
+
+  if (parsed.searchParams.has('token')) {
+    parsed.searchParams.set('token', '[redacted]');
+  }
+
+  for (const protocol of ['ws', 'wss']) {
+    const values = parsed.searchParams.getAll(protocol);
+    if (!values.length) {
+      continue;
+    }
+
+    parsed.searchParams.delete(protocol);
+    for (const value of values) {
+      parsed.searchParams.append(protocol, redactNestedToken(protocol, value));
+    }
+  }
+
+  return isAbsoluteURL ? parsed.href : parsed.pathname + parsed.search;
+}
+
 const sensitiveBodyFields = [
   'authenticate',
   'authorization',
@@ -721,6 +774,35 @@ export const makeExternalURL = (
 
   return new URL(path.join(externalURL.pathname, ...parts), externalAddress)
     .href;
+};
+
+export const makeExternalWebSocketURL = (
+  externalAddress: string,
+  pathname: string,
+  token?: string | null,
+): URL => {
+  const externalURL = new URL(makeExternalURL(externalAddress, pathname));
+
+  if (token) {
+    externalURL.searchParams.set('token', token);
+  }
+
+  return externalURL;
+};
+
+export const makeDevtoolsFrontendURL = (
+  frontendURL: URL,
+  webSocketURL: URL,
+): URL => {
+  const externalFrontendURL = new URL(frontendURL.href);
+  const param = webSocketURL.protocol === 'wss:' ? 'wss' : 'ws';
+  const value = `${webSocketURL.host}${webSocketURL.pathname}${webSocketURL.search}`;
+
+  externalFrontendURL.searchParams.delete('ws');
+  externalFrontendURL.searchParams.delete('wss');
+  externalFrontendURL.searchParams.set(param, value);
+
+  return externalFrontendURL;
 };
 
 export class BadRequest extends Error {

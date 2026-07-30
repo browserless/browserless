@@ -1,10 +1,13 @@
 import { expect } from 'chai';
-import { ServerResponse } from 'http';
+import { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from 'net';
 import {
   contentTypes,
+  formatRequestURLForLog,
   getFinalPathSegment,
   getPageContent,
+  makeDevtoolsFrontendURL,
+  makeExternalWebSocketURL,
   toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -66,6 +69,128 @@ describe('Utils', () => {
           'wss://www.browserless.io/some/random/path/segment/&bad=query',
         ),
       ).to.equal('segment');
+    });
+  });
+
+  describe('#makeExternalWebSocketURL', () => {
+    it('preserves the external path prefix without exposing a token', () => {
+      const url = makeExternalWebSocketURL(
+        'wss://browserless.example.com/prefix/',
+        '/devtools/page/page-id',
+      );
+
+      expect(url.href).to.equal(
+        'wss://browserless.example.com/prefix/devtools/page/page-id',
+      );
+      expect(url.searchParams.has('token')).to.be.false;
+    });
+
+    it('encodes tokens containing URL delimiters', () => {
+      const token = 'token&with#a+percent%';
+      const url = makeExternalWebSocketURL(
+        'wss://browserless.example.com/prefix/',
+        '/devtools/page/page-id',
+        token,
+      );
+
+      expect(url.searchParams.get('token')).to.equal(token);
+    });
+  });
+
+  describe('#makeDevtoolsFrontendURL', () => {
+    it('uses the external WebSocket URL and encodes its nested token', () => {
+      const token = 'token&with#a+percent%';
+      const webSocketURL = makeExternalWebSocketURL(
+        'wss://browserless.example.com/prefix/',
+        '/devtools/page/page-id',
+        token,
+      );
+      const frontendURL = makeDevtoolsFrontendURL(
+        new URL(
+          'https://browserless.example.com/prefix/devtools/inspector.html?ws=127.0.0.1:9222/devtools/page/page-id',
+        ),
+        webSocketURL,
+      );
+
+      expect(frontendURL.searchParams.has('ws')).to.be.false;
+      const nestedURL = new URL(`wss://${frontendURL.searchParams.get('wss')}`);
+      expect(nestedURL.host).to.equal('browserless.example.com');
+      expect(nestedURL.pathname).to.equal('/prefix/devtools/page/page-id');
+      expect(nestedURL.searchParams.get('token')).to.equal(token);
+    });
+  });
+
+  describe('#formatRequestURLForLog', () => {
+    for (const protocol of ['ws', 'wss']) {
+      it(`redacts a token nested in ${protocol} without mutating the request`, () => {
+        const nestedURL = new URL(
+          `${protocol}://browserless.example.com/prefix/devtools/page/page-id`,
+        );
+        nestedURL.searchParams.set('token', 'super-secret');
+        nestedURL.searchParams.set('keep', 'visible');
+        const originalURL =
+          `/devtools/inspector.html?trackingId=track-1&${protocol}=` +
+          encodeURIComponent(
+            `${nestedURL.host}${nestedURL.pathname}${nestedURL.search}`,
+          );
+        const request = {
+          headers: { authorization: 'Bearer auth-token' },
+          url: originalURL,
+        } as unknown as IncomingMessage;
+
+        const formatted = formatRequestURLForLog(request.url!);
+        const parsed = new URL(formatted, 'http://localhost');
+        const nested = new URL(
+          `${protocol}://${parsed.searchParams.get(protocol)}`,
+        );
+
+        expect(formatted).not.to.include('super-secret');
+        expect(parsed.pathname).to.equal('/devtools/inspector.html');
+        expect(parsed.searchParams.get('trackingId')).to.equal('track-1');
+        expect(nested.host).to.equal('browserless.example.com');
+        expect(nested.pathname).to.equal('/prefix/devtools/page/page-id');
+        expect(nested.searchParams.get('token')).to.equal('[redacted]');
+        expect(nested.searchParams.get('keep')).to.equal('visible');
+        expect(request.url).to.equal(originalURL);
+        expect(request.headers.authorization).to.equal('Bearer auth-token');
+      });
+    }
+
+    it('redacts a top-level token without mutating the input', () => {
+      const originalURL = '/json/list?token=super-secret&trackingId=track-1';
+      const formatted = formatRequestURLForLog(originalURL);
+      const parsed = new URL(formatted, 'http://localhost');
+
+      expect(formatted).not.to.include('super-secret');
+      expect(parsed.searchParams.get('token')).to.equal('[redacted]');
+      expect(parsed.searchParams.get('trackingId')).to.equal('track-1');
+      expect(originalURL).to.equal(
+        '/json/list?token=super-secret&trackingId=track-1',
+      );
+    });
+
+    it('preserves an absolute URL while redacting its token', () => {
+      const originalURL =
+        'http://localhost:3000/json/list?token=super-secret&trackingId=track-1';
+      const formatted = formatRequestURLForLog(originalURL);
+
+      expect(formatted).to.equal(
+        'http://localhost:3000/json/list?token=%5Bredacted%5D&trackingId=track-1',
+      );
+    });
+
+    it('redacts nested tokens from malformed WebSocket targets', () => {
+      const originalURL =
+        '/devtools/inspector.html?ws=' +
+        encodeURIComponent('%%%?token=super-secret&keep=visible');
+      const formatted = formatRequestURLForLog(originalURL);
+      const parsed = new URL(formatted, 'http://localhost');
+      const nested = parsed.searchParams.get('ws')!;
+
+      expect(formatted).not.to.include('super-secret');
+      expect(nested).to.include('token=%5Bredacted%5D');
+      expect(nested).to.include('keep=visible');
+      expect(originalURL).to.include('super-secret');
     });
   });
 
