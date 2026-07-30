@@ -12,7 +12,7 @@ jobs:
           node-version: '24'
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.17.0 --ignore-scripts
+        run: npm install -g npm@11.19.0 --ignore-scripts
       - name: Install modules
         uses: nick-fields/retry@v4
         with:
