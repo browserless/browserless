@@ -434,6 +434,13 @@ export interface BrowserServerOptions {
   chromiumSandbox?: boolean;
   devtools?: boolean;
   downloadsPath?: string;
+  /**
+   * Environment for the browser process. Honored by both puppeteer.launch and
+   * playwright.launchServer. Set server-side to give the session its own TMPDIR
+   * (see generateScratchDir); a caller-supplied value is merged under it, since
+   * a session must not be able to point its scratch back at the shared temp dir.
+   */
+  env?: Record<string, string | undefined>;
   headless?: boolean;
   ignoreDefaultArgs?: boolean | string[];
   proxy?: {
@@ -459,6 +466,12 @@ export interface BrowserlessSession {
   numbConnected: number;
   resolver(val: unknown): void;
   routePath: string | string[];
+  /**
+   * This session's TMPDIR, removed on close. Unlike userDataDir it is always
+   * browserless-owned, so it is reclaimed whether or not the caller supplied
+   * their own data dir.
+   */
+  scratchDir: string | null;
   startedOn: number;
   trackingId?: string;
   ttl: number;

@@ -28,6 +28,7 @@ import {
   convertIfBase64,
   exists,
   generateDataDir,
+  generateScratchDir,
   getFinalPathSegment,
   makeExternalURL,
   noop,
@@ -67,8 +68,9 @@ export class BrowserManager {
     WebKitPlaywright.name,
   ];
 
-  // user-data-dirs whose deletion exhausted its retries; retried on an
-  // interval so a transient handle-hold doesn't permanently leak disk.
+  // Session-owned dirs (user-data and scratch) whose deletion exhausted its
+  // retries; retried on an interval so a transient handle-hold doesn't
+  // permanently leak disk.
   protected orphanedDataDirs: Set<string> = new Set();
   protected orphanedDataDirSweeper: NodeJS.Timeout;
 
@@ -100,10 +102,10 @@ export class BrowserManager {
       try {
         await deleteAsync(dir, { force: true });
         this.orphanedDataDirs.delete(dir);
-        this.log.info(`Reclaimed previously-orphaned user-data-dir "${dir}"`);
+        this.log.info(`Reclaimed previously-orphaned session dir "${dir}"`);
       } catch (err) {
         this.log.debug(
-          `Orphaned user-data-dir "${dir}" still undeletable: ${err}`,
+          `Orphaned session dir "${dir}" still undeletable: ${err}`,
         );
       }
     }
@@ -129,25 +131,28 @@ export class BrowserManager {
     }
   }
 
-  protected async removeUserDataDir(userDataDir: string | null) {
-    if (!userDataDir || !(await exists(userDataDir))) return;
-    this.log.debug(`Deleting data directory "${userDataDir}"`);
+  /**
+   * Remove a session-owned directory, retrying with backoff to absorb the
+   * transient EBUSY/ENOTEMPTY window that `del` sometimes hits while Chrome is
+   * still releasing handles. Without retries this manifests as a single logged
+   * error and a leaked dir. A directory that outlasts every attempt is queued
+   * for the background sweep rather than abandoned.
+   */
+  protected async removeSessionDir(dir: string | null, label: string) {
+    if (!dir || !(await exists(dir))) return;
+    this.log.debug(`Deleting ${label} "${dir}"`);
 
-    // Retry with backoff to absorb the transient EBUSY/ENOTEMPTY window
-    // that `del` sometimes hits while Chrome is still releasing handles
-    // on the profile directory. Without retries this manifests as a
-    // single logged error and a leaked dir.
     const totalAttempts = REMOVE_RETRY_BACKOFF_MS.length + 1;
     for (let attempt = 0; attempt < totalAttempts; attempt++) {
       try {
-        await deleteAsync(userDataDir, { force: true });
+        await deleteAsync(dir, { force: true });
         return;
       } catch (err) {
         if (attempt === totalAttempts - 1) {
           this.log.error(
-            `Failed to remove user-data-dir "${userDataDir}" after ${totalAttempts} attempts: ${err}; queueing for background retry`,
+            `Failed to remove ${label} "${dir}" after ${totalAttempts} attempts: ${err}; queueing for background retry`,
           );
-          this.orphanedDataDirs.add(userDataDir);
+          this.orphanedDataDirs.add(dir);
           return;
         }
         await new Promise((resolve) =>
@@ -155,6 +160,14 @@ export class BrowserManager {
         );
       }
     }
+  }
+
+  protected async removeUserDataDir(userDataDir: string | null) {
+    return this.removeSessionDir(userDataDir, 'user-data-dir');
+  }
+
+  protected async removeScratchDir(scratchDir: string | null) {
+    return this.removeSessionDir(scratchDir, 'scratch-dir');
   }
 
   protected async onNewPage(req: Request, page: Page) {
@@ -486,6 +499,10 @@ export class BrowserManager {
           this.log.debug(`Deleting "${session.userDataDir}" user-data-dir`);
           await this.removeUserDataDir(session.userDataDir);
         }
+        // Unconditional: the scratch dir is browserless-owned even when the
+        // caller brought their own data dir. Ordered after browser.close() for
+        // the same reason as the data dir — Chrome releases its handles first.
+        await this.removeScratchDir(session.scratchDir);
       }
     }
   }
@@ -718,6 +735,20 @@ export class BrowserManager {
         ? await generateDataDir(undefined, this.config)
         : null);
 
+    // Give the browser its own TMPDIR so the scratch it abandons on SIGKILL is
+    // inside a directory this session owns, instead of loose in the shared temp
+    // dir where nothing can reclaim it. TMPDIR is applied last: `launch` is a
+    // caller passthrough, and a session must not redirect its own scratch back
+    // into the shared temp dir.
+    const scratchDir = await generateScratchDir(undefined, this.config);
+    if (scratchDir) {
+      (launchOptions as BrowserServerOptions).env = {
+        ...process.env,
+        ...(launchOptions as BrowserServerOptions).env,
+        TMPDIR: scratchDir,
+      };
+    }
+
     const proxyServerArg = launchOptions.args?.find((arg) =>
       arg.includes('--proxy-server='),
     );
@@ -783,6 +814,9 @@ export class BrowserManager {
       if (!manualUserDataDir && userDataDir) {
         await this.removeUserDataDir(userDataDir);
       }
+      // Owned by browserless regardless of who supplied the data dir, so it is
+      // reclaimed unconditionally.
+      await this.removeScratchDir(scratchDir);
       throw err;
     }
 
@@ -796,6 +830,7 @@ export class BrowserManager {
       numbConnected: 1,
       resolver: noop,
       routePath: router.path,
+      scratchDir,
       startedOn: Date.now(),
       trackingId,
       ttl: 0,

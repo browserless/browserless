@@ -1,8 +1,13 @@
 import { expect } from 'chai';
+import fs from 'fs/promises';
 import { ServerResponse } from 'http';
 import { Socket } from 'net';
+import os from 'os';
+import path from 'path';
 import {
+  Config,
   contentTypes,
+  generateScratchDir,
   getFinalPathSegment,
   getPageContent,
   toSetContentOptions,
@@ -253,5 +258,60 @@ describe('Utils', () => {
         }),
       ).to.deep.equal({});
     });
+  });
+});
+
+describe('#generateScratchDir', () => {
+  const config = new Config();
+
+  after(async () => {
+    await fs.rm(config.getScratchDir(), { recursive: true, force: true });
+  });
+
+  it('creates the directory under the configured scratch root', async () => {
+    const scratchDir = await generateScratchDir(undefined, config);
+
+    expect(scratchDir).to.be.a('string');
+    expect(path.dirname(scratchDir!)).to.equal(config.getScratchDir());
+    await fs.access(scratchDir!);
+  });
+
+  it('defaults the scratch root to a sibling of the data-dir root', () => {
+    expect(config.getScratchDir()).to.equal(
+      path.join(os.tmpdir(), 'browserless-scratch-dirs'),
+    );
+  });
+
+  /**
+   * Chrome's process singleton puts a unix socket beneath TMPDIR and appends
+   * ~45 bytes of its own, which sun_path caps at 108 in total. A full 36-char
+   * session id here made Chrome exit at startup with "Socket path too long".
+   */
+  it('shortens the session id so a unix socket still fits beneath it', async () => {
+    const sessionId = 'f0cb34d8-a697-4326-ae72-b71217b69f04';
+    const scratchDir = await generateScratchDir(sessionId, config);
+    const segment = path.basename(scratchDir!);
+
+    expect(segment).to.have.length.of.at.most(16);
+    expect(segment).to.not.equal(sessionId);
+    // Still derived from the session, so scratch stays attributable.
+    expect(sessionId.replace(/-/g, '')).to.include(segment);
+  });
+
+  it('returns null rather than throwing when the root cannot be created', async () => {
+    const unwritable = new Config();
+    // A path under a regular file can never be created.
+    const blocker = path.join(os.tmpdir(), `scratch-blocker-${Date.now()}`);
+    await fs.writeFile(blocker, '');
+    (unwritable as unknown as { scratchDir: string }).scratchDir = path.join(
+      blocker,
+      'nested',
+    );
+
+    try {
+      expect(await generateScratchDir(undefined, unwritable)).to.equal(null);
+    } finally {
+      await fs.rm(blocker, { force: true });
+    }
   });
 });

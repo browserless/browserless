@@ -229,6 +229,10 @@ export class Config extends EventEmitter {
     ? untildify(process.env.DATA_DIR)
     : path.join(tmpdir(), 'browserless-data-dirs');
 
+  protected scratchDir = process.env.SCRATCH_DIR
+    ? untildify(process.env.SCRATCH_DIR)
+    : path.join(tmpdir(), 'browserless-scratch-dirs');
+
   protected metricsJSONPath = process.env.METRICS_JSON_PATH
     ? untildify(process.env.METRICS_JSON_PATH)
     : path.join(tmpdir(), 'browserless-metrics.json');
@@ -520,6 +524,25 @@ export class Config extends EventEmitter {
     }
 
     return this.downloadsDir;
+  }
+
+  /**
+   * Root under which each session gets its own directory to use as TMPDIR.
+   *
+   * Chromium writes its scratch — ScopedTempDir, component-updater fetches,
+   * crashpad — into `base::GetTempDir()`, and abandons all of it when the
+   * process exits on SIGKILL, which is how a browser that ignores SIGTERM is
+   * ended. In the shared temp dir that scratch is unreclaimable: it sits outside
+   * both getDataDir() and getDownloadsDir(), so nothing knows it exists and it
+   * survives every restart.
+   *
+   * Deliberately a sibling of the data-dir root rather than a child of the
+   * session's user-data dir: a caller-supplied user-data dir is the caller's to
+   * manage and is never removed here, so scratch nested inside one would
+   * accumulate there for the life of that profile.
+   */
+  public getScratchDir(): string {
+    return this.scratchDir;
   }
 
   /**

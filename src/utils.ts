@@ -382,6 +382,40 @@ export const generateDataDir = async (
   return dataDirPath;
 };
 
+/**
+ * Create this session's scratch directory, to be handed to the browser as
+ * TMPDIR. Returns null when it cannot be created: a session that launches with
+ * the inherited temp dir leaks its scratch, which is worse than containing it
+ * but much better than failing the launch outright.
+ *
+ * The directory name is a short slice of the session id, NOT the whole thing.
+ * Chrome's process singleton puts a unix socket beneath TMPDIR and appends ~45
+ * bytes of its own ("/org.chromium.Chromium.XXXXXX/SingletonSocket"); a full
+ * 36-char uuid here pushes the total past sun_path's 108-byte cap and Chrome
+ * exits at startup with "Socket path too long". 48 bits is ample against
+ * collision between concurrent sessions, which is all this must be unique
+ * across.
+ */
+export const generateScratchDir = async (
+  sessionId: string = id(),
+  config: Config,
+): Promise<string | null> => {
+  const scratchDirPath = path.join(
+    config.getScratchDir(),
+    sessionId.replace(/-/g, '').slice(0, 12),
+  );
+
+  try {
+    await fs.mkdir(scratchDirPath, { recursive: true });
+    return scratchDirPath;
+  } catch (err) {
+    debug(
+      `Error creating scratch directory "${scratchDirPath}", the browser will use the shared temp dir: ${err}`,
+    );
+    return null;
+  }
+};
+
 export const readBody = async (
   req: Request,
   maxSize: number = 10485760,
