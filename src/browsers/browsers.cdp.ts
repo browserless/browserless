@@ -35,13 +35,21 @@ puppeteerStealth.use(
 /**
  * Chrome's component updater fetches into scratch directories under
  * `base::GetTempDir()` — the shared system temp dir, not the session's
- * user-data dir. Every session launches on a cold profile, so the whole
- * component set (CRLSet, Safe Browsing, Subresource Filter, First-Party Sets,
- * …) is re-downloaded per launch, and the scratch is only unlinked by
- * `ScopedTempDir`'s destructor — which never runs when Chrome exits on SIGKILL,
- * as it does whenever `puppeteer.close()` escalates. The orphans land outside
- * both getDataDir() and getDownloadsDir(), so nothing reclaims them: a busy
+ * user-data dir. A session on a fresh data dir finds no component cache and
+ * re-downloads the whole set (CRLSet, Safe Browsing, Subresource Filter,
+ * First-Party Sets, …), and that scratch is only unlinked by `ScopedTempDir`'s
+ * destructor — which never runs when Chrome exits on SIGKILL, as it does
+ * whenever `puppeteer.close()` escalates. The orphans land outside both
+ * getDataDir() and getDownloadsDir(), so nothing reclaims them: a busy
  * deployment filled 125GB of /tmp in two hours this way.
+ *
+ * Applied unconditionally, including when a caller supplies its own
+ * `userDataDir`. Component refresh is not something a session should be doing:
+ * it spends bandwidth mid-run and makes the browser's behaviour vary between
+ * otherwise identical automation runs. Updated component data reaches
+ * deployments through a new browser build in a new image, which is the only
+ * refresh channel that is reproducible. Persistent profiles are also the
+ * longest-lived sessions, so exempting them would leak the most scratch.
  *
  * Not expressible through `--disable-features`; the updater is gated on this
  * top-level switch. Puppeteer's `defaultArgs` covers the sibling case
