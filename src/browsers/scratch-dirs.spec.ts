@@ -56,10 +56,13 @@ describe('Browser scratch directories', function () {
     await browserless.stop();
   });
 
-  const session = async () => {
-    const browser = await puppeteer.connect({
+  const connect = () =>
+    puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chromium?token=6R0W53R135510`,
     });
+
+  const session = async () => {
+    const browser = await connect();
     const page = await browser.newPage();
     await page.goto('about:blank');
     await browser.close();
@@ -91,5 +94,36 @@ describe('Browser scratch directories', function () {
     } while (Date.now() < deadline);
 
     expect(left).to.deep.equal([]);
+  });
+
+  /**
+   * The TMPDIR override is merged over `process.env`, since both launchers
+   * replace the child environment wholesale rather than merging. That merged
+   * object must never reach the session record: /sessions serves
+   * `launchOptions` verbatim, so storing it there would publish TOKEN and every
+   * other host credential to anyone who can read the endpoint.
+   */
+  it('does not publish the browser environment through /sessions', async () => {
+    process.env.SCRATCH_SPEC_SECRET = 'must-not-be-served';
+    const browser = await connect();
+
+    try {
+      const res = await fetch(
+        'http://localhost:3000/sessions?token=6R0W53R135510',
+      );
+      const body = await res.text();
+      const sessions = JSON.parse(body) as Array<{
+        launchOptions?: Record<string, unknown>;
+      }>;
+
+      expect(sessions).to.have.length.greaterThan(0);
+      for (const s of sessions) {
+        expect(s.launchOptions ?? {}).to.not.have.property('env');
+      }
+      expect(body).to.not.include('must-not-be-served');
+    } finally {
+      delete process.env.SCRATCH_SPEC_SECRET;
+      await browser.close();
+    }
   });
 });

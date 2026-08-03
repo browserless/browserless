@@ -439,6 +439,9 @@ export interface BrowserServerOptions {
    * playwright.launchServer. Set server-side to give the session its own TMPDIR
    * (see generateScratchDir); a caller-supplied value is merged under it, since
    * a session must not be able to point its scratch back at the shared temp dir.
+   *
+   * That merge happens on the object handed to `launch` only. It is kept off
+   * the session's stored `launchOptions`, which /sessions serves verbatim.
    */
   env?: Record<string, string | undefined>;
   headless?: boolean;

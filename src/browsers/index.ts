@@ -740,14 +740,21 @@ export class BrowserManager {
     // dir where nothing can reclaim it. TMPDIR is applied last: `launch` is a
     // caller passthrough, and a session must not redirect its own scratch back
     // into the shared temp dir.
+    //
+    // Kept out of `launchOptions`, which is stored on the session and served
+    // by /sessions: this merge carries the whole server environment, so
+    // writing it there would publish TOKEN and any host credentials. It is
+    // handed to `launch` alone. The spread of `process.env` is required
+    // because both launchers replace the child environment wholesale when
+    // `env` is given rather than merging it over their own default.
     const scratchDir = await generateScratchDir(undefined, this.config);
-    if (scratchDir) {
-      (launchOptions as BrowserServerOptions).env = {
-        ...process.env,
-        ...(launchOptions as BrowserServerOptions).env,
-        TMPDIR: scratchDir,
-      };
-    }
+    const browserEnv = scratchDir
+      ? {
+          ...process.env,
+          ...(launchOptions as BrowserServerOptions).env,
+          TMPDIR: scratchDir,
+        }
+      : (launchOptions as BrowserServerOptions).env;
 
     const proxyServerArg = launchOptions.args?.find((arg) =>
       arg.includes('--proxy-server='),
@@ -792,7 +799,7 @@ export class BrowserManager {
 
     try {
       await browser.launch({
-        options: launchOptions as BrowserServerOptions,
+        options: { ...launchOptions, env: browserEnv } as BrowserServerOptions,
         pwVersion,
         req,
         stealth: launchOptions?.stealth,
