@@ -264,6 +264,13 @@ describe('Utils', () => {
 describe('#generateScratchDir', () => {
   const config = new Config();
 
+  before(async () => {
+    const scratchRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'browserless-scratch-spec-'),
+    );
+    (config as unknown as { scratchDir: string }).scratchDir = scratchRoot;
+  });
+
   after(async () => {
     await fs.rm(config.getScratchDir(), { recursive: true, force: true });
   });
@@ -277,7 +284,7 @@ describe('#generateScratchDir', () => {
   });
 
   it('defaults the scratch root to a sibling of the data-dir root', () => {
-    expect(config.getScratchDir()).to.equal(
+    expect(new Config().getScratchDir()).to.equal(
       path.join(os.tmpdir(), 'browserless-scratch-dirs'),
     );
   });
@@ -298,10 +305,13 @@ describe('#generateScratchDir', () => {
     expect(sessionId.replace(/-/g, '')).to.include(segment);
   });
 
-  it('returns null rather than throwing when the root cannot be created', async () => {
+  it('throws when the root cannot be created', async () => {
     const unwritable = new Config();
     // A path under a regular file can never be created.
-    const blocker = path.join(os.tmpdir(), `scratch-blocker-${Date.now()}`);
+    const blockerRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'scratch-blocker-'),
+    );
+    const blocker = path.join(blockerRoot, 'file');
     await fs.writeFile(blocker, '');
     (unwritable as unknown as { scratchDir: string }).scratchDir = path.join(
       blocker,
@@ -309,9 +319,15 @@ describe('#generateScratchDir', () => {
     );
 
     try {
-      expect(await generateScratchDir(undefined, unwritable)).to.equal(null);
+      let error: Error | undefined;
+      await generateScratchDir(undefined, unwritable).catch((err) => {
+        error = err;
+      });
+
+      expect(error).to.be.instanceOf(Error);
+      expect(error?.message).to.include('Error creating scratch directory');
     } finally {
-      await fs.rm(blocker, { force: true });
+      await fs.rm(blockerRoot, { recursive: true, force: true });
     }
   });
 });

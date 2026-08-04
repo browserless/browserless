@@ -747,14 +747,22 @@ export class BrowserManager {
     // handed to `launch` alone. The spread of `process.env` is required
     // because both launchers replace the child environment wholesale when
     // `env` is given rather than merging it over their own default.
-    const scratchDir = await generateScratchDir(undefined, this.config);
-    const browserEnv = scratchDir
-      ? {
-          ...process.env,
-          ...(launchOptions as BrowserServerOptions).env,
-          TMPDIR: scratchDir,
-        }
-      : (launchOptions as BrowserServerOptions).env;
+    let scratchDir: string;
+    try {
+      scratchDir = await generateScratchDir(undefined, this.config);
+    } catch (err) {
+      // CDP's auto-generated data dir already exists at this point, but no
+      // BrowserlessSession exists yet to route through the normal close path.
+      if (!manualUserDataDir && userDataDir) {
+        await this.removeUserDataDir(userDataDir);
+      }
+      throw err;
+    }
+    const browserEnv = {
+      ...process.env,
+      ...(launchOptions as BrowserServerOptions).env,
+      TMPDIR: scratchDir,
+    };
 
     const proxyServerArg = launchOptions.args?.find((arg) =>
       arg.includes('--proxy-server='),

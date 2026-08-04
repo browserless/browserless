@@ -384,9 +384,9 @@ export const generateDataDir = async (
 
 /**
  * Create this session's scratch directory, to be handed to the browser as
- * TMPDIR. Returns null when it cannot be created: a session that launches with
- * the inherited temp dir leaks its scratch, which is worse than containing it
- * but much better than failing the launch outright.
+ * TMPDIR. Fails the session launch when it cannot be created: falling back to
+ * the inherited shared temp dir would restore the disk leak this isolation is
+ * intended to prevent.
  *
  * The directory name is a short slice of the session id, NOT the whole thing.
  * Chrome's process singleton puts a unix socket beneath TMPDIR and appends ~45
@@ -399,21 +399,19 @@ export const generateDataDir = async (
 export const generateScratchDir = async (
   sessionId: string = id(),
   config: Config,
-): Promise<string | null> => {
+): Promise<string> => {
   const scratchDirPath = path.join(
     config.getScratchDir(),
     sessionId.replace(/-/g, '').slice(0, 12),
   );
 
-  try {
-    await fs.mkdir(scratchDirPath, { recursive: true });
-    return scratchDirPath;
-  } catch (err) {
-    debug(
-      `Error creating scratch directory "${scratchDirPath}", the browser will use the shared temp dir: ${err}`,
+  await fs.mkdir(scratchDirPath, { recursive: true }).catch((err) => {
+    throw new ServerError(
+      `Error creating scratch directory "${scratchDirPath}": ${err}`,
     );
-    return null;
-  }
+  });
+
+  return scratchDirPath;
 };
 
 export const readBody = async (

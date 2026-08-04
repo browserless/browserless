@@ -8,6 +8,7 @@ import {
 import { expect } from 'chai';
 import fs from 'fs/promises';
 import os from 'os';
+import path from 'path';
 import puppeteer from 'puppeteer-core';
 
 /**
@@ -63,9 +64,12 @@ describe('Browser scratch directories', function () {
 
   const session = async () => {
     const browser = await connect();
-    const page = await browser.newPage();
-    await page.goto('about:blank');
-    await browser.close();
+    try {
+      const page = await browser.newPage();
+      await page.goto('about:blank');
+    } finally {
+      await browser.close();
+    }
   };
 
   it('leaves no browser scratch in the shared temp dir', async () => {
@@ -79,21 +83,81 @@ describe('Browser scratch directories', function () {
   it('removes the session scratch dir once the session ends', async () => {
     const scratchRoot = config.getScratchDir();
     const before = new Set(await listTemp(scratchRoot));
+    const browser = await connect();
+    let scratchDir: string;
 
-    await session();
+    try {
+      const page = await browser.newPage();
+      await page.goto('about:blank');
+
+      const created = (await fs.readdir(scratchRoot)).filter(
+        (entry) => !before.has(entry),
+      );
+      expect(created).to.have.length(1);
+      scratchDir = path.join(scratchRoot, created[0]);
+      await fs.access(scratchDir);
+    } finally {
+      await browser.close();
+    }
 
     // The client's close() resolves when the socket does; the server-side
     // teardown that reclaims the dir runs after that, so poll rather than
     // asserting on the instant the connection drops.
-    let left: string[] = [];
+    let removed = false;
     const deadline = Date.now() + 10_000;
     do {
-      left = (await listTemp(scratchRoot)).filter((e) => !before.has(e));
-      if (!left.length) break;
+      try {
+        await fs.access(scratchDir!);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw err;
+        }
+        removed = true;
+        break;
+      }
       await new Promise((resolve) => setTimeout(resolve, 250));
     } while (Date.now() < deadline);
 
-    expect(left).to.deep.equal([]);
+    expect(removed).to.equal(true);
+  });
+
+  it('removes the generated data dir when scratch creation fails', async () => {
+    const dataRoot = await config.getDataDir();
+    const before = new Set(await fs.readdir(dataRoot));
+    const originalScratchRoot = config.getScratchDir();
+    const blockerRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'scratch-blocker-'),
+    );
+    const blocker = path.join(blockerRoot, 'file');
+    let createdDataDirs: string[] = [];
+
+    await fs.writeFile(blocker, '');
+    (config as unknown as { scratchDir: string }).scratchDir = path.join(
+      blocker,
+      'nested',
+    );
+
+    try {
+      let error: unknown;
+      await connect().catch((err) => {
+        error = err;
+      });
+      createdDataDirs = (await fs.readdir(dataRoot)).filter(
+        (entry) => !before.has(entry),
+      );
+
+      expect(error).to.not.equal(undefined);
+      expect(createdDataDirs).to.deep.equal([]);
+    } finally {
+      (config as unknown as { scratchDir: string }).scratchDir =
+        originalScratchRoot;
+      await Promise.all(
+        createdDataDirs.map((entry) =>
+          fs.rm(path.join(dataRoot, entry), { recursive: true, force: true }),
+        ),
+      );
+      await fs.rm(blockerRoot, { recursive: true, force: true });
+    }
   });
 
   /**
@@ -104,10 +168,12 @@ describe('Browser scratch directories', function () {
    * other host credential to anyone who can read the endpoint.
    */
   it('does not publish the browser environment through /sessions', async () => {
-    process.env.SCRATCH_SPEC_SECRET = 'must-not-be-served';
-    const browser = await connect();
+    const originalSecret = process.env.SCRATCH_SPEC_SECRET;
+    let browser: Awaited<ReturnType<typeof connect>> | undefined;
 
     try {
+      process.env.SCRATCH_SPEC_SECRET = 'must-not-be-served';
+      browser = await connect();
       const res = await fetch(
         'http://localhost:3000/sessions?token=6R0W53R135510',
       );
@@ -122,8 +188,12 @@ describe('Browser scratch directories', function () {
       }
       expect(body).to.not.include('must-not-be-served');
     } finally {
-      delete process.env.SCRATCH_SPEC_SECRET;
-      await browser.close();
+      if (originalSecret === undefined) {
+        delete process.env.SCRATCH_SPEC_SECRET;
+      } else {
+        process.env.SCRATCH_SPEC_SECRET = originalSecret;
+      }
+      await browser?.close();
     }
   });
 });
