@@ -32,6 +32,31 @@ puppeteerStealth.use(
   StealthPlugin() as unknown as Parameters<typeof puppeteerStealth.use>[0],
 );
 
+/**
+ * Chrome's component updater fetches into scratch directories under
+ * `base::GetTempDir()` — the shared system temp dir, not the session's
+ * user-data dir. A session on a fresh data dir finds no component cache and
+ * re-downloads the whole set (CRLSet, Safe Browsing, Subresource Filter,
+ * First-Party Sets, …), and that scratch is only unlinked by `ScopedTempDir`'s
+ * destructor — which never runs when Chrome exits on SIGKILL, as it does
+ * whenever `puppeteer.close()` escalates. The orphans land outside both
+ * getDataDir() and getDownloadsDir(), so nothing reclaims them: a busy
+ * deployment filled 125GB of /tmp in two hours this way.
+ *
+ * Applied unconditionally, including when a caller supplies its own
+ * `userDataDir`. Component refresh is not something a session should be doing:
+ * it spends bandwidth mid-run and makes the browser's behaviour vary between
+ * otherwise identical automation runs. Updated component data reaches
+ * deployments through a new browser build in a new image, which is the only
+ * refresh channel that is reproducible. Persistent profiles are also the
+ * longest-lived sessions, so exempting them would leak the most scratch.
+ *
+ * Not expressible through `--disable-features`; the updater is gated on this
+ * top-level switch. Puppeteer's `defaultArgs` covers the sibling case
+ * (`--disable-background-networking`) but not this one.
+ */
+export const disableComponentUpdaterArg = '--disable-component-update';
+
 export class ChromiumCDP extends EventEmitter {
   protected config: Config;
   protected userDataDir: string | null;
@@ -256,6 +281,7 @@ export class ChromiumCDP extends EventEmitter {
         // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
         // This is needed to allow WebSocket connections to localhost.
         `--disable-features=LocalNetworkAccessChecks`,
+        disableComponentUpdaterArg,
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),

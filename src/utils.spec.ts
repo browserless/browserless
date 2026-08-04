@@ -1,8 +1,13 @@
 import { expect } from 'chai';
+import fs from 'fs/promises';
 import { ServerResponse } from 'http';
 import { Socket } from 'net';
+import os from 'os';
+import path from 'path';
 import {
+  Config,
   contentTypes,
+  generateScratchDir,
   getFinalPathSegment,
   getPageContent,
   toSetContentOptions,
@@ -253,5 +258,87 @@ describe('Utils', () => {
         }),
       ).to.deep.equal({});
     });
+  });
+});
+
+describe('#generateScratchDir', () => {
+  const config = new Config();
+
+  before(async () => {
+    const scratchRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'browserless-scratch-spec-'),
+    );
+    (config as unknown as { scratchDir: string }).scratchDir = scratchRoot;
+  });
+
+  after(async () => {
+    await fs.rm(config.getScratchDir(), { recursive: true, force: true });
+  });
+
+  it('creates the directory under the configured scratch root', async () => {
+    const scratchDir = await generateScratchDir(undefined, config);
+
+    expect(scratchDir).to.be.a('string');
+    expect(path.dirname(scratchDir!)).to.equal(config.getScratchDir());
+    await fs.access(scratchDir!);
+  });
+
+  it('defaults the scratch root to a sibling of the data-dir root', () => {
+    const originalScratchDir = process.env.SCRATCH_DIR;
+
+    try {
+      delete process.env.SCRATCH_DIR;
+      expect(new Config().getScratchDir()).to.equal(
+        path.join(os.tmpdir(), 'browserless-scratch-dirs'),
+      );
+    } finally {
+      if (originalScratchDir === undefined) {
+        delete process.env.SCRATCH_DIR;
+      } else {
+        process.env.SCRATCH_DIR = originalScratchDir;
+      }
+    }
+  });
+
+  /**
+   * Chrome's process singleton puts a unix socket beneath TMPDIR and appends
+   * ~45 bytes of its own, which sun_path caps at 108 in total. A full 36-char
+   * session id here made Chrome exit at startup with "Socket path too long".
+   */
+  it('shortens the session id so a unix socket still fits beneath it', async () => {
+    const sessionId = 'f0cb34d8-a697-4326-ae72-b71217b69f04';
+    const scratchDir = await generateScratchDir(sessionId, config);
+    const segment = path.basename(scratchDir!);
+
+    expect(segment).to.have.length.of.at.most(16);
+    expect(segment).to.not.equal(sessionId);
+    // Still derived from the session, so scratch stays attributable.
+    expect(sessionId.replace(/-/g, '')).to.include(segment);
+  });
+
+  it('throws when the root cannot be created', async () => {
+    const unwritable = new Config();
+    // A path under a regular file can never be created.
+    const blockerRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'scratch-blocker-'),
+    );
+    const blocker = path.join(blockerRoot, 'file');
+    await fs.writeFile(blocker, '');
+    (unwritable as unknown as { scratchDir: string }).scratchDir = path.join(
+      blocker,
+      'nested',
+    );
+
+    try {
+      let error: Error | undefined;
+      await generateScratchDir(undefined, unwritable).catch((err) => {
+        error = err;
+      });
+
+      expect(error).to.be.instanceOf(Error);
+      expect(error?.message).to.include('Error creating scratch directory');
+    } finally {
+      await fs.rm(blockerRoot, { recursive: true, force: true });
+    }
   });
 });
