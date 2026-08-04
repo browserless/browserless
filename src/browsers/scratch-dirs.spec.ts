@@ -4,6 +4,7 @@ import {
   Config,
   Metrics,
   availableBrowsers,
+  generateScratchDir,
 } from '@browserless.io/browserless';
 import { expect } from 'chai';
 import fs from 'fs/promises';
@@ -138,15 +139,24 @@ describe('Browser scratch directories', function () {
     );
 
     try {
-      let error: unknown;
+      let scratchError: Error | undefined;
+      await generateScratchDir(undefined, config).catch((err) => {
+        scratchError = err;
+      });
+      expect(scratchError).to.be.instanceOf(Error);
+      expect(scratchError?.message).to.include(
+        'Error creating scratch directory',
+      );
+
+      let connectionError: unknown;
       await connect().catch((err) => {
-        error = err;
+        connectionError = err;
       });
       createdDataDirs = (await fs.readdir(dataRoot)).filter(
         (entry) => !before.has(entry),
       );
 
-      expect(error).to.not.equal(undefined);
+      expect(connectionError).to.not.equal(undefined);
       expect(createdDataDirs).to.deep.equal([]);
     } finally {
       (config as unknown as { scratchDir: string }).scratchDir =

@@ -284,9 +284,20 @@ describe('#generateScratchDir', () => {
   });
 
   it('defaults the scratch root to a sibling of the data-dir root', () => {
-    expect(new Config().getScratchDir()).to.equal(
-      path.join(os.tmpdir(), 'browserless-scratch-dirs'),
-    );
+    const originalScratchDir = process.env.SCRATCH_DIR;
+
+    try {
+      delete process.env.SCRATCH_DIR;
+      expect(new Config().getScratchDir()).to.equal(
+        path.join(os.tmpdir(), 'browserless-scratch-dirs'),
+      );
+    } finally {
+      if (originalScratchDir === undefined) {
+        delete process.env.SCRATCH_DIR;
+      } else {
+        process.env.SCRATCH_DIR = originalScratchDir;
+      }
+    }
   });
 
   /**
