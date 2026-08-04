@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.55.3](https://github.com/browserless/browserless/compare/v2.55.2...v2.55.3) (2026-08-04)
+
+
+### Bug Fixes
+
+* contain browser scratch in a per-session TMPDIR ([#5525](https://github.com/browserless/browserless/issues/5525)) ([b4e8210](https://github.com/browserless/browserless/commit/b4e821071710cbe8040d69eb617ec4ae6108173f))
+
+
+### Build System & Runtime
+
+* bump Node to 24.19.0 ([#5530](https://github.com/browserless/browserless/issues/5530)) ([e898a48](https://github.com/browserless/browserless/commit/e898a4850c19eeb549313a75b1f8c9f1b507755a))
+
 ## [2.55.2](https://github.com/browserless/browserless/compare/v2.55.1...v2.55.2) (2026-07-30)
 
 
