@@ -1,5 +1,6 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
-import puppeteer, { Connection } from 'puppeteer-core';
+import puppeteer from 'puppeteer-core';
+import { Connection } from 'puppeteer-core/internal/cdp/Connection.js';
 import { NodeWebSocketTransport } from 'puppeteer-core/internal/node/NodeWebSocketTransport.js';
 import { expect } from 'chai';
 
