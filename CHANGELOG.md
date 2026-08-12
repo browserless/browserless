@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.55.4](https://github.com/browserless/browserless/compare/v2.55.3...v2.55.4) (2026-08-12)
+
+
+### Bug Fixes
+
+* **fonts:** use metric-compatible clones so PDFs render correctly ([#5537](https://github.com/browserless/browserless/issues/5537)) ([7ff5582](https://github.com/browserless/browserless/commit/7ff5582e942c10368564ba4e2c72479748c16d91))
+
 ## [2.55.3](https://github.com/browserless/browserless/compare/v2.55.2...v2.55.3) (2026-08-04)
 
 
