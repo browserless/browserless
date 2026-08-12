@@ -95,7 +95,7 @@
     "chai": "^6.2.2",
     "cross-env": "^10.1.0",
     "env-cmd": "^11.0.0",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "esbuild-plugins-node-modules-polyfill": "^1.8.3",
     "eslint": "^10.8.1",
     "gunzip-maybe": "^1.4.2",
