@@ -184,6 +184,17 @@ export interface SystemQueryParameters {
   blockAds?: boolean;
 
   /**
+   * When `blockAds` is enabled, restricts ad-blocking to the named uBlock
+   * ruleset ids instead of loading the full ruleset set. Fewer rulesets means
+   * a faster cold launch. Ignored when `blockAds` is false.
+   *
+   * Accepts a comma-separated list (`easylist,ublock-filters`) or JSON-array
+   * text (`["easylist"]`), matching the parameter's existing behaviour on
+   * `/pdf`, `/screenshot`, `/chromium/unblock`, BQL and the connect routes.
+   */
+  blockAdsInclude?: string;
+
+  /**
    * Launch options, which can be either an object
    * of puppeteer.launch options or playwright.launchServer
    * options, depending on the API. Must be either JSON

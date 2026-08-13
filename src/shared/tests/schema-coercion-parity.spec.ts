@@ -141,6 +141,25 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     expect(v.launch).to.equal(encoded);
   });
 
+  it('accepts scalar blockAdsInclude while keeping route query schemas strict', async function () {
+    const schema = compileSchema(await loadSchema('content.post.query.json'));
+
+    const accepted = schema.validate({
+      blockAds: 'true',
+      blockAdsInclude: 'easylist,ublock-filters',
+    });
+    expect(accepted.error, accepted.error?.message).to.be.undefined;
+    expect(accepted.value).to.deep.include({
+      blockAds: true,
+      blockAdsInclude: 'easylist,ublock-filters',
+    });
+
+    const rejected = schema.validate({ definitelyNotAParam: '1' });
+    expect(rejected.error?.message).to.include(
+      'must NOT have additional properties',
+    );
+  });
+
   // Joi rejects empty strings for boolean fields; the prior implementation accidentally
   // coerced "" -> true. Lock the rejection in so the bug cannot regress.
   it('rejects empty string for a nested boolean field', async function () {
