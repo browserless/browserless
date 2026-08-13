@@ -1,12 +1,15 @@
 import { expect } from 'chai';
+import { execFile } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { promisify } from 'util';
 
 import { compileSchema } from '../utils/schema-validator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const routes = path.resolve(__dirname, '../../routes/chromium/http');
+const execFileAsync = promisify(execFile);
 
 /**
  * Locks in the coercion contract that matches joi+enjoi (the previous validator).
@@ -23,6 +26,8 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
   // Single-browser docker images don't ship chromium route schemas;
   // skip the suite in that case so firefox/webkit/edge CI doesn't choke.
   before(async function () {
+    await execFileAsync(process.execPath, ['scripts/build-schemas.js']);
+
     try {
       await fs.access(path.join(routes, 'pdf.post.body.json'));
     } catch {
