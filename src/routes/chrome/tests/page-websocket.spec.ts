@@ -1,8 +1,28 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import puppeteer from 'puppeteer-core';
-import { Connection } from 'puppeteer-core/internal/cdp/Connection.js';
-import { NodeWebSocketTransport } from 'puppeteer-core/internal/node/NodeWebSocketTransport.js';
+import { WebSocket } from 'ws';
 import { expect } from 'chai';
+
+// Sends a single CDP command over a raw WebSocket, resolving with the response
+// to that command, or rejecting when the connection can't be established. The
+// page proxy also forwards CDP events, so responses are matched on their id.
+const cdpSend = (url: string, method: string) =>
+  new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    ws.once('error', reject);
+    ws.once('open', () => ws.send(JSON.stringify({ id: 1, method })));
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.id !== 1) return;
+        ws.close();
+        resolve(message);
+      } catch (err: unknown) {
+        ws.close();
+        reject(err);
+      }
+    });
+  });
 
 describe('WebSocket Page API', function () {
   let browserless: Browserless;
@@ -33,14 +53,8 @@ describe('WebSocket Page API', function () {
     const pageId = page.target()._targetId;
     const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
 
-    // Connect to raw page target
-    const cdp = new Connection(
-      webSocketDebuggerUrl,
-      await NodeWebSocketTransport.create(webSocketDebuggerUrl),
-    );
-
-    // Send a command
-    const result = await cdp.send('Page.enable');
+    // Connect to raw page target and send a command
+    const result = await cdpSend(webSocketDebuggerUrl, 'Page.enable');
     await browser.close();
     expect(result);
   });
@@ -57,15 +71,8 @@ describe('WebSocket Page API', function () {
       },
     ).then((r) => r.json());
 
-    // Connect to raw page target
-    const cdp = new Connection(
-      webSocketDebuggerUrl,
-      await NodeWebSocketTransport.create(webSocketDebuggerUrl),
-    );
-
-    // Send a command
-    const result = await cdp.send('Page.enable');
-    cdp.dispose();
+    // Connect to raw page target and send a command
+    const result = await cdpSend(webSocketDebuggerUrl, 'Page.enable');
     expect(result);
   });
 
@@ -86,10 +93,7 @@ describe('WebSocket Page API', function () {
 
     // Connect to raw page target without authorization
     try {
-      new Connection(
-        webSocketDebuggerUrl,
-        await NodeWebSocketTransport.create(webSocketDebuggerUrl),
-      );
+      await cdpSend(webSocketDebuggerUrl, 'Page.enable');
     } catch (err: unknown) {
       //@ts-ignore
       expect(err.message).to.include('401');
@@ -112,10 +116,7 @@ describe('WebSocket Page API', function () {
 
     // Connect to raw page target without authorization
     try {
-      new Connection(
-        webSocketDebuggerUrl,
-        await NodeWebSocketTransport.create(webSocketDebuggerUrl),
-      );
+      await cdpSend(webSocketDebuggerUrl, 'Page.enable');
     } catch (err: unknown) {
       //@ts-ignore
       expect(err.message).to.include('404');

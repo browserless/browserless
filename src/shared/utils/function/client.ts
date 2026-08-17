@@ -7,6 +7,9 @@ type codeHandler = (params: {
   page: Page;
 }) => Promise<unknown>;
 
+// puppeteer-core >= 25.6 requires an explicit Logger on these internals.
+const logger = () => undefined;
+
 export class FunctionRunner {
   protected browser?: Browser;
   protected page?: Page;
@@ -26,8 +29,11 @@ export class FunctionRunner {
   }) {
     console.log(`/function.js: Got endpoint: "${data.browserWSEndpoint}"`);
     const { browserWSEndpoint, code, context, options } = data;
-    const connectionTransport =
-      await BrowserWebSocketTransport.create(browserWSEndpoint);
+    const connectionTransport = await BrowserWebSocketTransport.create(
+      browserWSEndpoint,
+      undefined,
+      logger,
+    );
     const cdpOptions = {
       headers: {
         Host: '127.0.0.1',
@@ -39,6 +45,7 @@ export class FunctionRunner {
       connectionTransport,
       browserWSEndpoint,
       cdpOptions,
+      logger,
     )) as unknown as Browser;
     this.browser.once('disconnected', () => this.stop());
     this.page = await this.browser.newPage();
