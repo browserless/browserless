@@ -183,6 +183,9 @@ export interface SystemQueryParameters {
    */
   blockAds?: boolean;
 
+  /** Ruleset IDs to load when `blockAds` is enabled, as CSV or JSON-array text. */
+  blockAdsInclude?: string;
+
   /**
    * Launch options, which can be either an object
    * of puppeteer.launch options or playwright.launchServer

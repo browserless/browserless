@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { execFileSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -23,6 +24,8 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
   // Single-browser docker images don't ship chromium route schemas;
   // skip the suite in that case so firefox/webkit/edge CI doesn't choke.
   before(async function () {
+    execFileSync(process.execPath, ['scripts/build-schemas.js']);
+
     try {
       await fs.access(path.join(routes, 'pdf.post.body.json'));
     } catch {
@@ -139,6 +142,25 @@ describe('Schema coercion parity (joi+enjoi → ajv)', function () {
     expect(result.error, result.error?.message).to.be.undefined;
     const v = result.value as { launch: string };
     expect(v.launch).to.equal(encoded);
+  });
+
+  it('accepts scalar blockAdsInclude while keeping route query schemas strict', async function () {
+    const schema = compileSchema(await loadSchema('content.post.query.json'));
+
+    const accepted = schema.validate({
+      blockAds: 'true',
+      blockAdsInclude: 'easylist,ublock-filters',
+    });
+    expect(accepted.error, accepted.error?.message).to.be.undefined;
+    expect(accepted.value).to.deep.include({
+      blockAds: true,
+      blockAdsInclude: 'easylist,ublock-filters',
+    });
+
+    const rejected = schema.validate({ definitelyNotAParam: '1' });
+    expect(rejected.error?.message).to.include(
+      'must NOT have additional properties',
+    );
   });
 
   // Joi rejects empty strings for boolean fields; the prior implementation accidentally
