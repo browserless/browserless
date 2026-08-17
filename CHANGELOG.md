@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.56.0](https://github.com/browserless/browserless/compare/v2.55.4...v2.56.0) (2026-08-17)
+
+
+### Features
+
+* **PLT-1402:** accept blockAdsInclude in REST schemas ([#5541](https://github.com/browserless/browserless/issues/5541)) ([1f29e19](https://github.com/browserless/browserless/commit/1f29e1997b40a30bfdca4d12df17cfa33082a263))
+
+
+### Bug Fixes
+
+* **deps:** bump puppeteer-core to 25.7.0 ([#5545](https://github.com/browserless/browserless/issues/5545)) ([888bf45](https://github.com/browserless/browserless/commit/888bf452e0401af5a1dca8aefe5c61224550fc95))
+
 ## [2.55.4](https://github.com/browserless/browserless/compare/v2.55.3...v2.55.4) (2026-08-12)
 
 
