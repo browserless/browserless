@@ -73,7 +73,7 @@
     "playwright-1.60": "npm:playwright-core@1.60.0",
     "playwright-1.61": "npm:playwright-core@1.61.1",
     "playwright-core": "1.62.1",
-    "puppeteer-core": "25.5.0",
+    "puppeteer-core": "25.7.0",
     "queue": "^7.0.0",
     "systeminformation": "^5.33.1",
     "tar-fs": "^3.1.3",
