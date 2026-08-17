@@ -3,16 +3,24 @@ import puppeteer from 'puppeteer-core';
 import { WebSocket } from 'ws';
 import { expect } from 'chai';
 
-// Sends a single CDP command over a raw WebSocket, resolving with the
-// response, or rejecting when the connection can't be established.
+// Sends a single CDP command over a raw WebSocket, resolving with the response
+// to that command, or rejecting when the connection can't be established. The
+// page proxy also forwards CDP events, so responses are matched on their id.
 const cdpSend = (url: string, method: string) =>
   new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     ws.once('error', reject);
     ws.once('open', () => ws.send(JSON.stringify({ id: 1, method })));
-    ws.once('message', (data) => {
-      ws.close();
-      resolve(JSON.parse(data.toString()));
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        if (message.id !== 1) return;
+        ws.close();
+        resolve(message);
+      } catch (err: unknown) {
+        ws.close();
+        reject(err);
+      }
     });
   });
 
