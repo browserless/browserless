@@ -62,7 +62,7 @@
     "ajv": "^8.20.0",
     "debug": "^4.4.1",
     "del": "^8.0.1",
-    "file-type": "^22.0.1",
+    "file-type": "^22.0.2",
     "get-port": "^7.2.0",
     "gradient-string": "^3.0.0",
     "http-proxy": "^1.18.1",
