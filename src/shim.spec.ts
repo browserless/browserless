@@ -207,6 +207,29 @@ describe('Request Shimming', () => {
   });
 
   describe('token shimming', () => {
+    for (const [url, expected] of [
+      [
+        '/profile/%2E/download?token=12345&timeout=5000',
+        '/profile/%2E/download?timeout=5000',
+      ],
+      ['/profile/%2E%2E/download?token=12345', '/profile/%2E%2E/download'],
+      ['wss://localhost?token=12345', '/'],
+      [
+        'https://localhost/profile/%2E/download?token=12345',
+        '/profile/%2E/download',
+      ],
+    ]) {
+      it(`preserves the raw pathname in ${url}`, () => {
+        const request = {
+          url,
+          headers: {},
+        } as unknown as http.IncomingMessage;
+
+        expect(moveTokenToHeader(request)).to.equal(expected);
+        expect(request.headers.authorization).to.equal('Bearer 12345');
+      });
+    }
+
     it('converts token query parameters to an authorization header', () => {
       const url = 'wss://localhost?token=12345';
       const shimmed = moveTokenToHeader({
