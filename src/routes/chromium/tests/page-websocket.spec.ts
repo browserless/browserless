@@ -113,6 +113,28 @@ describe('WebSocket Page API', function () {
     }
   });
 
+  it('rejects non-HTTP(S) targets on direct page WebSockets', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const { webSocketDebuggerUrl } = await fetch(
+      'http://localhost:3000/json/new',
+      { method: 'PUT' },
+    ).then((r) => r.json());
+    const directURL = new URL(webSocketDebuggerUrl);
+    directURL.searchParams.set('url', 'data:text/html,test');
+
+    let error: Error | undefined;
+    try {
+      await cdpSend(directURL.href, 'Page.enable');
+    } catch (err) {
+      error = err as Error;
+    }
+
+    expect(error?.message).to.include('400');
+  });
+
   it('rejects unauthorized page requests', async () => {
     const config = new Config();
     config.setToken('browserless');
