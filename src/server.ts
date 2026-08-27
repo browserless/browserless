@@ -246,6 +246,7 @@ export class HTTPServer extends EventEmitter {
 
   protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
     const request = req as http.IncomingMessage;
+    req.rawUrl = request.url ?? '';
     request.url = moveTokenToHeader(request);
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
@@ -480,6 +481,7 @@ export class HTTPServer extends EventEmitter {
     head: Buffer,
   ) {
     const request = req as http.IncomingMessage;
+    req.rawUrl = request.url ?? '';
     request.url = moveTokenToHeader(request);
 
     this.logger.trace(
