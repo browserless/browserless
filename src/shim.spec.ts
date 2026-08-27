@@ -249,7 +249,7 @@ describe('Request Shimming', () => {
       expect(request.headers.authorization).to.eql('Bearer 12345');
     });
 
-    it("preserves /json/new's raw target after a leading token", () => {
+    it('preserves the raw /json/new target after a leading token', () => {
       const request = {
         url: '/json/new?token=browserless&https://example.com/callback?state=x&token=target-token',
         headers: {},
@@ -263,7 +263,7 @@ describe('Request Shimming', () => {
       expect(request.headers.authorization).to.equal('Bearer browserless');
     });
 
-    it("treats a trailing token as part of /json/new's target", () => {
+    it('treats a trailing token as part of the /json/new target', () => {
       const url =
         '/json/new?https://example.com/callback?state=x&token=target-token';
       const request = {
