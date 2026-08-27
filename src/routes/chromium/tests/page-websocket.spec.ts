@@ -148,6 +148,20 @@ describe('WebSocket Page API', function () {
     }
   });
 
+  it('rejects non-HTTP(S) targets on direct page WebSockets', async () => {
+    await start();
+
+    const { webSocketDebuggerUrl } = await fetch(
+      `http://localhost:${port}/json/new`,
+      { method: 'PUT' },
+    ).then((r) => r.json());
+    const directURL = new URL(webSocketDebuggerUrl);
+    directURL.searchParams.set('url', 'data:text/html,test');
+
+    const error = await cdpError(directURL.href);
+    expect(error?.message, 'expected a 400').to.include('400');
+  });
+
   it('rejects unauthorized page requests unless chrome serves the route', async () => {
     const config = new Config();
     config.setToken('browserless');

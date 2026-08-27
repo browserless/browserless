@@ -1,6 +1,5 @@
 import {
   APITags,
-  BadRequest,
   BrowserlessRoutes,
   CDPJSONPayload,
   HTTPRoute,
@@ -15,6 +14,7 @@ import {
   jsonResponse,
   pageID,
   parseJSONNewTarget,
+  resolveJSONNewTarget,
 } from '@browserless.io/browserless';
 import path from 'path';
 
@@ -48,39 +48,6 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
   path = HTTPRoutes.jsonNew;
   tags = [APITags.browserAPI];
 
-  /**
-   * Validates a caller-supplied navigation target, rejecting anything that is
-   * not an absolute http(s) URL and running the same navigation blocklist the
-   * HTTP rendering routes use.
-   */
-  protected resolveTarget(requested: string): string {
-    let parsed: URL;
-
-    try {
-      parsed = new URL(requested);
-    } catch {
-      throw new BadRequest(
-        `The /json/new target "${requested}" is not a valid absolute URL.`,
-      );
-    }
-
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new BadRequest(
-        `The /json/new target must use http or https, got "${parsed.protocol}".`,
-      );
-    }
-
-    const config = this.config();
-    assertNavigationAllowed(
-      parsed.href,
-      config.getBlockedURLPatterns(),
-      config.getBlockedNetworkRanges(),
-      config.getSelfNavigationHosts(),
-    );
-
-    return parsed.href;
-  }
-
   async handler(req: Request, res: Response): Promise<void> {
     const config = this.config();
 
@@ -92,7 +59,13 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
     const queryStart = rawURL.indexOf('?');
     const requested =
       queryStart === -1 ? null : parseJSONNewTarget(rawURL.slice(queryStart));
-    const target = requested ? this.resolveTarget(requested) : null;
+    const target = requested ? resolveJSONNewTarget(requested) : null;
+    assertNavigationAllowed(
+      target ?? undefined,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+      config.getSelfNavigationHosts(),
+    );
 
     const externalAddress = config.getExternalWebSocketAddress();
     const id = pageID();

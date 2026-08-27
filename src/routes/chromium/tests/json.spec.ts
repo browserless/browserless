@@ -127,15 +127,19 @@ describe('/json/ API', function () {
     await start({ config, metrics });
 
     const res = await fetch(
-      'http://localhost:3000/json/new?token=browserless&http://one.com',
+      'http://localhost:3000/json/new?token=browserless&https://one.com/callback?state=x&token=target-token',
       { method: 'PUT' },
     );
     expect(res.status).to.equal(200);
     const resJSON = await res.json();
 
-    expect(resJSON.url).to.equal('http://one.com/');
+    expect(resJSON.url).to.equal(
+      'https://one.com/callback?state=x&token=target-token',
+    );
     const ws = new URL(resJSON.webSocketDebuggerUrl);
-    expect(ws.searchParams.get('url')).to.equal('http://one.com/');
+    expect(ws.searchParams.get('url')).to.equal(
+      'https://one.com/callback?state=x&token=target-token',
+    );
   });
 
   it('accepts the percent-encoded /json/new URL form', async () => {
