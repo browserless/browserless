@@ -37,7 +37,7 @@ describe('Utils', () => {
       ).to.equal('http://google.com');
     });
 
-    it("preserves a target's final token parameter", () => {
+    it('preserves the final token parameter of a target', () => {
       expect(
         parseJSONNewTarget(
           '?https://example.com/callback?state=x&token=target-token',
