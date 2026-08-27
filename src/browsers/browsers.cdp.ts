@@ -12,6 +12,7 @@ import {
   findBlockedNavigationUrl,
   noop,
   once,
+  resolveJSONNewTarget,
   ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
@@ -391,9 +392,11 @@ export class ChromiumCDP extends EventEmitter {
       : null;
 
     if (page && requestedURL) {
+      let targetURL: string;
       try {
+        targetURL = resolveJSONNewTarget(requestedURL);
         assertNavigationAllowed(
-          requestedURL,
+          targetURL,
           this.config.getBlockedURLPatterns(),
           this.config.getBlockedNetworkRanges(),
           this.config.getSelfNavigationHosts(),
@@ -408,7 +411,7 @@ export class ChromiumCDP extends EventEmitter {
       // Deliberately not awaited. Chrome's /json/new returns before the tab
       // has finished loading, and holding the CDP upgrade open for the whole
       // navigation would stall clients that attach in order to drive it.
-      page.goto(requestedURL).catch(noop);
+      page.goto(targetURL).catch(noop);
     }
 
     const pathname = page

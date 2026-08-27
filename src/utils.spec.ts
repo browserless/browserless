@@ -11,6 +11,7 @@ import {
   getFinalPathSegment,
   getPageContent,
   parseJSONNewTarget,
+  resolveJSONNewTarget,
   toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -36,10 +37,12 @@ describe('Utils', () => {
       ).to.equal('http://google.com');
     });
 
-    it('skips a trailing token parameter', () => {
+    it("preserves a target's final token parameter", () => {
       expect(
-        parseJSONNewTarget('?http://google.com&token=browserless'),
-      ).to.equal('http://google.com');
+        parseJSONNewTarget(
+          '?https://example.com/callback?state=x&token=target-token',
+        ),
+      ).to.equal('https://example.com/callback?state=x&token=target-token');
     });
 
     it('returns null when only browserless parameters are present', () => {
@@ -72,6 +75,23 @@ describe('Utils', () => {
     it('falls back to the raw text on malformed percent-encoding', () => {
       expect(parseJSONNewTarget('?https://example.com/100%off')).to.equal(
         'https://example.com/100%off',
+      );
+    });
+  });
+
+  describe('#resolveJSONNewTarget', () => {
+    it('canonicalizes absolute HTTP(S) targets', () => {
+      expect(resolveJSONNewTarget('https://example.com')).to.equal(
+        'https://example.com/',
+      );
+    });
+
+    it('rejects relative and non-HTTP(S) targets', () => {
+      expect(() => resolveJSONNewTarget('not-a-url')).to.throw(
+        'not a valid absolute URL',
+      );
+      expect(() => resolveJSONNewTarget('data:text/html,test')).to.throw(
+        'must use http or https',
       );
     });
   });

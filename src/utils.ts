@@ -639,20 +639,15 @@ export const JSON_NEW_TARGET_PARAM = 'url';
  */
 export const jsonNewReservedParams: readonly string[] = ['token'];
 
-const escapeRegExp = (s: string): string =>
-  s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 /**
  * Extracts the navigation target from a DevTools `PUT /json/new?{url}` request.
  *
  * Chrome does not parse the text after `?` as query parameters. Per the
  * DevTools HTTP endpoints spec the entire query string *is* the URL, so it may
  * legitimately contain its own `?`, `&` and `=`. Browserless still needs its own
- * `token` on the same request, so reserved pairs are stripped from either end
- * and everything between them is returned verbatim.
- *
- * Inner occurrences are deliberately left alone: a `token=` in the middle of the
- * query is far likelier to belong to the target's own query string.
+ * `token` on the same request, so reserved pairs are accepted only before the
+ * target. Once a URL-looking segment starts, everything after it belongs to the
+ * target — including a final `token=` query parameter of its own.
  *
  * Both spellings clients send are handled, the raw `?https://example.com` form
  * and the percent-encoded `?https%3A%2F%2Fexample.com` form that curl and most
@@ -686,18 +681,8 @@ export const parseJSONNewTarget = (
     rest = rest.slice(pair[0].length);
   }
 
-  // A single trailing reserved pair, e.g. `?https://example.com&token=abc`,
-  // which is the other ordering clients use.
-  if (reserved.length) {
-    rest = rest.replace(
-      new RegExp(
-        '&(?:' + reserved.map(escapeRegExp).join('|') + ')=[^&]*$',
-        'i',
-      ),
-      '',
-    );
-  }
-
+  // Browserless parameters after the target are deliberately not removed:
+  // that part of the request is the target's own query string.
   if (!rest) return null;
 
   // Decode only when the scheme itself is encoded. A raw target may contain
@@ -850,6 +835,33 @@ export class BadRequest extends Error {
     errorLog(this.message);
   }
 }
+
+/**
+ * Parses and canonicalizes a /json/new target, rejecting relative URLs and
+ * schemes that a direct page-websocket connection must not be able to smuggle
+ * past the HTTP route's validation.
+ */
+export const resolveJSONNewTarget = (requested: string): string => {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(requested);
+  } catch {
+    throw new BadRequest(
+      'The /json/new target "' + requested + '" is not a valid absolute URL.',
+    );
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequest(
+      'The /json/new target must use http or https, got "' +
+        parsed.protocol +
+        '".',
+    );
+  }
+
+  return parsed.href;
+};
 
 export class TooManyRequests extends Error {
   constructor(message: string) {
