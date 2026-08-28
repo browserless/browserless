@@ -90,7 +90,7 @@ jobs:
           node-version: 24
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.19.0 --ignore-scripts
+        run: npm install -g npm@11.19.1 --ignore-scripts
 
       # multi:latest tracks main, so it is the image this release will ship.
       # Anonymous pull works for public packages; log in for reliability.
