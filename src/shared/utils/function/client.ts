@@ -14,8 +14,19 @@ export class FunctionRunner {
   protected browser?: Browser;
   protected page?: Page;
 
-  public log() {
-    return console.log.bind(console);
+  public log = (err: unknown) =>
+    console.error(`_browserless_function_client_: ${err}`);
+
+  protected async runCode(
+    code: codeHandler,
+    context: unknown,
+  ): Promise<unknown> {
+    return code({ context, page: this.page as Page }).catch(async (error) => {
+      console.error(`Error running code: ${error}`);
+      await this.page?.close().catch(this.log);
+      this.browser?.disconnect();
+      throw error;
+    });
   }
 
   public async start(data: {
@@ -62,11 +73,7 @@ export class FunctionRunner {
       });
     }
 
-    const response = await code({ context, page: this.page }).catch((e) => {
-      console.error(`Error running code: ${e}`);
-      this.browser?.disconnect();
-      throw e;
-    });
+    const response = await this.runCode(code, context);
     console.debug(
       `_browserless_function_client_: Code is finished executing, closing page.`,
     );
@@ -106,9 +113,11 @@ export class FunctionRunner {
 
 // Set this as an immutable property on window so our handler's
 // can call it downstream
-Object.defineProperty(window, 'BrowserlessFunctionRunner', {
-  configurable: false,
-  enumerable: false,
-  value: FunctionRunner,
-  writable: false,
-});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'BrowserlessFunctionRunner', {
+    configurable: false,
+    enumerable: false,
+    value: FunctionRunner,
+    writable: false,
+  });
+}
