@@ -21,12 +21,14 @@ export class FunctionRunner {
     code: codeHandler,
     context: unknown,
   ): Promise<unknown> {
-    return code({ context, page: this.page as Page }).catch(async (error) => {
+    try {
+      return await code({ context, page: this.page as Page });
+    } catch (error) {
       console.error(`Error running code: ${error}`);
       await this.page?.close().catch(this.log);
       this.browser?.disconnect();
       throw error;
-    });
+    }
   }
 
   public async start(data: {
