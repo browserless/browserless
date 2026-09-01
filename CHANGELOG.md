@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.56.1](https://github.com/browserless/browserless/compare/v2.56.0...v2.56.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **AUTO-288:** preserve raw profile paths during token shimming ([#5547](https://github.com/browserless/browserless/issues/5547)) ([2222d9f](https://github.com/browserless/browserless/commit/2222d9f5c3e758f782dc066e5505ddad198ec2ee))
+* close function pages when user code fails ([#5554](https://github.com/browserless/browserless/issues/5554)) ([a36bb85](https://github.com/browserless/browserless/commit/a36bb850956af8eb217764a729266e9df2ab398f))
+
+
+### Build System & Runtime
+
+* bump Node to 24.20.0 and npm to 11.19.1 ([#5553](https://github.com/browserless/browserless/issues/5553)) ([f1e5077](https://github.com/browserless/browserless/commit/f1e507766ed04e81c61d1d4f1621ef9f22bfc318))
+
 ## [2.56.0](https://github.com/browserless/browserless/compare/v2.55.4...v2.56.0) (2026-08-17)
 
 
