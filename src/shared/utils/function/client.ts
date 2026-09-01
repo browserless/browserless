@@ -9,6 +9,7 @@ type codeHandler = (params: {
 
 // puppeteer-core >= 25.6 requires an explicit Logger on these internals.
 const logger = () => undefined;
+const pageCloseTimeout = 2_000;
 
 export class FunctionRunner {
   protected browser?: Browser;
@@ -17,16 +18,90 @@ export class FunctionRunner {
   public log = (err: unknown) =>
     console.error(`_browserless_function_client_: ${err}`);
 
-  protected async runCode(
+  protected async closePage(): Promise<void> {
+    const page = this.page;
+    this.page = undefined;
+    if (!page) return;
+
+    let timeout!: ReturnType<typeof setTimeout>;
+    await Promise.race([
+      Promise.resolve()
+        .then(() => page.close())
+        .catch(this.log),
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, pageCloseTimeout);
+      }),
+    ]).finally(() => clearTimeout(timeout));
+  }
+
+  protected async runWithBrowser(
     code: codeHandler,
     context: unknown,
-  ): Promise<unknown> {
+    options: {
+      downloadPath?: string;
+      protocolTimeout?: number;
+    },
+  ) {
     try {
-      return await code({ context, page: this.page as Page });
+      this.page = await this.browser!.newPage();
+
+      if (options.downloadPath) {
+        console.debug(
+          `_browserless_function_client_: Setting downloads for page to "${options.downloadPath}"`,
+        );
+        // @ts-ignore
+        const client = this.page._client.call(this.page);
+        await client.send('Page.setDownloadBehavior', {
+          behavior: 'allow',
+          downloadPath: options.downloadPath,
+        });
+      }
+
+      let response: unknown;
+      try {
+        response = await code({ context, page: this.page });
+      } catch (error) {
+        console.error(`Error running code: ${error}`);
+        throw error;
+      }
+
+      console.debug(
+        `_browserless_function_client_: Code is finished executing, closing page.`,
+      );
+      await this.closePage();
+
+      if (response instanceof Uint8Array) {
+        return {
+          contentType: 'uint8array',
+          payload: Array.from(response),
+        };
+      }
+
+      if (typeof response === 'string') {
+        return {
+          contentType: response.startsWith('<') ? 'text/html' : 'text/plain',
+          payload: response,
+        };
+      }
+
+      if (typeof response === 'object') {
+        return {
+          contentType: 'application/json',
+          payload: JSON.stringify(response, null, '  '),
+        };
+      }
+
+      return {
+        contentType: 'text/plain',
+        payload: response,
+      };
     } catch (error) {
-      console.error(`Error running code: ${error}`);
-      await this.page?.close().catch(this.log);
-      this.browser?.disconnect();
+      await this.closePage();
+      try {
+        this.browser?.disconnect();
+      } catch (disconnectError) {
+        this.log(disconnectError);
+      }
       throw error;
     }
   }
@@ -61,51 +136,7 @@ export class FunctionRunner {
       logger,
     )) as unknown as Browser;
     this.browser.once('disconnected', () => this.stop());
-    this.page = await this.browser.newPage();
-
-    if (options.downloadPath) {
-      console.debug(
-        `_browserless_function_client_: Setting downloads for page to "${options.downloadPath}"`,
-      );
-      // @ts-ignore
-      const client = this.page._client.call(this.page);
-      await client.send('Page.setDownloadBehavior', {
-        behavior: 'allow',
-        downloadPath: options.downloadPath,
-      });
-    }
-
-    const response = await this.runCode(code, context);
-    console.debug(
-      `_browserless_function_client_: Code is finished executing, closing page.`,
-    );
-    this.page.close().catch(this.log);
-
-    if (response instanceof Uint8Array) {
-      return {
-        contentType: 'uint8array',
-        payload: Array.from(response),
-      };
-    }
-
-    if (typeof response === 'string') {
-      return {
-        contentType: response.startsWith('<') ? 'text/html' : 'text/plain',
-        payload: response,
-      };
-    }
-
-    if (typeof response === 'object') {
-      return {
-        contentType: 'application/json',
-        payload: JSON.stringify(response, null, '  '),
-      };
-    }
-
-    return {
-      contentType: 'text/plain',
-      payload: response,
-    };
+    return this.runWithBrowser(code, context, options);
   }
 
   public stop() {

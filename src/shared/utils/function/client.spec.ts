@@ -5,27 +5,22 @@ import Sinon from 'sinon';
 import { FunctionRunner } from './client.js';
 
 class TestFunctionRunner extends FunctionRunner {
-  public setBrowser(browser: Browser): void {
-    this.browser = browser;
-  }
-
-  public setPage(page: Page): void {
-    this.page = page;
-  }
-
-  public execute(
+  public async execute(
+    browser: Browser,
     code: Parameters<FunctionRunner['start']>[0]['code'],
-    context: unknown,
+    context: unknown = {},
+    options: Parameters<FunctionRunner['start']>[0]['options'] = {},
   ): Promise<unknown> {
-    return this.runCode(code, context);
+    this.browser = browser;
+    return this.runWithBrowser(code, context, options);
   }
 }
 
 describe('FunctionRunner', function () {
+  beforeEach(() => Sinon.stub(console, 'debug'));
   afterEach(() => Sinon.restore());
 
-  it('closes the page before disconnecting when user code rejects', async () => {
-    const calls: string[] = [];
+  it('waits for the inner page to close before returning success', async () => {
     let finishClose = () => {};
     let markCloseStarted = () => {};
     const close = new Promise<void>((resolve) => {
@@ -36,79 +31,138 @@ describe('FunctionRunner', function () {
     });
     const page = {
       close: Sinon.stub().callsFake(() => {
-        calls.push('close');
         markCloseStarted();
         return close;
       }),
     } as unknown as Page;
     const browser = {
-      disconnect: Sinon.stub().callsFake(() => calls.push('disconnect')),
+      disconnect: Sinon.stub(),
+      newPage: Sinon.stub().resolves(page),
     } as unknown as Browser;
     const runner = new TestFunctionRunner();
-    const error = new Error('user code failed');
-    runner.setPage(page);
-    runner.setBrowser(browser);
+    let settled = false;
+
+    const execution = runner
+      .execute(browser, async () => 'done')
+      .then((result) => {
+        settled = true;
+        return result;
+      });
+    await closeStarted;
+
+    expect(settled).to.be.false;
+    finishClose();
+
+    expect(await execution).to.deep.equal({
+      contentType: 'text/plain',
+      payload: 'done',
+    });
+    expect((browser.disconnect as Sinon.SinonStub).called).to.be.false;
+  });
+
+  it('cleans up when download setup fails after creating a page', async () => {
+    const setupError = new Error('download setup failed');
+    const close = Sinon.stub().resolves();
+    const disconnect = Sinon.stub();
+    const page = {
+      _client: {
+        call: () => ({ send: Sinon.stub().rejects(setupError) }),
+      },
+      close,
+    } as unknown as Page;
+    const browser = {
+      disconnect,
+      newPage: Sinon.stub().resolves(page),
+    } as unknown as Browser;
+    const runner = new TestFunctionRunner();
+
+    const thrown = await runner
+      .execute(browser, async () => undefined, {}, { downloadPath: '/tmp' })
+      .catch((caught) => caught);
+
+    expect(thrown).to.equal(setupError);
+    expect(close.calledOnce).to.be.true;
+    expect(disconnect.calledOnce).to.be.true;
+  });
+
+  it('bounds page cleanup and preserves the user error', async () => {
+    const clock = Sinon.useFakeTimers();
+    const close = Sinon.stub().returns(new Promise<void>(() => {}));
+    const disconnect = Sinon.stub();
+    const page = { close } as unknown as Page;
+    const browser = {
+      disconnect,
+      newPage: Sinon.stub().resolves(page),
+    } as unknown as Browser;
+    const runner = new TestFunctionRunner();
+    const userError = new Error('user code failed');
     Sinon.stub(console, 'error');
 
     const execution = runner
-      .execute(async () => {
-        throw error;
-      }, {})
+      .execute(browser, async () => {
+        throw userError;
+      })
       .catch((caught) => caught);
-    await closeStarted;
+    await clock.tickAsync(2_000);
 
-    expect(calls).to.deep.equal(['close']);
-    finishClose();
-
-    expect(await execution).to.equal(error);
-    expect(calls).to.deep.equal(['close', 'disconnect']);
-  });
-
-  it('cleans up when user code throws synchronously', async () => {
-    const close = Sinon.stub().resolves();
-    const disconnect = Sinon.stub();
-    const page = { close } as unknown as Page;
-    const browser = { disconnect } as unknown as Browser;
-    const runner = new TestFunctionRunner();
-    const error = new Error('synchronous user error');
-    runner.setPage(page);
-    runner.setBrowser(browser);
-    Sinon.stub(console, 'error');
-
-    const thrown = await runner
-      .execute(() => {
-        throw error;
-      }, {})
-      .catch((caught) => caught);
-
-    expect(thrown).to.equal(error);
+    expect(await execution).to.equal(userError);
     expect(close.calledOnce).to.be.true;
     expect(disconnect.calledOnce).to.be.true;
   });
 
-  it('preserves the user error when closing the page fails', async () => {
-    const closeError = new Error('page close failed');
-    const close = Sinon.stub().rejects(closeError);
-    const disconnect = Sinon.stub();
-    const page = { close } as unknown as Page;
-    const browser = { disconnect } as unknown as Browser;
+  for (const asynchronous of [false, true]) {
+    it(`preserves ${asynchronous ? 'asynchronous' : 'synchronous'} user errors when closing fails`, async () => {
+      const closeError = new Error('page close failed');
+      const close = Sinon.stub().rejects(closeError);
+      const disconnect = Sinon.stub();
+      const page = { close } as unknown as Page;
+      const browser = {
+        disconnect,
+        newPage: Sinon.stub().resolves(page),
+      } as unknown as Browser;
+      const runner = new TestFunctionRunner();
+      const userError = new Error('user code failed');
+      const log = Sinon.stub(console, 'error');
+      const code = asynchronous
+        ? async () => {
+            throw userError;
+          }
+        : () => {
+            throw userError;
+          };
+
+      const thrown = await runner
+        .execute(browser, code)
+        .catch((caught) => caught);
+
+      expect(thrown).to.equal(userError);
+      expect(close.calledOnce).to.be.true;
+      expect(disconnect.calledOnce).to.be.true;
+      expect(log.calledWith(`_browserless_function_client_: ${closeError}`)).to
+        .be.true;
+    });
+  }
+
+  it('preserves the user error when disconnecting fails', async () => {
+    const disconnectError = new Error('disconnect failed');
+    const page = { close: Sinon.stub().resolves() } as unknown as Page;
+    const browser = {
+      disconnect: Sinon.stub().throws(disconnectError),
+      newPage: Sinon.stub().resolves(page),
+    } as unknown as Browser;
     const runner = new TestFunctionRunner();
     const userError = new Error('user code failed');
     const log = Sinon.stub(console, 'error');
-    runner.setPage(page);
-    runner.setBrowser(browser);
 
     const thrown = await runner
-      .execute(async () => {
+      .execute(browser, async () => {
         throw userError;
-      }, {})
+      })
       .catch((caught) => caught);
 
     expect(thrown).to.equal(userError);
-    expect(close.calledOnce).to.be.true;
-    expect(disconnect.calledOnce).to.be.true;
-    expect(log.calledWith(`_browserless_function_client_: ${closeError}`)).to.be
-      .true;
+    expect(log.calledWith(`_browserless_function_client_: ${disconnectError}`))
+      .to.be.true;
   });
 
   it('logs errors when passed as an unbound rejection handler', async () => {
