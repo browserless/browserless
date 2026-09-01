@@ -13,6 +13,20 @@
 
 * bump Node to 24.20.0 and npm to 11.19.1 ([#5553](https://github.com/browserless/browserless/issues/5553)) ([f1e5077](https://github.com/browserless/browserless/commit/f1e507766ed04e81c61d1d4f1621ef9f22bfc318))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.8.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.64` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.53` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.0](https://github.com/browserless/browserless/compare/v2.55.4...v2.56.0) (2026-08-17)
 
 
