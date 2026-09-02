@@ -181,9 +181,15 @@ export const writeResponse = (
   const isJSON = contentType.includes(contentTypes.json);
   const isError = httpCode >= 400;
   const httpMessage = codes[httpCode];
-  const CTTHeader = contentType.toLowerCase().includes('charset=')
-    ? contentType
-    : `${contentType}; charset=${encodings.utf8}`;
+  let responseContentType = contentType;
+  if (isError) {
+    responseContentType = isJSON ? contentTypes.json : contentTypes.text;
+  }
+  const contentTypeHeader = responseContentType
+    .toLowerCase()
+    .includes('charset=')
+    ? responseContentType
+    : `${responseContentType}; charset=${encodings.utf8}`;
   const body =
     isJSON && isError
       ? JSON.stringify({
@@ -194,7 +200,9 @@ export const writeResponse = (
   if (isHTTP(writeable)) {
     const response = writeable;
     if (!response.headersSent) {
-      response.writeHead(httpMessage.code, { 'Content-Type': CTTHeader });
+      response.writeHead(httpMessage.code, {
+        'Content-Type': contentTypeHeader,
+      });
       response.end(body + '\n');
     }
     return;
@@ -202,7 +210,7 @@ export const writeResponse = (
 
   const httpResponse = [
     httpMessage.message,
-    `Content-Type: ${CTTHeader}`,
+    `Content-Type: ${contentTypeHeader}`,
     'Content-Encoding: UTF-8',
     'Accept-Ranges: bytes',
     'Connection: keep-alive',
