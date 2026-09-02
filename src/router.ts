@@ -376,6 +376,8 @@ export class Router extends EventEmitter {
           this.routeMatches(r, req.parsed.pathname) &&
           r.method === (req.method?.toLocaleLowerCase() as Methods) &&
           (accepts.some((a) => a.includes('*/*')) ||
+            // A route advertising */* returns any type, so any Accept matches.
+            r.contentTypes.includes(contentTypes.any) ||
             r.contentTypes.some((contentType) =>
               accepts.includes(contentType),
             )) &&
