@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.56.2](https://github.com/browserless/browserless/compare/v2.56.1...v2.56.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* match */* routes against any Accept header ([#5558](https://github.com/browserless/browserless/issues/5558)) ([f1f4e05](https://github.com/browserless/browserless/commit/f1f4e05c61d201126c41672e2e753818bdc1d489))
+* remediate CodeQL alerts ([#5557](https://github.com/browserless/browserless/issues/5557)) ([3c0a6a3](https://github.com/browserless/browserless/commit/3c0a6a3b2476bc93f2fedcdb7f5d9ab3fa805339))
+
 ## [2.56.1](https://github.com/browserless/browserless/compare/v2.56.0...v2.56.1) (2026-09-01)
 
 
