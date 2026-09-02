@@ -8,6 +8,20 @@
 * match */* routes against any Accept header ([#5558](https://github.com/browserless/browserless/issues/5558)) ([f1f4e05](https://github.com/browserless/browserless/commit/f1f4e05c61d201126c41672e2e753818bdc1d489))
 * remediate CodeQL alerts ([#5557](https://github.com/browserless/browserless/issues/5557)) ([3c0a6a3](https://github.com/browserless/browserless/commit/3c0a6a3b2476bc93f2fedcdb7f5d9ab3fa805339))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.9.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.75` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.53` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.1](https://github.com/browserless/browserless/compare/v2.56.0...v2.56.1) (2026-09-01)
 
 
