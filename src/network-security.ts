@@ -208,6 +208,15 @@ export const assertNavigationAllowed = (
  * wholesale by `*://[*` rather than per-prefix, since the bracket form is rare
  * enough that pausing all of it is cheaper than getting the prefixes right.
  *
+ * Userinfo is NOT canonicalized away: a navigation to
+ * `http://user@127.0.0.1/` reaches the pattern matcher with the credentials
+ * still in the string, where `*://127.*` does not match because `user@` sits
+ * between the scheme and the host. Every host-shaped glob therefore gets a
+ * `*://*@…` twin. (Credentialed *sub-resources* never get this far — Chromium
+ * blocks them outright — but a credentialed navigation does, and without the
+ * twin it would slip past interception into the observational path, which can
+ * only react once the request is already gone.)
+ *
  * Returns `[]` when nothing is configured to block, which callers should treat
  * as "do not enable interception at all".
  */
@@ -218,22 +227,29 @@ export const toBlockedUrlInterceptPatterns = (
   const globs = new Set<string>();
 
   // Scheme blocklists (`file://`) and blocked protocols (`smtp://`, `ftp://`)
-  // are already prefixes of the URL, so they need only a trailing wildcard.
+  // are already prefixes of the URL, so they need only a trailing wildcard —
+  // userinfo sits after the scheme, so these cover the credentialed form too.
   for (const pattern of [...patterns, ...(ranges?.protocols ?? [])]) {
     globs.add(`${pattern}*`);
   }
 
+  // Both spellings of a host-shaped glob: bare, and with userinfo ahead of it.
+  const addHostGlob = (host: string) => {
+    globs.add(`*://${host}*`);
+    globs.add(`*://*@${host}*`);
+  };
+
   if (ranges) {
     for (const prefix of ranges.ipv4Prefixes) {
-      globs.add(`*://${prefix}*`);
+      addHostGlob(prefix);
     }
     if (ranges.ipv6Prefixes.length) {
-      globs.add(`*://[*`);
+      addHostGlob('[');
     }
     for (const hostname of ranges.hostnames) {
       // The host itself, plus the dot-suffix form the classifier also blocks.
-      globs.add(`*://${hostname}*`);
-      globs.add(`*://*.${hostname}*`);
+      addHostGlob(hostname);
+      addHostGlob(`*.${hostname}`);
     }
   }
 

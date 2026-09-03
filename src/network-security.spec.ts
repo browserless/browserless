@@ -333,6 +333,25 @@ describe('Network Security', () => {
       }
     });
 
+    // Chromium hands the pattern matcher a URL with userinfo intact, so
+    // `*://127.*` does not match `http://user@127.0.0.1/` — the host is no
+    // longer where the glob expects it.
+    it('pauses hosts hidden behind userinfo', () => {
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      for (const url of [
+        'http://user@127.0.0.1/',
+        'http://user:pass@127.0.0.1:8888/nav',
+        'http://user:pass@localhost:8888/x.svg',
+        'http://user@sub.localhost/x',
+        'http://user@169.254.169.254/latest/meta-data/',
+        'http://user@[::1]:8080/',
+        'smtp://user@127.0.0.1/',
+      ]) {
+        expect(pauses(url, patterns), `should pause ${url}`).to.be.true;
+      }
+    });
+
     it('leaves ordinary traffic unpaused', () => {
       const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
 
@@ -341,9 +360,21 @@ describe('Network Security', () => {
         'https://careers.kinly.com/o/av-event-technician-38',
         'https://cdn.example.com/app.js?v=127',
         'https://10.0.0.1.example.com/',
+        'https://user@example.com/dashboard',
       ]) {
         expect(pauses(url, patterns), `should not pause ${url}`).to.be.false;
       }
+    });
+
+    // The userinfo twins widen the globs: a path segment containing '@' can
+    // now pause a perfectly ordinary URL. That is the accepted trade — pausing
+    // is not blocking, and the matcher is what decides.
+    it('over-matches harmlessly: a paused public URL is still allowed', () => {
+      const url = 'https://cdn.example.com/u/a@127.example.org/logo.png';
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      expect(pauses(url, patterns), 'over-matched by the glob').to.be.true;
+      expect(findBlockedNavigationUrl(url, ['file://'], RANGES)).to.be.null;
     });
 
     it('returns [] when nothing is configured to block', () => {

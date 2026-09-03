@@ -81,7 +81,7 @@ describe('ChromiumCDP blocked-URL guard', function () {
     public getBlockedNetworkRanges(): NetworkRangeSet {
       return {
         hostnames: ['localhost'],
-        ipv4Prefixes: ['127.'],
+        ipv4Prefixes: ['127.', '169.254.'],
         ipv6Prefixes: ['::1'],
         protocols: [],
       };
@@ -114,6 +114,21 @@ describe('ChromiumCDP blocked-URL guard', function () {
     server?.close();
     server = undefined;
   });
+
+  // Positive assertions ("the request did happen", "the session did close")
+  // race the browser: the fetch, the guard install and renderer scheduling all
+  // have to land first, and a loaded CI box can take longer than any fixed
+  // sleep. Negative assertions stay on a flat wait — there is nothing to poll
+  // for when the expected outcome is that nothing happens.
+  const waitFor = async (
+    predicate: () => boolean,
+    timeoutMS = 10_000,
+  ): Promise<void> => {
+    const deadline = Date.now() + timeoutMS;
+    while (Date.now() < deadline && !predicate()) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  };
 
   const newGuardedPage = async () => {
     browser = new ChromiumCDP({
@@ -183,9 +198,43 @@ describe('ChromiumCDP blocked-URL guard', function () {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     await page.setContent(`<img src="http://127.0.0.1:${port}/runtime.svg">`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await waitFor(() => hits.length > 0);
 
     expect(hits, 'self-origin request must not be blocked').to.not.be.empty;
     expect(browser.isRunning()).to.be.true;
+  });
+
+  // The other half of the split: sub-resources are tolerated, but a navigation
+  // to a blocked destination still ends the session. Without this, narrowing
+  // `isNavigation` further — or dropping the teardown entirely — would pass the
+  // rest of this suite.
+  for (const target of ['file:///etc/passwd', 'http://169.254.169.254/']) {
+    it(`still terminates the session on a navigation to ${target}`, async () => {
+      const page = await newGuardedPage();
+
+      // The teardown races the navigation, so goto can reject with a detached
+      // frame, resolve, or hang until the browser goes — none of which is the
+      // assertion. `isRunning()` is.
+      await page.goto(target, { timeout: 10_000 }).catch(() => {});
+      await waitFor(() => !browser!.isRunning());
+
+      expect(browser!.isRunning(), 'blocked navigation must end the session').to
+        .be.false;
+    });
+  }
+
+  // A credentialed navigation keeps its userinfo all the way to the pattern
+  // matcher, so `*://127.*` alone would miss it and leave only the
+  // observational path — which cannot stop a request that has already left.
+  it('blocks a navigation that hides the host behind userinfo', async () => {
+    const page = await newGuardedPage();
+
+    await page
+      .goto(`http://user:pass@127.0.0.1:${port}/nav`, { timeout: 10_000 })
+      .catch(() => {});
+    await waitFor(() => !browser!.isRunning());
+
+    expect(hits, 'credentialed navigation must not reach the destination').to.be
+      .empty;
   });
 });
