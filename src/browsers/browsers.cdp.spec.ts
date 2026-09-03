@@ -236,5 +236,10 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
     expect(hits, 'credentialed navigation must not reach the destination').to.be
       .empty;
+    // Both halves, or the test passes on a guard that fails the request and
+    // leaves the session up — which is the sub-resource behaviour, not the
+    // navigation one.
+    expect(browser!.isRunning(), 'blocked navigation must end the session').to
+      .be.false;
   });
 });
