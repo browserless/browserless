@@ -1,10 +1,11 @@
 import { createInterface } from 'readline';
+import { createRequire } from 'module';
 import debug from 'debug';
 import fs from 'fs/promises';
 import path from 'path';
 import { promisify } from 'util';
 
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 
 // Ignore node_modules, dist, .next, .cache, coverage for route loading
 // This is to prevent the SDK from loading routes that aren't actual routes
@@ -12,9 +13,14 @@ import { exec } from 'child_process';
 const ignore = ['node_modules', 'dist', '.next', '.cache', 'coverage'];
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-const waitForCommand = async (cmd: string, workingDirectory: string) =>
-  execAsync(cmd, { cwd: workingDirectory })
+const waitForResult = async (
+  command: string,
+  workingDirectory: string,
+  execution: Promise<{ stderr: string }>,
+): Promise<void> => {
+  return execution
     .then(({ stderr }) => {
       if (stderr) {
         console.warn(
@@ -25,11 +31,22 @@ const waitForCommand = async (cmd: string, workingDirectory: string) =>
     })
     .catch((e) => {
       console.error(
-        `Error running command: "${cmd}" at directory: "${workingDirectory}"`,
+        `Error running command: "${command}" at directory: "${workingDirectory}"`,
         e,
       );
       process.exit(1);
     });
+};
+
+const waitForCommand = (
+  command: string,
+  workingDirectory: string,
+): Promise<void> =>
+  waitForResult(
+    command,
+    workingDirectory,
+    execAsync(command, { cwd: workingDirectory }),
+  );
 
 export const getArgSwitches = () => {
   return process.argv.reduce(
@@ -137,4 +154,16 @@ export const buildDockerImage = async (
 export const buildTypeScript = async (
   buildDir: string,
   projectDir: string,
-): Promise<void> => waitForCommand(`npx tsc --outDir ${buildDir}`, projectDir);
+): Promise<void> => {
+  const workingDirectory = path.resolve(projectDir);
+  const tscPath = createRequire(
+    path.join(workingDirectory, 'package.json'),
+  ).resolve('typescript/bin/tsc');
+  return waitForResult(
+    process.execPath,
+    workingDirectory,
+    execFileAsync(process.execPath, [tscPath, '--outDir', buildDir], {
+      cwd: workingDirectory,
+    }),
+  );
+};

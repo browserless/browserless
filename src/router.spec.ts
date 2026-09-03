@@ -99,6 +99,58 @@ class TestWebSocketRoute extends WebSocketRoute {
   }
 }
 
+// Advertises */* as its response type, like /function and /download. POST so
+// an unmatched request resolves to null, not the GET static fallback.
+class TestWildcardResponseRoute extends HTTPRoute {
+  public accepts = [contentTypes.json, contentTypes.javascript];
+  public auth = false;
+  public contentTypes = [contentTypes.any];
+  public description = 'test';
+  public method = Methods.post;
+  public name = 'test-wildcard';
+  public path: string | string[] = '/__wildcard__';
+  public tags: APITags[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(public override handler: any) {
+    super(
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+    );
+  }
+}
+
+// Advertises a concrete response type: a specific Accept must match that type,
+// and a foreign one is rejected.
+class TestConcreteResponseRoute extends HTTPRoute {
+  public accepts = [contentTypes.json, contentTypes.javascript];
+  public auth = false;
+  public contentTypes = [contentTypes.text];
+  public description = 'test';
+  public method = Methods.post;
+  public name = 'test-concrete';
+  public path: string | string[] = '/__concrete__';
+  public tags: APITags[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(public override handler: any) {
+    super(
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+      null as never,
+    );
+  }
+}
+
 const makeRequest = (): Request => {
   const req = new http.IncomingMessage(
     null as unknown as import('net').Socket,
@@ -587,6 +639,81 @@ describe('Router', () => {
 
       expect(inner.called).to.be.false;
       expect(hooks.after.callCount).to.equal(0);
+    });
+  });
+
+  describe('getRouteForHTTPRequest — Accept vs a route that returns */*', () => {
+    const makePostRequest = (
+      accept?: string,
+      contentType = 'application/json',
+      path = '/__wildcard__',
+    ): Request => {
+      const req = new http.IncomingMessage(
+        null as unknown as import('net').Socket,
+      ) as Request;
+      req.url = path;
+      req.method = 'POST';
+      req.parsed = new URL(`http://localhost${path}`);
+      req.body = undefined;
+      req.queryParams = {};
+      if (accept !== undefined) req.headers['accept'] = accept;
+      req.headers['content-type'] = contentType;
+      return req;
+    };
+
+    it('matches when the client sends a specific Accept (e.g. application/json)', async () => {
+      const { router } = buildRouter();
+      router.registerHTTPRoute(new TestWildcardResponseRoute(() => undefined));
+
+      const route = await router.getRouteForHTTPRequest(
+        makePostRequest('application/json'),
+      );
+
+      expect(route?.name).to.equal('test-wildcard');
+    });
+
+    it('matches with Accept: */* and with no Accept header', async () => {
+      const { router } = buildRouter();
+      router.registerHTTPRoute(new TestWildcardResponseRoute(() => undefined));
+
+      expect(
+        (await router.getRouteForHTTPRequest(makePostRequest('*/*')))?.name,
+      ).to.equal('test-wildcard');
+      expect(
+        (await router.getRouteForHTTPRequest(makePostRequest(undefined)))?.name,
+      ).to.equal('test-wildcard');
+    });
+
+    it('does not match when the Content-Type is unsupported', async () => {
+      const { router } = buildRouter();
+      router.registerHTTPRoute(new TestWildcardResponseRoute(() => undefined));
+
+      const route = await router.getRouteForHTTPRequest(
+        makePostRequest('application/json', 'text/plain'),
+      );
+
+      expect(route).to.be.null;
+    });
+
+    it('a concrete-response route still requires a matching Accept', async () => {
+      const { router } = buildRouter();
+      router.registerHTTPRoute(new TestConcreteResponseRoute(() => undefined));
+
+      // An Accept matching the declared response type.
+      expect(
+        (
+          await router.getRouteForHTTPRequest(
+            makePostRequest('text/plain', 'application/json', '/__concrete__'),
+          )
+        )?.name,
+      ).to.equal('test-concrete');
+
+      // A foreign Accept must not match a concrete-type route.
+      expect(
+        await router.getRouteForHTTPRequest(
+          makePostRequest('image/png', 'application/json', '/__concrete__'),
+        ),
+      ).to.be.null;
     });
   });
 });

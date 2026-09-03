@@ -4,6 +4,7 @@ import { ServerResponse } from 'http';
 import { Socket } from 'net';
 import os from 'os';
 import path from 'path';
+import { PassThrough } from 'stream';
 import {
   Config,
   contentTypes,
@@ -114,6 +115,23 @@ describe('Utils', () => {
       expect(getBody()).to.equal('Not found\n');
     });
 
+    it('uses plain text for non-JSON errors', () => {
+      const { res, getHead, getBody } = createMockResponse();
+      const message = '<script>globalThis.exploited = true</script>';
+      writeResponse(res, 400, message, contentTypes.html);
+
+      expect(getHead().headers?.['Content-Type']).to.equal(
+        'text/plain; charset=UTF-8',
+      );
+      expect(getBody()).to.equal(`${message}\n`);
+
+      const socket = new PassThrough();
+      writeResponse(socket, 400, message, contentTypes.html);
+      expect(socket.read()?.toString()).to.include(
+        'Content-Type: text/plain; charset=UTF-8',
+      );
+    });
+
     it('returns JSON error object when contentType is json', () => {
       const { res, getHead, getBody } = createMockResponse();
       writeResponse(res, 400, 'Missing parameter', contentTypes.json);
@@ -148,6 +166,9 @@ describe('Utils', () => {
       );
 
       expect(getHead().code).to.equal(408);
+      expect(getHead().headers?.['Content-Type']).to.equal(
+        'application/json; charset=UTF-8',
+      );
       const parsed = JSON.parse(getBody().trim());
       expect(parsed).to.deep.equal({ error: 'Validation failed' });
     });

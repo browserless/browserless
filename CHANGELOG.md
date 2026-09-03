@@ -1,5 +1,54 @@
 # Changelog
 
+## [2.56.2](https://github.com/browserless/browserless/compare/v2.56.1...v2.56.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* match */* routes against any Accept header ([#5558](https://github.com/browserless/browserless/issues/5558)) ([f1f4e05](https://github.com/browserless/browserless/commit/f1f4e05c61d201126c41672e2e753818bdc1d489))
+* remediate CodeQL alerts ([#5557](https://github.com/browserless/browserless/issues/5557)) ([3c0a6a3](https://github.com/browserless/browserless/commit/3c0a6a3b2476bc93f2fedcdb7f5d9ab3fa805339))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.9.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.75` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.53` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.56.1](https://github.com/browserless/browserless/compare/v2.56.0...v2.56.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **AUTO-288:** preserve raw profile paths during token shimming ([#5547](https://github.com/browserless/browserless/issues/5547)) ([2222d9f](https://github.com/browserless/browserless/commit/2222d9f5c3e758f782dc066e5505ddad198ec2ee))
+* close function pages when user code fails ([#5554](https://github.com/browserless/browserless/issues/5554)) ([a36bb85](https://github.com/browserless/browserless/commit/a36bb850956af8eb217764a729266e9df2ab398f))
+
+
+### Build System & Runtime
+
+* bump Node to 24.20.0 and npm to 11.19.1 ([#5553](https://github.com/browserless/browserless/issues/5553)) ([f1e5077](https://github.com/browserless/browserless/commit/f1e507766ed04e81c61d1d4f1621ef9f22bfc318))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.8.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.64` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.53` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.0](https://github.com/browserless/browserless/compare/v2.55.4...v2.56.0) (2026-08-17)
 
 
