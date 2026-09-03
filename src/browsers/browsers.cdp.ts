@@ -216,7 +216,12 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('requestfailed', (req) => {
-          this.logger.debug(`"${req.failure()?.errorText}": ${req.url()}`);
+          // Chromium reports some failures with no error text at all —
+          // `failure()` is null for a scheme it refused outright, such as a
+          // `file://` sub-resource on an https page — so say that rather than
+          // interpolating the string "undefined" into the log.
+          const errorText = req.failure()?.errorText ?? 'no error text';
+          this.logger.debug(`"${errorText}": ${req.url()}`);
         });
 
         // Observational backstop behind installBlockedUrlGuard, which has
