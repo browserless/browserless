@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.56.3](https://github.com/browserless/browserless/compare/v2.56.2...v2.56.3) (2026-09-04)
+
+
+### Bug Fixes
+
+* block URLs the guard rejects instead of killing the session ([#5562](https://github.com/browserless/browserless/issues/5562)) ([a4a2c19](https://github.com/browserless/browserless/commit/a4a2c1937edb2814060c02e6407ca64af66c76d6))
+
 ## [2.56.2](https://github.com/browserless/browserless/compare/v2.56.1...v2.56.2) (2026-09-02)
 
 
