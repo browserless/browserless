@@ -7,6 +7,20 @@
 
 * block URLs the guard rejects instead of killing the session ([#5562](https://github.com/browserless/browserless/issues/5562)) ([a4a2c19](https://github.com/browserless/browserless/commit/a4a2c1937edb2814060c02e6407ca64af66c76d6))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.9.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.75` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.53` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.2](https://github.com/browserless/browserless/compare/v2.56.1...v2.56.2) (2026-09-02)
 
 
