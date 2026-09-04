@@ -89,7 +89,7 @@
     "@types/node": "^26.4.0",
     "@types/sinon": "^22.0.0",
     "@types/ws": "^8.5.13",
-    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
     "@typescript-eslint/parser": "^8.61.1",
     "c8": "^12.0.0",
     "chai": "^6.2.2",
