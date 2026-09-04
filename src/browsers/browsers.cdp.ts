@@ -10,6 +10,7 @@ import {
   findBlockedNavigationUrl,
   noop,
   once,
+  toBlockedUrlInterceptPatterns,
   ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
@@ -110,6 +111,82 @@ export class ChromiumCDP extends EventEmitter {
     return page.target()._targetId;
   }
 
+  /**
+   * Stops the page from reaching a blocked destination, rather than reacting
+   * once it already has. `page.on('request')` only observes: by the time it
+   * fires the request is in flight, so the teardown it used to trigger cost
+   * the customer their session without preventing anything.
+   *
+   * Interception is scoped to the blocklist's own URL shapes
+   * ({@link toBlockedUrlInterceptPatterns}), so ordinary traffic is never
+   * paused and never pays a round trip. Requests that do pause get the real
+   * verdict from {@link findBlockedNavigationUrl} — canonicalization,
+   * self-origin exemption and all — which is why the patterns can afford to
+   * over-match.
+   *
+   * Deliberately `Fetch` rather than `Network.setBlockedURLs`: the latter
+   * matches globs with no notion of an exemption, so blocking `localhost`
+   * would also block the server's own origin and break the pages browserless
+   * serves itself. This runs on its own CDP session and chains with a client's
+   * own `setRequestInterception` (verified) instead of displacing it.
+   */
+  protected async installBlockedUrlGuard(page: Page): Promise<void> {
+    const patterns = this.config.getBlockedURLPatterns();
+    const ranges = this.config.getBlockedNetworkRanges();
+    const interceptPatterns = toBlockedUrlInterceptPatterns(patterns, ranges);
+
+    if (!interceptPatterns.length) {
+      return;
+    }
+
+    const session = await page.createCDPSession().catch((err) => {
+      this.logger.error(`Could not attach the blocked-URL guard: ${err}`);
+      return null;
+    });
+
+    if (!session) {
+      return;
+    }
+
+    session.on('Fetch.requestPaused', async ({ requestId, request }) => {
+      // Re-read config per request: it can change at runtime, and the verdict
+      // must come from the matcher rather than from the coarse patterns that
+      // decided to pause.
+      const blocked = findBlockedNavigationUrl(
+        request.url,
+        this.config.getBlockedURLPatterns(),
+        this.config.getBlockedNetworkRanges(),
+        this.config.getSelfNavigationHosts(),
+      );
+
+      if (blocked) {
+        this.logger.debug(`Failing request to blocked URL "${request.url}"`);
+      }
+
+      // Either arm must answer, or the request hangs until the protocol
+      // timeout. A detached session (page already closed) throws on send,
+      // which is the expected way this unwinds rather than an error.
+      await session
+        .send(
+          blocked ? 'Fetch.failRequest' : 'Fetch.continueRequest',
+          blocked
+            ? { errorReason: 'BlockedByClient', requestId }
+            : { requestId },
+        )
+        .catch(noop);
+    });
+
+    await session
+      .send('Fetch.enable', {
+        patterns: interceptPatterns.map((urlPattern: string) => ({
+          urlPattern,
+        })),
+      })
+      .catch((err) => {
+        this.logger.error(`Could not enable the blocked-URL guard: ${err}`);
+      });
+  }
+
   protected async onTargetCreated(target: Target) {
     if (target.type() === 'page') {
       const page = await target.page().catch((e) => {
@@ -118,7 +195,9 @@ export class ChromiumCDP extends EventEmitter {
       });
 
       if (page) {
-        this.logger.trace(`Setting up file:// protocol request rejection`);
+        this.logger.trace(`Setting up blocked-URL request rejection`);
+
+        await this.installBlockedUrlGuard(page);
 
         page.on('error', (err) => {
           this.logger.error(err);
@@ -137,12 +216,32 @@ export class ChromiumCDP extends EventEmitter {
         });
 
         page.on('requestfailed', (req) => {
-          this.logger.debug(`"${req.failure()?.errorText}": ${req.url()}`);
+          // Chromium reports some failures with no error text at all —
+          // `failure()` is null for a scheme it refused outright, such as a
+          // `file://` sub-resource on an https page — so say that rather than
+          // interpolating the string "undefined" into the log.
+          const errorText = req.failure()?.errorText ?? 'no error text';
+          this.logger.debug(`"${errorText}": ${req.url()}`);
         });
 
-        const terminateIfBlocked = (
+        // Observational backstop behind installBlockedUrlGuard, which has
+        // already failed the request by the time these fire. A blocked URL
+        // still surfacing here means the interception patterns missed it, so
+        // the request did go out — tearing the session down would not unsend
+        // it (measured: the request reaches the destination either way), and a
+        // sub-resource does not justify killing an otherwise healthy session.
+        // Third-party markup is full of local leftovers — Word-pasted
+        // `file://` images, `http://localhost:8888` URLs baked into a migrated
+        // WordPress site — and those used to end customer sessions.
+        //
+        // A navigation is the exception: it is the case the route handlers'
+        // pre-navigation 403 cannot see (renderer-initiated `location.href`, a
+        // meta refresh, a cross-scheme redirect), and it is the shape a
+        // deliberate probe takes rather than someone else's stale markup.
+        const onBlockedUrl = (
           url: string,
           direction: 'request' | 'response',
+          isNavigation: boolean,
         ): void => {
           // Read config per call (it can change at runtime) but skip the
           // normalize/match work entirely in the common case where nothing is
@@ -152,35 +251,44 @@ export class ChromiumCDP extends EventEmitter {
           if (!patterns.length && !ranges) {
             return;
           }
-          // Scheme blocklist (e.g. file://) plus the private-network classifier.
-          // Top-level navigations are rejected earlier (with a clean status) by
-          // the route handlers; this is the runtime backstop for subresources
-          // and mid-flight redirects, so it terminates the session. The server's
-          // own origin is exempt so this can't sever browserless's own pages
-          // (e.g. the /function runtime, which loads from the local server).
+          // Scheme blocklist (e.g. file://) plus the private-network
+          // classifier. The server's own origin is exempt so this can't sever
+          // browserless's own pages (e.g. the /function runtime, which loads
+          // from the local server).
           const blocked = findBlockedNavigationUrl(
             url,
             patterns,
             ranges,
             this.config.getSelfNavigationHosts(),
           );
-          if (blocked) {
-            this.logger.error(
-              `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
-            );
-            page.close().catch(noop);
-            this.close();
+          if (!blocked) {
+            return;
           }
+          if (!isNavigation) {
+            this.logger.warn(
+              `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, ignoring sub-resource`,
+            );
+            return;
+          }
+          this.logger.error(
+            `Blocked URL "${blocked}" in ${direction} to ${this.constructor.name}, terminating`,
+          );
+          page.close().catch(noop);
+          this.close();
         };
 
         page.on('request', async (request) => {
           this.logger.trace(`${request.method()}: ${request.url()}`);
-          terminateIfBlocked(request.url(), 'request');
+          onBlockedUrl(request.url(), 'request', request.isNavigationRequest());
         });
 
         page.on('response', async (response) => {
           this.logger.trace(`${response.status()}: ${response.url()}`);
-          terminateIfBlocked(response.url(), 'response');
+          onBlockedUrl(
+            response.url(),
+            'response',
+            response.request().isNavigationRequest(),
+          );
         });
 
         this.emit('newPage', page);

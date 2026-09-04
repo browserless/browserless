@@ -6,6 +6,7 @@ import {
   isBlockedNavigationIP,
   isBlockedNavigationUrl,
   looksLikeIPv4Literal,
+  toBlockedUrlInterceptPatterns,
 } from '@browserless.io/browserless';
 
 // A representative opt-in range set: loopback, link-local/cloud-metadata,
@@ -294,6 +295,98 @@ describe('Network Security', () => {
           null,
         ),
       ).to.be.null;
+    });
+  });
+  describe('toBlockedUrlInterceptPatterns', () => {
+    // The patterns only decide what gets paused for a verdict, so the bar is
+    // "nothing the matcher would reject can slip past unpaused". Over-matching
+    // is the intended trade: a wrongly-paused request is continued unchanged.
+    const matches = (pattern: string, url: string): boolean =>
+      new RegExp(
+        `^${pattern
+          .split('*')
+          .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('.*')}$`,
+      ).test(url);
+
+    const pauses = (url: string, patterns: string[]): boolean =>
+      patterns.some((pattern) => matches(pattern, url));
+
+    it('pauses every URL the matcher blocks', () => {
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      for (const url of [
+        'file:///etc/passwd',
+        'http://127.0.0.1/',
+        'http://127.0.0.1:8888/wordpress/wp-content/uploads/svg/world-map.svg',
+        'http://localhost:8888/x.svg',
+        'http://sub.localhost/x',
+        'http://169.254.169.254/latest/meta-data/',
+        'http://0.0.0.0:3000/',
+        'http://172.16.0.1/',
+        'http://[::1]:8080/',
+        'http://[fe80::1]/',
+        'smtp://127.0.0.1/',
+        'ftp://example.com/',
+      ]) {
+        expect(pauses(url, patterns), `should pause ${url}`).to.be.true;
+      }
+    });
+
+    // Chromium hands the pattern matcher a URL with userinfo intact, so
+    // `*://127.*` does not match `http://user@127.0.0.1/` — the host is no
+    // longer where the glob expects it.
+    it('pauses hosts hidden behind userinfo', () => {
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      for (const url of [
+        'http://user@127.0.0.1/',
+        'http://user:pass@127.0.0.1:8888/nav',
+        'http://user:pass@localhost:8888/x.svg',
+        'http://user@sub.localhost/x',
+        'http://user@169.254.169.254/latest/meta-data/',
+        'http://user@[::1]:8080/',
+        'smtp://user@127.0.0.1/',
+      ]) {
+        expect(pauses(url, patterns), `should pause ${url}`).to.be.true;
+      }
+    });
+
+    it('leaves ordinary traffic unpaused', () => {
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      for (const url of [
+        'https://example.com/index.html',
+        'https://careers.kinly.com/o/av-event-technician-38',
+        'https://cdn.example.com/app.js?v=127',
+        'https://10.0.0.1.example.com/',
+        'https://user@example.com/dashboard',
+      ]) {
+        expect(pauses(url, patterns), `should not pause ${url}`).to.be.false;
+      }
+    });
+
+    // The userinfo twins widen the globs: a path segment containing '@' can
+    // now pause a perfectly ordinary URL. That is the accepted trade — pausing
+    // is not blocking, and the matcher is what decides.
+    it('over-matches harmlessly: a paused public URL is still allowed', () => {
+      const url = 'https://cdn.example.com/u/a@127.example.org/logo.png';
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+
+      expect(pauses(url, patterns), 'over-matched by the glob').to.be.true;
+      expect(findBlockedNavigationUrl(url, ['file://'], RANGES)).to.be.null;
+    });
+
+    it('returns [] when nothing is configured to block', () => {
+      expect(toBlockedUrlInterceptPatterns([], null)).to.deep.equal([]);
+    });
+
+    it('covers the scheme blocklist on its own when ranges are disabled', () => {
+      const patterns = toBlockedUrlInterceptPatterns(['file://'], null);
+
+      expect(patterns).to.deep.equal(['file://*']);
+      expect(pauses('file:///etc/passwd', patterns)).to.be.true;
+      expect(pauses('https://example.com/', patterns)).to.be.false;
     });
   });
 });

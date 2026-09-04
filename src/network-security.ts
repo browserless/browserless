@@ -187,3 +187,71 @@ export const assertNavigationAllowed = (
     throw new Forbidden(`Navigation to "${blocked}" is not allowed`);
   }
 };
+
+/**
+ * Builds the `Fetch.enable` URL patterns that decide which requests are paused
+ * for a blocklist verdict. Everything the matcher could reject must match one
+ * of these — a request that is never paused is never checked — so the patterns
+ * deliberately over-match and leave the real decision to
+ * {@link findBlockedNavigationUrl}, which canonicalizes and understands the
+ * self-origin exemption. A pause that resolves to "allowed" costs one
+ * `Fetch.continueRequest`; a miss costs the guard entirely.
+ *
+ * Over-matching is why these are not the blocklist itself: `*://127.*` also
+ * pauses `http://127.example.com/`, and `*://localhost*` also pauses
+ * `https://localhostings.com/` — both continue on unchanged once the matcher
+ * has looked at them.
+ *
+ * Chromium canonicalizes a URL before matching, so decimal (`http://2130706433/`)
+ * and hex (`http://0x7f.0.0.1/`) IPv4 forms arrive here already spelled as
+ * dotted-quad and are caught by the numeric prefixes. IPv6 literals are covered
+ * wholesale by `*://[*` rather than per-prefix, since the bracket form is rare
+ * enough that pausing all of it is cheaper than getting the prefixes right.
+ *
+ * Userinfo is NOT canonicalized away: a navigation to
+ * `http://user@127.0.0.1/` reaches the pattern matcher with the credentials
+ * still in the string, where `*://127.*` does not match because `user@` sits
+ * between the scheme and the host. Every host-shaped glob therefore gets a
+ * `*://*@…` twin. (Credentialed *sub-resources* never get this far — Chromium
+ * blocks them outright — but a credentialed navigation does, and without the
+ * twin it would slip past interception into the observational path, which can
+ * only react once the request is already gone.)
+ *
+ * Returns `[]` when nothing is configured to block, which callers should treat
+ * as "do not enable interception at all".
+ */
+export const toBlockedUrlInterceptPatterns = (
+  patterns: string[],
+  ranges: NetworkRangeSet | null,
+): string[] => {
+  const globs = new Set<string>();
+
+  // Scheme blocklists (`file://`) and blocked protocols (`smtp://`, `ftp://`)
+  // are already prefixes of the URL, so they need only a trailing wildcard —
+  // userinfo sits after the scheme, so these cover the credentialed form too.
+  for (const pattern of [...patterns, ...(ranges?.protocols ?? [])]) {
+    globs.add(`${pattern}*`);
+  }
+
+  // Both spellings of a host-shaped glob: bare, and with userinfo ahead of it.
+  const addHostGlob = (host: string) => {
+    globs.add(`*://${host}*`);
+    globs.add(`*://*@${host}*`);
+  };
+
+  if (ranges) {
+    for (const prefix of ranges.ipv4Prefixes) {
+      addHostGlob(prefix);
+    }
+    if (ranges.ipv6Prefixes.length) {
+      addHostGlob('[');
+    }
+    for (const hostname of ranges.hostnames) {
+      // The host itself, plus the dot-suffix form the classifier also blocks.
+      addHostGlob(hostname);
+      addHostGlob(`*.${hostname}`);
+    }
+  }
+
+  return [...globs];
+};
