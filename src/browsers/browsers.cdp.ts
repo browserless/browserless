@@ -2,14 +2,17 @@ import {
   BLESS_PAGE_IDENTIFIER,
   BrowserLauncherOptions,
   Config,
+  JSON_NEW_TARGET_PARAM,
   Logger,
   Request,
   ServerError,
+  assertNavigationAllowed,
   chromeExecutablePath,
   edgeExecutablePath,
   findBlockedNavigationUrl,
   noop,
   once,
+  resolveJSONNewTarget,
   ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
@@ -378,6 +381,39 @@ export class ChromiumCDP extends EventEmitter {
 
     const shouldMakePage = req.parsed.pathname.includes(BLESS_PAGE_IDENTIFIER);
     const page = shouldMakePage ? await this.browser.newPage() : null;
+
+    // A page minted by `PUT /json/new?{url}` carries its navigation target on
+    // the websocket URL browserless handed back, since the page is only
+    // created here. Re-check it: this endpoint is reachable directly, so the
+    // check performed at /json/new time is not the only thing between a caller
+    // and an arbitrary navigation.
+    const requestedURL = page
+      ? req.parsed.searchParams.get(JSON_NEW_TARGET_PARAM)
+      : null;
+
+    if (page && requestedURL) {
+      let targetURL: string;
+      try {
+        targetURL = resolveJSONNewTarget(requestedURL);
+        assertNavigationAllowed(
+          targetURL,
+          this.config.getBlockedURLPatterns(),
+          this.config.getBlockedNetworkRanges(),
+          this.config.getSelfNavigationHosts(),
+        );
+      } catch (err) {
+        // The page was created a moment ago; a rejected navigation must not
+        // leak it into a keep-alive browser.
+        await page.close().catch(noop);
+        throw err;
+      }
+
+      // Deliberately not awaited. Chrome's /json/new returns before the tab
+      // has finished loading, and holding the CDP upgrade open for the whole
+      // navigation would stall clients that attach in order to drive it.
+      page.goto(targetURL).catch(noop);
+    }
+
     const pathname = page
       ? path.join('/devtools', '/page', this.getPageId(page))
       : req.parsed.pathname;
