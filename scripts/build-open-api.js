@@ -85,7 +85,7 @@ const buildOpenAPI = async (
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
         altText: 'browserless logo',
-        url: './docs/browserless-logo-inline.svg',
+        url: './browserless-logo-inline.svg',
       },
     },
     openapi: '3.0.0',
