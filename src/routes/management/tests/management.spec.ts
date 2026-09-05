@@ -205,17 +205,17 @@ describe('Management APIs', function () {
         'http://localhost:3000/docs/swagger.json?token=6R0W53R135510',
       ).then((res) => res.json() as Promise<any>);
 
-      const references = [
+      const references: string[] = [
         spec.info['x-logo'].url,
         ...[
           ...spec.info.description.matchAll(/(?:src|srcset)="(\.\/[^"]+)"/g),
-        ].map(([, url]: string[]) => url),
+        ].map(([, url]) => url),
       ];
 
       expect(references.length).to.be.greaterThan(1);
 
       await Promise.all(
-        references.map(async (reference: string) => {
+        references.map(async (reference) => {
           const url = new URL(reference, 'http://localhost:3000/docs/');
           url.searchParams.set('token', '6R0W53R135510');
 

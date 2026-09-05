@@ -36,6 +36,8 @@ const copyReferencedAssets = async (markdown) => {
     return;
   }
 
+  const assetsDir = join(process.cwd(), 'assets');
+
   await fs.mkdir(docsAssetsDir, { recursive: true });
 
   // A reference with no readable file behind it costs the docs page an image,
@@ -43,10 +45,7 @@ const copyReferencedAssets = async (markdown) => {
   await Promise.all(
     referenced.map((file) =>
       fs
-        .copyFile(
-          join(process.cwd(), 'assets', file),
-          join(docsAssetsDir, file),
-        )
+        .copyFile(join(assetsDir, file), join(docsAssetsDir, file))
         .catch(() => {}),
     ),
   );
