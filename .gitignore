@@ -24,6 +24,9 @@ static/debugger/*
 static/docs/swagger.json
 static/docs/swagger.min.json
 
+# Docs images copied from ./assets at build time
+static/docs/assets/
+
 # Coverage
 coverage
 
