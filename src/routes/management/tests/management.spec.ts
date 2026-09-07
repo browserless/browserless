@@ -161,6 +161,25 @@ describe('Management APIs', function () {
   });
 
   describe('Static Files Serving', () => {
+    it('loads the docs favicon after the directory redirect', async () => {
+      await start();
+
+      const page = await fetch('http://localhost:3000/docs');
+      expect(page.status).to.equal(200);
+      expect(new URL(page.url).pathname).to.equal('/docs/');
+      const html = await page.text();
+      const favicon = html.match(/rel="icon" href="([^"]+)"/)?.[1];
+      expect(favicon).to.be.a('string');
+
+      expect(
+        new URL(favicon!, 'http://localhost:3000/browserless/docs/').pathname,
+      ).to.equal('/browserless/favicon-32x32.png');
+
+      const icon = await fetch(new URL(favicon!, page.url));
+      expect(icon.status).to.equal(200);
+      expect(icon.headers.get('content-type')).to.equal('image/png');
+    });
+
     it('serves docs pages', async () => {
       await start();
 
