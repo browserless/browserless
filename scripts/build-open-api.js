@@ -71,13 +71,7 @@ const buildOpenAPI = async (
     ]);
 
   const isWin = process.platform === 'win32';
-  const readme = (await fs.readFile('README.md').catch(() => ''))
-    .toString()
-    // Reuse the packaged docs logo for the repository README's images.
-    .replace(
-      /(src|srcset)="\.\/assets\/logo(?:-white)?\.svg"/g,
-      '$1="./browserless-logo-inline.svg"',
-    );
+  const readme = (await fs.readFile('README.md').catch(() => '')).toString();
   const changelog = marked.parse(
     (await fs.readFile('CHANGELOG.md').catch(() => '')).toString(),
   );
@@ -91,7 +85,7 @@ const buildOpenAPI = async (
       version: JSON.parse(packageJSON.toString()).version,
       'x-logo': {
         altText: 'browserless logo',
-        url: './browserless-logo-inline.svg',
+        url: './docs/browserless-logo-inline.svg',
       },
     },
     openapi: '3.0.0',
