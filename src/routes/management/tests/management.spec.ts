@@ -171,6 +171,10 @@ describe('Management APIs', function () {
       const favicon = html.match(/rel="icon" href="([^"]+)"/)?.[1];
       expect(favicon).to.be.a('string');
 
+      expect(
+        new URL(favicon!, 'http://localhost:3000/browserless/docs/').pathname,
+      ).to.equal('/browserless/favicon-32x32.png');
+
       const icon = await fetch(new URL(favicon!, page.url));
       expect(icon.status).to.equal(200);
       expect(icon.headers.get('content-type')).to.equal('image/png');
