@@ -185,6 +185,23 @@ describe('Management APIs', function () {
       expect(icon.headers.get('content-type')).to.equal('image/png');
     });
 
+    it('serves the embedded README logos from local docs assets', async () => {
+      await start();
+
+      const response = await fetch('http://localhost:3000/docs/swagger.json');
+      const { info } = await response.json();
+      const logos = [
+        ...info.description.matchAll(/(?:src|srcset)="(\.\/[^"]+)"/g),
+      ];
+      expect(logos).not.to.be.empty;
+
+      for (const [, src] of logos) {
+        const logo = await fetch(new URL(src, response.url));
+        expect(logo.status, src).to.equal(200);
+        expect(logo.headers.get('content-type')).to.equal('image/svg+xml');
+      }
+    });
+
     it('serves docs pages', async () => {
       await start();
 

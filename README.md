@@ -4,9 +4,9 @@
   <a href="https://browserless.io?utm_source=github&utm_medium=referral&utm_campaign=oss-readme&utm_content=top-banner" align="center">
     <center align="center">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/browserless/browserless/main/assets/logo-white.svg" width="600">
-        <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/browserless/browserless/main/assets/logo.svg" width="600">
-        <img src="https://raw.githubusercontent.com/browserless/browserless/main/assets/logo.svg" alt="Browserless logo" width="600">
+        <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-white.svg" width="600">
+        <source media="(prefers-color-scheme: light)" srcset="./assets/logo.svg" width="600">
+        <img src="./assets/logo.svg" alt="Browserless logo" width="600">
       </picture>
     </center>
   </a>
