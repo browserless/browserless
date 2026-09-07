@@ -161,6 +161,30 @@ describe('Management APIs', function () {
   });
 
   describe('Static Files Serving', () => {
+    it('loads docs image URLs after the directory redirect', async () => {
+      await start();
+
+      const page = await fetch('http://localhost:3000/docs');
+      expect(page.status).to.equal(200);
+      expect(new URL(page.url).pathname).to.equal('/docs/');
+      const html = await page.text();
+      const favicon = html.match(/rel="icon" href="([^"]+)"/)?.[1];
+      expect(favicon).to.be.a('string');
+
+      for (const spec of ['swagger.json', 'swagger.min.json']) {
+        const response = await fetch(new URL(spec, page.url));
+        expect(response.status).to.equal(200);
+        const { info } = await response.json();
+        const logo = await fetch(new URL(info['x-logo'].url, page.url));
+        expect(logo.status).to.equal(200);
+        expect(logo.headers.get('content-type')).to.equal('image/svg+xml');
+      }
+
+      const icon = await fetch(new URL(favicon!, page.url));
+      expect(icon.status).to.equal(200);
+      expect(icon.headers.get('content-type')).to.equal('image/png');
+    });
+
     it('serves docs pages', async () => {
       await start();
 
