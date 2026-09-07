@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.56.4](https://github.com/browserless/browserless/compare/v2.56.3...v2.56.4) (2026-09-07)
+
+
+### Bug Fixes
+
+* correct the built-in docs favicon URL ([#5570](https://github.com/browserless/browserless/issues/5570)) ([81941bf](https://github.com/browserless/browserless/commit/81941bf885d4cc8df2215efdd48f3fe4238be4fd))
+* serve the images the API docs page references ([#5568](https://github.com/browserless/browserless/issues/5568)) ([ba7b504](https://github.com/browserless/browserless/commit/ba7b5046666e997b6f05e241e8c19f7a06a3e820))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.9.0`
+- playwright-core: `1.62.1`, `1.61.1`, `1.60.0`, `1.59.1`, and `1.58.2`.
+- Chromium: `151.0.7922.34`
+- Chrome: `152.0.7977.82` (amd64 only)
+- Firefox: `153.0`
+- Webkit: `26.5`
+- Edge: `152.0.4191.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.3](https://github.com/browserless/browserless/compare/v2.56.2...v2.56.3) (2026-09-04)
 
 
