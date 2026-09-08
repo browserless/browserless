@@ -8,6 +8,7 @@ import {
 import { Server, createServer } from 'http';
 import { AddressInfo } from 'net';
 import { expect } from 'chai';
+import puppeteer from 'puppeteer-core';
 
 import { ChromiumCDP } from './browsers.cdp.js';
 
@@ -71,7 +72,10 @@ describe('ChromiumCDP launch args', function () {
 describe('ChromiumCDP blocked-URL guard', function () {
   let browser: ChromiumCDP | undefined;
   let server: Server | undefined;
+  let proxy: Server | undefined;
   let port = 0;
+  let proxyPort = 0;
+  let proxyChallenges = 0;
   let hits: string[] = [];
 
   // A range set mirroring what a consumer opts into: loopback plus localhost.
@@ -97,15 +101,49 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
   beforeEach(async () => {
     hits = [];
+    proxyChallenges = 0;
     server = createServer((req, res) => {
       hits.push(req.url ?? '');
+      // A 401 endpoint for the page.authenticate() cases; everything else is
+      // an image, which is the shape the blocked sub-resource cases use.
+      if (req.url?.startsWith('/auth')) {
+        if (!req.headers.authorization) {
+          res.writeHead(401, {
+            'content-type': 'text/html',
+            'www-authenticate': 'Basic realm="probe"',
+          });
+          return res.end('<html><body>denied</body></html>');
+        }
+        res.writeHead(200, { 'content-type': 'text/html' });
+        return res.end('<html><body>authed</body></html>');
+      }
       res.writeHead(200, { 'content-type': 'image/svg+xml' });
-      res.end('<svg xmlns="http://www.w3.org/2000/svg"/>');
+      return res.end('<svg xmlns="http://www.w3.org/2000/svg"/>');
     });
     await new Promise<void>((resolve) =>
       server!.listen(0, '127.0.0.1', resolve),
     );
     port = (server!.address() as AddressInfo).port;
+
+    // A proxy that challenges once, so a 407 has to reach the client the same
+    // way a 401 does. Chromium sends absolute-form requests to a proxy, so
+    // nothing here has to resolve the name it is asked for.
+    proxy = createServer((req, res) => {
+      if (!req.headers['proxy-authorization']) {
+        proxyChallenges++;
+        res.writeHead(407, {
+          'content-type': 'text/html',
+          'proxy-authenticate': 'Basic realm="probe"',
+        });
+        return res.end('<html><body>proxy denied</body></html>');
+      }
+      res.writeHead(200, { 'content-type': 'text/html' });
+      return res.end('<html><body>authed</body></html>');
+    });
+    await new Promise<void>((resolve) =>
+      proxy!.listen(0, '127.0.0.1', resolve),
+    );
+    proxyPort = (proxy!.address() as AddressInfo).port;
   });
 
   afterEach(async () => {
@@ -113,6 +151,8 @@ describe('ChromiumCDP blocked-URL guard', function () {
     browser = undefined;
     server?.close();
     server = undefined;
+    proxy?.close();
+    proxy = undefined;
   });
 
   // Positive assertions ("the request did happen", "the session did close")
@@ -130,17 +170,29 @@ describe('ChromiumCDP blocked-URL guard', function () {
     }
   };
 
-  const newGuardedPage = async () => {
+  const launchGuarded = async (args: string[] = []) => {
     browser = new ChromiumCDP({
       blockAds: false,
       config: new GuardedConfig(),
       logger: new Logger('browsers.cdp.spec'),
       userDataDir: null,
     });
-    await browser.launch({ options: { args: [] }, stealth: false });
-    const page = await browser.newPage();
+    await browser.launch({ options: { args }, stealth: false });
+    return browser;
+  };
+
+  // Resolves every hostname to the probe server, so a case can use a name the
+  // blocklist has an opinion about — or a lookalike it must not — and still be
+  // served locally.
+  const resolveEverythingLocally = () => [
+    `--host-resolver-rules=MAP * 127.0.0.1:${port}`,
+  ];
+
+  const newGuardedPage = async (args: string[] = []) => {
+    await launchGuarded(args);
+    const page = await browser!.newPage();
     // 'targetcreated' fires the guard install asynchronously, so newPage() can
-    // resolve before Fetch interception is live.
+    // resolve before the blocklist is live.
     await new Promise((resolve) => setTimeout(resolve, 500));
     return page;
   };
@@ -176,10 +228,11 @@ describe('ChromiumCDP blocked-URL guard', function () {
     expect(await page.evaluate(() => 1 + 1)).to.equal(2);
   });
 
-  // The reason this guard intercepts rather than using
-  // Network.setBlockedURLs: glob blocking has no notion of an exemption, so
-  // blocking loopback would also block the pages browserless serves itself
-  // (e.g. the /function runtime).
+  // `Network.setBlockedURLs` has no notion of an exemption, so the carve-out
+  // has to be baked into the patterns (toBlockedUrlPatterns). Without it the
+  // pages browserless serves itself — the /function runtime and its code —
+  // stop loading, and blocking beats interception to the request, so the
+  // handler that serves them never gets the chance.
   it("still allows the server's own origin through the same host", async () => {
     class SelfHostedConfig extends GuardedConfig {
       public getSelfNavigationHosts(): string[] {
@@ -223,10 +276,13 @@ describe('ChromiumCDP blocked-URL guard', function () {
     });
   }
 
-  // A credentialed navigation keeps its userinfo all the way to the pattern
-  // matcher, so `*://127.*` alone would miss it and leave only the
-  // observational path — which cannot stop a request that has already left.
-  it('blocks a navigation that hides the host behind userinfo', async () => {
+  // Navigations are the one thing `Network.setBlockedURLs` does not apply to
+  // (measured — sub-resources and renderer fetches are blocked, navigations
+  // are not), so this is the observational teardown doing its job, not the
+  // blocklist. The request does leave the browser; the route-level 403 and the
+  // wire-protocol check are what stop the ones they can see, and a teardown
+  // could never have unsent it anyway.
+  it('still terminates a navigation that hides the host behind userinfo', async () => {
     const page = await newGuardedPage();
 
     await page
@@ -234,12 +290,107 @@ describe('ChromiumCDP blocked-URL guard', function () {
       .catch(() => {});
     await waitFor(() => !browser!.isRunning());
 
-    expect(hits, 'credentialed navigation must not reach the destination').to.be
-      .empty;
-    // Both halves, or the test passes on a guard that fails the request and
-    // leaves the session up — which is the sub-resource behaviour, not the
-    // navigation one.
     expect(browser!.isRunning(), 'blocked navigation must end the session').to
       .be.false;
+  });
+
+  // PLT-1596. The guard this replaced enabled `Fetch` on a second CDP session,
+  // which swallowed the auth challenge for every request on the target: the
+  // client was never asked for credentials and Chromium failed the navigation
+  // with ERR_INVALID_AUTH_CREDENTIALS. It broke whether or not anything
+  // matched the blocklist, and it took out ~5% of one customer's sessions.
+  //
+  // The client is a second puppeteer connection, as in production: the server
+  // installs the guard on `targetcreated`, the customer drives a page over
+  // their own connection.
+  describe('with a client calling page.authenticate()', () => {
+    const connectClient = async () => {
+      const browserWSEndpoint = browser!.wsEndpoint();
+      expect(browserWSEndpoint, 'browser should expose an endpoint').to.be.a(
+        'string',
+      );
+      return puppeteer.connect({ browserWSEndpoint: browserWSEndpoint! });
+    };
+
+    // Three sequential pages: the original failure was a race between the
+    // guard landing on the target and authenticate() arming, so one pass
+    // proves less than a handful do.
+    it('answers a site (401) challenge', async () => {
+      // `auth.test` is deliberately not a name the blocklist covers: the
+      // pre-fix guard broke auth even when nothing matched its patterns, and a
+      // blocked host would confuse that with the navigation teardown.
+      await launchGuarded(resolveEverythingLocally());
+      const client = await connectClient();
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const page = await client.newPage();
+        // 'targetcreated' installs the guard asynchronously; give it the same
+        // head start the pre-fix guard needed to lose this race.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await page.authenticate({ password: 'pass', username: 'user' });
+
+        const response = await page.goto('http://auth.test/auth', {
+          timeout: 10_000,
+        });
+
+        expect(response?.status(), `attempt ${attempt}`).to.equal(200);
+        expect(await page.evaluate(() => document.body.textContent)).to.equal(
+          'authed',
+        );
+        await page.close();
+      }
+
+      await client.disconnect();
+    });
+
+    // The reported case: `/chrome?--proxy-server=…` with no credentials in the
+    // flag, so the 407 has to reach the client's authenticate() too.
+    it('answers a proxy (407) challenge', async () => {
+      await launchGuarded([
+        `--proxy-server=127.0.0.1:${proxyPort}`,
+        // Chromium exempts loopback from proxying unless told otherwise.
+        '--proxy-bypass-list=<-loopback>',
+      ]);
+      const client = await connectClient();
+      const page = await client.newPage();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await page.authenticate({ password: 'pass', username: 'user' });
+
+      const response = await page.goto('http://proxied.test/auth', {
+        timeout: 10_000,
+      });
+
+      expect(response?.status()).to.equal(200);
+      expect(
+        proxyChallenges,
+        'the proxy must have issued a challenge',
+      ).to.be.greaterThan(0);
+      await client.disconnect();
+    });
+  });
+
+  // The patterns are the verdict now — nothing pauses to ask the matcher
+  // afterwards — so a pattern that over-matches is a customer's sub-resource
+  // that silently fails. This is the browser end of the anchoring asserted in
+  // network-security.spec.ts: it also pins the assumption that Chromium
+  // matches a pattern as an unanchored substring, which is what
+  // matchesBlockedUrlPattern mirrors.
+  it('leaves lookalike hosts alone', async () => {
+    // Requested for real, rather than asserted against a re-implementation of
+    // Chromium's matcher.
+    const page = await newGuardedPage(resolveEverythingLocally());
+
+    // 0.gravatar.com is the one that matters: an unanchored `0.` pattern
+    // blocks it, and it sits on a great many WordPress sites.
+    await page.setContent(
+      '<img src="http://0.gravatar.test/avatar.svg">' +
+        '<img src="http://localhostings.test/logo.svg">' +
+        '<img src="http://127.example.test/logo.svg">',
+    );
+    const loaded = () => hits.filter((hit) => hit.endsWith('.svg')).length;
+    await waitFor(() => loaded() >= 3);
+
+    expect(loaded(), 'lookalike hosts must load').to.equal(3);
+    expect(browser!.isRunning()).to.be.true;
   });
 });

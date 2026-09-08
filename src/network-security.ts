@@ -189,69 +189,184 @@ export const assertNavigationAllowed = (
 };
 
 /**
- * Builds the `Fetch.enable` URL patterns that decide which requests are paused
- * for a blocklist verdict. Everything the matcher could reject must match one
- * of these — a request that is never paused is never checked — so the patterns
- * deliberately over-match and leave the real decision to
- * {@link findBlockedNavigationUrl}, which canonicalizes and understands the
- * self-origin exemption. A pause that resolves to "allowed" costs one
- * `Fetch.continueRequest`; a miss costs the guard entirely.
+ * Chromium matches a `Network.setBlockedURLs` pattern by splitting it on `*`
+ * and requiring each piece to appear in the URL in order, so a pattern with no
+ * `*` is a plain substring test and there is no way to anchor one to the start
+ * or the end of the URL. Mirrored here so {@link toBlockedUrlPatterns} can work
+ * out which of its own patterns would swallow the server's own origin, under
+ * exactly the rules the browser will apply.
+ */
+export const matchesBlockedUrlPattern = (
+  url: string,
+  pattern: string,
+): boolean => {
+  let from = 0;
+  for (const piece of pattern.split('*')) {
+    if (!piece) continue;
+    const at = url.indexOf(piece, from);
+    if (at === -1) return false;
+    from = at + piece.length;
+  }
+  return true;
+};
+
+// A host sits between the scheme separator (or the userinfo, in a credentialed
+// URL) and either its port or the path. Against a matcher with no anchors of
+// its own, those four strings are the only way to say "this is the host".
+const HOST_STARTS = ['://', '@'] as const;
+const HOST_ENDS = ['/', ':'] as const;
+// `url.spec()` always carries a path, so a host is always followed by `/` or
+// `:` — a pattern never has to consider `?` or `#` sitting directly after it.
+const PATH_END = '/';
+const DIGITS = '0123456789';
+// What can follow a partial match inside a blocked origin: more of the host
+// (IPv4 literals are digits and dots), or the port.
+const HOST_CHARS = `${DIGITS}.:`;
+
+/**
+ * Every spelling of a blocked hostname, anchored at both ends. The classifier
+ * blocks the name itself and any sub-domain of it, and the anchors are what
+ * keep `localhost` from also blocking `localhostings.com` — a substring
+ * matcher would otherwise treat the lookalike as a hit.
+ */
+const hostnamePatterns = (hostname: string): string[] => [
+  ...HOST_STARTS.flatMap((start) =>
+    HOST_ENDS.map((end) => `${start}${hostname}${end}`),
+  ),
+  // Sub-domains: the leading dot anchors these on its own, credentials or not.
+  ...HOST_ENDS.map((end) => `.${hostname}${end}`),
+];
+
+/**
+ * An IPv4 prefix, with a digit pinned after it. The digit is what stops `0.`
+ * from also blocking `0.gravatar.com` — a real host on a great many WordPress
+ * sites, which is exactly the sort of page this guard runs against. Chromium
+ * canonicalizes decimal (`http://2130706433/`) and hex (`http://0x7f.0.0.1/`)
+ * forms to dotted-quad before matching, so only the canonical spelling needs
+ * listing.
+ */
+const ipv4Patterns = (prefix: string): string[] =>
+  [...DIGITS].flatMap((digit) =>
+    HOST_STARTS.map((start) => `${start}${prefix}${digit}`),
+  );
+
+/**
+ * An IPv6 prefix. The opening bracket anchors these as literals, so no
+ * hostname can collide with them and no closing anchor is needed.
+ */
+const ipv6Patterns = (prefix: string): string[] =>
+  HOST_STARTS.map((start) => `${start}[${prefix}`);
+
+/**
+ * Rewrites one pattern into the set that matches everything it did except the
+ * server's own origin.
  *
- * Over-matching is why these are not the blocklist itself: `*://127.*` also
- * pauses `http://127.example.com/`, and `*://localhost*` also pauses
- * `https://localhostings.com/` — both continue on unchanged once the matcher
- * has looked at them.
+ * `Network.setBlockedURLs` has no notion of an exemption, and the original
+ * `Fetch`-based guard leaned on that: it paused a request and let
+ * {@link findBlockedNavigationUrl} decide, self-origin carve-out included.
+ * Pausing is what broke `page.authenticate()`, so the carve-out has to be
+ * expressed in the patterns themselves.
  *
- * Chromium canonicalizes a URL before matching, so decimal (`http://2130706433/`)
- * and hex (`http://0x7f.0.0.1/`) IPv4 forms arrive here already spelled as
- * dotted-quad and are caught by the numeric prefixes. IPv6 literals are covered
- * wholesale by `*://[*` rather than per-prefix, since the bracket form is rare
- * enough that pausing all of it is cheaper than getting the prefixes right.
+ * It can be, because a URL that is not our origin has to differ from it at
+ * some character: one pattern per (position, alternative character) covers all
+ * of them and none of ours. For a server on `localhost:3000` that is ~50
+ * patterns — `://localhost:8`, `://localhost:30/`, `://localhost:3001`, and so
+ * on — which still block every other port on the host while leaving the pages
+ * browserless serves itself (the `/function` runtime and its own WebSocket)
+ * reachable.
+ */
+const withoutSelfOrigin = (pattern: string, origin: string): string[] => {
+  const at = origin.indexOf(pattern);
+
+  // Only a literal pattern can be taken apart this way. A wildcard one that
+  // reaches our own origin is dropped instead: refusing to guard that shape
+  // costs one blocklist entry, while decomposing from the wrong offset would
+  // emit patterns like `/` and block every request the browser makes.
+  if (at === -1) {
+    return [];
+  }
+
+  const consumed = at + pattern.length;
+  // The port's colon, skipping both the scheme separator and the colons inside
+  // an IPv6 literal.
+  const bracketEnd = origin.lastIndexOf(']');
+  const portAt = origin.indexOf(':', bracketEnd > 0 ? bracketEnd : 3);
+  const out: string[] = [];
+
+  for (let index = consumed; index < origin.length; index++) {
+    const inPort = portAt !== -1 && index > portAt;
+    // A port has to start with a digit, so `/` is only an alternative once at
+    // least one digit of it is fixed; anywhere else it means "the origin ends
+    // here", which is a different origin from ours.
+    const alternatives =
+      (inPort ? DIGITS : HOST_CHARS) +
+      (index === portAt + 1 && inPort ? '' : PATH_END);
+
+    for (const char of alternatives) {
+      if (char === origin[index]) continue;
+      // Rebuilt from the pattern, not from the origin, so a pattern that
+      // matched partway in keeps its own anchor: a `.localhost:` rewritten
+      // around a self host of `sub.localhost:3000` still covers every other
+      // sub-domain, which re-anchoring on `://sub` would have dropped.
+      out.push(pattern + origin.slice(consumed, index) + char);
+    }
+  }
+
+  return out;
+};
+
+/**
+ * Builds the patterns handed to `Network.setBlockedURLs`, which is how the CDP
+ * guard stops a page reaching a blocked destination.
  *
- * Userinfo is NOT canonicalized away: a navigation to
- * `http://user@127.0.0.1/` reaches the pattern matcher with the credentials
- * still in the string, where `*://127.*` does not match because `user@` sits
- * between the scheme and the host. Every host-shaped glob therefore gets a
- * `*://*@…` twin. (Credentialed *sub-resources* never get this far — Chromium
- * blocks them outright — but a credentialed navigation does, and without the
- * twin it would slip past interception into the observational path, which can
- * only react once the request is already gone.)
+ * Unlike the `Fetch` patterns this replaced, these *are* the verdict: nothing
+ * pauses to ask {@link findBlockedNavigationUrl} afterwards, so they are
+ * written to match what the classifier blocks rather than to over-match and
+ * defer. Two consequences worth knowing:
+ *
+ * - Matching is a substring test (see {@link matchesBlockedUrlPattern}), so a
+ *   pattern can be anchored within the URL but never to its start. A scheme
+ *   pattern such as `file://` therefore also blocks a request whose *query*
+ *   carries an unencoded `file://`. Rare, and it costs one sub-resource.
+ * - `setBlockedURLs` does not apply to navigations or WebSocket handshakes
+ *   (measured). Navigations stay covered by the route-level 403, the
+ *   wire-protocol check in {@link findBlockedNavigationInMessage}, and the
+ *   observational teardown in the CDP browser class.
+ *
+ * `selfHosts` (`Config.getSelfNavigationHosts()`) is carved back out of the
+ * result rather than left to a per-request exemption — see
+ * {@link withoutSelfOrigin}.
  *
  * Returns `[]` when nothing is configured to block, which callers should treat
- * as "do not enable interception at all".
+ * as "do not install the guard at all".
  */
-export const toBlockedUrlInterceptPatterns = (
+export const toBlockedUrlPatterns = (
   patterns: string[],
   ranges: NetworkRangeSet | null,
+  selfHosts: readonly string[] = [],
 ): string[] => {
-  const globs = new Set<string>();
+  const built: string[] = [
+    // Scheme blocklists (`file://`) and blocked protocols (`smtp://`, `ftp://`)
+    // are already the head of the URL, so they need no anchoring of their own.
+    ...patterns,
+    ...(ranges?.protocols ?? []),
+    ...(ranges?.hostnames ?? []).flatMap(hostnamePatterns),
+    ...(ranges?.ipv4Prefixes ?? []).flatMap(ipv4Patterns),
+    ...(ranges?.ipv6Prefixes ?? []).flatMap(ipv6Patterns),
+  ];
 
-  // Scheme blocklists (`file://`) and blocked protocols (`smtp://`, `ftp://`)
-  // are already prefixes of the URL, so they need only a trailing wildcard —
-  // userinfo sits after the scheme, so these cover the credentialed form too.
-  for (const pattern of [...patterns, ...(ranges?.protocols ?? [])]) {
-    globs.add(`${pattern}*`);
-  }
+  // The origins the browser has to keep reaching. A self host never carries
+  // credentials, so only the `://` spelling can collide.
+  const origins = selfHosts.map((host) => `://${host}/`);
+  const exempted = origins.reduce(
+    (current, origin) =>
+      current.flatMap((pattern) =>
+        matchesBlockedUrlPattern(origin, pattern)
+          ? withoutSelfOrigin(pattern, origin)
+          : [pattern],
+      ),
+    built,
+  );
 
-  // Both spellings of a host-shaped glob: bare, and with userinfo ahead of it.
-  const addHostGlob = (host: string) => {
-    globs.add(`*://${host}*`);
-    globs.add(`*://*@${host}*`);
-  };
-
-  if (ranges) {
-    for (const prefix of ranges.ipv4Prefixes) {
-      addHostGlob(prefix);
-    }
-    if (ranges.ipv6Prefixes.length) {
-      addHostGlob('[');
-    }
-    for (const hostname of ranges.hostnames) {
-      // The host itself, plus the dot-suffix form the classifier also blocks.
-      addHostGlob(hostname);
-      addHostGlob(`*.${hostname}`);
-    }
-  }
-
-  return [...globs];
+  return [...new Set(exempted)];
 };
