@@ -386,6 +386,9 @@ export class ChromiumCDP extends EventEmitter {
       args: [
         `--remote-debugging-port=${this.port}`,
         `--no-sandbox`,
+        // Chrome 152's first-run UI prevents remote debugging from starting.
+        // Keep launches non-interactive even with ignoreDefaultArgs: true.
+        `--no-first-run`,
         // Playwright 1.57+ uses Chrome For Test, which has stricter security than Chromium.
         // This is needed to allow WebSocket connections to localhost.
         `--disable-features=LocalNetworkAccessChecks`,
