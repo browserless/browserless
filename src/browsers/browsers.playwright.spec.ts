@@ -887,7 +887,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   describe('Config.getChromiumDisabledFeatures (overridable seam)', () => {
     it('returns the default list for current/unknown versions', () => {
       const cfg = new Config();
-      for (const v of [undefined, 'default', '1.62', '1.99']) {
+      for (const v of [undefined, 'default', '1.63', '1.99']) {
         expect(cfg.getChromiumDisabledFeatures(v)).to.deep.equal(
           defaultFeatures,
         );
@@ -895,10 +895,17 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       expect(defaultFeatures).to.include(
         'BlockOriginHeaderModificationOnRedirect',
       );
-      expect(defaultFeatures).to.include(
+      expect(defaultFeatures).to.not.include(
         'BoundaryEventDispatchTracksNodeRemoval',
       );
       expect(defaultFeatures).to.not.include('RenderDocument');
+    });
+
+    it('preserves the removed boundary-event feature for 1.62', () => {
+      const f162 = new Config().getChromiumDisabledFeatures('1.62');
+      expect(f162).to.include('BoundaryEventDispatchTracksNodeRemoval');
+      expect(f162).to.include('BlockOriginHeaderModificationOnRedirect');
+      expect(f162).to.not.include('RenderDocument');
     });
 
     it('returns a version-specific list where it differs (1.61)', () => {
@@ -1026,11 +1033,11 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     // real dependency installed in node_modules (see package.json
     // `playwrightVersions`). The mirror must match each one.
     const SUPPORTED_PW_VERSIONS: Readonly<Record<string, string>> = {
-      '1.58': 'playwright-1.58',
       '1.59': 'playwright-1.59',
       '1.60': 'playwright-1.60',
       '1.61': 'playwright-1.61',
-      '1.62': 'playwright-core',
+      '1.62': 'playwright-1.62',
+      '1.63': 'playwright-core',
     };
 
     type ChromiumLauncher = {
@@ -1127,7 +1134,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       "browserless's merged --disable-features is the one Chromium keeps",
       async () => {
         const argv = await captureLaunchArgv(
-          await chromiumFor(SUPPORTED_PW_VERSIONS['1.62']),
+          await chromiumFor(SUPPORTED_PW_VERSIONS['1.63']),
           launchArgs(ChromiumPlaywright, []),
         );
         const disableFlags = disableFeaturesFlags(argv);
