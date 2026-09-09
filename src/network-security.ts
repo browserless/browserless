@@ -238,17 +238,41 @@ const hostnamePatterns = (hostname: string): string[] => [
 ];
 
 /**
- * An IPv4 prefix, with a digit pinned after it. The digit is what stops `0.`
- * from also blocking `0.gravatar.com` — a real host on a great many WordPress
- * sites, which is exactly the sort of page this guard runs against. Chromium
- * canonicalizes decimal (`http://2130706433/`) and hex (`http://0x7f.0.0.1/`)
- * forms to dotted-quad before matching, so only the canonical spelling needs
- * listing.
+ * An IPv4 prefix, with the characters that can legitimately follow it pinned
+ * after it. Pinning is what stops `0.` from also blocking `0.gravatar.com` — a
+ * real host on a great many WordPress sites, which is exactly the sort of page
+ * this guard runs against. Chromium canonicalizes decimal
+ * (`http://2130706433/`) and hex (`http://0x7f.0.0.1/`) forms to dotted-quad
+ * before matching, so only the canonical spelling needs listing.
+ *
+ * What may follow depends on where the prefix stops, and getting it wrong is
+ * silent. The classifier prefix-matches the host, so a prefix that stops
+ * mid-octet — `169.254`, which is how enterprise spells the cloud-metadata
+ * range — continues with the rest of that octet *or* with the dot that ends
+ * it. Pinning only a digit there yields `://169.2540`…`://169.2549`, none of
+ * which can ever match `169.254.169.254`: the range reads as configured and
+ * blocks nothing. A prefix that is a whole address (`127.0.0.1`) likewise has
+ * to let the host end, hence the terminators.
  */
-const ipv4Patterns = (prefix: string): string[] =>
-  [...DIGITS].flatMap((digit) =>
-    HOST_STARTS.map((start) => `${start}${prefix}${digit}`),
+const ipv4Patterns = (prefix: string): string[] => {
+  const continuations = prefix.endsWith('.')
+    ? // Already at a dot boundary, so only another octet can follow.
+      [...DIGITS]
+    : [
+        // The rest of the octet, the octet after it, or the end of the host.
+        // The dot carries a digit rather than standing alone: the classifier
+        // only prefix-matches hosts that are all digits and dots, so a bare
+        // `://169.254.` would also block `169.254.example.com`, which it
+        // treats as an ordinary name and allows.
+        ...DIGITS,
+        ...[...DIGITS].map((digit) => `.${digit}`),
+        ...HOST_ENDS,
+      ];
+
+  return continuations.flatMap((continuation) =>
+    HOST_STARTS.map((start) => `${start}${prefix}${continuation}`),
   );
+};
 
 /**
  * An IPv6 prefix. The opening bracket anchors these as literals, so no
