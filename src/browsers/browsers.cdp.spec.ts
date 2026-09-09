@@ -8,7 +8,8 @@ import {
 import { Server, createServer } from 'http';
 import { AddressInfo } from 'net';
 import { expect } from 'chai';
-import puppeteer from 'puppeteer-core';
+import puppeteer, { Page } from 'puppeteer-core';
+import sinon from 'sinon';
 
 import { ChromiumCDP } from './browsers.cdp.js';
 
@@ -170,10 +171,13 @@ describe('ChromiumCDP blocked-URL guard', function () {
     }
   };
 
-  const launchGuarded = async (args: string[] = []) => {
+  const launchGuarded = async (
+    args: string[] = [],
+    config: Config = new GuardedConfig(),
+  ) => {
     browser = new ChromiumCDP({
       blockAds: false,
-      config: new GuardedConfig(),
+      config,
       logger: new Logger('browsers.cdp.spec'),
       userDataDir: null,
     });
@@ -188,8 +192,11 @@ describe('ChromiumCDP blocked-URL guard', function () {
     `--host-resolver-rules=MAP * 127.0.0.1:${port}`,
   ];
 
-  const newGuardedPage = async (args: string[] = []) => {
-    await launchGuarded(args);
+  const newGuardedPage = async (
+    args: string[] = [],
+    config: Config = new GuardedConfig(),
+  ) => {
+    await launchGuarded(args, config);
     const page = await browser!.newPage();
     // 'targetcreated' fires the guard install asynchronously, so newPage() can
     // resolve before the blocklist is live.
@@ -392,5 +399,117 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
     expect(loaded(), 'lookalike hosts must load').to.equal(3);
     expect(browser!.isRunning()).to.be.true;
+  });
+
+  it('allows numeric DNS labels without exempting blocked addresses', async () => {
+    proxy!.removeAllListeners('request');
+    proxy!.on('request', (req, res) => {
+      hits.push(req.url ?? '');
+      res.writeHead(200, { 'content-type': 'image/svg+xml' });
+      res.end('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    });
+    const page = await newGuardedPage([
+      `--proxy-server=127.0.0.1:${proxyPort}`,
+      '--proxy-bypass-list=<-loopback>',
+    ]);
+    const allowed = [
+      'http://169.254.1.example.test/logo.svg',
+      'http://127.0.0.1.example.test/path.1/',
+      'http://public.test/control.svg',
+    ];
+    const blocked = [
+      'http://169.254.169.254/latest/meta-data/',
+      'http://169.254.169.254/?host=example.test',
+      `http://127.0.0.1:${port}/blocked.svg`,
+      'http://sub.localhost:8888/blocked.svg',
+    ];
+
+    await page.evaluate(
+      async (urls) => {
+        await Promise.all(
+          urls.map(
+            (url) =>
+              new Promise<void>((resolve) => {
+                const image = new Image();
+                image.onload = image.onerror = () => resolve();
+                image.src = url;
+              }),
+          ),
+        );
+      },
+      [...allowed, ...blocked],
+    );
+
+    expect(hits.filter((url) => allowed.includes(url))).to.have.members(
+      allowed,
+    );
+    expect(hits.filter((url) => blocked.includes(url))).to.be.empty;
+    expect(browser!.isRunning()).to.be.true;
+  });
+
+  for (const pattern of ['http://', 'http://127.0.0.1.example.test/private']) {
+    it(`preserves the explicit URL block ${pattern}`, async () => {
+      class ExplicitConfig extends GuardedConfig {
+        public getBlockedURLPatterns(): string[] {
+          return ['file://', pattern];
+        }
+      }
+      const page = await newGuardedPage(
+        resolveEverythingLocally(),
+        new ExplicitConfig(),
+      );
+      const result = await page.evaluate(
+        () =>
+          new Promise<string>((resolve) => {
+            const image = new Image();
+            image.onload = () => resolve('loaded');
+            image.onerror = () => resolve('blocked');
+            image.src = 'http://127.0.0.1.example.test/private/logo.svg';
+          }),
+      );
+
+      expect(result).to.equal('blocked');
+      expect(hits).not.to.include('/private/logo.svg');
+    });
+  }
+
+  it('keeps blocking when ordered rules are unsupported', async () => {
+    class LegacyOnlyBrowser extends ChromiumCDP {
+      protected async pageSession(page: Page) {
+        const session = await super.pageSession(page);
+        if (session) {
+          // Simulate an older protocol, but let Chromium enforce every legacy
+          // command. The assertion is on real destination traffic.
+          sinon
+            .stub(session, 'send')
+            .callThrough()
+            .withArgs('Network.setBlockedURLs', sinon.match.has('urlPatterns'))
+            .rejects(new Error('Unsupported URL patterns'));
+        }
+        return session;
+      }
+    }
+    browser = new LegacyOnlyBrowser({
+      blockAds: false,
+      config: new GuardedConfig(),
+      logger: new Logger('browsers.cdp.spec'),
+      userDataDir: null,
+    });
+    await browser.launch({ options: { args: [] }, stealth: false });
+    const page = await browser.newPage();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const loaded = await page.evaluate(
+      (url) =>
+        new Promise<boolean>((resolve) => {
+          const image = new Image();
+          image.onload = () => resolve(true);
+          image.onerror = () => resolve(false);
+          image.src = url;
+        }),
+      `http://127.0.0.1:${port}/legacy-blocked.svg`,
+    );
+
+    expect(loaded).to.be.false;
+    expect(hits).not.to.include('/legacy-blocked.svg');
   });
 });
