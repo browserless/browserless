@@ -396,6 +396,52 @@ describe('Network Security', () => {
       }
     });
 
+    // Every prefix in this file's RANGES ends at a dot boundary, and that is
+    // what let the first version of these patterns ship broken: enterprise
+    // spells the cloud-metadata range `169.254`, with no trailing dot, and a
+    // digit-only anchor turned it into `://169.2540`…`://169.2549` — patterns
+    // that cannot match `169.254.169.254`. The range read as configured and
+    // blocked nothing, which is the worst way for a blocklist to fail.
+    describe('prefixes that do not end at a dot boundary', () => {
+      const fromPrefixes = (prefixes: string[]) =>
+        toBlockedUrlPatterns([], {
+          hostnames: [],
+          ipv4Prefixes: prefixes,
+          ipv6Prefixes: [],
+          protocols: [],
+        });
+
+      it('blocks a prefix that stops mid-octet, as enterprise spells it', () => {
+        const patterns = fromPrefixes(['169.254']);
+
+        for (const url of [
+          'http://169.254.169.254/latest/meta-data/',
+          'http://169.254.169.254/',
+          'http://169.254.1.1/',
+          'http://user@169.254.169.254/',
+          'http://169.254.169.254:8080/',
+        ]) {
+          expect(blocks(url, patterns), `should block ${url}`).to.be.true;
+        }
+        expect(blocks('https://example.com/', patterns)).to.be.false;
+      });
+
+      // A prefix can also be a whole address, which has to let the host end
+      // rather than only continue.
+      it('blocks a prefix that is a complete address', () => {
+        const patterns = fromPrefixes(['127.0.0.1']);
+
+        for (const url of [
+          'http://127.0.0.1/',
+          'http://127.0.0.1/x',
+          'http://127.0.0.1:8080/x',
+          'http://127.0.0.10/x',
+        ]) {
+          expect(blocks(url, patterns), `should block ${url}`).to.be.true;
+        }
+      });
+    });
+
     describe('the self-origin carve-out', () => {
       // What `Network.setBlockedURLs` cannot express is an exemption, and the
       // server's own origin needs one: the /function runtime's code is a
