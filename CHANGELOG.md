@@ -9,6 +9,20 @@
 * block IPv4 prefixes without a trailing dot ([#5577](https://github.com/browserless/browserless/issues/5577)) ([e81e99c](https://github.com/browserless/browserless/commit/e81e99c451abfe5e234cb41b4ed3848509cf7754))
 * update Playwright to 1.63 with versioned compatibility ([#5573](https://github.com/browserless/browserless/issues/5573)) ([5c80510](https://github.com/browserless/browserless/commit/5c8051094a5687035f151b5f747e26a11d4f8844))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.10.0`
+- playwright-core: `1.63.0`, `1.62.1`, `1.61.1`, `1.60.0`, and `1.59.1`.
+- Chromium: `153.0.8010.12`
+- Chrome: `153.0.8010.36` (amd64 only)
+- Firefox: `155.0`
+- Webkit: `26.6`
+- Edge: `152.0.4191.66` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.5](https://github.com/browserless/browserless/compare/v2.56.4...v2.56.5) (2026-09-09)
 
 
