@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.56.6](https://github.com/browserless/browserless/compare/v2.56.5...v2.56.6) (2026-09-09)
+
+
+### Bug Fixes
+
+* allow numeric DNS names through IPv4 URL guards ([#5579](https://github.com/browserless/browserless/issues/5579)) ([499dba1](https://github.com/browserless/browserless/commit/499dba1b1a6846a33f6df7589d304aab44093aad))
+* block IPv4 prefixes without a trailing dot ([#5577](https://github.com/browserless/browserless/issues/5577)) ([e81e99c](https://github.com/browserless/browserless/commit/e81e99c451abfe5e234cb41b4ed3848509cf7754))
+* update Playwright to 1.63 with versioned compatibility ([#5573](https://github.com/browserless/browserless/issues/5573)) ([5c80510](https://github.com/browserless/browserless/commit/5c8051094a5687035f151b5f747e26a11d4f8844))
+
 ## [2.56.5](https://github.com/browserless/browserless/compare/v2.56.4...v2.56.5) (2026-09-09)
 
 
