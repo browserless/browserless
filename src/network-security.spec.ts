@@ -6,7 +6,8 @@ import {
   isBlockedNavigationIP,
   isBlockedNavigationUrl,
   looksLikeIPv4Literal,
-  toBlockedUrlInterceptPatterns,
+  matchesBlockedUrlPattern,
+  toBlockedUrlPatterns,
 } from '@browserless.io/browserless';
 
 // A representative opt-in range set: loopback, link-local/cloud-metadata,
@@ -297,30 +298,48 @@ describe('Network Security', () => {
       ).to.be.null;
     });
   });
-  describe('toBlockedUrlInterceptPatterns', () => {
-    // The patterns only decide what gets paused for a verdict, so the bar is
-    // "nothing the matcher would reject can slip past unpaused". Over-matching
-    // is the intended trade: a wrongly-paused request is continued unchanged.
-    const matches = (pattern: string, url: string): boolean =>
-      new RegExp(
-        `^${pattern
-          .split('*')
-          .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-          .join('.*')}$`,
-      ).test(url);
+  describe('toBlockedUrlPatterns', () => {
+    // These patterns are the verdict — nothing pauses to ask the matcher
+    // afterwards — so both directions matter: everything the classifier blocks
+    // has to be covered, and ordinary traffic has to come through untouched.
+    const blocks = (url: string, patterns: string[]): boolean =>
+      patterns.some((pattern) => matchesBlockedUrlPattern(url, pattern));
 
-    const pauses = (url: string, patterns: string[]): boolean =>
-      patterns.some((pattern) => matches(pattern, url));
+    describe('matchesBlockedUrlPattern', () => {
+      // Chromium splits the pattern on `*` and looks for each piece in order,
+      // so a pattern is a substring test and cannot be anchored. Everything
+      // else in this file depends on that being what the browser does; the
+      // browser-level spec in browsers.cdp.spec.ts is what proves it.
+      it('matches each piece in order, anywhere in the URL', () => {
+        expect(matchesBlockedUrlPattern('http://127.0.0.1/x', '127.0.0.1')).to
+          .be.true;
+        expect(matchesBlockedUrlPattern('http://127.0.0.1/x', '*://127.0*')).to
+          .be.true;
+        expect(matchesBlockedUrlPattern('http://example.com/a/b', 'a/b')).to.be
+          .true;
+        expect(
+          matchesBlockedUrlPattern(
+            'http://127.0.0.1/localhost',
+            '*localhost*127.*',
+          ),
+          'pieces have to appear in the pattern order',
+        ).to.be.false;
+        expect(matchesBlockedUrlPattern('http://example.com/', 'nope')).to.be
+          .false;
+      });
+    });
 
-    it('pauses every URL the matcher blocks', () => {
-      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+    it('blocks every URL the matcher blocks', () => {
+      const patterns = toBlockedUrlPatterns(['file://'], RANGES);
 
       for (const url of [
         'file:///etc/passwd',
         'http://127.0.0.1/',
         'http://127.0.0.1:8888/wordpress/wp-content/uploads/svg/world-map.svg',
         'http://localhost:8888/x.svg',
+        'http://localhost/x.svg',
         'http://sub.localhost/x',
+        'http://sub.localhost:9000/x',
         'http://169.254.169.254/latest/meta-data/',
         'http://0.0.0.0:3000/',
         'http://172.16.0.1/',
@@ -329,15 +348,15 @@ describe('Network Security', () => {
         'smtp://127.0.0.1/',
         'ftp://example.com/',
       ]) {
-        expect(pauses(url, patterns), `should pause ${url}`).to.be.true;
+        expect(blocks(url, patterns), `should block ${url}`).to.be.true;
       }
     });
 
-    // Chromium hands the pattern matcher a URL with userinfo intact, so
-    // `*://127.*` does not match `http://user@127.0.0.1/` — the host is no
-    // longer where the glob expects it.
-    it('pauses hosts hidden behind userinfo', () => {
-      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+    // A credentialed URL puts userinfo where the scheme separator would
+    // otherwise sit right in front of the host, so every host-shaped pattern
+    // needs its `@` twin or the host hides behind the credentials.
+    it('blocks hosts hidden behind userinfo', () => {
+      const patterns = toBlockedUrlPatterns(['file://'], RANGES);
 
       for (const url of [
         'http://user@127.0.0.1/',
@@ -348,45 +367,140 @@ describe('Network Security', () => {
         'http://user@[::1]:8080/',
         'smtp://user@127.0.0.1/',
       ]) {
-        expect(pauses(url, patterns), `should pause ${url}`).to.be.true;
+        expect(blocks(url, patterns), `should block ${url}`).to.be.true;
       }
     });
 
-    it('leaves ordinary traffic unpaused', () => {
-      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+    // The reason the patterns are anchored rather than the plain prefixes the
+    // `Fetch` guard could afford: with no per-request verdict behind them, a
+    // lookalike host that matches is a customer's sub-resource that silently
+    // fails. `0.gravatar.com` is the one that matters — it sits on a great
+    // many WordPress sites, which is exactly the population PLT-1572 came
+    // from.
+    it('leaves lookalike hosts alone', () => {
+      const patterns = toBlockedUrlPatterns(['file://'], RANGES);
 
       for (const url of [
         'https://example.com/index.html',
         'https://careers.kinly.com/o/av-event-technician-38',
+        'https://0.gravatar.com/avatar/abc123',
+        'https://2.gravatar.com/avatar/abc123',
+        'https://localhostings.com/',
+        'https://127.example.com/',
+        'https://172.16.example.com/',
         'https://cdn.example.com/app.js?v=127',
         'https://10.0.0.1.example.com/',
         'https://user@example.com/dashboard',
       ]) {
-        expect(pauses(url, patterns), `should not pause ${url}`).to.be.false;
+        expect(blocks(url, patterns), `should not block ${url}`).to.be.false;
       }
     });
 
-    // The userinfo twins widen the globs: a path segment containing '@' can
-    // now pause a perfectly ordinary URL. That is the accepted trade — pausing
-    // is not blocking, and the matcher is what decides.
-    it('over-matches harmlessly: a paused public URL is still allowed', () => {
-      const url = 'https://cdn.example.com/u/a@127.example.org/logo.png';
-      const patterns = toBlockedUrlInterceptPatterns(['file://'], RANGES);
+    describe('the self-origin carve-out', () => {
+      // What `Network.setBlockedURLs` cannot express is an exemption, and the
+      // server's own origin needs one: the /function runtime's code is a
+      // sub-resource of a page served from it, and blocking beats interception
+      // to the request. Carving the origin out of the patterns is the whole
+      // reason this file computes a match itself.
+      const SELF = ['localhost:3000'];
 
-      expect(pauses(url, patterns), 'over-matched by the glob').to.be.true;
-      expect(findBlockedNavigationUrl(url, ['file://'], RANGES)).to.be.null;
+      it("lets the server's own origin through", () => {
+        const patterns = toBlockedUrlPatterns(['file://'], RANGES, SELF);
+
+        for (const url of [
+          'http://localhost:3000/',
+          'http://localhost:3000/function/index.html',
+          'http://localhost:3000/function/browserless-function-abc.js',
+          'ws://localhost:3000/function/connect/abc?token=t',
+        ]) {
+          expect(blocks(url, patterns), `should allow ${url}`).to.be.false;
+        }
+      });
+
+      // The point of doing this per character rather than by dropping the
+      // colliding pattern outright: PLT-1572's own customer case is
+      // `http://localhost:8888/…`, which a dropped `localhost` pattern would
+      // stop blocking.
+      it('still blocks every other port on the same host', () => {
+        const patterns = toBlockedUrlPatterns(['file://'], RANGES, SELF);
+
+        for (const url of [
+          'http://localhost:8888/x.svg',
+          'http://localhost:3001/x',
+          'http://localhost:30001/x',
+          'http://localhost:300/x',
+          'http://localhost:30/x',
+          'http://localhost:3/x',
+          'http://localhost/x',
+          'http://localhost:22/',
+          'http://sub.localhost:3000/x',
+          'http://127.0.0.1:3000/x',
+        ]) {
+          expect(blocks(url, patterns), `should block ${url}`).to.be.true;
+        }
+      });
+
+      it('carves out an IP-literal self host without losing the range', () => {
+        const patterns = toBlockedUrlPatterns(['file://'], RANGES, [
+          '127.0.0.1:3000',
+        ]);
+
+        expect(blocks('http://127.0.0.1:3000/function/code.js', patterns)).to.be
+          .false;
+        for (const url of [
+          'http://127.0.0.1:8888/x',
+          'http://127.0.0.1/x',
+          'http://127.0.0.2:3000/x',
+          'http://127.1.0.1:3000/x',
+          'http://169.254.169.254/',
+          'http://localhost:3000/x',
+        ]) {
+          expect(blocks(url, patterns), `should block ${url}`).to.be.true;
+        }
+      });
+
+      it('carves out a self host bound to a default port', () => {
+        const patterns = toBlockedUrlPatterns(['file://'], RANGES, [
+          'localhost',
+        ]);
+
+        expect(blocks('http://localhost/function/code.js', patterns)).to.be
+          .false;
+        expect(blocks('http://localhost:8888/x', patterns)).to.be.true;
+        expect(blocks('http://sub.localhost/x', patterns)).to.be.true;
+      });
+
+      it('carves out every self host it is given', () => {
+        const patterns = toBlockedUrlPatterns(['file://'], RANGES, [
+          'localhost:3000',
+          '127.0.0.1:3000',
+        ]);
+
+        expect(blocks('http://localhost:3000/x', patterns)).to.be.false;
+        expect(blocks('http://127.0.0.1:3000/x', patterns)).to.be.false;
+        expect(blocks('http://localhost:8888/x', patterns)).to.be.true;
+        expect(blocks('http://127.0.0.1:8888/x', patterns)).to.be.true;
+      });
+
+      // A self host outside the blocklist changes nothing — no pattern matches
+      // it, so none is rewritten.
+      it('leaves the patterns alone when nothing collides', () => {
+        expect(
+          toBlockedUrlPatterns(['file://'], RANGES, ['example.com:3000']),
+        ).to.deep.equal(toBlockedUrlPatterns(['file://'], RANGES));
+      });
     });
 
     it('returns [] when nothing is configured to block', () => {
-      expect(toBlockedUrlInterceptPatterns([], null)).to.deep.equal([]);
+      expect(toBlockedUrlPatterns([], null)).to.deep.equal([]);
     });
 
     it('covers the scheme blocklist on its own when ranges are disabled', () => {
-      const patterns = toBlockedUrlInterceptPatterns(['file://'], null);
+      const patterns = toBlockedUrlPatterns(['file://'], null);
 
-      expect(patterns).to.deep.equal(['file://*']);
-      expect(pauses('file:///etc/passwd', patterns)).to.be.true;
-      expect(pauses('https://example.com/', patterns)).to.be.false;
+      expect(patterns).to.deep.equal(['file://']);
+      expect(blocks('file:///etc/passwd', patterns)).to.be.true;
+      expect(blocks('https://example.com/', patterns)).to.be.false;
     });
   });
 });

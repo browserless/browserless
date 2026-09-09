@@ -10,10 +10,10 @@ import {
   findBlockedNavigationUrl,
   noop,
   once,
-  toBlockedUrlInterceptPatterns,
+  toBlockedUrlPatterns,
   ublockLitePath,
 } from '@browserless.io/browserless';
-import puppeteer, { Browser, Page, Target } from 'puppeteer-core';
+import puppeteer, { Browser, CDPSession, Page, Target } from 'puppeteer-core';
 import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import StealthPlugin from '@zorilla/puppeteer-extra-plugin-stealth';
@@ -117,74 +117,81 @@ export class ChromiumCDP extends EventEmitter {
    * fires the request is in flight, so the teardown it used to trigger cost
    * the customer their session without preventing anything.
    *
-   * Interception is scoped to the blocklist's own URL shapes
-   * ({@link toBlockedUrlInterceptPatterns}), so ordinary traffic is never
-   * paused and never pays a round trip. Requests that do pause get the real
-   * verdict from {@link findBlockedNavigationUrl} — canonicalization,
-   * self-origin exemption and all — which is why the patterns can afford to
-   * over-match.
+   * Blocking is `Network.setBlockedURLs`. The obvious alternative — pausing
+   * requests with `Fetch` and asking {@link findBlockedNavigationUrl} for a
+   * verdict — is what this replaced: enabling `Fetch` on a second CDP session
+   * swallows the auth challenge for every request on the target, so a client's
+   * `page.authenticate()` is never asked for credentials and the navigation
+   * fails with `ERR_INVALID_AUTH_CREDENTIALS` (PLT-1596). That happens whether
+   * or not any request matches our patterns, and `handleAuthRequests` is no
+   * answer: we would then own challenges we have no credentials for.
    *
-   * Deliberately `Fetch` rather than `Network.setBlockedURLs`: the latter
-   * matches globs with no notion of an exemption, so blocking `localhost`
-   * would also block the server's own origin and break the pages browserless
-   * serves itself. This runs on its own CDP session and chains with a client's
-   * own `setRequestInterception` (verified) instead of displacing it.
+   * The patterns therefore carry the whole policy, self-origin exemption
+   * included — see {@link toBlockedUrlPatterns}. What they cannot cover is
+   * navigations and WebSocket handshakes, which `setBlockedURLs` does not
+   * apply to (measured); those stay with the route-level 403, the
+   * wire-protocol check, and the observational teardown below.
+   *
+   * The blocklist is read once per page rather than once per request, so a
+   * config change reaches the next page rather than the next request; the
+   * observational backstop below still re-reads it every time.
+   *
+   * Set on the session puppeteer already drives the page with, not a fresh
+   * one: a second session has to `Target.attachToTarget` (which failed often
+   * enough in production to leave pages unguarded) and would carry a second
+   * copy of every `Network` event for the life of the page.
    */
   protected async installBlockedUrlGuard(page: Page): Promise<void> {
-    const patterns = this.config.getBlockedURLPatterns();
-    const ranges = this.config.getBlockedNetworkRanges();
-    const interceptPatterns = toBlockedUrlInterceptPatterns(patterns, ranges);
+    const blockedUrls = toBlockedUrlPatterns(
+      this.config.getBlockedURLPatterns(),
+      this.config.getBlockedNetworkRanges(),
+      this.config.getSelfNavigationHosts(),
+    );
 
-    if (!interceptPatterns.length) {
+    if (!blockedUrls.length) {
       return;
     }
 
-    const session = await page.createCDPSession().catch((err) => {
-      this.logger.error(`Could not attach the blocked-URL guard: ${err}`);
-      return null;
-    });
+    const session = await this.pageSession(page);
 
     if (!session) {
       return;
     }
 
-    session.on('Fetch.requestPaused', async ({ requestId, request }) => {
-      // Re-read config per request: it can change at runtime, and the verdict
-      // must come from the matcher rather than from the coarse patterns that
-      // decided to pause.
-      const blocked = findBlockedNavigationUrl(
-        request.url,
-        this.config.getBlockedURLPatterns(),
-        this.config.getBlockedNetworkRanges(),
-        this.config.getSelfNavigationHosts(),
-      );
-
-      if (blocked) {
-        this.logger.debug(`Failing request to blocked URL "${request.url}"`);
-      }
-
-      // Either arm must answer, or the request hangs until the protocol
-      // timeout. A detached session (page already closed) throws on send,
-      // which is the expected way this unwinds rather than an error.
-      await session
-        .send(
-          blocked ? 'Fetch.failRequest' : 'Fetch.continueRequest',
-          blocked
-            ? { errorReason: 'BlockedByClient', requestId }
-            : { requestId },
-        )
-        .catch(noop);
-    });
-
+    // `Network` is already enabled on puppeteer's own session — the page
+    // events below depend on it — but the guard is inert without it, so say so
+    // rather than inherit it. Both calls are idempotent.
     await session
-      .send('Fetch.enable', {
-        patterns: interceptPatterns.map((urlPattern: string) => ({
-          urlPattern,
-        })),
-      })
+      .send('Network.enable')
+      .then(() => session.send('Network.setBlockedURLs', { urls: blockedUrls }))
       .catch((err) => {
         this.logger.error(`Could not enable the blocked-URL guard: ${err}`);
       });
+  }
+
+  /**
+   * The CDP session puppeteer already drives `page` on. `Frame.client` is
+   * public at runtime but absent from puppeteer's exported `Frame` type, so it
+   * needs the cast; a puppeteer that drops it falls back to a session of our
+   * own, which costs a duplicate event stream but still guards the page.
+   */
+  protected async pageSession(page: Page): Promise<CDPSession | null> {
+    try {
+      const client = (page.mainFrame() as unknown as { client?: CDPSession })
+        .client;
+
+      if (client) {
+        return client;
+      }
+    } catch {
+      // A page that closed between 'targetcreated' and here has no frame to
+      // read it from; the attach below reports its own failure.
+    }
+
+    return page.createCDPSession().catch((err) => {
+      this.logger.error(`Could not attach the blocked-URL guard: ${err}`);
+      return null;
+    });
   }
 
   protected async onTargetCreated(target: Target) {
@@ -195,9 +202,7 @@ export class ChromiumCDP extends EventEmitter {
       });
 
       if (page) {
-        this.logger.trace(`Setting up blocked-URL request rejection`);
-
-        await this.installBlockedUrlGuard(page);
+        this.logger.trace(`Setting up blocked-URL request blocking`);
 
         page.on('error', (err) => {
           this.logger.error(err);
@@ -290,6 +295,13 @@ export class ChromiumCDP extends EventEmitter {
             response.request().isNavigationRequest(),
           );
         });
+
+        // Installed last, and deliberately: the handlers above are attached
+        // synchronously, so nothing a page does in the round trips this takes
+        // can slip past unobserved. Putting the install first left the backstop
+        // blind to the first navigation of a page — long enough for a client to
+        // read a file:// document before the teardown reached it.
+        await this.installBlockedUrlGuard(page);
 
         this.emit('newPage', page);
       }
