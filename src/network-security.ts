@@ -258,7 +258,16 @@ const ipv4Patterns = (prefix: string): string[] => {
   const continuations = prefix.endsWith('.')
     ? // Already at a dot boundary, so only another octet can follow.
       [...DIGITS]
-    : [...DIGITS, '.', ...HOST_ENDS];
+    : [
+        // The rest of the octet, the octet after it, or the end of the host.
+        // The dot carries a digit rather than standing alone: the classifier
+        // only prefix-matches hosts that are all digits and dots, so a bare
+        // `://169.254.` would also block `169.254.example.com`, which it
+        // treats as an ordinary name and allows.
+        ...DIGITS,
+        ...[...DIGITS].map((digit) => `.${digit}`),
+        ...HOST_ENDS,
+      ];
 
   return continuations.flatMap((continuation) =>
     HOST_STARTS.map((start) => `${start}${prefix}${continuation}`),

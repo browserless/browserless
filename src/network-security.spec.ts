@@ -426,6 +426,32 @@ describe('Network Security', () => {
         expect(blocks('https://example.com/', patterns)).to.be.false;
       });
 
+      // The dot that ends an octet has to carry a digit. A bare one would
+      // match a name that merely starts with the prefix, and the classifier
+      // does not: prefix-matching applies to hosts that are all digits and
+      // dots, so `169.254.example.com` is an ordinary name it allows.
+      it('leaves a DNS host that starts with the prefix alone', () => {
+        for (const [prefix, url] of [
+          ['169.254', 'http://169.254.example.com/'],
+          ['169.254', 'https://169.254.customer.io/assets/logo.svg'],
+          ['127.0.0.1', 'http://127.0.0.1.example.com/'],
+          ['172.16.', 'http://172.16.example.com/'],
+        ]) {
+          const patterns = fromPrefixes([prefix]);
+
+          expect(blocks(url, patterns), `should not block ${url}`).to.be.false;
+          expect(
+            isBlockedNavigationUrl(url, {
+              hostnames: [],
+              ipv4Prefixes: [prefix],
+              ipv6Prefixes: [],
+              protocols: [],
+            }),
+            `the matcher these mirror should not block ${url} either`,
+          ).to.be.false;
+        }
+      });
+
       // A prefix can also be a whole address, which has to let the host end
       // rather than only continue.
       it('blocks a prefix that is a complete address', () => {
