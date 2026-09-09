@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.56.5](https://github.com/browserless/browserless/compare/v2.56.4...v2.56.5) (2026-09-09)
+
+
+### Bug Fixes
+
+* block URLs with Network.setBlockedURLs, not Fetch (PLT-1596) ([#5574](https://github.com/browserless/browserless/issues/5574)) ([c1f3509](https://github.com/browserless/browserless/commit/c1f3509ad195135975dbb5312761d6b39547b4f7))
+
 ## [2.56.4](https://github.com/browserless/browserless/compare/v2.56.3...v2.56.4) (2026-09-07)
 
 
