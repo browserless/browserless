@@ -394,3 +394,71 @@ export const toBlockedUrlPatterns = (
 
   return [...new Set(exempted)];
 };
+
+/**
+ * Ordered CDP rules that exempt dotted DNS names from IPv4 prefix matches.
+ * Chromium applies these before the legacy `urls` list, so scheme and hostname
+ * blocks must precede the exemptions. Arbitrary URL prefixes cannot be safely
+ * translated; those configurations keep their conservative legacy behavior.
+ *
+ * These are strings for Chromium's native matcher, not Node URLPattern objects.
+ * Keep the legacy list installed too: it enforces IPv4/IPv6 ranges and supplies
+ * the fallback on browsers without support for ordered rules.
+ */
+export const toBlockedUrlRules = (
+  patterns: string[],
+  ranges: NetworkRangeSet | null,
+  selfHosts: readonly string[] = [],
+): { urlPattern: string; block: boolean }[] => {
+  const schemes = [...patterns, ...(ranges?.protocols ?? [])];
+  if (
+    !ranges?.ipv4Prefixes.length ||
+    schemes.some((scheme) => !/^[a-z][a-z0-9+.-]*:\/\/$/.test(scheme)) ||
+    ranges.hostnames.some(
+      (hostname) => !/^[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/.test(hostname),
+    )
+  ) {
+    return [];
+  }
+
+  // URLPattern metacharacters must never turn a literal self host into a
+  // wildcard exemption. Noncanonical overrides retain the legacy guard.
+  try {
+    if (
+      selfHosts.some(
+        (host) =>
+          !/^[a-z0-9_.:[\]-]+$/.test(host) ||
+          new URL(`http://${host}`).host !== host,
+      ) ||
+      ranges.hostnames.some(
+        (hostname) => new URL(`http://${hostname}`).hostname !== hostname,
+      )
+    ) {
+      return [];
+    }
+  } catch {
+    return [];
+  }
+
+  return [
+    ...schemes.map((scheme) => ({
+      urlPattern: `${scheme}*:*/*`,
+      block: true,
+    })),
+    ...selfHosts.map((host) => ({
+      urlPattern: `*://${host}/*`,
+      block: false,
+    })),
+    ...ranges.hostnames.flatMap((hostname) => [
+      { urlPattern: `*://${hostname}:*/*`, block: true },
+      { urlPattern: `*://*.${hostname}:*/*`, block: true },
+    ]),
+    // DNS labels (including IDNA's ASCII spelling and underscore labels) have
+    // a nondigit character. Requiring a dot excludes canonical IPv6 literals;
+    // neither credentials nor a path/query can satisfy a hostname pattern.
+    ...[...'abcdefghijklmnopqrstuvwxyz-_'].map((character) => ({
+      urlPattern: `*://*.*${character}*:*/*`,
+      block: false,
+    })),
+  ];
+};

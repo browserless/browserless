@@ -11,6 +11,7 @@ import {
   noop,
   once,
   toBlockedUrlPatterns,
+  toBlockedUrlRules,
   ublockLitePath,
 } from '@browserless.io/browserless';
 import puppeteer, { Browser, CDPSession, Page, Target } from 'puppeteer-core';
@@ -142,11 +143,10 @@ export class ChromiumCDP extends EventEmitter {
    * copy of every `Network` event for the life of the page.
    */
   protected async installBlockedUrlGuard(page: Page): Promise<void> {
-    const blockedUrls = toBlockedUrlPatterns(
-      this.config.getBlockedURLPatterns(),
-      this.config.getBlockedNetworkRanges(),
-      this.config.getSelfNavigationHosts(),
-    );
+    const patterns = this.config.getBlockedURLPatterns();
+    const ranges = this.config.getBlockedNetworkRanges();
+    const selfHosts = this.config.getSelfNavigationHosts();
+    const blockedUrls = toBlockedUrlPatterns(patterns, ranges, selfHosts);
 
     if (!blockedUrls.length) {
       return;
@@ -164,6 +164,21 @@ export class ChromiumCDP extends EventEmitter {
     await session
       .send('Network.enable')
       .then(() => session.send('Network.setBlockedURLs', { urls: blockedUrls }))
+      .then(async () => {
+        const urlPatterns = toBlockedUrlRules(patterns, ranges, selfHosts);
+        if (urlPatterns.length) {
+          // Install the conservative list first. If an older browser rejects
+          // ordered rules, that list stays active on this same session.
+          await session
+            .send('Network.setBlockedURLs', {
+              urls: blockedUrls,
+              urlPatterns,
+            })
+            .catch((err) => {
+              this.logger.warn(`Using legacy blocked-URL patterns: ${err}`);
+            });
+        }
+      })
       .catch((err) => {
         this.logger.error(`Could not enable the blocked-URL guard: ${err}`);
       });

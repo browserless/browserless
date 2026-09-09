@@ -8,7 +8,9 @@ import {
   looksLikeIPv4Literal,
   matchesBlockedUrlPattern,
   toBlockedUrlPatterns,
+  toBlockedUrlRules,
 } from '@browserless.io/browserless';
+import { URLPattern } from 'node:url';
 
 // A representative opt-in range set: loopback, link-local/cloud-metadata,
 // 0.0.0.0/8, the 172.16-31 RFC1918 block, dangerous IPv6, smtp/ftp, localhost.
@@ -573,6 +575,67 @@ describe('Network Security', () => {
       expect(patterns).to.deep.equal(['file://']);
       expect(blocks('file:///etc/passwd', patterns)).to.be.true;
       expect(blocks('https://example.com/', patterns)).to.be.false;
+    });
+  });
+
+  describe('toBlockedUrlRules', () => {
+    // Checks ordering and composition. The browser spec separately exercises
+    // Chromium's native matcher, which is not Node's URLPattern implementation.
+    it('preserves scheme, hostname, IP and self-port policy around DNS exceptions', () => {
+      const selfHosts = ['localhost:3000', '127.0.0.1:3000'];
+      const rules = toBlockedUrlRules(['file://'], RANGES, selfHosts);
+      const legacy = toBlockedUrlPatterns(['file://'], RANGES, selfHosts);
+
+      for (const [url, blocked] of [
+        ['http://169.254.1.example.test/logo.svg', false],
+        ['http://127.0.0.1.xn--bcher-kva.test/', false],
+        ['http://127.0.0.1.a_b.test/', false],
+        ['http://127.0.0.1.1-2/', false],
+        ['http://169.254.169.254/?host=example.test', true],
+        ['http://user@example.test@169.254.169.254/', true],
+        ['http://[fe80::a]:8080/', true],
+        ['http://sub.localhost:3000/', true],
+        ['http://localhost:3000/', false],
+        ['http://localhost:3001/', true],
+        ['http://127.0.0.1:3000/', false],
+        ['http://127.0.0.1:3001/', true],
+        ['file://169.254.1.example.test/private', true],
+        ['ftp://169.254.1.example.test/private', true],
+        ['ftp://localhost:3000/private', true],
+      ] as const) {
+        const normalized = new URL(url).href;
+        const rule = rules.find((rule) =>
+          new URLPattern(rule.urlPattern).test(normalized),
+        );
+        const actual =
+          rule?.block ??
+          legacy.some((pattern) =>
+            matchesBlockedUrlPattern(normalized, pattern),
+          );
+        expect(actual, url).to.equal(blocked);
+      }
+    });
+
+    it('retains legacy enforcement when policy cannot be translated safely', () => {
+      for (const patterns of [
+        ['file://', 'http://127.0.0.1.example.test/private'],
+        ['*private*'],
+        ['file:'],
+      ]) {
+        expect(toBlockedUrlRules(patterns, RANGES)).to.deep.equal([]);
+      }
+      for (const self of ['*.example.test', 'example.test:invalid', '[::1']) {
+        expect(toBlockedUrlRules([], RANGES, [self])).to.deep.equal([]);
+      }
+      for (const hostname of ['*.example.test', '127']) {
+        expect(
+          toBlockedUrlRules([], { ...RANGES, hostnames: [hostname] }),
+        ).to.deep.equal([]);
+      }
+      expect(toBlockedUrlRules(['file://'], null)).to.deep.equal([]);
+      expect(
+        toBlockedUrlRules([], { ...RANGES, ipv4Prefixes: [] }),
+      ).to.deep.equal([]);
     });
   });
 });
