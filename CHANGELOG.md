@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.56.7](https://github.com/browserless/browserless/compare/v2.56.6...v2.56.7) (2026-09-10)
+
+
+### Build System & Runtime
+
+* bump Node to 24.21.0 and NVM to 0.40.7 ([#5581](https://github.com/browserless/browserless/issues/5581)) ([7b83722](https://github.com/browserless/browserless/commit/7b83722906fb4ad77252c216f848ecb19e52f271))
+
 ## [2.56.6](https://github.com/browserless/browserless/compare/v2.56.5...v2.56.6) (2026-09-09)
 
 
