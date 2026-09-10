@@ -40,7 +40,7 @@ jobs:
       - name: Set up Node 24
         uses: actions/setup-node@v7.0.0
         with:
-          node-version: 24
+          node-version: '24.21.0'
           registry-url: https://registry.npmjs.org
           cache: npm
           check-latest: true
