@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7.0.0
         with:
-          node-version: '24'
+          node-version: '24.21.0'
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
         run: npm install -g npm@11.19.1 --ignore-scripts
