@@ -9,10 +9,11 @@ import {
   Request,
   contentTypes,
   fileExists,
+  getTokenFromRequest,
   mimeTypes,
 } from '@browserless.io/browserless';
+import { createReadStream, promises as fs } from 'fs';
 import { ServerResponse } from 'http';
-import { createReadStream } from 'fs';
 import path from 'path';
 
 const pathMap: Map<
@@ -22,6 +23,28 @@ const pathMap: Map<
     path: string;
   }
 > = new Map();
+
+// The debugger UI ignores a fresh ?token= once a Browser URL is saved to
+// localStorage (#5560); its repo is archived, so we patch the symptom here.
+const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
+const DEBUGGER_TOKEN_RESET_SCRIPT =
+  "<script>if(new URLSearchParams(location.search).has('token')){Object.keys(localStorage).filter((k)=>k.startsWith('browserless-debugger')).forEach((k)=>localStorage.removeItem(k));}</script>";
+
+const injectDebuggerTokenResetScript = (
+  html: string,
+  logger: Logger,
+): string => {
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(
+      /<head[^>]*>/i,
+      (tag) => `${tag}${DEBUGGER_TOKEN_RESET_SCRIPT}`,
+    );
+  }
+  logger.warn(
+    'Debugger index has no <head> tag; prepending the reset script instead',
+  );
+  return `${DEBUGGER_TOKEN_RESET_SCRIPT}${html}`;
+};
 
 const streamFile = (
   logger: Logger,
@@ -66,9 +89,26 @@ export default class StaticGetRoute extends HTTPRoute {
     logger: Logger,
   ): Promise<unknown> {
     const { pathname } = req.parsed;
+    const config = this.config();
+
+    // `?token=` never reaches req.parsed — moveTokenToHeader() (src/shim.ts)
+    // moves it to the Authorization header before routing. Compare against
+    // the configured token(s) rather than just checking for any
+    // Authorization header, since a proxy in front of browserless may set
+    // that header unconditionally for unrelated reasons.
+    const configuredToken = config.getToken();
+    const requestToken = getTokenFromRequest(req);
+    const resetDebuggerSettings =
+      DEBUGGER_INDEX_PATHS.has(pathname) &&
+      !!requestToken &&
+      configuredToken !== null &&
+      (Array.isArray(configuredToken)
+        ? configuredToken
+        : [configuredToken]
+      ).includes(requestToken);
     const fileCache = pathMap.get(pathname);
 
-    if (fileCache) {
+    if (fileCache && !resetDebuggerSettings) {
       return streamFile(logger, res, fileCache.path, fileCache.contentType);
     }
 
@@ -84,7 +124,6 @@ export default class StaticGetRoute extends HTTPRoute {
       return;
     }
 
-    const config = this.config();
     const sdkDir = this.staticSDKDir();
     const file = path.join(config.getStatic(), pathname);
     const indexFile = path.join(file, 'index.html');
@@ -134,6 +173,19 @@ export default class StaticGetRoute extends HTTPRoute {
       const location = req.parsed.pathname + '/' + (req.parsed.search || '');
       res.writeHead(301, { Location: location });
       res.end();
+      return;
+    }
+
+    if (resetDebuggerSettings) {
+      logger.debug(
+        `Serving debugger index with a localStorage reset script injected, since a valid token was provided`,
+      );
+      const html = await fs.readFile(foundFilePath, 'utf-8');
+      res.setHeader('Content-Type', 'text/html');
+      // The response content depends on the request's token, not just the
+      // URL, so it must never be cached by a browser, CDN or proxy.
+      res.setHeader('Cache-Control', 'no-store');
+      res.end(injectDebuggerTokenResetScript(html, logger));
       return;
     }
 

@@ -1,4 +1,7 @@
 import * as http from 'http';
+import * as os from 'os';
+import * as path from 'path';
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import {
   exists,
   Browserless,
@@ -297,6 +300,71 @@ describe('Management APIs', function () {
 
       expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
+    });
+
+    it('injects a localStorage reset script into the debugger index when a token is provided', async () => {
+      const staticDir = await mkdtemp(
+        path.join(os.tmpdir(), 'browserless-debugger-test-'),
+      );
+      const previousStatic = process.env.STATIC;
+      const previousEnableDebugger = process.env.ENABLE_DEBUGGER;
+
+      try {
+        await mkdir(path.join(staticDir, 'debugger'));
+        await writeFile(
+          path.join(staticDir, 'debugger', 'index.html'),
+          '<!DOCTYPE html><html><head><title>Debugger</title></head>' +
+            '<body><script src="app.js"></script></body></html>',
+        );
+
+        process.env.STATIC = staticDir;
+        process.env.ENABLE_DEBUGGER = 'true';
+        const config = new Config();
+        config.setToken('6R0W53R135510');
+
+        await start({ config });
+
+        const withToken = await fetch(
+          'http://localhost:3000/debugger/?token=6R0W53R135510',
+        );
+        expect(withToken.status).to.equal(200);
+        const withTokenHtml = await withToken.text();
+        expect(withTokenHtml).to.include('browserless-debugger');
+        expect(withTokenHtml).to.include('<title>Debugger</title>');
+        expect(withTokenHtml.indexOf('browserless-debugger')).to.be.lessThan(
+          withTokenHtml.indexOf('<title>Debugger</title>'),
+        );
+
+        expect(withToken.headers.get('cache-control')).to.equal('no-store');
+
+        const withoutToken = await fetch('http://localhost:3000/debugger/');
+        expect(withoutToken.status).to.equal(200);
+        const withoutTokenHtml = await withoutToken.text();
+        expect(withoutTokenHtml).to.not.include('browserless-debugger');
+
+        // A proxy in front of browserless may set its own Authorization
+        // header for unrelated reasons; that must not trigger the reset.
+        const withUnrelatedAuth = await fetch(
+          'http://localhost:3000/debugger/',
+          { headers: { Authorization: 'Bearer some-other-value' } },
+        );
+        expect(withUnrelatedAuth.status).to.equal(200);
+        expect(await withUnrelatedAuth.text()).to.not.include(
+          'browserless-debugger',
+        );
+      } finally {
+        if (previousStatic === undefined) {
+          delete process.env.STATIC;
+        } else {
+          process.env.STATIC = previousStatic;
+        }
+        if (previousEnableDebugger === undefined) {
+          delete process.env.ENABLE_DEBUGGER;
+        } else {
+          process.env.ENABLE_DEBUGGER = previousEnableDebugger;
+        }
+        await rm(staticDir, { recursive: true, force: true });
+      }
     });
 
     it('redirects /docs to /docs/', async () => {
