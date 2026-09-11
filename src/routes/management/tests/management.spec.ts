@@ -306,6 +306,8 @@ describe('Management APIs', function () {
       const staticDir = await mkdtemp(
         path.join(os.tmpdir(), 'browserless-debugger-test-'),
       );
+      const previousStatic = process.env.STATIC;
+      const previousEnableDebugger = process.env.ENABLE_DEBUGGER;
 
       try {
         await mkdir(path.join(staticDir, 'debugger'));
@@ -351,8 +353,16 @@ describe('Management APIs', function () {
           'browserless-debugger',
         );
       } finally {
-        delete process.env.STATIC;
-        delete process.env.ENABLE_DEBUGGER;
+        if (previousStatic === undefined) {
+          delete process.env.STATIC;
+        } else {
+          process.env.STATIC = previousStatic;
+        }
+        if (previousEnableDebugger === undefined) {
+          delete process.env.ENABLE_DEBUGGER;
+        } else {
+          process.env.ENABLE_DEBUGGER = previousEnableDebugger;
+        }
         await rm(staticDir, { recursive: true, force: true });
       }
     });
