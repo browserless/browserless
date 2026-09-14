@@ -78,6 +78,8 @@ Get up and running in three simple steps:
 docker run -p 3000:3000 ghcr.io/browserless/chromium
 ```
 
+> 💡 Prefer a managed panel? You can also deploy with one click using the official [Easypanel](https://easypanel.io/) template: https://easypanel.io/templates/browserless
+
 ### Step 2: Open the docs in your browser
 
 Visit http://localhost:3000/docs
