@@ -28,7 +28,7 @@ const pathMap: Map<
 // (#5560); edits apiSettings.baseURL in place to keep editorTabs intact.
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
 const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>if(new URLSearchParams(location.search).has('token')){var k='browserless-debugger:'+location.origin+location.pathname;try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}catch(e){localStorage.removeItem(k);}}</script>";
+  "<script>var k='browserless-debugger:'+location.origin+location.pathname;try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}catch(e){localStorage.removeItem(k);}</script>";
 
 const injectDebuggerTokenResetScript = (
   html: string,

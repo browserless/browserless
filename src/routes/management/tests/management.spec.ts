@@ -401,6 +401,19 @@ describe('Management APIs', function () {
         expect(await withUnrelatedAuth.text()).to.not.include(
           'browserless-debugger',
         );
+
+        // A valid token can also arrive via the Authorization header alone
+        // (no ?token= in the URL); the injected script must not depend on
+        // location.search, since that's a different signal than what the
+        // server actually validated.
+        const withValidAuthHeader = await fetch(
+          'http://localhost:3000/debugger/',
+          { headers: { Authorization: 'Bearer 6R0W53R135510' } },
+        );
+        expect(withValidAuthHeader.status).to.equal(200);
+        expect(await withValidAuthHeader.text()).to.include(
+          'browserless-debugger',
+        );
       } finally {
         if (previousStatic === undefined) {
           delete process.env.STATIC;
