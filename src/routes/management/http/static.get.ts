@@ -24,11 +24,11 @@ const pathMap: Map<
   }
 > = new Map();
 
-// The debugger UI ignores a fresh ?token= once a Browser URL is saved to
-// localStorage (#5560); its repo is archived, so we patch the symptom here.
+// Server-side patch for the archived debugger UI's stale ?token= bug
+// (#5560); edits apiSettings.baseURL in place to keep editorTabs intact.
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
 const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>if(new URLSearchParams(location.search).has('token')){Object.keys(localStorage).filter((k)=>k.startsWith('browserless-debugger')).forEach((k)=>localStorage.removeItem(k));}</script>";
+  "<script>if(new URLSearchParams(location.search).has('token')){var k='browserless-debugger:'+location.origin+location.pathname;try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}catch(e){localStorage.removeItem(k);}}</script>";
 
 const injectDebuggerTokenResetScript = (
   html: string,

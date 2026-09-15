@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
+import * as vm from 'vm';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import {
   exists,
@@ -336,6 +337,54 @@ describe('Management APIs', function () {
         );
 
         expect(withToken.headers.get('cache-control')).to.equal('no-store');
+
+        // The reset script must edit the blob, not wipe it — dropping the
+        // stale baseURL while keeping the user's other settings/tabs intact.
+        const scriptMatch = withTokenHtml.match(/<script>(.*?)<\/script>/);
+        expect(scriptMatch).to.not.be.null;
+
+        const key = 'browserless-debugger:http://localhost:3000/debugger/';
+        const store: Record<string, string> = {
+          [key]: JSON.stringify({
+            apiSettings: {
+              baseURL: 'ws://stale-host:3000',
+              headless: true,
+              blockAds: true,
+            },
+            editorTabs: [{ id: 1, code: 'console.log("hello")' }],
+          }),
+        };
+        Object.defineProperty(store, 'getItem', {
+          value: (k: string) => (k in store ? store[k] : null),
+        });
+        Object.defineProperty(store, 'setItem', {
+          value: (k: string, v: string) => {
+            store[k] = String(v);
+          },
+        });
+        Object.defineProperty(store, 'removeItem', {
+          value: (k: string) => {
+            delete store[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          localStorage: store,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            pathname: '/debugger/',
+          },
+          URLSearchParams,
+        });
+
+        const resultingBlob = JSON.parse(store[key]);
+        expect(resultingBlob.apiSettings.baseURL).to.be.undefined;
+        expect(resultingBlob.apiSettings.headless).to.equal(true);
+        expect(resultingBlob.apiSettings.blockAds).to.equal(true);
+        expect(resultingBlob.editorTabs).to.deep.equal([
+          { id: 1, code: 'console.log("hello")' },
+        ]);
 
         const withoutToken = await fetch('http://localhost:3000/debugger/');
         expect(withoutToken.status).to.equal(200);
