@@ -386,6 +386,37 @@ describe('Management APIs', function () {
           { id: 1, code: 'console.log("hello")' },
         ]);
 
+        // Malformed JSON must fall back to a full removeItem, not throw.
+        const malformedStore: Record<string, string> = {
+          [key]: '{not valid json',
+        };
+        Object.defineProperty(malformedStore, 'getItem', {
+          value: (k: string) =>
+            k in malformedStore ? malformedStore[k] : null,
+        });
+        Object.defineProperty(malformedStore, 'setItem', {
+          value: (k: string, v: string) => {
+            malformedStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(malformedStore, 'removeItem', {
+          value: (k: string) => {
+            delete malformedStore[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          localStorage: malformedStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            pathname: '/debugger/',
+          },
+          URLSearchParams,
+        });
+
+        expect(key in malformedStore).to.equal(false);
+
         const withoutToken = await fetch('http://localhost:3000/debugger/');
         expect(withoutToken.status).to.equal(200);
         const withoutTokenHtml = await withoutToken.text();
