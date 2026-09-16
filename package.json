@@ -101,7 +101,7 @@
     "gunzip-maybe": "^1.4.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "marked": "^18.0.12",
+    "marked": "^18.0.13",
     "mocha": "^12.0.1",
     "prettier": "3.9.6",
     "sinon": "^22.1.0",
