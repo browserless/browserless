@@ -9,6 +9,7 @@ import {
   edgeExecutablePath,
   findBlockedNavigationInMessage,
   findBlockedUrlInMessage,
+  markSocketAsProxied,
   wsFrameToString,
 } from '@browserless.io/browserless';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -355,6 +356,7 @@ class BasePlaywright extends EventEmitter {
         head,
         (ws) => {
           clientWS = ws;
+          markSocketAsProxied(socket);
           try {
             upstreamWS = new WebSocket(this.browserWSEndpoint!);
           } catch (err) {

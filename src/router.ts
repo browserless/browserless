@@ -15,8 +15,10 @@ import {
   Response,
   Route,
   WebSocketRoute,
+  closeProxiedSocket,
   contentTypes,
   isConnected,
+  isSocketProxied,
   writeResponse,
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
@@ -120,8 +122,18 @@ export class Router extends EventEmitter {
     return writeResponse(res, 408, 'Request has timed out');
   }
 
+  // WebSocket close code 1013 ("Try Again Later") signals the client
+  // should retry — the closest standard code to a server-enforced timeout.
   protected onWebsocketTimeout(_req: Request, socket: stream.Duplex) {
-    this.log.error(`Websocket job has timedout, sending 429 response`);
+    if (isSocketProxied(socket)) {
+      this.log.error(
+        `Websocket job has timedout mid-session, sending a WS close frame`,
+      );
+      return closeProxiedSocket(socket, 1013, 'Request has timed out');
+    }
+    this.log.error(
+      `Websocket job has timedout before proxying started, sending 408 response`,
+    );
     return writeResponse(socket, 408, 'Request has timed out');
   }
 

@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as wsExports from 'ws';
 import {
   BLESS_PAGE_IDENTIFIER,
   ChromeCDP,
@@ -221,6 +222,67 @@ export const writeResponse = (
   writeable.write(httpResponse);
   writeable.end();
   return;
+};
+
+// Sockets already handed to http-proxy's `.ws()` are WS-framed; writing
+// HTTP text would corrupt them — track them so timeouts can close cleanly.
+const proxiedSockets = new WeakSet<Duplex>();
+
+export const markSocketAsProxied = (socket: Duplex): void => {
+  proxiedSockets.add(socket);
+};
+
+export const isSocketProxied = (socket: Duplex): boolean =>
+  proxiedSockets.has(socket);
+
+// `ws`'s ESM entry exports `Sender` directly, but @types/ws (CJS-only)
+// doesn't declare it — access it dynamically with a matching local type.
+interface WebSocketSender {
+  close(code: number, data: string, mask: boolean, cb: () => void): void;
+}
+interface WebSocketSenderConstructor {
+  new (
+    socket: Duplex,
+    extensions?: object,
+    generateMask?: unknown,
+  ): WebSocketSender;
+}
+const Sender = (wsExports as unknown as { Sender: WebSocketSenderConstructor })
+  .Sender;
+
+// Bounds how long we wait for a clean close before forcing `destroy()`,
+// so an uncooperative peer can't leave the socket open forever.
+const CLOSE_DRAIN_TIMEOUT_MS = 500;
+
+// Sends a real RFC 6455 close frame instead of HTTP text on an already-
+// upgraded socket. Never throws — falls back to `destroy()` on any failure.
+export const closeProxiedSocket = (
+  socket: Duplex,
+  code: number,
+  reason: string,
+): void => {
+  if (!isConnected(socket)) {
+    return;
+  }
+
+  let settled = false;
+  const teardown = () => {
+    if (settled) return;
+    settled = true;
+    if (!socket.destroyed) {
+      socket.destroy();
+    }
+  };
+
+  try {
+    const sender = new Sender(socket, {}, false);
+    // RFC 6455 caps the close reason at 123 bytes; `ws` throws past that.
+    sender.close(code, reason.slice(0, 123), false, teardown);
+    socket.once('close', teardown);
+    setTimeout(teardown, CLOSE_DRAIN_TIMEOUT_MS).unref?.();
+  } catch {
+    teardown();
+  }
 };
 
 export const jsonResponse = (

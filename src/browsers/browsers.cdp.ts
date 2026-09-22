@@ -8,6 +8,7 @@ import {
   chromeExecutablePath,
   edgeExecutablePath,
   findBlockedNavigationUrl,
+  markSocketAsProxied,
   noop,
   once,
   toBlockedUrlPatterns,
@@ -68,7 +69,6 @@ export class ChromiumCDP extends EventEmitter {
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
   protected logger: Logger;
-  protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
   protected keepUntilMS = 0;
 
@@ -534,7 +534,11 @@ export class ChromiumCDP extends EventEmitter {
         resolve();
       });
 
-      this.proxy.ws(
+      // Fresh instance per call: a shared one's `open` event could fire for
+      // a sibling page's socket first, marking this one proxied too early.
+      const proxy = httpProxy.createProxyServer();
+      proxy.once('open', () => markSocketAsProxied(socket));
+      proxy.ws(
         req,
         socket,
         head,
@@ -586,7 +590,11 @@ export class ChromiumCDP extends EventEmitter {
       // Delete headers known to cause issues
       delete req.headers.origin;
 
-      this.proxy.ws(
+      // Fresh proxy instance per call — see proxyPageWebSocket for why a
+      // shared one would be unsafe here.
+      const proxy = httpProxy.createProxyServer();
+      proxy.once('open', () => markSocketAsProxied(socket));
+      proxy.ws(
         req,
         socket,
         head,
