@@ -5,6 +5,7 @@ import { Socket } from 'net';
 import os from 'os';
 import path from 'path';
 import { PassThrough } from 'stream';
+import Sinon from 'sinon';
 import {
   Config,
   closeProxiedSocket,
@@ -230,6 +231,38 @@ describe('Utils', () => {
       socket.destroy();
 
       expect(() => closeProxiedSocket(socket, 1013, 'too late')).to.not.throw();
+    });
+
+    it('truncates a non-ASCII reason by UTF-8 byte length, not string length', (done) => {
+      const socket = new PassThrough();
+      // 50 three-byte CJK characters = 150 UTF-8 bytes but only 50 UTF-16
+      // code units — `.slice(0, 123)` alone would pass this through whole.
+      const longReason = '日'.repeat(50);
+      const chunks: Buffer[] = [];
+      socket.on('data', (chunk) => chunks.push(chunk));
+      socket.on('close', () => {
+        const { code, reason } = parseCloseFrame(Buffer.concat(chunks));
+        expect(code).to.equal(1013);
+        expect(Buffer.byteLength(reason, 'utf8')).to.be.at.most(123);
+        // A mid-character cut would leave a replacement char at the end.
+        expect(reason.endsWith('�')).to.be.false;
+        done();
+      });
+
+      closeProxiedSocket(socket, 1013, longReason);
+    });
+
+    it('clears the drain timer once teardown completes early', () => {
+      const clearTimeoutSpy = Sinon.spy(global, 'clearTimeout');
+      try {
+        const socket = new PassThrough();
+        closeProxiedSocket(socket, 1013, 'Request has timed out');
+        socket.emit('close');
+
+        expect(clearTimeoutSpy.called).to.be.true;
+      } finally {
+        clearTimeoutSpy.restore();
+      }
     });
   });
 

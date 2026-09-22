@@ -254,6 +254,16 @@ const Sender = (wsExports as unknown as { Sender: WebSocketSenderConstructor })
 // so an uncooperative peer can't leave the socket open forever.
 const CLOSE_DRAIN_TIMEOUT_MS = 500;
 
+// Truncates to `maxBytes` UTF-8 bytes without splitting a character —
+// re-measures directly so it matches `ws`'s own byte-length check.
+const truncateUtf8Bytes = (str: string, maxBytes: number): string => {
+  let end = Math.min(str.length, maxBytes);
+  while (end > 0 && Buffer.byteLength(str.slice(0, end), 'utf8') > maxBytes) {
+    end--;
+  }
+  return str.slice(0, end);
+};
+
 // Sends a real RFC 6455 close frame instead of HTTP text on an already-
 // upgraded socket. Never throws — falls back to `destroy()` on any failure.
 export const closeProxiedSocket = (
@@ -266,9 +276,11 @@ export const closeProxiedSocket = (
   }
 
   let settled = false;
+  let drainTimer: ReturnType<typeof setTimeout> | undefined;
   const teardown = () => {
     if (settled) return;
     settled = true;
+    clearTimeout(drainTimer);
     if (!socket.destroyed) {
       socket.destroy();
     }
@@ -277,9 +289,10 @@ export const closeProxiedSocket = (
   try {
     const sender = new Sender(socket, {}, false);
     // RFC 6455 caps the close reason at 123 bytes; `ws` throws past that.
-    sender.close(code, reason.slice(0, 123), false, teardown);
+    sender.close(code, truncateUtf8Bytes(reason, 123), false, teardown);
     socket.once('close', teardown);
-    setTimeout(teardown, CLOSE_DRAIN_TIMEOUT_MS).unref?.();
+    drainTimer = setTimeout(teardown, CLOSE_DRAIN_TIMEOUT_MS);
+    drainTimer.unref?.();
   } catch {
     teardown();
   }
