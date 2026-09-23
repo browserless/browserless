@@ -96,6 +96,7 @@ describe('WebSocket Page API', function () {
 
     const result = await cdpSend(webSocketDebuggerUrl, 'Page.enable');
     expect(result).to.have.property('id', 1);
+    expect(result).to.not.have.property('error');
   });
 
   it('rejects unauthorized page requests', async () => {
@@ -143,6 +144,7 @@ describe('WebSocket Page API', function () {
       'Page.enable',
     );
     expect(result).to.have.property('id', 1);
+    expect(result).to.not.have.property('error');
   });
 
   it('404s pages not found', async () => {
