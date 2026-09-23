@@ -2,6 +2,7 @@ import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import puppeteer from 'puppeteer-core';
 import { WebSocket } from 'ws';
 import { expect } from 'chai';
+import { randomUUID } from 'crypto';
 
 // Sends a single CDP command over a raw WebSocket, resolving with the response
 // to that command, or rejecting when the connection can't be established. The
@@ -24,6 +25,15 @@ const cdpSend = (url: string, method: string) =>
     });
   });
 
+const cdpConnectError = async (url: string): Promise<Error | null> => {
+  try {
+    await cdpSend(url, 'Page.enable');
+    return null;
+  } catch (err: unknown) {
+    return err as Error;
+  }
+};
+
 describe('WebSocket Page API', function () {
   let browserless: Browserless;
 
@@ -43,15 +53,16 @@ describe('WebSocket Page API', function () {
     const config = new Config();
     const metrics = new Metrics();
     await start({ config, metrics });
+    const port = config.getPort();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000`,
+      browserWSEndpoint: `ws://localhost:${port}`,
     });
     const page = await browser.newPage();
     await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
-    const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
+    const webSocketDebuggerUrl = `ws://localhost:${port}/devtools/page/${pageId}`;
 
     // Connect to raw page target and send a command
     const result = await cdpSend(webSocketDebuggerUrl, 'Page.enable');
@@ -63,9 +74,10 @@ describe('WebSocket Page API', function () {
     const config = new Config();
     const metrics = new Metrics();
     await start({ config, metrics });
+    const port = config.getPort();
 
     const { webSocketDebuggerUrl } = await fetch(
-      'http://localhost:3000/json/new',
+      `http://localhost:${port}/json/new`,
       {
         method: 'PUT',
       },
@@ -76,52 +88,83 @@ describe('WebSocket Page API', function () {
     expect(result);
   });
 
+  it('creates pages from BLESS page URLs without a configured token', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const webSocketDebuggerUrl = `ws://localhost:${config.getPort()}/devtools/page/BLESS${randomUUID()}`;
+
+    const result = await cdpSend(webSocketDebuggerUrl, 'Page.enable');
+    expect(result).to.have.property('id', 1);
+  });
+
   it('rejects unauthorized page requests', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
+    const port = config.getPort();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:${port}?token=browserless`,
     });
     const page = await browser.newPage();
     await page.goto('https://one.one.one.one/');
     // @ts-ignore
     const pageId = page.target()._targetId;
-    const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/${pageId}`;
+    const webSocketDebuggerUrl = `ws://localhost:${port}/devtools/page/${pageId}`;
 
     // Connect to raw page target without authorization
-    try {
-      await cdpSend(webSocketDebuggerUrl, 'Page.enable');
-    } catch (err: unknown) {
-      //@ts-ignore
-      expect(err.message).to.include('401');
-    } finally {
-      browser.close();
-    }
+    const connectError = await cdpConnectError(webSocketDebuggerUrl);
+    await browser.close();
+    expect(
+      connectError,
+      'expected the tokenless page connect to be rejected, but it succeeded',
+    ).to.not.equal(null);
+    expect(connectError!.message).to.include('401');
+  });
+
+  it('requires authorization when creating pages from BLESS page URLs', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const webSocketDebuggerUrl = `ws://localhost:${config.getPort()}/devtools/page/BLESS${randomUUID()}`;
+
+    const connectError = await cdpConnectError(webSocketDebuggerUrl);
+    expect(
+      connectError,
+      'expected the tokenless page connect to be rejected, but it succeeded',
+    ).to.not.equal(null);
+    expect(connectError!.message).to.include('401');
+
+    const result = await cdpSend(
+      `${webSocketDebuggerUrl}?token=browserless`,
+      'Page.enable',
+    );
+    expect(result).to.have.property('id', 1);
   });
 
   it('404s pages not found', async () => {
     const config = new Config();
+    config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
+    const port = config.getPort();
 
     const browser = await puppeteer.connect({
-      browserWSEndpoint: `ws://localhost:3000?token=browserless`,
+      browserWSEndpoint: `ws://localhost:${port}?token=browserless`,
     });
     const page = await browser.newPage();
     await page.goto('https://one.one.one.one/');
-    const webSocketDebuggerUrl = `ws://localhost:3000/devtools/page/im-a-banana`;
+    const webSocketDebuggerUrl = `ws://localhost:${port}/devtools/page/im-a-banana?token=browserless`;
 
-    // Connect to raw page target without authorization
-    try {
-      await cdpSend(webSocketDebuggerUrl, 'Page.enable');
-    } catch (err: unknown) {
-      //@ts-ignore
-      expect(err.message).to.include('404');
-    } finally {
-      browser.close();
-    }
+    const connectError = await cdpConnectError(webSocketDebuggerUrl);
+    await browser.close();
+    expect(
+      connectError,
+      'expected the unknown page connect to be rejected, but it succeeded',
+    ).to.not.equal(null);
+    expect(connectError!.message).to.include('404');
   });
 });
