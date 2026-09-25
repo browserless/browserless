@@ -5,8 +5,10 @@ import { Socket } from 'net';
 import os from 'os';
 import path from 'path';
 import { PassThrough } from 'stream';
+import Sinon from 'sinon';
 import {
   Config,
+  closeProxiedSocket,
   contentTypes,
   generateScratchDir,
   getFinalPathSegment,
@@ -171,6 +173,96 @@ describe('Utils', () => {
       );
       const parsed = JSON.parse(getBody().trim());
       expect(parsed).to.deep.equal({ error: 'Validation failed' });
+    });
+  });
+
+  describe('#closeProxiedSocket', () => {
+    // Parses a single unmasked RFC 6455 close frame: byte0 = 0x88 (FIN +
+    // opcode 0x8), byte1's top bit unset means unmasked (server frames must
+    // never be masked), low 7 bits are the payload length, payload is a
+    // 2-byte big-endian close code followed by a UTF-8 reason.
+    const parseCloseFrame = (buf: Buffer) => {
+      expect(buf[0]).to.equal(0x88);
+      expect(buf[1] & 0x80).to.equal(0, 'close frame must not be masked');
+      const len = buf[1] & 0x7f;
+      return {
+        code: buf.readUInt16BE(2),
+        reason: buf.subarray(4, 2 + len).toString('utf8'),
+      };
+    };
+
+    it('writes a valid unmasked close frame with the given code and reason', (done) => {
+      const socket = new PassThrough();
+      const chunks: Buffer[] = [];
+      socket.on('data', (chunk) => chunks.push(chunk));
+      socket.on('close', () => {
+        const { code, reason } = parseCloseFrame(Buffer.concat(chunks));
+        expect(code).to.equal(1013);
+        expect(reason).to.equal('Request has timed out');
+        done();
+      });
+
+      closeProxiedSocket(socket, 1013, 'Request has timed out');
+    });
+
+    it('destroys the socket so a close event always fires', (done) => {
+      const socket = new PassThrough();
+      socket.on('close', () => {
+        expect(socket.destroyed).to.be.true;
+        done();
+      });
+
+      closeProxiedSocket(socket, 1013, 'Request has timed out');
+    });
+
+    it('never throws for an invalid close code, and still tears the socket down', (done) => {
+      const socket = new PassThrough();
+      socket.on('close', () => done());
+
+      // 1005 is reserved by RFC 6455 and rejected by `ws`'s own validation —
+      // this is the exact class of throw the Sender path is guarded against.
+      expect(() =>
+        closeProxiedSocket(socket, 1005, 'reserved code'),
+      ).to.not.throw();
+    });
+
+    it('does nothing to an already-disconnected socket', () => {
+      const socket = new PassThrough();
+      socket.destroy();
+
+      expect(() => closeProxiedSocket(socket, 1013, 'too late')).to.not.throw();
+    });
+
+    it('truncates a non-ASCII reason by UTF-8 byte length, not string length', (done) => {
+      const socket = new PassThrough();
+      // 50 three-byte CJK characters = 150 UTF-8 bytes but only 50 UTF-16
+      // code units — `.slice(0, 123)` alone would pass this through whole.
+      const longReason = '日'.repeat(50);
+      const chunks: Buffer[] = [];
+      socket.on('data', (chunk) => chunks.push(chunk));
+      socket.on('close', () => {
+        const { code, reason } = parseCloseFrame(Buffer.concat(chunks));
+        expect(code).to.equal(1013);
+        expect(Buffer.byteLength(reason, 'utf8')).to.be.at.most(123);
+        // A mid-character cut would leave a replacement char at the end.
+        expect(reason.endsWith('�')).to.be.false;
+        done();
+      });
+
+      closeProxiedSocket(socket, 1013, longReason);
+    });
+
+    it('clears the drain timer once teardown completes early', () => {
+      const clearTimeoutSpy = Sinon.spy(global, 'clearTimeout');
+      try {
+        const socket = new PassThrough();
+        closeProxiedSocket(socket, 1013, 'Request has timed out');
+        socket.emit('close');
+
+        expect(clearTimeoutSpy.called).to.be.true;
+      } finally {
+        clearTimeoutSpy.restore();
+      }
     });
   });
 
