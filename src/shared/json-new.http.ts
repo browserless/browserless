@@ -4,13 +4,17 @@ import {
   CDPJSONPayload,
   HTTPRoute,
   HTTPRoutes,
+  JSON_NEW_TARGET_PARAM,
   Methods,
   Request,
   Response,
+  assertNavigationAllowed,
   contentTypes,
   dedent,
   jsonResponse,
   pageID,
+  parseJSONNewTarget,
+  resolveJSONNewTarget,
 } from '@browserless.io/browserless';
 import path from 'path';
 
@@ -44,8 +48,25 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
   path = HTTPRoutes.jsonNew;
   tags = [APITags.browserAPI];
 
-  async handler(_req: Request, res: Response): Promise<void> {
+  async handler(req: Request, res: Response): Promise<void> {
     const config = this.config();
+
+    // Read the request target as it arrived. Both request shims round-trip the
+    // query through URLSearchParams before a route sees it, and re-serialising
+    // a valueless key rewrites `?http://one.com` as `?http://one.com=`, which
+    // then parses as the host `one.com=`.
+    const rawURL = req.rawUrl ?? req.url ?? '';
+    const queryStart = rawURL.indexOf('?');
+    const requested =
+      queryStart === -1 ? null : parseJSONNewTarget(rawURL.slice(queryStart));
+    const target = requested ? resolveJSONNewTarget(requested) : null;
+    assertNavigationAllowed(
+      target ?? undefined,
+      config.getBlockedURLPatterns(),
+      config.getBlockedNetworkRanges(),
+      config.getSelfNavigationHosts(),
+    );
+
     const externalAddress = config.getExternalWebSocketAddress();
     const id = pageID();
     const { protocol, host, pathname, href } = new URL(
@@ -55,14 +76,22 @@ export default class ChromiumJSONNewPutRoute extends HTTPRoute {
     const param = protocol.includes('wss') ? 'wss' : 'ws';
     const value = path.join(host, pathname);
 
+    // The page does not exist yet — browserless only creates it once the
+    // client connects to webSocketDebuggerUrl. That URL is therefore the only
+    // channel able to carry the target across to the request that acts on it.
+    const webSocketDebuggerUrl = new URL(href);
+    if (target) {
+      webSocketDebuggerUrl.searchParams.set(JSON_NEW_TARGET_PARAM, target);
+    }
+
     return jsonResponse(res, 200, {
       description: '',
       devtoolsFrontendUrl: `/devtools/inspector.html?${param}=${value}`,
       id,
       title: 'New Tab',
       type: 'page',
-      url: 'about:blank',
-      webSocketDebuggerUrl: href,
+      url: target ?? 'about:blank',
+      webSocketDebuggerUrl: webSocketDebuggerUrl.href,
     });
   }
 }
