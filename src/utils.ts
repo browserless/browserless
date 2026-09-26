@@ -789,6 +789,17 @@ export class ServerError extends Error {
     errorLog(this.message);
   }
 }
+/**
+ * Configuration that must stop the server from starting.
+ */
+export class InvalidConfig extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidConfig';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
 export class Unauthorized extends Error {
   constructor(message: string) {
     super(message);
