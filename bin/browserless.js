@@ -7,6 +7,7 @@ import {
   getArgSwitches,
   getSourceFiles,
   installBrowsers,
+  InvalidConfig,
   installDependencies,
   normalizeFileProtocol,
   prompt,
@@ -258,7 +259,11 @@ const start = async (dev = false) => {
   webSocketRoutes.forEach((r) => browserless.addWebSocketRoute(r));
 
   log(`Starting Browserless HTTP Service`);
-  browserless.start();
+  browserless.start().catch((err) => {
+    if (!(err instanceof InvalidConfig)) throw err;
+    console.error(`Failed to start: ${err.message}`);
+    process.exit(1);
+  });
 
   log(`Binding signal interruption handlers and uncaught errors`);
   process

@@ -261,7 +261,9 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
-    if (route?.auth) {
+    // Under STRICT_TOKEN_USE every route is sent to Token, which owns the
+    // per-route exemptions (static files).
+    if (route.auth || this.config.getStrictTokenUse()) {
       this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
@@ -442,7 +444,8 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
-      if (route?.auth) {
+      // See the HTTP gate above: Token owns the strict-mode exemptions.
+      if (route.auth || this.config.getStrictTokenUse()) {
         this.logger.trace(
           `Authorizing WebSocket request to "${req.parsed.href}"`,
         );
