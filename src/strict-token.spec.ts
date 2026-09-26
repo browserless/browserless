@@ -113,25 +113,30 @@ describe('STRICT_TOKEN_USE', () => {
       browserless = undefined;
     });
 
-    it('refuses to start when on without a TOKEN', async () => {
-      const config = new Config();
-      config.setToken(null);
-      config.setStrictTokenUse(true);
-      config.setPort(await getPort());
-      browserless = new Browserless({ config, metrics: new Metrics() });
+    for (const [label, token] of [
+      ['without a TOKEN', null],
+      ['with an empty TOKEN', ''],
+    ] as const) {
+      it(`refuses to start when on ${label}`, async () => {
+        const config = new Config();
+        config.setToken(token);
+        config.setStrictTokenUse(true);
+        config.setPort(await getPort());
+        browserless = new Browserless({ config, metrics: new Metrics() });
 
-      const startError = await browserless.start().then(
-        () => null,
-        (err: Error) => err,
-      );
-      expect(startError?.message, 'expected start() to reject').to.include(
-        'STRICT_TOKEN_USE',
-      );
-      const res = await fetch(
-        `http://localhost:${config.getPort()}/json/version`,
-      ).catch(() => null);
-      expect(res, 'expected no server to be listening').to.equal(null);
-    });
+        const startError = await browserless.start().then(
+          () => null,
+          (err: Error) => err,
+        );
+        expect(startError?.message, 'expected start() to reject').to.include(
+          'STRICT_TOKEN_USE',
+        );
+        const res = await fetch(
+          `http://localhost:${config.getPort()}/json/version`,
+        ).catch(() => null);
+        expect(res, 'expected no server to be listening').to.equal(null);
+      });
+    }
 
     it('serves static files tokenless and gates the rest when on', async () => {
       const config = new Config();
@@ -143,9 +148,9 @@ describe('STRICT_TOKEN_USE', () => {
       const base = `http://localhost:${config.getPort()}`;
 
       expect((await fetch(`${base}/favicon-32x32.png`)).status).to.equal(200);
-      expect((await fetch(`${base}/json/version`)).status).to.equal(401);
+      expect((await fetch(`${base}/pressure`)).status).to.equal(401);
       expect(
-        (await fetch(`${base}/json/version?token=browserless`)).status,
+        (await fetch(`${base}/pressure?token=browserless`)).status,
       ).to.equal(200);
     });
 
