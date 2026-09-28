@@ -635,6 +635,78 @@ export const queryParamsToObject = (
     {} as ReturnType<typeof queryParamsToObject>,
   );
 
+/**
+ * The query parameter carrying a `/json/new` navigation target from the JSON
+ * response to the websocket connect that actually creates the page.
+ */
+export const JSON_NEW_TARGET_PARAM = 'url';
+
+/**
+ * Query parameters browserless consumes on `/json/new` itself. Anything else
+ * in the query string belongs to the caller's navigation target.
+ */
+export const jsonNewReservedParams: readonly string[] = ['token'];
+
+/**
+ * Extracts the navigation target from a DevTools `PUT /json/new?{url}` request.
+ *
+ * Chrome does not parse the text after `?` as query parameters. Per the
+ * DevTools HTTP endpoints spec the entire query string *is* the URL, so it may
+ * legitimately contain its own `?`, `&` and `=`. Browserless still needs its own
+ * `token` on the same request, so reserved pairs are accepted only before the
+ * target. Once a URL-looking segment starts, everything after it belongs to the
+ * target — including a final `token=` query parameter of its own.
+ *
+ * Both spellings clients send are handled, the raw `?https://example.com` form
+ * and the percent-encoded `?https%3A%2F%2Fexample.com` form that curl and most
+ * HTTP libraries produce.
+ *
+ * @param search The `search` of the inbound URL, with or without its leading `?`
+ * @param reserved Parameter names browserless owns on this route
+ * @returns The requested URL, or `null` when the caller supplied none
+ */
+export const parseJSONNewTarget = (
+  search: string,
+  reserved: readonly string[] = jsonNewReservedParams,
+): string | null => {
+  let rest = search.startsWith('?') ? search.slice(1) : search;
+
+  // Leading reserved pairs, e.g. `?token=abc&https://example.com`. Stopping at
+  // the first unrecognised key is what keeps the target’s own query string
+  // intact: `a=1&b=2` inside the target is not more browserless parameters.
+  for (;;) {
+    const pair = /^([^=&]+)=([^&]*)(?:&|$)/.exec(rest);
+    if (!pair) break;
+
+    let key: string;
+    try {
+      key = decodeURIComponent(pair[1]);
+    } catch {
+      break;
+    }
+
+    if (!reserved.includes(key.toLowerCase())) break;
+    rest = rest.slice(pair[0].length);
+  }
+
+  // Browserless parameters after the target are deliberately not removed:
+  // that part of the request is the target's own query string.
+  if (!rest) return null;
+
+  // Decode only when the scheme itself is encoded. A raw target may contain
+  // meaningful escapes in its path (for example /a%2Fb); decoding that entire
+  // URL would silently change where the browser navigates.
+  if (/^https?%3a%2f%2f/i.test(rest)) {
+    try {
+      return decodeURIComponent(rest);
+    } catch {
+      // Let URL parsing report malformed percent-encoding in the route.
+    }
+  }
+
+  return rest;
+};
+
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const wrapUserFunction = (fn: string) => {
@@ -771,6 +843,33 @@ export class BadRequest extends Error {
     errorLog(this.message);
   }
 }
+
+/**
+ * Parses and canonicalizes a /json/new target, rejecting relative URLs and
+ * schemes that a direct page-websocket connection must not be able to smuggle
+ * past the HTTP route's validation.
+ */
+export const resolveJSONNewTarget = (requested: string): string => {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(requested);
+  } catch {
+    throw new BadRequest(
+      'The /json/new target "' + requested + '" is not a valid absolute URL.',
+    );
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequest(
+      'The /json/new target must use http or https, got "' +
+        parsed.protocol +
+        '".',
+    );
+  }
+
+  return parsed.href;
+};
 
 export class TooManyRequests extends Error {
   constructor(message: string) {

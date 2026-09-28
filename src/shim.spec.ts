@@ -249,6 +249,35 @@ describe('Request Shimming', () => {
       expect(request.headers.authorization).to.eql('Bearer 12345');
     });
 
+    it('preserves the raw /json/new target after a leading token', () => {
+      const request = {
+        url: '/json/new?token=browserless&https://example.com/callback?state=x&token=target-token',
+        headers: {},
+      } as unknown as http.IncomingMessage;
+
+      const shimmed = moveTokenToHeader(request);
+      expect(shimmed).not.to.include('&token=target-token');
+      expect(decodeURIComponent(shimmed.split('?')[1])).to.equal(
+        'https://example.com/callback?state=x&token=target-token',
+      );
+      expect(request.headers.authorization).to.equal('Bearer browserless');
+    });
+
+    it('treats a trailing token as part of the /json/new target', () => {
+      const url =
+        '/json/new?https://example.com/callback?state=x&token=target-token';
+      const request = {
+        url,
+        headers: { authorization: 'Bearer browserless' },
+      } as unknown as http.IncomingMessage;
+
+      const shimmed = moveTokenToHeader(request);
+      expect(shimmed).not.to.include('&token=target-token');
+      expect(decodeURIComponent(shimmed.split('?')[1])).to.equal(
+        'https://example.com/callback?state=x&token=target-token',
+      );
+    });
+
     it('does no conversion if an authorization header is already present', () => {
       const oldAuth = 'Bearer foo-bar';
       const url = 'wss://localhost?token=12345';
