@@ -248,6 +248,7 @@ export class Config extends EventEmitter {
     : path.join(__dirname, '..', 'build', 'routes');
 
   protected token = process.env.TOKEN || null;
+  protected strictTokenUse = !!parseEnvVars(false, 'STRICT_TOKEN_USE');
   protected concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -325,6 +326,14 @@ export class Config extends EventEmitter {
 
   public getToken(): string | null {
     return this.token;
+  }
+
+  /**
+   * When true, the configured TOKEN is required on every route, including
+   * routes that opt out with `auth = false` (static files excepted).
+   */
+  public getStrictTokenUse(): boolean {
+    return this.strictTokenUse;
   }
 
   public getDebug(): string {
@@ -654,6 +663,11 @@ export class Config extends EventEmitter {
   public setToken(newToken: string | null): string | null {
     this.emit('token', newToken);
     return (this.token = newToken);
+  }
+
+  public setStrictTokenUse(strictTokenUse: boolean): boolean {
+    this.emit('strictTokenUse', strictTokenUse);
+    return (this.strictTokenUse = strictTokenUse);
   }
 
   public setTimeout(newTimeout: number): number {

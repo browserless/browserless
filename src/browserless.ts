@@ -19,6 +19,7 @@ import {
   HTTPServer,
   Hooks,
   IBrowserlessStats,
+  InvalidConfig,
   Limiter,
   Metrics,
   Monitoring,
@@ -339,6 +340,12 @@ export class Browserless extends EventEmitter {
   }
 
   public async start() {
+    if (this.config.getStrictTokenUse() && !this.config.getToken()) {
+      throw new InvalidConfig(
+        `STRICT_TOKEN_USE is enabled but no TOKEN is configured. Set TOKEN or disable STRICT_TOKEN_USE.`,
+      );
+    }
+
     const httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
     const wsRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
     const internalBrowsers = [
