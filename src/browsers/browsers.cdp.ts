@@ -548,6 +548,7 @@ export class ChromiumCDP extends EventEmitter {
         proxyReq.once('upgrade', (_response, proxySocket) => {
           if (socket.destroyed) {
             proxySocket.destroy();
+            close();
             return;
           }
           backend = proxySocket;

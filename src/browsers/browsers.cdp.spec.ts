@@ -123,6 +123,48 @@ describe('ChromiumCDP launch args', function () {
     expect(spawnargs).to.include('--disable-component-update');
   });
 
+  it('releases a new page when its client socket is already closed', async () => {
+    await launch();
+    const socket = new Socket();
+    socket.destroy();
+    const pageClosed = new Promise<void>((resolve) =>
+      browser!['browser']!.once('targetdestroyed', () => resolve()),
+    );
+    const request = {
+      method: 'GET',
+      url: '/devtools/page/BLESS',
+      parsed: new URL('http://localhost/devtools/page/BLESS'),
+      headers: {
+        connection: 'Upgrade',
+        upgrade: 'websocket',
+        'sec-websocket-version': '13',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    } as Request;
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        Promise.all([
+          browser!.proxyPageWebSocket(request, socket, Buffer.alloc(0)),
+          pageClosed,
+        ]),
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'Aborted page proxy did not settle and release its page',
+                ),
+              ),
+            2000,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
   for (const pageKind of ['created', 'existing']) {
     for (const shutdown of ['browser', 'process', 'page', 'client']) {
       // A client-only disconnect has no backend teardown/unpipe to model.
