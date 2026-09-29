@@ -78,6 +78,12 @@ Get up and running in three simple steps:
 docker run -p 3000:3000 ghcr.io/browserless/chromium
 ```
 
+Images use Ubuntu 26.04. Heavy images install WebKit binaries from Playwright
+**1.61 and newer**, omitting binaries that require older Ubuntu libraries.
+Older clients retain the existing server selection and browser-binary fallback;
+this does not guarantee compatibility between every driver and engine version.
+Chromium and Firefox retain their existing version support.
+
 ### Step 2: Open the docs in your browser
 
 Visit http://localhost:3000/docs
