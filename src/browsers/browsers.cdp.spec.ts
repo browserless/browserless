@@ -3,10 +3,12 @@ import {
   Config,
   Logger,
   NetworkRangeSet,
+  Request,
   availableBrowsers,
 } from '@browserless.io/browserless';
 import { Server, createServer } from 'http';
-import { AddressInfo } from 'net';
+import { AddressInfo, Socket, connect } from 'net';
+import { once } from 'events';
 import { expect } from 'chai';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
@@ -59,6 +61,58 @@ describe('ChromiumCDP launch args', function () {
 
     expect(spawnargs).to.include('--disable-component-update');
     expect(spawnargs).to.include('--window-size=800,600');
+  });
+
+  it('closes a paused client socket with unread data when the browser exits', async () => {
+    await launch();
+    const server = createServer();
+    let socket: Socket | undefined;
+    let client: Socket | undefined;
+    let proxying: Promise<void> | undefined;
+    server.on('upgrade', (req, incoming, head) => {
+      socket = incoming as Socket;
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      proxying = browser!.proxyWebSocket(request, socket, head);
+    });
+
+    try {
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      client = connect({
+        host: '127.0.0.1',
+        port: (server.address() as AddressInfo).port,
+        allowHalfOpen: true,
+      });
+      client.write(
+        'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\n' +
+          'Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      );
+      const [response] = await once(client, 'data');
+      expect(response.toString()).to.include('101 Switching Protocols');
+
+      // Model http-proxy unpiping its client readable during backend teardown.
+      // A masked, empty WebSocket ping remains unread before the client's FIN.
+      socket!.unpipe();
+      socket!.pause();
+      const readable = once(socket!, 'readable');
+      client.end(Buffer.from([0x89, 0x80, 0, 0, 0, 0]));
+      await readable;
+      socket!.pause();
+      expect(socket!.isPaused()).to.equal(true);
+      expect(socket!.readableLength).to.be.greaterThan(0);
+
+      await browser!.close();
+      await proxying;
+      expect(socket!.destroyed).to.equal(true);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    } finally {
+      client?.destroy();
+      socket?.destroy();
+      server.close();
+    }
   });
 
   // puppeteer-extra's stealth launcher is a separate code path that rebuilds the

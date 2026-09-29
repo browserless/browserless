@@ -570,6 +570,9 @@ export class ChromiumCDP extends EventEmitter {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);
+        // http-proxy can leave the client paused with unread data after the
+        // backend exits. End the transport too, or HTTP shutdown waits forever.
+        socket.destroy();
         return resolve();
       });
 
