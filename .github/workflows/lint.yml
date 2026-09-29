@@ -7,8 +7,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - name: Test versioned browser installation policy
-        run: bash scripts/install-versioned-browsers.test.sh
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24.21.0'

@@ -2,6 +2,10 @@ FROM ubuntu:26.04
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
+# Chrome/Edge vendor installers invoke apt without --no-install-recommends.
+# Apply the minimal-package policy before any apt usage, including child images.
+RUN printf 'APT::Install-Recommends "false";\n' > /etc/apt/apt.conf.d/99browserless
+
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
@@ -94,9 +98,5 @@ COPY scripts scripts
 COPY static static
 
 COPY CHANGELOG.md LICENSE NOTICE.txt README.md tsconfig.json ./
-
-# Browser vendor installers invoke apt themselves. Keep optional tools (including
-# Python recommended by gsettings-desktop-schemas) out of downstream images too.
-RUN printf 'APT::Install-Recommends "false";\n' > /etc/apt/apt.conf.d/99browserless
 
 EXPOSE $PORT
