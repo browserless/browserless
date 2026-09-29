@@ -29,6 +29,13 @@ describe('Versioned browser installation policy', () => {
     mkdirSync(cache, { recursive: true });
     writeFileSync(path.join(cache, 'INSTALLATION_COMPLETE'), '');
     mkdirSync(path.join(fixture, 'bin'));
+    // Test version selection, not the host's timeout utility (absent on macOS).
+    // execFileSync below already bounds the entire fixture run.
+    writeFileSync(
+      path.join(fixture, 'bin', 'timeout'),
+      '#!/bin/sh\nshift 3\nexec "$@"\n',
+      { mode: 0o755 },
+    );
     // Record CLI calls while reusing a completed cache: no downloads or apt.
     writeFileSync(
       path.join(fixture, 'bin', 'node'),
