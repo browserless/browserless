@@ -122,6 +122,114 @@ describe('ChromiumCDP launch args', function () {
 
     expect(spawnargs).to.include('--disable-component-update');
   });
+
+  for (const pageKind of ['created', 'existing']) {
+    for (const shutdown of ['browser', 'process', 'page', 'client']) {
+      // A client-only disconnect has no backend teardown/unpipe to model.
+      for (const paused of shutdown === 'client' ? [false] : [false, true]) {
+        it(`closes a ${paused ? 'paused' : 'flowing'} ${pageKind}-page proxy after ${shutdown} shutdown`, async () => {
+          await launch();
+          const existing = await browser!.newPage();
+          const before = await browser!.pages();
+          const pathname = `/devtools/page/${pageKind === 'created' ? 'BLESS' : browser!.getPageId(existing)}`;
+          const server = createServer();
+          let socket: Socket | undefined;
+          let client: Socket | undefined;
+          let proxying: Promise<void> | undefined;
+          let timer: NodeJS.Timeout | undefined;
+          server.on('upgrade', (req, incoming, head) => {
+            socket = incoming as Socket;
+            const request = req as Request;
+            request.parsed = new URL(req.url!, 'http://localhost');
+            proxying = browser!.proxyPageWebSocket(request, socket, head);
+          });
+
+          try {
+            await new Promise<void>((resolve) =>
+              server.listen(0, '127.0.0.1', resolve),
+            );
+            client = connect({
+              host: '127.0.0.1',
+              port: (server.address() as AddressInfo).port,
+              allowHalfOpen: true,
+            });
+            client.write(
+              `GET ${pathname} HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\n` +
+                'Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+                'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+            );
+            const [response] = await once(client, 'data');
+            expect(response.toString()).to.include('101 Switching Protocols');
+            const page =
+              pageKind === 'existing'
+                ? existing
+                : (await browser!.pages()).find(
+                    (page) => !before.includes(page),
+                  )!;
+            expect(page).not.to.equal(undefined);
+            expect(socket!.isPaused()).to.equal(false);
+
+            if (paused) {
+              // Deterministically reproduce the unread state left by unpiping.
+              socket!.unpipe();
+              socket!.pause();
+              const readable = once(socket!, 'readable');
+              client.end(Buffer.from([0x89, 0x80, 0, 0, 0, 0]));
+              await readable;
+              socket!.pause();
+              expect(socket!.readableLength).to.be.greaterThan(0);
+            }
+
+            const pageClosed =
+              shutdown === 'client' && pageKind === 'created'
+                ? new Promise<void>((resolve) =>
+                    page.once('close', () => resolve()),
+                  )
+                : undefined;
+            if (shutdown === 'client') client.destroy();
+            if (shutdown === 'browser') await browser!.close();
+            if (shutdown === 'page') await page.close();
+            if (shutdown === 'process') {
+              const process = browser!.process()!;
+              const exited = once(process, 'close');
+              process.kill('SIGKILL');
+              await exited;
+            }
+            const serverClosed = new Promise<void>((resolve) =>
+              server.close(() => resolve()),
+            );
+            await Promise.race([
+              Promise.all([proxying, serverClosed]),
+              new Promise((_, reject) => {
+                timer = setTimeout(
+                  () =>
+                    reject(
+                      new Error(
+                        `Page proxy did not settle: destroyed=${socket!.destroyed}, paused=${socket!.isPaused()}, unread=${socket!.readableLength}`,
+                      ),
+                    ),
+                  2000,
+                );
+              }),
+            ]);
+            expect(socket!.destroyed).to.equal(true);
+            await pageClosed;
+            if (shutdown === 'client' && pageKind === 'existing') {
+              expect(await page.evaluate(() => 6 * 7)).to.equal(42);
+            }
+            if (shutdown === 'page') {
+              expect(await before[0].evaluate(() => 6 * 7)).to.equal(42);
+            }
+          } finally {
+            clearTimeout(timer);
+            client?.destroy();
+            socket?.destroy();
+            server.close();
+          }
+        });
+      }
+    }
+  }
 });
 
 describe('ChromiumCDP blocked-URL guard', function () {

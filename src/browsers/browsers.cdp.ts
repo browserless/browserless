@@ -526,13 +526,35 @@ export class ChromiumCDP extends EventEmitter {
     delete req.headers.origin;
 
     return new Promise((resolve, reject) => {
+      let backend: Duplex | undefined;
       // The page made for this connection lives only as long as the
       // client socket — without this, keep-alive browsers accumulate a
       // renderer per reconnect cycle.
-      socket.once('close', () => {
+      const close = once(() => {
+        socket.off('close', close);
+        this.proxy.off('proxyReqWs', onProxyRequest);
+        backend?.off('close', close);
+        backend?.destroy();
+        socket.destroy();
         page?.close().catch(noop);
         resolve();
       });
+      socket.once('close', close);
+
+      // proxyReqWs is emitted synchronously by ws(), before the upgrade.
+      // Track this connection's backend, not the whole browser: a single
+      // page can close while other page proxies keep using the browser.
+      const onProxyRequest: httpProxy.ProxyReqWsCallback = (proxyReq) => {
+        proxyReq.once('upgrade', (_response, proxySocket) => {
+          if (socket.destroyed) {
+            proxySocket.destroy();
+            return;
+          }
+          backend = proxySocket;
+          backend.once('close', close);
+        });
+      };
+      this.proxy.once('proxyReqWs', onProxyRequest);
 
       this.proxy.ws(
         req,
