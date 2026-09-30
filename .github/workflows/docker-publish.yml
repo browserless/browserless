@@ -43,7 +43,7 @@ on:
         description: APT mirror for the base image. Empty = upstream archive.ubuntu.com.
         required: false
         type: string
-        default: azure.archive.ubuntu.com
+        default: ''
 
 env:
   BASE_IMAGE: ghcr.io/browserless/base

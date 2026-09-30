@@ -37,11 +37,8 @@ WORKDIR $APP_DIR
 COPY fonts/* /usr/share/fonts/truetype/
 COPY fonts/fonts.conf /etc/fonts/local.conf
 
-# Optional apt mirror override. Unset by default so external builders keep the
-# upstream archive.ubuntu.com + security.ubuntu.com defaults untouched. CI
-# passes azure.archive.ubuntu.com to avoid timeouts from GitHub-hosted
-# (Azure-backed) runners; when set, both archive and security are routed
-# through it since the Azure mirror carries resolute-security as well.
+# Optional apt mirror override. Keep Ubuntu's upstream defaults unless a caller
+# explicitly chooses a mirror serving both the archive and security suites.
 ARG APT_MIRROR=
 RUN if [ -n "${APT_MIRROR}" ]; then \
     sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
