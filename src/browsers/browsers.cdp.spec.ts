@@ -12,6 +12,7 @@ import { once } from 'events';
 import { expect } from 'chai';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
+import WebSocket from 'ws';
 
 import { ChromiumCDP } from './browsers.cdp.js';
 
@@ -190,6 +191,53 @@ describe('ChromiumCDP launch args', function () {
     } finally {
       socket.destroy();
       await pending;
+    }
+  });
+
+  it('keeps a concurrent page proxy usable when the other page closes', async () => {
+    await launch();
+    const pages = await Promise.all([browser!.newPage(), browser!.newPage()]);
+    const server = createServer();
+    const pending: Promise<void>[] = [];
+    const clients: WebSocket[] = [];
+    server.on('upgrade', (req, socket, head) => {
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      pending.push(browser!.proxyPageWebSocket(request, socket, head));
+    });
+    try {
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      const port = (server.address() as AddressInfo).port;
+      for (const page of pages) {
+        clients.push(
+          new WebSocket(
+            `ws://127.0.0.1:${port}/devtools/page/${browser!.getPageId(page)}`,
+          ),
+        );
+      }
+      await Promise.all(clients.map((client) => once(client, 'open')));
+      const firstClosed = once(clients[0], 'close');
+      await pages[0].close();
+      await firstClosed;
+      expect(clients[1].readyState).to.equal(WebSocket.OPEN);
+      expect(pages[1].isClosed()).to.equal(false);
+      const response = once(clients[1], 'message');
+      clients[1].send(
+        JSON.stringify({
+          id: 1,
+          method: 'Runtime.evaluate',
+          params: { expression: '6 * 7', returnByValue: true },
+        }),
+      );
+      expect(
+        JSON.parse((await response)[0].toString()).result.result.value,
+      ).to.equal(42);
+    } finally {
+      clients.forEach((client) => client.terminate());
+      await Promise.all(pending);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 
