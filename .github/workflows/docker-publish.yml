@@ -60,10 +60,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { platform: linux/amd64, runner: ubuntu-24.04, pair: linux-amd64 }
+          - { platform: linux/amd64, runner: ubuntu-26.04, pair: linux-amd64 }
           - {
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
             }
     steps:
@@ -119,7 +119,7 @@ jobs:
   # ============================================================
   base-merge:
     name: Merge base manifest
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: base-build
     # TAG is passed via env rather than interpolated into run: scripts to avoid
     # template/shell injection from the caller-supplied tag.
@@ -167,7 +167,7 @@ jobs:
               image: chromium,
               file: chromium,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: '',
             }
@@ -175,7 +175,7 @@ jobs:
               image: chromium,
               file: chromium,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: '',
             }
@@ -183,7 +183,7 @@ jobs:
               image: chrome,
               file: chrome,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: '',
             }
@@ -191,7 +191,7 @@ jobs:
               image: edge,
               file: edge,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: '',
             }
@@ -199,7 +199,7 @@ jobs:
               image: firefox,
               file: firefox,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: '',
             }
@@ -207,7 +207,7 @@ jobs:
               image: firefox,
               file: firefox,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: '',
             }
@@ -215,7 +215,7 @@ jobs:
               image: webkit,
               file: webkit,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: 'INSTALL_WEBKIT_VERSIONS=false',
             }
@@ -223,7 +223,7 @@ jobs:
               image: webkit,
               file: webkit,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: 'INSTALL_WEBKIT_VERSIONS=false',
             }
@@ -231,7 +231,7 @@ jobs:
               image: webkit-heavy,
               file: webkit,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: 'INSTALL_WEBKIT_VERSIONS=true',
             }
@@ -239,7 +239,7 @@ jobs:
               image: webkit-heavy,
               file: webkit,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: 'INSTALL_WEBKIT_VERSIONS=true',
             }
@@ -247,7 +247,7 @@ jobs:
               image: multi,
               file: multi,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: 'INSTALL_WEBKIT_VERSIONS=false',
             }
@@ -255,7 +255,7 @@ jobs:
               image: multi,
               file: multi,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: 'INSTALL_WEBKIT_VERSIONS=false',
             }
@@ -263,7 +263,7 @@ jobs:
               image: multi-heavy,
               file: multi,
               platform: linux/amd64,
-              runner: ubuntu-24.04,
+              runner: ubuntu-26.04,
               pair: linux-amd64,
               extra: 'INSTALL_WEBKIT_VERSIONS=true',
             }
@@ -271,7 +271,7 @@ jobs:
               image: multi-heavy,
               file: multi,
               platform: linux/arm64,
-              runner: ubuntu-24.04-arm,
+              runner: ubuntu-26.04-arm,
               pair: linux-arm64,
               extra: 'INSTALL_WEBKIT_VERSIONS=true',
             }
@@ -327,7 +327,7 @@ jobs:
   # ============================================================
   images-merge:
     name: Merge ${{ matrix.image }} manifest
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: images-build
     # Run even when some images-build legs failed. images-build is one matrix
     # job, so a single failed leg (one image on one arch) marks the whole job
