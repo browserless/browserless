@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.57.0](https://github.com/browserless/browserless/compare/v2.56.7...v2.57.0) (2026-09-30)
+
+
+### Features
+
+* add STRICT_TOKEN_USE to enforce TOKEN on every route ([#5595](https://github.com/browserless/browserless/issues/5595)) ([ed1819c](https://github.com/browserless/browserless/commit/ed1819ca5e594918db0fc92341e54a5d022c624e))
+
+
+### Build System & Runtime
+
+* move browser images to Ubuntu 26.04 ([#5601](https://github.com/browserless/browserless/issues/5601)) ([5621f3c](https://github.com/browserless/browserless/commit/5621f3cabedf8ab5919c348e9f53bec519c9d739))
+
 ## [2.56.7](https://github.com/browserless/browserless/compare/v2.56.6...v2.56.7) (2026-09-10)
 
 
