@@ -12,6 +12,20 @@
 
 * move browser images to Ubuntu 26.04 ([#5601](https://github.com/browserless/browserless/issues/5601)) ([5621f3c](https://github.com/browserless/browserless/commit/5621f3cabedf8ab5919c348e9f53bec519c9d739))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.12.0`
+- playwright-core: `1.63.0`, `1.62.1`, `1.61.1`, `1.60.0`, and `1.59.1`.
+- Chromium: `153.0.8010.12`
+- Chrome: `154.0.8037.57` (amd64 only)
+- Firefox: `155.0`
+- Webkit: `26.6`
+- Edge: `154.0.4258.37` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.7](https://github.com/browserless/browserless/compare/v2.56.6...v2.56.7) (2026-09-10)
 
 
