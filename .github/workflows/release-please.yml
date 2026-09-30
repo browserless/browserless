@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # On workflow_run, only proceed when the image build actually succeeded.
     # (On push the second clause is never evaluated.)
     if: >-
@@ -73,7 +73,7 @@ jobs:
   browser-versions:
     needs: release-please
     if: needs.release-please.outputs.pr_number
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       packages: read
