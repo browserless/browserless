@@ -557,6 +557,11 @@ export class ChromiumCDP extends EventEmitter {
       };
       this.proxy.once('proxyReqWs', onProxyRequest);
 
+      if (socket.destroyed) {
+        close();
+        return;
+      }
+
       this.proxy.ws(
         req,
         socket,
@@ -574,6 +579,9 @@ export class ChromiumCDP extends EventEmitter {
           return reject(error);
         },
       );
+      // Invalid upgrades return without emitting proxyReqWs. Never let their
+      // listener capture a later request on this shared proxy.
+      this.proxy.off('proxyReqWs', onProxyRequest);
     });
   }
 

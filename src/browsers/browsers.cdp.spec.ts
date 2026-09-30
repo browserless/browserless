@@ -123,45 +123,73 @@ describe('ChromiumCDP launch args', function () {
     expect(spawnargs).to.include('--disable-component-update');
   });
 
-  it('releases a new page when its client socket is already closed', async () => {
-    await launch();
-    const socket = new Socket();
-    socket.destroy();
-    const pageClosed = new Promise<void>((resolve) =>
-      browser!['browser']!.once('targetdestroyed', () => resolve()),
-    );
-    const request = {
-      method: 'GET',
-      url: '/devtools/page/BLESS',
-      parsed: new URL('http://localhost/devtools/page/BLESS'),
-      headers: {
-        connection: 'Upgrade',
-        upgrade: 'websocket',
-        'sec-websocket-version': '13',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    } as Request;
-    let timer: NodeJS.Timeout | undefined;
-    try {
-      await Promise.race([
-        Promise.all([
-          browser!.proxyPageWebSocket(request, socket, Buffer.alloc(0)),
-          pageClosed,
-        ]),
-        new Promise((_, reject) => {
-          timer = setTimeout(
-            () =>
-              reject(
-                new Error(
-                  'Aborted page proxy did not settle and release its page',
+  for (const method of ['GET', 'POST']) {
+    it(`releases a new page when its ${method} client socket is already closed`, async () => {
+      await launch();
+      const socket = new Socket();
+      socket.destroy();
+      const pageClosed = new Promise<void>((resolve) =>
+        browser!['browser']!.once('targetdestroyed', () => resolve()),
+      );
+      const request = {
+        method,
+        url: '/devtools/page/BLESS',
+        parsed: new URL('http://localhost/devtools/page/BLESS'),
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+          'sec-websocket-version': '13',
+          'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        },
+      } as Request;
+      let timer: NodeJS.Timeout | undefined;
+      try {
+        await Promise.race([
+          Promise.all([
+            browser!.proxyPageWebSocket(request, socket, Buffer.alloc(0)),
+            pageClosed,
+          ]),
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    'Aborted page proxy did not settle and release its page',
+                  ),
                 ),
-              ),
-            2000,
-          );
-        }),
-      ]);
+              2000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  }
+
+  it('removes an unused backend listener before another request can consume it', async () => {
+    await launch();
+    const page = await browser!.newPage();
+    const socket = new Socket();
+    const pathname = `/devtools/page/${browser!.getPageId(page)}`;
+    const request = {
+      method: 'POST',
+      url: pathname,
+      parsed: new URL(pathname, 'http://localhost'),
+      headers: { upgrade: 'websocket' },
+    } as Request;
+    const pending = browser!.proxyPageWebSocket(
+      request,
+      socket,
+      Buffer.alloc(0),
+    );
+    try {
+      // Rejection destroys the socket, but its close event runs next tick.
+      // Another request must not be able to consume this request's listener.
+      expect(browser!['proxy'].listenerCount('proxyReqWs')).to.equal(0);
     } finally {
-      clearTimeout(timer);
+      socket.destroy();
+      await pending;
     }
   });
 
