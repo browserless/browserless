@@ -223,6 +223,55 @@ export const writeResponse = (
   return;
 };
 
+// Sockets already handed to http-proxy's `.ws()` are WS-framed; plain HTTP
+// text written to them corrupts the stream, so timeouts must check this first.
+const proxiedSockets = new WeakSet<Duplex>();
+
+export const markSocketAsProxied = (socket: Duplex): void => {
+  proxiedSockets.add(socket);
+};
+
+export const isSocketProxied = (socket: Duplex): boolean =>
+  proxiedSockets.has(socket);
+
+const CLOSE_DRAIN_MS = 500;
+
+/**
+ * Sends an unmasked RFC 6455 close frame on an already-upgraded socket, then
+ * destroys it. Never throws: a payload that doesn't fit a single frame just
+ * tears the socket down.
+ */
+export const closeProxiedSocket = (
+  socket: Duplex,
+  code: number,
+  reason: string,
+): void => {
+  if (!isConnected(socket)) {
+    return;
+  }
+
+  const payload = Buffer.concat([
+    Buffer.from([code >> 8, code & 0xff]),
+    Buffer.from(reason, 'utf8'),
+  ]);
+  if (payload.length > 125) {
+    socket.destroy();
+    return;
+  }
+
+  // 0x88 = FIN + close opcode; server frames are never masked.
+  const frame = Buffer.concat([Buffer.from([0x88, payload.length]), payload]);
+  const finish = () => {
+    clearTimeout(timer);
+    if (!socket.destroyed) {
+      socket.destroy();
+    }
+  };
+  const timer = setTimeout(finish, CLOSE_DRAIN_MS);
+  timer.unref?.();
+  socket.write(frame, finish);
+};
+
 export const jsonResponse = (
   response: ServerResponse,
   httpCode: keyof typeof codes = 200,

@@ -5,10 +5,12 @@ import {
   NetworkRangeSet,
   Request,
   availableBrowsers,
+  isSocketProxied,
 } from '@browserless.io/browserless';
 import { Server, createServer } from 'http';
 import { AddressInfo, Socket, connect } from 'net';
-import { once } from 'events';
+import { EventEmitter, once } from 'events';
+import { PassThrough } from 'stream';
 import { expect } from 'chai';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
@@ -179,6 +181,10 @@ describe('ChromiumCDP launch args', function () {
       parsed: new URL(pathname, 'http://localhost'),
       headers: { upgrade: 'websocket' },
     } as Request;
+    // The shared proxy keeps one persistent proxyReqWs listener (see the
+    // constructor), so compare against the count before this request runs
+    // rather than expecting zero.
+    const baseline = browser!['proxy'].listenerCount('proxyReqWs');
     const pending = browser!.proxyPageWebSocket(
       request,
       socket,
@@ -186,8 +192,8 @@ describe('ChromiumCDP launch args', function () {
     );
     try {
       // Rejection destroys the socket, but its close event runs next tick.
-      // Another request must not be able to consume this request's listener.
-      expect(browser!['proxy'].listenerCount('proxyReqWs')).to.equal(0);
+      // This request must not leave its own listener behind.
+      expect(browser!['proxy'].listenerCount('proxyReqWs')).to.equal(baseline);
     } finally {
       socket.destroy();
       await pending;
@@ -791,5 +797,27 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
     expect(loaded).to.be.false;
     expect(hits).not.to.include('/legacy-blocked.svg');
+  });
+});
+
+describe('ChromiumCDP upgrade marking (#5591)', () => {
+  it('marks a socket proxied after the backend upgrades, not before', async () => {
+    const browser = new ChromiumCDP({
+      blockAds: false,
+      config: new Config(),
+      logger: new Logger('browsers.cdp.spec'),
+      userDataDir: null,
+    });
+    const shared = (browser as unknown as { proxy: EventEmitter }).proxy;
+    const socket = new PassThrough();
+    const proxyReq = new EventEmitter();
+
+    shared.emit('proxyReqWs', proxyReq, {}, socket, {}, Buffer.alloc(0));
+    expect(isSocketProxied(socket)).to.be.false;
+    proxyReq.emit('upgrade', {}, new PassThrough(), Buffer.alloc(0));
+    // Marking is deferred until after http-proxy has written the 101.
+    expect(isSocketProxied(socket)).to.be.false;
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(isSocketProxied(socket)).to.be.true;
   });
 });

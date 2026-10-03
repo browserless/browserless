@@ -8,6 +8,7 @@ import {
   chromeExecutablePath,
   edgeExecutablePath,
   findBlockedNavigationUrl,
+  markSocketAsProxied,
   noop,
   once,
   toBlockedUrlPatterns,
@@ -91,6 +92,15 @@ export class ChromiumCDP extends EventEmitter {
     this.logger = logger;
 
     this.logger.debug(`Starting new ${this.constructor.name} instance`);
+
+    // One listener for every ws() call on the shared proxy, including
+    // subclass overrides. Defer: http-proxy writes the client's 101 in the
+    // same tick, after this listener runs.
+    this.proxy.on('proxyReqWs', (proxyReq, _req, socket) => {
+      proxyReq.once('upgrade', () =>
+        setImmediate(() => markSocketAsProxied(socket)),
+      );
+    });
   }
 
   protected cleanListeners() {
