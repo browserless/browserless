@@ -1,6 +1,10 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
+
+# Chrome/Edge vendor installers invoke apt without --no-install-recommends.
+# Apply the minimal-package policy before any apt usage, including child images.
+RUN printf 'APT::Install-Recommends "false";\n' > /etc/apt/apt.conf.d/99browserless
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
@@ -33,11 +37,8 @@ WORKDIR $APP_DIR
 COPY fonts/* /usr/share/fonts/truetype/
 COPY fonts/fonts.conf /etc/fonts/local.conf
 
-# Optional apt mirror override. Unset by default so external builders keep the
-# upstream archive.ubuntu.com + security.ubuntu.com defaults untouched. CI
-# passes azure.archive.ubuntu.com to avoid timeouts from GitHub-hosted
-# (Azure-backed) runners; when set, both archive and security are routed
-# through it since the Azure mirror carries noble-security as well.
+# Optional apt mirror override. Keep Ubuntu's upstream defaults unless a caller
+# explicitly chooses a mirror serving both the archive and security suites.
 ARG APT_MIRROR=
 RUN if [ -n "${APT_MIRROR}" ]; then \
     sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
@@ -45,22 +46,13 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
   fi
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends software-properties-common \
-  && add-apt-repository universe \
-  && apt-get update \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   dumb-init \
-  git \
-  gnupg \
-  libu2f-udev \
-  ssh \
   unzip \
   wget \
   xvfb \
-  libwebp-dev \
-  python3 python3-pip python3-setuptools \
   # Font packages
   fontconfig \
   fonts-freefont-ttf \
@@ -78,8 +70,6 @@ RUN apt-get update \
   fonts-open-sans \
   fonts-crosextra-carlito \
   fonts-dejavu-core \
-  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
-  && update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
   && fc-cache -f -v \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 

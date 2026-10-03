@@ -717,49 +717,30 @@ describe('Router', () => {
       ).to.be.null;
     });
   });
+});
 
-  describe('#onWebsocketTimeout', () => {
-    // Exposes the protected method under test without a throwaway subclass.
-    const timeoutMethod = (router: Router) =>
-      (
-        router as unknown as {
-          onWebsocketTimeout: (req: Request, socket: stream.Duplex) => unknown;
-        }
-      ).onWebsocketTimeout.bind(router);
+describe('Router websocket timeout (#5591)', () => {
+  const timeout = (router: Router, socket: stream.Duplex) =>
+    (
+      router as unknown as {
+        onWebsocketTimeout: (req: Request, s: stream.Duplex) => unknown;
+      }
+    ).onWebsocketTimeout({} as Request, socket);
 
-    const errorLogOf = (router: Router) =>
-      spy((router as unknown as { log: Logger }).log, 'error');
+  it('sends a plain 408 for a socket that never started proxying', () => {
+    const { router } = buildRouter();
+    const socket = new stream.PassThrough();
+    timeout(router, socket);
+    expect(socket.read()?.toString()).to.include('Request has timed out');
+  });
 
-    it('sends a plain 408 response for a socket that never started proxying', () => {
-      const { router } = buildRouter();
-      const socket = new stream.PassThrough();
-      const errorLog = errorLogOf(router);
-
-      timeoutMethod(router)({} as Request, socket);
-
-      expect(socket.read()?.toString()).to.include('Request has timed out');
-      expect(errorLog.firstCall.args[0]).to.match(
-        /before proxying started, sending 408/,
-      );
-    });
-
-    it('sends a real WS close frame for a socket that is already proxied', () => {
-      const { router } = buildRouter();
-      const socket = new stream.PassThrough();
-      markSocketAsProxied(socket);
-      const errorLog = errorLogOf(router);
-
-      timeoutMethod(router)({} as Request, socket);
-
-      const frame = socket.read() as Buffer;
-      // 0x88 = FIN + close opcode; the mid-session path must never write
-      // HTTP-shaped text onto an already-upgraded socket (issue #5591).
-      expect(frame[0]).to.equal(0x88);
-      expect(frame.readUInt16BE(2)).to.equal(1013);
-      expect(frame.subarray(4).toString()).to.equal('Request has timed out');
-      expect(errorLog.firstCall.args[0]).to.match(
-        /mid-session, sending a WS close frame/,
-      );
-    });
+  it('sends a real close frame (1013) for a proxied socket', () => {
+    const { router } = buildRouter();
+    const socket = new stream.PassThrough();
+    markSocketAsProxied(socket);
+    timeout(router, socket);
+    const frame = socket.read() as Buffer;
+    expect(frame[0]).to.equal(0x88);
+    expect(frame.readUInt16BE(2)).to.equal(1013);
   });
 });

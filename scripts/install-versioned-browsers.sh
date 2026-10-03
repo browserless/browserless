@@ -140,6 +140,10 @@ clis+=("$CORE_CLI")
 failed=0
 for cli in "${clis[@]}"; do
   for browser in "${BROWSERS[@]}"; do
+    if [ "$browser" = "webkit" ] && [[ "$cli" =~ playwright-1\.([0-9]+)/cli\.js$ ]] && (( 10#${BASH_REMATCH[1]} < 61 )); then
+      echo "Skipping $browser for $cli (Ubuntu 26.04 requires Playwright 1.61+)"
+      continue
+    fi
     echo "Installing $browser for $cli..."
     install_browser "$cli" "$browser" || failed=1
   done

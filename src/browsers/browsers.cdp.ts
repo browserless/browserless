@@ -69,6 +69,7 @@ export class ChromiumCDP extends EventEmitter {
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
   protected logger: Logger;
+  protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
   protected keepUntilMS = 0;
 
@@ -91,6 +92,15 @@ export class ChromiumCDP extends EventEmitter {
     this.logger = logger;
 
     this.logger.debug(`Starting new ${this.constructor.name} instance`);
+
+    // One listener for every ws() call on the shared proxy, including
+    // subclass overrides. Defer: http-proxy writes the client's 101 in the
+    // same tick, after this listener runs.
+    this.proxy.on('proxyReqWs', (proxyReq, _req, socket) => {
+      proxyReq.once('upgrade', () =>
+        setImmediate(() => markSocketAsProxied(socket)),
+      );
+    });
   }
 
   protected cleanListeners() {
@@ -526,19 +536,43 @@ export class ChromiumCDP extends EventEmitter {
     delete req.headers.origin;
 
     return new Promise((resolve, reject) => {
+      let backend: Duplex | undefined;
       // The page made for this connection lives only as long as the
       // client socket — without this, keep-alive browsers accumulate a
       // renderer per reconnect cycle.
-      socket.once('close', () => {
+      const close = once(() => {
+        socket.off('close', close);
+        this.proxy.off('proxyReqWs', onProxyRequest);
+        backend?.off('close', close);
+        backend?.destroy();
+        socket.destroy();
         page?.close().catch(noop);
         resolve();
       });
+      socket.once('close', close);
 
-      // Fresh instance per call: a shared one's `open` event could fire for
-      // a sibling page's socket first, marking this one proxied too early.
-      const proxy = httpProxy.createProxyServer();
-      proxy.once('open', () => markSocketAsProxied(socket));
-      proxy.ws(
+      // proxyReqWs is emitted synchronously by ws(), before the upgrade.
+      // Track this connection's backend, not the whole browser: a single
+      // page can close while other page proxies keep using the browser.
+      const onProxyRequest: httpProxy.ProxyReqWsCallback = (proxyReq) => {
+        proxyReq.once('upgrade', (_response, proxySocket) => {
+          if (socket.destroyed) {
+            proxySocket.destroy();
+            close();
+            return;
+          }
+          backend = proxySocket;
+          backend.once('close', close);
+        });
+      };
+      this.proxy.once('proxyReqWs', onProxyRequest);
+
+      if (socket.destroyed) {
+        close();
+        return;
+      }
+
+      this.proxy.ws(
         req,
         socket,
         head,
@@ -555,6 +589,9 @@ export class ChromiumCDP extends EventEmitter {
           return reject(error);
         },
       );
+      // Invalid upgrades return without emitting proxyReqWs. Never let their
+      // listener capture a later request on this shared proxy.
+      this.proxy.off('proxyReqWs', onProxyRequest);
     });
   }
 
@@ -574,6 +611,9 @@ export class ChromiumCDP extends EventEmitter {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);
+        // http-proxy can leave the client paused with unread data after the
+        // backend exits. End the transport too, or HTTP shutdown waits forever.
+        socket.destroy();
         return resolve();
       });
 
@@ -590,11 +630,7 @@ export class ChromiumCDP extends EventEmitter {
       // Delete headers known to cause issues
       delete req.headers.origin;
 
-      // Fresh proxy instance per call — see proxyPageWebSocket for why a
-      // shared one would be unsafe here.
-      const proxy = httpProxy.createProxyServer();
-      proxy.once('open', () => markSocketAsProxied(socket));
-      proxy.ws(
+      this.proxy.ws(
         req,
         socket,
         head,

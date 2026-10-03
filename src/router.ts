@@ -122,17 +122,16 @@ export class Router extends EventEmitter {
     return writeResponse(res, 408, 'Request has timed out');
   }
 
-  // WebSocket close code 1013 ("Try Again Later") signals the client
-  // should retry — the closest standard code to a server-enforced timeout.
+  // 1013 ("Try Again Later") is the closest standard close code to a timeout.
   protected onWebsocketTimeout(_req: Request, socket: stream.Duplex) {
     if (isSocketProxied(socket)) {
       this.log.error(
-        `Websocket job has timedout mid-session, sending a WS close frame`,
+        `Websocket job has timedout mid-session, sending WS close 1013`,
       );
       return closeProxiedSocket(socket, 1013, 'Request has timed out');
     }
     this.log.error(
-      `Websocket job has timedout before proxying started, sending 408 response`,
+      `Websocket job has timedout before proxying, sending 408 response`,
     );
     return writeResponse(socket, 408, 'Request has timed out');
   }

@@ -3,13 +3,18 @@ import {
   Config,
   Logger,
   NetworkRangeSet,
+  Request,
   availableBrowsers,
+  isSocketProxied,
 } from '@browserless.io/browserless';
 import { Server, createServer } from 'http';
-import { AddressInfo } from 'net';
+import { AddressInfo, Socket, connect } from 'net';
+import { EventEmitter, once } from 'events';
+import { PassThrough } from 'stream';
 import { expect } from 'chai';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
+import WebSocket from 'ws';
 
 import { ChromiumCDP } from './browsers.cdp.js';
 
@@ -61,6 +66,58 @@ describe('ChromiumCDP launch args', function () {
     expect(spawnargs).to.include('--window-size=800,600');
   });
 
+  it('closes a paused client socket with unread data when the browser exits', async () => {
+    await launch();
+    const server = createServer();
+    let socket: Socket | undefined;
+    let client: Socket | undefined;
+    let proxying: Promise<void> | undefined;
+    server.on('upgrade', (req, incoming, head) => {
+      socket = incoming as Socket;
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      proxying = browser!.proxyWebSocket(request, socket, head);
+    });
+
+    try {
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      client = connect({
+        host: '127.0.0.1',
+        port: (server.address() as AddressInfo).port,
+        allowHalfOpen: true,
+      });
+      client.write(
+        'GET / HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\n' +
+          'Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      );
+      const [response] = await once(client, 'data');
+      expect(response.toString()).to.include('101 Switching Protocols');
+
+      // Model http-proxy unpiping its client readable during backend teardown.
+      // A masked, empty WebSocket ping remains unread before the client's FIN.
+      socket!.unpipe();
+      socket!.pause();
+      const readable = once(socket!, 'readable');
+      client.end(Buffer.from([0x89, 0x80, 0, 0, 0, 0]));
+      await readable;
+      socket!.pause();
+      expect(socket!.isPaused()).to.equal(true);
+      expect(socket!.readableLength).to.be.greaterThan(0);
+
+      await browser!.close();
+      await proxying;
+      expect(socket!.destroyed).to.equal(true);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    } finally {
+      client?.destroy();
+      socket?.destroy();
+      server.close();
+    }
+  });
+
   // puppeteer-extra's stealth launcher is a separate code path that rebuilds the
   // argv, so the switch has to be asserted through it too.
   it('disables the component updater on the stealth launcher', async function () {
@@ -68,6 +125,235 @@ describe('ChromiumCDP launch args', function () {
 
     expect(spawnargs).to.include('--disable-component-update');
   });
+
+  for (const method of ['GET', 'POST']) {
+    it(`releases a new page when its ${method} client socket is already closed`, async () => {
+      await launch();
+      const socket = new Socket();
+      socket.destroy();
+      const pageClosed = new Promise<void>((resolve) =>
+        browser!['browser']!.once('targetdestroyed', () => resolve()),
+      );
+      const request = {
+        method,
+        url: '/devtools/page/BLESS',
+        parsed: new URL('http://localhost/devtools/page/BLESS'),
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+          'sec-websocket-version': '13',
+          'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        },
+      } as Request;
+      let timer: NodeJS.Timeout | undefined;
+      try {
+        await Promise.race([
+          Promise.all([
+            browser!.proxyPageWebSocket(request, socket, Buffer.alloc(0)),
+            pageClosed,
+          ]),
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    'Aborted page proxy did not settle and release its page',
+                  ),
+                ),
+              2000,
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  }
+
+  it('removes an unused backend listener before another request can consume it', async () => {
+    await launch();
+    const page = await browser!.newPage();
+    const socket = new Socket();
+    const pathname = `/devtools/page/${browser!.getPageId(page)}`;
+    const request = {
+      method: 'POST',
+      url: pathname,
+      parsed: new URL(pathname, 'http://localhost'),
+      headers: { upgrade: 'websocket' },
+    } as Request;
+    // The shared proxy keeps one persistent proxyReqWs listener (see the
+    // constructor), so compare against the count before this request runs
+    // rather than expecting zero.
+    const baseline = browser!['proxy'].listenerCount('proxyReqWs');
+    const pending = browser!.proxyPageWebSocket(
+      request,
+      socket,
+      Buffer.alloc(0),
+    );
+    try {
+      // Rejection destroys the socket, but its close event runs next tick.
+      // This request must not leave its own listener behind.
+      expect(browser!['proxy'].listenerCount('proxyReqWs')).to.equal(baseline);
+    } finally {
+      socket.destroy();
+      await pending;
+    }
+  });
+
+  it('keeps a concurrent page proxy usable when the other page closes', async () => {
+    await launch();
+    const pages = await Promise.all([browser!.newPage(), browser!.newPage()]);
+    const server = createServer();
+    const pending: Promise<void>[] = [];
+    const clients: WebSocket[] = [];
+    server.on('upgrade', (req, socket, head) => {
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      pending.push(browser!.proxyPageWebSocket(request, socket, head));
+    });
+    try {
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      const port = (server.address() as AddressInfo).port;
+      for (const page of pages) {
+        clients.push(
+          new WebSocket(
+            `ws://127.0.0.1:${port}/devtools/page/${browser!.getPageId(page)}`,
+          ),
+        );
+      }
+      await Promise.all(clients.map((client) => once(client, 'open')));
+      const firstClosed = once(clients[0], 'close');
+      await pages[0].close();
+      await firstClosed;
+      expect(clients[1].readyState).to.equal(WebSocket.OPEN);
+      expect(pages[1].isClosed()).to.equal(false);
+      const response = once(clients[1], 'message');
+      clients[1].send(
+        JSON.stringify({
+          id: 1,
+          method: 'Runtime.evaluate',
+          params: { expression: '6 * 7', returnByValue: true },
+        }),
+      );
+      expect(
+        JSON.parse((await response)[0].toString()).result.result.value,
+      ).to.equal(42);
+    } finally {
+      clients.forEach((client) => client.terminate());
+      await Promise.all(pending);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  for (const pageKind of ['created', 'existing']) {
+    for (const shutdown of ['browser', 'process', 'page', 'client']) {
+      // A client-only disconnect has no backend teardown/unpipe to model.
+      for (const paused of shutdown === 'client' ? [false] : [false, true]) {
+        it(`closes a ${paused ? 'paused' : 'flowing'} ${pageKind}-page proxy after ${shutdown} shutdown`, async () => {
+          await launch();
+          const existing = await browser!.newPage();
+          const before = await browser!.pages();
+          const pathname = `/devtools/page/${pageKind === 'created' ? 'BLESS' : browser!.getPageId(existing)}`;
+          const server = createServer();
+          let socket: Socket | undefined;
+          let client: Socket | undefined;
+          let proxying: Promise<void> | undefined;
+          let timer: NodeJS.Timeout | undefined;
+          server.on('upgrade', (req, incoming, head) => {
+            socket = incoming as Socket;
+            const request = req as Request;
+            request.parsed = new URL(req.url!, 'http://localhost');
+            proxying = browser!.proxyPageWebSocket(request, socket, head);
+          });
+
+          try {
+            await new Promise<void>((resolve) =>
+              server.listen(0, '127.0.0.1', resolve),
+            );
+            client = connect({
+              host: '127.0.0.1',
+              port: (server.address() as AddressInfo).port,
+              allowHalfOpen: true,
+            });
+            client.write(
+              `GET ${pathname} HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\n` +
+                'Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+                'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+            );
+            const [response] = await once(client, 'data');
+            expect(response.toString()).to.include('101 Switching Protocols');
+            const page =
+              pageKind === 'existing'
+                ? existing
+                : (await browser!.pages()).find(
+                    (page) => !before.includes(page),
+                  )!;
+            expect(page).not.to.equal(undefined);
+            expect(socket!.isPaused()).to.equal(false);
+
+            if (paused) {
+              // Deterministically reproduce the unread state left by unpiping.
+              socket!.unpipe();
+              socket!.pause();
+              const readable = once(socket!, 'readable');
+              client.end(Buffer.from([0x89, 0x80, 0, 0, 0, 0]));
+              await readable;
+              socket!.pause();
+              expect(socket!.readableLength).to.be.greaterThan(0);
+            }
+
+            const pageClosed =
+              shutdown === 'client' && pageKind === 'created'
+                ? new Promise<void>((resolve) =>
+                    page.once('close', () => resolve()),
+                  )
+                : undefined;
+            if (shutdown === 'client') client.destroy();
+            if (shutdown === 'browser') await browser!.close();
+            if (shutdown === 'page') await page.close();
+            if (shutdown === 'process') {
+              const process = browser!.process()!;
+              const exited = once(process, 'close');
+              process.kill('SIGKILL');
+              await exited;
+            }
+            const serverClosed = new Promise<void>((resolve) =>
+              server.close(() => resolve()),
+            );
+            await Promise.race([
+              Promise.all([proxying, serverClosed]),
+              new Promise((_, reject) => {
+                timer = setTimeout(
+                  () =>
+                    reject(
+                      new Error(
+                        `Page proxy did not settle: destroyed=${socket!.destroyed}, paused=${socket!.isPaused()}, unread=${socket!.readableLength}`,
+                      ),
+                    ),
+                  2000,
+                );
+              }),
+            ]);
+            expect(socket!.destroyed).to.equal(true);
+            await pageClosed;
+            if (shutdown === 'client' && pageKind === 'existing') {
+              expect(await page.evaluate(() => 6 * 7)).to.equal(42);
+            }
+            if (shutdown === 'page') {
+              expect(await before[0].evaluate(() => 6 * 7)).to.equal(42);
+            }
+          } finally {
+            clearTimeout(timer);
+            client?.destroy();
+            socket?.destroy();
+            server.close();
+          }
+        });
+      }
+    }
+  }
 });
 
 describe('ChromiumCDP blocked-URL guard', function () {
@@ -511,5 +797,27 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
     expect(loaded).to.be.false;
     expect(hits).not.to.include('/legacy-blocked.svg');
+  });
+});
+
+describe('ChromiumCDP upgrade marking (#5591)', () => {
+  it('marks a socket proxied after the backend upgrades, not before', async () => {
+    const browser = new ChromiumCDP({
+      blockAds: false,
+      config: new Config(),
+      logger: new Logger('browsers.cdp.spec'),
+      userDataDir: null,
+    });
+    const shared = (browser as unknown as { proxy: EventEmitter }).proxy;
+    const socket = new PassThrough();
+    const proxyReq = new EventEmitter();
+
+    shared.emit('proxyReqWs', proxyReq, {}, socket, {}, Buffer.alloc(0));
+    expect(isSocketProxied(socket)).to.be.false;
+    proxyReq.emit('upgrade', {}, new PassThrough(), Buffer.alloc(0));
+    // Marking is deferred until after http-proxy has written the 101.
+    expect(isSocketProxied(socket)).to.be.false;
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(isSocketProxied(socket)).to.be.true;
   });
 });

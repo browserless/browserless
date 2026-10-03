@@ -1,5 +1,4 @@
 import * as fs from 'fs/promises';
-import * as wsExports from 'ws';
 import {
   BLESS_PAGE_IDENTIFIER,
   ChromeCDP,
@@ -224,8 +223,8 @@ export const writeResponse = (
   return;
 };
 
-// Sockets already handed to http-proxy's `.ws()` are WS-framed; writing
-// HTTP text would corrupt them — track them so timeouts can close cleanly.
+// Sockets already handed to http-proxy's `.ws()` are WS-framed; plain HTTP
+// text written to them corrupts the stream, so timeouts must check this first.
 const proxiedSockets = new WeakSet<Duplex>();
 
 export const markSocketAsProxied = (socket: Duplex): void => {
@@ -235,37 +234,13 @@ export const markSocketAsProxied = (socket: Duplex): void => {
 export const isSocketProxied = (socket: Duplex): boolean =>
   proxiedSockets.has(socket);
 
-// `ws`'s ESM entry exports `Sender` directly, but @types/ws (CJS-only)
-// doesn't declare it — access it dynamically with a matching local type.
-interface WebSocketSender {
-  close(code: number, data: string, mask: boolean, cb: () => void): void;
-}
-interface WebSocketSenderConstructor {
-  new (
-    socket: Duplex,
-    extensions?: object,
-    generateMask?: unknown,
-  ): WebSocketSender;
-}
-const Sender = (wsExports as unknown as { Sender: WebSocketSenderConstructor })
-  .Sender;
+const CLOSE_DRAIN_MS = 500;
 
-// Bounds how long we wait for a clean close before forcing `destroy()`,
-// so an uncooperative peer can't leave the socket open forever.
-const CLOSE_DRAIN_TIMEOUT_MS = 500;
-
-// Truncates to `maxBytes` UTF-8 bytes without splitting a character —
-// re-measures directly so it matches `ws`'s own byte-length check.
-const truncateUtf8Bytes = (str: string, maxBytes: number): string => {
-  let end = Math.min(str.length, maxBytes);
-  while (end > 0 && Buffer.byteLength(str.slice(0, end), 'utf8') > maxBytes) {
-    end--;
-  }
-  return str.slice(0, end);
-};
-
-// Sends a real RFC 6455 close frame instead of HTTP text on an already-
-// upgraded socket. Never throws — falls back to `destroy()` on any failure.
+/**
+ * Sends an unmasked RFC 6455 close frame on an already-upgraded socket, then
+ * destroys it. Never throws: a payload that doesn't fit a single frame just
+ * tears the socket down.
+ */
 export const closeProxiedSocket = (
   socket: Duplex,
   code: number,
@@ -275,27 +250,26 @@ export const closeProxiedSocket = (
     return;
   }
 
-  let settled = false;
-  let drainTimer: ReturnType<typeof setTimeout> | undefined;
-  const teardown = () => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(drainTimer);
+  const payload = Buffer.concat([
+    Buffer.from([code >> 8, code & 0xff]),
+    Buffer.from(reason, 'utf8'),
+  ]);
+  if (payload.length > 125) {
+    socket.destroy();
+    return;
+  }
+
+  // 0x88 = FIN + close opcode; server frames are never masked.
+  const frame = Buffer.concat([Buffer.from([0x88, payload.length]), payload]);
+  const finish = () => {
+    clearTimeout(timer);
     if (!socket.destroyed) {
       socket.destroy();
     }
   };
-
-  try {
-    const sender = new Sender(socket, {}, false);
-    // RFC 6455 caps the close reason at 123 bytes; `ws` throws past that.
-    sender.close(code, truncateUtf8Bytes(reason, 123), false, teardown);
-    socket.once('close', teardown);
-    drainTimer = setTimeout(teardown, CLOSE_DRAIN_TIMEOUT_MS);
-    drainTimer.unref?.();
-  } catch {
-    teardown();
-  }
+  const timer = setTimeout(finish, CLOSE_DRAIN_MS);
+  timer.unref?.();
+  socket.write(frame, finish);
 };
 
 export const jsonResponse = (
@@ -860,6 +834,17 @@ export class ServerError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ServerError';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+/**
+ * Configuration that must stop the server from starting.
+ */
+export class InvalidConfig extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidConfig';
     this.message = message;
     errorLog(this.message);
   }
