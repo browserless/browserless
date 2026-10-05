@@ -191,10 +191,22 @@ async function latestRelease(cacheFile) {
     movedPrevious = false;
     // Cache only a release whose archive and manifest were validated. Fresh
     // metadata always wins; there is no bundled version fallback or pin.
-    await mkdir(cacheDir, { recursive: true });
-    const cacheStaging = join(staging, 'release.json');
-    await writeFile(cacheStaging, JSON.stringify(release));
-    await rename(cacheStaging, cacheFile);
+    let cacheStaging;
+    try {
+      await mkdir(cacheDir, { recursive: true });
+      cacheStaging = await mkdtemp(join(cacheDir, '.release-'));
+      const temporaryCache = join(cacheStaging, 'release.json');
+      await writeFile(temporaryCache, JSON.stringify(release));
+      await rename(temporaryCache, cacheFile);
+    } catch {
+      // Optional fallback metadata must not invalidate a verified installation.
+      console.warn('Could not persist release cache; extension is installed');
+    } finally {
+      if (cacheStaging)
+        await rm(cacheStaging, { recursive: true, force: true }).catch(
+          () => {},
+        );
+    }
   } finally {
     // If rollback failed, retain the backup for recovery instead of deleting it.
     if (!movedPrevious) await rm(staging, { recursive: true, force: true });

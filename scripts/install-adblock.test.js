@@ -3,7 +3,15 @@ import { test } from 'node:test';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  writeFile,
+  rm,
+  symlink,
+  stat,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -182,4 +190,46 @@ test('cached asset URL cannot redirect downloads to another repository', async (
   assert.equal(result.code, 1, result.output);
   assert.match(result.output, /Invalid Chromium asset URL/);
   assert.match(result.output, /requests=1/);
+});
+
+test(
+  'persists release cache with extensions on a separate filesystem',
+  { skip: process.platform !== 'linux' },
+  async (t) => {
+    const f = await fixture(t);
+    const extensions = await mkdtemp('/dev/shm/adblock-test-');
+    t.after(() => rm(extensions, { recursive: true, force: true }));
+    if ((await stat(f.cwd)).dev === (await stat(extensions)).dev) {
+      t.skip('requires two distinct filesystems');
+      return;
+    }
+    await symlink(extensions, join(f.cwd, 'extensions'));
+    const result = await run(f);
+    assert.equal(result.code, 0, result.output);
+    assert.equal(
+      JSON.parse(
+        await readFile(join(f.cwd, 'scripts/.adblock-cache/release.json')),
+      ).tag_name,
+      '2026.1.1',
+    );
+    assert.equal(
+      JSON.parse(await readFile(join(extensions, 'ublocklite/manifest.json')))
+        .version,
+      '2026.1.1',
+    );
+  },
+);
+
+test('cache write failure does not fail a verified installation', async (t) => {
+  const f = await fixture(t);
+  await writeFile(join(f.cwd, 'scripts'), 'blocks cache directory creation');
+  const result = await run(f);
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /Could not persist release cache/);
+  assert.equal(
+    JSON.parse(
+      await readFile(join(f.cwd, 'extensions/ublocklite/manifest.json')),
+    ).version,
+    '2026.1.1',
+  );
 });
