@@ -7,10 +7,13 @@ import path from 'path';
 import { PassThrough } from 'stream';
 import {
   Config,
+  closeProxiedSocket,
   contentTypes,
   generateScratchDir,
   getFinalPathSegment,
   getPageContent,
+  isSocketProxied,
+  markSocketAsProxied,
   toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -361,5 +364,36 @@ describe('#generateScratchDir', () => {
     } finally {
       await fs.rm(blockerRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe('WebSocket close signal (#5591)', () => {
+  it('tracks a socket as proxied only after it is marked', () => {
+    const socket = new PassThrough();
+    expect(isSocketProxied(socket)).to.be.false;
+    markSocketAsProxied(socket);
+    expect(isSocketProxied(socket)).to.be.true;
+  });
+
+  it('writes an unmasked close frame with the given code and reason', (done) => {
+    const socket = new PassThrough();
+    const chunks: Buffer[] = [];
+    socket.on('data', (c: Buffer) => chunks.push(c));
+    socket.on('close', () => {
+      const frame = Buffer.concat(chunks);
+      const reason = 'Request has timed out';
+      expect(frame[0]).to.equal(0x88);
+      expect(frame[1]).to.equal(2 + reason.length);
+      expect(frame.readUInt16BE(2)).to.equal(1013);
+      expect(frame.subarray(4).toString('utf8')).to.equal(reason);
+      done();
+    });
+    closeProxiedSocket(socket, 1013, 'Request has timed out');
+  });
+
+  it('does nothing harmful on an already-closed socket', () => {
+    const socket = new PassThrough();
+    socket.destroy();
+    expect(() => closeProxiedSocket(socket, 1013, 'x')).to.not.throw();
   });
 });
