@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.57.1](https://github.com/browserless/browserless/compare/v2.57.0...v2.57.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* make adblock release discovery resilient and update dependencies ([#5611](https://github.com/browserless/browserless/issues/5611)) ([cddddc5](https://github.com/browserless/browserless/commit/cddddc5780f6d3a939f37f9c06b5a7a33dceac6e))
+* **websocket:** send RFC 6455 close frame on mid-session timeout ([#5594](https://github.com/browserless/browserless/issues/5594)) ([f7edf0f](https://github.com/browserless/browserless/commit/f7edf0f526e5fefa2db8abca22f47b32ac165c89))
+
 ## [2.57.0](https://github.com/browserless/browserless/compare/v2.56.7...v2.57.0) (2026-09-30)
 
 
