@@ -26,6 +26,15 @@ jobs:
           retry_wait_seconds: 30
           command: npm clean-install
 
+      - name: Test adblock installer
+        run: node --test scripts/install-adblock.test.js
+
+      # Authenticate only release discovery, not npm scripts or asset downloads.
+      - name: Install latest adblock release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/install-adblock.js
+
       - name: Build
         uses: nick-fields/retry@v4
         with:
