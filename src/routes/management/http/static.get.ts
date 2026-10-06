@@ -108,6 +108,14 @@ export default class StaticGetRoute extends HTTPRoute {
         ? configuredToken
         : [configuredToken]
       ).includes(requestToken);
+
+    // Applies regardless of token validity: a token-less response cached by
+    // a browser or CDN could later shadow a valid-token request for the
+    // same URL, so the reset script would never even reach the client.
+    if (DEBUGGER_INDEX_PATHS.has(pathname)) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+
     const fileCache = pathMap.get(pathname);
 
     if (fileCache && !resetDebuggerSettings) {
@@ -184,9 +192,6 @@ export default class StaticGetRoute extends HTTPRoute {
       );
       const html = await fs.readFile(foundFilePath, 'utf-8');
       res.setHeader('Content-Type', 'text/html');
-      // The response content depends on the request's token, not just the
-      // URL, so it must never be cached by a browser, CDN or proxy.
-      res.setHeader('Cache-Control', 'no-store');
       res.end(injectDebuggerTokenResetScript(html, logger));
       return;
     }

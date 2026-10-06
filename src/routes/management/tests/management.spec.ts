@@ -421,6 +421,9 @@ describe('Management APIs', function () {
         expect(withoutToken.status).to.equal(200);
         const withoutTokenHtml = await withoutToken.text();
         expect(withoutTokenHtml).to.not.include('browserless-debugger');
+        // A cached token-less response could later shadow a valid-token
+        // request for the same URL, so this must never be cacheable either.
+        expect(withoutToken.headers.get('cache-control')).to.equal('no-store');
 
         // A proxy in front of browserless may set its own Authorization
         // header for unrelated reasons; that must not trigger the reset.
