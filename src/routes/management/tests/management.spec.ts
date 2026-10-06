@@ -460,6 +460,91 @@ describe('Management APIs', function () {
       }
     });
 
+    it('normalizes the reset key for /debugger/index.html to match router.js', async () => {
+      const staticDir = await mkdtemp(
+        path.join(os.tmpdir(), 'browserless-debugger-test-'),
+      );
+      const previousStatic = process.env.STATIC;
+      const previousEnableDebugger = process.env.ENABLE_DEBUGGER;
+
+      try {
+        await mkdir(path.join(staticDir, 'debugger'));
+        await writeFile(
+          path.join(staticDir, 'debugger', 'index.html'),
+          '<!DOCTYPE html><html><head><title>Debugger</title></head>' +
+            '<body><script src="app.js"></script></body></html>',
+        );
+
+        process.env.STATIC = staticDir;
+        process.env.ENABLE_DEBUGGER = 'true';
+        const config = new Config();
+        config.setToken('6R0W53R135510');
+
+        await start({ config });
+
+        // Requested with the index.html suffix still present — this is the
+        // URL shape the debugger's own router.js normalizes away on load.
+        const withToken = await fetch(
+          'http://localhost:3000/debugger/index.html?token=6R0W53R135510',
+        );
+        expect(withToken.status).to.equal(200);
+        const html = await withToken.text();
+        const scriptMatch = html.match(/<script>(.*?)<\/script>/);
+        expect(scriptMatch).to.not.be.null;
+
+        // The app itself (after router.js's pushState) reads/writes under
+        // the normalized "/debugger/" key, not "/debugger/index.html" — the
+        // reset script must clear the same key or it's a silent no-op.
+        const normalizedKey =
+          'browserless-debugger:http://localhost:3000/debugger/';
+        const store: Record<string, string> = {
+          [normalizedKey]: JSON.stringify({
+            apiSettings: { baseURL: 'ws://stale-host:3000' },
+          }),
+        };
+        Object.defineProperty(store, 'getItem', {
+          value: (k: string) => (k in store ? store[k] : null),
+        });
+        Object.defineProperty(store, 'setItem', {
+          value: (k: string, v: string) => {
+            store[k] = String(v);
+          },
+        });
+        Object.defineProperty(store, 'removeItem', {
+          value: (k: string) => {
+            delete store[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          localStorage: store,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            // Un-normalized, matching what the browser has at the moment
+            // this script runs — before router.js's own pushState.
+            pathname: '/debugger/index.html',
+          },
+          URLSearchParams,
+        });
+
+        const resultingBlob = JSON.parse(store[normalizedKey]);
+        expect(resultingBlob.apiSettings.baseURL).to.be.undefined;
+      } finally {
+        if (previousStatic === undefined) {
+          delete process.env.STATIC;
+        } else {
+          process.env.STATIC = previousStatic;
+        }
+        if (previousEnableDebugger === undefined) {
+          delete process.env.ENABLE_DEBUGGER;
+        } else {
+          process.env.ENABLE_DEBUGGER = previousEnableDebugger;
+        }
+        await rm(staticDir, { recursive: true, force: true });
+      }
+    });
+
     it('redirects /docs to /docs/', async () => {
       await start();
 

@@ -26,9 +26,11 @@ const pathMap: Map<
 
 // Server-side patch for the archived debugger UI's stale ?token= bug
 // (#5560); edits apiSettings.baseURL in place to keep editorTabs intact.
+// Path matches router.js's own normalization (strips index.html, adds
+// a trailing slash) so this clears the same key the app reads from.
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
 const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>var k='browserless-debugger:'+location.origin+location.pathname;try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}catch(e){localStorage.removeItem(k);}</script>";
+  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}catch(e){localStorage.removeItem(k);}</script>";
 
 const injectDebuggerTokenResetScript = (
   html: string,
