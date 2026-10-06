@@ -340,7 +340,7 @@ describe('Management APIs', function () {
 
         // The reset script must edit the blob, not wipe it — dropping the
         // stale baseURL while keeping the user's other settings/tabs intact.
-        const scriptMatch = withTokenHtml.match(/<script>(.*?)<\/script>/);
+        const scriptMatch = withTokenHtml.match(/<script>(.*?)<\/script>/i);
         expect(scriptMatch).to.not.be.null;
 
         const key = 'browserless-debugger:http://localhost:3000/debugger/';
@@ -492,7 +492,7 @@ describe('Management APIs', function () {
         );
         expect(withToken.status).to.equal(200);
         const html = await withToken.text();
-        const scriptMatch = html.match(/<script>(.*?)<\/script>/);
+        const scriptMatch = html.match(/<script>(.*?)<\/script>/i);
         expect(scriptMatch).to.not.be.null;
 
         // The app itself (after router.js's pushState) reads/writes under
