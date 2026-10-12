@@ -185,6 +185,10 @@ class BasePlaywright extends EventEmitter {
     return [];
   }
 
+  public process() {
+    return this.browser?.process() || null;
+  }
+
   public getPageId(): string {
     throw new ServerError(
       `#getPageId is not yet supported with ${this.constructor.name}.`,

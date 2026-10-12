@@ -36,6 +36,7 @@ import {
   parseStringParam,
   pwVersionRegex,
 } from '@browserless.io/browserless';
+import si, { Systeminformation } from 'systeminformation';
 import { Page } from 'puppeteer-core';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
@@ -45,6 +46,13 @@ import path from 'path';
 // of `browser.close()` resolving, so 200/400/800 ms covers the realistic
 // EBUSY/ENOTEMPTY window.
 const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
+
+// One `si.processes()` call shared across every session in a request,
+// not one expensive OS-wide enumeration per concurrent session.
+interface ProcessTree {
+  byPid: Map<number, Systeminformation.ProcessesProcessData>;
+  childrenByParentPid: Map<number, number[]>;
+}
 
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
@@ -91,6 +99,65 @@ export class BrowserManager {
     return this.chromeBrowsers.some(
       (chromeBrowser) => b instanceof chromeBrowser,
     );
+  }
+
+  // Never throws: a failure here shouldn't break /sessions, just leave
+  // every session's cpu/memoryBytes as null for this one request.
+  protected async getProcessTree(): Promise<ProcessTree | null> {
+    try {
+      const { list } = await si.processes();
+      const byPid = new Map(list.map((p) => [p.pid, p]));
+      const childrenByParentPid = new Map<number, number[]>();
+
+      for (const p of list) {
+        const siblings = childrenByParentPid.get(p.parentPid) ?? [];
+        siblings.push(p.pid);
+        childrenByParentPid.set(p.parentPid, siblings);
+      }
+
+      return { byPid, childrenByParentPid };
+    } catch (err) {
+      this.log.warn(`Error reading process list for session stats: ${err}`);
+      return null;
+    }
+  }
+
+  // Sums the root PID and every descendant (renderer/GPU/utility, ...), so
+  // a session's true footprint isn't understated to just its main process.
+  protected sumProcessTree(
+    pid: number,
+    tree: ProcessTree,
+  ): { cpu: number; memoryBytes: number } | null {
+    if (!tree.byPid.has(pid)) {
+      return null;
+    }
+
+    let cpu = 0;
+    let memoryBytes = 0;
+    const stack = [pid];
+    const seen = new Set<number>();
+
+    while (stack.length) {
+      const current = stack.pop() as number;
+      if (seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+
+      const proc = tree.byPid.get(current);
+      if (proc) {
+        cpu += proc.cpu;
+        memoryBytes += proc.memRss * 1024; // memRss is KB; normalize to bytes.
+      }
+
+      for (const child of tree.childrenByParentPid.get(current) ?? []) {
+        if (!seen.has(child)) {
+          stack.push(child);
+        }
+      }
+    }
+
+    return { cpu, memoryBytes };
   }
 
   protected async sweepOrphanedDataDirs(): Promise<void> {
@@ -367,20 +434,27 @@ export class BrowserManager {
   protected async generateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
+    processTree: ProcessTree | null,
   ) {
     const serverHTTPAddress = this.config.getExternalAddress();
     const serverWSAddress = this.config.getExternalWebSocketAddress();
+
+    const pid = browser.process()?.pid;
+    const stats =
+      pid && processTree ? this.sumProcessTree(pid, processTree) : null;
 
     const sessions = [
       {
         ...session,
         browser: browser.constructor.name,
         browserId: session.id,
+        cpu: stats?.cpu ?? null,
         initialConnectURL: new URL(session.initialConnectURL, serverHTTPAddress)
           .href,
         killURL: session.id
           ? makeExternalURL(serverHTTPAddress, '/kill/', session.id)
           : null,
+        memoryBytes: stats?.memoryBytes ?? null,
         running: browser.isRunning(),
         timeAliveMs: Date.now() - session.startedOn,
         type: 'browser',
@@ -421,7 +495,11 @@ export class BrowserManager {
             ...sessions[0],
             ...page,
             browserWSEndpoint,
+            // Only the browser-level process tree is tracked — drop the
+            // spread-inherited numbers so pages don't look like separate readings.
+            cpu: undefined,
             devtoolsFrontendUrl,
+            memoryBytes: undefined,
             webSocketDebuggerUrl,
           } as unknown as (typeof sessions)[number]);
         }
@@ -535,18 +613,21 @@ export class BrowserManager {
     trackingId?: string,
   ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
+    const processTree = await this.getProcessTree();
 
     // Query browsers concurrently and tolerate individual failures — one
     // wedged or mid-shutdown browser shouldn't stall or 500 /sessions.
     let formattedSessions: BrowserlessSessionJSON[] = (
       await Promise.all(
         sessions.map(([browser, session]) =>
-          this.generateSessionJson(browser, session).catch((err) => {
-            this.log.warn(
-              `Error generating session JSON for "${session.id}": ${err}`,
-            );
-            return [];
-          }),
+          this.generateSessionJson(browser, session, processTree).catch(
+            (err) => {
+              this.log.warn(
+                `Error generating session JSON for "${session.id}": ${err}`,
+              );
+              return [];
+            },
+          ),
         ),
       )
     ).flat();
