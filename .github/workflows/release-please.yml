@@ -85,7 +85,7 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
 
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '24.21.0'
           check-latest: true
