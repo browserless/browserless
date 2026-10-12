@@ -38,6 +38,7 @@ import {
 } from '@browserless.io/browserless';
 import si, { Systeminformation } from 'systeminformation';
 import { Page } from 'puppeteer-core';
+import { cpus } from 'os';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
@@ -127,6 +128,7 @@ export class BrowserManager {
   protected sumProcessTree(
     pid: number,
     tree: ProcessTree,
+    numCores: number = cpus().length,
   ): { cpu: number; memoryBytes: number } | null {
     if (!tree.byPid.has(pid)) {
       return null;
@@ -157,7 +159,13 @@ export class BrowserManager {
       }
     }
 
-    return { cpu, memoryBytes };
+    // systeminformation's proc.cpu is a percentage of total CPU time across
+    // every core (100% = all cores saturated), not ps's per-core convention
+    // this API documents (100% = one core saturated, so a multi-core,
+    // multi-process session can exceed 100). Scale by core count so a
+    // session pinning one full core on an N-core host reports ~100, not
+    // ~100/N - otherwise the heaviest sessions look the least suspicious.
+    return { cpu: cpu * numCores, memoryBytes };
   }
 
   protected async sweepOrphanedDataDirs(): Promise<void> {
@@ -435,13 +443,16 @@ export class BrowserManager {
     browser: BrowserInstance,
     session: BrowserlessSession,
     processTree: ProcessTree | null,
+    numCores: number = cpus().length,
   ) {
     const serverHTTPAddress = this.config.getExternalAddress();
     const serverWSAddress = this.config.getExternalWebSocketAddress();
 
     const pid = browser.process()?.pid;
     const stats =
-      pid && processTree ? this.sumProcessTree(pid, processTree) : null;
+      pid && processTree
+        ? this.sumProcessTree(pid, processTree, numCores)
+        : null;
 
     const sessions = [
       {

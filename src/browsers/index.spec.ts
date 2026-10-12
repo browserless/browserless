@@ -57,9 +57,12 @@ class TestBrowserManager extends BrowserManager {
     return this.fakeChromePages as unknown as T;
   }
 
+  // Defaults to 1 core so tree-summing tests aren't coupled to the
+  // core-count scaling, which has its own dedicated test below.
   public async callGenerateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
+    numCores = 1,
   ) {
     const processTree = await this.getProcessTree();
     return (
@@ -68,9 +71,10 @@ class TestBrowserManager extends BrowserManager {
           b: BrowserInstance,
           s: BrowserlessSession,
           t: unknown,
+          n: number,
         ) => Promise<unknown[]>;
       }
-    ).generateSessionJson(browser, session, processTree);
+    ).generateSessionJson(browser, session, processTree, numCores);
   }
 }
 
@@ -138,6 +142,27 @@ describe('BrowserManager session stats (#5615)', () => {
 
     expect(session.cpu).to.be.null;
     expect(session.memoryBytes).to.be.null;
+  });
+
+  it("scales cpu by core count to match ps's per-core convention", async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map([
+        // systeminformation reports this as a share of all cores combined
+        // (25 = one full core saturated on a 4-core host), not ps's
+        // per-core convention (where one full core reads ~100).
+        [100, { cpu: 25, memRss: 1000, parentPid: 1, pid: 100 }],
+      ]),
+      childrenByParentPid: new Map(),
+    } as never);
+
+    const [session] = (await manager.callGenerateSessionJson(
+      makeFakeBrowser(100),
+      makeSession('e'),
+      4,
+    )) as Array<{ cpu: number }>;
+
+    expect(session.cpu).to.equal(100);
   });
 
   it('does not duplicate the browser-level numbers onto page entries', async () => {
