@@ -59,10 +59,9 @@ interface ProcessTree {
   coldPids: Set<number>;
 }
 
-// Linux/Windows normalize proc.cpu across every core (100% = all cores
-// saturated); macOS (and the other `ps`-based platforms) already report it
-// per-core like `ps` itself. Only the normalized platforms need scaling.
-const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux', 'win32']);
+// Only Linux's proc.cpu is normalized across all cores via real
+// wall-clock/proc-stat deltas; macOS and Windows already read per-process.
+const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux']);
 
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
@@ -193,10 +192,8 @@ export class BrowserManager {
     if (this.processTreeRefreshTimer) {
       return;
     }
-    // Prime immediately - an interval alone leaves the first processTreeCacheMs
-    // window with no sample at all (and, since coldPids forces cpu to null
-    // on an unseen pid regardless, this doesn't need to be the one that
-    // produces a usable reading - it only needs to establish the baseline).
+    // Prime immediately - an interval alone leaves the first
+    // processTreeCacheMs window with no sample at all.
     this.refreshProcessTree();
     this.processTreeRefreshTimer = setInterval(
       () => this.refreshProcessTree(),
@@ -256,13 +253,7 @@ export class BrowserManager {
       return { cpu: null, memoryBytes };
     }
 
-    // systeminformation's proc.cpu is a percentage of total CPU time across
-    // every core (100% = all cores saturated) on Linux/Windows, not ps's
-    // per-core convention this API documents (100% = one core saturated);
-    // macOS and the other `ps`-based platforms already report it per-core.
-    // Scale only the all-core-normalized platforms, so a session pinning
-    // one full core on an N-core host reports ~100 there too, without
-    // inflating the platforms that already match the per-core convention.
+    // See PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU for why only Linux scales.
     const scaledCpu = PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU.has(
       process.platform,
     )

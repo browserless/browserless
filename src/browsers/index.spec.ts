@@ -169,12 +169,12 @@ describe('BrowserManager session stats (#5615)', () => {
     expect(session.memoryBytes).to.be.null;
   });
 
-  it('scales cpu by core count on Linux/Windows, which normalize across all cores', async () => {
+  it('scales cpu by core count on Linux, which normalizes across all cores', async () => {
     const manager = makeManager();
     manager.fakeTree = Promise.resolve({
       byPid: new Map([
         // systeminformation reports this as a share of all cores combined
-        // (25 = one full core saturated on a 4-core host) on Linux/Windows.
+        // (25 = one full core saturated on a 4-core host) on Linux.
         [100, { cpu: 25, memRss: 1000, parentPid: 1, pid: 100 }],
       ]),
       childrenByParentPid: new Map(),
@@ -213,6 +213,30 @@ describe('BrowserManager session stats (#5615)', () => {
     )) as Array<{ cpu: number }>;
 
     expect(session.cpu).to.equal(98);
+  });
+
+  it('does not scale cpu on Windows, whose denominator is not core-time', async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map([
+        // systeminformation's Windows cpu is a share of the *listed
+        // processes'* summed CPU time, not actual core-time - a single
+        // dominant process already reads near 100% here on an idle host.
+        [100, { cpu: 97, memRss: 1000, parentPid: 1, pid: 100 }],
+      ]),
+      childrenByParentPid: new Map(),
+      coldPids: new Set(),
+    } as never);
+
+    const [session] = (await withPlatform('win32', () =>
+      manager.callGenerateSessionJson(
+        makeFakeBrowser(100),
+        makeSession('h'),
+        8,
+      ),
+    )) as Array<{ cpu: number }>;
+
+    expect(session.cpu).to.equal(97);
   });
 
   it('reports cpu as null, but memory as available, for a process with no prior sample', async () => {
