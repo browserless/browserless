@@ -488,8 +488,52 @@ describe('Management APIs', function () {
           { headers: { Authorization: 'Bearer 6R0W53R135510' } },
         );
         expect(withValidAuthHeader.status).to.equal(200);
-        expect(await withValidAuthHeader.text()).to.include(
-          'browserless-debugger',
+        const withValidAuthHeaderHtml = await withValidAuthHeader.text();
+        expect(withValidAuthHeaderHtml).to.include('browserless-debugger');
+
+        // The script must still merge the token with no ?token= in the URL
+        // to read - it has to use the token the server already validated.
+        const headerAuthScriptMatch = withValidAuthHeaderHtml.match(
+          /<script>(.*?)<\/script>/i,
+        );
+        expect(headerAuthScriptMatch).to.not.be.null;
+
+        const headerAuthKey =
+          'browserless-debugger:http://localhost:3000/debugger/';
+        const headerAuthStore: Record<string, string> = {
+          [headerAuthKey]: JSON.stringify({
+            apiSettings: { baseURL: 'ws://stale-host:3000' },
+          }),
+        };
+        Object.defineProperty(headerAuthStore, 'getItem', {
+          value: (k: string) =>
+            k in headerAuthStore ? headerAuthStore[k] : null,
+        });
+        Object.defineProperty(headerAuthStore, 'setItem', {
+          value: (k: string, v: string) => {
+            headerAuthStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(headerAuthStore, 'removeItem', {
+          value: (k: string) => {
+            delete headerAuthStore[k];
+          },
+        });
+
+        vm.runInNewContext(headerAuthScriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: headerAuthStore,
+          location: {
+            search: '',
+            origin: 'http://localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        const headerAuthBlob = JSON.parse(headerAuthStore[headerAuthKey]);
+        expect(headerAuthBlob.apiSettings.baseURL).to.equal(
+          'ws://stale-host:3000/?token=6R0W53R135510',
         );
       } finally {
         if (previousStatic === undefined) {

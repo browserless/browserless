@@ -29,23 +29,24 @@ const pathMap: Map<
 // custom host like a tunnel) instead of wiping it. Path matches
 // router.js's own normalization (strips index.html, trailing slash).
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
-const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;try{var s=JSON.parse(localStorage.getItem(k)||'{}');var t=new URLSearchParams(location.search).get('token');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'&&t){try{var u=new URL(s.apiSettings.baseURL);if(u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;localStorage.setItem(k,JSON.stringify(s));}}catch(e){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}}catch(e){localStorage.removeItem(k);}</script>";
+// The token is embedded server-side (not read from location.search) so this
+// still works when auth arrives via the Authorization header alone.
+const debuggerTokenResetScript = (token: string): string =>
+  `<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;var t=${JSON.stringify(token)};try{var s=JSON.parse(localStorage.getItem(k)||'{}');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'){try{var u=new URL(s.apiSettings.baseURL);if(u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;localStorage.setItem(k,JSON.stringify(s));}}catch(e){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}}catch(e){localStorage.removeItem(k);}</script>`;
 
 const injectDebuggerTokenResetScript = (
   html: string,
   logger: Logger,
+  token: string,
 ): string => {
+  const script = debuggerTokenResetScript(token);
   if (/<head[^>]*>/i.test(html)) {
-    return html.replace(
-      /<head[^>]*>/i,
-      (tag) => `${tag}${DEBUGGER_TOKEN_RESET_SCRIPT}`,
-    );
+    return html.replace(/<head[^>]*>/i, (tag) => `${tag}${script}`);
   }
   logger.warn(
     'Debugger index has no <head> tag; prepending the reset script instead',
   );
-  return `${DEBUGGER_TOKEN_RESET_SCRIPT}${html}`;
+  return `${script}${html}`;
 };
 
 const streamFile = (
@@ -192,7 +193,9 @@ export default class StaticGetRoute extends HTTPRoute {
       );
       const html = await fs.readFile(foundFilePath, 'utf-8');
       res.setHeader('Content-Type', 'text/html');
-      res.end(injectDebuggerTokenResetScript(html, logger));
+      res.end(
+        injectDebuggerTokenResetScript(html, logger, requestToken as string),
+      );
       return;
     }
 
