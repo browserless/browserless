@@ -77,6 +77,8 @@ export class BrowserManager {
   } | null = null;
   protected readonly processTreeCacheMs = 2000;
   protected processTreeRefreshTimer: NodeJS.Timeout | null = null;
+  protected processTreeRefreshPromise: Promise<ProcessTree | null> | null =
+    null;
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -112,9 +114,27 @@ export class BrowserManager {
     );
   }
 
+  // Coalesces concurrent callers (the refresh timer and an in-flight
+  // /sessions request can land at the same time) onto one `si.processes()`
+  // call, so a slower, earlier call can't overwrite a newer cached result.
+  protected async refreshProcessTree(): Promise<ProcessTree | null> {
+    if (this.processTreeRefreshPromise) {
+      return this.processTreeRefreshPromise;
+    }
+    const refresh = this.refreshProcessTreeOnce();
+    this.processTreeRefreshPromise = refresh;
+    try {
+      return await refresh;
+    } finally {
+      if (this.processTreeRefreshPromise === refresh) {
+        this.processTreeRefreshPromise = null;
+      }
+    }
+  }
+
   // Never throws: a failure here shouldn't break /sessions, just leave
   // every session's cpu/memoryBytes as null for this one request.
-  protected async refreshProcessTree(): Promise<ProcessTree | null> {
+  protected async refreshProcessTreeOnce(): Promise<ProcessTree | null> {
     try {
       const { list } = await si.processes();
       const byPid = new Map(list.map((p) => [p.pid, p]));
