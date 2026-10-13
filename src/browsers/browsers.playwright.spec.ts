@@ -851,9 +851,12 @@ describe('BasePlaywright URL filter', () => {
 });
 
 describe('BasePlaywright --disable-features merging (issue #5450)', () => {
-  const { playwrightVersions } = JSON.parse(
+  const { dependencies, playwrightVersions } = JSON.parse(
     fs.readFileSync('package.json', 'utf8'),
-  ) as { playwrightVersions: Record<string, string> };
+  ) as {
+    dependencies: Record<string, string>;
+    playwrightVersions: Record<string, string>;
+  };
   const supportedVersions = Object.entries(playwrightVersions).filter(
     ([version]) => version !== 'default',
   );
@@ -899,7 +902,14 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   describe('Config.getChromiumDisabledFeatures (overridable seam)', () => {
     it('returns the default list for current/unknown versions', () => {
       const cfg = new Config();
-      for (const v of [undefined, 'default', currentVersion, 'unsupported']) {
+      for (const v of [
+        undefined,
+        'default',
+        currentVersion,
+        `${major}.${minor - 5}`, // The just-evicted version must fall back too.
+        `${major}.${minor + 1}`,
+        'unsupported',
+      ]) {
         expect(cfg.getChromiumDisabledFeatures(v)).to.deep.equal(
           defaultFeatures,
         );
@@ -1028,6 +1038,13 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       expect(playwrightVersions.default).to.equal('playwright-core');
       expect(playwrightVersions[currentVersion]).to.equal('playwright-core');
+      expect(
+        Object.keys(dependencies).filter((name) => /^playwright-\d/.test(name)),
+      ).to.have.members(
+        supportedVersions
+          .map(([, modName]) => modName)
+          .filter((modName) => modName !== 'playwright-core'),
+      );
       for (const [version, modName] of supportedVersions) {
         const installed = JSON.parse(
           fs.readFileSync(`node_modules/${modName}/package.json`, 'utf8'),
@@ -1058,8 +1075,9 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     // passes by pointing launchServer at a fake executable that records its argv
     // and exits. No internal/private imports — reflects what that version emits.
     const captureLaunchArgv = async (
-      chromium: ChromiumLauncher,
-      args: string[],
+      launch: (
+        executablePath: string,
+      ) => Promise<{ close: () => Promise<void> }>,
     ): Promise<string[]> => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bless-pw-argv-'));
       const argvFile = path.join(dir, 'argv.json');
@@ -1074,11 +1092,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       fs.chmodSync(fakeBin, 0o755);
       try {
-        const server = await chromium.launchServer({
-          args,
-          executablePath: fakeBin,
-          timeout: 15000,
-        });
+        const server = await launch(fakeBin);
         await server.close().catch(() => undefined);
       } catch {
         // Expected: the fake browser exits before printing a WS endpoint.
@@ -1103,8 +1117,15 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       itPosix(
         `mirror for PW ${version} matches the installed Playwright exactly`,
         async () => {
+          const chromium = await chromiumFor(modName);
           const live = parseDisableFeatures(
-            await captureLaunchArgv(await chromiumFor(modName), []),
+            await captureLaunchArgv((executablePath) =>
+              chromium.launchServer({
+                args: [],
+                executablePath,
+                timeout: 15000,
+              }),
+            ),
           );
           expect(live, `empty --disable-features for ${version}`).to.not.be
             .empty;
@@ -1128,24 +1149,42 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
 
     // End-to-end: browserless's merged flag is the one Chromium keeps, and it
     // carries both Playwright's list and browserless's additions.
-    itPosix(
-      "browserless's merged --disable-features is the one Chromium keeps",
-      async () => {
-        const argv = await captureLaunchArgv(
-          await chromiumFor(playwrightVersions.default),
-          launchArgs(ChromiumPlaywright, []),
-        );
-        const disableFlags = disableFeaturesFlags(argv);
-        expect(
-          disableFlags.length,
-          'expected Playwright + browserless --disable-features flags',
-        ).to.be.greaterThan(0);
-        const winning = parseDisableFeatures([
-          disableFlags[disableFlags.length - 1],
-        ]);
-        expect(winning).to.include.members(defaultFeatures);
-        expect(winning).to.include.members(browserlessChromiumDisabledFeatures);
-      },
-    ).timeout(60000);
+    for (const [version] of Object.entries(playwrightVersions)) {
+      itPosix(
+        `launch() preserves PW ${version}'s disabled features in the winning flag`,
+        async () => {
+          const argv = await captureLaunchArgv((executablePath) => {
+            class CapturedChromium extends ChromiumPlaywright {
+              protected async resolveExecutablePath(): Promise<string> {
+                return executablePath;
+              }
+            }
+            const cfg = new Config();
+            cfg.setPwVersions(playwrightVersions);
+            const browser = new CapturedChromium({
+              config: cfg,
+              logger: new Logger('test'),
+              userDataDir: null,
+            });
+            return browser.launch({
+              options: { args: [] },
+              pwVersion: version,
+            });
+          });
+          const disableFlags = disableFeaturesFlags(argv);
+          expect(
+            disableFlags.length,
+            'expected Playwright + browserless --disable-features flags',
+          ).to.be.greaterThan(1);
+          const winning = parseDisableFeatures(disableFlags.slice(-1));
+          expect(winning).to.include.members(
+            parseDisableFeatures(disableFlags.slice(0, -1)),
+          );
+          expect(winning).to.include.members(
+            browserlessChromiumDisabledFeatures,
+          );
+        },
+      ).timeout(60000);
+    }
   });
 });
