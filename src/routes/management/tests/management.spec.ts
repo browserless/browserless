@@ -369,17 +369,21 @@ describe('Management APIs', function () {
         });
 
         vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
           localStorage: store,
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
             pathname: '/debugger/',
           },
-          URLSearchParams,
         });
 
         const resultingBlob = JSON.parse(store[key]);
-        expect(resultingBlob.apiSettings.baseURL).to.be.undefined;
+        // Host preserved, only the stale token is merged in.
+        expect(resultingBlob.apiSettings.baseURL).to.equal(
+          'ws://stale-host:3000/?token=6R0W53R135510',
+        );
         expect(resultingBlob.apiSettings.headless).to.equal(true);
         expect(resultingBlob.apiSettings.blockAds).to.equal(true);
         expect(resultingBlob.editorTabs).to.deep.equal([
@@ -406,16 +410,55 @@ describe('Management APIs', function () {
         });
 
         vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
           localStorage: malformedStore,
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
             pathname: '/debugger/',
           },
-          URLSearchParams,
         });
 
         expect(key in malformedStore).to.equal(false);
+
+        // A custom host (e.g. a reverse-proxy tunnel) must survive a reload.
+        const tunnelStore: Record<string, string> = {
+          [key]: JSON.stringify({
+            apiSettings: {
+              baseURL: 'wss://my-tunnel.example.com:8443/?token=OLDTOKEN',
+            },
+          }),
+        };
+        Object.defineProperty(tunnelStore, 'getItem', {
+          value: (k: string) => (k in tunnelStore ? tunnelStore[k] : null),
+        });
+        Object.defineProperty(tunnelStore, 'setItem', {
+          value: (k: string, v: string) => {
+            tunnelStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(tunnelStore, 'removeItem', {
+          value: (k: string) => {
+            delete tunnelStore[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: tunnelStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        const tunnelBlob = JSON.parse(tunnelStore[key]);
+        expect(tunnelBlob.apiSettings.baseURL).to.equal(
+          'wss://my-tunnel.example.com:8443/?token=6R0W53R135510',
+        );
 
         const withoutToken = await fetch('http://localhost:3000/debugger/');
         expect(withoutToken.status).to.equal(200);
@@ -520,6 +563,8 @@ describe('Management APIs', function () {
         });
 
         vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
           localStorage: store,
           location: {
             search: '?token=6R0W53R135510',
@@ -528,11 +573,12 @@ describe('Management APIs', function () {
             // this script runs — before router.js's own pushState.
             pathname: '/debugger/index.html',
           },
-          URLSearchParams,
         });
 
         const resultingBlob = JSON.parse(store[normalizedKey]);
-        expect(resultingBlob.apiSettings.baseURL).to.be.undefined;
+        expect(resultingBlob.apiSettings.baseURL).to.equal(
+          'ws://stale-host:3000/?token=6R0W53R135510',
+        );
       } finally {
         if (previousStatic === undefined) {
           delete process.env.STATIC;
