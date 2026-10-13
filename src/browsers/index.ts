@@ -67,6 +67,16 @@ export class BrowserManager {
     CDPJSONPayload,
     'webSocketDebuggerUrl'
   > | null = null;
+  // getProcessTree() forks `ps` plus a per-process `/proc` read on every
+  // call spaced over systeminformation's own 500ms cache window - too
+  // short for a /sessions endpoint that may be polled every 1-2s. Cache
+  // our own result for a couple of seconds on top of that.
+  protected processTreeCache: {
+    expiresAt: number;
+    tree: ProcessTree | null;
+  } | null = null;
+  protected readonly processTreeCacheMs = 2000;
+  protected processTreeRefreshTimer: NodeJS.Timeout | null = null;
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -104,7 +114,7 @@ export class BrowserManager {
 
   // Never throws: a failure here shouldn't break /sessions, just leave
   // every session's cpu/memoryBytes as null for this one request.
-  protected async getProcessTree(): Promise<ProcessTree | null> {
+  protected async refreshProcessTree(): Promise<ProcessTree | null> {
     try {
       const { list } = await si.processes();
       const byPid = new Map(list.map((p) => [p.pid, p]));
@@ -116,10 +126,49 @@ export class BrowserManager {
         childrenByParentPid.set(p.parentPid, siblings);
       }
 
-      return { byPid, childrenByParentPid };
+      const tree = { byPid, childrenByParentPid };
+      this.processTreeCache = {
+        expiresAt: Date.now() + this.processTreeCacheMs,
+        tree,
+      };
+      return tree;
     } catch (err) {
       this.log.warn(`Error reading process list for session stats: ${err}`);
+      this.processTreeCache = {
+        expiresAt: Date.now() + this.processTreeCacheMs,
+        tree: null,
+      };
       return null;
+    }
+  }
+
+  protected async getProcessTree(): Promise<ProcessTree | null> {
+    if (this.processTreeCache && this.processTreeCache.expiresAt > Date.now()) {
+      return this.processTreeCache.tree;
+    }
+    return this.refreshProcessTree();
+  }
+
+  // Keeps systeminformation's own per-pid CPU baseline warm while any
+  // session is alive, so by the time /sessions is actually polled, a
+  // session's processes already have a prior sample to delta against -
+  // without this, a pid with no prior sample reads its lifetime-average
+  // CPU share (near 0 on a long-uptime host), not its recent usage.
+  protected startProcessTreeRefresh(): void {
+    if (this.processTreeRefreshTimer) {
+      return;
+    }
+    this.processTreeRefreshTimer = setInterval(
+      () => this.refreshProcessTree(),
+      this.processTreeCacheMs,
+    );
+    this.processTreeRefreshTimer.unref?.();
+  }
+
+  protected stopProcessTreeRefresh(): void {
+    if (this.processTreeRefreshTimer) {
+      clearInterval(this.processTreeRefreshTimer);
+      this.processTreeRefreshTimer = null;
     }
   }
 
@@ -570,6 +619,9 @@ export class BrowserManager {
       // session still visible to subsequent `/sessions` and trackingId
       // checks for the duration of browser.close() (hundreds of ms).
       this.browsers.delete(browser);
+      if (this.browsers.size === 0) {
+        this.stopProcessTreeRefresh();
+      }
 
       // Serialise browser shutdown then data-dir removal: chromium
       // releases its file handles when `browser.close()` resolves, so
@@ -624,7 +676,10 @@ export class BrowserManager {
     trackingId?: string,
   ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
-    const processTree = await this.getProcessTree();
+    // Skip the process-list read entirely when there's nothing to report -
+    // no point forking `ps` for an empty /sessions response.
+    const processTree =
+      sessions.length > 0 ? await this.getProcessTree() : null;
 
     // Query browsers concurrently and tolerate individual failures — one
     // wedged or mid-shutdown browser shouldn't stall or 500 /sessions.
@@ -951,6 +1006,7 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
+    this.startProcessTreeRefresh();
 
     browser.on('newPage', async (page: Page) => {
       await this.onNewPage(req, page);
@@ -996,6 +1052,7 @@ export class BrowserManager {
     );
     this.timers.forEach((t) => clearTimeout(t));
     clearInterval(this.orphanedDataDirSweeper);
+    this.stopProcessTreeRefresh();
     // Last-chance reclaim of dirs whose deletion failed during sessions
     await this.sweepOrphanedDataDirs();
     this.browsers = new Map();

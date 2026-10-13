@@ -44,8 +44,10 @@ class TestBrowserManager extends BrowserManager {
     type: string;
     webSocketDebuggerUrl: string;
   }> | null = null;
+  public getProcessTreeCallCount = 0;
 
   protected override async getProcessTree() {
+    this.getProcessTreeCallCount++;
     return this.fakeTree ? await this.fakeTree : null;
   }
 
@@ -163,6 +165,16 @@ describe('BrowserManager session stats (#5615)', () => {
     )) as Array<{ cpu: number }>;
 
     expect(session.cpu).to.equal(100);
+  });
+
+  it('skips reading the process list when there are no sessions', async () => {
+    const manager = makeManager();
+
+    const result = await manager.getAllSessions();
+
+    expect(result).to.deep.equal([]);
+    // Forking `ps` for an empty /sessions response is pure waste.
+    expect(manager.getProcessTreeCallCount).to.equal(0);
   });
 
   it('does not duplicate the browser-level numbers onto page entries', async () => {
