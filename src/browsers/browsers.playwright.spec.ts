@@ -851,6 +851,21 @@ describe('BasePlaywright URL filter', () => {
 });
 
 describe('BasePlaywright --disable-features merging (issue #5450)', () => {
+  const { dependencies, playwrightVersions } = JSON.parse(
+    fs.readFileSync('package.json', 'utf8'),
+  ) as {
+    dependencies: Record<string, string>;
+    playwrightVersions: Record<string, string>;
+  };
+  const supportedVersions = Object.entries(playwrightVersions).filter(
+    ([version]) => version !== 'default',
+  );
+  const { version: coreVersion } = JSON.parse(
+    fs.readFileSync('node_modules/playwright-core/package.json', 'utf8'),
+  ) as { version: string };
+  const [major, minor] = coreVersion.split('.').map(Number);
+  const currentVersion = `${major}.${minor}`;
+
   const disableFeaturesFlags = (args: string[]): string[] =>
     args.filter((a) => a.startsWith('--disable-features='));
 
@@ -887,31 +902,18 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   describe('Config.getChromiumDisabledFeatures (overridable seam)', () => {
     it('returns the default list for current/unknown versions', () => {
       const cfg = new Config();
-      for (const v of [undefined, 'default', '1.63', '1.99']) {
+      for (const v of [
+        undefined,
+        'default',
+        currentVersion,
+        `${major}.${minor - 5}`, // The just-evicted version must fall back too.
+        `${major}.${minor + 1}`,
+        'unsupported',
+      ]) {
         expect(cfg.getChromiumDisabledFeatures(v)).to.deep.equal(
           defaultFeatures,
         );
       }
-      expect(defaultFeatures).to.include(
-        'BlockOriginHeaderModificationOnRedirect',
-      );
-      expect(defaultFeatures).to.not.include(
-        'BoundaryEventDispatchTracksNodeRemoval',
-      );
-      expect(defaultFeatures).to.not.include('RenderDocument');
-    });
-
-    it('preserves the removed boundary-event feature for 1.62', () => {
-      const f162 = new Config().getChromiumDisabledFeatures('1.62');
-      expect(f162).to.include('BoundaryEventDispatchTracksNodeRemoval');
-      expect(f162).to.include('BlockOriginHeaderModificationOnRedirect');
-      expect(f162).to.not.include('RenderDocument');
-    });
-
-    it('returns a version-specific list where it differs (1.61)', () => {
-      const f161 = new Config().getChromiumDisabledFeatures('1.61');
-      expect(f161).to.include('RenderDocument');
-      expect(f161).to.not.include('BlockOriginHeaderModificationOnRedirect');
     });
   });
 
@@ -1029,16 +1031,29 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   });
 
   describe('interaction with the installed Playwright versions', () => {
-    // browserless can launch any of these pinned Playwright versions; each is a
-    // real dependency installed in node_modules (see package.json
-    // `playwrightVersions`). The mirror must match each one.
-    const SUPPORTED_PW_VERSIONS: Readonly<Record<string, string>> = {
-      '1.59': 'playwright-1.59',
-      '1.60': 'playwright-1.60',
-      '1.61': 'playwright-1.61',
-      '1.62': 'playwright-1.62',
-      '1.63': 'playwright-core',
-    };
+    it('routes the five-version FIFO window to matching installed packages', () => {
+      // Derive the required window from the installed core, not the map under test.
+      expect(supportedVersions.map(([version]) => version)).to.have.members(
+        Array.from({ length: 5 }, (_, offset) => `${major}.${minor - offset}`),
+      );
+      expect(playwrightVersions.default).to.equal('playwright-core');
+      expect(playwrightVersions[currentVersion]).to.equal('playwright-core');
+      expect(
+        Object.keys(dependencies).filter((name) => /^playwright-\d/.test(name)),
+      ).to.have.members(
+        supportedVersions
+          .map(([, modName]) => modName)
+          .filter((modName) => modName !== 'playwright-core'),
+      );
+      for (const [version, modName] of supportedVersions) {
+        const installed = JSON.parse(
+          fs.readFileSync(`node_modules/${modName}/package.json`, 'utf8'),
+        );
+        expect(installed.version.split('.').slice(0, 2).join('.')).to.equal(
+          version,
+        );
+      }
+    });
 
     type ChromiumLauncher = {
       launchServer: (o: {
@@ -1060,8 +1075,9 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
     // passes by pointing launchServer at a fake executable that records its argv
     // and exits. No internal/private imports — reflects what that version emits.
     const captureLaunchArgv = async (
-      chromium: ChromiumLauncher,
-      args: string[],
+      launch: (
+        executablePath: string,
+      ) => Promise<{ close: () => Promise<void> }>,
     ): Promise<string[]> => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bless-pw-argv-'));
       const argvFile = path.join(dir, 'argv.json');
@@ -1076,11 +1092,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       );
       fs.chmodSync(fakeBin, 0o755);
       try {
-        const server = await chromium.launchServer({
-          args,
-          executablePath: fakeBin,
-          timeout: 15000,
-        });
+        const server = await launch(fakeBin);
         await server.close().catch(() => undefined);
       } catch {
         // Expected: the fake browser exits before printing a WS endpoint.
@@ -1101,12 +1113,19 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
 
     // 1:1 drift guard per supported version — fails if a pinned Playwright adds
     // or removes a feature relative to Config.getChromiumDisabledFeatures(version).
-    for (const [version, modName] of Object.entries(SUPPORTED_PW_VERSIONS)) {
+    for (const [version, modName] of Object.entries(playwrightVersions)) {
       itPosix(
         `mirror for PW ${version} matches the installed Playwright exactly`,
         async () => {
+          const chromium = await chromiumFor(modName);
           const live = parseDisableFeatures(
-            await captureLaunchArgv(await chromiumFor(modName), []),
+            await captureLaunchArgv((executablePath) =>
+              chromium.launchServer({
+                args: [],
+                executablePath,
+                timeout: 15000,
+              }),
+            ),
           );
           expect(live, `empty --disable-features for ${version}`).to.not.be
             .empty;
@@ -1130,24 +1149,42 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
 
     // End-to-end: browserless's merged flag is the one Chromium keeps, and it
     // carries both Playwright's list and browserless's additions.
-    itPosix(
-      "browserless's merged --disable-features is the one Chromium keeps",
-      async () => {
-        const argv = await captureLaunchArgv(
-          await chromiumFor(SUPPORTED_PW_VERSIONS['1.63']),
-          launchArgs(ChromiumPlaywright, []),
-        );
-        const disableFlags = disableFeaturesFlags(argv);
-        expect(
-          disableFlags.length,
-          'expected Playwright + browserless --disable-features flags',
-        ).to.be.greaterThan(0);
-        const winning = parseDisableFeatures([
-          disableFlags[disableFlags.length - 1],
-        ]);
-        expect(winning).to.include('PaintHolding'); // Playwright's, preserved
-        expect(winning).to.include('LocalNetworkAccessChecks'); // browserless's
-      },
-    ).timeout(60000);
+    for (const [version] of Object.entries(playwrightVersions)) {
+      itPosix(
+        `launch() preserves PW ${version}'s disabled features in the winning flag`,
+        async () => {
+          const argv = await captureLaunchArgv((executablePath) => {
+            class CapturedChromium extends ChromiumPlaywright {
+              protected async resolveExecutablePath(): Promise<string> {
+                return executablePath;
+              }
+            }
+            const cfg = new Config();
+            cfg.setPwVersions(playwrightVersions);
+            const browser = new CapturedChromium({
+              config: cfg,
+              logger: new Logger('test'),
+              userDataDir: null,
+            });
+            return browser.launch({
+              options: { args: [] },
+              pwVersion: version,
+            });
+          });
+          const disableFlags = disableFeaturesFlags(argv);
+          expect(
+            disableFlags.length,
+            'expected Playwright + browserless --disable-features flags',
+          ).to.be.greaterThan(1);
+          const winning = parseDisableFeatures(disableFlags.slice(-1));
+          expect(winning).to.include.members(
+            parseDisableFeatures(disableFlags.slice(0, -1)),
+          );
+          expect(winning).to.include.members(
+            browserlessChromiumDisabledFeatures,
+          );
+        },
+      ).timeout(60000);
+    }
   });
 });

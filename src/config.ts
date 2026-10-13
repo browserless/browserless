@@ -116,7 +116,7 @@ const getDebug = () => {
 
 /**
  * Chromium features Playwright disables by default, mirrored per supported
- * Playwright version (verified against playwright-core 1.59–1.63).
+ * Playwright version (verified against playwright-core 1.60–1.64).
  *
  * `--disable-features` is a single-valued Chromium switch: when it appears more
  * than once on the command line Chrome keeps ONLY the last occurrence — the
@@ -126,12 +126,12 @@ const getDebug = () => {
  * version itself disables or those features are silently re-enabled (e.g.
  * RenderDocument). See https://github.com/browserless/browserless/issues/5450
  *
- * The default is what the pinned playwright-core emits (1.63); versions whose
+ * The default is what the pinned playwright-core emits (1.64); versions whose
  * list differs are overridden below. These lists must stay 1:1 with the
  * installed Playwright versions — see the drift test in
  * browsers.playwright.spec.ts.
  */
-const defaultChromiumDisabledFeatures: readonly string[] = [
+const playwright163DisabledFeatures: readonly string[] = [
   'AvoidUnnecessaryBeforeUnloadCheckSync',
   'DestroyProfileOnBrowserClose',
   'DialMediaRouteProvider',
@@ -147,6 +147,13 @@ const defaultChromiumDisabledFeatures: readonly string[] = [
   'OptimizationHints',
   'msForceBrowserSignIn',
   'msEdgeUpdateLaunchServicesPreferredVersion',
+];
+
+// 1.64 additionally prevents startup network-time and AI Mode queries.
+const defaultChromiumDisabledFeatures: readonly string[] = [
+  ...playwright163DisabledFeatures,
+  'NetworkTimeServiceQuerying',
+  'AimEnabled',
 ];
 
 // 1.60 and 1.61 still disable RenderDocument (dropped in 1.62) and do not yet
@@ -171,36 +178,17 @@ const playwright160And161DisabledFeatures: readonly string[] = [
   'msEdgeUpdateLaunchServicesPreferredVersion',
 ];
 
-// 1.59 matches 1.60/1.61 except the ms*/Edge features, which Playwright
-// began disabling in 1.60.
-const playwright159DisabledFeatures: readonly string[] = [
-  'AvoidUnnecessaryBeforeUnloadCheckSync',
-  'BoundaryEventDispatchTracksNodeRemoval',
-  'DestroyProfileOnBrowserClose',
-  'DialMediaRouteProvider',
-  'GlobalMediaControls',
-  'HttpsUpgrades',
-  'LensOverlay',
-  'MediaRouter',
-  'PaintHolding',
-  'ThirdPartyStoragePartitioning',
-  'Translate',
-  'AutoDeElevate',
-  'RenderDocument',
-  'OptimizationHints',
-];
-
 const chromiumDisabledFeaturesByPwVersion: Readonly<
   Record<string, readonly string[]>
 > = {
-  '1.59': playwright159DisabledFeatures,
   '1.60': playwright160And161DisabledFeatures,
   '1.61': playwright160And161DisabledFeatures,
   // Playwright stopped disabling this feature in 1.63.
   '1.62': [
-    ...defaultChromiumDisabledFeatures,
+    ...playwright163DisabledFeatures,
     'BoundaryEventDispatchTracksNodeRemoval',
   ],
+  '1.63': playwright163DisabledFeatures,
 };
 
 /**
