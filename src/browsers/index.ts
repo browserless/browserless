@@ -53,7 +53,16 @@ const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
 interface ProcessTree {
   byPid: Map<number, Systeminformation.ProcessesProcessData>;
   childrenByParentPid: Map<number, number[]>;
+  // Pids with no prior sample - systeminformation reports their lifetime
+  // average CPU share (near 0 on a long-uptime host) rather than recent
+  // usage, so their cpu reading is unreliable until the next sample.
+  coldPids: Set<number>;
 }
+
+// Linux/Windows normalize proc.cpu across every core (100% = all cores
+// saturated); macOS (and the other `ps`-based platforms) already report it
+// per-core like `ps` itself. Only the normalized platforms need scaling.
+const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux', 'win32']);
 
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
@@ -79,6 +88,7 @@ export class BrowserManager {
   protected processTreeRefreshTimer: NodeJS.Timeout | null = null;
   protected processTreeRefreshPromise: Promise<ProcessTree | null> | null =
     null;
+  protected seenPids: Set<number> = new Set();
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -139,14 +149,19 @@ export class BrowserManager {
       const { list } = await si.processes();
       const byPid = new Map(list.map((p) => [p.pid, p]));
       const childrenByParentPid = new Map<number, number[]>();
+      const coldPids = new Set<number>();
 
       for (const p of list) {
+        if (!this.seenPids.has(p.pid)) {
+          coldPids.add(p.pid);
+        }
         const siblings = childrenByParentPid.get(p.parentPid) ?? [];
         siblings.push(p.pid);
         childrenByParentPid.set(p.parentPid, siblings);
       }
+      this.seenPids = new Set(byPid.keys());
 
-      const tree = { byPid, childrenByParentPid };
+      const tree = { byPid, childrenByParentPid, coldPids };
       this.processTreeCache = {
         expiresAt: Date.now() + this.processTreeCacheMs,
         tree,
@@ -178,6 +193,11 @@ export class BrowserManager {
     if (this.processTreeRefreshTimer) {
       return;
     }
+    // Prime immediately - an interval alone leaves the first processTreeCacheMs
+    // window with no sample at all (and, since coldPids forces cpu to null
+    // on an unseen pid regardless, this doesn't need to be the one that
+    // produces a usable reading - it only needs to establish the baseline).
+    this.refreshProcessTree();
     this.processTreeRefreshTimer = setInterval(
       () => this.refreshProcessTree(),
       this.processTreeCacheMs,
@@ -198,13 +218,14 @@ export class BrowserManager {
     pid: number,
     tree: ProcessTree,
     numCores: number = cpus().length,
-  ): { cpu: number; memoryBytes: number } | null {
+  ): { cpu: number | null; memoryBytes: number } | null {
     if (!tree.byPid.has(pid)) {
       return null;
     }
 
     let cpu = 0;
     let memoryBytes = 0;
+    let hasColdPid = false;
     const stack = [pid];
     const seen = new Set<number>();
 
@@ -219,6 +240,7 @@ export class BrowserManager {
       if (proc) {
         cpu += proc.cpu;
         memoryBytes += proc.memRss * 1024; // memRss is KB; normalize to bytes.
+        hasColdPid = hasColdPid || tree.coldPids.has(current);
       }
 
       for (const child of tree.childrenByParentPid.get(current) ?? []) {
@@ -228,13 +250,26 @@ export class BrowserManager {
       }
     }
 
+    // A pid with no prior sample reads its lifetime-average CPU share, not
+    // its recent usage - report unavailable rather than a misleading number.
+    if (hasColdPid) {
+      return { cpu: null, memoryBytes };
+    }
+
     // systeminformation's proc.cpu is a percentage of total CPU time across
-    // every core (100% = all cores saturated), not ps's per-core convention
-    // this API documents (100% = one core saturated, so a multi-core,
-    // multi-process session can exceed 100). Scale by core count so a
-    // session pinning one full core on an N-core host reports ~100, not
-    // ~100/N - otherwise the heaviest sessions look the least suspicious.
-    return { cpu: cpu * numCores, memoryBytes };
+    // every core (100% = all cores saturated) on Linux/Windows, not ps's
+    // per-core convention this API documents (100% = one core saturated);
+    // macOS and the other `ps`-based platforms already report it per-core.
+    // Scale only the all-core-normalized platforms, so a session pinning
+    // one full core on an N-core host reports ~100 there too, without
+    // inflating the platforms that already match the per-core convention.
+    const scaledCpu = PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU.has(
+      process.platform,
+    )
+      ? cpu * numCores
+      : cpu;
+
+    return { cpu: scaledCpu, memoryBytes };
   }
 
   protected async sweepOrphanedDataDirs(): Promise<void> {

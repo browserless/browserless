@@ -87,6 +87,27 @@ const makeManager = () =>
     new FileSystem(new Config()),
   );
 
+// sumProcessTree's cpu scaling reads process.platform directly - stub it
+// for the duration of a test to exercise a specific platform's behavior.
+const withPlatform = async <T>(
+  platform: NodeJS.Platform,
+  fn: () => Promise<T>,
+): Promise<T> => {
+  const original = process.platform;
+  Object.defineProperty(process, 'platform', {
+    configurable: true,
+    value: platform,
+  });
+  try {
+    return await fn();
+  } finally {
+    Object.defineProperty(process, 'platform', {
+      configurable: true,
+      value: original,
+    });
+  }
+};
+
 describe('BrowserManager session stats (#5615)', () => {
   it('sums cpu and memory across a process and its descendants', async () => {
     const manager = makeManager();
@@ -103,6 +124,7 @@ describe('BrowserManager session stats (#5615)', () => {
         [100, [101]],
         [101, [102]],
       ]),
+      coldPids: new Set(),
     } as never);
 
     const [session] = (await manager.callGenerateSessionJson(
@@ -122,6 +144,7 @@ describe('BrowserManager session stats (#5615)', () => {
     manager.fakeTree = Promise.resolve({
       byPid: new Map(),
       childrenByParentPid: new Map(),
+      coldPids: new Set(),
     } as never);
 
     const [session] = (await manager.callGenerateSessionJson(
@@ -146,25 +169,72 @@ describe('BrowserManager session stats (#5615)', () => {
     expect(session.memoryBytes).to.be.null;
   });
 
-  it("scales cpu by core count to match ps's per-core convention", async () => {
+  it('scales cpu by core count on Linux/Windows, which normalize across all cores', async () => {
     const manager = makeManager();
     manager.fakeTree = Promise.resolve({
       byPid: new Map([
         // systeminformation reports this as a share of all cores combined
-        // (25 = one full core saturated on a 4-core host), not ps's
-        // per-core convention (where one full core reads ~100).
+        // (25 = one full core saturated on a 4-core host) on Linux/Windows.
         [100, { cpu: 25, memRss: 1000, parentPid: 1, pid: 100 }],
       ]),
       childrenByParentPid: new Map(),
+      coldPids: new Set(),
+    } as never);
+
+    const [session] = (await withPlatform('linux', () =>
+      manager.callGenerateSessionJson(
+        makeFakeBrowser(100),
+        makeSession('e'),
+        4,
+      ),
+    )) as Array<{ cpu: number }>;
+
+    expect(session.cpu).to.equal(100);
+  });
+
+  it('does not scale cpu on macOS, which already reports it per-core', async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map([
+        // ps -axo pcpu on macOS already means "one full core" at 100,
+        // same as the value systeminformation reports here.
+        [100, { cpu: 98, memRss: 1000, parentPid: 1, pid: 100 }],
+      ]),
+      childrenByParentPid: new Map(),
+      coldPids: new Set(),
+    } as never);
+
+    const [session] = (await withPlatform('darwin', () =>
+      manager.callGenerateSessionJson(
+        makeFakeBrowser(100),
+        makeSession('f'),
+        10,
+      ),
+    )) as Array<{ cpu: number }>;
+
+    expect(session.cpu).to.equal(98);
+  });
+
+  it('reports cpu as null, but memory as available, for a process with no prior sample', async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map([
+        [100, { cpu: 50, memRss: 1000, parentPid: 1, pid: 100 }],
+        [101, { cpu: 5, memRss: 500, parentPid: 100, pid: 101 }],
+      ]),
+      childrenByParentPid: new Map([[100, [101]]]),
+      // pid 101 (e.g. a renderer that just spawned) has no prior sample -
+      // its cpu reading is systeminformation's lifetime-average fallback.
+      coldPids: new Set([101]),
     } as never);
 
     const [session] = (await manager.callGenerateSessionJson(
       makeFakeBrowser(100),
-      makeSession('e'),
-      4,
-    )) as Array<{ cpu: number }>;
+      makeSession('g'),
+    )) as Array<{ cpu: number | null; memoryBytes: number }>;
 
-    expect(session.cpu).to.equal(100);
+    expect(session.cpu).to.be.null;
+    expect(session.memoryBytes).to.equal(1500 * 1024);
   });
 
   it('skips reading the process list when there are no sessions', async () => {
@@ -184,6 +254,7 @@ describe('BrowserManager session stats (#5615)', () => {
         [100, { cpu: 40, memRss: 4096, parentPid: 1, pid: 100 }],
       ]),
       childrenByParentPid: new Map(),
+      coldPids: new Set(),
     } as never);
     manager.fakeChromePages = [
       {
