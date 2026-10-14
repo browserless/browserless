@@ -120,7 +120,7 @@ describe('BrowserQL WebSocket transport', () => {
   it('keeps a stream outside the operation queue and cancels it on complete', async () => {
     const event = deferred<IteratorResult<any>>();
     let returned = false;
-    service.subscribe = async () => ({
+    const stream: AsyncIterableIterator<any> = {
       [Symbol.asyncIterator]() {
         return this;
       },
@@ -130,7 +130,8 @@ describe('BrowserQL WebSocket transport', () => {
         event.resolve({ done: true, value: undefined });
         return { done: true, value: undefined };
       },
-    });
+    };
+    service.subscribe = async () => stream;
     start();
     socket.receive({ type: 'connection_init' });
     subscribe('stream', 'subscription { events }');

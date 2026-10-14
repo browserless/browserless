@@ -20,7 +20,7 @@ describe('BrowserQL route metadata', () => {
       const route = new (
         Route as unknown as new () => InstanceType<typeof Route>
       )();
-      assert.deepEqual(route.path, [path]);
+      assert.deepEqual(route.path, [`${path}?(/)`]);
       assert.equal(route.auth, true);
       assert.equal(route.concurrency, true);
       assert.equal(route.bypassLimits, undefined);
