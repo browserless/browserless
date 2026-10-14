@@ -193,6 +193,41 @@ describe('BrowserQL WebSocket transport', () => {
     assert.equal(socket.code, undefined);
   });
 
+  it('rejects empty legacy queries before execution and keeps the socket usable', async () => {
+    socket.protocol = '';
+    start({
+      formatResponse: (result) => ({
+        ...result,
+        errors: result.errors?.map((error) => ({
+          ...error,
+          message: `${error.message} (requestId: example)`,
+        })),
+      }),
+    });
+    socket.receive({ query: '' });
+    socket.receive({ query: '{ version }' });
+    await setImmediate();
+    assert.deepEqual(socket.frames, [
+      {
+        errors: [
+          { message: 'Missing required "query" field (requestId: example)' },
+        ],
+      },
+      { data: { run: true } },
+    ]);
+    assert.equal(socket.code, undefined);
+  });
+
+  it('reports syntax errors for empty negotiated queries without closing', async () => {
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('empty', '');
+    await setImmediate();
+    assert.equal(socket.frames[1].type, 'error');
+    assert.match(socket.frames[1].payload[0].message, /Syntax Error/);
+    assert.equal(socket.code, undefined);
+  });
+
   it('reports invalid subscribe IDs before closing with the standard code', async () => {
     const invalid: unknown[] = [];
     start({ onValidationError: (error) => invalid.push(error) });
