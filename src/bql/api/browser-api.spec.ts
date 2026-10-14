@@ -129,6 +129,7 @@ test('pre-rule interception stays behind destination policy', async () => {
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(api.client.calls.at(-1)?.method, 'Fetch.failRequest');
+  assert.equal(api.client.calls.at(-1)?.params.errorReason, 'Failed');
   for (const response of [
     { responseStatusCode: 302 },
     { responseErrorReason: 'Failed' },
@@ -393,6 +394,11 @@ test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
       .filter((c) => /Fetch\.(fail|fulfill|continue)Request/.test(c.method))
       .map((c) => c.method),
     ['Fetch.failRequest'],
+  );
+  assert.equal(
+    api.client.calls.find((c) => c.method === 'Fetch.failRequest')?.params
+      .errorReason,
+    'Failed',
   );
   await api.reject({ enabled: false, operator: 'or' });
   api.client.emit('Fetch.requestPaused', {
