@@ -805,7 +805,7 @@ export class BQLBrowserAPI {
     } catch {
       decision = {
         method: 'Fetch.failRequest',
-        params: { errorReason: 'BlockedByClient' },
+        params: { errorReason: 'Failed' },
       };
     }
     if (!decision) {
@@ -842,7 +842,7 @@ export class BQLBrowserAPI {
     const intentionalDocumentReject =
       event.resourceType === 'Document' &&
       decision.method === 'Fetch.failRequest' &&
-      decision.params?.errorReason === 'Aborted' &&
+      matchingRules.some((rule) => rule.decision === decision) &&
       (!this.currentFrames.has(cdp) ||
         this.currentFrames.get(cdp)?.id === event.frameId);
     if (intentionalDocumentReject) this.rejectedDocuments.add(cdp);
@@ -1590,10 +1590,13 @@ export class BQLBrowserAPI {
       url,
     );
   }
-  public reload(args: { waitUntil?: WaitUntil; timeout?: number }) {
+  public reload(args: {
+    waitUntil?: WaitUntil;
+    timeout?: number;
+  }): Promise<Awaited<ReturnType<BQLBrowserAPI['waitForNavigation']>> | null> {
     return this.navigate('Page.reload', {}, args);
   }
-  private async history(
+  protected async history(
     delta: number,
     args: { waitUntil?: WaitUntil; timeout?: number },
   ) {
@@ -2741,7 +2744,7 @@ export class BQLBrowserAPI {
         filter,
         decision: {
           method: 'Fetch.failRequest',
-          params: { errorReason: 'Aborted' },
+          params: { errorReason: 'Failed' },
         },
       });
     }
