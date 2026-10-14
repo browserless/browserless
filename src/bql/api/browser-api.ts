@@ -60,7 +60,7 @@ type ElementArgs = {
   scroll?: boolean;
   checkInteractable?: boolean;
 };
-interface SelectorNode {
+export interface SelectorNode {
   id: string;
   class: string[];
   innerHTML: string;
