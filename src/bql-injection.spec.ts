@@ -14,6 +14,25 @@ describe('BrowserQL service injection', function () {
     server = undefined;
   });
 
+  it('closes an upgraded session with a WebSocket timeout frame', async function () {
+    this.timeout(10_000);
+    const config = new Config();
+    config.setToken(randomUUID());
+    config.setPort(await getPort());
+    server = new Browserless({ config, metrics: new Metrics() });
+    await server.start();
+    const socket = new WebSocket(
+      `ws://localhost:${config.getPort()}/chromium/bql?token=${config.getToken()}&timeout=3000`,
+    );
+    try {
+      await once(socket, 'open');
+      const [code] = await once(socket, 'close');
+      expect(code).to.equal(1013);
+    } finally {
+      socket.terminate();
+    }
+  });
+
   it('serves injected modules and capabilities through the normal authenticated route', async () => {
     const bql = new BrowserQL({
       modules: [

@@ -18,6 +18,12 @@ import {
 } from 'graphql';
 import { executionError } from './errors.js';
 
+/** A service may preserve partial results or stop after a particular mutation. */
+export type MutationResultPolicy = (
+  field: string,
+  result: ExecutionResult,
+) => 'continue' | 'stop' | undefined;
+
 /** Execute mutations in document order, replacing string AST values, never source text. */
 export async function executeWithChaining(
   schema: GraphQLSchema,
@@ -26,6 +32,7 @@ export async function executeWithChaining(
   contextValue: unknown,
   variableValues: Record<string, unknown> = {},
   operationName?: string,
+  mutationResultPolicy?: MutationResultPolicy,
 ): Promise<ExecutionResult> {
   let ast: DocumentNode;
   try {
@@ -125,9 +132,12 @@ export async function executeWithChaining(
     });
     const result = await execute({ ...args, document: replaced });
     if (result.errors) errors.push(...result.errors);
-    if (result.data === null) return { data: null, errors };
+    const decision = mutationResultPolicy?.(selections[0].name.value, result);
+    if (result.data === null && decision !== 'continue')
+      return { data: null, errors };
     Object.assign(data, result.data);
     collect({ kind: Kind.SELECTION_SET, selections }, result.data);
+    if (decision === 'stop') break;
   }
   return { data, ...(errors.length ? { errors } : {}) };
 }

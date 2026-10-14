@@ -179,6 +179,47 @@ test('navigation listeners precede dispatch and return document metadata', async
   assert.equal(api.client.listenerCount('Page.lifecycleEvent'), 0);
 });
 
+test('expired subresource interceptions do not fail a new navigation', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.handler = (method) => {
+    if (method === 'Fetch.continueRequest')
+      throw new Error('Invalid InterceptionId');
+    if (method === 'Page.navigate') {
+      api.client.emit('Fetch.requestPaused', {
+        requestId: 'old-resource',
+        request: { url: 'https://example.com/old.png', method: 'GET' },
+        resourceType: 'Image',
+      });
+      setImmediate(() => {
+        api.client.emit('Page.frameNavigated', {
+          frame: {
+            id: 'main',
+            loaderId: 'new',
+            url: 'https://example.com/new',
+          },
+        });
+        api.client.emit('Page.lifecycleEvent', {
+          frameId: 'main',
+          loaderId: 'new',
+          name: 'load',
+        });
+      });
+      return { frameId: 'main', loaderId: 'new' };
+    }
+    return undefined;
+  };
+  try {
+    const result = await api.goto({
+      url: 'https://example.com/new',
+      timeout: 100,
+    });
+    assert.equal(result.url, 'https://example.com/new');
+  } finally {
+    await api.close();
+  }
+});
+
 test('navigation ignores old documents and removes listeners on timeout', async () => {
   const api = new API();
   const waiting = api.waitForNavigation('load', 10);
