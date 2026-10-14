@@ -383,6 +383,80 @@ test('captures use raw CDP and return base64 and size', async () => {
   );
 });
 
+test('capture retries once after document replacement but leaves a slow unchanged document alone', async () => {
+  const clock = Sinon.useFakeTimers();
+  try {
+    for (const swapped of [false, true]) {
+      const api = new API();
+      let finish!: (value: { data: string }) => void;
+      let count = 0;
+      api.client.handler = (method) => {
+        if (method === 'Page.captureScreenshot') {
+          if (++count === 1)
+            return new Promise((resolve) => {
+              finish = resolve;
+            });
+          return { data: 'cmV0cnk=' };
+        }
+        return undefined;
+      };
+      const pending = api.screenshot({ options: { timeout: 20_000 } });
+      await clock.tickAsync(10);
+      api.client.emit('Page.frameNavigated', {
+        frame: {
+          id: swapped ? 'main' : 'child',
+          parentId: swapped ? undefined : 'main',
+          loaderId: 'new',
+          url: 'https://example.com/',
+        },
+      });
+      await clock.tickAsync(5000);
+      if (swapped) {
+        await clock.tickAsync(5000);
+        assert.equal((await pending).base64, 'cmV0cnk=');
+        assert.equal(count, 2);
+      } else {
+        assert.equal(count, 1);
+        finish({ data: 'c2xvdw==' });
+        assert.equal((await pending).base64, 'c2xvdw==');
+      }
+      assert.equal(api.client.listenerCount('Page.frameNavigated'), 0);
+      await api.close();
+    }
+  } finally {
+    clock.restore();
+  }
+});
+
+test('capture does not retry a replaced document after its deadline', async () => {
+  const clock = Sinon.useFakeTimers();
+  const api = new API();
+  try {
+    api.client.handler = (method) =>
+      method === 'Page.captureScreenshot' ? new Promise(() => {}) : undefined;
+    const pending = assert.rejects(
+      api.screenshot({ options: { timeout: 200 } }),
+      /Screenshot timed out/,
+    );
+    await clock.tickAsync(10);
+    api.client.emit('Page.frameNavigated', {
+      frame: { id: 'main', loaderId: 'new', url: 'https://example.com/' },
+    });
+    await clock.tickAsync(190);
+    await pending;
+    assert.equal(
+      api.client.calls.filter((c) => c.method === 'Page.captureScreenshot')
+        .length,
+      1,
+    );
+    assert.equal(api.client.listenerCount('Page.frameNavigated'), 0);
+    assert.equal(clock.countTimers(), 0);
+  } finally {
+    await api.close();
+    clock.restore();
+  }
+});
+
 test('preferences treats null and zero as reads and rejects invalid viewport dimensions', async () => {
   const api = new API();
   api.preferences({ timeout: 1250 });
