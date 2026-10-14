@@ -503,7 +503,10 @@ test('capture does not retry a replaced document after its deadline', async () =
       method === 'Page.captureScreenshot' ? new Promise(() => {}) : undefined;
     const pending = assert.rejects(
       api.screenshot({ options: { timeout: 200 } }),
-      /Screenshot timed out/,
+      {
+        name: 'Timeout',
+        message: 'Timeout of 200ms reached while capturing screenshot',
+      },
     );
     await clock.tickAsync(10);
     api.client.emit('Page.frameNavigated', {
@@ -912,7 +915,7 @@ test('capture timeout restores transparent background overrides', async () => {
     method === 'Page.captureScreenshot' ? new Promise(() => {}) : {};
   await assert.rejects(
     api.screenshot({ options: { omitBackground: true, timeout: 10 } }),
-    /timed out/,
+    Timeout,
   );
   assert.equal(
     api.client.calls.at(-1)?.method,
