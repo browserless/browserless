@@ -186,6 +186,7 @@ const bounded = async <T>(
   promise: Promise<T>,
   timeout: number,
   label: string,
+  timeoutError?: () => Error,
 ): Promise<T> => {
   if (!timeout) return promise;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -194,7 +195,11 @@ const bounded = async <T>(
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new Error(`${label} timed out after ${timeout}ms`)),
+          () =>
+            reject(
+              timeoutError?.() ??
+                new Error(`${label} timed out after ${timeout}ms`),
+            ),
           timeout,
         );
       }),
@@ -1196,7 +1201,7 @@ export class BQLBrowserAPI {
       content: args.selector
         ? `${this.selectorExpression(args.selector)}[0].scrollIntoView({block:'center',inline:'center'})`
         : args.throughPage
-          ? `(async() => { const deadline = Date.now() + ${args.timeout ?? this.timeout}; try { for (let y=0; y < document.documentElement.scrollHeight && Date.now() < deadline; y += Math.max(1, innerHeight)) { window.scrollTo(0,y); await new Promise(r => setTimeout(r,50)); } } finally { window.scrollTo(0,0); } })()`
+          ? `(async() => { const deadline = Date.now() + ${args.timeout ?? this.timeout}; try { for (let y=0; y < (document.documentElement?.scrollHeight ?? 0) && Date.now() < deadline; y += Math.max(1, innerHeight)) { window.scrollTo(0,y); await new Promise(r => setTimeout(r,50)); } } finally { window.scrollTo(0,0); } })()`
           : `window.scrollTo(${args.x ?? 0},${args.y ?? 0})`,
     });
     return {
@@ -1217,18 +1222,18 @@ export class BQLBrowserAPI {
       timeout: args.timeout,
       content: `(() => {
       const root = ${mode === 'html' && !args.selector ? 'document' : `${query}[0]`};
-      const clean = ${JSON.stringify(args.clean ?? null)};
-      if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of document.querySelectorAll(sel)) el.remove();
-      if (clean?.removeAttributes) for (const el of document.querySelectorAll('*')) for (const attr of [...el.attributes]) {
-        const listed = clean.attributes?.includes(attr.name) ?? false;
-        if (!clean.attributes || (clean.mode === 'ALLOW' ? !listed : listed)) el.removeAttribute(attr.name);
-      }
       const rewrite = ${JSON.stringify(args.rewrite ?? null)};
       if (rewrite) for (const el of document.querySelectorAll('[src],[href]')) for (const name of ['src','href']) {
         const raw = el.getAttribute(name); if (!raw) continue;
         const url = new URL(raw,rewrite.baseURL).href;
         const resource = rewrite.resources.find(r => r.url === url);
         if (resource) el.setAttribute(name,resource.path);
+      }
+      const clean = ${JSON.stringify(args.clean ?? null)};
+      if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of document.querySelectorAll(sel)) el.remove();
+      if (clean?.removeAttributes) for (const el of document.querySelectorAll('*')) for (const attr of [...el.attributes]) {
+        const listed = clean.attributes?.includes(attr.name) ?? false;
+        if (!clean.attributes || (clean.mode === 'ALLOW' ? !listed : listed)) el.removeAttribute(attr.name);
       }
       return ${mode === 'html' ? "[...root.childNodes].map(node => node === document.documentElement ? node.outerHTML : new XMLSerializer().serializeToString(node)).join('')" : "root.innerText ?? root.textContent ?? ''"};
     })()`,
@@ -1873,7 +1878,10 @@ export class BQLBrowserAPI {
   ): Promise<T> {
     const start = Date.now();
     const remaining = () => Math.max(0, timeout - (Date.now() - start));
-    const expired = () => new Error(`${label} timed out after ${timeout}ms`);
+    const expired = () =>
+      new Timeout(
+        `Timeout of ${timeout}ms reached while capturing ${label.toLowerCase()}`,
+      );
     let generation = 0;
     let finished = false;
     let signalSwap!: () => void;
@@ -1920,6 +1928,7 @@ export class BQLBrowserAPI {
               Promise.race([pending, swapped]),
               remaining(),
               label,
+              expired,
             );
           } catch (failure) {
             if (!generation) throw failure;
@@ -1936,7 +1945,7 @@ export class BQLBrowserAPI {
         label,
       ).catch(() => undefined);
       if (!remaining()) throw expired();
-      return await bounded(attempt(), remaining(), label);
+      return await bounded(attempt(), remaining(), label, expired);
     } finally {
       finished = true;
       cdp.off('Page.frameNavigated', navigated);
@@ -1978,7 +1987,9 @@ export class BQLBrowserAPI {
         options.quality > 100 ||
         !['jpeg', 'webp'].includes(options.type ?? 'png'))
     )
-      throw new BadRequest('Invalid screenshot quality');
+      throw new BadRequest(
+        'Screenshot quality must be between 0 and 100 for jpeg or webp',
+      );
     if (
       options.clip &&
       (!Number.isFinite(options.clip.width) ||
@@ -2285,7 +2296,7 @@ export class BQLBrowserAPI {
   ) {
     const start = Date.now();
     if (!url && !content)
-      throw new BadRequest('One of URL or content is required');
+      throw new BadRequest('One of "url" or "content" is required');
     await this.evaluateInternal({
       cdp,
       content: `(async() => {
@@ -2333,7 +2344,7 @@ export class BQLBrowserAPI {
   }) {
     const start = Date.now();
     if (!Number.isFinite(polling) || polling < 0)
-      throw new Error('Invalid polling interval');
+      throw new BadRequest('Cannot poll with non-positive interval');
     await this.evaluateInternal({
       cdp,
       timeout,
@@ -2765,7 +2776,9 @@ export class BQLBrowserAPI {
         /\([^)]*[+*{][^)]*\)\s*[+*{]/.test(regex) ||
         /\((?:[^()]*\([^)]*[+*{][^)]*\)[^()]*)\)\s*[+*{]/.test(regex)
       )
-        throw new BadRequest('Network regex is too complex');
+        throw new BadRequest(
+          'Network regex is too complex and potentially unsafe',
+        );
       try {
         new RegExp(regex);
       } catch {
