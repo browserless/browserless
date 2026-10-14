@@ -1,3 +1,4 @@
+import { BadRequest } from '../../../utils.js';
 import type { Resolver } from '../../module.js';
 
 export const network: Record<string, Resolver> = {
@@ -8,13 +9,8 @@ export const network: Record<string, Resolver> = {
   reject: async (_source, args, context) =>
     (await context.getBrowser()).reject({ ...args, enabled: args.enabled }),
   fulfill: async (_source, args, context) => {
-    if (
-      !args.url?.length &&
-      !args.regex?.length &&
-      !args.method?.length &&
-      !args.type?.length
-    ) {
-      throw new Error('At least one request filter is required');
+    if (!args.url && !args.regex && !args.method && !args.type) {
+      throw new BadRequest('At least one request filter is required');
     }
     return (await context.getBrowser()).fulfill({
       ...args,
