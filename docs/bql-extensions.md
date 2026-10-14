@@ -60,6 +60,15 @@ through the context's serial queue. Separate contexts do not block one another.
 Subscription iterators remain outside that queue. Always release listeners and
 other resources when an iterator receives `return()` or its context closes.
 
+Services that need different top-level mutation failure handling can supply
+`mutationResultPolicy(fieldName, result)` to `BrowserQL`. It receives the original
+field name, even when the client aliases it. Returning `continue` preserves prior
+partial results and executes later fields even after a non-null field error;
+returning `stop` skips later fields. Returning `undefined` keeps the default
+GraphQL non-null propagation. Errors remain in the response in every case. This
+policy runs after a top-level field group completes; it does not cancel actions
+already dispatched or change execution within a nested selection.
+
 ## Customize the browser API
 
 Pass an `apiFactory` to construct a subclass of `BQLBrowserAPI`:

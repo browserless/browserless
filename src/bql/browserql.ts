@@ -8,10 +8,10 @@ import {
 } from 'graphql';
 
 import { APIFactory, BQLContextOptions, Context } from './context.js';
+import { MutationResultPolicy, executeWithChaining } from './executor.js';
 import { BQLBrowserAPI } from './api/browser-api.js';
 import type { BQLModule } from './module.js';
 import { buildBQLSchema } from './schema/build.js';
-import { executeWithChaining } from './executor.js';
 import { executionError } from './errors.js';
 import { readFileSync } from 'node:fs';
 
@@ -25,6 +25,7 @@ export interface BrowserQLOptions<API extends BQLBrowserAPI = BQLBrowserAPI> {
   modules?: BQLModule<API>[];
   apiFactory?: APIFactory<API>;
   capabilities?: string[];
+  mutationResultPolicy?: MutationResultPolicy;
 }
 
 export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
@@ -34,13 +35,16 @@ export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
     readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
   ).version;
   private readonly apiFactory: APIFactory<API>;
+  private readonly mutationResultPolicy?: MutationResultPolicy;
 
   constructor({
     modules = [],
     apiFactory = (options) => new BQLBrowserAPI(options) as API,
     capabilities = [],
+    mutationResultPolicy,
   }: BrowserQLOptions<API> = {}) {
     this.apiFactory = apiFactory;
+    this.mutationResultPolicy = mutationResultPolicy;
     this.capabilities = [
       ...new Set([
         'core',
@@ -75,6 +79,7 @@ export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
       context,
       request.variables,
       request.operationName,
+      this.mutationResultPolicy,
     );
   }
 
