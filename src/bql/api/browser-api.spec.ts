@@ -337,6 +337,41 @@ test('strict idle grace resets on a new document and remains bounded for stalled
   }
 });
 
+test('fulfill preserves bytes and emits unambiguous content headers', async () => {
+  for (const [body, expected] of [
+    [{ body: 'é' }, Buffer.from('é')],
+    [{ base64Body: 'AP8B/g==' }, Buffer.from([0, 255, 1, 254])],
+  ] as const) {
+    const api = new API();
+    await api.setup();
+    await api.fulfill({
+      url: ['*'],
+      ...body,
+      contentType: 'application/octet-stream',
+      headers: [
+        { name: 'content-type', value: 'text/plain' },
+        { name: 'X-Test', value: 'kept' },
+      ],
+    });
+    api.client.emit('Fetch.requestPaused', {
+      requestId: 'binary',
+      request: { url: 'https://example.com/', method: 'GET' },
+      resourceType: 'XHR',
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const fulfilled = api.client.calls.find(
+      (call) => call.method === 'Fetch.fulfillRequest',
+    )!.params;
+    assert.deepEqual(Buffer.from(fulfilled.body, 'base64'), expected);
+    assert.deepEqual(fulfilled.responseHeaders, [
+      { name: 'Content-Type', value: 'application/octet-stream' },
+      { name: 'X-Test', value: 'kept' },
+      { name: 'Content-Length', value: String(expected.length) },
+    ]);
+    await api.close();
+  }
+});
+
 test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
   const api = new API();
   await api.setup();
@@ -1126,6 +1161,25 @@ test('response retention bounds bytes and entries while prioritizing documents',
     6 * 1024 * 1024,
   );
   assert.equal((await api.getResponseBody('item-1000'))?.body, '');
+  available = true;
+  payloads.set('pending-0', 'live fallback');
+  for (let i = 0; i < 1001; i++) {
+    const id = `pending-${i}`;
+    api.client.emit('Network.requestWillBeSent', {
+      requestId: id,
+      type: 'XHR',
+      request: { url: `https://example.com/${id}`, method: 'GET', headers: {} },
+    });
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type: 'XHR',
+      response: { url: `https://example.com/${id}`, status: 200, headers: {} },
+    });
+  }
+  assert.equal(
+    (await api.getResponseBody('pending-0', 20))?.body,
+    'live fallback',
+  );
   await api.close();
 });
 
