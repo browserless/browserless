@@ -112,6 +112,15 @@ interface ResponseOrigin {
   body?: Protocol.Network.GetResponseBodyResponse;
   size: number;
 }
+interface ResponseMetadata {
+  extra: Protocol.Network.ResponseReceivedExtraInfoEvent[];
+  redirects: number;
+  pending?: {
+    record: NetworkRecord;
+    ready: Promise<void>;
+    resolve: () => void;
+  };
+}
 export type FetchDecision = {
   method:
     'Fetch.failRequest' | 'Fetch.fulfillRequest' | 'Fetch.continueRequest';
@@ -272,6 +281,7 @@ export class BQLBrowserAPI {
   private responses = new Map<string, NetworkRecord>();
   private responseOrigins = new Map<string, ResponseOrigin>();
   private responseBodyBytes = 0;
+  private responseMetadata = new Map<string, ResponseMetadata>();
   private inflight = new Set<string>();
   protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
@@ -474,6 +484,11 @@ export class BQLBrowserAPI {
       'Network.requestWillBeSent',
       (e: Protocol.Network.RequestWillBeSentEvent) => {
         if (cdp !== this.mainCDP) return;
+        if (e.redirectResponse && e.redirectHasExtraInfo) {
+          const metadata = this.metadataFor(e.requestId);
+          if (metadata.extra.length) metadata.extra.shift();
+          else metadata.redirects++;
+        }
         this.requests.set(e.requestId, {
           id: e.requestId,
           ...e.request,
@@ -525,9 +540,35 @@ export class BQLBrowserAPI {
           pending.delete(e.requestId);
           this.events.emit('network-change');
         }
-        this.events.emit('response', this.responses.get(e.requestId));
+        const record = this.responses.get(e.requestId)!;
+        const metadata = this.metadataFor(e.requestId);
+        const extra = e.hasExtraInfo ? metadata.extra.shift() : undefined;
+        if (e.hasExtraInfo && !extra) {
+          metadata.pending?.resolve();
+          let resolve!: () => void;
+          const ready = new Promise<void>((done) => {
+            resolve = done;
+          });
+          metadata.pending = { record, ready, resolve };
+        } else {
+          this.publishResponse(record, extra);
+        }
       },
     );
+    listen('Network.responseReceivedExtraInfo', (event) => {
+      if (cdp !== this.mainCDP) return;
+      const metadata = this.metadataFor(event.requestId);
+      if (metadata.redirects) {
+        metadata.redirects--;
+      } else if (metadata.pending) {
+        const pending = metadata.pending;
+        metadata.pending = undefined;
+        this.publishResponse(pending.record, event);
+        pending.resolve();
+      } else if (metadata.extra.length < 1000) {
+        metadata.extra.push(event);
+      }
+    });
     for (const event of [
       'Network.loadingFinished',
       'Network.loadingFailed',
@@ -1282,7 +1323,14 @@ export class BQLBrowserAPI {
         if (settled) return;
         settled = true;
         cleanup();
-        const r = loader ? documents.get(loader) : undefined;
+        const record = loader
+          ? [...this.responses.values()].find(
+              (r) => r.loaderId === loader && r.type === 'document',
+            )
+          : undefined;
+        const metadata = record
+          ? this.responseMetadata.get(record.id)?.pending
+          : undefined;
         const rejected =
           this.rejectedDocuments.has(cdp) ||
           this.rules.some(
@@ -1291,15 +1339,29 @@ export class BQLBrowserAPI {
               matches({ url, method: 'GET', type: 'Document' }, rule.filter),
           );
         const error = rejected || url.startsWith('chrome-error:');
-        resolve({
-          ip: error ? null : (r?.remoteIPAddress ?? null),
-          port: error ? null : (r?.remotePort ?? null),
-          url,
-          text: error ? null : (r?.statusText ?? 'ok'),
-          status: error ? null : (r?.status ?? 200),
-          time: Date.now() - start,
-          rejected,
-        });
+        const ready = metadata
+          ? bounded(
+              metadata.ready,
+              timeout ? Math.max(1, timeout - (Date.now() - start)) : 0,
+              'Response metadata',
+            ).catch(() => undefined)
+          : Promise.resolve();
+        resolve(
+          ready.then(() => {
+            if (this.closed) throw new Error('Browser is no longer running');
+            const r =
+              record?.response ?? (loader ? documents.get(loader) : undefined);
+            return {
+              ip: error ? null : (r?.remoteIPAddress ?? null),
+              port: error ? null : (r?.remotePort ?? null),
+              url,
+              text: error ? null : (r?.statusText ?? 'ok'),
+              status: error ? null : (r?.status ?? 200),
+              time: Date.now() - start,
+              rejected,
+            };
+          }),
+        );
       };
       const check = () => {
         if (settled || !frame || !opened) return;
@@ -1443,6 +1505,7 @@ export class BQLBrowserAPI {
   private resetNetwork() {
     this.requests.clear();
     this.responses.clear();
+    this.clearResponseMetadata();
     for (const id of this.responseOrigins.keys())
       this.dropResponseOrigin(id, true);
     this.inflight.clear();
@@ -2524,6 +2587,40 @@ export class BQLBrowserAPI {
       for (const entry of this.responseOrigins)
         if ((entry[1].type === 'document') === document) yield entry;
   }
+  private metadataFor(id: string): ResponseMetadata {
+    const existing = this.responseMetadata.get(id);
+    if (existing) return existing;
+    if (this.responseMetadata.size >= 1000) {
+      const [oldest, value] = this.responseMetadata.entries().next().value!;
+      value.pending?.resolve();
+      this.responseMetadata.delete(oldest);
+    }
+    const created: ResponseMetadata = { extra: [], redirects: 0 };
+    this.responseMetadata.set(id, created);
+    return created;
+  }
+  private publishResponse(
+    record: NetworkRecord,
+    extra?: Protocol.Network.ResponseReceivedExtraInfoEvent,
+  ) {
+    if (extra && record.response && !record.response.fromDiskCache) {
+      record.status = extra.statusCode;
+      record.response = {
+        ...record.response,
+        status: extra.statusCode,
+        statusText:
+          extra.headersText
+            ?.split(/\r?\n/, 1)[0]
+            ?.match(/^\S+\s+\d+\s+(.+)$/)?.[1] || record.response.statusText,
+      };
+    }
+    this.events.emit('response', record);
+  }
+  private clearResponseMetadata() {
+    for (const metadata of this.responseMetadata.values())
+      metadata.pending?.resolve();
+    this.responseMetadata.clear();
+  }
   private dropResponseOrigin(id: string, cancelled: boolean) {
     const origin = this.responseOrigins.get(id);
     if (!origin) return;
@@ -2803,6 +2900,7 @@ export class BQLBrowserAPI {
   public async close() {
     if (this.closed) return;
     this.closed = true;
+    this.clearResponseMetadata();
     this.events.emit('close');
     try {
       await this.onClose();
@@ -2814,6 +2912,7 @@ export class BQLBrowserAPI {
       this.clients.clear();
       this.responseOrigins.clear();
       this.responseBodyBytes = 0;
+      this.clearResponseMetadata();
       this.httpAuth = undefined;
       this.authChallenges = new WeakMap();
       this.events.removeAllListeners();

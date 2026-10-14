@@ -1109,6 +1109,83 @@ test('response retention bounds bytes and entries while prioritizing documents',
   await api.close();
 });
 
+test('response metadata pairs extra info across redirects in either arrival order', async () => {
+  const api = new API();
+  await api.setup();
+  const emitResponse = (id: string, fromDiskCache = false) =>
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type: 'Document',
+      loaderId: id,
+      hasExtraInfo: true,
+      response: {
+        url: `https://example.com/${id}`,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        fromDiskCache,
+      },
+    });
+  const extra = (id: string, statusCode: number) =>
+    api.client.emit('Network.responseReceivedExtraInfo', {
+      requestId: id,
+      statusCode,
+      headersText: `HTTP/1.1 ${statusCode} Network Status\r\n`,
+      headers: {},
+    });
+  const redirect = (id: string) =>
+    api.client.emit('Network.requestWillBeSent', {
+      requestId: id,
+      type: 'Document',
+      redirectHasExtraInfo: true,
+      redirectResponse: {},
+      request: { url: `https://example.com/${id}`, method: 'GET', headers: {} },
+    });
+  const events = api.streamEvents<any>('response');
+  extra('early', 301);
+  redirect('early');
+  extra('early', 304);
+  emitResponse('early');
+  assert.equal((await events.next()).value.status, 304);
+  const navigation = api.waitForNavigation('commit', 100);
+  redirect('late');
+  emitResponse('late');
+  api.client.emit('Page.frameNavigated', {
+    frame: { id: 'main', loaderId: 'late', url: 'https://example.com/late' },
+  });
+  extra('late', 302);
+  extra('late', 304);
+  assert.equal((await navigation).status, 304);
+  assert.equal((await events.next()).value.status, 304);
+  assert.equal(api.hasReceivedResponse({ urls: ['*late'] })?.[0].status, 304);
+  extra('cached', 304);
+  emitResponse('cached', true);
+  assert.equal((await events.next()).value.status, 200);
+  await events.return(undefined);
+  const fallback = api.waitForNavigation('commit', 10);
+  emitResponse('missing');
+  api.client.emit('Page.frameNavigated', {
+    frame: {
+      id: 'main',
+      loaderId: 'missing',
+      url: 'https://example.com/missing',
+    },
+  });
+  assert.equal((await fallback).status, 200);
+  const cancelled = api.waitForNavigation('commit', 0);
+  emitResponse('closed');
+  api.client.emit('Page.frameNavigated', {
+    frame: {
+      id: 'main',
+      loaderId: 'closed',
+      url: 'https://example.com/closed',
+    },
+  });
+  const rejection = assert.rejects(cancelled, /no longer running/);
+  await api.close();
+  await rejection;
+});
+
 test('closing cancels readers while eager response capture is pending', async () => {
   const api = new API();
   await api.setup();
