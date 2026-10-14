@@ -34,6 +34,12 @@ export interface ConsoleEvent {
 
 export type WaitUntil = string | string[];
 export type Operator = 'and' | 'or' | 'AND' | 'OR';
+export interface EvaluateOptions {
+  content?: string;
+  url?: string;
+  timeout?: number;
+  cdp?: Connection;
+}
 type Filter = {
   url?: string[];
   regex?: string[];
@@ -270,7 +276,7 @@ export class BQLBrowserAPI {
   private targetSequence = 0;
   private rejectedDocuments = new Set<Connection>();
   private currentFrames = new WeakMap<Connection, Protocol.Page.Frame>();
-  private consoleCapture = false;
+  protected consoleCapture = false;
   private httpAuth?: { username: string; password: string; origin?: string };
   private authChallenges = new WeakMap<
     Connection,
@@ -309,6 +315,23 @@ export class BQLBrowserAPI {
   protected async beforeReadback(): Promise<void> {}
   protected async beforeCapture(): Promise<void> {}
   protected async onClose(): Promise<void> {}
+  protected async beforeTargetSetup(
+    _cdp: Connection,
+    _kind: string,
+  ): Promise<void> {
+    void _cdp;
+    void _kind;
+  }
+  protected async setupRuntime(cdp: Connection): Promise<void> {
+    await cdp.send('Runtime.enable');
+  }
+  protected async beforeRequestRules(
+    _event: Protocol.Fetch.RequestPausedEvent,
+    _cdp: Connection,
+  ): Promise<FetchDecision | void> {
+    void _event;
+    void _cdp;
+  }
   protected async applyUserAgent(
     cdp: Connection,
     userAgent: string,
@@ -395,7 +418,7 @@ export class BQLBrowserAPI {
     }));
   }
 
-  private async fetchTarget<T>(path: string, method = 'GET'): Promise<T> {
+  protected async fetchTarget<T>(path: string, method = 'GET'): Promise<T> {
     const endpoint = this.browser.wsEndpoint();
     if (!endpoint) throw new Error('Browser has no CDP endpoint');
     const base = new URL(endpoint);
@@ -412,6 +435,7 @@ export class BQLBrowserAPI {
     if (this.clients.has(cdp)) return;
     this.clients.add(cdp);
     this.observeDisconnect(cdp);
+    await this.beforeTargetSetup(cdp, kind);
     const listen = <E extends keyof CDPSessionEvents>(
       event: E,
       handler: (event: CDPSessionEvents[E]) => void,
@@ -584,7 +608,7 @@ export class BQLBrowserAPI {
     await cdp.send('Page.enable');
     const { frameTree } = await cdp.send('Page.getFrameTree');
     if (frameTree) this.currentFrames.set(cdp, frameTree.frame);
-    await cdp.send('Runtime.enable');
+    await this.setupRuntime(cdp);
     await cdp.send('Network.enable');
     await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true });
     await cdp.send('Fetch.enable', {
@@ -603,6 +627,8 @@ export class BQLBrowserAPI {
   }
 
   public async ensureConsoleCapture(): Promise<void> {
+    if (this.consoleCapture) return;
+    await this.mainCDP.send('Runtime.enable');
     this.consoleCapture = true;
   }
 
@@ -651,7 +677,7 @@ export class BQLBrowserAPI {
     return iterator;
   }
 
-  private async assertNavigationAllowed(url: string): Promise<void> {
+  protected async assertNavigationAllowed(url: string): Promise<void> {
     if (!this.config.getBlockedURLPatterns) return;
     const { findBlockedNavigationUrl } =
       await import('../../network-security.js');
@@ -678,6 +704,17 @@ export class BQLBrowserAPI {
         method: 'Fetch.failRequest',
         params: { errorReason: 'BlockedByClient' },
       };
+    }
+    if (!decision) {
+      try {
+        decision = (await this.beforeRequestRules(event, cdp)) || undefined;
+      } catch (error) {
+        decision = {
+          method: 'Fetch.failRequest',
+          params: { errorReason: 'Failed' },
+        };
+        this.events.emit('failure', error);
+      }
     }
     const matchingRules = this.rules.filter((r) =>
       matches({ ...event.request, type: event.resourceType }, r.filter),
@@ -723,22 +760,21 @@ export class BQLBrowserAPI {
     return { timeout: this.timeout };
   }
 
-  public async evaluate({
+  public async evaluate(args: EvaluateOptions) {
+    await this.beforeReadback();
+    return this.evaluateInternal(args);
+  }
+
+  protected async evaluateInternal({
     content,
     url,
     timeout = 10_000,
     cdp = this.mainCDP,
-  }: {
-    content?: string;
-    url?: string;
-    timeout?: number;
-    cdp?: Connection;
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }): Promise<{ value: any; time: number }> {
+  }: EvaluateOptions): Promise<{ value: any; time: number }> {
     if ((content === undefined) === (url === undefined))
       throw new Error('Exactly one of "content" or "url" is required');
-    await this.beforeReadback();
     if (url) {
       const signal = AbortSignal.timeout(timeout || 30_000);
       for (let hops = 0; ; hops++) {
@@ -801,7 +837,7 @@ export class BQLBrowserAPI {
     return this.evaluate({ content: 'document.title' });
   }
 
-  private selectorExpression(selector: string, root = 'document'): string {
+  protected selectorExpression(selector: string, root = 'document'): string {
     selector = this.resolveSelector(selector);
     return `((root) => {
       const result = [];
@@ -809,7 +845,13 @@ export class BQLBrowserAPI {
         result.push(...scope.querySelectorAll(${JSON.stringify(selector)}));
         for (const el of scope.querySelectorAll('*')) if (el.shadowRoot) visit(el.shadowRoot);
       };
-      if (root) visit(root);
+      try {
+        if (root) visit(root);
+      } catch (error) {
+        if (error.name !== 'SyntaxError') throw error;
+        const selected = (0, eval)(${JSON.stringify(selector)});
+        return selected == null ? [] : selected instanceof Element ? [selected] : Array.from(selected);
+      }
       return result;
     })(${root})`;
   }
@@ -874,7 +916,7 @@ export class BQLBrowserAPI {
     const query = this.selectorExpression(selector);
     const start = Date.now();
     do {
-      const { value } = await this.evaluate({
+      const { value } = await this.evaluateInternal({
         cdp,
         timeout: timeout ? Math.max(1, timeout - (Date.now() - start)) : 0,
         content: `(() => {
@@ -898,7 +940,7 @@ export class BQLBrowserAPI {
   public async getBoundingClientRect(args: ElementArgs) {
     if (this.closed) return null;
     const cdp = args.cdp ?? this.mainCDP;
-    const { value } = await this.evaluate({
+    const { value } = await this.evaluateInternal({
       cdp,
       timeout: args.timeout,
       content: `(() => {
@@ -915,7 +957,7 @@ export class BQLBrowserAPI {
     args: Partial<ElementArgs> & { x?: number; y?: number } = {},
   ) {
     const start = Date.now();
-    const cdp = args.cdp ?? this.mainCDP;
+    let cdp = args.cdp ?? this.mainCDP;
     let { x, y } = args;
     if (args.selector) {
       if (args.scroll) await this.scroll({ ...args, selector: args.selector });
@@ -927,6 +969,7 @@ export class BQLBrowserAPI {
       });
       x = rect.x + rect.width / 2;
       y = rect.y + rect.height / 2;
+      cdp = rect.cdp;
     }
     if (!Number.isFinite(x) || !Number.isFinite(y))
       throw new Error('click requires a selector or x and y');
@@ -935,7 +978,7 @@ export class BQLBrowserAPI {
   }
   public async hover(args: Partial<ElementArgs> & { x?: number; y?: number }) {
     const start = Date.now();
-    const cdp = args.cdp ?? this.mainCDP;
+    let cdp = args.cdp ?? this.mainCDP;
     let { x, y } = args;
     if (args.selector) {
       if (args.scroll) await this.scroll({ ...args, selector: args.selector });
@@ -947,6 +990,7 @@ export class BQLBrowserAPI {
       });
       x = rect.x + rect.width / 2;
       y = rect.y + rect.height / 2;
+      cdp = rect.cdp;
     }
     if (!Number.isFinite(x) || !Number.isFinite(y))
       throw new Error('hover requires a selector or x and y');
@@ -974,7 +1018,7 @@ export class BQLBrowserAPI {
       ...args,
       timeout: args.wait ? args.timeout : 100,
     });
-    const { value: checked } = await this.evaluate({
+    const { value: checked } = await this.evaluateInternal({
       cdp: args.cdp,
       content: `(() => { const el = ${this.selectorExpression(args.selector)}[0]; if (!el || el.type !== 'checkbox') throw new Error('Element is not a checkbox'); return el.checked; })()`,
     });
@@ -993,7 +1037,7 @@ export class BQLBrowserAPI {
     if (args.scroll) await this.scroll(args);
     const values = Array.isArray(args.value) ? args.value : [args.value];
     const cdp = args.cdp ?? this.mainCDP;
-    const { value } = await this.evaluate({
+    const { value } = await this.evaluateInternal({
       cdp,
       content: `(() => {
       const el = ${this.selectorExpression(args.selector)}[0];
@@ -1036,7 +1080,7 @@ export class BQLBrowserAPI {
         selector: args.selector,
         timeout: args.wait ? args.timeout : 100,
       });
-    await this.evaluate({
+    await this.evaluateInternal({
       cdp,
       timeout: args.timeout,
       content: args.selector
@@ -1137,7 +1181,7 @@ export class BQLBrowserAPI {
   }> {
     return this.waitForDocument(waitUntil, timeout, cdp);
   }
-  private waitForDocument(
+  protected waitForDocument(
     waitUntil: WaitUntil,
     timeout: number,
     cdp: Connection,
@@ -1391,7 +1435,7 @@ export class BQLBrowserAPI {
         throw error;
       });
     await Promise.all([waiting, set]);
-    const { value: url } = await this.evaluate({
+    const { value: url } = await this.evaluateInternal({
       cdp,
       content: 'location.href',
     });
@@ -1698,7 +1742,7 @@ export class BQLBrowserAPI {
     const start = Date.now();
     await this.beforeCapture();
     if (options.waitForFonts)
-      await this.evaluate({
+      await this.evaluateInternal({
         cdp,
         timeout: options.timeout,
         content: 'document.fonts.ready.then(() => true)',
@@ -1794,7 +1838,7 @@ export class BQLBrowserAPI {
     }
   }
   private async waitForImages(cdp: Connection, timeout = this.timeout) {
-    await this.evaluate({
+    await this.evaluateInternal({
       cdp,
       timeout,
       content: `Promise.all([...document.images].filter(img => !img.complete).map(img => new Promise(resolve => {
@@ -1823,7 +1867,7 @@ export class BQLBrowserAPI {
     const start = Date.now();
     if (!url && content === undefined)
       throw new Error('One of URL or content is required');
-    await this.evaluate({
+    await this.evaluateInternal({
       cdp,
       content: `(async() => {
       const el = document.createElement(${JSON.stringify(kind === 'style' && url ? 'link' : kind)});
@@ -1871,7 +1915,7 @@ export class BQLBrowserAPI {
     const start = Date.now();
     if (!Number.isFinite(polling) || polling < 0)
       throw new Error('Invalid polling interval');
-    await this.evaluate({
+    await this.evaluateInternal({
       cdp,
       timeout,
       content: `new Promise((resolve,reject) => {
@@ -1900,7 +1944,7 @@ export class BQLBrowserAPI {
     const start = Date.now();
     const source = this.eventTracker(event);
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source });
-    await this.evaluate({ cdp, content: source });
+    await this.evaluateInternal({ cdp, content: source });
     return { time: Date.now() - start };
   }
   public async waitForEvent({
@@ -1913,7 +1957,7 @@ export class BQLBrowserAPI {
     cdp?: Connection;
   }) {
     const start = Date.now();
-    await this.evaluate({
+    await this.evaluateInternal({
       cdp,
       timeout,
       content: `new Promise((resolve,reject) => {
