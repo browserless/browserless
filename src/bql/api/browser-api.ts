@@ -283,10 +283,12 @@ export class BQLBrowserAPI {
   private responseOrigins = new Map<string, ResponseOrigin>();
   private responseBodyBytes = 0;
   private responseMetadata = new Map<string, ResponseMetadata>();
+  private networkOwners = new Map<string, Connection>();
   private inflight = new Set<string>();
   protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
   private cleanup: Array<() => void> = [];
+  private targetCleanup = new Map<Connection, Array<() => void>>();
   private userAgentValue?: string;
   private headers: Record<string, string> = {};
   private jsEnabled = true;
@@ -464,8 +466,12 @@ export class BQLBrowserAPI {
   protected async setupTarget(cdp: Connection, kind: string): Promise<void> {
     if (this.clients.has(cdp)) return;
     this.clients.add(cdp);
-    this.observeDisconnect(cdp);
+    const cleanup: Array<() => void> = [];
+    this.targetCleanup.set(cdp, cleanup);
+    this.observeDisconnect(cdp, cleanup);
     await this.beforeTargetSetup(cdp, kind);
+    if (this.closed || !this.clients.has(cdp))
+      throw new Error('Target setup cancelled');
     const pending = new Map<string, number>();
     this.pendingRequests.set(cdp, pending);
     const listen = <E extends keyof CDPSessionEvents>(
@@ -473,7 +479,7 @@ export class BQLBrowserAPI {
       handler: (event: CDPSessionEvents[E]) => void,
     ) => {
       cdp.on(event, handler);
-      this.cleanup.push(() => cdp.off(event, handler));
+      cleanup.push(() => cdp.off(event, handler));
     };
     listen(
       'Page.frameNavigated',
@@ -485,6 +491,7 @@ export class BQLBrowserAPI {
       'Network.requestWillBeSent',
       (e: Protocol.Network.RequestWillBeSentEvent) => {
         if (cdp !== this.mainCDP) return;
+        this.networkOwners.set(e.requestId, cdp);
         if (e.redirectResponse && e.redirectHasExtraInfo) {
           const metadata = this.metadataFor(e.requestId);
           if (metadata.extra.length) metadata.extra.shift();
@@ -506,6 +513,7 @@ export class BQLBrowserAPI {
       'Network.responseReceived',
       (e: Protocol.Network.ResponseReceivedEvent) => {
         if (cdp !== this.mainCDP) return;
+        this.networkOwners.set(e.requestId, cdp);
         const request = this.requests.get(e.requestId);
         this.responses.set(e.requestId, {
           id: e.requestId,
@@ -558,6 +566,7 @@ export class BQLBrowserAPI {
     );
     listen('Network.responseReceivedExtraInfo', (event) => {
       if (cdp !== this.mainCDP) return;
+      this.networkOwners.set(event.requestId, cdp);
       const metadata = this.metadataFor(event.requestId);
       if (metadata.redirects) {
         metadata.redirects--;
@@ -707,6 +716,8 @@ export class BQLBrowserAPI {
       await this.applyUserAgent(cdp, this.userAgentValue);
     if (this.mediaType)
       await cdp.send('Emulation.setEmulatedMedia', { media: this.mediaType });
+    if (this.closed || !this.clients.has(cdp))
+      throw new Error('Target setup cancelled');
     await this.onTargetAttached(cdp, kind);
   }
 
@@ -1346,7 +1357,7 @@ export class BQLBrowserAPI {
               ip: error ? null : (r?.remoteIPAddress ?? null),
               port: error ? null : (r?.remotePort ?? null),
               url,
-              text: error ? null : (r?.statusText ?? 'ok'),
+              text: error ? null : r?.statusText || 'ok',
               status: error ? null : (r?.status ?? 200),
               time: Date.now() - start,
               rejected,
@@ -1496,6 +1507,7 @@ export class BQLBrowserAPI {
   private resetNetwork() {
     this.requests.clear();
     this.responses.clear();
+    this.networkOwners.clear();
     this.clearResponseMetadata();
     for (const id of this.responseOrigins.keys())
       this.dropResponseOrigin(id, true);
@@ -2585,6 +2597,8 @@ export class BQLBrowserAPI {
       const [oldest, value] = this.responseMetadata.entries().next().value!;
       value.pending?.resolve();
       this.responseMetadata.delete(oldest);
+      if (!this.requests.has(oldest) && !this.responses.has(oldest))
+        this.networkOwners.delete(oldest);
     }
     const created: ResponseMetadata = { extra: [], redirects: 0 };
     this.responseMetadata.set(id, created);
@@ -2809,6 +2823,7 @@ export class BQLBrowserAPI {
     waitUntil?: WaitUntil;
   }) {
     const start = Date.now();
+    let lastError: string | undefined;
     do {
       if (this.closed)
         return { success: false, error: 'Browser is no longer running' };
@@ -2825,31 +2840,70 @@ export class BQLBrowserAPI {
       );
       if (target) {
         const previous = this.mainCDP;
-        const next =
-          target.id === this.getCurrentTargetId()
-            ? previous
-            : await this.connect(target.webSocketDebuggerUrl);
+        let next: Connection | undefined;
         try {
+          next =
+            target.id === this.getCurrentTargetId()
+              ? previous
+              : await this.connect(target.webSocketDebuggerUrl);
           this.mainCDP = next;
-          await this.setupTarget(next, 'page');
+          await bounded(
+            (async () => {
+              await this.setupTarget(next!, 'page');
+              if (this.closed || this.mainCDP !== next)
+                throw new Error('Target setup cancelled');
+              await this.browserCDP.send('Target.activateTarget', {
+                targetId: target.id,
+              });
+              if (waitUntil)
+                await this.waitForFunction({
+                  fn: "document.readyState === 'complete'",
+                  timeout: Math.max(1, timeout - (Date.now() - start)),
+                  cdp: next,
+                });
+            })(),
+            Math.max(1, timeout - (Date.now() - start)),
+            'Window setup',
+          );
+          if (this.closed) throw new Error('Browser is no longer running');
+          if (next !== previous) this.retireTarget(previous);
+          return { success: true, url: target.url, title: target.title };
         } catch (error) {
           this.mainCDP = previous;
-          throw error;
+          if (next && next !== previous) this.retireTarget(next);
+          lastError = error instanceof Error ? error.message : String(error);
         }
-        this.resetNetwork();
-        await this.browserCDP.send('Target.activateTarget', {
-          targetId: target.id,
-        });
-        if (waitUntil)
-          await this.waitForFunction({
-            fn: "document.readyState === 'complete'",
-            timeout,
-          });
-        return { success: true, url: target.url, title: target.title };
       }
       await pause(50);
     } while (Date.now() - start < timeout);
-    return { success: false, error: 'No matching window found' };
+    return {
+      success: false,
+      error: lastError
+        ? `Timeout of ${timeout}ms reached while switching browser window. Last error: ${lastError}`
+        : 'No matching window found',
+    };
+  }
+
+  private retireTarget(cdp: Connection) {
+    this.targetCleanup.get(cdp)?.forEach((cleanup) => cleanup());
+    this.targetCleanup.delete(cdp);
+    this.clients.delete(cdp);
+    for (const [id, owner] of this.networkOwners) {
+      if (owner !== cdp) continue;
+      this.requests.delete(id);
+      this.responses.delete(id);
+      this.inflight.delete(id);
+      this.responseMetadata.get(id)?.pending?.resolve();
+      this.responseMetadata.delete(id);
+      this.dropResponseOrigin(id, true);
+      this.networkOwners.delete(id);
+    }
+    this.pendingRequests.delete(cdp);
+    this.currentFrames.delete(cdp);
+    this.rejectedDocuments.delete(cdp);
+    this.authChallenges.delete(cdp);
+    cdp.dispose();
+    this.events.emit('network-change');
   }
   public async getWindowSize() {
     const { value } = await this.evaluate({
@@ -2874,7 +2928,7 @@ export class BQLBrowserAPI {
       this.events.off('disconnected', listener);
     };
   }
-  private observeDisconnect(cdp: Connection): void {
+  private observeDisconnect(cdp: Connection, cleanup = this.cleanup): void {
     const disconnected = () => {
       if (this.closed || (cdp !== this.mainCDP && cdp !== this.browserCDP))
         return;
@@ -2884,9 +2938,7 @@ export class BQLBrowserAPI {
       );
     };
     cdp.on(CDPSessionEvent.Disconnected, disconnected);
-    this.cleanup.push(() =>
-      cdp.off(CDPSessionEvent.Disconnected, disconnected),
-    );
+    cleanup.push(() => cdp.off(CDPSessionEvent.Disconnected, disconnected));
   }
   public async close() {
     if (this.closed) return;
@@ -2897,8 +2949,9 @@ export class BQLBrowserAPI {
       await this.onClose();
     } finally {
       this.cleanup.splice(0).forEach((fn) => fn());
-      for (const cdp of this.clients) cdp.dispose();
-      if (!this.clients.has(this.mainCDP)) this.mainCDP?.dispose();
+      const mainWasRegistered = this.clients.has(this.mainCDP);
+      for (const cdp of this.clients) this.retireTarget(cdp);
+      if (!mainWasRegistered) this.mainCDP?.dispose();
       this.browserCDP?.dispose();
       this.clients.clear();
       this.responseOrigins.clear();
