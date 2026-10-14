@@ -262,6 +262,16 @@ describe('raw CDP browser primitives', () => {
       content: "window.dispatchEvent(new Event('fixture'))",
     });
     await api.waitForEvent({ event: 'fixture' });
+    for (const event of ['constructor', '__proto__']) {
+      await api.watchEvent({ event });
+      await api.watchEvent({ event });
+      await assert.rejects(api.waitForEvent({ event, timeout: 15 }));
+      await api.evaluate({
+        content: `window.dispatchEvent(new Event(${JSON.stringify(event)}))`,
+      });
+      await api.watchEvent({ event });
+      await api.waitForEvent({ event, timeout: 100 });
+    }
     await api.waitForFunction({
       fn: '() => window.tag === true',
       pollingType: 'raf',

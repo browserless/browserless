@@ -2348,7 +2348,19 @@ export class BQLBrowserAPI {
     return { time: Date.now() - start };
   }
   private eventTracker(event: string) {
-    return `(() => { const key = '__bqlWatchedEvents'; const events = globalThis[key] ??= {}; const name = ${JSON.stringify(event)}; events[name] ??= false; const record = () => { events[name] = true; }; document.addEventListener(name, record, {once:true}); window.addEventListener(name, record, {once:true}); })()`;
+    return `(() => {
+      const key = '__bqlWatchedEvents';
+      const events = globalThis[key] ?? Object.defineProperty(globalThis, key, {
+        value: Object.create(null), configurable: true,
+      })[key];
+      const name = ${JSON.stringify(event)};
+      if (Object.prototype.hasOwnProperty.call(events, name)) return true;
+      events[name] = false;
+      const record = () => { events[name] = true; };
+      document.addEventListener(name, record, {once:true});
+      window.addEventListener(name, record, {once:true});
+      return true;
+    })()`;
   }
   public async watchEvent({
     event,
@@ -2377,11 +2389,11 @@ export class BQLBrowserAPI {
       cdp,
       timeout,
       content: `new Promise((resolve,reject) => {
-      const name = ${JSON.stringify(event)}; if (globalThis.__bqlWatchedEvents?.[name]) return resolve(true);
+      const name = ${JSON.stringify(event)}; if (globalThis.__bqlWatchedEvents?.[name] === true) return resolve(true);
       let timer; const cleanup = () => { clearTimeout(timer); document.removeEventListener(name,done); window.removeEventListener(name,done); };
       const done = () => { cleanup(); resolve(true); };
       document.addEventListener(name,done,{once:true}); window.addEventListener(name,done,{once:true});
-      if (${timeout}) timer = setTimeout(() => { cleanup(); reject(new Error('waitForEvent timed out')); },${timeout});
+      if (${timeout}) timer = setTimeout(() => { cleanup(); reject(new Error('waitForEvent: Waiting failed, timed out after ${timeout}ms for event ' + name)); },${timeout});
     })`,
     });
     return { time: Date.now() - start };
@@ -2794,11 +2806,21 @@ export class BQLBrowserAPI {
     );
   }
   public async windows() {
-    return (await this.listPageTargets()).map((t) => ({
-      targetId: t.id,
-      url: t.url,
-      title: t.title,
-    }));
+    const { targetInfos } = await this.browserCDP.send('Target.getTargets');
+    return targetInfos
+      .filter(
+        (target) =>
+          target.type === 'page' &&
+          !target.url.startsWith('chrome') &&
+          !target.url.startsWith('devtools'),
+      )
+      .map((target) => ({
+        targetId: target.targetId,
+        url: target.url,
+        title: target.title,
+        active: target.targetId === this.getCurrentTargetId(),
+        browserContextId: target.browserContextId ?? 'default-context',
+      }));
   }
   public getCurrentTargetId(): string | null {
     return this.mainCDP?.url().split('/').pop() ?? null;
