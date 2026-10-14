@@ -242,7 +242,7 @@ describe('raw CDP browser primitives', () => {
     assert.equal((await api.text({ selector: '#read' })).text, 'Hello');
     assert.match(
       (await api.markdown({ selector: 'body' })).markdown,
-      /^# Heading\n/,
+      /^Heading\n=======\n/,
     );
     assert.equal(
       (await api.mapSelector({ selector: 'button', wait: true }))[0].attribute({
