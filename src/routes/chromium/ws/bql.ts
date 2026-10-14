@@ -17,6 +17,7 @@ import { ChromiumCDP } from '../../../browsers/browsers.cdp.js';
 import type { Duplex } from 'node:stream';
 import type { Logger } from '../../../logger.js';
 import { WebSocketServer } from 'ws';
+import { markSocketAsProxied } from '../../../utils.js';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
@@ -51,6 +52,7 @@ export default class ChromiumBQLWebsocketRoute extends BrowserWebsocketRoute<Chr
         socket.once('close', onClose);
         server.handleUpgrade(req, socket, head, (client) => {
           socket.off('close', onClose);
+          markSocketAsProxied(socket);
           const context = bql.createContext({
             req,
             browser,
