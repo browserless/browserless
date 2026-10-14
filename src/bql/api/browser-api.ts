@@ -4,6 +4,7 @@ import type {
   PDFOptions,
   Protocol,
 } from 'puppeteer-core';
+import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import type { ChromiumCDP } from '../../browsers/browsers.cdp.js';
 import type { Config } from '../../config.js';
 import { EventEmitter } from 'node:events';
@@ -253,6 +254,10 @@ export class BQLBrowserAPI {
   private rules: Array<{ filter: Filter; decision: FetchDecision }> = [];
   private requests = new Map<string, NetworkRecord>();
   private responses = new Map<string, NetworkRecord>();
+  private responseOrigins = new Map<
+    string,
+    { cdp: Connection; pending: boolean; failed: boolean }
+  >();
   private inflight = new Set<string>();
   private clients = new Set<Connection>();
   private cleanup: Array<() => void> = [];
@@ -266,6 +271,11 @@ export class BQLBrowserAPI {
   private rejectedDocuments = new Set<Connection>();
   private currentFrames = new WeakMap<Connection, Protocol.Page.Frame>();
   private consoleCapture = false;
+  private httpAuth?: { username: string; password: string; origin?: string };
+  private authChallenges = new WeakMap<
+    Connection,
+    Map<string, { attempted: boolean; networkId?: string }>
+  >();
 
   constructor(options: BQLBrowserAPIOptions) {
     this.browser = options.browser;
@@ -349,6 +359,12 @@ export class BQLBrowserAPI {
         throw new Error('No available page target');
       this.mainCDP = await this.connect(page.webSocketDebuggerUrl);
       this.browserCDP = await this.connect(endpoint);
+      if (this.closed) {
+        this.mainCDP.dispose();
+        this.browserCDP.dispose();
+        throw new Error('Browser is no longer running');
+      }
+      this.observeDisconnect(this.browserCDP);
       targets
         .filter((t) => t.id !== page.id)
         .sort((a, b) => a.id.localeCompare(b.id))
@@ -371,8 +387,12 @@ export class BQLBrowserAPI {
         discover: true,
       });
       await this.setupTarget(this.mainCDP, 'page');
+      if (this.closed) throw new Error('Browser is no longer running');
       await this.onStart(this.mainCDP, this.browserCDP);
-    })());
+    })().catch(async (error: unknown) => {
+      await this.close();
+      throw error;
+    }));
   }
 
   private async fetchTarget<T>(path: string, method = 'GET'): Promise<T> {
@@ -391,6 +411,7 @@ export class BQLBrowserAPI {
   protected async setupTarget(cdp: Connection, kind: string): Promise<void> {
     if (this.clients.has(cdp)) return;
     this.clients.add(cdp);
+    this.observeDisconnect(cdp);
     const listen = <E extends keyof CDPSessionEvents>(
       event: E,
       handler: (event: CDPSessionEvents[E]) => void,
@@ -434,6 +455,15 @@ export class BQLBrowserAPI {
           loaderId: e.loaderId,
           response: e.response,
         });
+        this.responseOrigins.set(e.requestId, {
+          cdp,
+          pending: true,
+          failed: false,
+        });
+        if (this.responseOrigins.size > 1000)
+          this.responseOrigins.delete(
+            this.responseOrigins.keys().next().value!,
+          );
         this.events.emit('response', this.responses.get(e.requestId));
       },
     );
@@ -442,24 +472,75 @@ export class BQLBrowserAPI {
       'Network.loadingFailed',
     ] as const)
       listen(event, (e: { requestId: string }) => {
+        const challenges = this.authChallenges.get(cdp);
+        for (const [id, challenge] of challenges ?? []) {
+          if (challenge.networkId === e.requestId) challenges!.delete(id);
+        }
+        const origin = this.responseOrigins.get(e.requestId);
+        if (origin?.cdp === cdp) {
+          origin.pending = false;
+          origin.failed = event === 'Network.loadingFailed';
+          this.events.emit('body', e.requestId);
+        }
         if (cdp !== this.mainCDP) return;
         this.inflight.delete(e.requestId);
         this.events.emit('network-change');
-        this.events.emit('body', e.requestId);
       });
     listen('Fetch.requestPaused', (e: Protocol.Fetch.RequestPausedEvent) => {
+      if (this.httpAuth) {
+        let challenges = this.authChallenges.get(cdp);
+        if (!challenges) this.authChallenges.set(cdp, (challenges = new Map()));
+        challenges.set(e.requestId, {
+          attempted: false,
+          networkId: e.networkId,
+        });
+      }
       void this.dispatchFetch(e, cdp).catch((error: unknown) => {
         this.events.emit('failure', error);
         this.logger.error?.('Fetch dispatch failed');
       });
     });
+    listen('Fetch.authRequired', (event: Protocol.Fetch.AuthRequiredEvent) => {
+      let authChallengeResponse: Protocol.Fetch.AuthChallengeResponse = {
+        response: 'Default',
+      };
+      if (event.authChallenge.source === 'Server' && this.httpAuth) {
+        let challenges = this.authChallenges.get(cdp);
+        if (!challenges) this.authChallenges.set(cdp, (challenges = new Map()));
+        const challenge = challenges.get(event.requestId) ?? {
+          attempted: false,
+        };
+        const allowed =
+          !this.httpAuth.origin ||
+          event.authChallenge.origin === this.httpAuth.origin;
+        authChallengeResponse =
+          allowed && !challenge.attempted
+            ? {
+                response: 'ProvideCredentials',
+                username: this.httpAuth.username,
+                password: this.httpAuth.password,
+              }
+            : { response: 'CancelAuth' };
+        challenge.attempted = true;
+        challenges.set(event.requestId, challenge);
+      }
+      void cdp
+        .send('Fetch.continueWithAuth', {
+          requestId: event.requestId,
+          authChallengeResponse,
+        })
+        .catch(() =>
+          this.events.emit('failure', new Error('HTTP authentication failed')),
+        );
+    });
     listen(
       'Runtime.consoleAPICalled',
       (event: Protocol.Runtime.ConsoleAPICalledEvent) => {
         if (!this.consoleCapture || cdp !== this.mainCDP) return;
-        const values = event.args.map(
-          (arg) =>
-            arg.value ?? arg.unserializableValue ?? arg.description ?? arg.type,
+        const values = event.args.map((arg) =>
+          arg.value !== undefined
+            ? arg.value
+            : (arg.unserializableValue ?? arg.description ?? arg.type),
         );
         const frame = event.stackTrace?.callFrames[0];
         this.events.emit('console', {
@@ -508,6 +589,7 @@ export class BQLBrowserAPI {
     await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true });
     await cdp.send('Fetch.enable', {
       patterns: [{ urlPattern: '*', requestStage: 'Request' }],
+      handleAuthRequests: !!this.httpAuth,
     });
     await cdp.send('Network.setExtraHTTPHeaders', { headers: this.headers });
     await cdp.send('Emulation.setScriptExecutionDisabled', {
@@ -597,6 +679,12 @@ export class BQLBrowserAPI {
         params: { errorReason: 'BlockedByClient' },
       };
     }
+    const matchingRules = this.rules.filter((r) =>
+      matches({ ...event.request, type: event.resourceType }, r.filter),
+    );
+    decision ??=
+      matchingRules.find((r) => r.decision.method === 'Fetch.failRequest')
+        ?.decision ?? matchingRules[0]?.decision;
     if (!decision)
       for (const handler of this.handlers) {
         try {
@@ -610,12 +698,6 @@ export class BQLBrowserAPI {
         }
         if (decision) break;
       }
-    const matchingRules = this.rules.filter((r) =>
-      matches({ ...event.request, type: event.resourceType }, r.filter),
-    );
-    decision ??=
-      matchingRules.find((r) => r.decision.method === 'Fetch.failRequest')
-        ?.decision ?? matchingRules[0]?.decision;
     decision ??= { method: 'Fetch.continueRequest' };
     const intentionalDocumentReject =
       event.resourceType === 'Document' &&
@@ -814,7 +896,20 @@ export class BQLBrowserAPI {
     throw new Error(`waitForSelector timed out after ${timeout}ms`);
   }
   public async getBoundingClientRect(args: ElementArgs) {
-    return this.waitForSelector({ ...args, timeout: args.timeout ?? 100 });
+    if (this.closed) return null;
+    const cdp = args.cdp ?? this.mainCDP;
+    const { value } = await this.evaluate({
+      cdp,
+      timeout: args.timeout,
+      content: `(() => {
+      const el = ${this.selectorExpression(args.selector)}[0];
+      if (!el) return null;
+      const r = el.getBoundingClientRect(); const style = getComputedStyle(el);
+      if (${!!args.visible} && (!r.width || !r.height || style.visibility === 'hidden' || style.display === 'none')) return null;
+      return {x:r.x,y:r.y,width:r.width,height:r.height};
+    })()`,
+    });
+    return value ? { ...value, cdp } : null;
   }
   public async click(
     args: Partial<ElementArgs> & { x?: number; y?: number } = {},
@@ -1403,6 +1498,42 @@ export class BQLBrowserAPI {
     await this.applyUserAgent(this.mainCDP, userAgent);
     return { userAgent, time: Date.now() - start };
   }
+  public async authenticate({
+    username,
+    password,
+    origin,
+  }: {
+    username: string;
+    password: string;
+    origin?: string;
+  }) {
+    const start = Date.now();
+    if (origin !== undefined) {
+      let parsed: URL;
+      try {
+        parsed = new URL(origin);
+      } catch {
+        throw new Error('Invalid HTTP origin');
+      }
+      if (
+        !['http:', 'https:'].includes(parsed.protocol) ||
+        parsed.username ||
+        parsed.password ||
+        parsed.pathname !== '/' ||
+        parsed.search ||
+        parsed.hash
+      )
+        throw new Error('Invalid HTTP origin');
+      origin = parsed.origin;
+    }
+    this.httpAuth = { username, password, origin };
+    this.authChallenges = new WeakMap();
+    await this.mainCDP.send('Fetch.enable', {
+      patterns: [{ urlPattern: '*', requestStage: 'Request' }],
+      handleAuthRequests: true,
+    });
+    return { status: null, text: null, url: null, time: Date.now() - start };
+  }
   public async javaScriptEnabled({
     enabled = true,
     cdp = this.mainCDP,
@@ -1951,8 +2082,12 @@ export class BQLBrowserAPI {
     timeout = this.timeout,
   ): Promise<{ body: string; base64Encoded: boolean } | null> {
     const deadline = timeout ? Date.now() + timeout : undefined;
+    const origin = this.responseOrigins.get(id);
+    const cdp = origin?.cdp ?? this.mainCDP;
+    await this.beforeReadback();
     try {
-      if (this.inflight.has(id))
+      if (this.closed) return null;
+      if (origin?.pending ?? this.inflight.has(id))
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           const done = (finished: string) => {
@@ -1978,9 +2113,10 @@ export class BQLBrowserAPI {
               reject(new Error('Response body timed out'));
             }, timeout);
         });
-      if (deadline && Date.now() >= deadline) return null;
+      if (this.closed || origin?.failed || (deadline && Date.now() >= deadline))
+        return null;
       return await bounded(
-        this.mainCDP.send('Network.getResponseBody', { requestId: id }),
+        cdp.send('Network.getResponseBody', { requestId: id }),
         deadline ? Math.max(1, deadline - Date.now()) : 0,
         'Response body',
       );
@@ -2197,7 +2333,31 @@ export class BQLBrowserAPI {
     return { width: cssContentSize.width, height: cssContentSize.height };
   }
   public hasErrored() {
-    return this.closed;
+    // Raw Connection exposes this getter, but its public declaration omits it.
+    const connections = [this.mainCDP, this.browserCDP] as Array<
+      Connection & { readonly _closed?: boolean }
+    >;
+    return this.closed || connections.some((cdp) => cdp?._closed);
+  }
+  public onDisconnected(listener: () => void): () => void {
+    this.events.on('disconnected', listener);
+    return () => {
+      this.events.off('disconnected', listener);
+    };
+  }
+  private observeDisconnect(cdp: Connection): void {
+    const disconnected = () => {
+      if (this.closed || (cdp !== this.mainCDP && cdp !== this.browserCDP))
+        return;
+      this.events.emit('disconnected');
+      void this.close().catch(() =>
+        this.logger.error?.('Browser cleanup failed'),
+      );
+    };
+    cdp.on(CDPSessionEvent.Disconnected, disconnected);
+    this.cleanup.push(() =>
+      cdp.off(CDPSessionEvent.Disconnected, disconnected),
+    );
   }
   public async close() {
     if (this.closed) return;
@@ -2208,8 +2368,12 @@ export class BQLBrowserAPI {
     } finally {
       this.cleanup.splice(0).forEach((fn) => fn());
       for (const cdp of this.clients) cdp.dispose();
+      if (!this.clients.has(this.mainCDP)) this.mainCDP?.dispose();
       this.browserCDP?.dispose();
       this.clients.clear();
+      this.responseOrigins.clear();
+      this.httpAuth = undefined;
+      this.authChallenges = new WeakMap();
       this.events.removeAllListeners();
     }
   }
