@@ -1043,7 +1043,7 @@ export class BQLBrowserAPI {
         if (${!!hidden}) return shown ? null : {x:0,y:0,width:0,height:0};
         if (${!!visible} && !shown) return null;
         if (${!!checkInteractable} && (el.disabled || style.pointerEvents === 'none')) return null;
-        return {x:r.x,y:r.y,width:r.width,height:r.height};
+        return {x:r.x,y:r.y,width:r.width,height:r.height,documentX:r.x+globalThis.scrollX,documentY:r.y+globalThis.scrollY};
       })()`,
       });
       if (value) return { ...value, cdp };
@@ -1129,18 +1129,27 @@ export class BQLBrowserAPI {
   }
   public async checkbox(args: ElementArgs & { checked: boolean }) {
     const start = Date.now();
-    await this.waitForSelector({
+    const rect = await this.waitForSelector({
       ...args,
       timeout: args.wait ? args.timeout : 100,
     });
-    const { value: checked } = await this.evaluateInternal({
-      cdp: args.cdp,
-      content: `(() => { const el = ${this.selectorExpression(args.selector)}[0]; if (!el || el.type !== 'checkbox') throw new Error('Element is not a checkbox'); return el.checked; })()`,
-    });
-    const result =
-      checked === args.checked
-        ? { selector: args.selector }
-        : await this.click(args);
+    const readChecked = () =>
+      this.evaluateInternal({
+        cdp: rect.cdp,
+        timeout: args.timeout,
+        content: `(() => { const el = ${this.selectorExpression(args.selector)}[0]; if (!el || el.tagName !== 'INPUT' || !['checkbox','radio'].includes(el.type)) throw new Error('Element must be a checkbox or a radio button'); return el.checked; })()`,
+      });
+    const { value: checked } = await readChecked();
+    if (checked === args.checked)
+      return {
+        selector: args.selector,
+        x: rect.x + rect.width / 2,
+        y: rect.y + rect.height / 2,
+        time: Date.now() - start,
+      };
+    const result = await this.click({ ...args, cdp: rect.cdp });
+    if ((await readChecked()).value !== args.checked)
+      throw new Error('Checked status did not change after clicking');
     return { ...result, time: Date.now() - start };
   }
   public async select(args: ElementArgs & { value: string | string[] }) {
@@ -2029,11 +2038,16 @@ export class BQLBrowserAPI {
         visible: true,
         timeout: remaining(),
       });
-      const metrics = await cdp.send('Page.getLayoutMetrics');
-      const viewport = metrics.cssVisualViewport ?? metrics.cssLayoutViewport;
+      const metrics =
+        rect.documentX === undefined || rect.documentY === undefined
+          ? await cdp.send('Page.getLayoutMetrics')
+          : undefined;
+      const viewport = metrics?.cssVisualViewport ?? metrics?.cssLayoutViewport;
       clip = {
-        x: rect.x + viewport.pageX + (options.clip?.x ?? 0),
-        y: rect.y + viewport.pageY + (options.clip?.y ?? 0),
+        x:
+          (rect.documentX ?? rect.x + viewport!.pageX) + (options.clip?.x ?? 0),
+        y:
+          (rect.documentY ?? rect.y + viewport!.pageY) + (options.clip?.y ?? 0),
         width: options.clip?.width ?? rect.width,
         height: options.clip?.height ?? rect.height,
         scale: 1,
