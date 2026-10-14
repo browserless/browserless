@@ -63,6 +63,7 @@
 ## 📋 Table of Contents
 
 - [Get Started in Seconds](#-get-started-in-seconds)
+- [BrowserQL](#browserql)
 - [Features](#-features)
 - [Customisable Deployment Options](#-customisable-deployment-options)
 - [Why Browserless?](#-why-browserless)
@@ -131,6 +132,26 @@ await browser.close();
 ```
 Example Domain
 ```
+
+## BrowserQL
+
+Run browser actions with GraphQL over HTTP or WebSocket:
+
+```sh
+curl 'http://localhost:3000/chromium/bql?token=YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  --data '{"query":"mutation { goto(url: \"https://example.com\") { status } title { title } }"}'
+```
+
+For a persistent session, connect to the same path over WebSocket with the
+`graphql-transport-ws` subprotocol, send `connection_init`, then send a
+`subscribe` operation after receiving `connection_ack`. The acknowledgement
+includes the server's capabilities. Chrome and Edge use `/chrome/bql` and
+`/edge/bql` when installed.
+
+See [BrowserQL usage](docs/bql.md) for both WebSocket modes, subscriptions,
+export chaining and errors, and [module extensions](docs/bql-extensions.md) for
+adding fields through standard GraphQL SDL and dependency injection.
 
 ## ✨ Features
 

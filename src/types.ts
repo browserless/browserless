@@ -24,6 +24,7 @@ import {
   ResponseForRequest,
   ScreenshotOptions,
 } from 'puppeteer-core';
+import { BrowserQL } from './bql/browserql.js';
 
 export type PathTypes =
   HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;
@@ -102,6 +103,7 @@ export abstract class Route<Req extends Request = Request> {
     protected _monitoring: Browserless['monitoring'],
     protected _staticSDKDir: Browserless['staticSDKDir'],
     protected _limiter: Browserless['limiter'],
+    protected _bql?: BrowserQL,
   ) {}
 
   /**
@@ -164,6 +166,9 @@ export abstract class Route<Req extends Request = Request> {
    * @returns BrowserManager
    */
   browserManager = () => this._browserManager;
+
+  /** Resolve the shared BrowserQL service only when a handler needs it. */
+  bql = () => (this._bql ??= new BrowserQL());
 
   /**
    * Helper function that loads the config module. Defined and injected by
@@ -717,6 +722,8 @@ export interface CDPJSONPayload {
 }
 
 export const BrowserlessChromeRoutes = {
+  ChromeBQLPostRoute: 'ChromeBQLPostRoute',
+  ChromeBQLWebsocketRoute: 'ChromeBQLWebsocketRoute',
   ChromeBrowserWebSocketRoute: 'ChromeBrowserWebSocketRoute',
   ChromeCDPWebSocketRoute: 'ChromeCDPWebSocketRoute',
   ChromeContentPostRoute: 'ChromeContentPostRoute',
@@ -736,6 +743,8 @@ export const BrowserlessChromeRoutes = {
 };
 
 export const BrowserlessEdgeRoutes = {
+  EdgeBQLPostRoute: 'EdgeBQLPostRoute',
+  EdgeBQLWebsocketRoute: 'EdgeBQLWebsocketRoute',
   EdgeBrowserWebSocketRoute: 'EdgeBrowserWebSocketRoute',
   EdgeCDPWebSocketRoute: 'EdgeCDPWebSocketRoute',
   EdgeContentPostRoute: 'EdgeContentPostRoute',
@@ -755,6 +764,8 @@ export const BrowserlessEdgeRoutes = {
 };
 
 export const BrowserlessChromiumRoutes = {
+  ChromiumBQLPostRoute: 'ChromiumBQLPostRoute',
+  ChromiumBQLWebsocketRoute: 'ChromiumBQLWebsocketRoute',
   ChromiumBrowserWebSocketRoute: 'ChromiumBrowserWebSocketRoute',
   ChromiumCDPWebSocketRoute: 'ChromiumCDPWebSocketRoute',
   ChromiumContentPostRoute: 'ChromiumContentPostRoute',
