@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
 import { BQLBrowserAPI } from './browser-api.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
+import { BadRequest } from '../../utils.js';
 
 class CDP extends EventEmitter {
   calls: Array<{ method: string; params: any }> = [];
@@ -382,10 +383,37 @@ test('captures use raw CDP and return base64 and size', async () => {
   );
 });
 
-test('preferences accepts zero timeout and rejects invalid viewport dimensions', async () => {
+test('preferences treats null and zero as reads and rejects invalid viewport dimensions', async () => {
   const api = new API();
-  assert.equal(api.preferences({ timeout: 0 }).timeout, 0);
+  api.preferences({ timeout: 1250 });
+  assert.equal(api.preferences({ timeout: 0 }).timeout, 1250);
+  assert.equal(api.preferences({ timeout: null }).timeout, 1250);
   await assert.rejects(api.viewport({ width: 0, height: 10 }), /dimensions/);
+});
+
+test('invalid primitive arguments keep their customer-input error classification', async () => {
+  class LoadedScript extends API {
+    protected override async fetchScript() {
+      return '42';
+    }
+  }
+  const api = new LoadedScript();
+  api.client.value = 42;
+  assert.equal(
+    (await api.evaluate({ content: null, url: 'https://example.com/script' }))
+      .value,
+    42,
+  );
+  await assert.rejects(api.evaluate({ content: '' }), BadRequest);
+  await assert.rejects(api.addScriptTag({ content: '' }), BadRequest);
+  await assert.rejects(api.addStyleTag({ content: '' }), BadRequest);
+  await assert.rejects(
+    api.waitForSelector({ selector: 'input', visible: true, hidden: true }),
+    BadRequest,
+  );
+  await assert.rejects(api.fulfill({ status: 200 }), BadRequest);
+  await api.fulfill({ url: [], status: 200 });
+  assert.throws(() => api.preferences({ timeout: -1 }), BadRequest);
 });
 
 test('commit navigation settles on the new main document without load', async () => {
