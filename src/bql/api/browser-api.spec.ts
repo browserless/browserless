@@ -8,6 +8,12 @@ import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import { BadRequest, Timeout } from '../../utils.js';
 
 class CDP extends EventEmitter {
+  constructor(readonly targetId = 'test') {
+    super();
+  }
+  url() {
+    return `ws://localhost/devtools/page/${this.targetId}`;
+  }
   calls: Array<{ method: string; params: any }> = [];
   value: any = true;
   handler?: (method: string, params: any) => any;
@@ -222,12 +228,13 @@ test('PDF document responses settle navigation without page lifecycle events', a
       url: 'https://example.com/file.pdf',
       mimeType: 'application/pdf',
       status: 200,
-      statusText: 'OK',
+      statusText: '',
     },
   });
   const result = await waiting;
   assert.equal(result.url, 'https://example.com/file.pdf');
   assert.equal(result.status, 200);
+  assert.equal(result.text, 'ok');
   const child = api.waitForNavigation('load', 20);
   api.client.emit('Network.responseReceived', {
     type: 'Document',
@@ -1381,6 +1388,142 @@ test('disconnect notifications distinguish active target loss, replacement and i
   });
   await intentional.close();
   assert.equal(notifications, 1);
+});
+
+test('window switching retries failed setup and retires only the outgoing target', async () => {
+  const failed = new CDP('replacement');
+  const replacement = new CDP('replacement');
+  failed.handler = (method) => {
+    if (method === 'Page.enable') throw new Error('setup race');
+  };
+  class Switching extends API {
+    attempts = 0;
+    override async listPageTargets() {
+      return [
+        {
+          id: 'replacement',
+          type: 'page',
+          title: 'Next',
+          url: 'https://example.com/next',
+          webSocketDebuggerUrl: replacement.url(),
+        },
+      ];
+    }
+    protected override async connect() {
+      return (++this.attempts === 1 ? failed : replacement) as any;
+    }
+    protected override async onTargetAttached(cdp: any) {
+      if (cdp !== replacement) return;
+      cdp.emit('Network.responseReceived', {
+        requestId: 'new',
+        type: 'Document',
+        response: { url: 'https://example.com/next', status: 200, headers: {} },
+      });
+      cdp.emit('Network.loadingFinished', { requestId: 'new' });
+    }
+  }
+  replacement.handler = (method) =>
+    method === 'Network.getResponseBody'
+      ? { body: 'retained', base64Encoded: false }
+      : undefined;
+  const api = new Switching();
+  api.browserCDP = new CDP('browser') as any;
+  await api.setup();
+  let disconnected = 0;
+  api.onDisconnected(() => disconnected++);
+  const result = await api.switchToWindow({
+    targetId: 'replacement',
+    timeout: 500,
+  });
+  assert.equal(result.success, true);
+  assert.equal(api.attempts, 2);
+  assert.equal(failed._closed, true);
+  assert.equal(api.client._closed, true);
+  assert.equal(api.client.listenerCount('Network.responseReceived'), 0);
+  assert.equal(replacement._closed, false);
+  assert.equal(disconnected, 0);
+  assert.equal((await api.getResponseBody('new'))?.body, 'retained');
+  await api.close();
+});
+
+test('failed window activation retains the active target and reports the last error', async () => {
+  const candidates: CDP[] = [];
+  class Switching extends API {
+    override async listPageTargets() {
+      return [
+        {
+          id: 'next',
+          type: 'page',
+          title: 'Next',
+          url: 'https://example.com/',
+          webSocketDebuggerUrl: 'ws://localhost/devtools/page/next',
+        },
+      ];
+    }
+    protected override async connect() {
+      const cdp = new CDP('next');
+      candidates.push(cdp);
+      return cdp as any;
+    }
+  }
+  const api = new Switching();
+  const browser = new CDP('browser');
+  browser.handler = (method) => {
+    if (method === 'Target.activateTarget')
+      throw new Error('activation failed');
+  };
+  api.browserCDP = browser as any;
+  await api.setup();
+  const result = await api.switchToWindow({ targetId: 'next', timeout: 60 });
+  assert.equal(result.success, false);
+  assert.match(result.error!, /activation failed/);
+  assert.equal(api.mainCDP, api.client);
+  assert.equal(api.client._closed, false);
+  assert.ok(candidates.length > 0 && candidates.every((c) => c._closed));
+  await api.close();
+});
+
+test('a timed-out target setup cannot attach or activate after rollback', async () => {
+  const candidate = new CDP('next');
+  let resume!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  class Switching extends API {
+    override async listPageTargets() {
+      return [
+        {
+          id: 'next',
+          type: 'page',
+          title: 'Next',
+          url: 'https://example.com/',
+          webSocketDebuggerUrl: candidate.url(),
+        },
+      ];
+    }
+    protected override async connect() {
+      return candidate as any;
+    }
+    protected override async beforeTargetSetup(cdp: any) {
+      if (cdp === candidate) await gate;
+    }
+  }
+  const api = new Switching();
+  const browser = new CDP('browser');
+  api.browserCDP = browser as any;
+  await api.setup();
+  const result = await api.switchToWindow({ targetId: 'next', timeout: 10 });
+  assert.equal(result.success, false);
+  resume();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(api.mainCDP, api.client);
+  assert.equal(candidate._closed, true);
+  assert.equal(candidate.listenerCount('Network.responseReceived'), 0);
+  assert.equal(
+    browser.calls.some((call) => call.method === 'Target.activateTarget'),
+    false,
+  );
+  await api.close();
 });
 
 test('readback policy leaves internal input evaluation available', async () => {
