@@ -10,7 +10,8 @@ import { BQLBrowserAPI } from './browser-api.js';
 
 describe('raw CDP browser primitives', () => {
   const cleanup: Array<() => unknown> = [];
-  afterEach(async () => {
+  afterEach(async function () {
+    this.timeout(10_000);
     for (const clean of cleanup.reverse()) await clean();
     cleanup.length = 0;
   });
@@ -34,7 +35,7 @@ describe('raw CDP browser primitives', () => {
       const exited = once(chrome, 'exit');
       chrome.kill('SIGTERM');
       await exited;
-      await rm(profile, { recursive: true, force: true });
+      await rm(profile, { recursive: true, force: true, maxRetries: 5 });
     });
     const endpoint = await new Promise<string>((resolve, reject) => {
       let output = '';
@@ -52,8 +53,21 @@ describe('raw CDP browser primitives', () => {
       });
       chrome.once('error', reject);
     });
+    let authRequests = 0;
     const server = createServer((req, res) => {
       res.setHeader('Content-Type', 'text/html');
+      if (req.url === '/auth') {
+        authRequests++;
+        res.setHeader('Cache-Control', 'no-store');
+        if (
+          req.headers.authorization !==
+          `Basic ${Buffer.from('fixture:password').toString('base64')}`
+        ) {
+          res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="fixture"' });
+          res.end('Authentication required');
+        } else res.end('Authenticated');
+        return;
+      }
       if (req.url === '/data') {
         res.end('fixture body');
         return;
@@ -75,9 +89,10 @@ describe('raw CDP browser primitives', () => {
     await once(server, 'listening');
     cleanup.push(
       () =>
-        new Promise<void>((resolve, reject) =>
-          server.close((error) => (error ? reject(error) : resolve())),
-        ),
+        new Promise<void>((resolve, reject) => {
+          server.closeAllConnections();
+          server.close((error) => (error ? reject(error) : resolve()));
+        }),
     );
     const address = server.address() as { port: number };
     const origin = `http://127.0.0.1:${address.port}`;
@@ -92,6 +107,60 @@ describe('raw CDP browser primitives', () => {
     await api.start();
     api.preferences({ timeout: 3000 });
     assert.equal((await api.goto({ url: origin })).status, 200);
+    await api.ensureConsoleCapture();
+    const consoleEvents = api.streamEvents<{ text: string; args: string[] }>(
+      'console',
+    );
+    await api.evaluate({ content: 'console.log("fixture", null, 42)' });
+    const consoleEvent = (await consoleEvents.next()).value;
+    assert.equal(consoleEvent.text, 'fixture null 42');
+    assert.deepEqual(consoleEvent.args, ['"fixture"', 'null', '42']);
+    await consoleEvents.return(undefined);
+    await api.authenticate({
+      username: 'fixture',
+      password: 'password',
+      origin: 'https://example.com',
+    });
+    assert.equal(
+      (
+        await api.evaluate({
+          content:
+            "fetch('/auth').then(async r => { await r.text(); return r.status; })",
+        })
+      ).value,
+      401,
+    );
+    assert.equal(authRequests, 1);
+    authRequests = 0;
+    await api.authenticate({ username: 'fixture', password: 'wrong', origin });
+    assert.equal(
+      (
+        await api.evaluate({
+          content:
+            "fetch('/auth').then(async r => { await r.text(); return r.status; })",
+        })
+      ).value,
+      401,
+    );
+    assert.equal(authRequests, 2);
+    await api.authenticate({
+      username: 'fixture',
+      password: 'password',
+      origin,
+    });
+    assert.equal(
+      (
+        await api.evaluate({
+          content:
+            "fetch('/auth').then(async r => { await r.text(); return r.status; })",
+        })
+      ).value,
+      200,
+    );
+    assert.equal(
+      await api.getBoundingClientRect({ selector: '.missing' }),
+      null,
+    );
     assert.equal((await api.title()).value, 'Core fixture');
     assert.equal((await api.url()).value, `${origin}/`);
     assert.equal(
@@ -213,9 +282,19 @@ describe('raw CDP browser primitives', () => {
       body: 'intercepted',
       contentType: 'text/plain',
     });
+    const responseEvents = api.streamEvents<{ id: string; status: number }>(
+      'response',
+    );
     await api.evaluate({
       content: "fetch('/data').then(r=>r.text()).then(v=>window.body=v)",
     });
+    const responseEvent = (await responseEvents.next()).value;
+    assert.equal(responseEvent.status, 202);
+    assert.equal(
+      (await api.getResponseBody(responseEvent.id))?.body,
+      'intercepted',
+    );
+    await responseEvents.return(undefined);
     assert.equal(
       (await api.evaluate({ content: 'window.body' })).value,
       'intercepted',
@@ -284,5 +363,11 @@ describe('raw CDP browser primitives', () => {
     assert.equal(rejected.rejected, true);
     assert.equal(rejected.status, null);
     await api.javaScriptEnabled({ enabled: false });
+    const disconnected = new Promise<void>((resolve) =>
+      api.onDisconnected(resolve),
+    );
+    api.browserCDP.dispose();
+    await disconnected;
+    assert.equal(api.hasErrored(), true);
   });
 });
