@@ -1258,6 +1258,20 @@ export class BQLBrowserAPI {
       const navigated = (e: Protocol.Page.FrameNavigatedEvent) => {
         if (!e.frame.parentId && opened) {
           frame = e.frame;
+          if (e.type === 'BackForwardCacheRestore') {
+            seen.set(
+              frame.loaderId,
+              new Set([
+                'load',
+                'domcontentloaded',
+                'networkidle',
+                'networkalmostidle',
+                'firstmeaningfulpaint',
+                'firstcontentfulpaint',
+                'interactivetime',
+              ]),
+            );
+          }
           check();
         }
       };

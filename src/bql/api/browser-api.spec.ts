@@ -169,6 +169,28 @@ test('navigation ignores old documents and removes listeners on timeout', async 
   assert.equal(api.client.listenerCount('Page.lifecycleEvent'), 0);
 });
 
+test('cached history restores settle without replayed lifecycle events', async () => {
+  const api = new API();
+  const waits = ['load', 'domContentLoaded', 'networkIdle'];
+  const waiting = api.waitForNavigation(waits, 20);
+  api.client.emit('Page.frameNavigated', {
+    type: 'BackForwardCacheRestore',
+    frame: {
+      id: 'main',
+      loaderId: 'cached',
+      url: 'https://example.com/cached',
+    },
+  });
+  assert.equal((await waiting).url, 'https://example.com/cached');
+  assert.equal(api.client.listenerCount('Page.lifecycleEvent'), 0);
+  const ordinary = api.waitForNavigation(waits, 20);
+  api.client.emit('Page.frameNavigated', {
+    type: 'Navigation',
+    frame: { id: 'main', loaderId: 'new', url: 'https://example.com/new' },
+  });
+  await assert.rejects(ordinary, /timed out/);
+});
+
 test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
   const api = new API();
   await api.setup();
