@@ -4,6 +4,7 @@ import type {
   PDFOptions,
   Protocol,
 } from 'puppeteer-core';
+import { BadRequest } from '../../utils.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import type { ChromiumCDP } from '../../browsers/browsers.cdp.js';
 import type { Config } from '../../config.js';
@@ -35,8 +36,8 @@ export interface ConsoleEvent {
 export type WaitUntil = string | string[];
 export type Operator = 'and' | 'or' | 'AND' | 'OR';
 export interface EvaluateOptions {
-  content?: string;
-  url?: string;
+  content?: string | null;
+  url?: string | null;
   timeout?: number;
   executionTimeout?: number;
   cdp?: Connection;
@@ -769,10 +770,10 @@ export class BQLBrowserAPI {
       this.events.emit('document-rejected', cdp, event.request.url);
   }
 
-  public preferences({ timeout }: { timeout?: number }) {
-    if (timeout !== undefined) {
+  public preferences({ timeout }: { timeout?: number | null }) {
+    if (timeout !== undefined && timeout !== null && timeout !== 0) {
       if (!Number.isFinite(timeout) || timeout < 0)
-        throw new Error('Invalid timeout');
+        throw new BadRequest('Invalid timeout');
       this.timeout = timeout;
     }
     return { timeout: this.timeout };
@@ -792,8 +793,10 @@ export class BQLBrowserAPI {
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }: EvaluateOptions): Promise<{ value: any; time: number }> {
-    if ((content === undefined) === (url === undefined))
-      throw new Error('Exactly one of "content" or "url" is required');
+    if (!content && !url)
+      throw new BadRequest('One of "content" or "url" is required');
+    if (content && url)
+      throw new BadRequest('Only one of "content" or "url" is allowed');
     if (url) content = await this.fetchScript(url, timeout);
     const start = Date.now();
     const body = content!.trim();
@@ -934,6 +937,8 @@ export class BQLBrowserAPI {
     hidden,
     checkInteractable,
   }: ElementArgs) {
+    if (visible && hidden)
+      throw new BadRequest('visible and hidden are mutually exclusive');
     const query = this.selectorExpression(selector);
     const start = Date.now();
     do {
@@ -1972,8 +1977,8 @@ export class BQLBrowserAPI {
     },
   ) {
     const start = Date.now();
-    if (!url && content === undefined)
-      throw new Error('One of URL or content is required');
+    if (!url && !content)
+      throw new BadRequest('One of URL or content is required');
     await this.evaluateInternal({
       cdp,
       content: `(async() => {
@@ -2344,21 +2349,23 @@ export class BQLBrowserAPI {
   private validateFilter(filter: Filter) {
     if (
       ![filter.url, filter.regex, filter.method, filter.type].some(
-        (v) => v?.length,
+        (v) => v !== undefined && v !== null,
       )
     )
-      throw new Error('One of URL, regex, method or type must be specified');
+      throw new BadRequest(
+        'One of URL, regex, method or type must be specified',
+      );
     for (const regex of filter.regex ?? []) {
       if (
         regex.length > 200 ||
         /\([^)]*[+*{][^)]*\)\s*[+*{]/.test(regex) ||
         /\((?:[^()]*\([^)]*[+*{][^)]*\)[^()]*)\)\s*[+*{]/.test(regex)
       )
-        throw new Error('Network regex is too complex');
+        throw new BadRequest('Network regex is too complex');
       try {
         new RegExp(regex);
       } catch {
-        throw new Error('Network regex is invalid');
+        throw new BadRequest('Network regex is invalid');
       }
     }
   }
