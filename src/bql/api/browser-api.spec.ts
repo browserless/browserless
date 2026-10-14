@@ -1526,6 +1526,45 @@ test('a timed-out target setup cannot attach or activate after rollback', async 
   await api.close();
 });
 
+test('windows identify the active page and browser contexts', async () => {
+  const api = new API();
+  api.client.handler = () => ({
+    targetInfos: [
+      {
+        targetId: 'other',
+        type: 'page',
+        url: 'https://example.com/other',
+        title: 'Other',
+        browserContextId: 'isolated',
+      },
+      { targetId: 'test', type: 'page', url: 'about:blank', title: 'Current' },
+      {
+        targetId: 'worker',
+        type: 'service_worker',
+        url: 'https://example.com/sw.js',
+      },
+      { targetId: 'tools', type: 'page', url: 'devtools://devtools' },
+      { targetId: 'internal', type: 'page', url: 'chrome://extensions' },
+    ],
+  });
+  assert.deepEqual(await api.windows(), [
+    {
+      targetId: 'other',
+      url: 'https://example.com/other',
+      title: 'Other',
+      active: false,
+      browserContextId: 'isolated',
+    },
+    {
+      targetId: 'test',
+      url: 'about:blank',
+      title: 'Current',
+      active: true,
+      browserContextId: 'default-context',
+    },
+  ]);
+});
+
 test('readback policy leaves internal input evaluation available', async () => {
   class Restricted extends API {
     protected override async beforeReadback() {
