@@ -1413,3 +1413,67 @@ test('input honors a target selected by an overridden element resolver', async (
   assert.equal(secondary.calls.at(-1)?.method, 'Input.dispatchMouseEvent');
   assert.equal(api.client.calls.length, 0);
 });
+
+test('scroll coordinates are absolute and a page sweep returns to the top', async () => {
+  const api = new API();
+  let position = [17, 43];
+  const positions: number[][] = [];
+  const window = {
+    scrollTo(x: number, y: number) {
+      position = [x, y];
+      positions.push(position);
+    },
+    scrollBy(x: number, y: number) {
+      this.scrollTo(position[0] + x, position[1] + y);
+    },
+  };
+  api.client.handler = async (method, params) => {
+    if (method !== 'Runtime.evaluate') return {};
+    const value = await runInNewContext(params.expression, {
+      window,
+      innerHeight: 100,
+      document: { documentElement: { scrollHeight: 250 } },
+      setTimeout: (fn: () => void) => {
+        fn();
+      },
+    });
+    return { result: { value } };
+  };
+  await api.scroll({ x: 5, y: 11 });
+  assert.deepEqual(position, [5, 11]);
+  await api.scroll({ throughPage: true });
+  assert.ok(positions.some(([, y]) => y >= 200));
+  assert.deepEqual(position, [0, 0]);
+});
+
+test('markdown preserves ordered lists and code while dropping non-content nodes', async () => {
+  class DocumentAPI extends API {
+    constructor(private readonly source: string) {
+      super();
+    }
+    override async html() {
+      return { html: this.source, time: 0 };
+    }
+  }
+  for (const [html, expected] of [
+    [
+      '<h1>Title</h1><ol><li>First</li><li>Second</li></ol><pre><code>const x = 1;</code></pre><script>hidden</script><style>hidden</style><noscript>hidden</noscript><iframe>hidden</iframe>',
+      'Title\n=====\n\n1.  First\n2.  Second\n\n    const x = 1;',
+    ],
+    [
+      '<!doctype html><html><head><title>Title</title><style>hidden</style><script>hidden</script></head><body><h2>Content</h2><noscript><b>hidden</b></noscript><iframe>hidden</iframe><p>Visible <code>code</code></p></body></html>',
+      'Title\n\nContent\n-------\n\nVisible `code`',
+    ],
+    [
+      '<head><title>Head only</title><script>x</script><style>y</style></head>',
+      'Head only',
+    ],
+    [
+      '<p>before<script>x</script>after<style>y</style>end<noscript>z</noscript><iframe>x</iframe></p>',
+      'beforeafterend',
+    ],
+  ]) {
+    const result = await new DocumentAPI(html).markdown();
+    assert.equal(result.markdown, expected);
+  }
+});
