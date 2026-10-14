@@ -69,6 +69,61 @@ test('deep selectors are rejected before CDP dispatch', async () => {
   assert.equal(api.client.calls.length, 0);
 });
 
+test('target setup can defer Runtime while console capture enables it on demand', async () => {
+  class DeferredRuntime extends API {
+    protected override async setupRuntime() {}
+  }
+  const api = new DeferredRuntime();
+  await api.setup();
+  assert.equal(
+    api.client.calls.some((call) => call.method === 'Runtime.enable'),
+    false,
+  );
+  await api.ensureConsoleCapture();
+  assert.equal(
+    api.client.calls.some((call) => call.method === 'Runtime.enable'),
+    true,
+  );
+  await api.close();
+});
+
+test('pre-rule interception stays behind destination policy', async () => {
+  class BeforeRules extends API {
+    protected override async beforeRequestRules() {
+      return {
+        method: 'Fetch.fulfillRequest' as const,
+        params: { responseCode: 204 },
+      };
+    }
+    blockDestinations() {
+      Object.assign(this.config, {
+        getBlockedURLPatterns: () => ['https://'],
+        getBlockedNetworkRanges: () => null,
+        getSelfNavigationHosts: () => [],
+      });
+    }
+  }
+  const api = new BeforeRules();
+  await api.setup();
+  await api.reject({ enabled: true, url: ['*'] });
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'r',
+    request: { url: 'https://example.com/', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(api.client.calls.at(-1)?.method, 'Fetch.fulfillRequest');
+  api.blockDestinations();
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 's',
+    request: { url: 'https://example.com/', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(api.client.calls.at(-1)?.method, 'Fetch.failRequest');
+  await api.close();
+});
+
 test('navigation listeners precede dispatch and return document metadata', async () => {
   const api = new API();
   api.client.handler = (method) => {
@@ -863,4 +918,35 @@ test('disconnect notifications distinguish active target loss, replacement and i
   });
   await intentional.close();
   assert.equal(notifications, 1);
+});
+
+test('readback policy leaves internal input evaluation available', async () => {
+  class Restricted extends API {
+    protected override async beforeReadback() {
+      throw new Error('Readback denied');
+    }
+  }
+  const api = new Restricted();
+  api.client.value = { x: 1, y: 2, width: 10, height: 10 };
+  await api.click({ selector: 'button' });
+  await api.type({ selector: 'input', text: 'x' });
+  await assert.rejects(
+    api.evaluate({ content: 'document.body.innerText' }),
+    /Readback denied/,
+  );
+  await assert.rejects(api.cookies(), /Readback denied/);
+});
+
+test('input honors a target selected by an overridden element resolver', async () => {
+  const secondary = new CDP();
+  class Targeted extends API {
+    override async waitForSelector() {
+      return { x: 2, y: 4, width: 10, height: 20, cdp: secondary as any };
+    }
+  }
+  const api = new Targeted();
+  const result = await api.click({ selector: 'button' });
+  assert.equal(result.cdp, secondary);
+  assert.equal(secondary.calls.at(-1)?.method, 'Input.dispatchMouseEvent');
+  assert.equal(api.client.calls.length, 0);
 });
