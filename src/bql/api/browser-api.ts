@@ -779,6 +779,14 @@ export class BQLBrowserAPI {
     event: Protocol.Fetch.RequestPausedEvent,
     cdp: Connection,
   ): Promise<void> {
+    // Request rules cannot decide an already received response a second time.
+    if (
+      event.responseStatusCode !== undefined ||
+      event.responseErrorReason !== undefined
+    ) {
+      await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
+      return;
+    }
     let decision: FetchDecision | undefined;
     try {
       await this.assertNavigationAllowed(event.request.url);
