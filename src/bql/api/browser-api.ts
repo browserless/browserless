@@ -265,6 +265,7 @@ export class BQLBrowserAPI {
     { cdp: Connection; pending: boolean; failed: boolean }
   >();
   private inflight = new Set<string>();
+  protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
   private cleanup: Array<() => void> = [];
   private userAgentValue?: string;
@@ -436,6 +437,8 @@ export class BQLBrowserAPI {
     this.clients.add(cdp);
     this.observeDisconnect(cdp);
     await this.beforeTargetSetup(cdp, kind);
+    const pending = new Map<string, number>();
+    this.pendingRequests.set(cdp, pending);
     const listen = <E extends keyof CDPSessionEvents>(
       event: E,
       handler: (event: CDPSessionEvents[E]) => void,
@@ -460,6 +463,7 @@ export class BQLBrowserAPI {
           loaderId: e.loaderId,
         });
         this.inflight.add(e.requestId);
+        pending.set(e.requestId, Date.now());
         this.events.emit('network-change');
         this.events.emit('request', this.requests.get(e.requestId));
       },
@@ -488,6 +492,18 @@ export class BQLBrowserAPI {
           this.responseOrigins.delete(
             this.responseOrigins.keys().next().value!,
           );
+        const contentType = Object.entries(e.response.headers ?? {})
+          .find(([name]) => name.toLowerCase() === 'content-type')?.[1]
+          ?.toLowerCase();
+        if (
+          e.type === 'EventSource' ||
+          e.type === 'WebSocket' ||
+          contentType?.startsWith('text/event-stream') ||
+          contentType?.startsWith('multipart/x-mixed-replace')
+        ) {
+          pending.delete(e.requestId);
+          this.events.emit('network-change');
+        }
         this.events.emit('response', this.responses.get(e.requestId));
       },
     );
@@ -496,6 +512,7 @@ export class BQLBrowserAPI {
       'Network.loadingFailed',
     ] as const)
       listen(event, (e: { requestId: string }) => {
+        pending.delete(e.requestId);
         const challenges = this.authChallenges.get(cdp);
         for (const [id, challenge] of challenges ?? []) {
           if (challenge.networkId === e.requestId) challenges!.delete(id);
@@ -1199,10 +1216,21 @@ export class BQLBrowserAPI {
       let frame: Protocol.Page.Frame | undefined;
       let opened = !documentOpen;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let graceTimer: ReturnType<typeof setTimeout> | undefined;
+      let quietTimer: ReturnType<typeof setTimeout> | undefined;
+      let graceLoader: string | undefined;
+      let relaxed = false;
+      let settled = false;
       const seen = new Map<string, Set<string>>();
       const documents = new Map<string, Protocol.Network.Response>();
       const cleanup = () => {
         clearTimeout(timer);
+        clearTimeout(graceTimer);
+        clearTimeout(quietTimer);
+        cdp.off('Network.dataReceived', progress);
+        cdp.off('Network.loadingFinished', progress);
+        cdp.off('Network.loadingFailed', progress);
+        this.events.off('network-change', progress);
         cdp.off('Page.frameNavigated', navigated);
         cdp.off('Page.lifecycleEvent', lifecycle);
         cdp.off('Page.navigatedWithinDocument', sameDocument);
@@ -1212,11 +1240,15 @@ export class BQLBrowserAPI {
         this.events.off('document-rejected', documentRejected);
       };
       const failed = (error: unknown) => {
+        if (settled) return;
+        settled = true;
         cleanup();
         reject(error);
       };
       const closed = () => failed(new Error('Browser is no longer running'));
       const finish = (url: string, loader?: string) => {
+        if (settled) return;
+        settled = true;
         cleanup();
         const r = loader ? documents.get(loader) : undefined;
         const rejected =
@@ -1238,12 +1270,42 @@ export class BQLBrowserAPI {
         });
       };
       const check = () => {
-        if (!frame || !opened) return;
+        if (settled || !frame || !opened) return;
         const events = seen.get(frame.loaderId) ?? new Set<string>();
+        if (graceLoader !== frame.loaderId) {
+          clearTimeout(graceTimer);
+          clearTimeout(quietTimer);
+          graceLoader = undefined;
+          relaxed = false;
+        }
+        if (
+          !graceLoader &&
+          waits.some((w) => w === 'networkidle' || w === 'networkidle0') &&
+          events.has('networkalmostidle')
+        ) {
+          graceLoader = frame.loaderId;
+          const settle = () => {
+            relaxed = true;
+            check();
+          };
+          graceTimer = setTimeout(
+            settle,
+            Math.min(
+              30_000,
+              timeout
+                ? Math.max(0, timeout - (Date.now() - start)) / 2
+                : 30_000,
+            ),
+          );
+          progress();
+        }
         if (
           waits.every(
             (w) =>
               w === 'commit' ||
+              ((w === 'networkidle' || w === 'networkidle0') &&
+                relaxed &&
+                events.has('networkalmostidle')) ||
               events.has(
                 w === 'networkidle0'
                   ? 'networkidle'
@@ -1254,6 +1316,16 @@ export class BQLBrowserAPI {
           )
         )
           finish(frame.url, frame.loaderId);
+      };
+      const progress = () => {
+        if (settled) return;
+        clearTimeout(quietTimer);
+        if (graceLoader && !this.pendingRequests.get(cdp)?.size) {
+          quietTimer = setTimeout(() => {
+            relaxed = true;
+            check();
+          }, 1000);
+        }
       };
       const navigated = (e: Protocol.Page.FrameNavigatedEvent) => {
         if (!e.frame.parentId && opened) {
@@ -1294,7 +1366,19 @@ export class BQLBrowserAPI {
         check();
       };
       const response = (e: Protocol.Network.ResponseReceivedEvent) => {
-        if (e.type === 'Document') documents.set(e.loaderId, e.response);
+        if (e.type !== 'Document') return;
+        documents.set(e.loaderId, e.response);
+        const contentType =
+          e.response.mimeType ??
+          Object.entries(e.response.headers ?? {}).find(
+            ([name]) => name.toLowerCase() === 'content-type',
+          )?.[1];
+        if (
+          e.frameId === (frame ?? this.currentFrames.get(cdp))?.id &&
+          contentType?.toLowerCase().includes('application/pdf')
+        ) {
+          finish(e.response.url, e.loaderId);
+        }
       };
       const sameDocument = (e: Protocol.Page.NavigatedWithinDocumentEvent) => {
         if (
@@ -1310,6 +1394,10 @@ export class BQLBrowserAPI {
       cdp.on('Page.lifecycleEvent', lifecycle);
       cdp.on('Page.navigatedWithinDocument', sameDocument);
       cdp.on('Network.responseReceived', response);
+      cdp.on('Network.dataReceived', progress);
+      cdp.on('Network.loadingFinished', progress);
+      cdp.on('Network.loadingFailed', progress);
+      this.events.on('network-change', progress);
       this.events.once('close', closed);
       this.events.once('failure', failed);
       this.events.on('document-rejected', documentRejected);
@@ -1324,6 +1412,7 @@ export class BQLBrowserAPI {
     this.requests.clear();
     this.responses.clear();
     this.inflight.clear();
+    this.pendingRequests.get(this.mainCDP)?.clear();
     this.rejectedDocuments.clear();
     this.events.emit('network-change');
   }

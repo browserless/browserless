@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
+import Sinon from 'sinon';
 import { BQLBrowserAPI } from './browser-api.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 
@@ -189,6 +190,130 @@ test('cached history restores settle without replayed lifecycle events', async (
     frame: { id: 'main', loaderId: 'new', url: 'https://example.com/new' },
   });
   await assert.rejects(ordinary, /timed out/);
+});
+
+test('PDF document responses settle navigation without page lifecycle events', async () => {
+  const api = new API();
+  api.client.handler = (method) =>
+    method === 'Page.getFrameTree'
+      ? { frameTree: { frame: { id: 'main' } } }
+      : undefined;
+  await api.setup();
+  const waiting = api.waitForNavigation('load', 20);
+  api.client.emit('Network.responseReceived', {
+    type: 'Document',
+    frameId: 'main',
+    loaderId: 'pdf',
+    response: {
+      url: 'https://example.com/file.pdf',
+      mimeType: 'application/pdf',
+      status: 200,
+      statusText: 'OK',
+    },
+  });
+  const result = await waiting;
+  assert.equal(result.url, 'https://example.com/file.pdf');
+  assert.equal(result.status, 200);
+  const child = api.waitForNavigation('load', 20);
+  api.client.emit('Network.responseReceived', {
+    type: 'Document',
+    frameId: 'child',
+    loaderId: 'child-pdf',
+    response: {
+      url: 'https://example.com/child.pdf',
+      mimeType: 'application/pdf',
+      status: 200,
+    },
+  });
+  await assert.rejects(child, /timed out/);
+  await api.close();
+});
+
+test('strict idle waits for pending first bytes and transfer silence within its grace', async () => {
+  const clock = Sinon.useFakeTimers();
+  const api = new API();
+  try {
+    await api.setup();
+    api.client.emit('Network.requestWillBeSent', {
+      requestId: 'image',
+      loaderId: 'new',
+      type: 'Image',
+      request: { url: 'https://example.com/image', method: 'GET' },
+    });
+    let finished = false;
+    const waiting = api
+      .waitForNavigation('networkIdle', 10_000)
+      .then((result) => {
+        finished = true;
+        return result;
+      });
+    api.client.emit('Page.frameNavigated', {
+      frame: { id: 'main', loaderId: 'new', url: 'https://example.com/' },
+    });
+    api.client.emit('Page.lifecycleEvent', {
+      frameId: 'main',
+      loaderId: 'new',
+      name: 'networkAlmostIdle',
+    });
+    await clock.tickAsync(1500);
+    assert.equal(finished, false);
+    api.client.emit('Network.loadingFinished', { requestId: 'image' });
+    await clock.tickAsync(900);
+    api.client.emit('Network.dataReceived', {
+      requestId: 'stream',
+      dataLength: 10,
+    });
+    await clock.tickAsync(900);
+    assert.equal(finished, false);
+    await clock.tickAsync(100);
+    assert.equal(finished, true);
+    assert.equal((await waiting).time, 3400);
+  } finally {
+    await api.close();
+    clock.restore();
+  }
+});
+
+test('strict idle grace resets on a new document and remains bounded for stalled requests', async () => {
+  const clock = Sinon.useFakeTimers();
+  const api = new API();
+  try {
+    await api.setup();
+    api.client.emit('Network.requestWillBeSent', {
+      requestId: 'stalled',
+      loaderId: 'old',
+      type: 'Fetch',
+      request: { url: 'https://example.com/poll', method: 'GET' },
+    });
+    let finished = false;
+    const waiting = api
+      .waitForNavigation('networkIdle', 10_000)
+      .then((result) => {
+        finished = true;
+        return result;
+      });
+    const document = (loaderId: string) => {
+      api.client.emit('Page.frameNavigated', {
+        frame: { id: 'main', loaderId, url: `https://example.com/${loaderId}` },
+      });
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId,
+        name: 'networkAlmostIdle',
+      });
+    };
+    document('old');
+    await clock.tickAsync(4000);
+    document('new');
+    await clock.tickAsync(2000);
+    assert.equal(finished, false);
+    await clock.tickAsync(1000);
+    assert.equal((await waiting).url, 'https://example.com/new');
+    assert.equal(clock.countTimers(), 0);
+  } finally {
+    await api.close();
+    clock.restore();
+  }
 });
 
 test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
