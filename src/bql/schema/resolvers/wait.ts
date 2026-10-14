@@ -1,3 +1,4 @@
+import { BadRequest } from '../../../utils.js';
 import type { Resolver } from '../../module.js';
 
 export const wait: Record<string, Resolver> = {
@@ -44,7 +45,7 @@ export const wait: Record<string, Resolver> = {
     (await context.getBrowser()).waitForNetworkIdle(args),
   waitForSelector: async (_source, args, context) => {
     if (args.visible && args.hidden)
-      throw new Error('visible and hidden are mutually exclusive');
+      throw new BadRequest('"visible" and "hidden" are mutually exclusive');
     const start = Date.now();
     const result = await (
       await context.getBrowser()

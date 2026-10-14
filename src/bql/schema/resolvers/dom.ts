@@ -1,3 +1,4 @@
+import { BadRequest } from '../../../utils.js';
 import type { Resolver } from '../../module.js';
 
 export const dom: Record<string, Resolver> = {
@@ -14,13 +15,41 @@ export const dom: Record<string, Resolver> = {
     url: (await (await context.getBrowser()).url()).value,
   }),
   evaluate: async (_source, args, context) => {
+    if (!args.content && !args.url)
+      throw new BadRequest('One of "content" or "url" is required');
     if (args.timeout != null && args.timeout < 0)
-      throw new Error('timeout must be zero or greater');
+      throw new BadRequest('"timeout" must be 0 (no limit) or greater');
     const api = await context.getBrowser();
-    return api.evaluate({
-      ...args,
-      timeout: args.timeout ?? api.preferences({}).timeout,
-    });
+    const executionTimeout = args.timeout ?? api.preferences({}).timeout;
+    const options = {
+      content: args.content ?? undefined,
+      url: args.url ?? undefined,
+      // Fetching a script retains its own finite bound when execution is unlimited.
+      timeout: args.timeout || undefined,
+      executionTimeout,
+    };
+    const evaluation = api.evaluate(options);
+    if (executionTimeout <= 0) return evaluation;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        evaluation,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                Object.assign(
+                  new Error(`"evaluate" timed out after ${executionTimeout}ms`),
+                  { name: 'TimeoutError' },
+                ),
+              ),
+            Math.min(executionTimeout, 2 ** 31 - 1),
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   },
   mapSelector: async (_source, args, context) =>
     (await context.getBrowser()).mapSelector({
@@ -37,8 +66,14 @@ export const dom: Record<string, Resolver> = {
       ...args,
       selector: args.selector,
     }),
-  addScriptTag: async (_source, args, context) =>
-    (await context.getBrowser()).addScriptTag(args),
-  addStyleTag: async (_source, args, context) =>
-    (await context.getBrowser()).addStyleTag(args),
+  addScriptTag: async (_source, args, context) => {
+    if (!args.url && !args.content)
+      throw new BadRequest('One of "url" or "content" is required');
+    return (await context.getBrowser()).addScriptTag(args);
+  },
+  addStyleTag: async (_source, args, context) => {
+    if (!args.url && !args.content)
+      throw new BadRequest('One of "url" or "content" is required');
+    return (await context.getBrowser()).addStyleTag(args);
+  },
 };
