@@ -527,6 +527,41 @@ test('capture does not retry a replaced document after its deadline', async () =
   }
 });
 
+test('element capture uses coordinates from the same scroll position as its rectangle', async () => {
+  const api = new API();
+  const node = {
+    getBoundingClientRect: () => ({ x: 20, y: 30, width: 100, height: 80 }),
+    scrollIntoView() {},
+  };
+  api.client.handler = async (method, params) => {
+    if (method === 'Runtime.evaluate')
+      return {
+        result: {
+          value: await runInNewContext(params.expression, {
+            document: { querySelectorAll: () => [node] },
+            getComputedStyle: () => ({}),
+            scrollX: 10,
+            scrollY: 15,
+          }),
+        },
+      };
+    if (method === 'Page.getLayoutMetrics')
+      return { cssVisualViewport: { pageX: 110, pageY: 215 } };
+    if (method === 'Page.captureScreenshot') return { data: 'b2s=' };
+    return undefined;
+  };
+  await api.screenshot({
+    selector: '#target',
+    options: { fromSurface: false },
+  });
+  assert.deepEqual(
+    api.client.calls.find((c) => c.method === 'Page.captureScreenshot')?.params
+      .clip,
+    { x: 30, y: 45, width: 100, height: 80, scale: 1 },
+  );
+  await api.close();
+});
+
 test('screenshot clips retain relative offsets and scale and reject empty intersections', async () => {
   const api = new API();
   api.client.value = { x: 20, y: 30, width: 100, height: 80 };
