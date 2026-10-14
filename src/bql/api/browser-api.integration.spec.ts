@@ -279,12 +279,23 @@ describe('raw CDP browser primitives', () => {
       Buffer.from(screenshot.base64, 'base64').subarray(1, 4).toString(),
       'PNG',
     );
+    assert.ok(Buffer.from(screenshot.base64, 'base64').readUInt32BE(20) > 2000);
+    const resized = await api.screenshot({
+      options: { fullPage: true, captureBeyondViewport: false },
+    });
+    assert.ok(Buffer.from(resized.base64, 'base64').readUInt32BE(20) > 2000);
+    assert.equal((await api.evaluate({ content: 'innerHeight' })).value, 600);
     const pdf = await api.pdf({
       options: { format: 'a4', marginTop: '1cm', waitForFonts: true },
     });
     assert.equal(
       Buffer.from(pdf.base64, 'base64').subarray(0, 4).toString(),
       '%PDF',
+    );
+    const sizedPdf = await api.pdf({ options: { width: 2, height: 3 } });
+    assert.match(
+      Buffer.from(sizedPdf.base64, 'base64').toString(),
+      /\/MediaBox\s*\[0 0 144 216\]/,
     );
     await api.cookies({
       cookies: [{ name: 'fixture', value: 'ok', url: origin }],

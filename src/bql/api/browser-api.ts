@@ -274,6 +274,10 @@ export class BQLBrowserAPI {
   private headers: Record<string, string> = {};
   private jsEnabled = true;
   private mediaType = '';
+  private viewportOverride?: {
+    metrics: Protocol.Emulation.SetDeviceMetricsOverrideRequest;
+    touch: Protocol.Emulation.SetTouchEmulationEnabledRequest;
+  };
   private starting?: Promise<void>;
   private targetOrder = new Map<string, number>();
   private targetSequence = 0;
@@ -317,6 +321,12 @@ export class BQLBrowserAPI {
   }
   protected async beforeReadback(): Promise<void> {}
   protected async beforeCapture(): Promise<void> {}
+  protected getCaptureViewportState(): {
+    metrics?: Protocol.Emulation.SetDeviceMetricsOverrideRequest;
+    touch?: Protocol.Emulation.SetTouchEmulationEnabledRequest;
+  } {
+    return this.viewportOverride ?? {};
+  }
   protected async onClose(): Promise<void> {}
   protected async beforeTargetSetup(
     _cdp: Connection,
@@ -1731,7 +1741,7 @@ export class BQLBrowserAPI {
       throw new Error('Invalid viewport dimensions');
     width = Math.floor(width);
     height = Math.floor(height);
-    await this.mainCDP.send('Emulation.setDeviceMetricsOverride', {
+    const metrics: Protocol.Emulation.SetDeviceMetricsOverrideRequest = {
       width,
       height,
       deviceScaleFactor,
@@ -1740,11 +1750,14 @@ export class BQLBrowserAPI {
         type: landscape ? 'landscapePrimary' : 'portraitPrimary',
         angle: landscape ? 90 : 0,
       },
-    });
-    await this.mainCDP.send('Emulation.setTouchEmulationEnabled', {
+    };
+    const touch: Protocol.Emulation.SetTouchEmulationEnabledRequest = {
       enabled: hasTouch,
       maxTouchPoints,
-    });
+    };
+    await this.mainCDP.send('Emulation.setDeviceMetricsOverride', metrics);
+    await this.mainCDP.send('Emulation.setTouchEmulationEnabled', touch);
+    this.viewportOverride = { metrics, touch };
     return {
       width,
       height,
@@ -1857,8 +1870,16 @@ export class BQLBrowserAPI {
       quality?: number;
       fullPage?: boolean;
       omitBackground?: boolean;
-      clip?: { x: number; y: number; width: number; height: number };
+      clip?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        scale?: number;
+      };
       captureBeyondViewport?: boolean;
+      fromSurface?: boolean;
+      optimizeForSpeed?: boolean;
       timeout?: number;
       waitForImages?: boolean;
     };
@@ -1873,7 +1894,7 @@ export class BQLBrowserAPI {
         options.quality > 100 ||
         !['jpeg', 'webp'].includes(options.type ?? 'png'))
     )
-      throw new Error('Invalid screenshot quality');
+      throw new BadRequest('Invalid screenshot quality');
     if (
       options.clip &&
       (!Number.isFinite(options.clip.width) ||
@@ -1881,39 +1902,143 @@ export class BQLBrowserAPI {
         options.clip.width <= 0 ||
         options.clip.height <= 0)
     )
-      throw new Error('Invalid screenshot clip');
-    if (selector && options.fullPage)
-      throw new Error('selector and fullPage are exclusive');
+      throw new BadRequest('Invalid screenshot clip');
+    if ((selector || options.clip) && options.fullPage)
+      throw new BadRequest('selector or clip and fullPage are exclusive');
     if (options.waitForImages) await this.waitForImages(cdp, options.timeout);
-    let clip = options.clip;
+    let clip: Protocol.Page.Viewport | undefined = options.clip
+      ? { ...options.clip, scale: options.clip.scale ?? 1 }
+      : undefined;
+    const captureBeyondViewport =
+      selector || options.clip || options.fullPage
+        ? (options.captureBeyondViewport ?? true)
+        : false;
     if (selector) {
-      const rect = await this.waitForSelector({ selector, cdp, visible: true });
-      const { cssLayoutViewport } = await cdp.send('Page.getLayoutMetrics');
-      clip = {
-        x: rect.x + cssLayoutViewport.pageX,
-        y: rect.y + cssLayoutViewport.pageY,
-        width: rect.width,
-        height: rect.height,
+      const deadline =
+        Date.now() + Math.min(options.timeout || this.timeout, this.timeout);
+      const remaining = () => {
+        const time = deadline - Date.now();
+        if (time <= 0) throw new Error('Screenshot selector timed out');
+        return time;
       };
-    } else if (options.fullPage) {
-      const { cssContentSize } = await cdp.send('Page.getLayoutMetrics');
-      clip = cssContentSize;
+      await this.waitForSelector({
+        selector,
+        cdp,
+        visible: true,
+        timeout: remaining(),
+      });
+      await this.scroll({ selector, cdp, timeout: remaining() });
+      const rect = await this.waitForSelector({
+        selector,
+        cdp,
+        visible: true,
+        timeout: remaining(),
+      });
+      const metrics = await cdp.send('Page.getLayoutMetrics');
+      const viewport = metrics.cssVisualViewport ?? metrics.cssLayoutViewport;
+      clip = {
+        x: rect.x + viewport.pageX + (options.clip?.x ?? 0),
+        y: rect.y + viewport.pageY + (options.clip?.y ?? 0),
+        width: options.clip?.width ?? rect.width,
+        height: options.clip?.height ?? rect.height,
+        scale: 1,
+      };
     }
-    if (options.omitBackground)
+    if (clip && !captureBeyondViewport) {
+      const metrics = await cdp.send('Page.getLayoutMetrics');
+      const viewport = metrics.cssVisualViewport ?? metrics.cssLayoutViewport;
+      const x = Math.max(clip.x, viewport.pageX);
+      const y = Math.max(clip.y, viewport.pageY);
+      clip = {
+        ...clip,
+        x,
+        y,
+        width: Math.max(
+          0,
+          Math.min(clip.x + clip.width, viewport.pageX + viewport.clientWidth) -
+            x,
+        ),
+        height: Math.max(
+          0,
+          Math.min(
+            clip.y + clip.height,
+            viewport.pageY + viewport.clientHeight,
+          ) - y,
+        ),
+      };
+    }
+    if (
+      clip &&
+      (!Number.isFinite(clip.x) ||
+        !Number.isFinite(clip.y) ||
+        !Number.isFinite(clip.width * clip.scale) ||
+        !Number.isFinite(clip.height * clip.scale) ||
+        clip.width * clip.scale < 1 ||
+        clip.height * clip.scale < 1)
+    )
+      throw new BadRequest('Invalid screenshot clip');
+    const omitBackground =
+      options.omitBackground && (options.type ?? 'png') !== 'jpeg';
+    if (omitBackground)
       await cdp.send('Emulation.setDefaultBackgroundColorOverride', {
         color: { r: 0, g: 0, b: 0, a: 0 },
       });
+    let restoreViewport: (() => Promise<void>) | undefined;
     try {
+      if (options.fullPage && !captureBeyondViewport) {
+        const { cssContentSize } = await cdp.send('Page.getLayoutMetrics');
+        const prior = this.getCaptureViewportState();
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+          ...prior.metrics,
+          width: Math.ceil(cssContentSize.width),
+          height: Math.ceil(cssContentSize.height),
+          screenWidth: Math.ceil(cssContentSize.width),
+          screenHeight: Math.ceil(cssContentSize.height),
+          deviceScaleFactor: prior.metrics?.deviceScaleFactor ?? 1,
+          mobile: prior.metrics?.mobile ?? false,
+        });
+        restoreViewport = async () => {
+          if (prior.metrics) {
+            await cdp.send('Emulation.setDeviceMetricsOverride', prior.metrics);
+            if (prior.touch)
+              await cdp.send('Emulation.setTouchEmulationEnabled', prior.touch);
+          } else await cdp.send('Emulation.clearDeviceMetricsOverride');
+        };
+      }
+      await cdp.send('Page.bringToFront');
       const { data } = await this.captureThroughNavigation(
         async (assertCurrent) => {
+          if ((options.fromSurface ?? true) && captureBeyondViewport) {
+            const { frameTree } = await cdp.send('Page.getFrameTree');
+            assertCurrent();
+            const { executionContextId } = await cdp.send(
+              'Page.createIsolatedWorld',
+              {
+                frameId: frameTree.frame.id,
+                worldName: 'browserless-screenshot',
+              },
+            );
+            assertCurrent();
+            const result = await cdp.send('Runtime.evaluate', {
+              contextId: executionContextId,
+              expression:
+                'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+              awaitPromise: true,
+            });
+            if (result.exceptionDetails)
+              throw new Error('Unable to prepare screenshot paint');
+          }
           assertCurrent();
           return cdp.send('Page.captureScreenshot', {
             format: options.type ?? 'png',
-            quality: options.quality,
-            ...(clip ? { clip: { ...clip, scale: 1 } } : {}),
-            captureBeyondViewport:
-              options.captureBeyondViewport ?? !!(selector || options.fullPage),
-            fromSurface: true,
+            quality:
+              options.quality === undefined
+                ? undefined
+                : Math.round(options.quality),
+            ...(clip ? { clip } : {}),
+            captureBeyondViewport,
+            fromSurface: options.fromSurface ?? true,
+            optimizeForSpeed: options.optimizeForSpeed ?? false,
           });
         },
         options.timeout || this.timeout,
@@ -1926,8 +2051,15 @@ export class BQLBrowserAPI {
         time: Date.now() - start,
       };
     } finally {
-      if (options.omitBackground)
-        await cdp.send('Emulation.setDefaultBackgroundColorOverride');
+      await restoreViewport?.().catch(() =>
+        this.logger.warn?.('Failed to restore capture viewport'),
+      );
+      if (omitBackground)
+        await cdp
+          .send('Emulation.setDefaultBackgroundColorOverride')
+          .catch(() =>
+            this.logger.warn?.('Failed to restore screenshot background'),
+          );
     }
   }
   public async pdf({
@@ -1950,12 +2082,14 @@ export class BQLBrowserAPI {
       fallback: number,
     ): number => {
       if (value === undefined) return fallback;
-      if (typeof value === 'number') return value / 96;
-      const match = /^(\d+(?:\.\d+)?)\s*(px|in|cm|mm)?$/.exec(value);
-      if (!match) throw new Error('Invalid paper dimension');
+      if (typeof value === 'number') return value;
+      const match = /^(-?\d*\.?\d+)\s*(px|in|cm|mm)$/i.exec(value.trim());
+      if (!match) throw new BadRequest('Invalid paper dimension');
       return (
         Number(match[1]) *
-        { px: 1 / 96, in: 1, cm: 1 / 2.54, mm: 1 / 25.4 }[match[2] ?? 'px']!
+        { px: 1 / 96, in: 1, cm: 1 / 2.54, mm: 1 / 25.4 }[
+          match[2].toLowerCase()
+        ]!
       );
     };
     const formats: Record<string, [number, number]> = {
@@ -1984,6 +2118,7 @@ export class BQLBrowserAPI {
         color: { r: 0, g: 0, b: 0, a: 0 },
       });
     try {
+      await cdp.send('Page.bringToFront');
       const { data } = await this.captureThroughNavigation(
         async (assertCurrent) => {
           assertCurrent();
