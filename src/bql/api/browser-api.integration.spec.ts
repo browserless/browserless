@@ -384,6 +384,17 @@ describe('raw CDP browser primitives', () => {
     const rejected = await api.goto({ url: `${origin}/blocked-document` });
     assert.equal(rejected.rejected, true);
     assert.equal(rejected.status, null);
+    await assert.rejects(
+      api.evaluate({
+        content: 'while (true) {}',
+        executionTimeout: 20,
+        timeout: 1000,
+      }),
+    );
+    assert.equal(
+      (await api.evaluate({ content: '1 + 2', timeout: 1000 })).value,
+      3,
+    );
     await api.javaScriptEnabled({ enabled: false });
     const disconnected = new Promise<void>((resolve) =>
       api.onDisconnected(resolve),
