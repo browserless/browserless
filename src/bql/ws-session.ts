@@ -341,7 +341,7 @@ export class BQLWebSocketSession {
       this.send(this.format({ errors: [{ message: 'Invalid JSON message' }] }));
       return;
     }
-    if (!validPayload(body)) {
+    if (!validPayload(body) || !body.query) {
       const message =
         !object(body) || !body.query
           ? 'Missing required "query" field'
