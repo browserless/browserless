@@ -1,7 +1,9 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { BrowserQL, defineBQLModule } from './bql/index.js';
+import WebSocket from 'ws';
 import { expect } from 'chai';
 import getPort from 'get-port';
+import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 
 describe('BrowserQL service injection', function () {
@@ -45,5 +47,71 @@ describe('BrowserQL service injection', function () {
         capabilities: ['core', 'fixture'],
       },
     });
+
+    const mutation = await fetch(`${endpoint}?token=${token}`, {
+      ...options,
+      body: JSON.stringify({
+        query: `mutation {
+          evaluate(content: "document.title = 'HTTP fixture'") { value }
+          title { title }
+        }`,
+      }),
+    });
+    const result = await mutation.json();
+    expect(result.errors).to.equal(undefined);
+    expect(result.data.title.title).to.equal('HTTP fixture');
+    for (const query of [
+      'mutation { solve { time } }',
+      'mutation { proxy { time } }',
+      'mutation { verify { time } }',
+    ]) {
+      const excluded = await fetch(`${endpoint}?token=${token}`, {
+        ...options,
+        body: JSON.stringify({ query }),
+      });
+      expect((await excluded.json()).errors).not.to.be.empty;
+    }
+    expect(
+      (
+        await fetch(
+          endpoint.replace('/chromium/', '/stealth/') + `?token=${token}`,
+          options,
+        )
+      ).status,
+    ).to.equal(404);
+
+    for (const protocol of ['', 'graphql-transport-ws']) {
+      const socket = new WebSocket(
+        endpoint.replace('http:', 'ws:') + `?token=${token}`,
+        protocol || undefined,
+      );
+      try {
+        await once(socket, 'open');
+        if (protocol) {
+          const reply = once(socket, 'message');
+          socket.send(JSON.stringify({ type: 'connection_init' }));
+          const ack = JSON.parse(String((await reply)[0]));
+          expect(ack.type).to.equal('connection_ack');
+          expect(ack.payload.capabilities).to.deep.equal(['core', 'fixture']);
+        }
+        const reply = once(socket, 'message');
+        const payload = {
+          query: `mutation { evaluate(content: "document.title = 'Socket fixture'") { value } title { title } }`,
+        };
+        socket.send(
+          JSON.stringify(
+            protocol ? { type: 'subscribe', id: 'page', payload } : payload,
+          ),
+        );
+        const frame = JSON.parse(String((await reply)[0]));
+        const result = protocol ? frame.payload : frame;
+        expect(result.errors).to.equal(undefined);
+        expect(result.data.title.title).to.equal('Socket fixture');
+      } finally {
+        const closed = once(socket, 'close');
+        socket.close();
+        await closed;
+      }
+    }
   });
 });
