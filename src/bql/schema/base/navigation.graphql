@@ -1,0 +1,48 @@
+type Mutation {
+  """Navigate backward in the current window history."""
+  back(timeout: Float, waitUntil: WaitUntilHistory = load): HTTPResponse
+  """Replace the document HTML and wait for the requested lifecycle events."""
+  content(html: String!, timeout: Float, waitUntil: WaitUntilHistory, waitUntilAll: [WaitUntilHistory!]): HTTPResponse
+  """Navigate forward in the current window history."""
+  forward(timeout: Float, waitUntil: WaitUntilHistory = load): HTTPResponse
+  """
+  Navigate to a URL and wait for the requested lifecycle events. waitUntilAll takes precedence when nonempty.
+  """
+  goto(url: String!, timeout: Float, waitUntil: WaitUntilGoto = load, waitUntilAll: [WaitUntilGoto!], referer: String, referrerPolicy: String): HTTPResponse
+  """Reload the current page and wait for the requested lifecycle event."""
+  reload(timeout: Float, waitUntil: WaitUntilHistory = load): HTTPResponse
+}
+
+enum WaitUntilHistory {
+  commit
+  domContentLoaded
+  load
+  networkIdle
+  networkAlmostIdle
+}
+
+type HTTPResponse {
+  """The ip value."""
+  ip: String
+  """The port value."""
+  port: Int
+  """The status value."""
+  status: Int
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The text value."""
+  text: String
+  """The url value."""
+  url: String
+}
+
+enum WaitUntilGoto {
+  commit
+  load
+  domContentLoaded
+  firstMeaningfulPaint
+  firstContentfulPaint
+  interactiveTime
+  networkIdle
+  networkAlmostIdle
+}

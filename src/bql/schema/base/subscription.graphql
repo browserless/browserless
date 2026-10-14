@@ -1,0 +1,52 @@
+type Subscription {
+  """Stream console messages from the current browser session."""
+  console: ConsoleMessage
+  """Stream network request events matching the supplied filters."""
+  request(url: [String], method: [Method], type: [ResourceType], operator: OperatorTypes = or): RequestResponse
+  """Stream network response events matching the supplied filters."""
+  response(url: [String], status: [Int], method: [Method], type: [ResourceType], operator: OperatorTypes = or): ResponseResponse
+}
+
+type ConsoleMessage {
+  """The type value."""
+  type: ConsoleMessageType
+  """The text value."""
+  text: String
+  """The args value."""
+  args: [String]
+  """The location value."""
+  location: ConsoleMessageLocation
+  """The timestamp value."""
+  timestamp: Float
+}
+
+enum ConsoleMessageType {
+  log
+  debug
+  info
+  error
+  warning
+  dir
+  dirxml
+  table
+  trace
+  clear
+  startGroup
+  startGroupCollapsed
+  endGroup
+  assert
+  profile
+  profileEnd
+  count
+  timeEnd
+  verbose
+}
+
+type ConsoleMessageLocation {
+  """The url value."""
+  url: String
+  """The lineNumber value."""
+  lineNumber: Int
+  """The columnNumber value."""
+  columnNumber: Int
+}

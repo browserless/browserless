@@ -1,0 +1,71 @@
+extend type Mutation {
+  """Set the checked state of a checkbox."""
+  checkbox(checked: Boolean!, selector: String!, scroll: Boolean = true, timeout: Float, visible: Boolean = false, wait: Boolean = true): ClickResponse
+  """Click a selected element or page coordinates."""
+  click(selector: String, x: Float, y: Float, scroll: Boolean = true, timeout: Float, visible: Boolean = false, wait: Boolean = true): ClickResponse
+  """Move the pointer to a selected element or page coordinates."""
+  hover(scroll: Boolean = true, selector: String, timeout: Float, visible: Boolean = false, wait: Boolean = true, x: Float, y: Float): HoverResponse
+  """Scroll to an element, coordinates, or through the page."""
+  scroll(selector: String, throughPage: Boolean = false, timeout: Float, visible: Boolean = false, wait: Boolean = true, x: Float, y: Float): ScrollResponse
+  """Select one or more option values."""
+  select(timeout: Float, scroll: Boolean = true, selector: String!, value: StringOrArray!, visible: Boolean = false, wait: Boolean = true): SelectResponse
+  """Type text into a selected element."""
+  type(text: String!, selector: String!, delay: [Int] = [50, 200], interactable: Boolean = true, scroll: Boolean = true, timeout: Float, visible: Boolean = false, wait: Boolean = true): TypeResponse
+}
+
+type ClickResponse {
+  """The selector value."""
+  selector: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The x value."""
+  x: Float
+  """The y value."""
+  y: Float
+}
+
+type HoverResponse {
+  """The selector value."""
+  selector: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The x value."""
+  x: Float
+  """The y value."""
+  y: Float
+}
+
+type ScrollResponse {
+  """The selector value."""
+  selector: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The x value."""
+  x: Float
+  """The y value."""
+  y: Float
+}
+
+scalar StringOrArray
+
+type SelectResponse {
+  """The selector value."""
+  selector: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The value value."""
+  value: StringOrArray
+}
+
+type TypeResponse {
+  """The selector value."""
+  selector: String
+  """The text value."""
+  text: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The x value."""
+  x: Float
+  """The y value."""
+  y: Float
+}

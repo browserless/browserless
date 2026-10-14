@@ -1,0 +1,117 @@
+extend type Mutation {
+  """
+  Configure HTTP authentication for server challenges, optionally restricted to an origin.
+  """
+  authenticate(username: String!, password: String!, origin: String): HTTPResponse
+  """Set supplied cookies and return the current cookies."""
+  cookies(cookies: [CookieInput]): CookieResponse
+  """Set additional headers for subsequent requests."""
+  setExtraHTTPHeaders(headers: [HeaderInput]): HTTPHeadersResponse
+  """Set the user-agent string for subsequent requests."""
+  userAgent(userAgent: String!): UserAgentResponse
+  """Enable or disable JavaScript execution."""
+  javaScriptEnabled(enabled: Boolean): JavaScriptResponse
+  """
+  Set the default operation timeout in milliseconds; zero disables the limit.
+  """
+  preferences(timeout: Float = 30000): DefaultResponse
+}
+
+input CookieInput {
+  domain: String
+  expires: Float
+  httpOnly: Boolean
+  name: String!
+  path: String
+  priority: CookiePriority
+  sourceScheme: CookieSourceScheme
+  partitionKey: CookiePartitionKeyInput
+  sameSite: CookieSameSite
+  secure: Boolean
+  url: String
+  value: String!
+}
+
+enum CookiePriority {
+  Low
+  Medium
+  High
+}
+
+enum CookieSourceScheme {
+  Unset
+  NonSecure
+  Secure
+}
+
+input CookiePartitionKeyInput {
+  sourceOrigin: String!
+  hasCrossSiteAncestor: Boolean
+}
+
+enum CookieSameSite {
+  Strict
+  Lax
+  None
+}
+
+type CookieResponse {
+  """The cookies value."""
+  cookies: [StandardCookie]
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type StandardCookie {
+  """The domain value."""
+  domain: String
+  """The expires value."""
+  expires: Float
+  """The httpOnly value."""
+  httpOnly: Boolean
+  """The name value."""
+  name: String!
+  """The path value."""
+  path: String
+  """The sameSite value."""
+  sameSite: CookieSameSite
+  """The secure value."""
+  secure: Boolean
+  """The value value."""
+  value: String!
+  """The url value."""
+  url: String
+}
+
+type HTTPHeadersResponse {
+  """The headers value."""
+  headers: [HTTPHeaders]
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type HTTPHeaders {
+  """The name value."""
+  name: String
+  """The value value."""
+  value: String
+}
+
+type UserAgentResponse {
+  """The userAgent value."""
+  userAgent: String
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type JavaScriptResponse {
+  """The enabled value."""
+  enabled: Boolean
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type DefaultResponse {
+  """The timeout value."""
+  timeout: Float
+}
