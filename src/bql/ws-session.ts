@@ -1,7 +1,7 @@
+import type { ExecutionResult, FormattedExecutionResult } from 'graphql';
 import { GraphQLError, getOperationAST, parse } from 'graphql';
 import type { BrowserQL } from './browserql.js';
 import type { Context } from './context.js';
-import type { ExecutionResult } from 'graphql';
 import type { RawData } from 'ws';
 import { WebSocket } from 'ws';
 
@@ -17,6 +17,30 @@ type Payload = {
   variables?: Record<string, unknown>;
   operationName?: string;
 };
+
+export interface BQLWebSocketSessionOptions {
+  /** Format GraphQL envelopes without changing protocol control frames. */
+  formatResponse?: (
+    result: FormattedExecutionResult,
+  ) => FormattedExecutionResult;
+  /** Runs in queue order, immediately before an operation is dispatched. */
+  onOperation?: (operation: {
+    id: string;
+    request: Payload;
+    protocol: 'legacy' | typeof BQL_WEBSOCKET_PROTOCOL;
+  }) => void;
+  /** Invalid frame observations cannot override protocol handling. */
+  onValidationError?: (error: {
+    reason:
+      | 'invalid_json'
+      | 'missing_query'
+      | 'invalid_subscribe'
+      | 'unsupported_message';
+    message: string;
+    id?: string;
+    operationName?: string;
+  }) => void;
+}
 
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -38,11 +62,13 @@ export class BQLWebSocketSession {
   private initialized = false;
   private closed = false;
   private running?: Promise<void>;
+  private sequence = 0;
 
   constructor(
     private client: WebSocket,
     private bql: Service,
     private context: Context,
+    private options: BQLWebSocketSessionOptions = {},
   ) {}
 
   run(): Promise<void> {
@@ -87,6 +113,22 @@ export class BQLWebSocketSession {
     }
   }
 
+  private format(result: FormattedExecutionResult): FormattedExecutionResult {
+    return this.options.formatResponse?.(result) ?? result;
+  }
+
+  private invalid(
+    error: Parameters<
+      NonNullable<BQLWebSocketSessionOptions['onValidationError']>
+    >[0],
+  ): void {
+    try {
+      this.options.onValidationError?.(error);
+    } catch {
+      /* Observers cannot change protocol outcomes. */
+    }
+  }
+
   private enqueue(work: () => Promise<void>): void {
     this.queue = this.queue
       .then(async () => {
@@ -114,10 +156,15 @@ export class BQLWebSocketSession {
     try {
       message = JSON.parse(data.toString());
     } catch {
+      this.invalid({ reason: 'invalid_json', message: 'Invalid JSON message' });
       this.client.close(4400, 'Invalid JSON message');
       return;
     }
     if (!object(message)) {
+      this.invalid({
+        reason: 'unsupported_message',
+        message: 'Invalid message',
+      });
       this.client.close(4400, 'Invalid message');
       return;
     }
@@ -166,6 +213,15 @@ export class BQLWebSocketSession {
           return;
         }
         if (typeof id !== 'string' || !id || !validPayload(payload)) {
+          this.invalid({
+            reason: 'invalid_subscribe',
+            message: 'Invalid subscribe message',
+            id: typeof id === 'string' ? id : undefined,
+            operationName:
+              object(payload) && typeof payload.operationName === 'string'
+                ? payload.operationName
+                : undefined,
+          });
           this.client.close(4400, 'Invalid subscribe message');
           return;
         }
@@ -179,6 +235,11 @@ export class BQLWebSocketSession {
         return;
       }
       default:
+        this.invalid({
+          reason: 'unsupported_message',
+          message: 'Unsupported message type',
+          id: typeof id === 'string' ? id : undefined,
+        });
         this.client.close(4400, 'Unsupported message type');
     }
   }
@@ -194,6 +255,11 @@ export class BQLWebSocketSession {
   ): Promise<void> {
     if (!this.active(id, operation)) return;
     try {
+      this.options.onOperation?.({
+        id,
+        request: payload,
+        protocol: BQL_WEBSOCKET_PROTOCOL,
+      });
       // Parsing here selects the transport path; schema validation remains in the service.
       const document = parse(payload.query);
       const subscription =
@@ -209,12 +275,14 @@ export class BQLWebSocketSession {
           return;
         }
         operation.iterator = iterator;
-        void this.stream(id, operation, iterator);
+        void this.stream(id, operation, iterator).catch(() =>
+          this.client.close(1011, 'Internal server error'),
+        );
       } else if (this.active(id, operation)) {
         if (result.errors && !('data' in result))
-          this.send({ id, type: 'error', payload: result.errors });
+          this.send({ id, type: 'error', payload: this.format(result).errors });
         else {
-          this.send({ id, type: 'next', payload: result });
+          this.send({ id, type: 'next', payload: this.format(result) });
           this.send({ id, type: 'complete' });
         }
         this.operations.delete(id);
@@ -233,9 +301,11 @@ export class BQLWebSocketSession {
     this.send({
       id,
       type: 'error',
-      payload: [
-        error instanceof GraphQLError ? error : { message: messageOf(error) },
-      ],
+      payload: this.format({
+        errors: [
+          error instanceof GraphQLError ? error : { message: messageOf(error) },
+        ],
+      }).errors,
     });
     if (this.context.hasErrored())
       this.client.close(1011, 'Browser session ended');
@@ -255,7 +325,7 @@ export class BQLWebSocketSession {
           this.send({ id, type: 'complete' });
           return;
         }
-        this.send({ id, type: 'next', payload: value.value });
+        this.send({ id, type: 'next', payload: this.format(value.value) });
       }
     } catch (error) {
       this.fail(id, operation, error);
@@ -267,34 +337,55 @@ export class BQLWebSocketSession {
     try {
       body = JSON.parse(data.toString());
     } catch {
-      this.send({ errors: [{ message: 'Invalid JSON message' }] });
+      this.invalid({ reason: 'invalid_json', message: 'Invalid JSON message' });
+      this.send(this.format({ errors: [{ message: 'Invalid JSON message' }] }));
       return;
     }
     if (!validPayload(body)) {
-      this.send({
-        errors: [
-          {
-            message:
-              'Missing or invalid "query", "variables", or "operationName" field',
-          },
-        ],
+      const message =
+        !object(body) || !body.query
+          ? 'Missing required "query" field'
+          : 'Invalid GraphQL request body';
+      this.invalid({
+        reason: 'missing_query',
+        message,
+        operationName:
+          object(body) && typeof body.operationName === 'string'
+            ? body.operationName
+            : undefined,
       });
+      this.send(
+        this.format({
+          errors: [
+            {
+              message,
+            },
+          ],
+        }),
+      );
       return;
     }
     try {
-      this.send(await this.bql.execute(body, this.context));
+      this.options.onOperation?.({
+        id: `legacy-${++this.sequence}`,
+        request: body,
+        protocol: 'legacy',
+      });
+      this.send(this.format(await this.bql.execute(body, this.context)));
       if (this.context.hasErrored())
         this.client.close(1011, 'Browser session ended');
     } catch (error) {
-      this.send({
-        errors: [
-          {
-            message: this.context.hasErrored()
-              ? 'Browser session has ended unexpectedly'
-              : messageOf(error),
-          },
-        ],
-      });
+      this.send(
+        this.format({
+          errors: [
+            {
+              message: this.context.hasErrored()
+                ? 'Browser session has ended unexpectedly'
+                : messageOf(error),
+            },
+          ],
+        }),
+      );
       if (this.context.hasErrored())
         this.client.close(1011, 'Browser session ended');
     }
