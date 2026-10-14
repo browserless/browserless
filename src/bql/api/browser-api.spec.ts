@@ -1056,11 +1056,83 @@ test('response bodies use the originating target after a window switch', async (
   api.mainCDP = new CDP() as any;
   api.client.emit('Network.loadingFinished', { requestId: 'r' });
   assert.deepEqual(await body, { body: 'original', base64Encoded: false });
+  api.client.handler = () => {
+    throw new Error('Response data no longer available');
+  };
   assert.deepEqual(await api.getResponseBody('r'), {
     body: 'original',
     base64Encoded: false,
   });
   await api.close();
+});
+
+test('response retention bounds bytes and entries while prioritizing documents', async () => {
+  const api = new API();
+  await api.setup();
+  let available = true;
+  const payloads = new Map<string, string>();
+  api.client.handler = (method, params) => {
+    if (method !== 'Network.getResponseBody') return {};
+    if (!available) throw new Error('Body discarded');
+    return { body: payloads.get(params.requestId) ?? '', base64Encoded: false };
+  };
+  const response = async (id: string, type: string, body: string) => {
+    payloads.set(id, body);
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type,
+      response: { url: `https://example.com/${id}`, status: 200, headers: {} },
+    });
+    api.client.emit('Network.loadingFinished', { requestId: id });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  };
+  await response('asset', 'Fetch', 'a'.repeat(6 * 1024 * 1024));
+  await response('document', 'Document', 'd'.repeat(6 * 1024 * 1024));
+  available = false;
+  assert.equal(await api.getResponseBody('asset'), null);
+  assert.equal(
+    (await api.getResponseBody('document'))?.body.length,
+    6 * 1024 * 1024,
+  );
+  available = true;
+  await response('small', 'Fetch', 'kept');
+  await response('oversized', 'Document', 'x'.repeat(10 * 1024 * 1024 + 1));
+  for (let i = 0; i < 1001; i++) await response(`item-${i}`, 'Fetch', '');
+  available = false;
+  assert.equal(await api.getResponseBody('small'), null);
+  assert.equal(await api.getResponseBody('oversized'), null);
+  assert.equal(
+    (await api.getResponseBody('document'))?.body.length,
+    6 * 1024 * 1024,
+  );
+  assert.equal((await api.getResponseBody('item-1000'))?.body, '');
+  await api.close();
+});
+
+test('closing cancels readers while eager response capture is pending', async () => {
+  const api = new API();
+  await api.setup();
+  let finish!: (value: any) => void;
+  api.client.handler = (method) =>
+    method === 'Network.getResponseBody'
+      ? new Promise((resolve) => {
+          finish = resolve;
+        })
+      : {};
+  api.client.emit('Network.responseReceived', {
+    requestId: 'pending',
+    type: 'Fetch',
+    response: { url: 'https://example.com/', status: 200, headers: {} },
+  });
+  api.client.emit('Network.loadingFinished', { requestId: 'pending' });
+  const read = api.getResponseBody('pending', 0);
+  await Promise.resolve();
+  await api.close();
+  assert.equal(await read, null);
+  finish({ body: 'late', base64Encoded: false });
+  await Promise.resolve();
+  assert.equal(await api.getResponseBody('pending'), null);
+  assert.equal(api.listeners('body'), 0);
 });
 
 test('extension request handlers cannot override core rejection rules', async () => {
