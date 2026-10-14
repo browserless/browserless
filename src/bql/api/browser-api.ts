@@ -38,6 +38,7 @@ export interface EvaluateOptions {
   content?: string;
   url?: string;
   timeout?: number;
+  executionTimeout?: number;
   cdp?: Connection;
 }
 type Filter = {
@@ -786,34 +787,14 @@ export class BQLBrowserAPI {
     content,
     url,
     timeout = 10_000,
+    executionTimeout = 0,
     cdp = this.mainCDP,
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }: EvaluateOptions): Promise<{ value: any; time: number }> {
     if ((content === undefined) === (url === undefined))
       throw new Error('Exactly one of "content" or "url" is required');
-    if (url) {
-      const signal = AbortSignal.timeout(timeout || 30_000);
-      for (let hops = 0; ; hops++) {
-        await this.assertNavigationAllowed(url);
-        const response: Response = await fetch(url, {
-          signal,
-          redirect: 'manual',
-        });
-        if (
-          response.status >= 300 &&
-          response.status < 400 &&
-          response.headers.has('location')
-        ) {
-          if (hops >= 20) throw new Error('Too many script redirects');
-          url = new URL(response.headers.get('location')!, url).href;
-          continue;
-        }
-        if (!response.ok) throw new Error('Error getting script from URL');
-        content = await response.text();
-        break;
-      }
-    }
+    if (url) content = await this.fetchScript(url, timeout);
     const start = Date.now();
     const body = content!.trim();
     const expression = body.replace(/\s*;+\s*$/, '');
@@ -827,6 +808,7 @@ export class BQLBrowserAPI {
         expression: `(async() => { ${isExpression ? `return (${expression});` : body} })()`,
         returnByValue: true,
         awaitPromise: true,
+        ...(executionTimeout > 0 ? { timeout: executionTimeout } : {}),
       }),
       timeout,
       'evaluate',
@@ -852,6 +834,28 @@ export class BQLBrowserAPI {
   }
   public title() {
     return this.evaluate({ content: 'document.title' });
+  }
+
+  protected async fetchScript(url: string, timeout: number): Promise<string> {
+    const signal = AbortSignal.timeout(timeout || 30_000);
+    for (let hops = 0; ; hops++) {
+      await this.assertNavigationAllowed(url);
+      const response: Response = await fetch(url, {
+        signal,
+        redirect: 'manual',
+      });
+      if (
+        response.status >= 300 &&
+        response.status < 400 &&
+        response.headers.has('location')
+      ) {
+        if (hops >= 20) throw new Error('Too many script redirects');
+        url = new URL(response.headers.get('location')!, url).href;
+        continue;
+      }
+      if (!response.ok) throw new Error('Error getting script from URL');
+      return response.text();
+    }
   }
 
   protected selectorExpression(selector: string, root = 'document'): string {
