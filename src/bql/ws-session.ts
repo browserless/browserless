@@ -30,8 +30,6 @@ const validPayload = (value: unknown): value is Payload =>
 
 const messageOf = (error: unknown) =>
   error instanceof Error ? error.message : 'Internal server error';
-const browserGone = (error: unknown) =>
-  /Target closed|Session closed|Protocol error/.test(messageOf(error));
 
 /** Owns one socket's context, operation IDs and serial execution queue. */
 export class BQLWebSocketSession {
@@ -49,12 +47,20 @@ export class BQLWebSocketSession {
 
   run(): Promise<void> {
     return (this.running ??= new Promise<void>((resolve, reject) => {
+      const browser = this.context.getBrowserInstance();
+      let unsubscribe = () => {};
       const cleanup = () => {
         if (this.closed) return;
         this.closed = true;
+        browser.off('close', onDisconnected);
+        unsubscribe();
         this.client.off('message', onMessage);
         for (const id of this.operations.keys()) this.cancel(id);
         this.context.close().then(resolve, reject);
+      };
+      const onDisconnected = () => {
+        this.client.close(1011, 'Browser session ended');
+        cleanup();
       };
       const onMessage = (data: RawData) => {
         if (this.closed || this.client.readyState !== WebSocket.OPEN) return;
@@ -67,7 +73,11 @@ export class BQLWebSocketSession {
         cleanup();
       });
       this.client.on('message', onMessage);
+      browser.once('close', onDisconnected);
+      unsubscribe = this.context.onDisconnected(onDisconnected);
+      if (this.closed) unsubscribe();
       if (this.client.readyState !== WebSocket.OPEN) cleanup();
+      else if (this.context.hasErrored()) onDisconnected();
     }));
   }
 
@@ -208,6 +218,8 @@ export class BQLWebSocketSession {
           this.send({ id, type: 'complete' });
         }
         this.operations.delete(id);
+        if (this.context.hasErrored())
+          this.client.close(1011, 'Browser session ended');
       }
     } catch (error) {
       this.fail(id, operation, error);
@@ -225,7 +237,8 @@ export class BQLWebSocketSession {
         error instanceof GraphQLError ? error : { message: messageOf(error) },
       ],
     });
-    if (browserGone(error)) this.client.close(1011, 'Browser session ended');
+    if (this.context.hasErrored())
+      this.client.close(1011, 'Browser session ended');
   }
 
   private async stream(
@@ -270,17 +283,20 @@ export class BQLWebSocketSession {
     }
     try {
       this.send(await this.bql.execute(body, this.context));
+      if (this.context.hasErrored())
+        this.client.close(1011, 'Browser session ended');
     } catch (error) {
       this.send({
         errors: [
           {
-            message: browserGone(error)
+            message: this.context.hasErrored()
               ? 'Browser session has ended unexpectedly'
               : messageOf(error),
           },
         ],
       });
-      if (browserGone(error)) this.client.close(1011, 'Browser session ended');
+      if (this.context.hasErrored())
+        this.client.close(1011, 'Browser session ended');
     }
   }
 }
