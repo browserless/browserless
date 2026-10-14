@@ -44,18 +44,25 @@ describe('BrowserQL WebSocket transport', () => {
     BrowserQL,
     'execute' | 'subscribe' | 'version' | 'capabilities'
   >;
-  const start = () => {
-    done = new BQLWebSocketSession(socket as unknown as WebSocket, service, {
-      getBrowserInstance: () => browser,
-      hasErrored: () => failed,
-      onDisconnected: (listener: () => void) => {
-        apiEvents.on('disconnected', listener);
-        return () => apiEvents.off('disconnected', listener);
-      },
-      close: async () => {
-        closed++;
-      },
-    } as unknown as Context).run();
+  const start = (
+    options?: ConstructorParameters<typeof BQLWebSocketSession>[3],
+  ) => {
+    done = new BQLWebSocketSession(
+      socket as unknown as WebSocket,
+      service,
+      {
+        getBrowserInstance: () => browser,
+        hasErrored: () => failed,
+        onDisconnected: (listener: () => void) => {
+          apiEvents.on('disconnected', listener);
+          return () => apiEvents.off('disconnected', listener);
+        },
+        close: async () => {
+          closed++;
+        },
+      } as unknown as Context,
+      options,
+    ).run();
   };
   const subscribe = (id: string, query = 'mutation { run }') =>
     socket.receive({ type: 'subscribe', id, payload: { query } });
@@ -91,6 +98,119 @@ describe('BrowserQL WebSocket transport', () => {
       { type: 'pong', payload: { nonce: 7 } },
       { id: 'one', type: 'next', payload: { data: { run: true } } },
       { id: 'one', type: 'complete' },
+    ]);
+  });
+
+  it('formats errors without changing operation framing and exposes execution metadata', async () => {
+    const operations: unknown[] = [];
+    service.execute = async () => ({
+      errors: [new Error('Unknown field')] as any,
+    });
+    start({
+      formatResponse: (result) => ({
+        ...result,
+        errors: result.errors?.map((error) => ({
+          ...error,
+          message: `${error.message} [trace]`,
+        })),
+      }),
+      onOperation: (operation) => operations.push(operation),
+    });
+    socket.receive({ type: 'connection_init' });
+    subscribe('request-7', '{ invalid }');
+    await setImmediate();
+    assert.deepEqual(socket.frames[1], {
+      id: 'request-7',
+      type: 'error',
+      payload: [{ message: 'Unknown field [trace]' }],
+    });
+    assert.deepEqual(operations, [
+      {
+        id: 'request-7',
+        request: { query: '{ invalid }' },
+        protocol: 'graphql-transport-ws',
+      },
+    ]);
+  });
+
+  it('closes cleanly if a stream response formatter throws', async () => {
+    let returned = false;
+    service.subscribe = async () =>
+      (async function* () {
+        try {
+          yield { data: { event: true } };
+        } finally {
+          returned = true;
+        }
+      })();
+    start({
+      formatResponse: () => {
+        throw new Error('Formatter failed');
+      },
+    });
+    socket.receive({ type: 'connection_init' });
+    subscribe('stream', 'subscription { event }');
+    await setImmediate();
+    assert.equal(socket.code, 1011);
+    assert.equal(returned, true);
+    assert.equal(closed, 1);
+  });
+
+  it('reports invalid frames and numbers only executed legacy requests', async () => {
+    socket.protocol = '';
+    const operations: any[] = [];
+    const invalid: any[] = [];
+    start({
+      onOperation: (operation) => operations.push(operation),
+      onValidationError: (error) => {
+        invalid.push(error);
+        throw new Error('Observer failed');
+      },
+      formatResponse: (result) => ({
+        ...result,
+        extensions: { formatted: true },
+      }),
+    });
+    socket.emit('message', Buffer.from('{'));
+    socket.receive({ operationName: { invalid: true } });
+    socket.receive({ query: '{ version }' });
+    await setImmediate();
+    assert.deepEqual(
+      invalid.map(({ reason, operationName }) => ({ reason, operationName })),
+      [
+        { reason: 'invalid_json', operationName: undefined },
+        { reason: 'missing_query', operationName: undefined },
+      ],
+    );
+    assert.deepEqual(
+      operations.map(({ id, protocol }) => ({ id, protocol })),
+      [{ id: 'legacy-1', protocol: 'legacy' }],
+    );
+    assert.equal(
+      socket.frames.every((frame) => frame.extensions.formatted),
+      true,
+    );
+    assert.equal(socket.code, undefined);
+  });
+
+  it('reports invalid subscribe IDs before closing with the standard code', async () => {
+    const invalid: unknown[] = [];
+    start({ onValidationError: (error) => invalid.push(error) });
+    socket.receive({ type: 'connection_init' });
+    socket.receive({
+      type: 'subscribe',
+      id: 'bad',
+      payload: { operationName: 'Example' },
+    });
+    await done;
+    assert.equal(socket.code, 4400);
+    assert.deepEqual(invalid, [
+      {
+        reason: 'invalid_subscribe',
+        message: 'Invalid subscribe message',
+        id: 'bad',
+        operationName: 'Example',
+      },
     ]);
   });
 
