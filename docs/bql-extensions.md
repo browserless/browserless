@@ -86,21 +86,30 @@ initialized browser API. Transports close the context when their session ends.
 | Extension point                    | Default behavior                                             |
 | ---------------------------------- | ------------------------------------------------------------ |
 | `onStart(mainCDP, browserCDP)`     | No additional startup work                                   |
+| `beforeTargetSetup(cdp, kind)`     | No additional work before target domains are enabled         |
+| `setupRuntime(cdp)`                | Enable the Runtime domain                                    |
 | `onTargetAttached(cdp, kind)`      | No additional target setup                                   |
 | `resolveSelector(selector)`        | Accept ordinary selectors; reject unsupported deep selectors |
 | `inputDriver`                      | Plain CDP pointer and keyboard input                         |
+| `beforeRequestRules(event, cdp)`   | No decision before configured request rules                  |
 | `requestPipeline.use(handler)`     | Add request handling after navigation policy and core rules  |
 | `beforeNavigate` / `afterNavigate` | No additional navigation work                                |
 | `beforeReadback` / `beforeCapture` | No additional read or capture work                           |
+| `fetchScript(url, timeout)`        | Fetch scripts with destination checks on every redirect      |
 | `applyUserAgent(cdp, userAgent)`   | Ordinary CDP user-agent override                             |
 | `onClose()`                        | No additional teardown work                                  |
 
 Request handlers return a Fetch decision instead of independently sending
-competing terminal commands. The dispatcher applies navigation policy, reject
-rules and fulfill rules before additional handlers. A handler must not bypass
+competing terminal commands. The dispatcher applies destination policy first,
+then `beforeRequestRules`, reject rules, fulfill rules and additional handlers.
+A handler must not bypass
 the server's destination restrictions.
 
 Keep runtime state on the API or context, not on the shared service or module.
 Use the normal transport limits and authentication when adding routes. The
 exported `handleBQLHTTP` and `BQLWebSocketSession` let custom route wrappers share
 execution and cleanup rather than implementing another GraphQL transport.
+
+`BQLWebSocketSessionOptions` supports response formatting and operation or invalid
+frame observers. Formatting applies to GraphQL envelopes, not protocol control
+frames. Invalid-frame observers cannot change the protocol outcome.

@@ -107,6 +107,36 @@ describe('BrowserQL service injection', function () {
         const result = protocol ? frame.payload : frame;
         expect(result.errors).to.equal(undefined);
         expect(result.data.title.title).to.equal('Socket fixture');
+        if (protocol) {
+          const consoleEvent = new Promise<unknown>((resolve) => {
+            socket.on('message', (data) => {
+              const frame = JSON.parse(data.toString());
+              if (frame.id === 'console' && frame.type === 'next')
+                resolve(frame.payload);
+            });
+          });
+          socket.send(
+            JSON.stringify({
+              type: 'subscribe',
+              id: 'console',
+              payload: { query: 'subscription { console { type text } }' },
+            }),
+          );
+          socket.send(
+            JSON.stringify({
+              type: 'subscribe',
+              id: 'emit',
+              payload: {
+                query:
+                  'mutation { evaluate(content: "console.log(\'stream fixture\')") { value } }',
+              },
+            }),
+          );
+          expect(await consoleEvent).to.deep.equal({
+            data: { console: { type: 'log', text: 'stream fixture' } },
+          });
+          socket.send(JSON.stringify({ type: 'complete', id: 'console' }));
+        }
       } finally {
         const closed = once(socket, 'close');
         socket.close();
