@@ -378,7 +378,13 @@ test('captures use raw CDP and return base64 and size', async () => {
   );
   assert.equal((await api.pdf({})).size, 5);
   assert.deepEqual(
-    api.client.calls.map((c) => c.method),
+    api.client.calls
+      .filter(
+        (c) =>
+          c.method === 'Page.captureScreenshot' ||
+          c.method === 'Page.printToPDF',
+      )
+      .map((c) => c.method),
     ['Page.captureScreenshot', 'Page.printToPDF'],
   );
 });
@@ -455,6 +461,52 @@ test('capture does not retry a replaced document after its deadline', async () =
     await api.close();
     clock.restore();
   }
+});
+
+test('screenshot clips retain relative offsets and scale and reject empty intersections', async () => {
+  const api = new API();
+  api.client.value = { x: 20, y: 30, width: 100, height: 80 };
+  api.client.handler = (method) =>
+    method === 'Page.getFrameTree'
+      ? { frameTree: { frame: { id: 'main' } } }
+      : method === 'Page.getLayoutMetrics'
+        ? {
+            cssVisualViewport: {
+              pageX: 10,
+              pageY: 15,
+              clientWidth: 300,
+              clientHeight: 200,
+            },
+          }
+        : method === 'Page.captureScreenshot'
+          ? { data: 'aGVsbG8=' }
+          : undefined;
+  await api.screenshot({
+    selector: 'button',
+    options: { clip: { x: 5, y: 7, width: 40, height: 20 } },
+  });
+  assert.deepEqual(
+    api.client.calls.find((c) => c.method === 'Page.captureScreenshot')?.params
+      .clip,
+    { x: 35, y: 52, width: 40, height: 20, scale: 1 },
+  );
+  await assert.rejects(
+    api.screenshot({
+      options: {
+        clip: { x: 900, y: 900, width: 40, height: 20 },
+        captureBeyondViewport: false,
+      },
+    }),
+    BadRequest,
+  );
+  await api.screenshot({
+    options: { clip: { x: 2, y: 3, width: 40, height: 20, scale: 2 } },
+  });
+  assert.equal(
+    api.client.calls.filter((c) => c.method === 'Page.captureScreenshot').at(-1)
+      ?.params.clip.scale,
+    2,
+  );
 });
 
 test('preferences treats null and zero as reads and rejects invalid viewport dimensions', async () => {
