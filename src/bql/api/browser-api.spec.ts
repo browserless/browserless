@@ -1,0 +1,675 @@
+import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import { it as test } from 'mocha';
+import { runInNewContext } from 'node:vm';
+import { BQLBrowserAPI } from './browser-api.js';
+
+class CDP extends EventEmitter {
+  calls: Array<{ method: string; params: any }> = [];
+  value: any = true;
+  handler?: (method: string, params: any) => any;
+  async send(method: string, params: any = {}) {
+    this.calls.push({ method, params });
+    return this.handler?.(method, params) ?? { result: { value: this.value } };
+  }
+  dispose() {}
+}
+
+class API extends BQLBrowserAPI {
+  constructor(readonly client = new CDP()) {
+    super({
+      browser: {} as any,
+      config: {} as any,
+      logger: {} as any,
+      req: {} as any,
+      blockConsentModals: false,
+    });
+    this.mainCDP = client as any;
+    this.browserCDP = client as any;
+  }
+  async setup() {
+    await this.setupTarget(this.mainCDP, 'page');
+  }
+  use(handler: Parameters<typeof this.requestPipeline.use>[0]) {
+    return this.requestPipeline.use(handler);
+  }
+  listeners(event: string) {
+    return this.events.listenerCount(event);
+  }
+}
+
+test('evaluate returns primitive values and surfaces script exceptions', async () => {
+  const api = new API();
+  api.client.value = 42;
+  assert.equal((await api.evaluate({ content: '40 + 2' })).value, 42);
+  assert.match(api.client.calls[0].params.expression, /return \(40 \+ 2\)/);
+  api.client.handler = () => ({
+    exceptionDetails: {
+      text: 'failed',
+      exception: { description: 'script failed' },
+    },
+  });
+  await assert.rejects(
+    api.evaluate({ content: 'throw new Error()' }),
+    /script failed/,
+  );
+});
+
+test('deep selectors are rejected before CDP dispatch', async () => {
+  const api = new API();
+  await assert.rejects(
+    api.querySelector({ selector: '< iframe button', visible: false }),
+    /not supported/,
+  );
+  assert.equal(api.client.calls.length, 0);
+});
+
+test('navigation listeners precede dispatch and return document metadata', async () => {
+  const api = new API();
+  api.client.handler = (method) => {
+    if (method === 'Page.navigate') {
+      api.client.emit('Network.responseReceived', {
+        type: 'Document',
+        loaderId: 'new',
+        response: {
+          url: 'https://example.com/',
+          status: 201,
+          statusText: 'Created',
+          remoteIPAddress: '127.0.0.1',
+          remotePort: 443,
+        },
+      });
+      api.client.emit('Page.frameNavigated', {
+        frame: { id: 'main', loaderId: 'new', url: 'https://example.com/' },
+      });
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId: 'new',
+        name: 'load',
+      });
+      return { frameId: 'main', loaderId: 'new' };
+    }
+    return undefined;
+  };
+  const result = await api.goto({ url: 'https://example.com/', timeout: 100 });
+  assert.equal(result.status, 201);
+  assert.equal(result.url, 'https://example.com/');
+  assert.equal(api.client.listenerCount('Page.lifecycleEvent'), 0);
+});
+
+test('navigation ignores old documents and removes listeners on timeout', async () => {
+  const api = new API();
+  const waiting = api.waitForNavigation('load', 10);
+  api.client.emit('Page.lifecycleEvent', {
+    frameId: 'main',
+    loaderId: 'old',
+    name: 'load',
+  });
+  await assert.rejects(waiting, /timed out/);
+  assert.equal(api.client.listenerCount('Page.lifecycleEvent'), 0);
+});
+
+test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
+  const api = new API();
+  await api.setup();
+  await api.reject({ enabled: true, url: ['*blocked*'], operator: 'or' });
+  await api.fulfill({
+    url: ['*'],
+    operator: 'or',
+    body: 'hello',
+    contentType: 'text/plain',
+  });
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'r',
+    request: { url: 'https://example.com/blocked', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(
+    api.client.calls
+      .filter((c) => /Fetch\.(fail|fulfill|continue)Request/.test(c.method))
+      .map((c) => c.method),
+    ['Fetch.failRequest'],
+  );
+  await api.reject({ enabled: false, operator: 'or' });
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 's',
+    request: { url: 'https://example.com/', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const fulfilled = api.client.calls.find(
+    (c) => c.method === 'Fetch.fulfillRequest',
+  )!;
+  assert.equal(fulfilled.params.body, Buffer.from('hello').toString('base64'));
+});
+
+test('raw coordinate click uses CDP input and preserves result shape', async () => {
+  const api = new API();
+  const result = await api.click({
+    x: 12,
+    y: 34,
+    wait: false,
+    scroll: false,
+    visible: false,
+  });
+  assert.equal(result.x, 12);
+  assert.equal(result.y, 34);
+  assert.deepEqual(
+    api.client.calls.map((c) => c.params.type),
+    ['mouseMoved', 'mousePressed', 'mouseReleased'],
+  );
+});
+
+test('captures use raw CDP and return base64 and size', async () => {
+  const api = new API();
+  api.client.handler = () => ({ data: 'aGVsbG8=' });
+  assert.equal(
+    (await api.screenshot({ options: { type: 'png' } })).base64,
+    'aGVsbG8=',
+  );
+  assert.equal((await api.pdf({})).size, 5);
+  assert.deepEqual(
+    api.client.calls.map((c) => c.method),
+    ['Page.captureScreenshot', 'Page.printToPDF'],
+  );
+});
+
+test('preferences accepts zero timeout and rejects invalid viewport dimensions', async () => {
+  const api = new API();
+  assert.equal(api.preferences({ timeout: 0 }).timeout, 0);
+  await assert.rejects(api.viewport({ width: 0, height: 10 }), /dimensions/);
+});
+
+test('commit navigation settles on the new main document without load', async () => {
+  const api = new API();
+  const waiting = api.waitForNavigation('commit', 20);
+  api.client.emit('Page.frameNavigated', {
+    frame: { id: 'main', loaderId: 'new', url: 'https://example.com/' },
+  });
+  assert.equal((await waiting).url, 'https://example.com/');
+});
+
+test('response waits release body listeners after the shared timeout budget', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.emit('Network.requestWillBeSent', {
+    requestId: 'r',
+    request: { url: 'https://example.com/', method: 'GET', headers: {} },
+    type: 'Document',
+  });
+  api.client.emit('Network.responseReceived', {
+    requestId: 'r',
+    response: { url: 'https://example.com/', status: 200, headers: {} },
+    type: 'Document',
+  });
+  const result = await api.response({ wait: true, timeout: 10, url: ['*'] });
+  assert.equal(result?.[0].body, null);
+  assert.equal(api.listeners('body'), 0);
+});
+
+test('Fetch handler failure fails closed rather than leaving a paused request', async () => {
+  const api = new API();
+  await api.setup();
+  api.use(() => {
+    throw new Error('handler failed');
+  });
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'r',
+    request: { url: 'https://example.com/', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    api.client.calls.filter((c) => c.method === 'Fetch.failRequest').length,
+    1,
+  );
+});
+
+test('CSS queries enter open shadow roots without touching frame documents', async () => {
+  const api = new API();
+  const button = {
+    id: 'shadow-button',
+    childElementCount: 0,
+    className: '',
+    innerHTML: 'Save',
+    innerText: 'Save',
+    localName: 'button',
+    outerHTML: '<button>Save</button>',
+  };
+  const host = {
+    shadowRoot: {
+      querySelectorAll: (selector: string) =>
+        selector === 'button' ? [button] : [],
+    },
+  };
+  const frame = {
+    get contentDocument() {
+      throw new Error('Unexpected frame access');
+    },
+  };
+  const document = {
+    querySelectorAll: (selector: string) =>
+      selector === '*' ? [host, frame] : [],
+  };
+  api.client.handler = async (method, params) =>
+    method === 'Runtime.evaluate'
+      ? {
+          result: {
+            value: await runInNewContext(params.expression, { document }),
+          },
+        }
+      : undefined;
+  assert.equal(
+    (await api.querySelector({ selector: 'button' })).id,
+    'shadow-button',
+  );
+  assert.equal(await api.querySelectorAll({ selector: '.missing' }), null);
+});
+
+test('content preserves the status contract and evaluates on the supplied target', async () => {
+  const api = new API();
+  const secondary = new CDP();
+  secondary.handler = (method, params) => {
+    if (method === 'Page.getFrameTree')
+      return {
+        frameTree: {
+          frame: { id: 'secondary', url: 'https://example.com/secondary' },
+        },
+      };
+    if (method === 'Page.setDocumentContent')
+      secondary.emit('Page.lifecycleEvent', {
+        frameId: 'secondary',
+        loaderId: 'new',
+        name: 'init',
+      });
+    return method === 'Runtime.evaluate'
+      ? {
+          result: {
+            value: params.expression.includes('location.href')
+              ? 'https://example.com/secondary'
+              : true,
+          },
+        }
+      : {};
+  };
+  const result = await api.content({
+    html: '<h1>Hello</h1>',
+    cdp: secondary as any,
+    waitUntil: [],
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.url, 'https://example.com/secondary');
+  assert.equal(api.client.calls.length, 0);
+});
+
+test('PDF accepts primitive marginTop and waits for requested fonts', async () => {
+  const api = new API();
+  api.client.handler = (method) =>
+    method === 'Page.printToPDF'
+      ? { data: 'aGVsbG8=' }
+      : { result: { value: true } };
+  await api.pdf({ options: { marginTop: '1in', waitForFonts: true } });
+  const print = api.client.calls.find((c) => c.method === 'Page.printToPDF')!;
+  assert.equal(print.params.marginTop, 1);
+  assert.ok(
+    api.client.calls.find(
+      (c) =>
+        c.method === 'Runtime.evaluate' &&
+        c.params.expression.includes('document.fonts.ready'),
+    ),
+  );
+});
+
+test('cookie partition keys map sourceOrigin and preserve the result shape', async () => {
+  const api = new API();
+  api.client.handler = (method) =>
+    method === 'Network.getCookies'
+      ? {
+          cookies: [
+            {
+              name: 'session',
+              value: 'test',
+              domain: 'example.com',
+              path: '/',
+              expires: -1,
+              secure: false,
+              httpOnly: false,
+            },
+          ],
+        }
+      : {
+          result: {
+            value: {
+              url: 'https://example.com/',
+              domain: 'example.com',
+              path: '/',
+            },
+          },
+        };
+  const result = await api.cookies({
+    cookies: [
+      {
+        name: 'session',
+        value: 'test',
+        url: 'https://example.com/',
+        partitionKey: { sourceOrigin: 'https://example.com/' },
+      },
+    ],
+  });
+  assert.equal(
+    api.client.calls.find((c) => c.method === 'Network.setCookies')!.params
+      .cookies[0].partitionKey.topLevelSite,
+    'https://example.com/',
+  );
+  assert.equal(result.cookies[0].sameSite, 'Lax');
+  assert.equal(result.cookies[0].url, 'https://example.com/');
+});
+
+test('close cancels network and navigation waits without retaining listeners', async () => {
+  const api = new API();
+  const request = api.waitForRequest({ urls: ['*'], timeout: 100 });
+  const navigation = api.waitForNavigation('load', 100);
+  const idle = api.waitForNetworkIdle({ idleTime: 50, timeout: 100 });
+  const assertions = [
+    assert.rejects(request, /closed/),
+    assert.rejects(navigation, /no longer running/),
+    assert.rejects(idle, /closed/),
+  ];
+  await api.close();
+  await Promise.all(assertions);
+  assert.equal(api.client.listenerCount('Page.frameNavigated'), 0);
+  assert.equal(api.listeners('close'), 0);
+});
+
+test('and filters require every supplied pattern, including patterns in one field', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.emit('Network.requestWillBeSent', {
+    requestId: 'r',
+    request: { url: 'https://example.com/path', method: 'GET', headers: {} },
+    type: 'Document',
+  });
+  assert.equal(
+    api.hasMadeRequest({
+      urls: ['*example.com*', '*missing*'],
+      operator: 'and',
+    }),
+    null,
+  );
+  assert.equal(
+    api.hasMadeRequest({ urls: ['*example.com*', '*missing*'], operator: 'or' })
+      ?.length,
+    1,
+  );
+});
+
+test('typing dispatches key events so native keyboard listeners receive text', async () => {
+  const api = new API();
+  api.client.value = { x: 1, y: 2, width: 10, height: 10 };
+  await api.type({ selector: 'input', text: 'a\n' });
+  const keys = api.client.calls.filter(
+    (c) => c.method === 'Input.dispatchKeyEvent',
+  );
+  assert.deepEqual(
+    keys.map((c) => c.params.type),
+    ['keyDown', 'keyUp', 'keyDown', 'keyUp'],
+  );
+  assert.equal(keys[2].params.key, 'Enter');
+});
+
+test('html with a selector returns its children rather than its wrapper', async () => {
+  const api = new API();
+  const node = {
+    childNodes: [{ markup: '<b>Hello</b>' }],
+    outerHTML: '<section><b>Hello</b></section>',
+    getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }),
+  };
+  const document = {
+    querySelectorAll: (selector: string) =>
+      selector === 'section' ? [node] : [],
+    documentElement: {},
+  };
+  class XMLSerializer {
+    serializeToString(item: { markup: string }) {
+      return item.markup;
+    }
+  }
+  api.client.handler = async (method, params) =>
+    method === 'Runtime.evaluate'
+      ? {
+          result: {
+            value: await runInNewContext(params.expression, {
+              document,
+              XMLSerializer,
+              getComputedStyle: () => ({}),
+            }),
+          },
+        }
+      : undefined;
+  assert.equal((await api.html({ selector: 'section' })).html, '<b>Hello</b>');
+});
+
+test('reject rules have priority over earlier fulfill rules', async () => {
+  const api = new API();
+  await api.setup();
+  await api.fulfill({ url: ['*'], body: 'fallback' });
+  await api.reject({ enabled: true, url: ['*blocked*'] });
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'r',
+    request: { url: 'https://example.com/blocked', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    api.client.calls.filter((c) => c.method === 'Fetch.failRequest').length,
+    1,
+  );
+});
+
+test('screenshot validates quality and clip before capture', async () => {
+  const api = new API();
+  await assert.rejects(
+    api.screenshot({ options: { type: 'png', quality: 50 } }),
+    /quality/,
+  );
+  await assert.rejects(
+    api.screenshot({ options: { clip: { x: 0, y: 0, width: 0, height: 1 } } }),
+    /clip/,
+  );
+  await assert.rejects(
+    api.screenshot({ selector: '#x', options: { fullPage: true } }),
+    /exclusive/,
+  );
+  assert.equal(api.client.calls.length, 0);
+});
+
+test('capture timeout restores transparent background overrides', async () => {
+  const api = new API();
+  api.client.handler = (method) =>
+    method === 'Page.captureScreenshot' ? new Promise(() => {}) : {};
+  await assert.rejects(
+    api.screenshot({ options: { omitBackground: true, timeout: 10 } }),
+    /timed out/,
+  );
+  assert.equal(
+    api.client.calls.at(-1)?.method,
+    'Emulation.setDefaultBackgroundColorOverride',
+  );
+  assert.deepEqual(api.client.calls.at(-1)?.params, {});
+});
+
+test('capture and readback hooks run before CDP read operations', async () => {
+  class Hooks extends API {
+    readonly sequence: string[] = [];
+    protected override async beforeReadback() {
+      this.sequence.push('read');
+    }
+    protected override async beforeCapture() {
+      this.sequence.push('capture');
+    }
+    protected override async beforeNavigate() {
+      this.sequence.push('before');
+    }
+    protected override async afterNavigate() {
+      this.sequence.push('after');
+    }
+    protected override async onClose() {
+      this.sequence.push('close');
+    }
+  }
+  const api = new Hooks();
+  api.client.handler = (method) =>
+    method === 'Page.captureScreenshot'
+      ? { data: 'aGVsbG8=' }
+      : { result: { value: true } };
+  await api.evaluate({ content: 'true' });
+  await api.screenshot({});
+  await api.close();
+  assert.deepEqual(api.sequence, ['read', 'capture', 'close']);
+});
+
+test('invalid and excessive network regexes are rejected when registered', async () => {
+  const api = new API();
+  await assert.rejects(api.reject({ enabled: true, regex: ['('] }), /regex/i);
+  await assert.rejects(
+    api.fulfill({ regex: ['x'.repeat(201)], body: 'test' }),
+    /regex/i,
+  );
+  await assert.rejects(
+    api.reject({ enabled: true, regex: ['(a+)+'] }),
+    /regex/i,
+  );
+});
+
+test('intentional document rejects return null status instead of navigate errors', async () => {
+  const api = new API();
+  await api.reject({ enabled: true, url: ['*blocked*'] });
+  api.client.handler = (method) => {
+    if (method !== 'Page.navigate') return undefined;
+    api.client.emit('Page.frameNavigated', {
+      frame: {
+        id: 'main',
+        loaderId: 'new',
+        url: 'chrome-error://chromewebdata/',
+      },
+    });
+    api.client.emit('Page.lifecycleEvent', {
+      frameId: 'main',
+      loaderId: 'new',
+      name: 'load',
+    });
+    return { errorText: 'net::ERR_ABORTED' };
+  };
+  const result = await api.goto({ url: 'https://example.com/blocked' });
+  assert.equal(result.status, null);
+  assert.equal(result.rejected, true);
+});
+
+test('content waits for the new document and every requested lifecycle event', async () => {
+  const api = new API();
+  api.client.handler = (method) => {
+    if (method === 'Page.getFrameTree')
+      return {
+        frameTree: {
+          frame: { id: 'main', loaderId: 'same', url: 'about:blank' },
+        },
+      };
+    if (method === 'Page.setDocumentContent') {
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId: 'same',
+        name: 'networkIdle',
+      });
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId: 'same',
+        name: 'init',
+      });
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId: 'same',
+        name: 'load',
+      });
+    }
+    return { result: { value: 'about:blank' } };
+  };
+  let settled = false;
+  const content = api
+    .content({
+      html: '<h1>new</h1>',
+      waitUntil: ['load', 'networkIdle'],
+      timeout: 100,
+    })
+    .then((result) => {
+      settled = true;
+      return result;
+    });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(settled, false);
+  api.client.emit('Page.lifecycleEvent', {
+    frameId: 'main',
+    loaderId: 'same',
+    name: 'networkIdle',
+  });
+  assert.equal((await content).status, 200);
+});
+
+test('event streams deliver network payloads and cancellation wakes idle readers', async () => {
+  const api = new API();
+  await api.setup();
+  const events = api.streamEvents<{ url: string }>('request');
+  api.client.emit('Network.requestWillBeSent', {
+    requestId: 'r',
+    request: { url: 'https://example.com/data', method: 'POST', headers: {} },
+    type: 'Fetch',
+  });
+  assert.equal((await events.next()).value.url, 'https://example.com/data');
+  const idle = events.next();
+  await events.return(undefined);
+  assert.equal((await idle).done, true);
+  assert.equal(api.listeners('request'), 0);
+  const neverRead = api.streamEvents('request');
+  await neverRead.return(undefined);
+  assert.equal(api.listeners('request'), 0);
+  const closing = api.streamEvents('response');
+  const pending = closing.next();
+  await api.close();
+  assert.equal((await pending).done, true);
+});
+
+test('console capture emits serializable arguments and exception locations once', async () => {
+  const api = new API();
+  await api.setup();
+  await api.ensureConsoleCapture();
+  await api.ensureConsoleCapture();
+  const events = api.streamEvents<any>('console');
+  api.client.emit('Runtime.consoleAPICalled', {
+    type: 'warning',
+    args: [
+      { type: 'string', value: 'hello' },
+      { type: 'number', value: 42 },
+    ],
+    stackTrace: {
+      callFrames: [
+        { url: 'https://example.com/', lineNumber: 3, columnNumber: 7 },
+      ],
+    },
+  });
+  const message = (await events.next()).value;
+  assert.equal(message.type, 'warning');
+  assert.equal(message.text, 'hello 42');
+  assert.deepEqual(message.args, ['"hello"', '42']);
+  assert.equal(message.location.lineNumber, 3);
+  api.client.emit('Runtime.exceptionThrown', {
+    exceptionDetails: {
+      text: 'Uncaught',
+      exception: { description: 'Error: failed' },
+      lineNumber: 8,
+      columnNumber: 2,
+    },
+  });
+  assert.equal((await events.next()).value.text, 'Error: failed');
+  await events.return(undefined);
+  await api.close();
+});
