@@ -1,0 +1,73 @@
+extend type Mutation {
+  """Wait for navigation to reach the requested lifecycle event."""
+  waitForNavigation(timeout: Float, waitUntil: WaitUntilGoto = load): HTTPResponse
+  """Wait for a network request matching the URL and method filters."""
+  waitForRequest(method: Method, operator: OperatorTypes = or, timeout: Float, url: String): WaitForRequest
+  """Wait for a network response matching the URL and status filters."""
+  waitForResponse(codes: [Int] @deprecated(reason: "Use `statuses` field instead as it is more consistent in BrowserQL."), operator: OperatorTypes = or, statuses: [Int], url: String): WaitForResponse
+  """Wait for the specified number of milliseconds."""
+  waitForTimeout(time: Float!): WaitForTimeout
+  """
+  Wait for active network requests to remain at or below concurrency for idleTime milliseconds.
+  """
+  waitForNetworkIdle(idleTime: Float = 500, concurrency: Int = 0, timeout: Float): WaitForTimeout
+  """Wait for an element to match the requested visibility state."""
+  waitForSelector(selector: String!, timeout: Float, visible: Boolean = false, hidden: Boolean = false): WaitForSelector
+  """Wait until the supplied JavaScript function returns a truthy value."""
+  waitForFunction(fn: String!, polling: Float, pollingType: WaitForFunctionPolling, timeout: Float): WaitForFunction
+  """Wait for a named page event."""
+  waitForEvent(event: String!, timeout: Float): WaitForEvent
+  """Begin capturing a named page event for waitForEvent."""
+  watchEvent(event: String!): WaitForEvent
+}
+
+type WaitForRequest {
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The url value."""
+  url: String
+}
+
+type WaitForResponse {
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The status value."""
+  status: Int
+  """The url value."""
+  url: String
+}
+
+type WaitForTimeout {
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type WaitForSelector {
+  """The height value."""
+  height: Float
+  """The selector value."""
+  selector: String
+  """Elapsed time in milliseconds."""
+  time: Float
+  """The y value."""
+  y: Float
+  """The x value."""
+  x: Float
+  """The width value."""
+  width: Float
+}
+
+enum WaitForFunctionPolling {
+  raf
+  mutation
+}
+
+type WaitForFunction {
+  """Elapsed time in milliseconds."""
+  time: Float
+}
+
+type WaitForEvent {
+  """Elapsed time in milliseconds."""
+  time: Float
+}
