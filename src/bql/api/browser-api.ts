@@ -12,6 +12,7 @@ import { EventEmitter } from 'node:events';
 import type { Logger } from '../../logger.js';
 import type { Request } from '../../http.js';
 import { Script } from 'node:vm';
+import TurndownService from 'turndown';
 import micromatch from 'micromatch';
 
 export interface BQLBrowserAPIOptions {
@@ -1184,8 +1185,8 @@ export class BQLBrowserAPI {
       content: args.selector
         ? `${this.selectorExpression(args.selector)}[0].scrollIntoView({block:'center',inline:'center'})`
         : args.throughPage
-          ? `(async() => { for (let y=0; y < document.documentElement.scrollHeight; y += innerHeight) { window.scrollTo(0,y); await new Promise(r => setTimeout(r,50)); } })()`
-          : `window.scrollBy(${args.x ?? 0},${args.y ?? 0})`,
+          ? `(async() => { const deadline = Date.now() + ${args.timeout ?? this.timeout}; try { for (let y=0; y < document.documentElement.scrollHeight && Date.now() < deadline; y += Math.max(1, innerHeight)) { window.scrollTo(0,y); await new Promise(r => setTimeout(r,50)); } } finally { window.scrollTo(0,0); } })()`
+          : `window.scrollTo(${args.x ?? 0},${args.y ?? 0})`,
     });
     return {
       cdp,
@@ -1238,30 +1239,12 @@ export class BQLBrowserAPI {
   }
   public async markdown(args: ReadArgs = {}) {
     const start = Date.now();
-    const selector = args.selector ?? 'html';
-    await this.waitForSelector({ ...args, selector });
-    const { value } = await this.evaluate({
-      cdp: args.cdp,
-      timeout: args.timeout,
-      content: `(() => {
-      const render = node => {
-        if (node.nodeType === 3) return node.textContent;
-        if (node.nodeType !== 1 || ['SCRIPT','STYLE','NOSCRIPT'].includes(node.tagName)) return '';
-        const text = [...node.childNodes].map(render).join('');
-        const tag = node.tagName;
-        if (/^H[1-6]$/.test(tag)) return '\\n' + '#'.repeat(Number(tag[1])) + ' ' + text.trim() + '\\n\\n';
-        if (tag === 'A') return '[' + text + '](' + node.href + ')';
-        if (tag === 'IMG') return '![' + node.alt + '](' + node.src + ')';
-        if (tag === 'STRONG' || tag === 'B') return '**' + text + '**';
-        if (tag === 'EM' || tag === 'I') return '*' + text + '*';
-        if (tag === 'LI') return '- ' + text.trim() + '\\n';
-        if (tag === 'BR') return '\\n';
-        return ['P','DIV','SECTION','UL','OL','PRE','BLOCKQUOTE'].includes(tag) ? '\\n' + text + '\\n' : text;
-      };
-      return render(${this.selectorExpression(selector)}[0]).replace(/\\n{3,}/g,'\\n\\n').trim();
-    })()`,
-    });
-    return { markdown: value as string, time: Date.now() - start };
+    const { html } = await this.html(args);
+    const markdown = new TurndownService()
+      .remove(['script', 'style', 'noscript', 'iframe'])
+      .turndown(html)
+      .trim();
+    return { markdown, time: Date.now() - start };
   }
 
   public waitForNavigation(
