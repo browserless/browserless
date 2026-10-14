@@ -104,6 +104,14 @@ type NetworkRecord = {
   loaderId?: string;
   response?: Protocol.Network.Response;
 };
+interface ResponseOrigin {
+  cdp: Connection;
+  pending: boolean;
+  failed: boolean;
+  type: string;
+  body?: Protocol.Network.GetResponseBodyResponse;
+  size: number;
+}
 export type FetchDecision = {
   method:
     'Fetch.failRequest' | 'Fetch.fulfillRequest' | 'Fetch.continueRequest';
@@ -262,10 +270,8 @@ export class BQLBrowserAPI {
   private rules: Array<{ filter: Filter; decision: FetchDecision }> = [];
   private requests = new Map<string, NetworkRecord>();
   private responses = new Map<string, NetworkRecord>();
-  private responseOrigins = new Map<
-    string,
-    { cdp: Connection; pending: boolean; failed: boolean }
-  >();
+  private responseOrigins = new Map<string, ResponseOrigin>();
+  private responseBodyBytes = 0;
   private inflight = new Set<string>();
   protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
@@ -495,15 +501,18 @@ export class BQLBrowserAPI {
           loaderId: e.loaderId,
           response: e.response,
         });
+        this.dropResponseOrigin(e.requestId, true);
+        if (this.responseOrigins.size >= 1000) {
+          const victim = this.responseBodyEvictionOrder().next().value;
+          if (victim) this.dropResponseOrigin(victim[0], false);
+        }
         this.responseOrigins.set(e.requestId, {
           cdp,
           pending: true,
           failed: false,
+          type: e.type.toLowerCase(),
+          size: 0,
         });
-        if (this.responseOrigins.size > 1000)
-          this.responseOrigins.delete(
-            this.responseOrigins.keys().next().value!,
-          );
         const contentType = Object.entries(e.response.headers ?? {})
           .find(([name]) => name.toLowerCase() === 'content-type')?.[1]
           ?.toLowerCase();
@@ -531,9 +540,13 @@ export class BQLBrowserAPI {
         }
         const origin = this.responseOrigins.get(e.requestId);
         if (origin?.cdp === cdp) {
-          origin.pending = false;
-          origin.failed = event === 'Network.loadingFailed';
-          this.events.emit('body', e.requestId);
+          if (event === 'Network.loadingFinished') {
+            void this.captureResponseBody(e.requestId, origin);
+          } else {
+            origin.pending = false;
+            origin.failed = true;
+            this.events.emit('body', e.requestId);
+          }
         }
         if (cdp !== this.mainCDP) return;
         this.inflight.delete(e.requestId);
@@ -1430,6 +1443,8 @@ export class BQLBrowserAPI {
   private resetNetwork() {
     this.requests.clear();
     this.responses.clear();
+    for (const id of this.responseOrigins.keys())
+      this.dropResponseOrigin(id, true);
     this.inflight.clear();
     this.pendingRequests.get(this.mainCDP)?.clear();
     this.rejectedDocuments.clear();
@@ -2470,7 +2485,7 @@ export class BQLBrowserAPI {
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           const done = (finished: string) => {
-            if (finished === id) {
+            if (finished === id && !origin?.pending) {
               cleanup();
               resolve();
             }
@@ -2494,6 +2509,7 @@ export class BQLBrowserAPI {
         });
       if (this.closed || origin?.failed || (deadline && Date.now() >= deadline))
         return null;
+      if (origin?.body) return origin.body;
       return await bounded(
         cdp.send('Network.getResponseBody', { requestId: id }),
         deadline ? Math.max(1, deadline - Date.now()) : 0,
@@ -2501,6 +2517,50 @@ export class BQLBrowserAPI {
       );
     } catch {
       return null;
+    }
+  }
+  private *responseBodyEvictionOrder() {
+    for (const document of [false, true])
+      for (const entry of this.responseOrigins)
+        if ((entry[1].type === 'document') === document) yield entry;
+  }
+  private dropResponseOrigin(id: string, cancelled: boolean) {
+    const origin = this.responseOrigins.get(id);
+    if (!origin) return;
+    this.responseOrigins.delete(id);
+    this.responseBodyBytes -= origin.size;
+    origin.size = 0;
+    origin.body = undefined;
+    origin.pending = false;
+    origin.failed = cancelled;
+    this.events.emit('body', id);
+  }
+  private async captureResponseBody(id: string, origin: ResponseOrigin) {
+    try {
+      const body = await origin.cdp.send('Network.getResponseBody', {
+        requestId: id,
+      });
+      if (this.responseOrigins.get(id) !== origin || origin.body) return;
+      const size = Buffer.byteLength(body.body, 'utf8');
+      const limit = 10 * 1024 * 1024;
+      if (size > limit) return;
+      if (origin.type === 'document') {
+        for (const [, candidate] of this.responseBodyEvictionOrder()) {
+          if (this.responseBodyBytes + size <= limit) break;
+          this.responseBodyBytes -= candidate.size;
+          candidate.size = 0;
+          candidate.body = undefined;
+        }
+      }
+      if (this.responseBodyBytes + size > limit) return;
+      origin.body = body;
+      origin.size = size;
+      this.responseBodyBytes += size;
+    } catch {
+      // A later read may still succeed if Chrome has not discarded the body.
+    } finally {
+      origin.pending = false;
+      this.events.emit('body', id);
     }
   }
   public async request(args: Filter & { wait: boolean; timeout?: number }) {
@@ -2753,6 +2813,7 @@ export class BQLBrowserAPI {
       this.browserCDP?.dispose();
       this.clients.clear();
       this.responseOrigins.clear();
+      this.responseBodyBytes = 0;
       this.httpAuth = undefined;
       this.authChallenges = new WeakMap();
       this.events.removeAllListeners();
