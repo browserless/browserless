@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
 import { BQLBrowserAPI } from './browser-api.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
-import { BadRequest } from '../../utils.js';
+import { BadRequest, Timeout } from '../../utils.js';
 
 class CDP extends EventEmitter {
   calls: Array<{ method: string; params: any }> = [];
@@ -190,7 +190,7 @@ test('cached history restores settle without replayed lifecycle events', async (
     type: 'Navigation',
     frame: { id: 'main', loaderId: 'new', url: 'https://example.com/new' },
   });
-  await assert.rejects(ordinary, /timed out/);
+  await assert.rejects(ordinary, Timeout);
 });
 
 test('PDF document responses settle navigation without page lifecycle events', async () => {

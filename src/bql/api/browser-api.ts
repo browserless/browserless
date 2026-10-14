@@ -1,10 +1,10 @@
+import { BadRequest, Timeout } from '../../utils.js';
 import type {
   CDPSessionEvents,
   Connection,
   PDFOptions,
   Protocol,
 } from 'puppeteer-core';
-import { BadRequest } from '../../utils.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import type { ChromiumCDP } from '../../browsers/browsers.cdp.js';
 import type { Config } from '../../config.js';
@@ -298,7 +298,7 @@ export class BQLBrowserAPI {
   private targetOrder = new Map<string, number>();
   private targetSequence = 0;
   private rejectedDocuments = new Set<Connection>();
-  private currentFrames = new WeakMap<Connection, Protocol.Page.Frame>();
+  protected currentFrames = new WeakMap<Connection, Protocol.Page.Frame>();
   protected consoleCapture = false;
   private httpAuth?: { username: string; password: string; origin?: string };
   private authChallenges = new WeakMap<
@@ -1497,7 +1497,7 @@ export class BQLBrowserAPI {
       this.events.on('document-rejected', documentRejected);
       if (timeout)
         timer = setTimeout(
-          () => failed(new Error(`Navigation timed out after ${timeout}ms`)),
+          () => failed(new Timeout(`Navigation timed out after ${timeout}ms`)),
           timeout,
         );
     });
