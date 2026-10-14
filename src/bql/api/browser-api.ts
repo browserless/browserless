@@ -1767,6 +1767,85 @@ export class BQLBrowserAPI {
     await cdp.send('Emulation.setEmulatedMedia', { media: type });
     return { type, time: Date.now() - start };
   }
+
+  private async captureThroughNavigation<T>(
+    send: (assertCurrent: () => void) => Promise<T>,
+    timeout: number,
+    label: string,
+    cdp: Connection,
+  ): Promise<T> {
+    const start = Date.now();
+    const remaining = () => Math.max(0, timeout - (Date.now() - start));
+    const expired = () => new Error(`${label} timed out after ${timeout}ms`);
+    let generation = 0;
+    let finished = false;
+    let signalSwap!: () => void;
+    const swapped = new Promise<never>((_, reject) => {
+      signalSwap = () => reject(new Error('Capture document changed'));
+    });
+    void swapped.catch(() => undefined);
+    const navigated = (event: Protocol.Page.FrameNavigatedEvent) => {
+      if (event.frame.parentId) return;
+      generation++;
+      signalSwap();
+    };
+    const attempt = () => {
+      const initialGeneration = generation;
+      return send(() => {
+        if (finished || !remaining()) throw expired();
+        if (generation !== initialGeneration)
+          throw new Error('Capture document changed');
+      });
+    };
+    cdp.on('Page.frameNavigated', navigated);
+    try {
+      const pending = attempt();
+      let checkpointExpired = false;
+      let checkpoint: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          pending,
+          new Promise<never>((_, reject) => {
+            checkpoint = setTimeout(
+              () => {
+                checkpointExpired = true;
+                reject(expired());
+              },
+              Math.min(5000, timeout),
+            );
+          }),
+        ]);
+      } catch (error) {
+        if (!generation && checkpointExpired) {
+          if (!remaining()) throw expired();
+          try {
+            return await bounded(
+              Promise.race([pending, swapped]),
+              remaining(),
+              label,
+            );
+          } catch (failure) {
+            if (!generation) throw failure;
+          }
+        } else if (!generation) throw error;
+      } finally {
+        clearTimeout(checkpoint);
+      }
+      if (!remaining()) throw expired();
+      const settleWindow = Math.min(5000, remaining());
+      await bounded(
+        this.waitForNavigation('domContentLoaded', settleWindow, cdp),
+        settleWindow,
+        label,
+      ).catch(() => undefined);
+      if (!remaining()) throw expired();
+      return await bounded(attempt(), remaining(), label);
+    } finally {
+      finished = true;
+      cdp.off('Page.frameNavigated', navigated);
+    }
+  }
+
   public async screenshot({
     selector,
     options = {},
@@ -1825,17 +1904,21 @@ export class BQLBrowserAPI {
         color: { r: 0, g: 0, b: 0, a: 0 },
       });
     try {
-      const { data } = await bounded(
-        cdp.send('Page.captureScreenshot', {
-          format: options.type ?? 'png',
-          quality: options.quality,
-          ...(clip ? { clip: { ...clip, scale: 1 } } : {}),
-          captureBeyondViewport:
-            options.captureBeyondViewport ?? !!(selector || options.fullPage),
-          fromSurface: true,
-        }),
-        options.timeout ?? this.timeout,
+      const { data } = await this.captureThroughNavigation(
+        async (assertCurrent) => {
+          assertCurrent();
+          return cdp.send('Page.captureScreenshot', {
+            format: options.type ?? 'png',
+            quality: options.quality,
+            ...(clip ? { clip: { ...clip, scale: 1 } } : {}),
+            captureBeyondViewport:
+              options.captureBeyondViewport ?? !!(selector || options.fullPage),
+            fromSurface: true,
+          });
+        },
+        options.timeout || this.timeout,
         'Screenshot',
+        cdp,
       );
       return {
         base64: data,
@@ -1901,43 +1984,48 @@ export class BQLBrowserAPI {
         color: { r: 0, g: 0, b: 0, a: 0 },
       });
     try {
-      const { data } = await bounded(
-        cdp.send('Page.printToPDF', {
-          landscape: options.landscape,
-          displayHeaderFooter: options.displayHeaderFooter,
-          headerTemplate: options.headerTemplate,
-          footerTemplate: options.footerTemplate,
-          printBackground: options.printBackground,
-          scale: options.scale,
-          paperWidth: format?.[0] ?? inches(options.width, 8.5),
-          paperHeight,
-          marginTop:
-            options.marginTop === undefined && options.margin?.top === undefined
-              ? undefined
-              : inches(options.marginTop ?? options.margin?.top, 0),
-          marginBottom:
-            options.marginBottom === undefined &&
-            options.margin?.bottom === undefined
-              ? undefined
-              : inches(options.marginBottom ?? options.margin?.bottom, 0),
-          marginLeft:
-            options.marginLeft === undefined &&
-            options.margin?.left === undefined
-              ? undefined
-              : inches(options.marginLeft ?? options.margin?.left, 0),
-          marginRight:
-            options.marginRight === undefined &&
-            options.margin?.right === undefined
-              ? undefined
-              : inches(options.marginRight ?? options.margin?.right, 0),
-          pageRanges: options.pageRanges,
-          preferCSSPageSize: options.preferCSSPageSize,
-          generateTaggedPDF: options.generateTaggedPDF ?? options.tagged,
-          generateDocumentOutline:
-            options.generateDocumentOutline ?? options.outline,
-        }),
-        options.timeout ?? this.timeout,
+      const { data } = await this.captureThroughNavigation(
+        async (assertCurrent) => {
+          assertCurrent();
+          return cdp.send('Page.printToPDF', {
+            landscape: options.landscape,
+            displayHeaderFooter: options.displayHeaderFooter,
+            headerTemplate: options.headerTemplate,
+            footerTemplate: options.footerTemplate,
+            printBackground: options.printBackground,
+            scale: options.scale,
+            paperWidth: format?.[0] ?? inches(options.width, 8.5),
+            paperHeight,
+            marginTop:
+              options.marginTop === undefined &&
+              options.margin?.top === undefined
+                ? undefined
+                : inches(options.marginTop ?? options.margin?.top, 0),
+            marginBottom:
+              options.marginBottom === undefined &&
+              options.margin?.bottom === undefined
+                ? undefined
+                : inches(options.marginBottom ?? options.margin?.bottom, 0),
+            marginLeft:
+              options.marginLeft === undefined &&
+              options.margin?.left === undefined
+                ? undefined
+                : inches(options.marginLeft ?? options.margin?.left, 0),
+            marginRight:
+              options.marginRight === undefined &&
+              options.margin?.right === undefined
+                ? undefined
+                : inches(options.marginRight ?? options.margin?.right, 0),
+            pageRanges: options.pageRanges,
+            preferCSSPageSize: options.preferCSSPageSize,
+            generateTaggedPDF: options.generateTaggedPDF ?? options.tagged,
+            generateDocumentOutline:
+              options.generateDocumentOutline ?? options.outline,
+          });
+        },
+        options.timeout || this.timeout,
         'PDF',
+        cdp,
       );
       return {
         base64: data,
