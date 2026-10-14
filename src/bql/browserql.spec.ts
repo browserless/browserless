@@ -197,8 +197,13 @@ describe('BrowserQL schema and execution', () => {
       onDisconnected() {
         return () => {};
       }
-      override async evaluate({ timeout }: { timeout?: number }) {
-        return { value: String(timeout), time: 0 };
+      override async evaluate({
+        executionTimeout,
+      }: {
+        timeout?: number;
+        executionTimeout?: number;
+      }) {
+        return { value: String(executionTimeout), time: 0 };
       }
     }
     const service = new BrowserQL({
