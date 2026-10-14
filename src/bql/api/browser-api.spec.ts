@@ -123,6 +123,19 @@ test('pre-rule interception stays behind destination policy', async () => {
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(api.client.calls.at(-1)?.method, 'Fetch.failRequest');
+  for (const response of [
+    { responseStatusCode: 302 },
+    { responseErrorReason: 'Failed' },
+  ]) {
+    api.client.emit('Fetch.requestPaused', {
+      requestId: 'response',
+      request: { url: 'https://example.com/', method: 'GET' },
+      resourceType: 'Document',
+      ...response,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(api.client.calls.at(-1)?.method, 'Fetch.continueRequest');
+  }
   await api.close();
 });
 
