@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { BQLBrowserAPI } from '../api/browser-api.js';
 import { BrowserQL } from '../browserql.js';
 import { BadRequest } from '../../utils.js';
+import Sinon from 'sinon';
 
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 
@@ -69,6 +70,52 @@ describe('BrowserQL primitive contracts', () => {
     assert.equal(unbounded.errors, undefined);
     assert.equal((unbounded.data?.evaluate as { value: string }).value, 'ok');
     await context.close();
+  });
+
+  it('does not apply the script-fetch deadline to page evaluation', async () => {
+    class RuntimeAPI extends BQLBrowserAPI {
+      override async start() {
+        this.mainCDP = {
+          send: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 15_000));
+            return { result: { value: 'finished' } };
+          },
+        } as unknown as BQLBrowserAPI['mainCDP'];
+      }
+      override async close() {}
+    }
+    const clock = Sinon.useFakeTimers();
+    try {
+      for (const argument of ['', ', timeout: 0', ', timeout: 12000']) {
+        const service = new BrowserQL({
+          apiFactory: () => new RuntimeAPI(options),
+        });
+        const context = service.createContext(options);
+        const pending = service.execute(
+          {
+            query: `mutation { evaluate(content: "'finished'"${argument}) { value } }`,
+          },
+          context,
+        );
+        await clock.tickAsync(15_000);
+        const result = await pending;
+        if (argument === ', timeout: 12000') {
+          assert.match(
+            result.errors?.[0].message ?? '',
+            /timed out after 12000ms/,
+          );
+        } else {
+          assert.equal(result.errors, undefined);
+          assert.equal(
+            (result.data?.evaluate as { value: string }).value,
+            'finished',
+          );
+        }
+        await context.close();
+      }
+    } finally {
+      clock.restore();
+    }
   });
 
   it('retains typed input errors and rejects empty injection content before API startup', async () => {

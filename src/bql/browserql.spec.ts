@@ -38,6 +38,55 @@ describe('BrowserQL schema and execution', () => {
     await context.close();
   });
 
+  it('keeps non-null error propagation by default and allows explicit partial-result continuation', async () => {
+    for (const preserve of [false, true]) {
+      const visited: string[] = [];
+      const service = new BrowserQL({
+        modules: [
+          {
+            name: 'steps',
+            typeDefs:
+              'extend type Mutation { firstStep: String requiredStep: String! lastStep: String }',
+            resolvers: {
+              Mutation: {
+                firstStep: () => {
+                  visited.push('first');
+                  return 'first';
+                },
+                requiredStep: () => {
+                  visited.push('required');
+                  throw new Error('step failed');
+                },
+                lastStep: () => {
+                  visited.push('last');
+                  return 'last';
+                },
+              },
+            },
+          },
+        ],
+        mutationResultPolicy: preserve ? () => 'continue' : undefined,
+      });
+      const context = service.createContext(options);
+      const result = await service.execute(
+        {
+          query: 'mutation { firstStep alias:requiredStep lastStep }',
+        },
+        context,
+      );
+      assert.deepEqual(result.errors?.[0].path, ['alias']);
+      assert.deepEqual(
+        plain(result.data),
+        preserve ? { firstStep: 'first', lastStep: 'last' } : null,
+      );
+      assert.deepEqual(
+        visited,
+        preserve ? ['first', 'required', 'last'] : ['first', 'required'],
+      );
+      await context.close();
+    }
+  });
+
   it('rejects duplicate fields, resolver collisions and missing mutation/subscription bindings', () => {
     for (const typeDefs of [
       'extend type Mutation { title: String }',

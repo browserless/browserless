@@ -617,8 +617,9 @@ export class BQLBrowserAPI {
           networkId: e.networkId,
         });
       }
-      void this.dispatchFetch(e, cdp).catch((error: unknown) => {
-        this.events.emit('failure', error);
+      void this.dispatchFetch(e, cdp).catch(() => {
+        // A paused request may disappear during navigation or target teardown.
+        // Its terminal-command failure does not describe the active navigation.
         this.logger.error?.('Fetch dispatch failed');
       });
     });
@@ -651,9 +652,7 @@ export class BQLBrowserAPI {
           requestId: event.requestId,
           authChallengeResponse,
         })
-        .catch(() =>
-          this.events.emit('failure', new Error('HTTP authentication failed')),
-        );
+        .catch(() => this.logger.error?.('HTTP authentication failed'));
     });
     listen(
       'Runtime.consoleAPICalled',
@@ -816,12 +815,12 @@ export class BQLBrowserAPI {
     if (!decision) {
       try {
         decision = (await this.beforeRequestRules(event, cdp)) || undefined;
-      } catch (error) {
+      } catch {
         decision = {
           method: 'Fetch.failRequest',
           params: { errorReason: 'Failed' },
         };
-        this.events.emit('failure', error);
+        this.logger.error?.('Request policy failed');
       }
     }
     const matchingRules = this.rules.filter((r) =>
@@ -834,12 +833,12 @@ export class BQLBrowserAPI {
       for (const handler of this.handlers) {
         try {
           decision = (await handler(event, cdp)) || undefined;
-        } catch (error) {
+        } catch {
           decision = {
             method: 'Fetch.failRequest',
             params: { errorReason: 'Failed' },
           };
-          this.events.emit('failure', error);
+          this.logger.error?.('Request handler failed');
         }
         if (decision) break;
       }
@@ -870,18 +869,22 @@ export class BQLBrowserAPI {
 
   public async evaluate(args: EvaluateOptions) {
     await this.beforeReadback();
-    return this.evaluateInternal(args);
+    // The resolver owns the async execution deadline, independently of URL fetch.
+    return this.evaluateInternal(args, 0);
   }
 
-  protected async evaluateInternal({
-    content,
-    url,
-    timeout = 10_000,
-    executionTimeout = 0,
-    cdp = this.mainCDP,
+  protected async evaluateInternal(
+    {
+      content,
+      url,
+      timeout = 10_000,
+      executionTimeout = 0,
+      cdp = this.mainCDP,
+    }: EvaluateOptions,
+    runtimeTimeout = timeout,
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }: EvaluateOptions): Promise<{ value: any; time: number }> {
+  ): Promise<{ value: any; time: number }> {
     if (!content && !url)
       throw new BadRequest('One of "content" or "url" is required');
     if (content && url)
@@ -902,7 +905,7 @@ export class BQLBrowserAPI {
         awaitPromise: true,
         ...(executionTimeout > 0 ? { timeout: executionTimeout } : {}),
       }),
-      timeout,
+      runtimeTimeout,
       'evaluate',
     );
     if (result.exceptionDetails)
@@ -1213,6 +1216,8 @@ export class BQLBrowserAPI {
           ? `(async() => { const deadline = Date.now() + ${args.timeout ?? this.timeout}; try { for (let y=0; y < (document.documentElement?.scrollHeight ?? 0) && Date.now() < deadline; y += Math.max(1, innerHeight)) { window.scrollTo(0,y); await new Promise(r => setTimeout(r,50)); } } finally { window.scrollTo(0,0); } })()`
           : `window.scrollTo(${args.x ?? 0},${args.y ?? 0})`,
     });
+    // Allow the composited surface to catch up before a following capture.
+    if (args.selector) await pause(100);
     return {
       cdp,
       x: args.x,
