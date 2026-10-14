@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { once } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { BrowserQL } from './browserql.js';
@@ -10,6 +10,7 @@ describe('BrowserQL WebSocket wire transport', () => {
   it('negotiates the standard protocol and also accepts unnegotiated legacy JSON', async () => {
     const sessions: Promise<void>[] = [];
     const closed = new Set<number>();
+    const browsers = new Map<string, EventEmitter>();
     const server = new WebSocketServer({
       port: 0,
       host: '127.0.0.1',
@@ -29,8 +30,16 @@ describe('BrowserQL WebSocket wire transport', () => {
     } as Pick<BrowserQL, 'execute' | 'subscribe' | 'capabilities' | 'version'>;
     server.on('connection', (socket) => {
       const id = sessions.length + 1;
+      const browser = new EventEmitter();
+      browsers.set(socket.protocol, browser);
       const context = {
         id,
+        getBrowserInstance: () => browser,
+        hasErrored: () => false,
+        onDisconnected: (listener: () => void) => {
+          browser.on('disconnected', listener);
+          return () => browser.off('disconnected', listener);
+        },
         close: async () => {
           closed.add(id);
         },
@@ -80,6 +89,12 @@ describe('BrowserQL WebSocket wire transport', () => {
         },
         { id: 'one', type: 'complete' },
       ]);
+      const legacyClosed = once(legacy, 'close');
+      const standardClosed = once(standard, 'close');
+      browsers.get('')!.emit('close');
+      browsers.get(BQL_WEBSOCKET_PROTOCOL)!.emit('disconnected');
+      assert.equal((await legacyClosed)[0], 1011);
+      assert.equal((await standardClosed)[0], 1011);
     } finally {
       legacy.close();
       standard.close();
