@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
 import { BQLBrowserAPI } from './browser-api.js';
+import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 
 class CDP extends EventEmitter {
   calls: Array<{ method: string; params: any }> = [];
@@ -12,7 +13,11 @@ class CDP extends EventEmitter {
     this.calls.push({ method, params });
     return this.handler?.(method, params) ?? { result: { value: this.value } };
   }
-  dispose() {}
+  _closed = false;
+  dispose() {
+    this._closed = true;
+    this.emit(CDPSessionEvent.Disconnected);
+  }
 }
 
 class API extends BQLBrowserAPI {
@@ -672,4 +677,190 @@ test('console capture emits serializable arguments and exception locations once'
   assert.equal((await events.next()).value.text, 'Error: failed');
   await events.return(undefined);
   await api.close();
+});
+
+test('response bodies use the originating target after a window switch', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.handler = (method) =>
+    method === 'Network.getResponseBody'
+      ? { body: 'original', base64Encoded: false }
+      : {};
+  api.client.emit('Network.requestWillBeSent', {
+    requestId: 'r',
+    request: { url: 'https://example.com/data', method: 'GET', headers: {} },
+    type: 'Fetch',
+  });
+  api.client.emit('Network.responseReceived', {
+    requestId: 'r',
+    response: { url: 'https://example.com/data', status: 200, headers: {} },
+    type: 'Fetch',
+  });
+  const body = api.getResponseBody('r', 100);
+  api.mainCDP = new CDP() as any;
+  api.client.emit('Network.loadingFinished', { requestId: 'r' });
+  assert.deepEqual(await body, { body: 'original', base64Encoded: false });
+  assert.deepEqual(await api.getResponseBody('r'), {
+    body: 'original',
+    base64Encoded: false,
+  });
+  await api.close();
+});
+
+test('extension request handlers cannot override core rejection rules', async () => {
+  const api = new API();
+  await api.setup();
+  await api.reject({ enabled: true, url: ['*blocked*'] });
+  api.use(() => ({ method: 'Fetch.continueRequest' }));
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'r',
+    request: { url: 'https://example.com/blocked', method: 'GET' },
+    resourceType: 'Document',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(api.client.calls.at(-1)?.method, 'Fetch.failRequest');
+  await api.close();
+});
+
+test('closing during startup disposes late connections and prevents hooks from starting', async () => {
+  let release!: () => void;
+  let entered!: () => void;
+  const connecting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let disposed = 0;
+  let started = false;
+  const client = new CDP();
+  client.dispose = () => {
+    disposed++;
+  };
+  class StartingAPI extends BQLBrowserAPI {
+    override async listPageTargets() {
+      return [
+        {
+          id: 'page',
+          type: 'page',
+          title: '',
+          url: 'about:blank',
+          webSocketDebuggerUrl: 'ws://example.com/page',
+        },
+      ];
+    }
+    protected override async connect() {
+      entered();
+      await gate;
+      return client as any;
+    }
+    protected override async onStart() {
+      started = true;
+    }
+  }
+  const api = new StartingAPI({
+    browser: { wsEndpoint: () => 'ws://example.com/browser' } as any,
+    config: {} as any,
+    logger: {} as any,
+    req: {} as any,
+    blockConsentModals: false,
+  });
+  const startup = api.start();
+  await connecting;
+  await api.close();
+  release();
+  await assert.rejects(startup, /closed|no longer running/);
+  assert.ok(disposed > 0);
+  assert.equal(started, false);
+});
+
+test('bounding rectangles return null for absent elements without hiding evaluation failures', async () => {
+  const api = new API();
+  api.client.value = null;
+  assert.equal(await api.getBoundingClientRect({ selector: '.missing' }), null);
+  api.client.value = { x: 1, y: 2, width: 3, height: 4 };
+  assert.equal(
+    (await api.getBoundingClientRect({ selector: '.found' }))?.width,
+    3,
+  );
+  api.client.handler = () => ({
+    exceptionDetails: { text: 'Invalid selector' },
+  });
+  await assert.rejects(
+    api.getBoundingClientRect({ selector: '[' }),
+    /Invalid selector/,
+  );
+});
+
+test('HTTP authentication is origin scoped and cancels repeated challenges', async () => {
+  const api = new API();
+  await api.setup();
+  await api.authenticate({
+    username: 'test-user',
+    password: 'test-password',
+    origin: 'https://example.com',
+  });
+  const challenge = (requestId: string, origin: string, source = 'Server') =>
+    api.client.emit('Fetch.authRequired', {
+      requestId,
+      request: { url: origin + '/private' },
+      authChallenge: { origin, source },
+    });
+  challenge('first', 'https://example.com');
+  challenge('first', 'https://example.com');
+  challenge('other', 'https://other.example.com');
+  challenge('other-source', 'https://example.com', 'Proxy');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const results = api.client.calls
+    .filter((call) => call.method === 'Fetch.continueWithAuth')
+    .map((call) => call.params.authChallengeResponse);
+  assert.deepEqual(results, [
+    {
+      response: 'ProvideCredentials',
+      username: 'test-user',
+      password: 'test-password',
+    },
+    { response: 'CancelAuth' },
+    { response: 'CancelAuth' },
+    { response: 'Default' },
+  ]);
+  await assert.rejects(
+    api.authenticate({ username: 'x', password: 'x', origin: 'invalid' }),
+    /Invalid HTTP origin/,
+  );
+  await api.close();
+});
+
+test('disconnect notifications distinguish active target loss, replacement and intentional close', async () => {
+  const api = new API();
+  api.browserCDP = new CDP() as any;
+  await api.setup();
+  let notifications = 0;
+  const unsubscribe = api.onDisconnected(() => {
+    notifications++;
+  });
+  unsubscribe();
+  api.onDisconnected(() => {
+    notifications++;
+  });
+  const replacement = new CDP();
+  api.mainCDP = replacement as any;
+  await api.setup();
+  api.client.dispose();
+  assert.equal(notifications, 0);
+  assert.equal(api.hasErrored(), false);
+  const stream = api.streamEvents('request');
+  const pending = stream.next();
+  replacement.dispose();
+  assert.equal(notifications, 1);
+  assert.equal(api.hasErrored(), true);
+  assert.equal((await pending).done, true);
+  await api.close();
+  const intentional = new API();
+  await intentional.setup();
+  intentional.onDisconnected(() => {
+    notifications++;
+  });
+  await intentional.close();
+  assert.equal(notifications, 1);
 });
