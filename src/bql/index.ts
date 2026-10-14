@@ -7,3 +7,4 @@ export * from './executor.js';
 export * from './serial.js';
 export { handleBQLHTTP } from './http.js';
 export { BQLWebSocketSession, BQL_WEBSOCKET_PROTOCOL } from './ws-session.js';
+export type { BQLWebSocketSessionOptions } from './ws-session.js';
