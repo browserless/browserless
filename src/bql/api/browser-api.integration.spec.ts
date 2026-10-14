@@ -171,6 +171,28 @@ describe('raw CDP browser primitives', () => {
       (await api.querySelectorAll({ selector: 'button' })).length,
       2,
     );
+    assert.equal(
+      (
+        await api.querySelectorAll({
+          selector: 'document.querySelectorAll("input")',
+        })
+      ).length,
+      2,
+    );
+    await api.click({ selector: 'document.querySelectorAll("input")[1]' });
+    assert.equal(
+      (
+        await api.evaluate({
+          content: 'document.querySelector("#check").checked',
+        })
+      ).value,
+      true,
+    );
+    const mapped = await api.mapSelector({ selector: 'section' });
+    assert.equal(
+      (await mapped[0].mapSelector({ selector: 'b' }))[0].innerText,
+      'Hello',
+    );
     await assert.rejects(
       api.querySelector({ selector: '< iframe button' }),
       /not supported/,
