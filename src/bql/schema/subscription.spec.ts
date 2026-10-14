@@ -12,6 +12,7 @@ const iterator = (result: AsyncIterable<ExecutionResult> | ExecutionResult) => {
 
 class EventAPI extends BQLBrowserAPI {
   override async start() {}
+  override async ensureConsoleCapture() {}
   override async close() {
     this.events.emit('close');
   }
