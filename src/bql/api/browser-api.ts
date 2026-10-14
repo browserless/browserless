@@ -2437,7 +2437,11 @@ export class BQLBrowserAPI {
       if (timeout)
         deadline = setTimeout(() => {
           cleanup();
-          reject(new Error('Network idle timed out'));
+          reject(
+            new Error(
+              `Timeout of ${timeout}ms reached waiting for network idle`,
+            ),
+          );
         }, timeout);
       check();
     });
@@ -2559,7 +2563,7 @@ export class BQLBrowserAPI {
     await this.beforeReadback();
     try {
       if (this.closed) return null;
-      if (origin?.pending ?? this.inflight.has(id))
+      if (origin?.pending)
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
           const done = (finished: string) => {
@@ -2782,19 +2786,33 @@ export class BQLBrowserAPI {
   }) {
     const start = Date.now();
     this.validateFilter(filter);
+    const encodedBody =
+      base64Body ??
+      (body === undefined ? undefined : Buffer.from(body).toString('base64'));
+    const responseHeaders = headers.filter(
+      ({ name }) => !contentType || name.toLowerCase() !== 'content-type',
+    );
+    if (contentType)
+      responseHeaders.unshift({ name: 'Content-Type', value: contentType });
+    if (
+      encodedBody !== undefined &&
+      !responseHeaders.some(
+        ({ name }) => name.toLowerCase() === 'content-length',
+      )
+    ) {
+      responseHeaders.push({
+        name: 'Content-Length',
+        value: String(Buffer.from(encodedBody, 'base64').byteLength),
+      });
+    }
     this.rules.push({
       filter,
       decision: {
         method: 'Fetch.fulfillRequest',
         params: {
           responseCode: status,
-          responseHeaders: [
-            ...headers,
-            ...(contentType
-              ? [{ name: 'Content-Type', value: contentType }]
-              : []),
-          ],
-          body: base64Body ?? Buffer.from(body ?? '').toString('base64'),
+          responseHeaders: responseHeaders.length ? responseHeaders : undefined,
+          body: encodedBody,
         },
       },
     });
