@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { strict as assert } from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
+import { buildSchema, execute, parse } from 'graphql';
 import type { WebSocket } from 'ws';
 import type { BrowserQL } from './browserql.js';
 import type { Context } from './context.js';
@@ -36,12 +37,21 @@ describe('BrowserQL WebSocket transport', () => {
   let socket: Socket;
   let done: Promise<void>;
   let closed: number;
+  let browser: EventEmitter;
+  let apiEvents: EventEmitter;
+  let failed: boolean;
   let service: Pick<
     BrowserQL,
     'execute' | 'subscribe' | 'version' | 'capabilities'
   >;
   const start = () => {
     done = new BQLWebSocketSession(socket as unknown as WebSocket, service, {
+      getBrowserInstance: () => browser,
+      hasErrored: () => failed,
+      onDisconnected: (listener: () => void) => {
+        apiEvents.on('disconnected', listener);
+        return () => apiEvents.off('disconnected', listener);
+      },
       close: async () => {
         closed++;
       },
@@ -51,6 +61,9 @@ describe('BrowserQL WebSocket transport', () => {
     socket.receive({ type: 'subscribe', id, payload: { query } });
   beforeEach(() => {
     closed = 0;
+    browser = new EventEmitter();
+    apiEvents = new EventEmitter();
+    failed = false;
     socket = new Socket();
     service = {
       version: '1.2.3',
@@ -282,9 +295,94 @@ describe('BrowserQL WebSocket transport', () => {
     assert.equal(socket.code, undefined);
   });
 
+  for (const protocol of ['', 'graphql-transport-ws']) {
+    for (const source of ['browser', 'api']) {
+      for (const pending of [false, true]) {
+        it(`closes ${protocol || 'legacy'} on ${source} loss while ${pending ? 'executing' : 'idle'}`, async () => {
+          const result = deferred<any>();
+          socket.protocol = protocol;
+          service.execute = async () => result.promise;
+          start();
+          if (protocol) socket.receive({ type: 'connection_init' });
+          if (pending) {
+            if (protocol) subscribe('a');
+            else socket.receive({ query: 'mutation { run }' });
+            await setImmediate();
+          }
+          const count = socket.frames.length;
+          if (source === 'browser') browser.emit('close');
+          else apiEvents.emit('disconnected');
+          await setImmediate();
+          assert.equal(socket.code, 1011);
+          assert.equal(closed, 1);
+          assert.equal(browser.listenerCount('close'), 0);
+          assert.equal(apiEvents.listenerCount('disconnected'), 0);
+          result.resolve({ data: { run: true } });
+          await setImmediate();
+          assert.equal(socket.frames.length, count);
+        });
+      }
+    }
+
+    it(`uses browser state, not resolver error text, for ${protocol || 'legacy'} results`, async () => {
+      socket.protocol = protocol;
+      const schema = buildSchema(
+        'type Query { version: String } type Mutation { run: String }',
+      );
+      service.execute = async () => {
+        const result = await execute({
+          schema,
+          document: parse('mutation { run }'),
+          rootValue: {
+            run() {
+              throw new Error('Protocol error: Target closed');
+            },
+          },
+        });
+        assert.equal(
+          result.errors?.[0].originalError?.message,
+          'Protocol error: Target closed',
+        );
+        return result;
+      };
+      start();
+      if (protocol) socket.receive({ type: 'connection_init' });
+      const send = () =>
+        protocol
+          ? subscribe('a')
+          : socket.receive({ query: 'mutation { run }' });
+      send();
+      await setImmediate();
+      assert.equal(socket.code, undefined);
+      failed = true;
+      send();
+      await setImmediate();
+      assert.equal(socket.code, 1011);
+    });
+
+    it(`keeps ${protocol || 'legacy'} open when a thrown script error mimics disconnect`, async () => {
+      socket.protocol = protocol;
+      service.execute = async () => {
+        throw new Error('Target closed');
+      };
+      start();
+      if (protocol) {
+        socket.receive({ type: 'connection_init' });
+        subscribe('a');
+      } else socket.receive({ query: 'mutation { run }' });
+      await setImmediate();
+      assert.equal(socket.code, undefined);
+      socket.close();
+      await done;
+      assert.equal(browser.listenerCount('close'), 0);
+      assert.equal(apiEvents.listenerCount('disconnected'), 0);
+    });
+  }
+
   it('preserves legacy JSON envelopes and closes on browser loss', async () => {
     socket.protocol = '';
     service.execute = async () => {
+      failed = true;
       throw new Error('Target closed');
     };
     start();
