@@ -80,6 +80,7 @@ describe('raw CDP browser primitives', () => {
       <h1>Heading</h1><section id="read"><b>Hello</b></section>
       <button id="click" onclick="window.clicks=(window.clicks||0)+1">Click</button>
       <input id="input"><input id="check" type="checkbox">
+      <input id="radio" type="radio"><input id="prevented" type="checkbox" onclick="event.preventDefault()">
       <select id="select"><option value="a">A</option><option value="b">B</option></select>
       <div id="host"></div><div style="height:2000px"></div>
       <script>document.querySelector('#host').attachShadow({mode:'open'}).innerHTML='<button id="shadow">Shadow</button>'; document.querySelector('#input').addEventListener('keydown',()=>window.keys=(window.keys||0)+1);</script>
@@ -177,7 +178,7 @@ describe('raw CDP browser primitives', () => {
           selector: 'document.querySelectorAll("input")',
         })
       ).length,
-      2,
+      4,
     );
     await api.click({ selector: 'document.querySelectorAll("input")[1]' });
     assert.equal(
@@ -220,7 +221,23 @@ describe('raw CDP browser primitives', () => {
     );
     assert.equal((await api.evaluate({ content: 'window.keys' })).value, 5);
     await api.checkbox({ selector: '#check', checked: true });
-    await api.checkbox({ selector: '#check', checked: true });
+    const unchanged = await api.checkbox({ selector: '#check', checked: true });
+    assert.ok('x' in unchanged && 'y' in unchanged);
+    assert.equal(typeof unchanged.x, 'number');
+    assert.equal(typeof unchanged.y, 'number');
+    await api.checkbox({ selector: '#radio', checked: true });
+    assert.equal(
+      (
+        await api.evaluate({
+          content: "document.querySelector('#radio').checked",
+        })
+      ).value,
+      true,
+    );
+    await assert.rejects(
+      api.checkbox({ selector: '#prevented', checked: true }),
+      /Checked status did not change after clicking/,
+    );
     assert.equal(
       (
         await api.evaluate({
