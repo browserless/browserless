@@ -127,14 +127,14 @@ subscriptions and per-operation cancellation.
 ## Exporting results within an operation
 
 The `@export` directive makes an earlier result available to later fields in the
-same operation. Declare a variable of the type expected by its consumer:
+same operation. Reference the exported value inside a later string argument:
 
 ```graphql
-mutation ($destination: String!) {
+mutation {
   evaluate(content: "'https://example.com'") {
     value @export(as: "destination")
   }
-  goto(url: $destination) {
+  goto(url: "${destination}") {
     status
   }
 }
