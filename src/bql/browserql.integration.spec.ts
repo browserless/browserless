@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { createServer, type ServerResponse } from 'node:http';
 import puppeteer from 'puppeteer-core';
-import { BrowserQL } from './browserql.js';
-import type { BQLContextOptions } from './context.js';
+import { BrowserQL, BQLContextOptions } from '@browserless.io/browserless';
 
 describe('BrowserQL browser execution', () => {
   it('switches at the requested current-document milestone, including already loaded targets', async function () {

@@ -1,6 +1,5 @@
+import type { BQLBrowserAPI, Context } from '@browserless.io/browserless';
 import type { DocumentNode, GraphQLFieldResolver } from 'graphql';
-import type { BQLBrowserAPI } from './api/browser-api.js';
-import type { Context } from './context.js';
 
 export type Resolver<API extends BQLBrowserAPI = BQLBrowserAPI> =
   GraphQLFieldResolver<unknown, Context<API>>;
