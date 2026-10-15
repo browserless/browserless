@@ -133,11 +133,13 @@ for (const browser of browsers)
           expect(result.errors).to.equal(undefined);
           expect(result.data.title.title).to.equal('Socket fixture');
           if (protocol) {
-            const consoleEvent = new Promise<unknown>((resolve) => {
+            const consoleEvent = new Promise<unknown>((resolve, reject) => {
               socket.on('message', (data) => {
                 const frame = JSON.parse(data.toString());
                 if (frame.id === 'console' && frame.type === 'next')
                   resolve(frame.payload);
+                if (frame.id === 'console' && frame.type === 'error')
+                  reject(new Error(JSON.stringify(frame.payload)));
               });
             });
             socket.send(
