@@ -1,11 +1,96 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { createServer } from 'node:http';
+import { createServer, type ServerResponse } from 'node:http';
 import puppeteer from 'puppeteer-core';
 import { BrowserQL } from './browserql.js';
 import type { BQLContextOptions } from './context.js';
 
 describe('BrowserQL browser execution', () => {
+  it('switches at the requested current-document milestone, including already loaded targets', async function () {
+    if (!process.env.CHROME_PATH) this.skip();
+    this.timeout(30_000);
+    let image: ServerResponse | undefined;
+    const server = createServer((req, res) => {
+      if (req.url === '/image') {
+        image = res;
+        return;
+      }
+      res.setHeader('content-type', 'text/html');
+      res.end('<title>Next</title><img src="/image">');
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const { port } = server.address() as { port: number };
+    const browser = await puppeteer.launch({
+      executablePath: process.env.CHROME_PATH,
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    });
+    const context = new BrowserQL().createContext({
+      browser: { wsEndpoint: () => browser.wsEndpoint() },
+      config: {},
+      logger: { error() {} },
+      req: {},
+      blockConsentModals: false,
+    } as BQLContextOptions);
+    try {
+      const api = await context.getBrowser();
+      const page = await browser.newPage();
+      await page.goto(`http://127.0.0.1:${port}/`, {
+        waitUntil: 'domcontentloaded',
+      });
+      const target = (await api.listPageTargets()).find(
+        (t) => t.url === page.url(),
+      )!;
+      assert.equal(
+        (
+          await api.switchToWindow({
+            targetId: target.id,
+            waitUntil: 'domContentLoaded',
+            timeout: 1000,
+          })
+        ).success,
+        true,
+      );
+      assert.equal(
+        (
+          await api.switchToWindow({
+            targetId: target.id,
+            waitUntil: 'load',
+            timeout: 100,
+          })
+        ).success,
+        false,
+      );
+      image!.end();
+      await page.waitForFunction(() => document.readyState === 'complete');
+      for (const waitUntil of [
+        'commit',
+        'domContentLoaded',
+        'load',
+        'networkIdle',
+      ] as const) {
+        assert.equal(
+          (
+            await api.switchToWindow({
+              targetId: target.id,
+              waitUntil,
+              timeout: 3000,
+            })
+          ).success,
+          true,
+          waitUntil,
+        );
+      }
+    } finally {
+      image?.end();
+      await context.close();
+      await browser.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('executes core contracts, exports, nested conditions, extensions and discovery against Chromium', async function () {
     if (!process.env.CHROME_PATH) this.skip();
     this.timeout(30_000);
