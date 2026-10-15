@@ -237,6 +237,31 @@ describe('BrowserQL schema and execution', () => {
     assert.deepEqual(plain(result), {
       data: { first: { aliased: value }, second: { value } },
     });
+    for (const variables of [undefined, null]) {
+      const context = service.createContext(options);
+      assert.deepEqual(
+        plain(
+          await service.execute(
+            {
+              query:
+                'mutation($input:String! = "default") { echo(value:$input) { value } }',
+              variables,
+            },
+            context,
+          ),
+        ),
+        { data: { echo: { value: 'default' } } },
+      );
+      const missing = await service.execute(
+        {
+          query: 'mutation($input:String!) { echo(value:$input) { value } }',
+          variables,
+        },
+        context,
+      );
+      assert.match(missing.errors![0].message, /non-null type "String!"/);
+      await context.close();
+    }
   });
 
   it('applies preferences to evaluation without replacing an explicit zero timeout', async () => {
@@ -273,6 +298,24 @@ describe('BrowserQL schema and execution', () => {
       invalid: null,
     });
     assert.equal(result.errors?.length, 1);
+    assert.deepEqual(
+      plain(
+        await service.execute(
+          {
+            query:
+              'mutation { zero:preferences(timeout:0) { timeout } null:preferences(timeout:null) { timeout } reset:preferences { timeout } }',
+          },
+          context,
+        ),
+      ),
+      {
+        data: {
+          zero: { timeout: 17 },
+          null: { timeout: 17 },
+          reset: { timeout: 30000 },
+        },
+      },
+    );
     await context.close();
   });
 

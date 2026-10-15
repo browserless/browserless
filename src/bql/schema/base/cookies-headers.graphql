@@ -24,7 +24,7 @@ extend type Mutation {
   """
   javaScriptEnabled(enabled: Boolean): JavaScriptResponse
   """
-  Set the default operation timeout in milliseconds; zero disables the limit.
+  Set the default operation timeout in milliseconds. Omitting timeout resets it to 30000; null or zero reads the current value without changing it.
   """
   preferences(timeout: Float = 30000): DefaultResponse
 }

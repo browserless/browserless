@@ -30,10 +30,11 @@ export async function executeWithChaining(
   document: string | DocumentNode,
   rootValue: unknown,
   contextValue: unknown,
-  variableValues: Record<string, unknown> = {},
+  variableValues?: Record<string, unknown> | null,
   operationName?: string,
   mutationResultPolicy?: MutationResultPolicy,
 ): Promise<ExecutionResult> {
+  variableValues ??= {};
   let ast: DocumentNode;
   try {
     ast = typeof document === 'string' ? parse(document) : document;
