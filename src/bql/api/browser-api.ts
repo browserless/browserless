@@ -892,7 +892,9 @@ export class BQLBrowserAPI {
     if (url) content = await this.fetchScript(url, timeout);
     const start = Date.now();
     const body = content!.trim();
-    const expression = body.replace(/\s*;+\s*$/, '');
+    let end = body.length;
+    while (body[end - 1] === ';') end--;
+    const expression = body.slice(0, end).trimEnd();
     let isExpression = false;
     try {
       new Script(`(async() => (${expression}))`);
@@ -2199,7 +2201,9 @@ export class BQLBrowserAPI {
     ): number => {
       if (value === undefined) return fallback;
       if (typeof value === 'number') return value;
-      const match = /^(-?\d*\.?\d+)\s*(px|in|cm|mm)$/i.exec(value.trim());
+      const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(px|in|cm|mm)$/i.exec(
+        value.trim(),
+      );
       if (!match) throw new BadRequest('Invalid paper dimension');
       return (
         Number(match[1]) *
