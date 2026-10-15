@@ -1,5 +1,10 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
-import { BrowserQL, defineBQLModule } from './bql/index.js';
+import {
+  Browserless,
+  BrowserQL,
+  Config,
+  Metrics,
+  defineBQLModule,
+} from '@browserless.io/browserless';
 import WebSocket from 'ws';
 import { expect } from 'chai';
 import getPort from 'get-port';

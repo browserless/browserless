@@ -6,6 +6,7 @@ import {
   Logger as BlessLogger,
   BrowserHTTPRoute,
   BrowserManager,
+  BrowserQL,
   BrowserWebsocketRoute,
   ChromeCDP,
   ChromiumCDP,
@@ -37,7 +38,6 @@ import {
   printLogo,
   safeParse,
 } from '@browserless.io/browserless';
-import { BrowserQL } from './bql/browserql.js';
 import { EventEmitter } from 'events';
 import { readFile } from 'fs/promises';
 import { userInfo } from 'os';
