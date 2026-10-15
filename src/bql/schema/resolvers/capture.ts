@@ -1,4 +1,4 @@
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 
 export const capture: Record<string, Resolver> = {
   screenshot: async (_source, args, context) =>

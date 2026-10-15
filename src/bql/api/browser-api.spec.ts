@@ -4,9 +4,12 @@ import { createServer } from 'node:http';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
-import { BQLBrowserAPI } from './browser-api.js';
+import {
+  BQLBrowserAPI,
+  BadRequest,
+  Timeout,
+} from '@browserless.io/browserless';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
-import { BadRequest, Timeout } from '../../utils.js';
 
 class CDP extends EventEmitter {
   constructor(readonly targetId = 'test') {
@@ -941,6 +944,52 @@ test('close cancels network and navigation waits without retaining listeners', a
   await Promise.all(assertions);
   assert.equal(api.client.listenerCount('Page.frameNavigated'), 0);
   assert.equal(api.listeners('close'), 0);
+});
+
+test('network waits filter future events, reuse history and retain zero-timeout waits', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    for (const kind of ['request', 'response'] as const) {
+      const wait = (timeout: number) =>
+        kind === 'request'
+          ? api.waitForRequest({ urls: ['*selected*'], timeout })
+          : api.waitForResponse({ urls: ['*selected*'], timeout });
+      const emit = (id: string) => {
+        const record = {
+          url: `https://example.com/${id}`,
+          method: 'GET',
+          headers: {},
+          status: 201,
+        };
+        api.client.emit(
+          kind === 'request'
+            ? 'Network.requestWillBeSent'
+            : 'Network.responseReceived',
+          {
+            requestId: id,
+            type: 'Fetch',
+            [kind]: record,
+          },
+        );
+      };
+      await assert.rejects(wait(10), new RegExp(`Network ${kind} timed out`));
+      const waiting = wait(0);
+      emit('unrelated');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      emit('selected');
+      assert.deepEqual(
+        (await waiting).map(({ id }) => id),
+        ['selected'],
+      );
+      assert.deepEqual(
+        (await wait(10)).map(({ id }) => id),
+        ['selected'],
+      );
+    }
+  } finally {
+    await api.close();
+  }
 });
 
 test('and filters require every supplied pattern, including patterns in one field', async () => {

@@ -1,20 +1,18 @@
 import {
   APITags,
+  BrowserHTTPRoute,
+  BrowserlessRoutes,
+  CDPLaunchOptions,
+  ChromiumCDP,
   HTTPRoutes,
+  Logger,
   Methods,
   Request,
   SystemQueryParameters,
   contentTypes,
-} from '../http.js';
-import {
-  BrowserHTTPRoute,
-  BrowserlessRoutes,
-  CDPLaunchOptions,
-} from '../types.js';
-import { ChromiumCDP } from '../browsers/browsers.cdp.js';
-import type { Logger } from '../logger.js';
+  handleBQLHTTP,
+} from '@browserless.io/browserless';
 import type { ServerResponse } from 'node:http';
-import { handleBQLHTTP } from '../bql/http.js';
 
 export { BodySchema, ResponseSchema } from '../bql/http.js';
 export interface QuerySchema extends SystemQueryParameters {

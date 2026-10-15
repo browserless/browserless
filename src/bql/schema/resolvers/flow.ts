@@ -1,4 +1,4 @@
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 
 const condition: Resolver = async (_source, args, context) => {
   const api = await context.getBrowser();

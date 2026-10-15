@@ -1,4 +1,4 @@
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 
 export const navigation: Record<string, Resolver> = {
   back: async (_source, args, context) =>

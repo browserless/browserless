@@ -1,4 +1,4 @@
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 
 export const windows: Record<string, Resolver> = {
   windows: async (_source, _args, context) =>

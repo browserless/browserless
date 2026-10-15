@@ -1,7 +1,6 @@
+import type { BrowserQL, Context } from '@browserless.io/browserless';
 import type { ExecutionResult, FormattedExecutionResult } from 'graphql';
 import { GraphQLError, getOperationAST, parse } from 'graphql';
-import type { BrowserQL } from './browserql.js';
-import type { Context } from './context.js';
 import type { RawData } from 'ws';
 import { WebSocket } from 'ws';
 

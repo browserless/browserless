@@ -7,11 +7,16 @@ import {
   validate,
 } from 'graphql';
 
-import { APIFactory, BQLContextOptions, Context } from './context.js';
-import { MutationResultPolicy, executeWithChaining } from './executor.js';
-import { BQLBrowserAPI } from './api/browser-api.js';
-import type { BQLModule } from './module.js';
-import { buildBQLSchema } from './schema/build.js';
+import {
+  APIFactory,
+  BQLBrowserAPI,
+  BQLContextOptions,
+  BQLModule,
+  Context,
+  MutationResultPolicy,
+  buildBQLSchema,
+  executeWithChaining,
+} from '@browserless.io/browserless';
 import { executionError } from './errors.js';
 import { readFileSync } from 'node:fs';
 

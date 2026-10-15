@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import type { ExecutionResult } from 'graphql';
-import { BQLBrowserAPI } from '../api/browser-api.js';
-import { BrowserQL } from '../browserql.js';
+import { BQLBrowserAPI, BrowserQL } from '@browserless.io/browserless';
 
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
