@@ -153,10 +153,15 @@ session deadline. Closing a connection cancels its streams and releases its
 context. Do not assume closing a connection can undo a browser action already
 dispatched.
 
+Scripts downloaded by `evaluate(url: ...)` are limited to 10 MiB of decoded
+response bytes. This limit applies even when the response has no Content-Length.
+
 CSS selectors support shadow roots. Deep selectors beginning with `<` are not
 supported. `userAgent` applies an ordinary browser user-agent override. Window
 selection uses page targets; switching windows does not reset the session's
-server deadline.
+server deadline. `switchToWindow(waitUntil: ...)` waits for the selected page's
+current document to reach that milestone; `waitForNavigation` waits for a future
+navigation. A window-switch timeout leaves the previous target selected.
 
 Protocol close codes include:
 

@@ -135,7 +135,9 @@ Example Domain
 
 ## BrowserQL
 
-Run browser actions with GraphQL over HTTP or WebSocket:
+The open-source image includes primitive browser actions through BrowserQL
+over HTTP or WebSocket. Detector avoidance and captcha solving are premium
+capabilities, not part of this API.
 
 ```sh
 curl 'http://localhost:3000/chromium/bql?token=YOUR_TOKEN' \
