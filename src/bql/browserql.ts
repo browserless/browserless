@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 
 export interface BQLRequest {
   query: string | DocumentNode;
-  variables?: Record<string, unknown>;
+  variables?: Record<string, unknown> | null;
   operationName?: string;
 }
 
