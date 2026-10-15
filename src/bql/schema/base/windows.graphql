@@ -1,32 +1,63 @@
 extend type Mutation {
-  """List open page targets."""
+  """
+  List open page targets.
+  """
   windows: [WindowInfo]
-  """Select a page target by ID, URL, title, or recency."""
-  switchToWindow(targetId: String, url: String, title: String, newest: Boolean = false, timeout: Float = 5000, waitUntil: WaitUntilGoto): SwitchWindowResponse
+  """
+  Select a page target by ID, URL, title, or recency.
+  """
+  switchToWindow(
+    targetId: String
+    url: String
+    title: String
+    newest: Boolean = false
+    timeout: Float = 5000
+    waitUntil: WaitUntilGoto
+  ): SwitchWindowResponse
 }
 
 type WindowInfo {
-  """The targetId value."""
+  """
+  The targetId value.
+  """
   targetId: String!
-  """The url value."""
+  """
+  The url value.
+  """
   url: String
-  """The title value."""
+  """
+  The title value.
+  """
   title: String
-  """The active value."""
+  """
+  The active value.
+  """
   active: Boolean!
-  """The browserContextId value."""
+  """
+  The browserContextId value.
+  """
   browserContextId: String
 }
 
 type SwitchWindowResponse {
-  """The success value."""
+  """
+  The success value.
+  """
   success: Boolean!
-  """The error value."""
+  """
+  The error value.
+  """
   error: String
-  """The title value."""
+  """
+  The title value.
+  """
   title: String
-  """The url value."""
+  """
+  The url value.
+  """
   url: String
-  """The navigation value."""
+  """
+  The navigation value.
+  """
   navigation: HTTPResponse
 }
