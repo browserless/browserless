@@ -15,6 +15,16 @@ import { Script } from 'node:vm';
 import TurndownService from 'turndown';
 import micromatch from 'micromatch';
 
+const restoredLifecycleEvents = [
+  'load',
+  'domcontentloaded',
+  'networkidle',
+  'networkalmostidle',
+  'firstmeaningfulpaint',
+  'firstcontentfulpaint',
+  'interactivetime',
+];
+
 export interface BQLBrowserAPIOptions {
   browser: ChromiumCDP;
   config: Config;
@@ -307,6 +317,10 @@ export class BQLBrowserAPI {
   private targetSequence = 0;
   private rejectedDocuments = new Set<Connection>();
   protected currentFrames = new WeakMap<Connection, Protocol.Page.Frame>();
+  private currentLifecycle = new WeakMap<
+    Connection,
+    { loaderId: string; events: Set<string> }
+  >();
   protected consoleCapture = false;
   private httpAuth?: { username: string; password: string; origin?: string };
   private authChallenges = new WeakMap<
@@ -489,7 +503,30 @@ export class BQLBrowserAPI {
     listen(
       'Page.frameNavigated',
       (event: Protocol.Page.FrameNavigatedEvent) => {
-        if (!event.frame.parentId) this.currentFrames.set(cdp, event.frame);
+        if (!event.frame.parentId) {
+          this.currentFrames.set(cdp, event.frame);
+          if (event.type === 'BackForwardCacheRestore')
+            this.currentLifecycle.set(cdp, {
+              loaderId: event.frame.loaderId,
+              events: new Set(restoredLifecycleEvents),
+            });
+          else if (
+            this.currentLifecycle.get(cdp)?.loaderId !== event.frame.loaderId
+          )
+            this.currentLifecycle.delete(cdp);
+        }
+      },
+    );
+    listen(
+      'Page.lifecycleEvent',
+      (event: Protocol.Page.LifecycleEventEvent) => {
+        if (event.frameId !== this.currentFrames.get(cdp)?.id) return;
+        let state = this.currentLifecycle.get(cdp);
+        if (state?.loaderId !== event.loaderId) {
+          state = { loaderId: event.loaderId, events: new Set() };
+          this.currentLifecycle.set(cdp, state);
+        }
+        state.events.add(event.name.toLowerCase().replace('candidate', ''));
       },
     );
     listen(
@@ -935,6 +972,7 @@ export class BQLBrowserAPI {
 
   protected async fetchScript(url: string, timeout: number): Promise<string> {
     const signal = AbortSignal.timeout(timeout || 30_000);
+    const limit = 10 * 1024 * 1024;
     for (let hops = 0; ; hops++) {
       await this.assertNavigationAllowed(url);
       const response: Response = await fetch(url, {
@@ -946,12 +984,32 @@ export class BQLBrowserAPI {
         response.status < 400 &&
         response.headers.has('location')
       ) {
+        await response.body?.cancel();
         if (hops >= 20) throw new Error('Too many script redirects');
         url = new URL(response.headers.get('location')!, url).href;
         continue;
       }
-      if (!response.ok) throw new Error('Error getting script from URL');
-      return response.text();
+      const reader = response.body?.getReader();
+      try {
+        if (!response.ok) throw new Error('Error getting script from URL');
+        if (Number(response.headers.get('content-length')) > limit)
+          throw new Error('Script exceeds 10 MiB download limit');
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        if (reader) {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > limit)
+              throw new Error('Script exceeds 10 MiB download limit');
+            chunks.push(value);
+          }
+        }
+        return new TextDecoder().decode(Buffer.concat(chunks, size));
+      } finally {
+        await reader?.cancel();
+      }
     }
   }
 
@@ -1301,6 +1359,7 @@ export class BQLBrowserAPI {
     timeout: number,
     cdp: Connection,
     documentOpen = false,
+    currentDocument = false,
   ): ReturnType<BQLBrowserAPI['waitForNavigation']> {
     const start = Date.now();
     const waits = (Array.isArray(waitUntil) ? waitUntil : [waitUntil]).map(
@@ -1311,7 +1370,7 @@ export class BQLBrowserAPI {
         reject(new Error('Browser is no longer running'));
         return;
       }
-      let frame: Protocol.Page.Frame | undefined;
+      let frame = currentDocument ? this.currentFrames.get(cdp) : undefined;
       let opened = !documentOpen;
       let timer: ReturnType<typeof setTimeout> | undefined;
       let graceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1320,6 +1379,11 @@ export class BQLBrowserAPI {
       let relaxed = false;
       let settled = false;
       const seen = new Map<string, Set<string>>();
+      const cached = currentDocument
+        ? this.currentLifecycle.get(cdp)
+        : undefined;
+      if (cached && cached.loaderId === frame?.loaderId)
+        seen.set(cached.loaderId, new Set(cached.events));
       const documents = new Map<string, Protocol.Network.Response>();
       const cleanup = () => {
         clearTimeout(timer);
@@ -1450,18 +1514,7 @@ export class BQLBrowserAPI {
         if (!e.frame.parentId && opened) {
           frame = e.frame;
           if (e.type === 'BackForwardCacheRestore') {
-            seen.set(
-              frame.loaderId,
-              new Set([
-                'load',
-                'domcontentloaded',
-                'networkidle',
-                'networkalmostidle',
-                'firstmeaningfulpaint',
-                'firstcontentfulpaint',
-                'interactivetime',
-              ]),
-            );
+            seen.set(frame.loaderId, new Set(restoredLifecycleEvents));
           }
           check();
         }
@@ -1525,6 +1578,7 @@ export class BQLBrowserAPI {
           () => failed(new Timeout(`Navigation timed out after ${timeout}ms`)),
           timeout,
         );
+      if (currentDocument) check();
     });
   }
   private resetNetwork() {
@@ -2937,11 +2991,13 @@ export class BQLBrowserAPI {
                 targetId: target.id,
               });
               if (waitUntil)
-                await this.waitForFunction({
-                  fn: "document.readyState === 'complete'",
-                  timeout: Math.max(1, timeout - (Date.now() - start)),
-                  cdp: next,
-                });
+                await this.waitForDocument(
+                  waitUntil,
+                  Math.max(1, timeout - (Date.now() - start)),
+                  next!,
+                  false,
+                  true,
+                );
             })(),
             Math.max(1, timeout - (Date.now() - start)),
             'Window setup',
@@ -2981,6 +3037,7 @@ export class BQLBrowserAPI {
     }
     this.pendingRequests.delete(cdp);
     this.currentFrames.delete(cdp);
+    this.currentLifecycle.delete(cdp);
     this.rejectedDocuments.delete(cdp);
     this.authChallenges.delete(cdp);
     cdp.dispose();
