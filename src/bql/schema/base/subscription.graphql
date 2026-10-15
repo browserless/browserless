@@ -1,22 +1,49 @@
 type Subscription {
-  """Stream console messages from the current browser session."""
+  """
+  Stream console messages from the current browser session.
+  """
   console: ConsoleMessage
-  """Stream network request events matching the supplied filters."""
-  request(url: [String], method: [Method], type: [ResourceType], operator: OperatorTypes = or): RequestResponse
-  """Stream network response events matching the supplied filters."""
-  response(url: [String], status: [Int], method: [Method], type: [ResourceType], operator: OperatorTypes = or): ResponseResponse
+  """
+  Stream network request events matching the supplied filters.
+  """
+  request(
+    url: [String]
+    method: [Method]
+    type: [ResourceType]
+    operator: OperatorTypes = or
+  ): RequestResponse
+  """
+  Stream network response events matching the supplied filters.
+  """
+  response(
+    url: [String]
+    status: [Int]
+    method: [Method]
+    type: [ResourceType]
+    operator: OperatorTypes = or
+  ): ResponseResponse
 }
 
 type ConsoleMessage {
-  """The type value."""
+  """
+  The type value.
+  """
   type: ConsoleMessageType
-  """The text value."""
+  """
+  The text value.
+  """
   text: String
-  """The args value."""
+  """
+  The args value.
+  """
   args: [String]
-  """The location value."""
+  """
+  The location value.
+  """
   location: ConsoleMessageLocation
-  """The timestamp value."""
+  """
+  The timestamp value.
+  """
   timestamp: Float
 }
 
@@ -43,10 +70,16 @@ enum ConsoleMessageType {
 }
 
 type ConsoleMessageLocation {
-  """The url value."""
+  """
+  The url value.
+  """
   url: String
-  """The lineNumber value."""
+  """
+  The lineNumber value.
+  """
   lineNumber: Int
-  """The columnNumber value."""
+  """
+  The columnNumber value.
+  """
   columnNumber: Int
 }
