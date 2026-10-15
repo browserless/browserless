@@ -1,11 +1,13 @@
 import { strict as assert } from 'node:assert';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { BrowserQL } from './browserql.js';
-import type { Context } from './context.js';
-import type { BQLBrowserAPIOptions } from './api/browser-api.js';
-import type { Request } from '../http.js';
-import { handleBQLHTTP } from './http.js';
+import {
+  BrowserQL,
+  Context,
+  BQLBrowserAPIOptions,
+  Request,
+  handleBQLHTTP,
+} from '@browserless.io/browserless';
 
 describe('BrowserQL HTTP transport', () => {
   it('returns GraphQL envelopes and capabilities with independent, closed contexts', async () => {

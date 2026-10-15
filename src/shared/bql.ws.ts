@@ -1,23 +1,19 @@
 import {
   APITags,
-  Request,
-  SystemQueryParameters,
-  WebsocketRoutes,
-} from '../http.js';
-import {
   BQLWebSocketSession,
   BQL_WEBSOCKET_PROTOCOL,
-} from '../bql/ws-session.js';
-import {
   BrowserWebsocketRoute,
   BrowserlessRoutes,
   CDPLaunchOptions,
-} from '../types.js';
-import { ChromiumCDP } from '../browsers/browsers.cdp.js';
+  ChromiumCDP,
+  Logger,
+  Request,
+  SystemQueryParameters,
+  WebsocketRoutes,
+  markSocketAsProxied,
+} from '@browserless.io/browserless';
 import type { Duplex } from 'node:stream';
-import type { Logger } from '../logger.js';
 import { WebSocketServer } from 'ws';
-import { markSocketAsProxied } from '../utils.js';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;

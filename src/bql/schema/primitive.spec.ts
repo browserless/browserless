@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
-import { BQLBrowserAPI } from '../api/browser-api.js';
-import { BrowserQL } from '../browserql.js';
-import { BadRequest } from '../../utils.js';
+import {
+  BQLBrowserAPI,
+  BrowserQL,
+  BadRequest,
+} from '@browserless.io/browserless';
 import Sinon from 'sinon';
 
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];

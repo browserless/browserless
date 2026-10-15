@@ -2,9 +2,12 @@ import { strict as assert } from 'node:assert';
 import { EventEmitter, once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
-import type { BrowserQL } from './browserql.js';
-import type { Context } from './context.js';
-import { BQLWebSocketSession, BQL_WEBSOCKET_PROTOCOL } from './ws-session.js';
+import {
+  BrowserQL,
+  Context,
+  BQLWebSocketSession,
+  BQL_WEBSOCKET_PROTOCOL,
+} from '@browserless.io/browserless';
 
 describe('BrowserQL WebSocket wire transport', () => {
   it('negotiates the standard protocol and also accepts unnegotiated legacy JSON', async () => {

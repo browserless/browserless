@@ -10,8 +10,12 @@ import {
   valueFromASTUntyped,
 } from 'graphql';
 
-import type { BQLModule, Resolver } from '../module.js';
-import type { BQLBrowserAPI } from '../api/browser-api.js';
+import {
+  BQLBrowserAPI,
+  BQLModule,
+  Resolver,
+  serializeApi,
+} from '@browserless.io/browserless';
 import { capture } from './resolvers/capture.js';
 import { cookiesHeaders } from './resolvers/cookies-headers.js';
 import { dom } from './resolvers/dom.js';
@@ -20,7 +24,6 @@ import { input } from './resolvers/input.js';
 import { navigation } from './resolvers/navigation.js';
 import { network } from './resolvers/network.js';
 import { readFileSync } from 'node:fs';
-import { serializeApi } from '../serial.js';
 import { subscriptionResolvers } from './resolvers/subscription.js';
 import { wait } from './resolvers/wait.js';
 import { windows } from './resolvers/windows.js';

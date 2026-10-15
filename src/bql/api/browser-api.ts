@@ -1,16 +1,33 @@
-import { BadRequest, Timeout } from '../../utils.js';
+import {
+  BadRequest,
+  ChromiumCDP,
+  Config,
+  Logger,
+  Request,
+  Timeout,
+} from '@browserless.io/browserless';
 import type {
   CDPSessionEvents,
   Connection,
   PDFOptions,
   Protocol,
 } from 'puppeteer-core';
+import {
+  Observable,
+  Subscription,
+  filter as filterRecords,
+  firstValueFrom,
+  from,
+  fromEvent,
+  fromEventPattern,
+  map,
+  merge,
+  tap,
+  throwError,
+  timeout as throwTimeout,
+} from 'rxjs';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
-import type { ChromiumCDP } from '../../browsers/browsers.cdp.js';
-import type { Config } from '../../config.js';
 import { EventEmitter } from 'node:events';
-import type { Logger } from '../../logger.js';
-import type { Request } from '../../http.js';
 import { Script } from 'node:vm';
 import TurndownService from 'turndown';
 import micromatch from 'micromatch';
@@ -199,24 +216,19 @@ const bounded = async <T>(
   timeoutError?: () => Error,
 ): Promise<T> => {
   if (!timeout) return promise;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
+  return firstValueFrom(
+    from(promise).pipe(
+      throwTimeout({
+        first: timeout,
+        with: () =>
+          throwError(
+            () =>
               timeoutError?.() ??
-                new Error(`${label} timed out after ${timeout}ms`),
-            ),
-          timeout,
-        );
+              new Error(`${label} timed out after ${timeout}ms`),
+          ),
       }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+    ),
+  );
 };
 
 /** Raw CDP primitives. Subclasses add policy through the protected hooks. */
@@ -1354,7 +1366,7 @@ export class BQLBrowserAPI {
   }> {
     return this.waitForDocument(waitUntil, timeout, cdp);
   }
-  protected waitForDocument(
+  protected async waitForDocument(
     waitUntil: WaitUntil,
     timeout: number,
     cdp: Connection,
@@ -1365,14 +1377,15 @@ export class BQLBrowserAPI {
     const waits = (Array.isArray(waitUntil) ? waitUntil : [waitUntil]).map(
       (w) => w.toLowerCase(),
     );
-    return new Promise((resolve, reject) => {
+    const navigation$ = new Observable<
+      ReturnType<BQLBrowserAPI['waitForNavigation']>
+    >((subscriber) => {
       if (this.closed) {
-        reject(new Error('Browser is no longer running'));
+        subscriber.error(new Error('Browser is no longer running'));
         return;
       }
       let frame = currentDocument ? this.currentFrames.get(cdp) : undefined;
       let opened = !documentOpen;
-      let timer: ReturnType<typeof setTimeout> | undefined;
       let graceTimer: ReturnType<typeof setTimeout> | undefined;
       let quietTimer: ReturnType<typeof setTimeout> | undefined;
       let graceLoader: string | undefined;
@@ -1385,27 +1398,17 @@ export class BQLBrowserAPI {
       if (cached && cached.loaderId === frame?.loaderId)
         seen.set(cached.loaderId, new Set(cached.events));
       const documents = new Map<string, Protocol.Network.Response>();
+      const listeners = new Subscription();
       const cleanup = () => {
-        clearTimeout(timer);
         clearTimeout(graceTimer);
         clearTimeout(quietTimer);
-        cdp.off('Network.dataReceived', progress);
-        cdp.off('Network.loadingFinished', progress);
-        cdp.off('Network.loadingFailed', progress);
-        this.events.off('network-change', progress);
-        cdp.off('Page.frameNavigated', navigated);
-        cdp.off('Page.lifecycleEvent', lifecycle);
-        cdp.off('Page.navigatedWithinDocument', sameDocument);
-        cdp.off('Network.responseReceived', response);
-        this.events.off('close', closed);
-        this.events.off('failure', failed);
-        this.events.off('document-rejected', documentRejected);
+        listeners.unsubscribe();
       };
       const failed = (error: unknown) => {
         if (settled) return;
         settled = true;
         cleanup();
-        reject(error);
+        subscriber.error(error);
       };
       const closed = () => failed(new Error('Browser is no longer running'));
       const finish = (url: string, loader?: string) => {
@@ -1435,7 +1438,7 @@ export class BQLBrowserAPI {
               'Response metadata',
             ).catch(() => undefined)
           : Promise.resolve();
-        resolve(
+        subscriber.next(
           ready.then(() => {
             if (this.closed) throw new Error('Browser is no longer running');
             const r =
@@ -1562,24 +1565,50 @@ export class BQLBrowserAPI {
       const documentRejected = (target: Connection, url: string) => {
         if (target === cdp) finish(url);
       };
-      cdp.on('Page.frameNavigated', navigated);
-      cdp.on('Page.lifecycleEvent', lifecycle);
-      cdp.on('Page.navigatedWithinDocument', sameDocument);
-      cdp.on('Network.responseReceived', response);
-      cdp.on('Network.dataReceived', progress);
-      cdp.on('Network.loadingFinished', progress);
-      cdp.on('Network.loadingFailed', progress);
-      this.events.on('network-change', progress);
-      this.events.once('close', closed);
-      this.events.once('failure', failed);
-      this.events.on('document-rejected', documentRejected);
-      if (timeout)
-        timer = setTimeout(
-          () => failed(new Timeout(`Navigation timed out after ${timeout}ms`)),
-          timeout,
+      const event$ = <K extends keyof CDPSessionEvents>(name: K) =>
+        fromEventPattern<CDPSessionEvents[K]>(
+          (handler) => cdp.on(name, handler),
+          (handler) => cdp.off(name, handler),
         );
+      listeners.add(
+        merge(
+          event$('Page.frameNavigated').pipe(tap(navigated)),
+          event$('Page.lifecycleEvent').pipe(tap(lifecycle)),
+          event$('Page.navigatedWithinDocument').pipe(tap(sameDocument)),
+          event$('Network.responseReceived').pipe(tap(response)),
+          merge(
+            event$('Network.dataReceived'),
+            event$('Network.loadingFinished'),
+            event$('Network.loadingFailed'),
+            fromEvent(this.events, 'network-change'),
+          ).pipe(tap(progress)),
+          fromEvent(this.events, 'close').pipe(tap(closed)),
+          fromEvent(this.events, 'failure').pipe(tap(failed)),
+          fromEvent<[Connection, string]>(
+            this.events,
+            'document-rejected',
+          ).pipe(tap(([target, url]) => documentRejected(target, url))),
+        ).subscribe({ error: failed }),
+      );
       if (currentDocument) check();
+      return () => {
+        settled = true;
+        cleanup();
+      };
     });
+    return firstValueFrom(
+      timeout
+        ? navigation$.pipe(
+            throwTimeout({
+              first: timeout,
+              with: () =>
+                throwError(
+                  () => new Timeout(`Navigation timed out after ${timeout}ms`),
+                ),
+            }),
+          )
+        : navigation$,
+    );
   }
   private resetNetwork() {
     this.requests.clear();
@@ -2590,7 +2619,7 @@ export class BQLBrowserAPI {
       }));
     return found.length ? found : null;
   }
-  private waitNetwork(
+  private async waitNetwork(
     kind: 'request' | 'response',
     filter: Filter,
     timeout = this.timeout,
@@ -2599,33 +2628,30 @@ export class BQLBrowserAPI {
       [
         ...(kind === 'request' ? this.requests : this.responses).values(),
       ].filter((r) => matches(r, filter));
-    return new Promise((resolve, reject) => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const cleanup = () => {
-        clearTimeout(timer);
-        this.events.off(kind, check);
-        this.events.off('close', closed);
-      };
-      const check = () => {
-        const found = records();
-        if (found.length) {
-          cleanup();
-          resolve(found);
-        }
-      };
-      const closed = () => {
-        cleanup();
-        reject(new Error('Browser closed while waiting'));
-      };
-      this.events.on(kind, check);
-      this.events.once('close', closed);
-      if (timeout)
-        timer = setTimeout(() => {
-          cleanup();
-          reject(new Error(`Network ${kind} timed out`));
-        }, timeout);
-      check();
-    });
+    const found = records();
+    if (found.length) return found;
+    const network$ = merge(
+      fromEvent(this.events, kind).pipe(
+        map(records),
+        filterRecords((found) => found.length > 0),
+      ),
+      fromEvent(this.events, 'close').pipe(
+        map((): never => {
+          throw new Error('Browser closed while waiting');
+        }),
+      ),
+    );
+    return firstValueFrom(
+      timeout
+        ? network$.pipe(
+            throwTimeout({
+              first: timeout,
+              with: () =>
+                throwError(() => new Error(`Network ${kind} timed out`)),
+            }),
+          )
+        : network$,
+    );
   }
   public waitForRequest(args: {
     urls?: string[];

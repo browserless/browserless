@@ -3,9 +3,11 @@ import { strict as assert } from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
 import { buildSchema, execute, parse } from 'graphql';
 import type { WebSocket } from 'ws';
-import type { BrowserQL } from './browserql.js';
-import type { Context } from './context.js';
-import { BQLWebSocketSession } from './ws-session.js';
+import {
+  BrowserQL,
+  Context,
+  BQLWebSocketSession,
+} from '@browserless.io/browserless';
 
 class Socket extends EventEmitter {
   protocol = 'graphql-transport-ws';

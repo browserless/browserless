@@ -1,4 +1,4 @@
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 
 export const input: Record<string, Resolver> = {
   click: async (_source, args, context) =>

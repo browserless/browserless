@@ -1,6 +1,8 @@
-import type { BQLBrowserAPIOptions } from './api/browser-api.js';
-import type { BrowserQL } from './browserql.js';
-import type { Request } from '../http.js';
+import type {
+  BQLBrowserAPIOptions,
+  BrowserQL,
+  Request,
+} from '@browserless.io/browserless';
 import type { ServerResponse } from 'node:http';
 
 export interface BodySchema {

@@ -1,7 +1,9 @@
-import { BrowserlessRoutes } from '../../../types.js';
+import {
+  BrowserlessRoutes,
+  EdgeCDP,
+  HTTPRoutes,
+} from '@browserless.io/browserless';
 import ChromiumBQLPostRoute from '../../../shared/bql.http.js';
-import { EdgeCDP } from '../../../browsers/browsers.cdp.js';
-import { HTTPRoutes } from '../../../http.js';
 export {
   BodySchema,
   QuerySchema,
