@@ -1,12 +1,12 @@
 import { BrowserlessRoutes } from '../../../types.js';
 import { ChromeCDP } from '../../../browsers/browsers.cdp.js';
-import ChromiumBQLPostRoute from '../../chromium/http/bql.post.js';
+import ChromiumBQLPostRoute from '../../../shared/bql.http.js';
 import { HTTPRoutes } from '../../../http.js';
 export {
   BodySchema,
   QuerySchema,
   ResponseSchema,
-} from '../../chromium/http/bql.post.js';
+} from '../../../shared/bql.http.js';
 
 export default class ChromeBQLPostRoute extends ChromiumBQLPostRoute {
   name = BrowserlessRoutes.ChromeBQLPostRoute;
