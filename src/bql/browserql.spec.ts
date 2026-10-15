@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { BrowserQL } from './browserql.js';
-import { BQLBrowserAPI } from './api/browser-api.js';
-import type { Context } from './context.js';
-import { defineBQLModule } from './module.js';
+import {
+  BrowserQL,
+  BQLBrowserAPI,
+  Context,
+  defineBQLModule,
+} from '@browserless.io/browserless';
 
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));

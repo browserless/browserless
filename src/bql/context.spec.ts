@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { BQLBrowserAPI } from './api/browser-api.js';
-import { Context } from './context.js';
+import { BQLBrowserAPI, Context } from '@browserless.io/browserless';
 
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 

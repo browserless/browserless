@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'mocha';
-import { BQLBrowserAPI } from './browser-api.js';
+import { BQLBrowserAPI } from '@browserless.io/browserless';
 
 describe('raw CDP browser primitives', () => {
   const cleanup: Array<() => unknown> = [];

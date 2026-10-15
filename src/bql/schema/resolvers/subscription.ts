@@ -1,5 +1,5 @@
 import { GraphQLResolveInfo, Kind, SelectionSetNode } from 'graphql';
-import type { Resolver } from '../../module.js';
+import type { Resolver } from '@browserless.io/browserless';
 import micromatch from 'micromatch';
 
 interface NetworkEvent {

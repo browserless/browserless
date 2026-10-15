@@ -1,5 +1,4 @@
-import { BadRequest } from '../../../utils.js';
-import type { Resolver } from '../../module.js';
+import { BadRequest, Resolver } from '@browserless.io/browserless';
 
 export const network: Record<string, Resolver> = {
   request: async (_source, args, context) =>

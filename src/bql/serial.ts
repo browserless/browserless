@@ -1,5 +1,4 @@
-import type { BQLBrowserAPI } from './api/browser-api.js';
-import type { Resolver } from './module.js';
+import type { BQLBrowserAPI, Resolver } from '@browserless.io/browserless';
 
 /** One queue per context, shared by every field and every composed module. */
 export const serializeApi = <API extends BQLBrowserAPI>(

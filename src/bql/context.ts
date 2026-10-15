@@ -1,4 +1,4 @@
-import { BQLBrowserAPI } from './api/browser-api.js';
+import { BQLBrowserAPI } from '@browserless.io/browserless';
 
 export type BQLContextOptions = ConstructorParameters<typeof BQLBrowserAPI>[0];
 export type APIFactory<API extends BQLBrowserAPI = BQLBrowserAPI> = (

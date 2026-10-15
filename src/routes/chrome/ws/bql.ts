@@ -1,7 +1,9 @@
-import { BrowserlessRoutes } from '../../../types.js';
-import { ChromeCDP } from '../../../browsers/browsers.cdp.js';
+import {
+  BrowserlessRoutes,
+  ChromeCDP,
+  WebsocketRoutes,
+} from '@browserless.io/browserless';
 import ChromiumBQLWebsocketRoute from '../../../shared/bql.ws.js';
-import { WebsocketRoutes } from '../../../http.js';
 export { QuerySchema } from '../../../shared/bql.ws.js';
 
 export default class ChromeBQLWebsocketRoute extends ChromiumBQLWebsocketRoute {
