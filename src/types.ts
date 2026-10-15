@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as stream from 'stream';
 import {
   APITags,
+  BrowserQL,
   Browserless,
   ChromiumCDP,
   ChromiumPlaywright,
@@ -24,7 +25,6 @@ import {
   ResponseForRequest,
   ScreenshotOptions,
 } from 'puppeteer-core';
-import { BrowserQL } from './bql/browserql.js';
 
 export type PathTypes =
   HTTPRoutes | WebsocketRoutes | HTTPManagementRoutes | string;

@@ -828,7 +828,7 @@ export class BQLBrowserAPI {
   protected async assertNavigationAllowed(url: string): Promise<void> {
     if (!this.config.getBlockedURLPatterns) return;
     const { findBlockedNavigationUrl } =
-      await import('../../network-security.js');
+      await import('@browserless.io/browserless');
     if (
       findBlockedNavigationUrl(
         url,
