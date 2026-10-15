@@ -1,7 +1,11 @@
 type Query {
-  """The BrowserQL server package version."""
+  """
+  The BrowserQL server package version.
+  """
   version: String
-  """The browser product and version."""
+  """
+  The browser product and version.
+  """
   browser: String
   """
   Installed capability identifiers, including core and each extension module name.

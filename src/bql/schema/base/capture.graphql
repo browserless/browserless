@@ -1,11 +1,62 @@
 extend type Mutation {
-  """Print the page as a base64-encoded PDF."""
-  pdf(displayHeaderFooter: Boolean, format: PDFPageFormat, footerTemplate: String, generateDocumentOutline: Boolean, generateTaggedPDF: Boolean, landscape: Boolean, printBackground: Boolean, omitBackground: Boolean, scale: Float, timeout: Float, waitForImages: Boolean, waitForFonts: Boolean, fullPage: Boolean, width: FloatOrString, headerTemplate: String, height: FloatOrString, marginBottom: FloatOrString, marginLeft: FloatOrString, marginRight: FloatOrString, marginTop: FloatOrString, pageRanges: String, preferCSSPageSize: Boolean, transferMode: String): PDFResponse
-  """Capture the page or a selected element as a base64-encoded image."""
-  screenshot(captureBeyondViewport: Boolean, clip: ScreenshotClip, fromSurface: Boolean, fullPage: Boolean, omitBackground: Boolean, optimizeForSpeed: Boolean, quality: Float, selector: String, type: ScreenshotType, timeout: Float, waitForImages: Boolean): ScreenshotResponse
-  """Set viewport size and device emulation options."""
-  viewport(width: Float!, height: Float!, deviceScaleFactor: Float = 1, mobile: Boolean = false, hasTouch: Boolean = false, landscape: Boolean = false): ViewportResponse
-  """Set the CSS media type to screen or print."""
+  """
+  Print the page as a base64-encoded PDF.
+  """
+  pdf(
+    displayHeaderFooter: Boolean
+    format: PDFPageFormat
+    footerTemplate: String
+    generateDocumentOutline: Boolean
+    generateTaggedPDF: Boolean
+    landscape: Boolean
+    printBackground: Boolean
+    omitBackground: Boolean
+    scale: Float
+    timeout: Float
+    waitForImages: Boolean
+    waitForFonts: Boolean
+    fullPage: Boolean
+    width: FloatOrString
+    headerTemplate: String
+    height: FloatOrString
+    marginBottom: FloatOrString
+    marginLeft: FloatOrString
+    marginRight: FloatOrString
+    marginTop: FloatOrString
+    pageRanges: String
+    preferCSSPageSize: Boolean
+    transferMode: String
+  ): PDFResponse
+  """
+  Capture the page or a selected element as a base64-encoded image.
+  """
+  screenshot(
+    captureBeyondViewport: Boolean
+    clip: ScreenshotClip
+    fromSurface: Boolean
+    fullPage: Boolean
+    omitBackground: Boolean
+    optimizeForSpeed: Boolean
+    quality: Float
+    selector: String
+    type: ScreenshotType
+    timeout: Float
+    waitForImages: Boolean
+  ): ScreenshotResponse
+  """
+  Set viewport size and device emulation options.
+  """
+  viewport(
+    width: Float!
+    height: Float!
+    deviceScaleFactor: Float = 1
+    mobile: Boolean = false
+    hasTouch: Boolean = false
+    landscape: Boolean = false
+  ): ViewportResponse
+  """
+  Set the CSS media type to screen or print.
+  """
   emulateMediaType(type: MediaType!): EmulateMediaTypeResponse
 }
 
@@ -26,11 +77,17 @@ enum PDFPageFormat {
 scalar FloatOrString
 
 type PDFResponse {
-  """The base64 value."""
+  """
+  The base64 value.
+  """
   base64: String
-  """The size value."""
+  """
+  The size value.
+  """
   size: Float
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
 }
 
@@ -49,28 +106,48 @@ enum ScreenshotType {
 }
 
 type ScreenshotResponse {
-  """The base64 value."""
+  """
+  The base64 value.
+  """
   base64: String
-  """The format value."""
+  """
+  The format value.
+  """
   format: String
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
 }
 
 type ViewportResponse {
-  """The width value."""
+  """
+  The width value.
+  """
   width: Float
-  """The height value."""
+  """
+  The height value.
+  """
   height: Float
-  """The deviceScaleFactor value."""
+  """
+  The deviceScaleFactor value.
+  """
   deviceScaleFactor: Float
-  """The mobile value."""
+  """
+  The mobile value.
+  """
   mobile: Boolean
-  """The hasTouch value."""
+  """
+  The hasTouch value.
+  """
   hasTouch: Boolean
-  """The landscape value."""
+  """
+  The landscape value.
+  """
   landscape: Boolean
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
 }
 
@@ -80,8 +157,12 @@ enum MediaType {
 }
 
 type EmulateMediaTypeResponse {
-  """The type value."""
+  """
+  The type value.
+  """
   type: String
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
 }

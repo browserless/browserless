@@ -2,9 +2,22 @@ extend type Mutation {
   """
   Run nested mutations when a selector exists or a matching request or response has been observed.
   """
-  if(operator: OperatorTypes = or, request: RequestInput, response: ResponseInput, selector: String, visible: Boolean = false): Mutation
-  """Run nested mutations when none of the supplied conditions match."""
-  ifnot(operator: OperatorTypes = or, request: RequestInput, response: ResponseInput, selector: String): Mutation
+  if(
+    operator: OperatorTypes = or
+    request: RequestInput
+    response: ResponseInput
+    selector: String
+    visible: Boolean = false
+  ): Mutation
+  """
+  Run nested mutations when none of the supplied conditions match.
+  """
+  ifnot(
+    operator: OperatorTypes = or
+    request: RequestInput
+    response: ResponseInput
+    selector: String
+  ): Mutation
 }
 
 input RequestInput {
@@ -14,6 +27,9 @@ input RequestInput {
 
 input ResponseInput {
   statuses: [Int]
-  codes: [Int] @deprecated(reason: "Use `statuses` field instead as it is more consistent in BrowserQL.")
+  codes: [Int]
+    @deprecated(
+      reason: "Use `statuses` field instead as it is more consistent in BrowserQL."
+    )
   url: String
 }

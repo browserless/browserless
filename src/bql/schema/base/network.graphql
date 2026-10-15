@@ -1,14 +1,53 @@
 extend type Mutation {
-  """Enable or disable rejection of requests matching the supplied filters."""
-  reject(enabled: Boolean = true, method: [Method], operator: OperatorTypes = or, type: [ResourceType], url: [String], regex: [String]): RejectResponse
-  """Read matching network requests, optionally waiting for a match."""
-  request(type: [ResourceType], method: [Method], timeout: Float, url: [String], wait: Boolean = true, operator: OperatorTypes = or): [RequestResponse]
-  """Read matching network responses, optionally waiting for a match."""
-  response(status: [Int], method: [Method], operator: OperatorTypes = or, timeout: Float, type: [ResourceType], url: [String], wait: Boolean = true): [ResponseResponse]
+  """
+  Enable or disable rejection of requests matching the supplied filters.
+  """
+  reject(
+    enabled: Boolean = true
+    method: [Method]
+    operator: OperatorTypes = or
+    type: [ResourceType]
+    url: [String]
+    regex: [String]
+  ): RejectResponse
+  """
+  Read matching network requests, optionally waiting for a match.
+  """
+  request(
+    type: [ResourceType]
+    method: [Method]
+    timeout: Float
+    url: [String]
+    wait: Boolean = true
+    operator: OperatorTypes = or
+  ): [RequestResponse]
+  """
+  Read matching network responses, optionally waiting for a match.
+  """
+  response(
+    status: [Int]
+    method: [Method]
+    operator: OperatorTypes = or
+    timeout: Float
+    type: [ResourceType]
+    url: [String]
+    wait: Boolean = true
+  ): [ResponseResponse]
   """
   Respond to matching requests with the supplied status, headers, and body.
   """
-  fulfill(url: [String], regex: [String], method: [Method], type: [ResourceType], operator: OperatorTypes = or, status: Int = 200, contentType: String, body: String, base64Body: String, headers: [HeaderInput]): FulfillResponse
+  fulfill(
+    url: [String]
+    regex: [String]
+    method: [Method]
+    type: [ResourceType]
+    operator: OperatorTypes = or
+    status: Int = 200
+    contentType: String
+    body: String
+    base64Body: String
+    headers: [HeaderInput]
+  ): FulfillResponse
 }
 
 enum Method {
@@ -50,44 +89,74 @@ enum ResourceType {
 }
 
 type RejectResponse {
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
-  """The enabled value."""
+  """
+  The enabled value.
+  """
   enabled: Boolean
 }
 
 type RequestResponse {
-  """The url value."""
+  """
+  The url value.
+  """
   url: String
-  """The method value."""
+  """
+  The method value.
+  """
   method: Method
-  """The type value."""
+  """
+  The type value.
+  """
   type: ResourceType
-  """The headers value."""
+  """
+  The headers value.
+  """
   headers: [Headers]
 }
 
 type Headers {
-  """The name value."""
+  """
+  The name value.
+  """
   name: String
-  """The value value."""
+  """
+  The value value.
+  """
   value: String
 }
 
 type ResponseResponse {
-  """The status value."""
+  """
+  The status value.
+  """
   status: Int
-  """The url value."""
+  """
+  The url value.
+  """
   url: String
-  """The method value."""
+  """
+  The method value.
+  """
   method: Method
-  """The type value."""
+  """
+  The type value.
+  """
   type: ResourceType
-  """The headers value."""
+  """
+  The headers value.
+  """
   headers: [Headers]
-  """The body value."""
+  """
+  The body value.
+  """
   body: String
-  """The base64Encoded value."""
+  """
+  The base64Encoded value.
+  """
   base64Encoded: Boolean!
 }
 
@@ -97,6 +166,8 @@ input HeaderInput {
 }
 
 type FulfillResponse {
-  """Elapsed time in milliseconds."""
+  """
+  Elapsed time in milliseconds.
+  """
   time: Float
 }
