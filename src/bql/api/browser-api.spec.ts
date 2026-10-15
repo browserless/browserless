@@ -68,6 +68,22 @@ test('evaluate returns primitive values and surfaces script exceptions', async (
   );
 });
 
+test('evaluate handles long semicolon sequences without blocking', async function () {
+  this.timeout(1000);
+  const api = new API();
+  api.client.handler = async (_method, params) => ({
+    result: { value: await runInNewContext(params.expression) },
+  });
+  assert.equal(
+    (await api.evaluate({ content: ';'.repeat(40_000) + 'return 42;' })).value,
+    42,
+  );
+  assert.equal(
+    (await api.evaluate({ content: '42 ' + ';'.repeat(40_000) })).value,
+    42,
+  );
+});
+
 test('deep selectors are rejected before CDP dispatch', async () => {
   const api = new API();
   await assert.rejects(
@@ -819,6 +835,15 @@ test('PDF accepts primitive marginTop and waits for requested fonts', async () =
         c.method === 'Runtime.evaluate' &&
         c.params.expression.includes('document.fonts.ready'),
     ),
+  );
+});
+
+test('PDF rejects long invalid dimensions without blocking', async function () {
+  this.timeout(1000);
+  const api = new API();
+  await assert.rejects(
+    api.pdf({ options: { width: '9'.repeat(40_000) + 'x' } }),
+    /Invalid paper dimension/,
   );
 });
 
