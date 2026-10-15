@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { createServer } from 'node:http';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
@@ -82,6 +83,40 @@ test('evaluate handles long semicolon sequences without blocking', async functio
     (await api.evaluate({ content: '42 ' + ';'.repeat(40_000) })).value,
     42,
   );
+});
+
+test('evaluate bounds downloaded scripts including chunked bodies', async () => {
+  const server = createServer((req, res) => {
+    if (req.url === '/small') return void res.end('"héllo"');
+    const body = ' '.repeat(10 * 1024 * 1024) + '42';
+    if (req.url === '/known')
+      res.setHeader('Content-Length', Buffer.byteLength(body));
+    else res.setHeader('Transfer-Encoding', 'chunked');
+    res.end(body);
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address() as { port: number };
+  const api = new API();
+  api.client.handler = async (_method, params) => ({
+    result: { value: await runInNewContext(params.expression) },
+  });
+  try {
+    assert.equal(
+      (await api.evaluate({ url: `http://127.0.0.1:${address.port}/small` }))
+        .value,
+      'héllo',
+    );
+    for (const path of ['known', 'chunked']) {
+      await assert.rejects(
+        api.evaluate({ url: `http://127.0.0.1:${address.port}/${path}` }),
+        /Script exceeds/,
+      );
+    }
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await api.close();
+  }
 });
 
 test('deep selectors are rejected before CDP dispatch', async () => {
@@ -1552,6 +1587,42 @@ test('disconnect notifications distinguish active target loss, replacement and i
   });
   await intentional.close();
   assert.equal(notifications, 1);
+});
+
+test('window switching recognizes restored document milestones without lifecycle replay', async () => {
+  class Restored extends API {
+    override async listPageTargets() {
+      return [
+        {
+          id: 'test',
+          type: 'page',
+          title: 'Restored',
+          url: 'https://example.com/',
+          webSocketDebuggerUrl: this.client.url(),
+        },
+      ];
+    }
+  }
+  const api = new Restored();
+  await api.setup();
+  api.client.emit('Page.frameNavigated', {
+    type: 'BackForwardCacheRestore',
+    frame: { id: 'main', loaderId: 'restored', url: 'https://example.com/' },
+  });
+  try {
+    assert.equal(
+      (
+        await api.switchToWindow({
+          targetId: 'test',
+          waitUntil: 'load',
+          timeout: 100,
+        })
+      ).success,
+      true,
+    );
+  } finally {
+    await api.close();
+  }
 });
 
 test('window switching retries failed setup and retires only the outgoing target', async () => {
