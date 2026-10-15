@@ -1053,7 +1053,9 @@ export class BQLBrowserAPI {
       if (this.closed) throw new Error('Browser is no longer running');
       await pause(50);
     } while (!timeout || Date.now() - start < timeout);
-    throw new Error(`waitForSelector timed out after ${timeout}ms`);
+    throw new Error(
+      `Timeout of ${timeout}ms reached waiting for DOM selector "${selector}"`,
+    );
   }
   public async getBoundingClientRect(args: ElementArgs) {
     if (this.closed) return null;
