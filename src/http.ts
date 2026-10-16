@@ -99,10 +99,13 @@ export enum WebsocketRoutes {
   '/' = '?(/)',
   browser = '/devtools/browser/*',
   chrome = '/chrome?(/)',
+  chromeBQL = '/chrome/bql?(/)',
   chromePlaywright = '/chrome/playwright?(/)',
   chromium = '/chromium?(/)',
+  chromiumBQL = '/chromium/bql?(/)',
   chromiumPlaywright = '/chromium/playwright?(/)',
   edge = '/edge?(/)',
+  edgeBQL = '/edge/bql?(/)',
   edgePlaywright = '/edge/playwright?(/)',
   firefoxPlaywright = '/firefox/playwright?(/)',
   functionClientConnect = '/function/connect/*',
@@ -115,6 +118,7 @@ export enum WebsocketRoutes {
 }
 
 export enum HTTPRoutes {
+  chromeBQL = '/chrome/bql?(/)',
   chromeContent = '/chrome/content?(/)',
   chromeDownload = '/chrome/download?(/)',
   chromeFunction = '/chrome/function?(/)',
@@ -122,6 +126,7 @@ export enum HTTPRoutes {
   chromePerformance = '/chrome/performance?(/)',
   chromeScrape = '/chrome/scrape?(/)',
   chromeScreenshot = '/chrome/screenshot?(/)',
+  edgeBQL = '/edge/bql?(/)',
   edgeContent = '/edge/content?(/)',
   edgeDownload = '/edge/download?(/)',
   edgeFunction = '/edge/function?(/)',
@@ -129,6 +134,7 @@ export enum HTTPRoutes {
   edgePerformance = '/edge/performance?(/)',
   edgeScrape = '/edge/scrape?(/)',
   edgeScreenshot = '/edge/screenshot?(/)',
+  chromiumBQL = '/chromium/bql?(/)',
   chromiumContent = '/chromium/content?(/)',
   chromiumDownload = '/chromium/download?(/)',
   chromiumFunction = '/chromium/function?(/)',
@@ -162,6 +168,7 @@ export enum HTTPManagementRoutes {
 }
 
 export enum APITags {
+  BQL = 'BrowserQL APIs',
   browserAPI = 'Browser REST APIs',
   browserWS = 'Browser WebSocket APIs',
   management = 'Management REST APIs',
