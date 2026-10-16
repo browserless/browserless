@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.57.1](https://github.com/browserless/browserless/compare/v2.57.0...v2.57.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* make adblock release discovery resilient and update dependencies ([#5611](https://github.com/browserless/browserless/issues/5611)) ([cddddc5](https://github.com/browserless/browserless/commit/cddddc5780f6d3a939f37f9c06b5a7a33dceac6e))
+* upgrade browser libraries with Playwright 1.64 compatibility ([#5620](https://github.com/browserless/browserless/issues/5620)) ([1e142fa](https://github.com/browserless/browserless/commit/1e142fa8adcee1d0db3ab9c0214c36ac86137c96))
+* **websocket:** send RFC 6455 close frame on mid-session timeout ([#5594](https://github.com/browserless/browserless/issues/5594)) ([f7edf0f](https://github.com/browserless/browserless/commit/f7edf0f526e5fefa2db8abca22f47b32ac165c89))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.0 and npm to 11.21.1 ([#5624](https://github.com/browserless/browserless/issues/5624)) ([692f2d7](https://github.com/browserless/browserless/commit/692f2d778f322ecd095dbb6bc17da919544fc145))
+
 ## [2.57.0](https://github.com/browserless/browserless/compare/v2.56.7...v2.57.0) (2026-09-30)
 
 
