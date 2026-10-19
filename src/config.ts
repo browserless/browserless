@@ -149,11 +149,13 @@ const playwright163DisabledFeatures: readonly string[] = [
   'msEdgeUpdateLaunchServicesPreferredVersion',
 ];
 
-// 1.64 additionally prevents startup network-time and AI Mode queries.
+// 1.64 additionally prevents startup network-time and AI Mode queries;
+// 1.64.1 also disables the CORS URL loader restart on redirects.
 const defaultChromiumDisabledFeatures: readonly string[] = [
   ...playwright163DisabledFeatures,
   'NetworkTimeServiceQuerying',
   'AimEnabled',
+  'AvoidCorsURLLoaderRestartOnRedirect',
 ];
 
 // 1.60 and 1.61 still disable RenderDocument (dropped in 1.62) and do not yet
