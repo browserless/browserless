@@ -66,6 +66,45 @@ describe('ChromiumCDP launch args', function () {
     expect(spawnargs).to.include('--window-size=800,600');
   });
 
+  it('closes once when a close listener closes the browser again', async () => {
+    await launch();
+    const inner = (await browser!.newPage()).browser();
+    const close = inner.close.bind(inner);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    sinon.stub(inner, 'close').callsFake(async () => {
+      await gate;
+      await close();
+    });
+    let closeEvents = 0;
+    let nestedFinished = false;
+    let nestedClose: Promise<void> | undefined;
+    browser!.on('close', () => closeEvents++);
+    browser!.once('close', () => {
+      nestedClose = browser!.close().then(() => {
+        nestedFinished = true;
+      });
+    });
+
+    const outerClose = browser!.close();
+    try {
+      await new Promise(setImmediate);
+      expect(closeEvents).to.equal(1);
+      expect(nestedFinished).to.be.false;
+    } finally {
+      release();
+      await outerClose;
+    }
+    await nestedClose;
+    expect(nestedFinished).to.be.true;
+    expect(closeEvents).to.equal(1);
+    expect(browser!.isRunning()).to.be.false;
+    await browser!.close();
+    expect(closeEvents).to.equal(1);
+  });
+
   it('closes a paused client socket with unread data when the browser exits', async () => {
     await launch();
     const server = createServer();
