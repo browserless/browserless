@@ -97,7 +97,7 @@
     "env-cmd": "^11.0.0",
     "esbuild": "^0.28.2",
     "esbuild-plugins-node-modules-polyfill": "^1.8.3",
-    "eslint": "^10.12.0",
+    "eslint": "^10.13.0",
     "gunzip-maybe": "^1.4.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
