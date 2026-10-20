@@ -66,6 +66,7 @@ export class ChromiumCDP extends EventEmitter {
   protected blockAds: boolean;
   protected running = false;
   protected browser: Browser | null = null;
+  private closing: Promise<void> | null = null;
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
   protected logger: Logger;
@@ -352,18 +353,28 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   public async close(): Promise<void> {
-    if (this.browser) {
+    if (this.closing) return this.closing;
+    const browser = this.browser;
+    if (!browser) return;
+
+    // Publish the shutdown promise before notifying listeners, which may call
+    // close() again and must await the same shutdown before removing files.
+    this.closing = Promise.resolve().then(async () => {
       this.logger.debug(
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.emit('close');
       this.cleanListeners();
-      this.browser.removeAllListeners();
-      const browser = this.browser;
+      browser.removeAllListeners();
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
       await browser.close().catch(() => undefined);
+    });
+    try {
+      await this.closing;
+    } finally {
+      this.closing = null;
     }
   }
 
