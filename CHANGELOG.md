@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.57.2](https://github.com/browserless/browserless/compare/v2.57.1...v2.57.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* make CDP browser shutdown reentrant ([#5626](https://github.com/browserless/browserless/issues/5626)) ([19841b6](https://github.com/browserless/browserless/commit/19841b689c6a2bc06f96239cbcf2ca4417a901a4))
+* preserve launch arguments alongside legacy switches ([#5630](https://github.com/browserless/browserless/issues/5630)) ([eff44d1](https://github.com/browserless/browserless/commit/eff44d16394d5d9abf8b4b014556d3423c61a638))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.1 ([#5631](https://github.com/browserless/browserless/issues/5631)) ([d2e948c](https://github.com/browserless/browserless/commit/d2e948ca541a72d503d04a1e152c6b69d62a4e26))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.14.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `155.0.8059.84` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `155.0.4283.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.57.1](https://github.com/browserless/browserless/compare/v2.57.0...v2.57.1) (2026-10-16)
 
 
