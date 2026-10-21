@@ -125,9 +125,24 @@ export function shimLegacyRequests(url: URL): URL {
         : parsed !== 'false';
     }
 
-    // Handle CLI switches
-    if (cliSwitches.length) {
-      launchParams.args = cliSwitches.map(([n, v]) => `${n}=${v}`);
+    // Explicit launch options take precedence over legacy parameters.
+    // Leave malformed args intact for downstream request validation.
+    if (
+      cliSwitches.length &&
+      (launchParams.args === undefined || Array.isArray(launchParams.args))
+    ) {
+      const args = launchParams.args ?? [];
+      launchParams.args = [
+        ...args,
+        ...cliSwitches
+          .filter(
+            ([name]) =>
+              !args.some(
+                (arg) => typeof arg === 'string' && arg.split('=')[0] === name,
+              ),
+          )
+          .map(([name, value]) => `${name}=${value}`),
+      ];
     }
 
     shimParam.forEach((n) => searchParams.delete(n));
