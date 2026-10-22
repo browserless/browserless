@@ -1,0 +1,271 @@
+extend type Mutation {
+  """
+  Evaluate JavaScript from content or a script URL in the current page.
+  """
+  evaluate(content: String, timeout: Float, url: String): EvaluateResponse
+  """
+  Read HTML from the document or a selected element, optionally cleaning and rewriting it.
+  """
+  html(
+    selector: String
+    timeout: Float
+    visible: Boolean = false
+    clean: CleanInput
+    rewrite: HTMLRewriteInput
+  ): HTMLResponse
+  """
+  Read matching elements, with attributes and nested selector mapping.
+  """
+  mapSelector(
+    selector: String!
+    timeout: Float
+    wait: Boolean = true
+  ): [MapSelectorResponse]
+  """
+  Read the first matching element.
+  """
+  querySelector(
+    selector: String!
+    timeout: Float
+    visible: Boolean = false
+  ): QuerySelectorResponse
+  """
+  Read all matching elements.
+  """
+  querySelectorAll(
+    selector: String!
+    timeout: Float
+    visible: Boolean = false
+  ): [QuerySelectorResponse]
+  """
+  Read text from a selected element, optionally cleaning the document first.
+  """
+  text(
+    timeout: Float
+    selector: String = "html"
+    visible: Boolean = false
+    clean: CleanInput
+  ): TextResponse
+  """
+  Read the current document title.
+  """
+  title: TitleResponse
+  """
+  Read the current document URL.
+  """
+  url: URLResponse
+  """
+  Insert a script from a URL or inline content.
+  """
+  addScriptTag(
+    url: String
+    content: String
+    id: String
+    type: String
+  ): AddScriptTagResponse
+  """
+  Insert a stylesheet from a URL or inline content.
+  """
+  addStyleTag(url: String, content: String): AddStyleTagResponse
+  """
+  Read the document or a selected element as Markdown.
+  """
+  markdown(
+    selector: String
+    timeout: Float
+    visible: Boolean = false
+  ): MarkdownResponse
+}
+
+type EvaluateResponse {
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+  """
+  The value value.
+  """
+  value: String
+}
+
+input CleanInput {
+  removeNonTextNodes: Boolean = true
+  removeAttributes: Boolean = false
+  removeRegex: Boolean = true
+  selectors: [String!] = [
+    "area"
+    "audio"
+    "base"
+    "embed"
+    "head"
+    "iframe"
+    "img"
+    "link"
+    "meta"
+    "noscript"
+    "object"
+    "param"
+    "path"
+    "picture"
+    "script"
+    "source"
+    "style"
+    "svg"
+    "track"
+    "video"
+  ]
+  attributes: [String]
+  mode: AttributeMode = DENY
+  # Prettier emits invalid literal carriage returns for these escaped defaults.
+  # prettier-ignore
+  regexes: [String!] = [" +", "\n", "\r", "\t", "<\\!--.*?-->"]
+}
+
+enum AttributeMode {
+  ALLOW
+  DENY
+}
+
+input HTMLRewriteInput {
+  baseURL: String!
+  resources: [HTMLResourcePathInput!]!
+}
+
+input HTMLResourcePathInput {
+  url: String!
+  path: String!
+}
+
+type HTMLResponse {
+  """
+  The html value.
+  """
+  html: String
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+}
+
+type MapSelectorResponse {
+  """
+  The innerHTML value.
+  """
+  innerHTML: String
+  """
+  The innerText value.
+  """
+  innerText: String
+  """
+  The id value.
+  """
+  id: String
+  """
+  The class value.
+  """
+  class: [String]
+  """
+  The attribute value.
+  """
+  attribute(name: String): Attribute
+  """
+  The mapSelector value.
+  """
+  mapSelector(
+    selector: String!
+    timeout: Float
+    wait: Boolean = true
+  ): [MapSelectorResponse]
+}
+
+type Attribute {
+  """
+  The name value.
+  """
+  name: String
+  """
+  The value value.
+  """
+  value: String
+}
+
+type QuerySelectorResponse {
+  """
+  The childElementCount value.
+  """
+  childElementCount: Float
+  """
+  The className value.
+  """
+  className: String
+  """
+  The id value.
+  """
+  id: String
+  """
+  The innerHTML value.
+  """
+  innerHTML: String
+  """
+  The innerText value.
+  """
+  innerText: String
+  """
+  The localName value.
+  """
+  localName: String
+  """
+  The outerHTML value.
+  """
+  outerHTML: String
+}
+
+type TextResponse {
+  """
+  The text value.
+  """
+  text: String
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+}
+
+type TitleResponse {
+  """
+  The title value.
+  """
+  title: String
+}
+
+type URLResponse {
+  """
+  The url value.
+  """
+  url: String
+}
+
+type AddScriptTagResponse {
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+}
+
+type AddStyleTagResponse {
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+}
+
+type MarkdownResponse {
+  """
+  The markdown value.
+  """
+  markdown: String
+  """
+  Elapsed time in milliseconds.
+  """
+  time: Float
+}
