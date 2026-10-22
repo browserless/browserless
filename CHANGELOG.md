@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.57.3](https://github.com/browserless/browserless/compare/v2.57.2...v2.57.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* install FFmpeg for supported Playwright versions ([#5632](https://github.com/browserless/browserless/issues/5632)) ([0f345c7](https://github.com/browserless/browserless/commit/0f345c7e376b79df5e01dc234b9e052723659721))
+
 ## [2.57.2](https://github.com/browserless/browserless/compare/v2.57.1...v2.57.2) (2026-10-21)
 
 
