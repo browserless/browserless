@@ -7,6 +7,20 @@
 
 * install FFmpeg for supported Playwright versions ([#5632](https://github.com/browserless/browserless/issues/5632)) ([0f345c7](https://github.com/browserless/browserless/commit/0f345c7e376b79df5e01dc234b9e052723659721))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.14.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.47` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `155.0.4283.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.57.2](https://github.com/browserless/browserless/compare/v2.57.1...v2.57.2) (2026-10-21)
 
 
