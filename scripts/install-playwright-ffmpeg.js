@@ -33,6 +33,9 @@ for (const name of new Set(Object.values(versions))) {
   console.log(`Installing FFmpeg for ${name}`);
   execFileSync(process.execPath, [cli, 'install', 'ffmpeg'], {
     stdio: 'inherit',
+    // Fail the build if a package's downloader or extractor stops responding.
+    timeout: 600_000,
+    killSignal: 'SIGKILL',
     env: {
       ...process.env,
       // Image stages may replace package paths referenced by the shared cache.
