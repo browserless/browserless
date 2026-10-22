@@ -20,6 +20,8 @@ jobs:
           max_attempts: 5
           retry_wait_seconds: 30
           command: npm clean-install
+      - name: Test FFmpeg installer
+        run: node --test scripts/install-playwright-ffmpeg.test.js
       - name: Run ESLint
         uses: nick-fields/retry@v4
         with:
