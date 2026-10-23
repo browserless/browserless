@@ -418,6 +418,24 @@ export class Config extends EventEmitter {
   public getBlockedNetworkRanges(): NetworkRangeSet | null {
     return null;
   }
+  /**
+   * Optional policy for native Playwright context creation. Subclasses may
+   * normalize options in place or reject creation by throwing. The bridge
+   * awaits this hook before forwarding the context or subsequent messages.
+   */
+  public preparePlaywrightContextOptions(
+    options: Record<string, unknown>,
+  ): void | Promise<void> {
+    void options;
+  }
+
+  /** Admission-only policy for raw CDP context creation; null keeps raw forwarding. */
+  public getCDPContextPolicy():
+    | ((options: Readonly<Record<string, unknown>>) => void | Promise<void>)
+    | null {
+    return null;
+  }
+
   public getCPULimit(): number {
     return this.maxCpu;
   }

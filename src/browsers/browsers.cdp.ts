@@ -25,6 +25,8 @@ import httpProxy from 'http-proxy';
 import path from 'path';
 import playwright from 'playwright-core';
 
+import { bridgeCDPContexts } from './cdp-context-bridge.js';
+
 // @zorilla/puppeteer-extra's types still expect puppeteer's long-removed
 // createBrowserFetcher and re-declare their own plugin interface; at runtime
 // only launch/connect/defaultArgs/executablePath are used, so the casts are safe.
@@ -546,6 +548,16 @@ export class ChromiumCDP extends EventEmitter {
     // Delete headers known to cause issues
     delete req.headers.origin;
 
+    const policy = this.config.getCDPContextPolicy();
+    if (policy) {
+      try {
+        await bridgeCDPContexts(req, socket, head, target, this, policy);
+      } finally {
+        await page?.close().catch(noop);
+      }
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       let backend: Duplex | undefined;
       // The page made for this connection lives only as long as the
@@ -611,6 +623,23 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
+    const policy = this.config.getCDPContextPolicy();
+    if (policy) {
+      if (!this.browserWSEndpoint) {
+        throw new ServerError(
+          'No browserWSEndpoint found, did you launch first?',
+        );
+      }
+      delete req.headers.origin;
+      return bridgeCDPContexts(
+        req,
+        socket,
+        head,
+        this.browserWSEndpoint,
+        this,
+        policy,
+      );
+    }
     return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(

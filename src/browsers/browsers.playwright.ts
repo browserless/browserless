@@ -378,18 +378,22 @@ class BasePlaywright extends EventEmitter {
           // `ws.close(code, reason)` finished writing, leaving the client
           // with a `1006` instead of the policy code + reason.
           const DRAIN_TIMEOUT_MS = 500;
+          let blocked = false;
           const blockAndTerminate = (
             reason: string,
             closeCode = 1008,
             severity: 'error' | 'warn' = 'error',
+            closeBrowser = true,
           ) => {
+            if (blocked || settled) return;
+            blocked = true;
             this.logger[severity](reason);
             let drained = false;
             const drain = () => {
               if (drained) return;
               drained = true;
               safeClose(upstreamWS);
-              this.close();
+              if (closeBrowser) this.close();
               finish();
             };
             ws.once('close', drain);
@@ -402,20 +406,87 @@ class BasePlaywright extends EventEmitter {
             setTimeout(drain, DRAIN_TIMEOUT_MS).unref?.();
           };
 
-          // Cap the pre-`open` buffer to fend off a flood-during-connect
-          // from a misbehaving client; 256 is well above any legitimate
-          // handshake burst.
+          // Bound frames waiting for connection or asynchronous context policy;
+          // 256 is well above any legitimate handshake burst.
           const MAX_PENDING_FRAMES = 256;
+          const MAX_PENDING_BYTES = 100 * 1024 * 1024;
+          let pendingBytes = 0;
           const pending: {
             data: Buffer | ArrayBuffer | Buffer[];
             isBinary: boolean;
+            bytes: number;
           }[] = [];
           let upstreamReady = false;
+          let processing = false;
+          // Keep the default transport untouched. Existing subclass overrides
+          // opt in without requiring a second hook or a downstream API change.
+          const contextPolicy =
+            this.config.preparePlaywrightContextOptions !==
+            Config.prototype.preparePlaywrightContextOptions;
+          const cdpPolicy = this.config.getCDPContextPolicy();
+          const flushPending = async () => {
+            if (processing || !upstreamReady || blocked || settled) return;
+            processing = true;
+            try {
+              while (pending.length && !blocked && !settled) {
+                const message = pending[0];
+                let parsed;
+                try {
+                  if (contextPolicy || cdpPolicy)
+                    parsed = JSON.parse(wsFrameToString(message.data));
+                } catch {
+                  // Preserve non-JSON frames; navigation inspection runs first.
+                }
+                if (
+                  contextPolicy &&
+                  (parsed?.method === 'newContext' ||
+                    parsed?.method === 'newContextForReuse') &&
+                  parsed.params &&
+                  typeof parsed.params === 'object' &&
+                  !Array.isArray(parsed.params)
+                ) {
+                  await this.config.preparePlaywrightContextOptions(
+                    parsed.params,
+                  );
+                  message.data = Buffer.from(JSON.stringify(parsed));
+                }
+                // Chromium also exposes raw CDP through a Playwright CDPSession.
+                // Its send envelope must not bypass context admission.
+                if (cdpPolicy && parsed?.method === 'send') {
+                  let command = parsed.params;
+                  while (command?.method === 'Target.sendMessageToTarget') {
+                    command = JSON.parse(command.params.message);
+                  }
+                  // Page bindings would issue browser commands outside this policy.
+                  if (command?.method === 'Target.exposeDevToolsProtocol') {
+                    throw new Error(
+                      'DevTools bindings are unavailable with a context policy',
+                    );
+                  }
+                  if (command?.method === 'Target.createBrowserContext') {
+                    await cdpPolicy(command.params ?? {});
+                  }
+                }
+                if (blocked || settled) return;
+                upstreamWS!.send(message.data, { binary: message.isBinary });
+                pendingBytes -= message.bytes;
+                pending.shift();
+              }
+            } catch {
+              blockAndTerminate(
+                'Playwright context policy or forwarding failed',
+                1008,
+                'error',
+                false,
+              );
+            } finally {
+              processing = false;
+              if (blocked || settled) pending.length = 0;
+            }
+          };
           upstreamWS.once('open', () => {
             upstreamReady = true;
-            for (const m of pending)
-              upstreamWS!.send(m.data, { binary: m.isBinary });
-            pending.length = 0;
+            void flushPending();
           });
 
           // Snapshot patterns at upgrade time — mid-session reconfig
@@ -501,32 +572,43 @@ class BasePlaywright extends EventEmitter {
           };
 
           ws.on('message', (data, isBinary) => {
+            if (blocked || settled) return;
             const hit = inspect(data, 'client→upstream', isBinary);
             if (hit) {
               blockAndTerminate(hit);
               return;
             }
-            if (upstreamReady) {
+            if (upstreamReady && !contextPolicy && !cdpPolicy) {
               upstreamWS!.send(data, { binary: isBinary });
-            } else {
-              if (pending.length >= MAX_PENDING_FRAMES) {
-                // Close-code 1009 = flow-control overflow (not a
-                // policy block); warn keeps it distinct from the
-                // security-block error stream.
-                blockAndTerminate(
-                  `Pre-open pending buffer overflowed (${MAX_PENDING_FRAMES} frames) in ${this.constructor.name}`,
-                  1009,
-                  'warn',
-                );
-                return;
-              }
-              pending.push({ data, isBinary });
+              return;
             }
+            const bytes = Array.isArray(data)
+              ? data.reduce((sum, buffer) => sum + buffer.byteLength, 0)
+              : data.byteLength;
+            if (
+              pending.length >= MAX_PENDING_FRAMES ||
+              pendingBytes + bytes > MAX_PENDING_BYTES
+            ) {
+              // Close-code 1009 = flow-control overflow (not a
+              // policy block); warn keeps it distinct from the
+              // security-block error stream.
+              blockAndTerminate(
+                `Pending buffer limit exceeded in ${this.constructor.name}`,
+                1009,
+                'warn',
+                false,
+              );
+              return;
+            }
+            pendingBytes += bytes;
+            pending.push({ data, isBinary, bytes });
+            void flushPending();
           });
 
           // Catches indirect navigations the renderer made on its own —
           // e.g. JS-side `fetch('file://...')` after a legitimate goto.
           upstreamWS.on('message', (data, isBinary) => {
+            if (blocked || settled) return;
             const hit = inspect(data, 'upstream→client', isBinary);
             if (hit) {
               blockAndTerminate(hit);
