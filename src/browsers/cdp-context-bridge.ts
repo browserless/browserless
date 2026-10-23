@@ -160,7 +160,10 @@ export function bridgeCDPContexts(
           ws.once('close', (code, reason) =>
             relayClose(upstream, code, reason),
           );
-          upstream = new WebSocket(target, { maxPayload: 0 });
+          upstream = new WebSocket(target, {
+            maxPayload: 0,
+            perMessageDeflate: false,
+          });
           upstream.on('error', finish);
           upstream.once('close', (code, reason) =>
             relayClose(ws, code, reason),

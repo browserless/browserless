@@ -160,10 +160,13 @@ describe('CDP context admission transport', () => {
         port: 0,
         host: '127.0.0.1',
         maxPayload: 0,
+        perMessageDeflate: true,
       });
       await once(upstream, 'listening');
       const forwarded: unknown[] = [];
+      let upstreamExtensions: string | undefined;
       upstream.on('connection', (ws) => {
+        upstreamExtensions = ws.extensions;
         ws.on('message', (data, binary) => {
           const command = JSON.parse(data.toString());
           forwarded.push(command);
@@ -253,6 +256,7 @@ describe('CDP context admission transport', () => {
           expect(JSON.parse(data.toString())).to.deep.equal(command);
         }
         expect(forwarded).to.have.length(3);
+        expect(upstreamExtensions).to.equal('');
         const largeResponse = Promise.race([
           once(client, 'message'),
           once(client, 'close').then(() => {
