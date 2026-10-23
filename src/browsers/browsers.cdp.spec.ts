@@ -134,8 +134,14 @@ describe('CDP context admission transport', () => {
     });
   }
 
-  for (const mode of ['browser', 'page', 'oversized']) {
-    const pageConnection = mode === 'page';
+  for (const mode of [
+    'browser',
+    'page',
+    'page-graceful',
+    'oversized',
+    'queue-overflow',
+  ]) {
+    const pageConnection = mode.startsWith('page');
     it(`preserves commands and denies contexts before forwarding (${mode})`, async () => {
       let entered!: () => void;
       let release!: () => void;
@@ -257,6 +263,49 @@ describe('CDP context admission transport', () => {
         }
         expect(forwarded).to.have.length(3);
         expect(upstreamExtensions).to.equal('');
+        if (mode === 'browser') {
+          for (const delayed of [false, true]) {
+            const count = delayed ? 50_000 : 600;
+            const received: number[] = [];
+            const onMessage = (data: WebSocket.RawData) => {
+              received.push(JSON.parse(data.toString()).id);
+            };
+            client.on('message', onMessage);
+            const start = forwarded.length;
+            if (delayed) {
+              client.send(
+                JSON.stringify({
+                  id: 99,
+                  method: 'Target.createBrowserContext',
+                  params: { proxyServer: 'wait' },
+                }),
+              );
+              await waiting;
+            }
+            for (let id = 100; id < 100 + count; id++) {
+              client.send(JSON.stringify({ id, method: 'Browser.getVersion' }));
+            }
+            if (delayed) {
+              await new Promise((resolve) => setTimeout(resolve, 50));
+              expect(forwarded.length).to.equal(start);
+              release();
+            }
+            const expected = [
+              ...(delayed ? [99] : []),
+              ...Array.from({ length: count }, (_, i) => i + 100),
+            ];
+            const until = Date.now() + 10000;
+            while (
+              received.length < expected.length &&
+              client.readyState === WebSocket.OPEN &&
+              Date.now() < until
+            )
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            client.off('message', onMessage);
+            expect(received).to.deep.equal(expected);
+            forwarded.splice(start);
+          }
+        }
         const largeResponse = Promise.race([
           once(client, 'message'),
           once(client, 'close').then(() => {
@@ -285,7 +334,7 @@ describe('CDP context admission transport', () => {
           expect(forwarded).to.have.length(4);
           return;
         }
-        if (!pageConnection) {
+        if (mode === 'browser') {
           const closing = once(client, 'close');
           client.send(JSON.stringify({ id: 41, method: 'test.close' }));
           const [code, reason] = await closing;
@@ -300,11 +349,33 @@ describe('CDP context admission transport', () => {
             params: { proxyServer: 'wait' },
           }),
         );
-        client.send(JSON.stringify({ id: 31, method: 'Browser.getVersion' }));
+        for (let id = 31; id < 41; id++)
+          client.send(JSON.stringify({ id, method: 'Browser.getVersion' }));
         await waiting;
         expect(forwarded).to.have.length(4);
-        client.terminate();
-        await bridge;
+        if (mode === 'queue-overflow') {
+          const closed = once(client, 'close');
+          const payload = JSON.stringify({
+            id: 50,
+            method: 'test.payload',
+            data: 'a'.repeat(60 * 1024 * 1024),
+          });
+          client.send(payload);
+          client.send(payload);
+          expect((await closed)[0]).to.equal(1009);
+        } else {
+          // Let the bridge consume the chunk behind the asynchronous policy.
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          if (mode === 'page-graceful') client.close();
+          else client.terminate();
+        }
+        expect(
+          await Promise.race([
+            bridge!.then(() => true),
+            new Promise((resolve) => setTimeout(() => resolve(false), 1000)),
+          ]),
+          'disconnect must settle before the policy resolves',
+        ).to.equal(true);
         release();
         await new Promise(setImmediate);
         expect(forwarded).to.have.length(4);

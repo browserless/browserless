@@ -383,6 +383,7 @@ class BasePlaywright extends EventEmitter {
             reason: string,
             closeCode = 1008,
             severity: 'error' | 'warn' = 'error',
+            closeBrowser = true,
           ) => {
             if (blocked || settled) return;
             blocked = true;
@@ -392,7 +393,7 @@ class BasePlaywright extends EventEmitter {
               if (drained) return;
               drained = true;
               safeClose(upstreamWS);
-              this.close();
+              if (closeBrowser) this.close();
               finish();
             };
             ws.once('close', drain);
@@ -417,6 +418,12 @@ class BasePlaywright extends EventEmitter {
           }[] = [];
           let upstreamReady = false;
           let processing = false;
+          // Keep the default transport untouched. Existing subclass overrides
+          // opt in without requiring a second hook or a downstream API change.
+          const contextPolicy =
+            this.config.preparePlaywrightContextOptions !==
+            Config.prototype.preparePlaywrightContextOptions;
+          const cdpPolicy = this.config.getCDPContextPolicy();
           const flushPending = async () => {
             if (processing || !upstreamReady || blocked || settled) return;
             processing = true;
@@ -425,11 +432,13 @@ class BasePlaywright extends EventEmitter {
                 const message = pending[0];
                 let parsed;
                 try {
-                  parsed = JSON.parse(wsFrameToString(message.data));
+                  if (contextPolicy || cdpPolicy)
+                    parsed = JSON.parse(wsFrameToString(message.data));
                 } catch {
                   // Preserve non-JSON frames; navigation inspection runs first.
                 }
                 if (
+                  contextPolicy &&
                   (parsed?.method === 'newContext' ||
                     parsed?.method === 'newContextForReuse') &&
                   parsed.params &&
@@ -443,7 +452,6 @@ class BasePlaywright extends EventEmitter {
                 }
                 // Chromium also exposes raw CDP through a Playwright CDPSession.
                 // Its send envelope must not bypass context admission.
-                const cdpPolicy = this.config.getCDPContextPolicy();
                 if (cdpPolicy && parsed?.method === 'send') {
                   let command = parsed.params;
                   while (command?.method === 'Target.sendMessageToTarget') {
@@ -467,6 +475,9 @@ class BasePlaywright extends EventEmitter {
             } catch {
               blockAndTerminate(
                 'Playwright context policy or forwarding failed',
+                1008,
+                'error',
+                false,
               );
             } finally {
               processing = false;
@@ -567,6 +578,10 @@ class BasePlaywright extends EventEmitter {
               blockAndTerminate(hit);
               return;
             }
+            if (upstreamReady && !contextPolicy && !cdpPolicy) {
+              upstreamWS!.send(data, { binary: isBinary });
+              return;
+            }
             const bytes = Array.isArray(data)
               ? data.reduce((sum, buffer) => sum + buffer.byteLength, 0)
               : data.byteLength;
@@ -581,6 +596,7 @@ class BasePlaywright extends EventEmitter {
                 `Pending buffer limit exceeded in ${this.constructor.name}`,
                 1009,
                 'warn',
+                false,
               );
               return;
             }

@@ -428,7 +428,9 @@ describe('BasePlaywright URL filter', () => {
         },
       });
       const browser = await chromium.connect(`ws://127.0.0.1:${bridgePort}/`);
+      const sibling = await chromium.connect(`ws://127.0.0.1:${bridgePort}/`);
       try {
+        const siblingCDP = await sibling.newBrowserCDPSession();
         const cdp = await browser.newBrowserCDPSession();
         expect((await cdp.send('Browser.getVersion')).product).to.contain(
           'Chrome',
@@ -455,8 +457,14 @@ describe('BasePlaywright URL filter', () => {
         }
         expect(rejected, 'private context must be denied').to.equal(true);
         expect(hits, 'private proxy must receive no connection').to.equal(0);
+        // Allow the rejected connection's bounded close drain to finish.
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        expect(
+          (await siblingCDP.send('Browser.getVersion')).product,
+        ).to.contain('Chrome');
       } finally {
         await browser.close();
+        await sibling.close();
         await server.close();
         await new Promise<void>((resolve) => proxy.close(() => resolve()));
       }
@@ -616,6 +624,8 @@ describe('BasePlaywright URL filter', () => {
         });
         const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
         await new Promise<void>((resolve) => client.once('open', resolve));
+        const sibling = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+        await new Promise<void>((resolve) => sibling.once('open', resolve));
         const closed = new Promise<number>((resolve) =>
           client.once('close', resolve),
         );
@@ -640,12 +650,16 @@ describe('BasePlaywright URL filter', () => {
             await closed;
           }
           release();
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 600));
           expect(upstreamMessages).to.deep.equal([]);
+          sibling.send(JSON.stringify({ id: 999, method: 'ping' }));
+          await waitFor(() => upstreamMessages.length === 1);
+          expect(JSON.parse(upstreamMessages[0]).id).to.equal(999);
         } finally {
           clearTimeout(deadline);
           release();
           client.close();
+          sibling.close();
         }
       });
     }
@@ -667,10 +681,17 @@ describe('BasePlaywright URL filter', () => {
           viewport: { width: 900, height: 600 },
         },
       };
+      const wireMessage = JSON.stringify(message, null, 2);
       try {
-        client.send(JSON.stringify(message));
+        client.send(wireMessage);
         await waitFor(() => upstreamMessages.length === 1);
-        expect(JSON.parse(upstreamMessages[0])).to.deep.equal(message);
+        expect(upstreamMessages[0]).to.equal(wireMessage);
+        for (let id = 2; id < 602; id++)
+          client.send(JSON.stringify({ ...message, id }));
+        await waitFor(() => upstreamMessages.length === 601);
+        expect(
+          upstreamMessages.map((frame) => JSON.parse(frame).id),
+        ).to.deep.equal(Array.from({ length: 601 }, (_, i) => i + 1));
       } finally {
         client.close();
       }

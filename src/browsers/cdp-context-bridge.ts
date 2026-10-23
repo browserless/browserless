@@ -14,6 +14,8 @@ const server = new WebSocketServer({
   noServer: true,
   maxPayload: 100 * 1024 * 1024,
 });
+// Charge bookkeeping as well as payload so even empty queued frames are bounded.
+const QUEUED_FRAME_OVERHEAD = 128;
 
 /** Preserve the raw CDP contract, mediating only context configuration. */
 export function bridgeCDPContexts(
@@ -32,7 +34,8 @@ export function bridgeCDPContexts(
     let closeTimer: NodeJS.Timeout | undefined;
     let processing = false;
     let queuedBytes = 0;
-    const pending: { data: Buffer; binary: boolean }[] = [];
+    let pending: ({ data: Buffer; binary: boolean } | undefined)[] = [];
+    let pendingHead = 0;
     const finish = (error?: Error) => {
       if (settled) return;
       settled = true;
@@ -82,8 +85,8 @@ export function bridgeCDPContexts(
         return;
       processing = true;
       try {
-        while (pending.length && !settled && !closing) {
-          const message = pending[0];
+        while (pendingHead < pending.length && !settled && !closing) {
+          const message = pending[pendingHead]!;
           let frame;
           try {
             frame = JSON.parse(message.data.toString());
@@ -126,6 +129,8 @@ export function bridgeCDPContexts(
               }),
             );
           } else {
+            // Pause only for write backpressure, never while awaiting policy:
+            // reads must stay active to observe disconnects during admission.
             client!.pause();
             await new Promise<void>((resolve, reject) => {
               upstream!.send(
@@ -137,8 +142,16 @@ export function bridgeCDPContexts(
             if (!settled && !closing) client!.resume();
           }
           if (settled || closing) return;
-          queuedBytes -= message.data.length;
-          pending.shift();
+          queuedBytes -= message.data.length + QUEUED_FRAME_OVERHEAD;
+          pending[pendingHead++] = undefined;
+          if (pendingHead === pending.length) {
+            pending.length = 0;
+            pendingHead = 0;
+          } else if (pendingHead >= 1024 && pendingHead * 2 >= pending.length) {
+            // Amortized linear consumption, including a never-empty stream.
+            pending = pending.slice(pendingHead);
+            pendingHead = 0;
+          }
         }
       } catch (error) {
         finish(error as Error);
@@ -184,17 +197,21 @@ export function bridgeCDPContexts(
               : Buffer.isBuffer(data)
                 ? data
                 : Buffer.from(data);
-            // Bound buffered waiters, not a single admitted message: legacy CDP
-            // had no 100 MiB payload ceiling. Pausing applies TCP backpressure.
+            // Bound payload plus bookkeeping rather than rejecting ordinary
+            // bursts at 256 frames. Keep reads active during admission.
+            const bytes = buffer.length + QUEUED_FRAME_OVERHEAD;
             if (
-              pending.length >= 256 ||
-              (pending.length > 0 &&
-                queuedBytes + buffer.length > 100 * 1024 * 1024)
+              pending.length > pendingHead &&
+              queuedBytes + bytes > 100 * 1024 * 1024
             ) {
-              finish();
+              relayClose(
+                ws,
+                1009,
+                Buffer.from('CDP pending buffer limit exceeded'),
+              );
               return;
             }
-            queuedBytes += buffer.length;
+            queuedBytes += bytes;
             pending.push({ data: buffer, binary });
             void flush();
           });
