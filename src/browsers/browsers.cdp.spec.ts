@@ -202,11 +202,19 @@ describe('CDP context admission transport', () => {
       );
       try {
         await once(client, 'open');
-        for (const nested of [false, true]) {
+        for (const [method, nested] of [
+          ['Target.createBrowserContext', false],
+          ['Target.createBrowserContext', true],
+          ['Target.exposeDevToolsProtocol', false],
+          ['Target.exposeDevToolsProtocol', true],
+        ] as const) {
           const command = {
             id: 12,
-            method: 'Target.createBrowserContext',
-            params: { proxyServer: 'direct://' },
+            method,
+            params:
+              method === 'Target.createBrowserContext'
+                ? { proxyServer: 'direct://' }
+                : { targetId: 'page' },
           };
           const frame = nested
             ? {

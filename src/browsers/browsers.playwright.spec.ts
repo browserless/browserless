@@ -462,44 +462,52 @@ describe('BasePlaywright URL filter', () => {
       }
     });
 
-    it('rejects a nested CDP context command inside the Playwright send channel', async () => {
-      Object.assign(config, {
-        getCDPContextPolicy: () => async () => {
-          throw new Error('denied');
-        },
-      });
-      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
-      await new Promise<void>((resolve) => client.once('open', resolve));
-      const closed = new Promise<void>((resolve) =>
-        client.once('close', () => resolve()),
-      );
-      client.send(
-        JSON.stringify({
-          id: 1,
-          method: 'send',
-          params: {
-            method: 'Target.sendMessageToTarget',
-            params: {
-              sessionId: 'child',
-              message: JSON.stringify({
-                id: 2,
-                method: 'Target.createBrowserContext',
-                params: { proxyServer: 'direct://' },
-              }),
-            },
+    for (const method of [
+      'Target.createBrowserContext',
+      'Target.exposeDevToolsProtocol',
+    ]) {
+      it(`rejects nested ${method} inside the Playwright send channel`, async () => {
+        Object.assign(config, {
+          getCDPContextPolicy: () => async () => {
+            throw new Error('denied');
           },
-        }),
-      );
-      try {
-        await Promise.race([
-          closed,
-          waitFor(() => upstreamMessages.length > 0),
-        ]);
-        expect(upstreamMessages).to.deep.equal([]);
-      } finally {
-        client.terminate();
-      }
-    });
+        });
+        const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
+        await new Promise<void>((resolve) => client.once('open', resolve));
+        const closed = new Promise<void>((resolve) =>
+          client.once('close', () => resolve()),
+        );
+        client.send(
+          JSON.stringify({
+            id: 1,
+            method: 'send',
+            params: {
+              method: 'Target.sendMessageToTarget',
+              params: {
+                sessionId: 'child',
+                message: JSON.stringify({
+                  id: 2,
+                  method,
+                  params:
+                    method === 'Target.createBrowserContext'
+                      ? { proxyServer: 'direct://' }
+                      : { targetId: 'page' },
+                }),
+              },
+            },
+          }),
+        );
+        try {
+          await Promise.race([
+            closed,
+            waitFor(() => upstreamMessages.length > 0),
+          ]);
+          expect(upstreamMessages).to.deep.equal([]);
+        } finally {
+          client.terminate();
+        }
+      });
+    }
 
     it('awaits context policy before forwarding subsequent frames and forwards normalized options', async () => {
       let release!: () => void;

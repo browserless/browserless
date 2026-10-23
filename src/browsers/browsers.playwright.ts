@@ -449,6 +449,12 @@ class BasePlaywright extends EventEmitter {
                   while (command?.method === 'Target.sendMessageToTarget') {
                     command = JSON.parse(command.params.message);
                   }
+                  // Page bindings would issue browser commands outside this policy.
+                  if (command?.method === 'Target.exposeDevToolsProtocol') {
+                    throw new Error(
+                      'DevTools bindings are unavailable with a context policy',
+                    );
+                  }
                   if (command?.method === 'Target.createBrowserContext') {
                     await cdpPolicy(command.params ?? {});
                   }
