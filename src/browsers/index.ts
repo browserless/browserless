@@ -84,6 +84,8 @@ export class BrowserManager {
     tree: ProcessTree | null;
   } | null = null;
   protected readonly processTreeCacheMs = 2000;
+  protected readonly processTreeIdleStopMs = 30_000;
+  protected lastProcessTreePollAt = 0;
   protected processTreeRefreshTimer: NodeJS.Timeout | null = null;
   protected processTreeRefreshPromise: Promise<ProcessTree | null> | null =
     null;
@@ -183,23 +185,26 @@ export class BrowserManager {
     return this.refreshProcessTree();
   }
 
-  // Keeps systeminformation's own per-pid CPU baseline warm while any
-  // session is alive, so by the time /sessions is actually polled, a
-  // session's processes already have a prior sample to delta against -
-  // without this, a pid with no prior sample reads its lifetime-average
-  // CPU share (near 0 on a long-uptime host), not its recent usage.
+  // Demand-driven: runs only while /sessions is polled, not for the life
+  // of every session, and self-stops after an idle gap.
   protected startProcessTreeRefresh(): void {
+    this.lastProcessTreePollAt = Date.now();
     if (this.processTreeRefreshTimer) {
       return;
     }
-    // Prime immediately - an interval alone leaves the first
-    // processTreeCacheMs window with no sample at all.
-    this.refreshProcessTree();
     this.processTreeRefreshTimer = setInterval(
-      () => this.refreshProcessTree(),
+      () => this.processTreeRefreshTick(),
       this.processTreeCacheMs,
     );
     this.processTreeRefreshTimer.unref?.();
+  }
+
+  protected processTreeRefreshTick(): void {
+    if (Date.now() - this.lastProcessTreePollAt >= this.processTreeIdleStopMs) {
+      this.stopProcessTreeRefresh();
+      return;
+    }
+    this.refreshProcessTree();
   }
 
   protected stopProcessTreeRefresh(): void {
@@ -665,9 +670,6 @@ export class BrowserManager {
       // session still visible to subsequent `/sessions` and trackingId
       // checks for the duration of browser.close() (hundreds of ms).
       this.browsers.delete(browser);
-      if (this.browsers.size === 0) {
-        this.stopProcessTreeRefresh();
-      }
 
       // Serialise browser shutdown then data-dir removal: chromium
       // releases its file handles when `browser.close()` resolves, so
@@ -724,8 +726,11 @@ export class BrowserManager {
     const sessions = Array.from(this.browsers);
     // Skip the process-list read entirely when there's nothing to report -
     // no point forking `ps` for an empty /sessions response.
-    const processTree =
-      sessions.length > 0 ? await this.getProcessTree() : null;
+    let processTree: ProcessTree | null = null;
+    if (sessions.length > 0) {
+      this.startProcessTreeRefresh();
+      processTree = await this.getProcessTree();
+    }
 
     // Query browsers concurrently and tolerate individual failures — one
     // wedged or mid-shutdown browser shouldn't stall or 500 /sessions.
@@ -1052,7 +1057,6 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
-    this.startProcessTreeRefresh();
 
     browser.on('newPage', async (page: Page) => {
       await this.onNewPage(req, page);

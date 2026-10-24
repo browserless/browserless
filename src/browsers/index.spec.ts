@@ -78,6 +78,28 @@ class TestBrowserManager extends BrowserManager {
       }
     ).generateSessionJson(browser, session, processTree, numCores);
   }
+
+  // Bypasses getBrowserForRequest()'s full launch flow — tests only need a
+  // session present in the map, not a real browser connection.
+  public addFakeSession(browser: BrowserInstance, session: BrowserlessSession) {
+    this.browsers.set(browser, session);
+  }
+
+  public isRefreshTimerRunning(): boolean {
+    return this.processTreeRefreshTimer !== null;
+  }
+
+  public setLastProcessTreePollAt(ms: number): void {
+    this.lastProcessTreePollAt = ms;
+  }
+
+  public tickProcessTreeRefresh(): void {
+    this.processTreeRefreshTick();
+  }
+
+  public stopRefreshForTest(): void {
+    this.stopProcessTreeRefresh();
+  }
 }
 
 const makeManager = () =>
@@ -306,5 +328,38 @@ describe('BrowserManager session stats (#5615)', () => {
     // each page has its own separate (and wrong) measurement.
     expect(pageEntry.cpu).to.be.undefined;
     expect(pageEntry.memoryBytes).to.be.undefined;
+  });
+
+  it('starts the background refresh only once /sessions is polled, not on session launch', async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map(),
+      childrenByParentPid: new Map(),
+      coldPids: new Set(),
+    } as never);
+
+    manager.addFakeSession(makeFakeBrowser(100), makeSession('i'));
+    expect(manager.isRefreshTimerRunning()).to.be.false;
+
+    await manager.getAllSessions();
+    expect(manager.isRefreshTimerRunning()).to.be.true;
+    manager.stopRefreshForTest();
+  });
+
+  it('self-stops the background refresh after an idle gap with no /sessions polls', async () => {
+    const manager = makeManager();
+    manager.fakeTree = Promise.resolve({
+      byPid: new Map(),
+      childrenByParentPid: new Map(),
+      coldPids: new Set(),
+    } as never);
+
+    manager.addFakeSession(makeFakeBrowser(100), makeSession('j'));
+    await manager.getAllSessions();
+    expect(manager.isRefreshTimerRunning()).to.be.true;
+
+    manager.setLastProcessTreePollAt(Date.now() - 31_000);
+    manager.tickProcessTreeRefresh();
+    expect(manager.isRefreshTimerRunning()).to.be.false;
   });
 });
