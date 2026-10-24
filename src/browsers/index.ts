@@ -90,6 +90,7 @@ export class BrowserManager {
   protected processTreeRefreshPromise: Promise<ProcessTree | null> | null =
     null;
   protected seenPids: Set<number> = new Set();
+  protected lastProcessTreeRefreshAt = 0;
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -143,6 +144,21 @@ export class BrowserManager {
     }
   }
 
+  // A gap since our last real sample dilutes a recent burst into a
+  // misleadingly low average - treat every pid as cold, not just new ones.
+  protected computeColdPids(pids: Iterable<number>): Set<number> {
+    const gapTooLong =
+      this.lastProcessTreeRefreshAt > 0 &&
+      Date.now() - this.lastProcessTreeRefreshAt > this.processTreeCacheMs * 2;
+    const coldPids = new Set<number>();
+    for (const pid of pids) {
+      if (gapTooLong || !this.seenPids.has(pid)) {
+        coldPids.add(pid);
+      }
+    }
+    return coldPids;
+  }
+
   // Never throws: a failure here shouldn't break /sessions, just leave
   // every session's cpu/memoryBytes as null for this one request.
   protected async refreshProcessTreeOnce(): Promise<ProcessTree | null> {
@@ -150,17 +166,15 @@ export class BrowserManager {
       const { list } = await si.processes();
       const byPid = new Map(list.map((p) => [p.pid, p]));
       const childrenByParentPid = new Map<number, number[]>();
-      const coldPids = new Set<number>();
+      const coldPids = this.computeColdPids(byPid.keys());
 
       for (const p of list) {
-        if (!this.seenPids.has(p.pid)) {
-          coldPids.add(p.pid);
-        }
         const siblings = childrenByParentPid.get(p.parentPid) ?? [];
         siblings.push(p.pid);
         childrenByParentPid.set(p.parentPid, siblings);
       }
       this.seenPids = new Set(byPid.keys());
+      this.lastProcessTreeRefreshAt = Date.now();
 
       const tree = { byPid, childrenByParentPid, coldPids };
       this.processTreeCache = {

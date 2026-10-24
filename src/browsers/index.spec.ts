@@ -100,6 +100,18 @@ class TestBrowserManager extends BrowserManager {
   public stopRefreshForTest(): void {
     this.stopProcessTreeRefresh();
   }
+
+  public setSeenPids(pids: number[]): void {
+    this.seenPids = new Set(pids);
+  }
+
+  public setLastProcessTreeRefreshAt(ms: number): void {
+    this.lastProcessTreeRefreshAt = ms;
+  }
+
+  public callComputeColdPids(pids: number[]): Set<number> {
+    return this.computeColdPids(pids);
+  }
 }
 
 const makeManager = () =>
@@ -361,5 +373,36 @@ describe('BrowserManager session stats (#5615)', () => {
     manager.setLastProcessTreePollAt(Date.now() - 31_000);
     manager.tickProcessTreeRefresh();
     expect(manager.isRefreshTimerRunning()).to.be.false;
+  });
+
+  it('treats every pid as cold on the very first sample', () => {
+    const manager = makeManager();
+
+    const cold = manager.callComputeColdPids([100, 101]);
+
+    expect(cold.has(100)).to.be.true;
+    expect(cold.has(101)).to.be.true;
+  });
+
+  it('does not treat an already-seen pid as cold after a short gap', () => {
+    const manager = makeManager();
+    manager.setSeenPids([100]);
+    manager.setLastProcessTreeRefreshAt(Date.now() - 1000);
+
+    const cold = manager.callComputeColdPids([100]);
+
+    expect(cold.has(100)).to.be.false;
+  });
+
+  it('treats an already-seen pid as cold again after a long gap since the last real sample', () => {
+    const manager = makeManager();
+    manager.setSeenPids([100]);
+    // Longer than 2x processTreeCacheMs (2000ms) - e.g. the refresh timer
+    // was stopped during an idle gap, then /sessions was polled again.
+    manager.setLastProcessTreeRefreshAt(Date.now() - 10_000);
+
+    const cold = manager.callComputeColdPids([100]);
+
+    expect(cold.has(100)).to.be.true;
   });
 });
