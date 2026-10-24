@@ -484,10 +484,12 @@ export interface BrowserlessSession {
 export interface BrowserlessSessionJSON {
   browser: string;
   browserId: string;
+  cpu: number | null;
   id: string | null;
   initialConnectURL: string;
   killURL: string | null;
   launchOptions: CDPLaunchOptions | BrowserServerOptions;
+  memoryBytes: number | null;
   numbConnected: number;
   routePath: string | string[];
   startedOn: number;
