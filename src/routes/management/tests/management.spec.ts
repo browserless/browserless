@@ -480,9 +480,11 @@ describe('Management APIs', function () {
         );
 
         // A valid token can also arrive via the Authorization header alone
-        // (no ?token= in the URL); the injected script must not depend on
-        // location.search, since that's a different signal than what the
-        // server actually validated.
+        // (no ?token= in the URL) - e.g. a reverse proxy/SSO layer
+        // injecting it. The script is still injected (the server-side
+        // auth gate doesn't care about the token's source), but it must
+        // never embed the real token server-side: that would leak it to
+        // every such visitor, bypassing whatever gate authorized them.
         const withValidAuthHeader = await fetch(
           'http://localhost:3000/debugger/',
           { headers: { Authorization: 'Bearer 6R0W53R135510' } },
@@ -490,9 +492,10 @@ describe('Management APIs', function () {
         expect(withValidAuthHeader.status).to.equal(200);
         const withValidAuthHeaderHtml = await withValidAuthHeader.text();
         expect(withValidAuthHeaderHtml).to.include('browserless-debugger');
+        expect(withValidAuthHeaderHtml).to.not.include('6R0W53R135510');
 
-        // The script must still merge the token with no ?token= in the URL
-        // to read - it has to use the token the server already validated.
+        // With no ?token= for the client-side script to read, it must
+        // leave an existing baseURL untouched rather than merge nothing.
         const headerAuthScriptMatch = withValidAuthHeaderHtml.match(
           /<script>(.*?)<\/script>/i,
         );
@@ -533,7 +536,7 @@ describe('Management APIs', function () {
 
         const headerAuthBlob = JSON.parse(headerAuthStore[headerAuthKey]);
         expect(headerAuthBlob.apiSettings.baseURL).to.equal(
-          'ws://stale-host:3000/?token=6R0W53R135510',
+          'ws://stale-host:3000',
         );
       } finally {
         if (previousStatic === undefined) {
