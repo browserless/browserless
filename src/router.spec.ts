@@ -21,9 +21,10 @@ import {
   contentTypes,
   markSocketAsProxied,
 } from '@browserless.io/browserless';
-import Sinon, { spy } from 'sinon';
+import Sinon from 'sinon';
 import { expect } from 'chai';
 
+const { spy } = Sinon;
 const monitorings: Monitoring[] = [];
 const trackMonitoring = (m: Monitoring): Monitoring => {
   monitorings.push(m);
