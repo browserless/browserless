@@ -551,7 +551,15 @@ export class ChromiumCDP extends EventEmitter {
     const policy = this.config.getCDPContextPolicy();
     if (policy) {
       try {
-        await bridgeCDPContexts(req, socket, head, target, this, policy);
+        await bridgeCDPContexts(
+          req,
+          socket,
+          head,
+          target,
+          this,
+          policy,
+          this.config.getCdpMaxInboundPayload(),
+        );
       } finally {
         await page?.close().catch(noop);
       }
@@ -638,6 +646,7 @@ export class ChromiumCDP extends EventEmitter {
         this.browserWSEndpoint,
         this,
         policy,
+        this.config.getCdpMaxInboundPayload(),
       );
     }
     return new Promise((resolve, reject) => {

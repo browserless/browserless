@@ -8,14 +8,11 @@ import type { Duplex } from 'stream';
 import type { EventEmitter } from 'events';
 import type { IncomingMessage } from 'http';
 
-// Unlike a raw pipe, ws buffers complete inbound frames. Bound caller input;
-// upstream responses remain unlimited for large PDFs/screenshots/body replies.
-const server = new WebSocketServer({
-  noServer: true,
-  maxPayload: 100 * 1024 * 1024,
-});
 // Charge bookkeeping as well as payload so even empty queued frames are bounded.
 const QUEUED_FRAME_OVERHEAD = 128;
+// Chromium's DevTools receive buffer is 100 MiB. Keep individual frames below
+// that bound even when an operator admits a larger logical message.
+const UPSTREAM_FRAGMENT_BYTES = 64 * 1024 * 1024;
 
 /** Preserve the raw CDP contract, mediating only context configuration. */
 export function bridgeCDPContexts(
@@ -25,7 +22,16 @@ export function bridgeCDPContexts(
   target: string,
   browser: EventEmitter,
   policy: NonNullable<ReturnType<Config['getCDPContextPolicy']>>,
+  configuredMaxPayload?: number,
 ): Promise<void> {
+  // Validate overrides too. Never mutate a server shared by other configs.
+  const maxPayload =
+    Config.validateCdpMaxInboundPayload(configuredMaxPayload) ??
+    100 * 1024 * 1024;
+  const server = new WebSocketServer({ noServer: true, maxPayload });
+  // One exact-limit message fits, including bookkeeping. This bounds queued
+  // transport bytes, not the receiver, parsed JSON, browser memory, or RSS.
+  const maxQueuedBytes = maxPayload + QUEUED_FRAME_OVERHEAD;
   return new Promise((resolve, reject) => {
     let client: WebSocket | undefined;
     let upstream: WebSocket | undefined;
@@ -132,13 +138,24 @@ export function bridgeCDPContexts(
             // Pause only for write backpressure, never while awaiting policy:
             // reads must stay active to observe disconnects during admission.
             client!.pause();
-            await new Promise<void>((resolve, reject) => {
-              upstream!.send(
-                message.data,
-                { binary: message.binary },
-                (error) => (error ? reject(error) : resolve()),
+            for (
+              let offset = 0;
+              offset < message.data.length;
+              offset += UPSTREAM_FRAGMENT_BYTES
+            ) {
+              if (settled || closing) return;
+              const end = Math.min(
+                offset + UPSTREAM_FRAGMENT_BYTES,
+                message.data.length,
               );
-            });
+              await new Promise<void>((resolve, reject) => {
+                upstream!.send(
+                  message.data.subarray(offset, end),
+                  { binary: message.binary, fin: end === message.data.length },
+                  (error) => (error ? reject(error) : resolve()),
+                );
+              });
+            }
             if (!settled && !closing) client!.resume();
           }
           if (settled || closing) return;
@@ -200,10 +217,7 @@ export function bridgeCDPContexts(
             // Bound payload plus bookkeeping rather than rejecting ordinary
             // bursts at 256 frames. Keep reads active during admission.
             const bytes = buffer.length + QUEUED_FRAME_OVERHEAD;
-            if (
-              pending.length > pendingHead &&
-              queuedBytes + bytes > 100 * 1024 * 1024
-            ) {
+            if (queuedBytes + bytes > maxQueuedBytes) {
               relayClose(
                 ws,
                 1009,

@@ -286,6 +286,12 @@ export class Config extends EventEmitter {
     process.env.CPU_OVERLOAD_HYSTERESIS ?? '10'
   );
   protected maxPayloadSize = +(process.env.MAX_PAYLOAD_SIZE ?? '10485760'); // Default 10MB
+  protected cdpMaxInboundPayload = Config.validateCdpMaxInboundPayload(
+    process.env.CDP_MAX_INBOUND_PAYLOAD === undefined ||
+      process.env.CDP_MAX_INBOUND_PAYLOAD === ''
+      ? undefined
+      : Number(process.env.CDP_MAX_INBOUND_PAYLOAD),
+  );
   protected healthCheck = !!parseEnvVars(false, 'HEALTH');
   protected failedHealthURL = process.env.FAILED_HEALTH_URL ?? null;
   protected queueAlertURL = process.env.QUEUE_ALERT_URL ?? null;
@@ -471,6 +477,24 @@ export class Config extends EventEmitter {
   }
   public getMaxPayloadSize(): number {
     return this.maxPayloadSize;
+  }
+  /** Optional operator limit in bytes; transport defaults apply when unset. */
+  public getCdpMaxInboundPayload(): number | undefined {
+    return this.cdpMaxInboundPayload;
+  }
+  /** ws coerces limits to signed 32-bit integers; overflow can disable its cap. */
+  public static validateCdpMaxInboundPayload(
+    value: number | undefined,
+  ): number | undefined {
+    if (
+      value !== undefined &&
+      (!Number.isInteger(value) || value < 1 || value > 2147483647)
+    ) {
+      throw new Error(
+        'CDP_MAX_INBOUND_PAYLOAD must be an integer between 1 and 2147483647 bytes',
+      );
+    }
+    return value;
   }
   public getHealthChecksEnabled(): boolean {
     return this.healthCheck;
