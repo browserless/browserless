@@ -985,6 +985,9 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
         '--screen-info={1920x1080}',
       );
       expect(
+        launchArgs(ChromiumPlaywright, ['--window-size=2560,1440']),
+      ).to.include('--screen-info={2560x1440}');
+      expect(
         launchArgs(ChromiumPlaywright, ['--screen-info={800x600}']).filter(
           (arg) => arg.startsWith('--screen-info'),
         ),
