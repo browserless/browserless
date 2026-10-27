@@ -18,8 +18,8 @@ import { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import type { IncomingMessage } from 'http';
 import { browserlessChromiumDisabledFeatures } from '../config.js';
-import path from 'path';
 import { makeDefaultScreenInfoArg } from '../utils.js';
+import path from 'path';
 
 enum PlaywrightBrowserTypes {
   chromium = 'chromium',
