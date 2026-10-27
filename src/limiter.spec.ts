@@ -8,9 +8,10 @@ import {
   WebHooks,
   sleep,
 } from '@browserless.io/browserless';
-import Sinon, { spy } from 'sinon';
+import Sinon from 'sinon';
 import { expect } from 'chai';
 
+const { spy } = Sinon;
 const asyncNoop = () => Promise.resolve(undefined);
 const noop = () => undefined;
 const webHooks = Sinon.createStubInstance(WebHooks);
