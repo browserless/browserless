@@ -19,6 +19,7 @@ import { EventEmitter } from 'events';
 import type { IncomingMessage } from 'http';
 import { browserlessChromiumDisabledFeatures } from '../config.js';
 import path from 'path';
+import { makeDefaultScreenInfoArg } from '../utils.js';
 
 enum PlaywrightBrowserTypes {
   chromium = 'chromium',
@@ -127,6 +128,7 @@ class BasePlaywright extends EventEmitter {
     if (!hasHeadless) {
       args.push('--headless=new');
     }
+    const screenInfo = makeDefaultScreenInfoArg({ ...opts, args });
 
     return {
       ...opts,
@@ -142,6 +144,7 @@ class BasePlaywright extends EventEmitter {
           this.config.getChromiumDisabledFeatures(pwVersion),
           this.config.getBrowserlessChromiumDisabledFeatures(),
         ),
+        ...(screenInfo ? [screenInfo] : []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ],
       executablePath: this.executablePath(),

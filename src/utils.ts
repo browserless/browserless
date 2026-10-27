@@ -74,6 +74,36 @@ export const jsonExtension = '.json';
 export const jsExtension = '.js';
 export const isWin = process.platform === 'win32';
 
+export const defaultHeadlessScreen = { width: 1920, height: 1080 } as const;
+
+export const makeDefaultScreenInfoArg = (opts: {
+  args?: string[];
+  headless?: boolean | 'shell';
+  ignoreDefaultArgs?: boolean | string[];
+}): string | null => {
+  const args = opts.args ?? [];
+  const headless =
+    args.some((arg) => arg.startsWith('--headless')) ||
+    (opts.headless !== false && opts.ignoreDefaultArgs !== true);
+  if (!headless || args.some((arg) => arg.startsWith('--screen-info'))) {
+    return null;
+  }
+
+  const windowSize = [...args]
+    .reverse()
+    .find((arg) => /^--window-size=(\d+),(\d+)$/.test(arg))
+    ?.match(/^--window-size=(\d+),(\d+)$/);
+  const width = Math.max(
+    defaultHeadlessScreen.width,
+    Number(windowSize?.[1] ?? 0),
+  );
+  const height = Math.max(
+    defaultHeadlessScreen.height,
+    Number(windowSize?.[2] ?? 0),
+  );
+  return `--screen-info={${width}x${height}}`;
+};
+
 export const id = (): string => crypto.randomUUID();
 
 /**

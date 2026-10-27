@@ -24,6 +24,7 @@ import getPort from 'get-port';
 import httpProxy from 'http-proxy';
 import path from 'path';
 import playwright from 'playwright-core';
+import { makeDefaultScreenInfoArg } from '../utils.js';
 
 // @zorilla/puppeteer-extra's types still expect puppeteer's long-removed
 // createBrowserFetcher and re-declare their own plugin interface; at runtime
@@ -441,6 +442,7 @@ export class ChromiumCDP extends EventEmitter {
         // This is needed to allow WebSocket connections to localhost.
         `--disable-features=LocalNetworkAccessChecks`,
         disableComponentUpdaterArg,
+        makeDefaultScreenInfoArg(options),
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
