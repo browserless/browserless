@@ -980,6 +980,43 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
   });
 
   describe('makeLaunchOptions', () => {
+    it('defaults the Chromium screen without overriding caller screens', () => {
+      expect(launchArgs(ChromiumPlaywright, [])).to.include(
+        '--screen-info={1920x1080}',
+      );
+      expect(
+        launchArgs(ChromiumPlaywright, ['--window-size=2560,1440']),
+      ).to.include('--screen-info={2560x1440}');
+      expect(
+        launchArgs(ChromiumPlaywright, ['--screen-info={800x600}']).filter(
+          (arg) => arg.startsWith('--screen-info'),
+        ),
+      ).to.deep.equal(['--screen-info={800x600}']);
+    });
+
+    it('does not set a screen for headful Chromium', () => {
+      const browser = new ChromiumPlaywright({
+        config: new Config(),
+        logger: new Logger('test'),
+        userDataDir: null,
+      });
+      const { args } = (browser as unknown as Launchable).makeLaunchOptions({
+        args: [],
+        headless: false,
+      });
+      expect(args.filter((arg) => arg.startsWith('--screen-info'))).to.be.empty;
+    });
+
+    it('does not add Chromium screen flags to Firefox or WebKit', () => {
+      for (const Ctor of [FirefoxPlaywright, WebKitPlaywright]) {
+        expect(
+          launchArgs(Ctor as unknown as PwCtor, []).filter((arg) =>
+            arg.startsWith('--screen-info'),
+          ),
+        ).to.be.empty;
+      }
+    });
+
     it('Chromium emits a single merged --disable-features with both lists', () => {
       const args = launchArgs(ChromiumPlaywright, []);
       expect(disableFeaturesFlags(args)).to.have.lengthOf(1);

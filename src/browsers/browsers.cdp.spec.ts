@@ -53,6 +53,39 @@ describe('ChromiumCDP launch args', function () {
     return browser.process()?.spawnargs ?? [];
   };
 
+  for (const { name, args, stealth, screen } of [
+    { name: 'default', args: [], stealth: false, screen: [1920, 1080] },
+    {
+      name: 'larger window',
+      args: ['--window-size=2560,1440'],
+      stealth: false,
+      screen: [2560, 1440],
+    },
+    {
+      name: 'explicit screen',
+      args: ['--screen-info={1280x720}'],
+      stealth: false,
+      screen: [1280, 720],
+    },
+    { name: 'stealth', args: [], stealth: true, screen: [1920, 1080] },
+  ]) {
+    it(`uses the expected headless screen for ${name}`, async () => {
+      const spawnargs = await launch({ args, stealth });
+      const page = await browser!.newPage();
+      await page.setViewport({ width: 1280, height: 1024 });
+      expect(
+        await page.evaluate(() => [
+          window.screen.width,
+          window.screen.height,
+          matchMedia('(max-device-width: 800px)').matches,
+        ]),
+      ).to.deep.equal([...screen, false]);
+      expect(
+        spawnargs.filter((arg) => arg.startsWith('--screen-info')),
+      ).to.deep.equal([`--screen-info={${screen[0]}x${screen[1]}}`]);
+    });
+  }
+
   it('disables the component updater', async function () {
     const spawnargs = await launch();
 

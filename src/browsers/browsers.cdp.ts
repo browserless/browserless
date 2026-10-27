@@ -22,6 +22,7 @@ import StealthPlugin from '@zorilla/puppeteer-extra-plugin-stealth';
 import { addExtra } from '@zorilla/puppeteer-extra';
 import getPort from 'get-port';
 import httpProxy from 'http-proxy';
+import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 import playwright from 'playwright-core';
 
@@ -441,6 +442,7 @@ export class ChromiumCDP extends EventEmitter {
         // This is needed to allow WebSocket connections to localhost.
         `--disable-features=LocalNetworkAccessChecks`,
         disableComponentUpdaterArg,
+        makeDefaultScreenInfoArg(options),
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),

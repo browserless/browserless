@@ -13,6 +13,7 @@ import {
   getFinalPathSegment,
   getPageContent,
   isSocketProxied,
+  makeDefaultScreenInfoArg,
   markSocketAsProxied,
   toSetContentOptions,
   writeResponse,
@@ -20,6 +21,49 @@ import {
 import { Page } from 'puppeteer-core';
 
 describe('Utils', () => {
+  describe('#makeDefaultScreenInfoArg', () => {
+    const cases: [
+      Parameters<typeof makeDefaultScreenInfoArg>[0],
+      string | null,
+    ][] = [
+      [{}, '--screen-info={1920x1080}'],
+      [{ args: ['--window-size=1280,1024'] }, '--screen-info={1920x1080}'],
+      [{ args: ['--window-size=2560,1440'] }, '--screen-info={2560x1440}'],
+      [{ args: ['--window-size=2560,900'] }, '--screen-info={2560x1080}'],
+      [
+        { args: ['--window-size=1000,1000', '--window-size=3000,2000'] },
+        '--screen-info={3000x2000}',
+      ],
+      [
+        { args: ['--window-size=3000,2000', '--window-size=1000,1200'] },
+        '--screen-info={1920x1200}',
+      ],
+      [{ args: ['--window-size=abc'] }, '--screen-info={1920x1080}'],
+      [
+        { args: ['--window-size=2560,1440', '--window-size=abc'] },
+        '--screen-info={2560x1440}',
+      ],
+      [{ args: ['--screen-info={800x600}'] }, null],
+      [{ args: ['--screen-info', '{1280x720}'] }, null],
+      [{ headless: false }, null],
+      [
+        { headless: false, args: ['--headless=new'] },
+        '--screen-info={1920x1080}',
+      ],
+      [{ ignoreDefaultArgs: true }, null],
+      [
+        { ignoreDefaultArgs: true, args: ['--headless=new'] },
+        '--screen-info={1920x1080}',
+      ],
+      [{ headless: 'shell' }, '--screen-info={1920x1080}'],
+    ];
+    for (const [options, expected] of cases) {
+      it(`resolves ${JSON.stringify(options)} to ${expected}`, () => {
+        expect(makeDefaultScreenInfoArg(options)).to.equal(expected);
+      });
+    }
+  });
+
   describe('#getFinalPathSegment', () => {
     it('returns the final path segment', () => {
       expect(
