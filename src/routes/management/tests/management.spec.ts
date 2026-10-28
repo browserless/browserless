@@ -347,7 +347,7 @@ describe('Management APIs', function () {
         const store: Record<string, string> = {
           [key]: JSON.stringify({
             apiSettings: {
-              baseURL: 'ws://stale-host:3000',
+              baseURL: 'ws://localhost:3000',
               headless: true,
               blockAds: true,
             },
@@ -375,14 +375,15 @@ describe('Management APIs', function () {
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
+            host: 'localhost:3000',
             pathname: '/debugger/',
           },
         });
 
         const resultingBlob = JSON.parse(store[key]);
-        // Host preserved, only the stale token is merged in.
+        // Same host, only the stale token is merged in.
         expect(resultingBlob.apiSettings.baseURL).to.equal(
-          'ws://stale-host:3000/?token=6R0W53R135510',
+          'ws://localhost:3000/?token=6R0W53R135510',
         );
         expect(resultingBlob.apiSettings.headless).to.equal(true);
         expect(resultingBlob.apiSettings.blockAds).to.equal(true);
@@ -416,13 +417,16 @@ describe('Management APIs', function () {
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
+            host: 'localhost:3000',
             pathname: '/debugger/',
           },
         });
 
         expect(key in malformedStore).to.equal(false);
 
-        // A custom host (e.g. a reverse-proxy tunnel) must survive a reload.
+        // A different-host baseURL (e.g. a reverse-proxy tunnel) must be
+        // left untouched - merging this server's token into it would send
+        // the wrong token to that host and break the saved connection.
         const tunnelStore: Record<string, string> = {
           [key]: JSON.stringify({
             apiSettings: {
@@ -451,13 +455,16 @@ describe('Management APIs', function () {
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
+            host: 'localhost:3000',
             pathname: '/debugger/',
           },
         });
 
         const tunnelBlob = JSON.parse(tunnelStore[key]);
+        // Unchanged: this server's token must never be written into a
+        // baseURL pointing at a different host.
         expect(tunnelBlob.apiSettings.baseURL).to.equal(
-          'wss://my-tunnel.example.com:8443/?token=6R0W53R135510',
+          'wss://my-tunnel.example.com:8443/?token=OLDTOKEN',
         );
 
         const withoutToken = await fetch('http://localhost:3000/debugger/');
@@ -530,6 +537,7 @@ describe('Management APIs', function () {
           location: {
             search: '',
             origin: 'http://localhost:3000',
+            host: 'localhost:3000',
             pathname: '/debugger/',
           },
         });
@@ -592,7 +600,7 @@ describe('Management APIs', function () {
           'browserless-debugger:http://localhost:3000/debugger/';
         const store: Record<string, string> = {
           [normalizedKey]: JSON.stringify({
-            apiSettings: { baseURL: 'ws://stale-host:3000' },
+            apiSettings: { baseURL: 'ws://localhost:3000' },
           }),
         };
         Object.defineProperty(store, 'getItem', {
@@ -616,6 +624,7 @@ describe('Management APIs', function () {
           location: {
             search: '?token=6R0W53R135510',
             origin: 'http://localhost:3000',
+            host: 'localhost:3000',
             // Un-normalized, matching what the browser has at the moment
             // this script runs — before router.js's own pushState.
             pathname: '/debugger/index.html',
@@ -624,7 +633,7 @@ describe('Management APIs', function () {
 
         const resultingBlob = JSON.parse(store[normalizedKey]);
         expect(resultingBlob.apiSettings.baseURL).to.equal(
-          'ws://stale-host:3000/?token=6R0W53R135510',
+          'ws://localhost:3000/?token=6R0W53R135510',
         );
       } finally {
         if (previousStatic === undefined) {

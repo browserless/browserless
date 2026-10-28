@@ -25,14 +25,12 @@ const pathMap: Map<
 > = new Map();
 
 // Server-side patch for the archived debugger UI's stale ?token= bug
-// (#5560) — merges the token into any existing baseURL instead of wiping
-// it. Token is read client-side from location.search, never embedded
-// server-side: requestToken can come from the Authorization header alone
-// (e.g. a proxy/SSO layer injecting it), and writing that value into the
-// page would leak the real token to every such visitor.
+// (#5560) — merges the token into an existing same-host baseURL, leaving
+// a different host's untouched. Token is read client-side from
+// location.search, never embedded server-side, to avoid leaking it.
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
 const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;try{var s=JSON.parse(localStorage.getItem(k)||'{}');var t=new URLSearchParams(location.search).get('token');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'&&t){try{var u=new URL(s.apiSettings.baseURL);if(u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;localStorage.setItem(k,JSON.stringify(s));}}catch(e){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}}catch(e){localStorage.removeItem(k);}</script>";
+  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;try{var s=JSON.parse(localStorage.getItem(k)||'{}');var t=new URLSearchParams(location.search).get('token');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'&&t){try{var u=new URL(s.apiSettings.baseURL);if(u.host===location.host&&u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;localStorage.setItem(k,JSON.stringify(s));}}catch(e){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}}catch(e){localStorage.removeItem(k);}</script>";
 
 const injectDebuggerTokenResetScript = (
   html: string,
