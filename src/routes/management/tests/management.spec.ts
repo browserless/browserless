@@ -448,9 +448,15 @@ describe('Management APIs', function () {
           },
         });
 
+        let quotaWarning: unknown;
         vm.runInNewContext(scriptMatch![1], {
           URL,
           URLSearchParams,
+          console: {
+            warn: (...args: unknown[]) => {
+              quotaWarning = args;
+            },
+          },
           localStorage: quotaStore,
           location: {
             search: '?token=6R0W53R135510',
@@ -461,6 +467,7 @@ describe('Management APIs', function () {
         });
 
         expect(quotaStore[quotaKey]).to.equal(originalBlob);
+        expect(quotaWarning).to.not.be.undefined;
 
         // A different-host baseURL (e.g. a reverse-proxy tunnel) must be
         // left untouched - merging this server's token into it would send
