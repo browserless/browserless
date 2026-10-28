@@ -30,7 +30,7 @@ const pathMap: Map<
 // location.search, never embedded server-side, to avoid leaking it.
 const DEBUGGER_INDEX_PATHS = new Set(['/debugger/', '/debugger/index.html']);
 const DEBUGGER_TOKEN_RESET_SCRIPT =
-  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;try{var s=JSON.parse(localStorage.getItem(k)||'{}');var t=new URLSearchParams(location.search).get('token');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'&&t){try{var u=new URL(s.apiSettings.baseURL);if(u.host===location.host&&u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;localStorage.setItem(k,JSON.stringify(s));}}catch(e){delete s.apiSettings.baseURL;localStorage.setItem(k,JSON.stringify(s));}}}catch(e){localStorage.removeItem(k);}</script>";
+  "<script>var p=location.pathname;if(p.endsWith('index.html'))p=p.slice(0,-10);if(!p.endsWith('/'))p+='/';var k='browserless-debugger:'+location.origin+p;var s;try{s=JSON.parse(localStorage.getItem(k)||'{}');}catch(e){localStorage.removeItem(k);s=null;}if(s){var t=new URLSearchParams(location.search).get('token');if(s.apiSettings&&typeof s.apiSettings.baseURL==='string'&&t){try{var u=new URL(s.apiSettings.baseURL);if(u.host===location.host&&u.searchParams.get('token')!==t){u.searchParams.set('token',t);s.apiSettings.baseURL=u.href;try{localStorage.setItem(k,JSON.stringify(s));}catch(e){}}}catch(e){delete s.apiSettings.baseURL;try{localStorage.setItem(k,JSON.stringify(s));}catch(e){}}}}</script>";
 
 const injectDebuggerTokenResetScript = (
   html: string,

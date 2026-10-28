@@ -424,6 +424,44 @@ describe('Management APIs', function () {
 
         expect(key in malformedStore).to.equal(false);
 
+        // A write failure (e.g. quota exceeded) must not wipe out valid,
+        // already-parsed settings - only a JSON.parse failure should.
+        const quotaKey = 'browserless-debugger:http://localhost:3000/debugger/';
+        const originalBlob = JSON.stringify({
+          apiSettings: { baseURL: 'ws://localhost:3000', headless: true },
+          editorTabs: [{ id: 1, code: 'console.log("hello")' }],
+        });
+        const quotaStore: Record<string, string> = {
+          [quotaKey]: originalBlob,
+        };
+        Object.defineProperty(quotaStore, 'getItem', {
+          value: (k: string) => (k in quotaStore ? quotaStore[k] : null),
+        });
+        Object.defineProperty(quotaStore, 'setItem', {
+          value: () => {
+            throw new Error('QuotaExceededError');
+          },
+        });
+        Object.defineProperty(quotaStore, 'removeItem', {
+          value: (k: string) => {
+            delete quotaStore[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: quotaStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        expect(quotaStore[quotaKey]).to.equal(originalBlob);
+
         // A different-host baseURL (e.g. a reverse-proxy tunnel) must be
         // left untouched - merging this server's token into it would send
         // the wrong token to that host and break the saved connection.
