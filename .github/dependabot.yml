@@ -32,13 +32,6 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: build
-    ignore:
-      # Refresh the pinned digest without changing the Ubuntu release line.
-      - dependency-name: ubuntu
-        update-types:
-          - version-update:semver-major
-          - version-update:semver-minor
-          - version-update:semver-patch
   - package-ecosystem: github-actions
     directory: /
     schedule:

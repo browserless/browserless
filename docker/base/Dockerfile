@@ -1,4 +1,6 @@
-FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
+# Resolute is Ubuntu 26.04. Its codename keeps Dependabot digest refreshes enabled
+# even when digest-only updates for numeric version tags are suppressed.
+FROM ubuntu:resolute@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
