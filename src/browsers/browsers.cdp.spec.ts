@@ -507,10 +507,11 @@ describe('CDP context admission transport', () => {
       server.on('upgrade', (req, socket, head) => {
         const request = req as Request;
         request.parsed = new URL(req.url!, 'http://localhost');
-        bridge = pageConnection
+        const connection = pageConnection
           ? browser.proxyPageWebSocket(request, socket, head)
           : browser.proxyWebSocket(request, socket, head);
-        bridge.catch(() => {});
+        bridge ??= connection;
+        connection.catch(() => {});
       });
       await new Promise<void>((resolve) =>
         server.listen(0, '127.0.0.1', resolve),
@@ -521,11 +522,13 @@ describe('CDP context admission transport', () => {
       );
       try {
         await once(client, 'open');
-        for (const [method, nested] of [
-          ['Target.createBrowserContext', false],
-          ['Target.createBrowserContext', true],
-          ['Target.exposeDevToolsProtocol', false],
-          ['Target.exposeDevToolsProtocol', true],
+        for (const [method, depth] of [
+          ['Target.createBrowserContext', 0],
+          ['Target.createBrowserContext', 1],
+          ['Target.createBrowserContext', 2],
+          ['Target.exposeDevToolsProtocol', 0],
+          ['Target.exposeDevToolsProtocol', 1],
+          ['Target.exposeDevToolsProtocol', 2],
         ] as const) {
           const command = {
             id: 12,
@@ -535,18 +538,40 @@ describe('CDP context admission transport', () => {
                 ? { proxyServer: 'direct://' }
                 : { targetId: 'page' },
           };
-          const frame = nested
-            ? {
-                id: 13,
-                method: 'Target.sendMessageToTarget',
-                params: { sessionId: 's', message: JSON.stringify(command) },
-              }
-            : command;
+          let frame: Record<string, unknown> = command;
+          for (let level = 0; level < depth; level++) {
+            frame = {
+              id: 13 + level,
+              method: 'Target.sendMessageToTarget',
+              params: {
+                sessionId: `s${level}`,
+                message: JSON.stringify(frame),
+              },
+            };
+          }
+          frame.sessionId = 'flat-session';
+          if (depth) {
+            const nestedClient = new WebSocket(client.url);
+            try {
+              await once(nestedClient, 'open');
+              const result = Promise.race([
+                once(nestedClient, 'close').then(([code]) => code),
+                once(nestedClient, 'message').then(() => 'outer response only'),
+              ]);
+              nestedClient.send(JSON.stringify(frame));
+              expect(await result).to.equal(1008);
+              expect(forwarded).to.deep.equal([]);
+            } finally {
+              nestedClient.terminate();
+            }
+            continue;
+          }
           const response = once(client, 'message');
           client.send(JSON.stringify(frame));
           const [data] = await response;
           const parsed = JSON.parse(data.toString());
           expect(parsed.id).to.equal(frame.id);
+          expect(parsed.sessionId).to.equal('flat-session');
           expect(parsed.error?.message).to.equal(
             'CDP context policy rejected configuration',
           );
@@ -628,7 +653,7 @@ describe('CDP context admission transport', () => {
         expect(large.equals(Buffer.alloc(large.length, 'a'))).to.equal(true);
         if (mode === 'oversized') {
           const rejected = Promise.race([
-            once(client, 'close').then(() => true),
+            once(client, 'close').then(([code]) => code),
             once(client, 'message').then(() => false),
           ]);
           client.send(
@@ -640,7 +665,7 @@ describe('CDP context admission transport', () => {
           expect(
             await rejected,
             'oversized input must not reach the browser',
-          ).to.equal(true);
+          ).to.equal(1009);
           expect(forwarded).to.have.length(4);
           return;
         }

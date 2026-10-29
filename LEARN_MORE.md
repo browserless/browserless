@@ -86,6 +86,12 @@ place; other values must be integer byte counts from 1 through 2147483647.
 Invalid environment values fail configuration construction without echoing the
 value. Getter overrides are also validated when the bridge opens.
 
+Denied flat CDP commands return an error without closing the connection.
+A denied command inside deprecated `Target.sendMessageToTarget` nesting closes
+only that connection with code 1008, so callers waiting for inner responses
+observe disconnection rather than waiting indefinitely. Other connections remain
+unaffected; use flat sessions to preserve a connection after a rejected command.
+
 The limit covers the complete message, including fragmented messages and JSON
 or base64 expansion, on both browser-target and page-target CDP connections.
 Queued transport data shares a budget of the limit plus 128 bytes, charging

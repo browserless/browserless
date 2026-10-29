@@ -122,6 +122,16 @@ export function bridgeCDPContexts(
           }
           if (settled || closing) return;
           if (denied) {
+            if (frame.method === 'Target.sendMessageToTarget') {
+              // An outer error cannot settle an inner non-flat session call.
+              // Close this connection instead of inventing session events.
+              const reason = Buffer.from(
+                'CDP context policy rejected configuration',
+              );
+              relayClose(client, 1008, reason);
+              relayClose(upstream, 1008, reason);
+              return;
+            }
             client!.send(
               JSON.stringify({
                 id: frame.id,
