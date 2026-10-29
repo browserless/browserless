@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.58.0](https://github.com/browserless/browserless/compare/v2.57.3...v2.58.0) (2026-10-29)
+
+
+### Features
+
+* support opt-in browser context admission policies ([#5635](https://github.com/browserless/browserless/issues/5635)) ([25540a6](https://github.com/browserless/browserless/commit/25540a601e414124f61649ad77fcebaf31cb425f))
+
+
+### Bug Fixes
+
+* default headless Chromium screens to desktop dimensions ([#5638](https://github.com/browserless/browserless/issues/5638)) ([41bc3ff](https://github.com/browserless/browserless/commit/41bc3fff75918a2dddd4a2ce43705d1cbddc81f9))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.2 and refresh Ubuntu images ([#5645](https://github.com/browserless/browserless/issues/5645)) ([a5393a9](https://github.com/browserless/browserless/commit/a5393a9ab776d1ff294a627444f2c25810b88e50))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.73` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.50` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.57.3](https://github.com/browserless/browserless/compare/v2.57.2...v2.57.3) (2026-10-22)
 
 
