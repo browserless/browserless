@@ -1,6 +1,7 @@
 import {
   BrowserLauncherOptions,
   Config,
+  HTTPServer,
   Logger,
   NetworkRangeSet,
   Request,
@@ -8,15 +9,724 @@ import {
   isSocketProxied,
 } from '@browserless.io/browserless';
 import { Server, createServer } from 'http';
-import { AddressInfo, Socket, connect } from 'net';
+import {
+  AddressInfo,
+  Socket,
+  connect,
+  createServer as createNetServer,
+} from 'net';
 import { EventEmitter, once } from 'events';
 import { PassThrough } from 'stream';
 import { expect } from 'chai';
+import { chromium } from 'playwright-core';
+import fs from 'fs';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 import { ChromiumCDP } from './browsers.cdp.js';
+
+describe('CDP context admission transport', () => {
+  it('forwards an admitted message larger than Chromium’s receive buffer', async function () {
+    this.timeout(60000);
+    if (!fs.existsSync(chromium.executablePath())) this.skip();
+    const realBrowser = await puppeteer.launch({
+      executablePath: chromium.executablePath(),
+      args: ['--no-sandbox'],
+    });
+    class LargeConfig extends Config {
+      getCdpMaxInboundPayload() {
+        return 128 * 1024 * 1024;
+      }
+      getCDPContextPolicy() {
+        return () => {};
+      }
+    }
+    const browser = new ChromiumCDP({
+      config: new LargeConfig(),
+      logger: new Logger('large-frame'),
+      blockAds: false,
+      userDataDir: null,
+    });
+    browser['browserWSEndpoint'] = realBrowser.wsEndpoint();
+    browser['browser'] = new EventEmitter() as never;
+    const server = createServer();
+    const bridges: Promise<void>[] = [];
+    server.on('upgrade', (req, socket, head) => {
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      const bridge = browser.proxyWebSocket(request, socket, head);
+      bridges.push(bridge);
+      bridge.catch(() => socket.destroy());
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve),
+    );
+    const client = new WebSocket(
+      `ws://127.0.0.1:${(server.address() as AddressInfo).port}`,
+    );
+    try {
+      await once(client, 'open');
+      const response = Promise.race([
+        once(client, 'message'),
+        once(client, 'close').then(() => {
+          throw new Error('admitted message closed the transport');
+        }),
+      ]);
+      // Chromium ignores unknown parameters, but still has to receive and parse
+      // the entire message before it can return its version.
+      const prefix =
+        '{"id":1,"method":"Browser.getVersion","params":{"padding":"';
+      // Split a three-byte UTF-8 character across the upstream frame boundary.
+      const message =
+        prefix +
+        'x'.repeat(64 * 1024 * 1024 - Buffer.byteLength(prefix) - 1) +
+        '€' +
+        'x'.repeat(46 * 1024 * 1024) +
+        '"}}';
+      expect(
+        Buffer.from(message)
+          .subarray(64 * 1024 * 1024 - 1, 64 * 1024 * 1024 + 2)
+          .toString(),
+      ).to.equal('€');
+      client.send(message);
+      const [data] = await response;
+      const frame = JSON.parse(data.toString());
+      expect(frame.id).to.equal(1);
+      expect(frame.result.product).to.be.a('string');
+    } finally {
+      client.terminate();
+      await Promise.allSettled(bridges);
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await realBrowser.close();
+    }
+  });
+
+  for (const mode of ['echo', 'client-close', 'upstream-close']) {
+    it(`preserves large binary messages, ordering and cleanup (${mode})`, async function () {
+      this.timeout(30000);
+      class LargeConfig extends Config {
+        getCdpMaxInboundPayload() {
+          return 128 * 1024 * 1024;
+        }
+        getCDPContextPolicy() {
+          return () => {};
+        }
+      }
+      const upstream = new WebSocketServer({
+        port: 0,
+        host: '127.0.0.1',
+        maxPayload: 0,
+      });
+      await once(upstream, 'listening');
+      const browser = new ChromiumCDP({
+        config: new LargeConfig(),
+        logger: new Logger('fragment-cleanup'),
+        blockAds: false,
+        userDataDir: null,
+      });
+      const lifecycle = new EventEmitter();
+      browser['browser'] = lifecycle as never;
+      browser['browserWSEndpoint'] =
+        `ws://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
+      const bridges: Promise<void>[] = [];
+      const server = createServer();
+      server.on('upgrade', (req, socket, head) => {
+        const request = req as Request;
+        request.parsed = new URL(req.url!, 'http://localhost');
+        const bridge = browser.proxyWebSocket(request, socket, head);
+        bridges.push(bridge);
+        bridge.catch(() => socket.destroy());
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      const client = new WebSocket(
+        `ws://127.0.0.1:${(server.address() as AddressInfo).port}`,
+      );
+      upstream.on('connection', (ws, req) => {
+        if (mode !== 'echo')
+          req.socket.once('data', () => {
+            if (mode === 'client-close') client.terminate();
+            else ws.terminate();
+          });
+        ws.on('error', () => {});
+        ws.on('message', (data, binary) => ws.send(data, { binary }));
+      });
+      try {
+        await once(client, 'open');
+        const closed = once(client, 'close');
+        const expected = Buffer.from(
+          JSON.stringify({
+            method: 'large',
+            value: 'x'.repeat(70 * 1024 * 1024),
+          }),
+        );
+        const received: { data: Buffer; binary: boolean }[] = [];
+        const echoed = new Promise<void>((resolve) =>
+          client.on('message', (data, binary) => {
+            received.push({ data: data as Buffer, binary });
+            if (received.length === 2) resolve();
+          }),
+        );
+        client.send(expected, { binary: true });
+        client.send('{}');
+        if (mode === 'echo') {
+          await echoed;
+          expect(received[0].data.equals(expected)).to.equal(true);
+          expect(received[0].binary).to.equal(true);
+          expect(received[1].data.toString()).to.equal('{}');
+          expect(received[1].binary).to.equal(false);
+          client.close();
+        }
+        await closed;
+        await Promise.allSettled(bridges);
+        expect(lifecycle.listenerCount('close')).to.equal(0);
+      } finally {
+        client.terminate();
+        upstream.clients.forEach((ws) => ws.terminate());
+        await Promise.allSettled(bridges);
+        await new Promise<void>((resolve) => upstream.close(() => resolve()));
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+  }
+
+  it('isolates configured connection limits and counts fragmented messages at the exact boundary', async () => {
+    class LimitedConfig extends Config {
+      constructor(private limit: number) {
+        super();
+      }
+      getCdpMaxInboundPayload() {
+        return this.limit;
+      }
+      getCDPContextPolicy() {
+        return () => {};
+      }
+    }
+    const upstream = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+    await once(upstream, 'listening');
+    upstream.on('connection', (ws) =>
+      ws.on('message', (data) => ws.send(data)),
+    );
+    const browsers = [512, 2048, NaN].map((limit) => {
+      const browser = new ChromiumCDP({
+        config: new LimitedConfig(limit),
+        logger: new Logger('payload'),
+        blockAds: false,
+        userDataDir: null,
+      });
+      browser['browserWSEndpoint'] =
+        `ws://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
+      browser['browser'] = new EventEmitter() as never;
+      return browser;
+    });
+    const server = createServer();
+    const bridges: Promise<void>[] = [];
+    const clients: WebSocket[] = [];
+    const errorServer = new HTTPServer(
+      new Config(),
+      null as never,
+      null as never,
+      {
+        getRouteForWebSocketRequest: async () => ({
+          auth: false,
+          name: 'invalid-override',
+          handler: (req: Request, socket: Socket, head: Buffer) => {
+            const bridge = browsers[2].proxyWebSocket(req, socket, head);
+            bridges.push(bridge);
+            return bridge;
+          },
+        }),
+      } as never,
+      { before: async () => true } as never,
+      Logger,
+    );
+    server.on('upgrade', (req, socket, head) => {
+      if (req.url!.endsWith('invalid')) {
+        void errorServer['handleUpgrade'](req, socket, head);
+        return;
+      }
+      const request = req as Request;
+      request.parsed = new URL(req.url!, 'http://localhost');
+      const browser = browsers[req.url!.endsWith('high') ? 1 : 0];
+      const bridge = req.url!.includes('/page/')
+        ? browser.proxyPageWebSocket(request, socket, head)
+        : browser.proxyWebSocket(request, socket, head);
+      bridges.push(bridge);
+      bridge.catch(() => socket.destroy());
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve),
+    );
+    try {
+      for (const fragmented of [false, true]) {
+        const pair = ['low', 'high'].map(
+          (name) =>
+            new WebSocket(
+              `ws://127.0.0.1:${(server.address() as AddressInfo).port}/${fragmented ? 'devtools/page/' : ''}${name}`,
+            ),
+        );
+        clients.push(...pair);
+        await Promise.all(pair.map((client) => once(client, 'open')));
+        // Both configurations are live: a shared mutable server cap would break one.
+        for (const [index, limit] of [
+          [1, 2048],
+          [0, 512],
+        ]) {
+          const client = pair[index];
+          const frame = JSON.stringify({ id: 1, method: 'test', padding: '' });
+          const exact = frame.replace(
+            '"padding":""',
+            `"padding":"${'x'.repeat(limit - frame.length)}"`,
+          );
+          expect(Buffer.byteLength(exact)).to.equal(limit);
+          const echoed = once(client, 'message');
+          if (fragmented) {
+            client.send(exact.slice(0, 200), { fin: false });
+            client.send(exact.slice(200), { fin: true });
+          } else client.send(exact);
+          expect((await echoed)[0].toString()).to.equal(exact);
+        }
+        for (const [index, limit] of [
+          [0, 512],
+          [1, 2048],
+        ]) {
+          const client = pair[index];
+          const closed = once(client, 'close');
+          const rejected = once(client, 'message').then(() => 'forwarded');
+          const oversized = JSON.stringify({ padding: 'x'.repeat(limit - 13) });
+          expect(Buffer.byteLength(oversized)).to.equal(limit + 1);
+          if (fragmented) {
+            client.send(oversized.slice(0, 200), { fin: false });
+            client.send(oversized.slice(200), { fin: true });
+          } else client.send(oversized);
+          expect(
+            await Promise.race([closed.then(([code]) => code), rejected]),
+          ).to.equal(1009);
+        }
+      }
+      const invalid = new WebSocket(
+        `ws://127.0.0.1:${(server.address() as AddressInfo).port}/invalid`,
+      );
+      clients.push(invalid);
+      let rejectedUpgrade = '';
+      invalid.on('error', (error) => {
+        rejectedUpgrade = error.message;
+      });
+      await new Promise<void>((resolve) =>
+        invalid.once('close', () => resolve()),
+      );
+      expect(rejectedUpgrade).to.include('500');
+      const error = await bridges.at(-1)!.catch((error) => error);
+      expect(error)
+        .to.be.instanceOf(Error)
+        .with.property('message')
+        .that.includes('CDP_MAX_INBOUND_PAYLOAD');
+    } finally {
+      clients.forEach((client) => client.terminate());
+      await Promise.allSettled(bridges);
+      upstream.clients.forEach((client) => client.terminate());
+      await new Promise<void>((resolve) => upstream.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  for (const variant of [
+    'plain',
+    'line comment',
+    'block comment',
+    'control character',
+  ]) {
+    it(`checks context admission before Chromium receives ${variant} frames`, async function () {
+      if (!fs.existsSync(chromium.executablePath())) this.skip();
+      let hits = 0;
+      const trap = createNetServer((socket) => {
+        hits++;
+        socket.destroy();
+      });
+      await new Promise<void>((resolve) =>
+        trap.listen(0, '127.0.0.1', resolve),
+      );
+      const realBrowser = await puppeteer.launch({
+        executablePath: chromium.executablePath(),
+        args: ['--no-sandbox'],
+      });
+      class RestrictedConfig extends Config {
+        getCDPContextPolicy() {
+          return async () => {
+            throw new Error('denied');
+          };
+        }
+      }
+      const browser = new ChromiumCDP({
+        config: new RestrictedConfig(),
+        logger: new Logger('frame-policy'),
+        blockAds: false,
+        userDataDir: null,
+      });
+      browser['browserWSEndpoint'] = realBrowser.wsEndpoint();
+      browser['browser'] = new EventEmitter() as never;
+      const server = createServer();
+      let bridge: Promise<void> | undefined;
+      server.on('upgrade', (req, socket, head) => {
+        const request = req as Request;
+        request.parsed = new URL(req.url!, 'http://localhost');
+        bridge = browser.proxyWebSocket(request, socket, head);
+        bridge.catch(() => {});
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      const client = new WebSocket(
+        `ws://127.0.0.1:${(server.address() as AddressInfo).port}`,
+      );
+      try {
+        await once(client, 'open');
+        const response = Promise.race([
+          once(client, 'message').then(([data]) => JSON.parse(data.toString())),
+          once(client, 'close').then(() => null),
+        ]);
+        let frame = JSON.stringify({
+          id: 1,
+          method: 'Target.createBrowserContext',
+          params: {
+            proxyServer: `http://127.0.0.1:${(trap.address() as AddressInfo).port}`,
+          },
+        });
+        if (variant === 'line comment')
+          frame = frame.replace('"params"', '// comment\n"params"');
+        if (variant === 'block comment')
+          frame = frame.replace('"params"', '/* comment */"params"');
+        if (variant === 'control character')
+          frame = frame.replace(
+            '"params":{',
+            '"params":{"ignored":"line\nbreak",',
+          );
+        client.send(frame);
+        const reply = await response;
+        if (reply?.result?.browserContextId) {
+          client.send(
+            JSON.stringify({
+              id: 2,
+              method: 'Target.createTarget',
+              params: {
+                browserContextId: reply.result.browserContextId,
+                url: 'http://fixture.invalid/',
+              },
+            }),
+          );
+          const until = Date.now() + 3000;
+          while (!hits && Date.now() < until)
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(hits, 'denied frames must not connect to the proxy').to.equal(0);
+        expect(
+          reply?.result?.browserContextId,
+          'context must not be created',
+        ).to.equal(undefined);
+        if (variant !== 'plain')
+          expect(
+            reply,
+            'invalid frames must close before browser parsing',
+          ).to.equal(null);
+      } finally {
+        client.terminate();
+        await bridge;
+        await realBrowser.close();
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+        await new Promise<void>((resolve) => trap.close(() => resolve()));
+      }
+    });
+  }
+
+  for (const mode of [
+    'browser',
+    'page',
+    'page-graceful',
+    'oversized',
+    'queue-overflow',
+    'configured-queue-overflow',
+  ]) {
+    const pageConnection = mode.startsWith('page');
+    it(`preserves commands and denies contexts before forwarding (${mode})`, async () => {
+      let entered!: () => void;
+      let release!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      class RestrictedConfig extends Config {
+        getCdpMaxInboundPayload() {
+          return mode === 'configured-queue-overflow' ? 4096 : undefined;
+        }
+        getCDPContextPolicy() {
+          return async (options: Readonly<Record<string, unknown>>) => {
+            if (options.proxyServer === 'direct://') throw new Error('secret');
+            if (options.proxyServer === 'wait') {
+              entered();
+              await gate;
+            }
+          };
+        }
+      }
+      const upstream = new WebSocketServer({
+        port: 0,
+        host: '127.0.0.1',
+        maxPayload: 0,
+        perMessageDeflate: true,
+      });
+      await once(upstream, 'listening');
+      const forwarded: unknown[] = [];
+      let upstreamExtensions: string | undefined;
+      upstream.on('connection', (ws) => {
+        upstreamExtensions = ws.extensions;
+        ws.on('message', (data, binary) => {
+          const command = JSON.parse(data.toString());
+          forwarded.push(command);
+          if (command.method === 'test.large')
+            return ws.send(Buffer.alloc(101 * 1024 * 1024, 'a'));
+          if (command.method === 'test.close')
+            return ws.close(1001, 'fixture complete');
+          ws.send(data, { binary });
+        });
+      });
+      const browser = new ChromiumCDP({
+        blockAds: false,
+        config: new RestrictedConfig(),
+        logger: new Logger('cdp-admission'),
+        userDataDir: null,
+      });
+      browser['browserWSEndpoint'] =
+        `ws://127.0.0.1:${(upstream.address() as AddressInfo).port}`;
+      browser['browser'] = new EventEmitter() as never;
+      const server = createServer();
+      let bridge: Promise<void> | undefined;
+      server.on('upgrade', (req, socket, head) => {
+        const request = req as Request;
+        request.parsed = new URL(req.url!, 'http://localhost');
+        const connection = pageConnection
+          ? browser.proxyPageWebSocket(request, socket, head)
+          : browser.proxyWebSocket(request, socket, head);
+        bridge ??= connection;
+        connection.catch(() => {});
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      const client = new WebSocket(
+        `ws://127.0.0.1:${(server.address() as AddressInfo).port}/devtools/page/test`,
+        { maxPayload: 0 },
+      );
+      try {
+        await once(client, 'open');
+        for (const [method, depth] of [
+          ['Target.createBrowserContext', 0],
+          ['Target.createBrowserContext', 1],
+          ['Target.createBrowserContext', 2],
+          ['Target.exposeDevToolsProtocol', 0],
+          ['Target.exposeDevToolsProtocol', 1],
+          ['Target.exposeDevToolsProtocol', 2],
+        ] as const) {
+          const command = {
+            id: 12,
+            method,
+            params:
+              method === 'Target.createBrowserContext'
+                ? { proxyServer: 'direct://' }
+                : { targetId: 'page' },
+          };
+          let frame: Record<string, unknown> = command;
+          for (let level = 0; level < depth; level++) {
+            frame = {
+              id: 13 + level,
+              method: 'Target.sendMessageToTarget',
+              params: {
+                sessionId: `s${level}`,
+                message: JSON.stringify(frame),
+              },
+            };
+          }
+          frame.sessionId = 'flat-session';
+          if (depth) {
+            const nestedClient = new WebSocket(client.url);
+            try {
+              await once(nestedClient, 'open');
+              const result = Promise.race([
+                once(nestedClient, 'close').then(([code]) => code),
+                once(nestedClient, 'message').then(() => 'outer response only'),
+              ]);
+              nestedClient.send(JSON.stringify(frame));
+              expect(await result).to.equal(1008);
+              expect(forwarded).to.deep.equal([]);
+            } finally {
+              nestedClient.terminate();
+            }
+            continue;
+          }
+          const response = once(client, 'message');
+          client.send(JSON.stringify(frame));
+          const [data] = await response;
+          const parsed = JSON.parse(data.toString());
+          expect(parsed.id).to.equal(frame.id);
+          expect(parsed.sessionId).to.equal('flat-session');
+          expect(parsed.error?.message).to.equal(
+            'CDP context policy rejected configuration',
+          );
+          expect(forwarded).to.deep.equal([]);
+        }
+        for (const command of [
+          {
+            id: 20,
+            method: 'Target.createBrowserContext',
+            params: { proxyServer: 'http://proxy.example:8080' },
+          },
+          { id: 21, method: 'Browser.getBrowserCommandLine' },
+          {
+            id: 22,
+            method: 'Page.setDownloadBehavior',
+            params: { behavior: 'allow', downloadPath: '/tmp/unique-download' },
+            sessionId: 'page',
+          },
+        ]) {
+          const response = once(client, 'message');
+          client.send(JSON.stringify(command));
+          const [data] = await response;
+          expect(JSON.parse(data.toString())).to.deep.equal(command);
+        }
+        expect(forwarded).to.have.length(3);
+        expect(upstreamExtensions).to.equal('');
+        if (mode === 'browser') {
+          for (const delayed of [false, true]) {
+            const count = delayed ? 50_000 : 600;
+            const received: number[] = [];
+            const onMessage = (data: WebSocket.RawData) => {
+              received.push(JSON.parse(data.toString()).id);
+            };
+            client.on('message', onMessage);
+            const start = forwarded.length;
+            if (delayed) {
+              client.send(
+                JSON.stringify({
+                  id: 99,
+                  method: 'Target.createBrowserContext',
+                  params: { proxyServer: 'wait' },
+                }),
+              );
+              await waiting;
+            }
+            for (let id = 100; id < 100 + count; id++) {
+              client.send(JSON.stringify({ id, method: 'Browser.getVersion' }));
+            }
+            if (delayed) {
+              await new Promise((resolve) => setTimeout(resolve, 50));
+              expect(forwarded.length).to.equal(start);
+              release();
+            }
+            const expected = [
+              ...(delayed ? [99] : []),
+              ...Array.from({ length: count }, (_, i) => i + 100),
+            ];
+            const until = Date.now() + 10000;
+            while (
+              received.length < expected.length &&
+              client.readyState === WebSocket.OPEN &&
+              Date.now() < until
+            )
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            client.off('message', onMessage);
+            expect(received).to.deep.equal(expected);
+            forwarded.splice(start);
+          }
+        }
+        const largeResponse = Promise.race([
+          once(client, 'message'),
+          once(client, 'close').then(() => {
+            throw new Error('Large response closed the connection');
+          }),
+        ]);
+        client.send(JSON.stringify({ id: 40, method: 'test.large' }));
+        const [large] = await largeResponse;
+        expect(large.length).to.equal(101 * 1024 * 1024);
+        expect(large.equals(Buffer.alloc(large.length, 'a'))).to.equal(true);
+        if (mode === 'oversized') {
+          const rejected = Promise.race([
+            once(client, 'close').then(([code]) => code),
+            once(client, 'message').then(() => false),
+          ]);
+          client.send(
+            JSON.stringify({
+              method: 'test.oversized',
+              padding: 'a'.repeat(100 * 1024 * 1024),
+            }),
+          );
+          expect(
+            await rejected,
+            'oversized input must not reach the browser',
+          ).to.equal(1009);
+          expect(forwarded).to.have.length(4);
+          return;
+        }
+        if (mode === 'browser') {
+          const closing = once(client, 'close');
+          client.send(JSON.stringify({ id: 41, method: 'test.close' }));
+          const [code, reason] = await closing;
+          expect(code).to.equal(1001);
+          expect(reason.toString()).to.equal('fixture complete');
+          return;
+        }
+        client.send(
+          JSON.stringify({
+            id: 30,
+            method: 'Target.createBrowserContext',
+            params: { proxyServer: 'wait' },
+          }),
+        );
+        for (let id = 31; id < 41; id++)
+          client.send(JSON.stringify({ id, method: 'Browser.getVersion' }));
+        await waiting;
+        expect(forwarded).to.have.length(4);
+        if (mode.endsWith('queue-overflow')) {
+          const closed = once(client, 'close');
+          const payload = JSON.stringify({
+            id: 50,
+            method: 'test.payload',
+            data: 'a'.repeat(
+              mode === 'configured-queue-overflow' ? 2200 : 60 * 1024 * 1024,
+            ),
+          });
+          client.send(payload);
+          client.send(payload);
+          expect((await closed)[0]).to.equal(1009);
+        } else {
+          // Let the bridge consume the chunk behind the asynchronous policy.
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          if (mode === 'page-graceful') client.close();
+          else client.terminate();
+        }
+        expect(
+          await Promise.race([
+            bridge!.then(() => true),
+            new Promise((resolve) => setTimeout(() => resolve(false), 1000)),
+          ]),
+          'disconnect must settle before the policy resolves',
+        ).to.equal(true);
+        release();
+        await new Promise(setImmediate);
+        expect(forwarded).to.have.length(4);
+      } finally {
+        release();
+        client.terminate();
+        await bridge;
+        for (const ws of upstream.clients) ws.terminate();
+        await new Promise<void>((resolve) => upstream.close(() => resolve()));
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    });
+  }
+});
 
 describe('ChromiumCDP launch args', function () {
   let browser: ChromiumCDP | undefined;

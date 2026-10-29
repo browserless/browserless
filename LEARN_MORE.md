@@ -75,6 +75,38 @@ After that, the rest of your code remains the same with no other changes require
 
 Browserless comes with built-in extension capabilities, and allows for extending nearly any aspect of the system (for Version 2+). For more details on how to write your own routes, build docker images, and more, [see our SDK README.md](/bin/scaffold/README.md) or simply run "npx @browserless.io/browserless create" in a terminal and follow the onscreen prompts.
 
+### CDP admission transport limits
+
+When a custom `Config.getCDPContextPolicy()` enables the CDP admission bridge,
+caller-to-browser WebSocket messages default to 100 MiB (104857600 bytes).
+Operators can set `CDP_MAX_INBOUND_PAYLOAD`, for example `134217728` for 128 MiB, or
+override `Config.getCdpMaxInboundPayload()`. This is server configuration, not a request
+parameter. Unset or empty environment values leave the transport default in
+place; other values must be integer byte counts from 1 through 2147483647.
+Invalid environment values fail configuration construction without echoing the
+value. Getter overrides are also validated when the bridge opens.
+
+Denied flat CDP commands return an error without closing the connection.
+A denied command inside deprecated `Target.sendMessageToTarget` nesting closes
+only that connection with code 1008, so callers waiting for inner responses
+observe disconnection rather than waiting indefinitely. Other connections remain
+unaffected; use flat sessions to preserve a connection after a rejected command.
+
+The limit covers the complete message, including fragmented messages and JSON
+or base64 expansion, on both browser-target and page-target CDP connections.
+Queued transport data shares a budget of the limit plus 128 bytes, charging
+128 bytes per queued message. One exact-limit message fits; concurrent queued
+messages can exceed the budget and close the connection. Raising the limit
+raises this per-connection allowance. It is not an RSS bound: WebSocket receive
+buffers, parsed JSON and browser allocations consume additional memory.
+
+Browser-to-caller responses remain unlimited by this bridge. Raw forwarding
+without a context policy and native Playwright transport limits are unchanged.
+This setting does not read or change any separate `WS_MAX_PAYLOAD` configuration
+provided by applications built on the SDK.
+`MAX_PAYLOAD_SIZE` separately limits HTTP request bodies (10 MiB by default);
+it does not cap streamed PDF/download responses.
+
 ## Debugger
 
 You can install a first-party interactive debugger for Browserless, that makes writing scripts faster and interactive. You can take advantage of things like `debugger;` calls and the page's console output to see what's happening on the page while your script is running. All of the Chrome devtools are there at your disposal.
