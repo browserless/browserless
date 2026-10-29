@@ -1,4 +1,4 @@
-FROM ubuntu:26.04
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
@@ -46,6 +46,7 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
   fi
 
 RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \

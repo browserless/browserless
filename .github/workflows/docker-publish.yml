@@ -89,6 +89,8 @@ jobs:
           context: .
           file: ./docker/base/Dockerfile
           platforms: ${{ matrix.platform }}
+          # Refresh APT packages even when the pinned Ubuntu digest is unchanged.
+          no-cache: true
           # NODE_VERSION / NPM_VERSION are only overridden when the caller sets
           # them; otherwise the Dockerfile defaults remain the single source of
           # truth. APT_MIRROR="" falls through to upstream in the Dockerfile.
@@ -298,6 +300,9 @@ jobs:
           context: .
           file: ./docker/${{ matrix.file }}/Dockerfile
           platforms: ${{ matrix.platform }}
+          # Pull the published base and rerun browser dependency installs.
+          pull: true
+          no-cache: true
           # VERSION selects which base tag to build FROM (== the publish tag).
           # `extra` carries INSTALL_WEBKIT_VERSIONS for webkit/multi; it is a
           # blank line for the other images and ignored by build-push-action.

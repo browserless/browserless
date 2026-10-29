@@ -26,12 +26,19 @@ updates:
           - patch
 
   - package-ecosystem: docker
-    directory: '/docker'
+    directory: '/docker/base'
     schedule:
       interval: daily
     open-pull-requests-limit: 10
-    cooldown:
-      default-days: 3
+    commit-message:
+      prefix: build
+    ignore:
+      # Refresh the pinned digest without changing the Ubuntu release line.
+      - dependency-name: ubuntu
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+          - version-update:semver-patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
