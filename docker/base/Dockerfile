@@ -1,4 +1,6 @@
-FROM ubuntu:26.04
+# Resolute is Ubuntu 26.04. Its codename keeps Dependabot digest refreshes enabled
+# even when digest-only updates for numeric version tags are suppressed.
+FROM ubuntu:resolute@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
 
@@ -10,7 +12,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v24.22.1
+ARG NODE_VERSION=v24.22.2
 ARG NPM_VERSION=11.21.1
 
 ENV NODE_VERSION=$NODE_VERSION
@@ -46,6 +48,7 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
   fi
 
 RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
