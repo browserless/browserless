@@ -171,6 +171,18 @@ export interface Request extends http.IncomingMessage {
   body: unknown;
   parsed: URL;
   queryParams: Record<string, unknown>;
+
+  /**
+   * The request target exactly as it arrived, captured before
+   * `moveTokenToHeader` and `shimLegacyRequests` rewrite it.
+   *
+   * Both shims round-trip the query through `URLSearchParams`, which rewrites a
+   * valueless key: `?http://one.com` comes back out as `?http://one.com=`. Any
+   * route whose contract is defined on the raw query string rather than on
+   * discrete parameters — `/json/new?{url}` is the DevTools example — has to
+   * read this instead of `parsed`.
+   */
+  rawUrl?: string;
 }
 
 export type Response = http.ServerResponse;

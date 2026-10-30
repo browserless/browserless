@@ -24,13 +24,38 @@ export function moveTokenToHeader(req: http.IncomingMessage): string {
   const rawPathname = requestUrl
     .slice(0, queryStart)
     .replace(/^[A-Za-z][A-Za-z\d+.-]*:\/\/[^/]*/, '');
-  const searchParams = new URLSearchParams(requestUrl.slice(queryStart + 1));
+  const rawSearch = requestUrl.slice(queryStart + 1);
+
+  // The DevTools /json/new endpoint treats the first URL-looking query segment
+  // and everything after it as the navigation target, not as normal query
+  // parameters. Only the prefix is Browserless-owned. This makes placement
+  // unambiguous and prevents a target's own final &token= pair being stripped.
+  const targetStart = /^\/json\/new\/?$/i.test(rawPathname)
+    ? rawSearch.search(/(?:^|&)(?=https?:\/\/|https?%3a%2f%2f)/i)
+    : -1;
+  const targetOffset =
+    targetStart >= 0 && rawSearch[targetStart] === '&'
+      ? targetStart + 1
+      : targetStart;
+  const systemSearch =
+    targetStart >= 0 ? rawSearch.slice(0, targetStart) : rawSearch;
+  const rawTarget = targetOffset >= 0 ? rawSearch.slice(targetOffset) : '';
+  const searchParams = new URLSearchParams(systemSearch);
   const token = searchParams.get('token');
 
   if (token) {
     searchParams.delete('token');
     req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
-    const search = searchParams.toString();
+  }
+
+  if (token || rawTarget) {
+    // req.rawUrl already preserves the target for the route. Encode it here so
+    // generic query parsing cannot mistake the target's own &token= for a
+    // Browserless credential (query credentials take precedence over headers).
+    const internalTarget = rawTarget ? encodeURIComponent(rawTarget) : '';
+    const search = [searchParams.toString(), internalTarget]
+      .filter(Boolean)
+      .join('&');
     req.url = `${rawPathname || '/'}${search ? `?${search}` : ''}`;
   }
 

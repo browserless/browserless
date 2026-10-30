@@ -14,6 +14,15 @@ import { Duplex } from 'stream';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
+
+  /**
+   * The navigation target of a page created by `PUT /json/new?{url}`.
+   * Browserless sets this on the `webSocketDebuggerUrl` it returns, because the
+   * page does not exist until the client connects; callers do not normally set
+   * it themselves. Route schemas are generated with `noExtraProps`, so it has
+   * to be declared here or that connect is rejected as an unknown parameter.
+   */
+  url?: string;
 }
 
 export default class ChromiumPageWebSocketRoute extends BrowserWebsocketRoute {

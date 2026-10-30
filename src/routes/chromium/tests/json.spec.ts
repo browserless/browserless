@@ -120,6 +120,70 @@ describe('/json/ API', function () {
     expect(resJSON.description).to.equal('');
   });
 
+  it('reports the URL given to PUT /json/new', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless&https://one.com/callback?state=x&token=target-token',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(200);
+    const resJSON = await res.json();
+
+    expect(resJSON.url).to.equal(
+      'https://one.com/callback?state=x&token=target-token',
+    );
+    const ws = new URL(resJSON.webSocketDebuggerUrl);
+    expect(ws.searchParams.get('url')).to.equal(
+      'https://one.com/callback?state=x&token=target-token',
+    );
+  });
+
+  it('accepts the percent-encoded /json/new URL form', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless&http%3A%2F%2Ftwo.com',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(200);
+    const resJSON = await res.json();
+
+    expect(resJSON.url).to.equal('http://two.com/');
+  });
+
+  it('rejects a non-http /json/new URL', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless&file:///etc/passwd',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(400);
+  });
+
+  it('rejects a /json/new URL that will not parse', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless&not-a-url',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(400);
+  });
+
   it('rejects unauthorized requests to PUT /json/new', async () => {
     const config = new Config();
     config.setToken('browserless');
