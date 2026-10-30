@@ -1,5 +1,138 @@
 # Changelog
 
+## [2.58.0](https://github.com/browserless/browserless/compare/v2.57.3...v2.58.0) (2026-10-29)
+
+
+### Features
+
+* support opt-in browser context admission policies ([#5635](https://github.com/browserless/browserless/issues/5635)) ([25540a6](https://github.com/browserless/browserless/commit/25540a601e414124f61649ad77fcebaf31cb425f))
+
+
+### Bug Fixes
+
+* default headless Chromium screens to desktop dimensions ([#5638](https://github.com/browserless/browserless/issues/5638)) ([41bc3ff](https://github.com/browserless/browserless/commit/41bc3fff75918a2dddd4a2ce43705d1cbddc81f9))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.2 and refresh Ubuntu images ([#5645](https://github.com/browserless/browserless/issues/5645)) ([a5393a9](https://github.com/browserless/browserless/commit/a5393a9ab776d1ff294a627444f2c25810b88e50))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.73` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.50` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.57.3](https://github.com/browserless/browserless/compare/v2.57.2...v2.57.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* install FFmpeg for supported Playwright versions ([#5632](https://github.com/browserless/browserless/issues/5632)) ([0f345c7](https://github.com/browserless/browserless/commit/0f345c7e376b79df5e01dc234b9e052723659721))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.14.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.47` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `155.0.4283.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.57.2](https://github.com/browserless/browserless/compare/v2.57.1...v2.57.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* make CDP browser shutdown reentrant ([#5626](https://github.com/browserless/browserless/issues/5626)) ([19841b6](https://github.com/browserless/browserless/commit/19841b689c6a2bc06f96239cbcf2ca4417a901a4))
+* preserve launch arguments alongside legacy switches ([#5630](https://github.com/browserless/browserless/issues/5630)) ([eff44d1](https://github.com/browserless/browserless/commit/eff44d16394d5d9abf8b4b014556d3423c61a638))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.1 ([#5631](https://github.com/browserless/browserless/issues/5631)) ([d2e948c](https://github.com/browserless/browserless/commit/d2e948ca541a72d503d04a1e152c6b69d62a4e26))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.14.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `155.0.8059.84` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `155.0.4283.62` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.57.1](https://github.com/browserless/browserless/compare/v2.57.0...v2.57.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* make adblock release discovery resilient and update dependencies ([#5611](https://github.com/browserless/browserless/issues/5611)) ([cddddc5](https://github.com/browserless/browserless/commit/cddddc5780f6d3a939f37f9c06b5a7a33dceac6e))
+* upgrade browser libraries with Playwright 1.64 compatibility ([#5620](https://github.com/browserless/browserless/issues/5620)) ([1e142fa](https://github.com/browserless/browserless/commit/1e142fa8adcee1d0db3ab9c0214c36ac86137c96))
+* **websocket:** send RFC 6455 close frame on mid-session timeout ([#5594](https://github.com/browserless/browserless/issues/5594)) ([f7edf0f](https://github.com/browserless/browserless/commit/f7edf0f526e5fefa2db8abca22f47b32ac165c89))
+
+
+### Build System & Runtime
+
+* bump Node to 24.22.0 and npm to 11.21.1 ([#5624](https://github.com/browserless/browserless/issues/5624)) ([692f2d7](https://github.com/browserless/browserless/commit/692f2d778f322ecd095dbb6bc17da919544fc145))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.13.0`
+- playwright-core: `1.64.0`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `155.0.8059.39` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `155.0.4283.45` (amd64 only)
+
+<!-- browser-versions:end -->
+
+## [2.57.0](https://github.com/browserless/browserless/compare/v2.56.7...v2.57.0) (2026-09-30)
+
+
+### Features
+
+* add STRICT_TOKEN_USE to enforce TOKEN on every route ([#5595](https://github.com/browserless/browserless/issues/5595)) ([ed1819c](https://github.com/browserless/browserless/commit/ed1819ca5e594918db0fc92341e54a5d022c624e))
+
+
+### Build System & Runtime
+
+* move browser images to Ubuntu 26.04 ([#5601](https://github.com/browserless/browserless/issues/5601)) ([5621f3c](https://github.com/browserless/browserless/commit/5621f3cabedf8ab5919c348e9f53bec519c9d739))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.12.0`
+- playwright-core: `1.63.0`, `1.62.1`, `1.61.1`, `1.60.0`, and `1.59.1`.
+- Chromium: `153.0.8010.12`
+- Chrome: `154.0.8037.57` (amd64 only)
+- Firefox: `155.0`
+- Webkit: `26.6`
+- Edge: `154.0.4258.37` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.56.7](https://github.com/browserless/browserless/compare/v2.56.6...v2.56.7) (2026-09-10)
 
 

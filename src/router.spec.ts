@@ -19,10 +19,12 @@ import {
   WebHooks,
   WebSocketRoute,
   contentTypes,
+  markSocketAsProxied,
 } from '@browserless.io/browserless';
-import Sinon, { spy } from 'sinon';
+import Sinon from 'sinon';
 import { expect } from 'chai';
 
+const { spy } = Sinon;
 const monitorings: Monitoring[] = [];
 const trackMonitoring = (m: Monitoring): Monitoring => {
   monitorings.push(m);
@@ -715,5 +717,31 @@ describe('Router', () => {
         ),
       ).to.be.null;
     });
+  });
+});
+
+describe('Router websocket timeout (#5591)', () => {
+  const timeout = (router: Router, socket: stream.Duplex) =>
+    (
+      router as unknown as {
+        onWebsocketTimeout: (req: Request, s: stream.Duplex) => unknown;
+      }
+    ).onWebsocketTimeout({} as Request, socket);
+
+  it('sends a plain 408 for a socket that never started proxying', () => {
+    const { router } = buildRouter();
+    const socket = new stream.PassThrough();
+    timeout(router, socket);
+    expect(socket.read()?.toString()).to.include('Request has timed out');
+  });
+
+  it('sends a real close frame (1013) for a proxied socket', () => {
+    const { router } = buildRouter();
+    const socket = new stream.PassThrough();
+    markSocketAsProxied(socket);
+    timeout(router, socket);
+    const frame = socket.read() as Buffer;
+    expect(frame[0]).to.equal(0x88);
+    expect(frame.readUInt16BE(2)).to.equal(1013);
   });
 });

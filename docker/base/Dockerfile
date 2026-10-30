@@ -1,13 +1,19 @@
-FROM ubuntu:24.04
+# Resolute is Ubuntu 26.04. Its codename keeps Dependabot digest refreshes enabled
+# even when digest-only updates for numeric version tags are suppressed.
+FROM ubuntu:resolute@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 LABEL org.opencontainers.image.source=https://github.com/browserless/browserless
+
+# Chrome/Edge vendor installers invoke apt without --no-install-recommends.
+# Apply the minimal-package policy before any apt usage, including child images.
+RUN printf 'APT::Install-Recommends "false";\n' > /etc/apt/apt.conf.d/99browserless
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v24.21.0
-ARG NPM_VERSION=11.19.1
+ARG NODE_VERSION=v24.22.2
+ARG NPM_VERSION=11.21.1
 
 ENV NODE_VERSION=$NODE_VERSION
 ENV NVM_DIR=/usr/src/.nvm
@@ -33,11 +39,8 @@ WORKDIR $APP_DIR
 COPY fonts/* /usr/share/fonts/truetype/
 COPY fonts/fonts.conf /etc/fonts/local.conf
 
-# Optional apt mirror override. Unset by default so external builders keep the
-# upstream archive.ubuntu.com + security.ubuntu.com defaults untouched. CI
-# passes azure.archive.ubuntu.com to avoid timeouts from GitHub-hosted
-# (Azure-backed) runners; when set, both archive and security are routed
-# through it since the Azure mirror carries noble-security as well.
+# Optional apt mirror override. Keep Ubuntu's upstream defaults unless a caller
+# explicitly chooses a mirror serving both the archive and security suites.
 ARG APT_MIRROR=
 RUN if [ -n "${APT_MIRROR}" ]; then \
     sed -i "s|archive.ubuntu.com|${APT_MIRROR}|g; s|security.ubuntu.com|${APT_MIRROR}|g" \
@@ -45,22 +48,14 @@ RUN if [ -n "${APT_MIRROR}" ]; then \
   fi
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends software-properties-common \
-  && add-apt-repository universe \
-  && apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
   dumb-init \
-  git \
-  gnupg \
-  libu2f-udev \
-  ssh \
   unzip \
   wget \
   xvfb \
-  libwebp-dev \
-  python3 python3-pip python3-setuptools \
   # Font packages
   fontconfig \
   fonts-freefont-ttf \
@@ -78,12 +73,10 @@ RUN apt-get update \
   fonts-open-sans \
   fonts-crosextra-carlito \
   fonts-dejavu-core \
-  && update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
-  && update-alternatives --install /usr/bin/python python /usr/bin/python3 1 \
   && fc-cache -f -v \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash &&\
+RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION &&\
   npm install -g npm@$NPM_VERSION
@@ -103,6 +96,8 @@ COPY extensions extensions
 COPY external external
 COPY scripts scripts
 COPY static static
+
+RUN node scripts/install-playwright-ffmpeg.js
 
 COPY CHANGELOG.md LICENSE NOTICE.txt README.md tsconfig.json ./
 

@@ -1,9 +1,22 @@
-import { Browserless, Logger } from '@browserless.io/browserless';
+import {
+  Browserless,
+  InvalidConfig,
+  Logger,
+} from '@browserless.io/browserless';
 
 (async () => {
   const browserless = new Browserless();
   const logger = new Logger('index.js');
-  browserless.start();
+  let exitCode = 0;
+  browserless.start().catch((err) => {
+    // Only invalid config fails the process; anything else keeps the
+    // existing unhandled-rejection behavior.
+    if (!(err instanceof InvalidConfig)) throw err;
+    // console.error, not the logger: DEBUG can silence the logger.
+    console.error(`Failed to start: ${err.message}`);
+    exitCode = 1;
+    process.exit(exitCode);
+  });
 
   process
     .on('unhandledRejection', async (reason, promise) => {
@@ -36,6 +49,6 @@ import { Browserless, Logger } from '@browserless.io/browserless';
     })
     .once('exit', () => {
       logger.info(`Process is finished, exiting`);
-      process.exit(0);
+      process.exit(exitCode);
     });
 })();

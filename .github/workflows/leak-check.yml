@@ -7,16 +7,16 @@ permissions:
 
 jobs:
   Leak-Check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.21.0'
+          node-version: '24.22.2'
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.19.1 --ignore-scripts
+        run: npm install -g npm@11.21.1 --ignore-scripts
 
       - name: Install modules
         uses: nick-fields/retry@v4
@@ -25,6 +25,15 @@ jobs:
           max_attempts: 5
           retry_wait_seconds: 30
           command: npm clean-install
+
+      - name: Test adblock installer
+        run: node --test scripts/install-adblock.test.js
+
+      # Authenticate only release discovery, not npm scripts or asset downloads.
+      - name: Install latest adblock release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/install-adblock.js
 
       - name: Build
         uses: nick-fields/retry@v4

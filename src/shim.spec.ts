@@ -193,6 +193,32 @@ describe('Request Shimming', () => {
     });
   });
 
+  describe('CLI switches', () => {
+    for (const encoding of ['json', 'base64']) {
+      it(`preserves explicit launch arguments with legacy switches (${encoding})`, () => {
+        const url = new URL('wss://localhost?--lang=fr&--window-size=800,600');
+        const launch = JSON.stringify({
+          args: ['--lang=de', '--user-agent=a=b'],
+        });
+        url.searchParams.set(
+          'launch',
+          encoding === 'base64'
+            ? Buffer.from(launch).toString('base64')
+            : launch,
+        );
+
+        const shimmed = shimLegacyRequests(url);
+        expect(JSON.parse(shimmed.searchParams.get('launch')!)).to.deep.equal({
+          args: ['--lang=de', '--user-agent=a=b', '--window-size=800,600'],
+        });
+        expect(shimmed.searchParams.has('--lang')).to.equal(false);
+        expect(shimmed.searchParams.has('--window-size')).to.equal(false);
+        const normalized = shimmed.href;
+        expect(shimLegacyRequests(shimmed).href).to.equal(normalized);
+      });
+    }
+  });
+
   describe('malformed launch', () => {
     it('falls back to an empty launch object when launch is not a JSON object', () => {
       // `?launch="foo"` parses to the primitive string "foo"; a legacy param

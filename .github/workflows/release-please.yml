@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # On workflow_run, only proceed when the image build actually succeeded.
     # (On push the second clause is never evaluated.)
     if: >-
@@ -73,7 +73,7 @@ jobs:
   browser-versions:
     needs: release-please
     if: needs.release-please.outputs.pr_number
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       packages: read
@@ -85,12 +85,12 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
 
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.21.0'
+          node-version: '24.22.2'
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.19.1 --ignore-scripts
+        run: npm install -g npm@11.21.1 --ignore-scripts
 
       # multi:latest tracks main, so it is the image this release will ship.
       # Anonymous pull works for public packages; log in for reliability.

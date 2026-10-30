@@ -10,6 +10,7 @@ import {
   chromeExecutablePath,
   edgeExecutablePath,
   findBlockedNavigationUrl,
+  markSocketAsProxied,
   noop,
   once,
   resolveJSONNewTarget,
@@ -24,8 +25,11 @@ import StealthPlugin from '@zorilla/puppeteer-extra-plugin-stealth';
 import { addExtra } from '@zorilla/puppeteer-extra';
 import getPort from 'get-port';
 import httpProxy from 'http-proxy';
+import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 import playwright from 'playwright-core';
+
+import { bridgeCDPContexts } from './cdp-context-bridge.js';
 
 // @zorilla/puppeteer-extra's types still expect puppeteer's long-removed
 // createBrowserFetcher and re-declare their own plugin interface; at runtime
@@ -68,6 +72,7 @@ export class ChromiumCDP extends EventEmitter {
   protected blockAds: boolean;
   protected running = false;
   protected browser: Browser | null = null;
+  private closing: Promise<void> | null = null;
   protected browserWSEndpoint: string | null = null;
   protected port?: number;
   protected logger: Logger;
@@ -94,6 +99,15 @@ export class ChromiumCDP extends EventEmitter {
     this.logger = logger;
 
     this.logger.debug(`Starting new ${this.constructor.name} instance`);
+
+    // One listener for every ws() call on the shared proxy, including
+    // subclass overrides. Defer: http-proxy writes the client's 101 in the
+    // same tick, after this listener runs.
+    this.proxy.on('proxyReqWs', (proxyReq, _req, socket) => {
+      proxyReq.once('upgrade', () =>
+        setImmediate(() => markSocketAsProxied(socket)),
+      );
+    });
   }
 
   protected cleanListeners() {
@@ -345,18 +359,28 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   public async close(): Promise<void> {
-    if (this.browser) {
+    if (this.closing) return this.closing;
+    const browser = this.browser;
+    if (!browser) return;
+
+    // Publish the shutdown promise before notifying listeners, which may call
+    // close() again and must await the same shutdown before removing files.
+    this.closing = Promise.resolve().then(async () => {
       this.logger.debug(
         `Closing ${this.constructor.name} process and all listeners`,
       );
       this.emit('close');
       this.cleanListeners();
-      this.browser.removeAllListeners();
-      const browser = this.browser;
+      browser.removeAllListeners();
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
       await browser.close().catch(() => undefined);
+    });
+    try {
+      await this.closing;
+    } finally {
+      this.closing = null;
     }
   }
 
@@ -423,6 +447,7 @@ export class ChromiumCDP extends EventEmitter {
         // This is needed to allow WebSocket connections to localhost.
         `--disable-features=LocalNetworkAccessChecks`,
         disableComponentUpdaterArg,
+        makeDefaultScreenInfoArg(options),
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
       ].filter((_) => !!_),
@@ -561,14 +586,60 @@ export class ChromiumCDP extends EventEmitter {
     // Delete headers known to cause issues
     delete req.headers.origin;
 
+    const policy = this.config.getCDPContextPolicy();
+    if (policy) {
+      try {
+        await bridgeCDPContexts(
+          req,
+          socket,
+          head,
+          target,
+          this,
+          policy,
+          this.config.getCdpMaxInboundPayload(),
+        );
+      } finally {
+        await page?.close().catch(noop);
+      }
+      return;
+    }
+
     return new Promise((resolve, reject) => {
+      let backend: Duplex | undefined;
       // The page made for this connection lives only as long as the
       // client socket — without this, keep-alive browsers accumulate a
       // renderer per reconnect cycle.
-      socket.once('close', () => {
+      const close = once(() => {
+        socket.off('close', close);
+        this.proxy.off('proxyReqWs', onProxyRequest);
+        backend?.off('close', close);
+        backend?.destroy();
+        socket.destroy();
         page?.close().catch(noop);
         resolve();
       });
+      socket.once('close', close);
+
+      // proxyReqWs is emitted synchronously by ws(), before the upgrade.
+      // Track this connection's backend, not the whole browser: a single
+      // page can close while other page proxies keep using the browser.
+      const onProxyRequest: httpProxy.ProxyReqWsCallback = (proxyReq) => {
+        proxyReq.once('upgrade', (_response, proxySocket) => {
+          if (socket.destroyed) {
+            proxySocket.destroy();
+            close();
+            return;
+          }
+          backend = proxySocket;
+          backend.once('close', close);
+        });
+      };
+      this.proxy.once('proxyReqWs', onProxyRequest);
+
+      if (socket.destroyed) {
+        close();
+        return;
+      }
 
       this.proxy.ws(
         req,
@@ -587,6 +658,9 @@ export class ChromiumCDP extends EventEmitter {
           return reject(error);
         },
       );
+      // Invalid upgrades return without emitting proxyReqWs. Never let their
+      // listener capture a later request on this shared proxy.
+      this.proxy.off('proxyReqWs', onProxyRequest);
     });
   }
 
@@ -595,6 +669,24 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
+    const policy = this.config.getCDPContextPolicy();
+    if (policy) {
+      if (!this.browserWSEndpoint) {
+        throw new ServerError(
+          'No browserWSEndpoint found, did you launch first?',
+        );
+      }
+      delete req.headers.origin;
+      return bridgeCDPContexts(
+        req,
+        socket,
+        head,
+        this.browserWSEndpoint,
+        this,
+        policy,
+        this.config.getCdpMaxInboundPayload(),
+      );
+    }
     return new Promise((resolve, reject) => {
       if (!this.browserWSEndpoint) {
         throw new ServerError(
@@ -606,6 +698,9 @@ export class ChromiumCDP extends EventEmitter {
         this.browser?.off('close', close);
         this.browser?.process()?.off('close', close);
         socket.off('close', close);
+        // http-proxy can leave the client paused with unread data after the
+        // backend exits. End the transport too, or HTTP shutdown waits forever.
+        socket.destroy();
         return resolve();
       });
 

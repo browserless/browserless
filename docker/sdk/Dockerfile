@@ -24,7 +24,9 @@ COPY package.json package-lock.json tsconfig.json README.md ./
 # Install with devDependencies so the SDK consumer's build toolchain
 # (typescript, marked, typescript-json-schema) is available for `npm run build`.
 # The runtime image sets NODE_ENV=production which would otherwise skip them.
-RUN npm clean-install --include=dev && npm run build && \
+RUN npm clean-install --include=dev && \
+    node "$BLESS_INSTALL_NODE_MODULES/scripts/install-playwright-ffmpeg.js" && \
+    npm run build && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then rm -rf $BLESS_ROUTES/chrome; fi && \
     case "$FROM" in \
       *chromium*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/edge $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \

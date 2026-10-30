@@ -74,6 +74,36 @@ export const jsonExtension = '.json';
 export const jsExtension = '.js';
 export const isWin = process.platform === 'win32';
 
+export const defaultHeadlessScreen = { width: 1920, height: 1080 } as const;
+
+export const makeDefaultScreenInfoArg = (opts: {
+  args?: string[];
+  headless?: boolean | 'shell';
+  ignoreDefaultArgs?: boolean | string[];
+}): string | null => {
+  const args = opts.args ?? [];
+  const headless =
+    args.some((arg) => arg.startsWith('--headless')) ||
+    (opts.headless !== false && opts.ignoreDefaultArgs !== true);
+  if (!headless || args.some((arg) => arg.startsWith('--screen-info'))) {
+    return null;
+  }
+
+  const windowSize = [...args]
+    .reverse()
+    .find((arg) => /^--window-size=(\d+),(\d+)$/.test(arg))
+    ?.match(/^--window-size=(\d+),(\d+)$/);
+  const width = Math.max(
+    defaultHeadlessScreen.width,
+    Number(windowSize?.[1] ?? 0),
+  );
+  const height = Math.max(
+    defaultHeadlessScreen.height,
+    Number(windowSize?.[2] ?? 0),
+  );
+  return `--screen-info={${width}x${height}}`;
+};
+
 export const id = (): string => crypto.randomUUID();
 
 /**
@@ -221,6 +251,55 @@ export const writeResponse = (
   writeable.write(httpResponse);
   writeable.end();
   return;
+};
+
+// Sockets already handed to http-proxy's `.ws()` are WS-framed; plain HTTP
+// text written to them corrupts the stream, so timeouts must check this first.
+const proxiedSockets = new WeakSet<Duplex>();
+
+export const markSocketAsProxied = (socket: Duplex): void => {
+  proxiedSockets.add(socket);
+};
+
+export const isSocketProxied = (socket: Duplex): boolean =>
+  proxiedSockets.has(socket);
+
+const CLOSE_DRAIN_MS = 500;
+
+/**
+ * Sends an unmasked RFC 6455 close frame on an already-upgraded socket, then
+ * destroys it. Never throws: a payload that doesn't fit a single frame just
+ * tears the socket down.
+ */
+export const closeProxiedSocket = (
+  socket: Duplex,
+  code: number,
+  reason: string,
+): void => {
+  if (!isConnected(socket)) {
+    return;
+  }
+
+  const payload = Buffer.concat([
+    Buffer.from([code >> 8, code & 0xff]),
+    Buffer.from(reason, 'utf8'),
+  ]);
+  if (payload.length > 125) {
+    socket.destroy();
+    return;
+  }
+
+  // 0x88 = FIN + close opcode; server frames are never masked.
+  const frame = Buffer.concat([Buffer.from([0x88, payload.length]), payload]);
+  const finish = () => {
+    clearTimeout(timer);
+    if (!socket.destroyed) {
+      socket.destroy();
+    }
+  };
+  const timer = setTimeout(finish, CLOSE_DRAIN_MS);
+  timer.unref?.();
+  socket.write(frame, finish);
 };
 
 export const jsonResponse = (
@@ -884,6 +963,17 @@ export class ServerError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ServerError';
+    this.message = message;
+    errorLog(this.message);
+  }
+}
+/**
+ * Configuration that must stop the server from starting.
+ */
+export class InvalidConfig extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidConfig';
     this.message = message;
     errorLog(this.message);
   }

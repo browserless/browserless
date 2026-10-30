@@ -7,10 +7,14 @@ import path from 'path';
 import { PassThrough } from 'stream';
 import {
   Config,
+  closeProxiedSocket,
   contentTypes,
   generateScratchDir,
   getFinalPathSegment,
   getPageContent,
+  isSocketProxied,
+  makeDefaultScreenInfoArg,
+  markSocketAsProxied,
   parseJSONNewTarget,
   resolveJSONNewTarget,
   toSetContentOptions,
@@ -95,6 +99,49 @@ describe('Utils', () => {
         'must use http or https',
       );
     });
+  });
+
+  describe('#makeDefaultScreenInfoArg', () => {
+    const cases: [
+      Parameters<typeof makeDefaultScreenInfoArg>[0],
+      string | null,
+    ][] = [
+      [{}, '--screen-info={1920x1080}'],
+      [{ args: ['--window-size=1280,1024'] }, '--screen-info={1920x1080}'],
+      [{ args: ['--window-size=2560,1440'] }, '--screen-info={2560x1440}'],
+      [{ args: ['--window-size=2560,900'] }, '--screen-info={2560x1080}'],
+      [
+        { args: ['--window-size=1000,1000', '--window-size=3000,2000'] },
+        '--screen-info={3000x2000}',
+      ],
+      [
+        { args: ['--window-size=3000,2000', '--window-size=1000,1200'] },
+        '--screen-info={1920x1200}',
+      ],
+      [{ args: ['--window-size=abc'] }, '--screen-info={1920x1080}'],
+      [
+        { args: ['--window-size=2560,1440', '--window-size=abc'] },
+        '--screen-info={2560x1440}',
+      ],
+      [{ args: ['--screen-info={800x600}'] }, null],
+      [{ args: ['--screen-info', '{1280x720}'] }, null],
+      [{ headless: false }, null],
+      [
+        { headless: false, args: ['--headless=new'] },
+        '--screen-info={1920x1080}',
+      ],
+      [{ ignoreDefaultArgs: true }, null],
+      [
+        { ignoreDefaultArgs: true, args: ['--headless=new'] },
+        '--screen-info={1920x1080}',
+      ],
+      [{ headless: 'shell' }, '--screen-info={1920x1080}'],
+    ];
+    for (const [options, expected] of cases) {
+      it(`resolves ${JSON.stringify(options)} to ${expected}`, () => {
+        expect(makeDefaultScreenInfoArg(options)).to.equal(expected);
+      });
+    }
   });
 
   describe('#getFinalPathSegment', () => {
@@ -441,5 +488,36 @@ describe('#generateScratchDir', () => {
     } finally {
       await fs.rm(blockerRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe('WebSocket close signal (#5591)', () => {
+  it('tracks a socket as proxied only after it is marked', () => {
+    const socket = new PassThrough();
+    expect(isSocketProxied(socket)).to.be.false;
+    markSocketAsProxied(socket);
+    expect(isSocketProxied(socket)).to.be.true;
+  });
+
+  it('writes an unmasked close frame with the given code and reason', (done) => {
+    const socket = new PassThrough();
+    const chunks: Buffer[] = [];
+    socket.on('data', (c: Buffer) => chunks.push(c));
+    socket.on('close', () => {
+      const frame = Buffer.concat(chunks);
+      const reason = 'Request has timed out';
+      expect(frame[0]).to.equal(0x88);
+      expect(frame[1]).to.equal(2 + reason.length);
+      expect(frame.readUInt16BE(2)).to.equal(1013);
+      expect(frame.subarray(4).toString('utf8')).to.equal(reason);
+      done();
+    });
+    closeProxiedSocket(socket, 1013, 'Request has timed out');
+  });
+
+  it('does nothing harmful on an already-closed socket', () => {
+    const socket = new PassThrough();
+    socket.destroy();
+    expect(() => closeProxiedSocket(socket, 1013, 'x')).to.not.throw();
   });
 });

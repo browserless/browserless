@@ -629,22 +629,47 @@ describe('Chromium WebSocket API', function () {
     expect(results.queued).to.equal(0);
   });
 
-  it('runs multiple versions of playwright', async () => {
+  it('records video with every supported version of playwright', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
 
-    const pwVersions = Object.keys(config.getPwVersions());
+    const pwVersions = [...new Set(Object.values(config.getPwVersions()))];
+    const videos = await fs.mkdtemp('/tmp/browserless-videos-');
 
-    for (const version of pwVersions) {
-      const pw = await import(config.getPwVersions()[version]);
-      const browser = await pw.chromium.connect(
-        `ws://localhost:3000/playwright/chromium?token=browserless`,
-      );
-
-      await browser.close();
-      await sleep(100);
+    try {
+      for (const version of pwVersions) {
+        const pw = await import(version);
+        const browser = await pw.chromium.connect(
+          `ws://localhost:3000/playwright/chromium?token=browserless`,
+        );
+        try {
+          const context = await browser.newContext({
+            recordVideo: { dir: videos, size: { width: 320, height: 240 } },
+          });
+          const page = await context.newPage();
+          await page.setContent(
+            '<body style="background:red">Video test</body>',
+          );
+          await page.waitForTimeout(500);
+          const video = page.video()!;
+          await context.close();
+          const output = `${videos}/recording.webm`;
+          await video.saveAs(output);
+          const bytes = await fs.readFile(output);
+          expect(bytes.length, version).to.be.greaterThan(100);
+          expect(bytes.subarray(0, 4).toString('hex'), version).to.equal(
+            '1a45dfa3',
+          );
+          await fs.unlink(output);
+        } finally {
+          await browser.close();
+        }
+        await sleep(100);
+      }
+    } finally {
+      await fs.rm(videos, { recursive: true, force: true });
     }
 
     const results = metrics.get();
