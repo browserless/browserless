@@ -39,21 +39,15 @@ describe('/kill API', function () {
       },
     );
 
-    // New work must fail immediately, even while graceful shutdown is finishing.
-    let errorThrown1;
-    try {
-      await browser1.newPage();
-    } catch (e) {
-      errorThrown1 = e;
-    }
-    let errorThrown2;
-    try {
-      await browser2.newPage();
-    } catch (e) {
-      errorThrown2 = e;
-    }
-    expect(errorThrown1).to.be.instanceOf(Error);
-    expect(errorThrown2).to.be.instanceOf(Error);
+    // New work must not succeed while graceful shutdown is finishing.
+    const results = await Promise.allSettled([
+      browser1.newPage(),
+      browser2.newPage(),
+    ]);
+    expect(results.map(({ status }) => status)).to.deep.equal([
+      'rejected',
+      'rejected',
+    ]);
     await disconnected;
   });
 

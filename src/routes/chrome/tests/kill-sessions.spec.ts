@@ -33,7 +33,7 @@ describe('/kill API', function () {
       },
     );
 
-    // New work must fail immediately, even while graceful shutdown is finishing.
+    // New work must not succeed while graceful shutdown is finishing.
     let errorThrown1;
     try {
       await browser1.newPage();
