@@ -517,7 +517,7 @@ describe('BasePlaywright URL filter', () => {
       });
     }
 
-    it('awaits context policy before forwarding subsequent frames and forwards normalized options', async () => {
+    it('preserves large immediate and queued payloads while awaiting context policy and normalizing options', async () => {
       let release!: () => void;
       const gate = new Promise<void>((resolve) => {
         release = resolve;
@@ -536,12 +536,18 @@ describe('BasePlaywright URL filter', () => {
       const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/`);
       await new Promise<void>((resolve) => client.once('open', resolve));
       try {
+        client.send(JSON.stringify({ id: 0, method: 'ready' }));
+        await waitFor(() => upstreamMessages.length === 1);
+        upstreamMessages.length = 0;
+        const immediatePayload = 'a'.repeat(1024 * 1024);
+        const queuedPayload = 'b'.repeat(1024 * 1024);
         client.send(
           JSON.stringify({
             id: 1,
             method: 'newContext',
             params: {
               proxy: { server: 'http://proxy.example:8080', bypass: '*' },
+              payload: immediatePayload,
             },
           }),
         );
@@ -549,7 +555,7 @@ describe('BasePlaywright URL filter', () => {
           JSON.stringify({
             id: 2,
             method: 'goto',
-            params: { url: 'https://example.com' },
+            params: { url: 'https://example.com', payload: queuedPayload },
           }),
         );
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -563,6 +569,12 @@ describe('BasePlaywright URL filter', () => {
           server: 'http://203.0.113.19:8080',
           bypass: '<-loopback>',
         });
+        expect(JSON.parse(upstreamMessages[0]).params.payload).to.equal(
+          immediatePayload,
+        );
+        expect(JSON.parse(upstreamMessages[1]).params.payload).to.equal(
+          queuedPayload,
+        );
       } finally {
         release();
         client.close();
