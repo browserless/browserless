@@ -17,9 +17,12 @@ import {
 } from 'net';
 import { EventEmitter, once } from 'events';
 import { PassThrough } from 'stream';
+import { fork } from 'child_process';
 import { expect } from 'chai';
 import { chromium } from 'playwright-core';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import puppeteer, { Page } from 'puppeteer-core';
 import sinon from 'sinon';
 import WebSocket, { WebSocketServer } from 'ws';
@@ -847,6 +850,71 @@ describe('ChromiumCDP launch args', function () {
     await browser!.close();
     expect(closeEvents).to.equal(1);
   });
+
+  for (const shutdown of ['close', 'SIGTERM', 'SIGINT', 'SIGHUP']) {
+    it(`flushes a persistent profile before ${shutdown} completes`, async function () {
+      this.timeout(30000);
+      const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-close-'));
+      const child = fork(new URL('../exports.js', import.meta.url), [], {
+        execArgv: [
+          '--input-type=module',
+          '--eval',
+          `
+            import { ChromiumCDP, Config, Logger } from ${JSON.stringify(new URL('../exports.js', import.meta.url).href)};
+            const browser = new ChromiumCDP({
+              config: new Config(), logger: new Logger('profile-close'),
+              blockAds: false, userDataDir: ${JSON.stringify(userDataDir)},
+            });
+            const close = async () => { await browser.close(); process.exit(0); };
+            process.once('message', close);
+            for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.once(signal, close);
+            const inner = await browser.launch({ options: {}, stealth: false });
+            await inner.defaultBrowserContext().setCookie({
+              name: 'persisted', value: 'graceful', domain: 'example.test', path: '/',
+              expires: Math.floor(Date.now() / 1000) + 3600,
+            });
+            process.send('ready');
+          `,
+        ],
+        stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+      });
+      let stderr = '';
+      child.stderr!.on('data', (data) => {
+        stderr += data;
+      });
+      const exited = once(child, 'exit');
+      const deadline = setTimeout(() => child.kill('SIGKILL'), 20000);
+      try {
+        await Promise.race([
+          once(child, 'message'),
+          exited.then(() => {
+            throw new Error(`child exited before launch: ${stderr}`);
+          }),
+        ]);
+        if (shutdown === 'close') child.send('close');
+        else child.kill(shutdown as NodeJS.Signals);
+        expect(await exited, stderr).to.deep.equal([0, null]);
+        browser = new ChromiumCDP({
+          config: new Config(),
+          logger: new Logger('profile-recovery'),
+          blockAds: false,
+          userDataDir,
+        });
+        const recovered = await browser.launch({ options: {}, stealth: false });
+        const cookies = await recovered.defaultBrowserContext().cookies();
+        expect(
+          cookies.map(({ name, value }) => ({ name, value })),
+        ).to.deep.equal([{ name: 'persisted', value: 'graceful' }]);
+      } finally {
+        clearTimeout(deadline);
+        if (child.exitCode === null && child.signalCode === null)
+          child.kill('SIGKILL');
+        await exited;
+        await browser?.close();
+        fs.rmSync(userDataDir, { recursive: true, force: true });
+      }
+    });
+  }
 
   it('closes a paused client socket with unread data when the browser exits', async () => {
     await launch();
