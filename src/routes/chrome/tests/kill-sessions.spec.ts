@@ -23,6 +23,9 @@ describe('/kill API', function () {
     const browser1 = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chrome?token=6R0W53R135510`,
     });
+    const disconnected = new Promise<void>((resolve) =>
+      browser1.once('disconnected', resolve),
+    );
 
     await fetch('http://localhost:3000/kill/all?token=6R0W53R135510').then(
       async (res) => {
@@ -30,13 +33,15 @@ describe('/kill API', function () {
       },
     );
 
+    // New work must fail immediately, even while graceful shutdown is finishing.
     let errorThrown1;
     try {
       await browser1.newPage();
     } catch (e) {
       errorThrown1 = e;
     }
-    expect((errorThrown1 as Error).message).contains('closed');
+    expect(errorThrown1).to.be.instanceOf(Error);
+    await disconnected;
   });
 
   it('Kill session by browserId', async () => {
@@ -44,6 +49,9 @@ describe('/kill API', function () {
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chrome?token=6R0W53R135510`,
     });
+    const disconnected = new Promise<void>((resolve) =>
+      browser.once('disconnected', resolve),
+    );
 
     await fetch('http://localhost:3000/sessions?token=6R0W53R135510').then(
       async (res) => {
@@ -63,7 +71,8 @@ describe('/kill API', function () {
     } catch (e) {
       errorThrown = e;
     }
-    expect((errorThrown as Error).message).contains('closed');
+    expect(errorThrown).to.be.instanceOf(Error);
+    await disconnected;
   });
 
   it('Kill session by trackingId', async () => {
@@ -71,6 +80,9 @@ describe('/kill API', function () {
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/chrome?token=6R0W53R135510&trackingId=session-1`,
     });
+    const disconnected = new Promise<void>((resolve) =>
+      browser.once('disconnected', resolve),
+    );
 
     await fetch(
       'http://localhost:3000/kill/session-1?token=6R0W53R135510',
@@ -84,6 +96,7 @@ describe('/kill API', function () {
     } catch (e) {
       errorThrown = e;
     }
-    expect((errorThrown as Error).message).contains('closed');
+    expect(errorThrown).to.be.instanceOf(Error);
+    await disconnected;
   });
 });
