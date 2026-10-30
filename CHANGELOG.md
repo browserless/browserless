@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.58.1](https://github.com/browserless/browserless/compare/v2.58.0...v2.58.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* preserve profiles during browser shutdown ([#5647](https://github.com/browserless/browserless/issues/5647)) ([2e47066](https://github.com/browserless/browserless/commit/2e470666a9ba17255e103d68e0e949df85d13d4e))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.73` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.50` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.58.0](https://github.com/browserless/browserless/compare/v2.57.3...v2.58.0) (2026-10-29)
 
 
