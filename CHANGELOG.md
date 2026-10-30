@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.58.1](https://github.com/browserless/browserless/compare/v2.58.0...v2.58.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* preserve profiles during browser shutdown ([#5647](https://github.com/browserless/browserless/issues/5647)) ([2e47066](https://github.com/browserless/browserless/commit/2e470666a9ba17255e103d68e0e949df85d13d4e))
+
 ## [2.58.0](https://github.com/browserless/browserless/compare/v2.57.3...v2.58.0) (2026-10-29)
 
 
