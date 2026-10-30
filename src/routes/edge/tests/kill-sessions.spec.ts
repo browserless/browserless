@@ -26,6 +26,12 @@ describe('/kill API', function () {
     const browser2 = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/edge?token=6R0W53R135510`,
     });
+    const disconnected = Promise.all(
+      [browser1, browser2].map(
+        (browser) =>
+          new Promise<void>((resolve) => browser.once('disconnected', resolve)),
+      ),
+    );
 
     await fetch('http://localhost:3000/kill/all?token=6R0W53R135510').then(
       async (res) => {
@@ -33,20 +39,16 @@ describe('/kill API', function () {
       },
     );
 
-    let errorThrown1;
-    try {
-      await browser1.newPage();
-    } catch (e) {
-      errorThrown1 = e;
-    }
-    let errorThrown2;
-    try {
-      await browser2.newPage();
-    } catch (e) {
-      errorThrown2 = e;
-    }
-    expect((errorThrown1 as Error).message).contains('closed');
-    expect((errorThrown2 as Error).message).contains('closed');
+    // New work must not succeed while graceful shutdown is finishing.
+    const results = await Promise.allSettled([
+      browser1.newPage(),
+      browser2.newPage(),
+    ]);
+    expect(results.map(({ status }) => status)).to.deep.equal([
+      'rejected',
+      'rejected',
+    ]);
+    await disconnected;
   });
 
   it('Kill session by browserId', async () => {
@@ -54,6 +56,9 @@ describe('/kill API', function () {
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/edge?token=6R0W53R135510`,
     });
+    const disconnected = new Promise<void>((resolve) =>
+      browser.once('disconnected', resolve),
+    );
 
     await fetch('http://localhost:3000/sessions?token=6R0W53R135510').then(
       async (res) => {
@@ -73,7 +78,8 @@ describe('/kill API', function () {
     } catch (e) {
       errorThrown = e;
     }
-    expect((errorThrown as Error).message).contains('closed');
+    expect(errorThrown).to.be.instanceOf(Error);
+    await disconnected;
   });
 
   it('Kill session by trackingId', async () => {
@@ -81,6 +87,9 @@ describe('/kill API', function () {
     const browser = await puppeteer.connect({
       browserWSEndpoint: `ws://localhost:3000/edge?token=6R0W53R135510&trackingId=session-1`,
     });
+    const disconnected = new Promise<void>((resolve) =>
+      browser.once('disconnected', resolve),
+    );
 
     await fetch(
       'http://localhost:3000/kill/session-1?token=6R0W53R135510',
@@ -94,6 +103,7 @@ describe('/kill API', function () {
     } catch (e) {
       errorThrown = e;
     }
-    expect((errorThrown as Error).message).contains('closed');
+    expect(errorThrown).to.be.instanceOf(Error);
+    await disconnected;
   });
 });

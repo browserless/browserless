@@ -76,6 +76,19 @@ export class ChromiumCDP extends EventEmitter {
   protected proxy = httpProxy.createProxyServer();
   protected executablePath = playwright.chromium.executablePath();
   protected keepUntilMS = 0;
+  private readonly handleTargetCreated = (target: Target) =>
+    this.onTargetCreated(target);
+  private readonly handleDisconnected = () => {
+    if (!this.running) return;
+    this.logger.warn(
+      `${this.constructor.name} disconnected unexpectedly, emitting close`,
+    );
+    this.emit('close');
+    this.cleanListeners();
+    this.running = false;
+    this.browser = null;
+    this.browserWSEndpoint = null;
+  };
 
   constructor({
     blockAds,
@@ -108,7 +121,10 @@ export class ChromiumCDP extends EventEmitter {
   }
 
   protected cleanListeners() {
-    this.browser?.removeAllListeners();
+    // Puppeteer's no-argument removeAllListeners() disposes the Browser,
+    // starting another close. Detach only listeners owned by this wrapper.
+    this.browser?.off('targetcreated', this.handleTargetCreated);
+    this.browser?.off('disconnected', this.handleDisconnected);
     this.removeAllListeners();
   }
 
@@ -368,7 +384,6 @@ export class ChromiumCDP extends EventEmitter {
       );
       this.emit('close');
       this.cleanListeners();
-      browser.removeAllListeners();
       this.running = false;
       this.browser = null;
       this.browserWSEndpoint = null;
@@ -434,6 +449,11 @@ export class ChromiumCDP extends EventEmitter {
 
     const finalOptions = {
       ...options,
+      // Application shutdown owns these signals and awaits browser.close().
+      // Puppeteer's handlers would kill Chrome before it flushes its profile.
+      handleSIGTERM: false,
+      handleSIGINT: false,
+      handleSIGHUP: false,
       args: [
         `--remote-debugging-port=${this.port}`,
         `--no-sandbox`,
@@ -467,29 +487,14 @@ export class ChromiumCDP extends EventEmitter {
       `Launching ${this.constructor.name} Handler`,
     );
     this.browser = (await launch(finalOptions)) as Browser;
-    this.browser.on('targetcreated', this.onTargetCreated.bind(this));
+    this.browser.on('targetcreated', this.handleTargetCreated);
     // Propagate unexpected disconnect (Chrome OOM, segfault, host SIGKILL)
     // as a `close` event on the wrapper. Without this, a spontaneous
     // exit leaves the BrowserlessSession in BrowserManager.browsers
-    // forever and the user-data-dir leaks. The `if (this.running)`
-    // guard skips re-entry during the normal close() path (which sets
-    // running=false before awaiting the inner close).
-    this.browser.once('disconnected', () => {
-      if (this.running) {
-        this.logger.warn(
-          `${this.constructor.name} disconnected unexpectedly, emitting close`,
-        );
-        this.emit('close');
-        this.cleanListeners();
-        // `?.` because `this.emit('close')` above recursively re-enters
-        // wrapper.close() (via BrowserManager's close listener) and nulls
-        // this.browser synchronously before control returns here.
-        this.browser?.removeAllListeners();
-        this.running = false;
-        this.browser = null;
-        this.browserWSEndpoint = null;
-      }
-    });
+    // forever and the user-data-dir leaks. cleanListeners() detaches this
+    // handler on either path. Use on(), since Puppeteer's once() wraps the
+    // callback and cannot be removed with off(originalCallback).
+    this.browser.on('disconnected', this.handleDisconnected);
     this.running = true;
     this.browserWSEndpoint = this.browser.wsEndpoint();
     this.logger.debug(
