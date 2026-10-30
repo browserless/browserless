@@ -855,7 +855,6 @@ describe('ChromiumCDP launch args', function () {
     it(`flushes a persistent profile before ${shutdown} completes`, async function () {
       // Windows child.kill() terminates without running signal handlers.
       if (process.platform === 'win32' && shutdown !== 'close') this.skip();
-      this.timeout(30000);
       const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-close-'));
       const child = fork(new URL('../exports.js', import.meta.url), [], {
         execArgv: [
