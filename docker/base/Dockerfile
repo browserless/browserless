@@ -12,7 +12,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/Los_Angeles
 ARG BLESS_USER_ID=999
 ARG APP_DIR=/usr/src/app
-ARG NODE_VERSION=v24.22.2
+ARG NODE_VERSION=v26.13.0
 ARG NPM_VERSION=11.21.1
 
 ENV NODE_VERSION=$NODE_VERSION
@@ -53,6 +53,8 @@ RUN apt-get update \
   ca-certificates \
   curl \
   dumb-init \
+  # Official Node.js >= 25 Linux binaries link against libatomic
+  libatomic1 \
   unzip \
   wget \
   xvfb \
