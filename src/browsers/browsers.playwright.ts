@@ -418,6 +418,7 @@ class BasePlaywright extends EventEmitter {
             data: Buffer | ArrayBuffer | Buffer[];
             isBinary: boolean;
             bytes: number;
+            parsed?: unknown;
           }[] = [];
           let upstreamReady = false;
           let processing = false;
@@ -433,9 +434,9 @@ class BasePlaywright extends EventEmitter {
             try {
               while (pending.length && !blocked && !settled) {
                 const message = pending[0];
-                let parsed;
+                let parsed: ReturnType<typeof JSON.parse> = message.parsed;
                 try {
-                  if (contextPolicy || cdpPolicy)
+                  if ((contextPolicy || cdpPolicy) && parsed === undefined)
                     parsed = JSON.parse(wsFrameToString(message.data));
                 } catch {
                   // Preserve non-JSON frames; navigation inspection runs first.
@@ -520,6 +521,7 @@ class BasePlaywright extends EventEmitter {
             data: Buffer | ArrayBuffer | Buffer[],
             direction: 'client→upstream' | 'upstream→client',
             isBinary: boolean,
+            captureParsed?: (parsed: unknown) => void,
           ): string | null => {
             if (blockPatterns.length === 0 && !blockRanges) return null;
             const str = wsFrameToString(data);
@@ -555,6 +557,7 @@ class BasePlaywright extends EventEmitter {
             if (navHit) {
               return `Blocked navigation to "${navHit}" in ${this.constructor.name} ${direction} message`;
             }
+            captureParsed?.(parsed);
             return null;
           };
 
@@ -566,9 +569,10 @@ class BasePlaywright extends EventEmitter {
             data: Buffer | ArrayBuffer | Buffer[],
             direction: 'client→upstream' | 'upstream→client',
             isBinary: boolean,
+            captureParsed?: (parsed: unknown) => void,
           ): string | null => {
             try {
-              return inspectInner(data, direction, isBinary);
+              return inspectInner(data, direction, isBinary, captureParsed);
             } catch (err) {
               return `inspect failed in ${this.constructor.name} ${direction}, failing closed: ${(err as Error).message}`;
             }
@@ -576,7 +580,10 @@ class BasePlaywright extends EventEmitter {
 
           ws.on('message', (data, isBinary) => {
             if (blocked || settled) return;
-            const hit = inspect(data, 'client→upstream', isBinary);
+            let parsed: unknown;
+            const hit = inspect(data, 'client→upstream', isBinary, (value) => {
+              parsed = value;
+            });
             if (hit) {
               blockAndTerminate(hit);
               return;
@@ -604,7 +611,17 @@ class BasePlaywright extends EventEmitter {
               return;
             }
             pendingBytes += bytes;
-            pending.push({ data, isBinary, bytes });
+            // Reuse only for immediate processing. Queued frames retain bytes,
+            // not an additional parsed object graph.
+            pending.push({
+              data,
+              isBinary,
+              bytes,
+              parsed:
+                upstreamReady && !processing && !pending.length
+                  ? parsed
+                  : undefined,
+            });
             void flushPending();
           });
 
