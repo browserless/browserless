@@ -7,6 +7,20 @@
 
 * reuse inspected Playwright frames for immediate forwarding ([#5649](https://github.com/browserless/browserless/issues/5649)) ([d2b0d97](https://github.com/browserless/browserless/commit/d2b0d97a5a72683d7bb1e3c6ed67deb0974757d2))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.79` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.56` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.58.1](https://github.com/browserless/browserless/compare/v2.58.0...v2.58.1) (2026-10-30)
 
 
