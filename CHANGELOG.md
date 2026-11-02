@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.58.2](https://github.com/browserless/browserless/compare/v2.58.1...v2.58.2) (2026-11-02)
+
+
+### Performance Improvements
+
+* reuse inspected Playwright frames for immediate forwarding ([#5649](https://github.com/browserless/browserless/issues/5649)) ([d2b0d97](https://github.com/browserless/browserless/commit/d2b0d97a5a72683d7bb1e3c6ed67deb0974757d2))
+
 ## [2.58.1](https://github.com/browserless/browserless/compare/v2.58.0...v2.58.1) (2026-10-30)
 
 
