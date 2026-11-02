@@ -89,15 +89,20 @@ async function fixture(t) {
   };
   await addPackage(sdk, 'encoder-current', '900');
   await addPackage(sdk, 'encoder-older', '800');
-  const run = async () => {
+  // `serve` is the base64 body the working mirror returns; null makes every
+  // mirror 404.
+  const run = async (serve = archive) => {
     const source = `
       const requests = [];
       globalThis.fetch = async (url) => {
         requests.push(String(url));
-        if (!String(url).startsWith('https://mirror.invalid/builds/')) {
+        if (
+          ${serve === null} ||
+          !String(url).startsWith('https://mirror.invalid/builds/')
+        ) {
           return new Response('', { status: 404 });
         }
-        return new Response(Buffer.from(${JSON.stringify(archive)}, 'base64'));
+        return new Response(Buffer.from(${JSON.stringify(serve)}, 'base64'));
       };
       process.on('beforeExit', () => console.log('requests=' + requests.join(' ')));
       await import(${JSON.stringify(join(sdk, 'scripts/install-playwright-ffmpeg.js'))});
@@ -213,4 +218,24 @@ test('malformed consumer metadata and failed package installs fail the build', a
   );
   await assert.rejects(f.run());
   assert.deepEqual(await readdir(f.cache), []);
+});
+
+test('unreachable mirrors and corrupt archives never mark FFmpeg installed', async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(f.run(null), /All FFmpeg mirrors failed/);
+  assert.deepEqual(await readdir(f.cache), []);
+  await assert.rejects(f.run(Buffer.from('not a zip').toString('base64')));
+  for (const dir of await readdir(f.cache)) {
+    assert.ok(
+      !(await readdir(join(f.cache, dir))).includes('INSTALLATION_COMPLETE'),
+    );
+  }
+  // Leftovers from the failed attempt must not survive the retry.
+  await writeFile(join(f.cache, 'ffmpeg-900', 'stale'), '');
+  // A later run with a healthy mirror recovers from the partial state.
+  await f.run();
+  assert.deepEqual(await installed(f.cache), [
+    ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+    ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+  ]);
 });
