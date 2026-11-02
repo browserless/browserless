@@ -78,7 +78,7 @@ async function fixture(t) {
       if (args === 'install ffmpeg --dry-run') {
         console.log('browser: ffmpeg');
         console.log('  Install location:    ' + dir);
-        console.log('  Download url:        https://mirror.invalid/missing/${revision}.zip');
+        console.log('  Download url:        http://mirror.invalid/missing/${revision}.zip');
         console.log('  Download fallback 1: https://mirror.invalid/builds/${revision}.zip');
         process.exit(0);
       }
@@ -146,11 +146,12 @@ test('installs the SDK support map when the consumer does not override it', asyn
     await readFile(join(f.cache, 'ffmpeg-900/ffmpeg-linux'), 'utf8'),
     'binary',
   );
-  // The first mirror 404s, so each package falls back to the next one.
+  // The first (plain-HTTP, as a PLAYWRIGHT_DOWNLOAD_HOST mirror may be) URL
+  // 404s, so each package falls back to the next one.
   assert.deepEqual(requests, [
-    'https://mirror.invalid/missing/900.zip',
+    'http://mirror.invalid/missing/900.zip',
     'https://mirror.invalid/builds/900.zip',
-    'https://mirror.invalid/missing/800.zip',
+    'http://mirror.invalid/missing/800.zip',
     'https://mirror.invalid/builds/800.zip',
   ]);
 });

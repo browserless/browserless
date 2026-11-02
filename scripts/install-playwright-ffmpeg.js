@@ -54,18 +54,29 @@ const cli = (path, args, timeout, stdout = 'inherit') =>
   });
 
 // `install ffmpeg --dry-run` prints the package's install location followed by
-// its download URL and ordered fallback mirrors.
+// its download URL and ordered fallback mirrors. The URLs come from
+// PLAYWRIGHT_DOWNLOAD_HOST when set, which may be a plain-HTTP mirror.
 const parseDryRun = (output) => {
   const dir = output.match(/Install location:[ \t]*(.+)/)?.[1]?.trim();
-  const urls = output.match(/https:\/\/[^\s"]+\.zip/g) ?? [];
+  const urls = [
+    ...output.matchAll(/Download (?:url|fallback \d+):[ \t]*(\S+)/g),
+  ].map(([, url]) => url);
   // Guards the `rm` below against a misparsed or unexpected directory.
   if (!dir || !isAbsolute(dir) || !basename(dir).startsWith('ffmpeg')) {
     throw new Error(`Unexpected FFmpeg install location in:\n${output}`);
   }
   if (!urls.length) throw new Error(`No FFmpeg download URL in:\n${output}`);
+  const unsupported = urls.find(
+    (url) => !['http:', 'https:'].includes(URL.parse(url)?.protocol),
+  );
+  if (unsupported) {
+    throw new Error(`Unsupported FFmpeg download URL: ${unsupported}`);
+  }
   return { dir, urls };
 };
 
+// Node only applies HTTPS_PROXY/NO_PROXY to fetch() when started with
+// `--use-env-proxy` (the Dockerfiles do), so proxied builds keep working.
 const download = async (urls) => {
   for (const url of urls) {
     try {

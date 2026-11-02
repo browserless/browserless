@@ -99,7 +99,7 @@ COPY external external
 COPY scripts scripts
 COPY static static
 
-RUN node scripts/install-playwright-ffmpeg.js
+RUN node --use-env-proxy scripts/install-playwright-ffmpeg.js
 
 COPY CHANGELOG.md LICENSE NOTICE.txt README.md tsconfig.json ./
 
