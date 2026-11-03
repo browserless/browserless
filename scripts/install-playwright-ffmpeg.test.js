@@ -90,21 +90,26 @@ async function fixture(t) {
   };
   await addPackage(sdk, 'encoder-current', '900');
   await addPackage(sdk, 'encoder-older', '800');
-  // `serve` is the base64 body the working mirror returns; null makes every
-  // mirror 404. Proxy variables are cleared so a developer's proxy does not
-  // make the installer re-run itself outside this fetch() stub.
-  const run = async (serve = archive, env = {}) => {
+  // `serve` is the base64 body the fallback mirror returns; null makes every
+  // mirror 404. `first` is a base64 body the primary mirror returns with a 200
+  // instead of its default 404. Proxy variables are cleared so a developer's
+  // proxy does not make the installer re-run itself outside this fetch() stub.
+  const run = async (serve = archive, env = {}, first = null) => {
     const source = `
       const requests = [];
+      const bodies = {
+        'http://mirror.invalid/missing/': ${JSON.stringify(first)},
+        'https://mirror.invalid/builds/': ${JSON.stringify(serve)},
+      };
       globalThis.fetch = async (url) => {
         requests.push(String(url));
-        if (
-          ${serve === null} ||
-          !String(url).startsWith('https://mirror.invalid/builds/')
-        ) {
+        const body = Object.entries(bodies).find(([prefix]) =>
+          String(url).startsWith(prefix),
+        )?.[1];
+        if (body === null || body === undefined) {
           return new Response('', { status: 404 });
         }
-        return new Response(Buffer.from(${JSON.stringify(serve)}, 'base64'));
+        return new Response(Buffer.from(body, 'base64'));
       };
       process.on('beforeExit', () => console.log('requests=' + requests.join(' ')));
       await import(${JSON.stringify(join(sdk, 'scripts/install-playwright-ffmpeg.js'))});
@@ -249,19 +254,63 @@ test('unreachable mirrors and corrupt archives never mark FFmpeg installed', asy
     f.run(
       (await readFile(join(f.root, 'license-only.zip'))).toString('base64'),
     ),
-    /No FFmpeg executable extracted/,
+    /All FFmpeg mirrors failed/,
   );
   assert.deepEqual(await readdir(f.cache), []);
-  await assert.rejects(f.run(Buffer.from('not a zip').toString('base64')));
-  for (const dir of await readdir(f.cache)) {
-    assert.ok(
-      !(await readdir(join(f.cache, dir))).includes('INSTALLATION_COMPLETE'),
-    );
-  }
-  // Leftovers from the failed attempt must not survive the retry.
+  await assert.rejects(
+    f.run(Buffer.from('not a zip').toString('base64')),
+    /All FFmpeg mirrors failed/,
+  );
+  assert.deepEqual(await readdir(f.cache), []);
+  // Leftovers from an interrupted attempt must not survive the retry.
+  await mkdir(join(f.cache, 'ffmpeg-900'));
   await writeFile(join(f.cache, 'ffmpeg-900', 'stale'), '');
   // A later run with a healthy mirror recovers from the partial state.
   await f.run();
+  assert.deepEqual(await installed(f.cache), [
+    ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+    ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+  ]);
+});
+
+test('a mirror serving a corrupt or incomplete archive falls through to the next one', async (t) => {
+  const f = await fixture(t);
+  const good = (await readFile(join(f.root, 'fixture.zip'))).toString('base64');
+  // HTTP 200 with a body unzip rejects.
+  const corrupt = Buffer.from('not a zip').toString('base64');
+  let requests = await f.run(good, {}, corrupt);
+  assert.deepEqual(requests, [
+    'http://mirror.invalid/missing/900.zip',
+    'https://mirror.invalid/builds/900.zip',
+    'http://mirror.invalid/missing/800.zip',
+    'https://mirror.invalid/builds/800.zip',
+  ]);
+  assert.deepEqual(await installed(f.cache), [
+    ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+    ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+  ]);
+  assert.equal(
+    await readFile(join(f.cache, 'ffmpeg-900/ffmpeg-linux'), 'utf8'),
+    'binary',
+  );
+  // HTTP 200 with a valid archive that lacks the executable: the fallback's
+  // files replace it rather than merge with it.
+  await rm(f.cache, { recursive: true });
+  await mkdir(f.cache);
+  await exec(
+    'python3',
+    [
+      '-c',
+      'import zipfile; z=zipfile.ZipFile("license-only.zip","w"); z.writestr("COPYING", "license"); z.close()',
+    ],
+    { cwd: f.root },
+  );
+  requests = await f.run(
+    good,
+    {},
+    (await readFile(join(f.root, 'license-only.zip'))).toString('base64'),
+  );
+  assert.equal(requests.length, 4);
   assert.deepEqual(await installed(f.cache), [
     ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
     ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],

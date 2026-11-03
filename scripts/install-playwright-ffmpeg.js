@@ -92,20 +92,35 @@ const parseDryRun = (output) => {
   return { dir, urls };
 };
 
-const download = async (urls) => {
+const download = async (url) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(600_000) });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+};
+
+// A mirror only counts as working once its archive has been extracted into a
+// clean dir and yielded the `ffmpeg-<platform>` executable: a 200 carrying a
+// corrupt or unexpected archive moves on to the next mirror like an HTTP
+// error does, so one bad mirror cannot block every build.
+const install = async (urls, dir, zip) => {
   for (const url of urls) {
     try {
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(600_000),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return Buffer.from(await response.arrayBuffer());
+      await writeFile(zip, await download(url));
+      await rm(dir, { force: true, recursive: true });
+      await mkdir(dir, { recursive: true });
+      await extractZip(zip, dir);
+      if (!(await readdir(dir)).some((entry) => entry.startsWith('ffmpeg'))) {
+        throw new Error('no FFmpeg executable in archive');
+      }
+      return;
     } catch (error) {
       // fetch() reports "fetch failed"; the cause names the socket error.
       const reason = error.cause?.message ?? error.message;
       console.warn(`  mirror failed (${reason}): ${url}`);
     }
   }
+  // Nothing partial survives to the next build, which retries every mirror.
+  await rm(dir, { force: true, recursive: true });
   throw new Error(`All FFmpeg mirrors failed: ${urls.join(', ')}`);
 };
 
@@ -130,18 +145,9 @@ try {
       console.log(`  already present: ${dir}`);
     } else {
       console.log(`  Fetching ${basename(dir)}`);
-      const zip = join(staging, 'ffmpeg.zip');
-      await writeFile(zip, await download(urls));
-      // Extract into a clean dir and only mark complete once the archive has
-      // yielded the `ffmpeg-<platform>` executable, so a partial unzip or an
-      // unexpected archive is never cached as installed.
-      await rm(dir, { force: true, recursive: true });
-      await mkdir(dir, { recursive: true });
-      await extractZip(zip, dir);
-      if (!(await readdir(dir)).some((entry) => entry.startsWith('ffmpeg'))) {
-        await rm(dir, { force: true, recursive: true });
-        throw new Error(`No FFmpeg executable extracted for ${name} in ${dir}`);
-      }
+      await install(urls, dir, join(staging, 'ffmpeg.zip'));
+      // Only marked complete once a mirror's archive has been fully extracted,
+      // so a partial unzip is never cached as installed.
       await writeFile(join(dir, 'INSTALLATION_COMPLETE'), '');
     }
     // Let Playwright validate its own view: with the marker present this
