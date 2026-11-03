@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.58.3](https://github.com/browserless/browserless/compare/v2.58.2...v2.58.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* reset stale debugger localStorage settings when a valid token is provided ([#5585](https://github.com/browserless/browserless/issues/5585)) ([a517801](https://github.com/browserless/browserless/commit/a517801414fd30f2573ea9cbdc730696ab4f2f7a))
+
+
+### Build System & Runtime
+
+* bump Node to 26.13.0 ([#5653](https://github.com/browserless/browserless/issues/5653)) ([d554620](https://github.com/browserless/browserless/commit/d5546206a0a25393eb16df1c1317ff0e8b08c2c9))
+
 ## [2.58.2](https://github.com/browserless/browserless/compare/v2.58.1...v2.58.2) (2026-11-02)
 
 
