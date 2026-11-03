@@ -6,6 +6,7 @@ import {
   sleep,
 } from '@browserless.io/browserless';
 import { expect } from 'chai';
+import { startSelfSignedServer } from '../../../shared/tests/self-signed-server.js';
 
 describe('/chrome/content API', function () {
   let browserless: Browserless;
@@ -379,25 +380,33 @@ describe('/chrome/content API', function () {
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
+    const server = await startSelfSignedServer();
 
-    const body = {
-      gotoOptions: {
-        waitUntil: `networkidle2`,
-      },
-      url: 'https://self-signed.badssl.com',
-    };
-
-    await fetch(
-      'http://localhost:3000/chrome/content?token=browserless&launch={"acceptInsecureCerts":true}',
-      {
-        body: JSON.stringify(body),
-        headers: {
-          'content-type': 'application/json',
+    try {
+      const body = JSON.stringify({
+        gotoOptions: {
+          waitUntil: `networkidle2`,
         },
-        method: 'POST',
-      },
-    ).then(async (res) => {
-      expect(res.status).to.equal(200);
-    });
+        url: server.url,
+      });
+      const headers = {
+        'content-type': 'application/json',
+      };
+
+      const rejected = await fetch(
+        'http://localhost:3000/chrome/content?token=browserless',
+        { body, headers, method: 'POST' },
+      );
+      expect(rejected.status).to.equal(500);
+
+      const accepted = await fetch(
+        'http://localhost:3000/chrome/content?token=browserless&launch={"acceptInsecureCerts":true}',
+        { body, headers, method: 'POST' },
+      );
+      expect(accepted.status).to.equal(200);
+      expect(await accepted.text()).to.include(server.marker);
+    } finally {
+      await server.close();
+    }
   });
 });
