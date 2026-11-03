@@ -108,11 +108,6 @@
     "typescript": "^6.0.3",
     "typescript-json-schema": "^0.68.0"
   },
-  "overrides": {
-    "esbuild-plugins-node-modules-polyfill": {
-      "esbuild": "$esbuild"
-    }
-  },
   "playwrightVersions": {
     "default": "playwright-core",
     "1.64": "playwright-core",
@@ -142,5 +137,8 @@
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
+  },
+  "allowScripts": {
+    "esbuild": true
   }
 }

@@ -8,11 +8,13 @@ const execFileAsync = promisify(execFile);
  * Node extractor (e.g. the `extract-zip` package).
  *
  * yauzl/fd-slicer rely on a stream `'close'` event that no longer fires after
- * EOF on Node >= 24.16.0 (nodejs/node#63487), which deadlocks mid-extraction on
- * larger archives. As a standalone build script the deadlocked promise just lets
- * the event loop drain, so the process exits 0 with the target left empty — a
- * silent failure. This is the same Node 24.16 bug, and the same `unzip`
- * workaround, as scripts/install-versioned-browsers.sh (commit a261f381).
+ * EOF on Node 24.16–24.17 and on Node >= 26 (nodejs/node#63487; reverted on
+ * the 24.x line in 24.18.0 but intentionally kept on 26.x), which deadlocks
+ * mid-extraction on larger archives. As a standalone build script the
+ * deadlocked promise just lets the event loop drain, so the process exits 0
+ * with the target left empty — a silent failure. This is the same bug, and the
+ * same `unzip` workaround, as scripts/install-versioned-browsers.sh (commit
+ * a261f381).
  * `unzip` is installed in the base Docker image and ships with macOS and most
  * Linux dev environments.
  *
