@@ -555,7 +555,7 @@ export class ChromiumCDP extends EventEmitter {
     // Delete headers known to cause issues
     delete req.headers.origin;
 
-    const policy = this.config.getCDPContextPolicy();
+    const policy = this.config.getCDPContextPolicy(req);
     if (policy) {
       try {
         await bridgeCDPContexts(
@@ -638,7 +638,7 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    const policy = this.config.getCDPContextPolicy();
+    const policy = this.config.getCDPContextPolicy(req);
     if (policy) {
       if (!this.browserWSEndpoint) {
         throw new ServerError(

@@ -427,7 +427,7 @@ class BasePlaywright extends EventEmitter {
           const contextPolicy =
             this.config.preparePlaywrightContextOptions !==
             Config.prototype.preparePlaywrightContextOptions;
-          const cdpPolicy = this.config.getCDPContextPolicy();
+          const cdpPolicy = this.config.getCDPContextPolicy(req);
           const flushPending = async () => {
             if (processing || !upstreamReady || blocked || settled) return;
             processing = true;
@@ -451,6 +451,7 @@ class BasePlaywright extends EventEmitter {
                 ) {
                   await this.config.preparePlaywrightContextOptions(
                     parsed.params,
+                    req,
                   );
                   message.data = Buffer.from(JSON.stringify(parsed));
                 }

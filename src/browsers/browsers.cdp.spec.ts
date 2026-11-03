@@ -465,8 +465,9 @@ describe('CDP context admission transport', () => {
         getCdpMaxInboundPayload() {
           return mode === 'configured-queue-overflow' ? 4096 : undefined;
         }
-        getCDPContextPolicy() {
+        getCDPContextPolicy(req?: Request) {
           return async (options: Readonly<Record<string, unknown>>) => {
+            expect(req?.parsed.pathname).to.equal('/devtools/page/test');
             if (options.proxyServer === 'direct://') throw new Error('secret');
             if (options.proxyServer === 'wait') {
               entered();
