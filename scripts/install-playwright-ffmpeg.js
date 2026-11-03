@@ -92,12 +92,48 @@ const parseDryRun = (output) => {
   return { dir, urls };
 };
 
+// Same rule as Playwright's own downloader: a mirror that delivers nothing for
+// PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT (30 s by default) is given up on, so
+// a stalled or trickling mirror leaves the next one time under the deadline.
+const idleTimeout =
+  +(process.env.PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT || 0) || 30_000;
+
 const download = async (url, deadline) => {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(Math.max(deadline - Date.now(), 0)),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
+  const stalled = new AbortController();
+  let idle;
+  const touch = () => {
+    clearTimeout(idle);
+    idle = setTimeout(
+      () => stalled.abort(new Error(`no data for ${idleTimeout} ms`)),
+      idleTimeout,
+    );
+  };
+  const signal = AbortSignal.any([
+    stalled.signal,
+    AbortSignal.timeout(Math.max(deadline - Date.now(), 0)),
+  ]);
+  touch();
+  try {
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    touch();
+    const reader = response.body.getReader();
+    signal.addEventListener('abort', () => {
+      reader.cancel(signal.reason).catch(() => {});
+    });
+    const chunks = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      touch();
+      chunks.push(value);
+    }
+    // A cancelled read ends cleanly, so a truncated body must not pass as one.
+    signal.throwIfAborted();
+    return Buffer.concat(chunks);
+  } finally {
+    clearTimeout(idle);
+  }
 };
 
 // A mirror only counts as working once its archive has been extracted into a

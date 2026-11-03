@@ -92,8 +92,9 @@ async function fixture(t) {
   await addPackage(sdk, 'encoder-older', '800');
   // `serve` is the base64 body the fallback mirror returns; null makes every
   // mirror 404. `first` is a base64 body the primary mirror returns with a 200
-  // instead of its default 404. Proxy variables are cleared so a developer's
-  // proxy does not make the installer re-run itself outside this fetch() stub.
+  // instead of its default 404, or 'stall' for a 200 whose body sends one byte
+  // and then never ends. Proxy variables are cleared so a developer's proxy
+  // does not make the installer re-run itself outside this fetch() stub.
   const run = async (serve = archive, env = {}, first = null) => {
     const source = `
       const requests = [];
@@ -108,6 +109,15 @@ async function fixture(t) {
         )?.[1];
         if (body === null || body === undefined) {
           return new Response('', { status: 404 });
+        }
+        if (body === 'stall') {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(new Uint8Array([0x50]));
+              },
+            }),
+          );
         }
         return new Response(Buffer.from(body, 'base64'));
       };
@@ -315,6 +325,33 @@ test('a mirror serving a corrupt or incomplete archive falls through to the next
     ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
     ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
   ]);
+});
+
+test('a mirror that stops sending data is abandoned in time for the next one', async (t) => {
+  const f = await fixture(t);
+  const started = Date.now();
+  const requests = await f.run(
+    undefined,
+    { PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '200' },
+    'stall',
+  );
+  // Each stalled primary mirror is dropped after the idle window, not after
+  // the 600 s deadline (or the 30 s default window) it would otherwise eat.
+  assert.ok(Date.now() - started < 10_000);
+  assert.deepEqual(requests, [
+    'http://mirror.invalid/missing/900.zip',
+    'https://mirror.invalid/builds/900.zip',
+    'http://mirror.invalid/missing/800.zip',
+    'https://mirror.invalid/builds/800.zip',
+  ]);
+  assert.deepEqual(await installed(f.cache), [
+    ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+    ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
+  ]);
+  assert.equal(
+    await readFile(join(f.cache, 'ffmpeg-900/ffmpeg-linux'), 'utf8'),
+    'binary',
+  );
 });
 
 test('a configured proxy is used however the installer is started', async (t) => {
