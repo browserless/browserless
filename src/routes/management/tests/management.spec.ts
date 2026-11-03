@@ -1,4 +1,8 @@
 import * as http from 'http';
+import * as os from 'os';
+import * as path from 'path';
+import * as vm from 'vm';
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
 import {
   exists,
   Browserless,
@@ -297,6 +301,398 @@ describe('Management APIs', function () {
 
       expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
+    });
+
+    it('injects a localStorage reset script into the debugger index when a token is provided', async () => {
+      const staticDir = await mkdtemp(
+        path.join(os.tmpdir(), 'browserless-debugger-test-'),
+      );
+      const previousStatic = process.env.STATIC;
+      const previousEnableDebugger = process.env.ENABLE_DEBUGGER;
+
+      try {
+        await mkdir(path.join(staticDir, 'debugger'));
+        await writeFile(
+          path.join(staticDir, 'debugger', 'index.html'),
+          '<!DOCTYPE html><html><head><title>Debugger</title></head>' +
+            '<body><script src="app.js"></script></body></html>',
+        );
+
+        process.env.STATIC = staticDir;
+        process.env.ENABLE_DEBUGGER = 'true';
+        const config = new Config();
+        config.setToken('6R0W53R135510');
+
+        await start({ config });
+
+        const withToken = await fetch(
+          'http://localhost:3000/debugger/?token=6R0W53R135510',
+        );
+        expect(withToken.status).to.equal(200);
+        const withTokenHtml = await withToken.text();
+        expect(withTokenHtml).to.include('browserless-debugger');
+        expect(withTokenHtml).to.include('<title>Debugger</title>');
+        expect(withTokenHtml.indexOf('browserless-debugger')).to.be.lessThan(
+          withTokenHtml.indexOf('<title>Debugger</title>'),
+        );
+
+        expect(withToken.headers.get('cache-control')).to.equal('no-store');
+
+        // The reset script must edit the blob, not wipe it — dropping the
+        // stale baseURL while keeping the user's other settings/tabs intact.
+        const scriptMatch = withTokenHtml.match(/<script>(.*?)<\/script>/i);
+        expect(scriptMatch).to.not.be.null;
+
+        const key = 'browserless-debugger:http://localhost:3000/debugger/';
+        const store: Record<string, string> = {
+          [key]: JSON.stringify({
+            apiSettings: {
+              baseURL: 'ws://localhost:3000',
+              headless: true,
+              blockAds: true,
+            },
+            editorTabs: [{ id: 1, code: 'console.log("hello")' }],
+          }),
+        };
+        Object.defineProperty(store, 'getItem', {
+          value: (k: string) => (k in store ? store[k] : null),
+        });
+        Object.defineProperty(store, 'setItem', {
+          value: (k: string, v: string) => {
+            store[k] = String(v);
+          },
+        });
+        Object.defineProperty(store, 'removeItem', {
+          value: (k: string) => {
+            delete store[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: store,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        const resultingBlob = JSON.parse(store[key]);
+        // Same host, only the stale token is merged in.
+        expect(resultingBlob.apiSettings.baseURL).to.equal(
+          'ws://localhost:3000/?token=6R0W53R135510',
+        );
+        expect(resultingBlob.apiSettings.headless).to.equal(true);
+        expect(resultingBlob.apiSettings.blockAds).to.equal(true);
+        expect(resultingBlob.editorTabs).to.deep.equal([
+          { id: 1, code: 'console.log("hello")' },
+        ]);
+
+        // Malformed JSON must fall back to a full removeItem, not throw.
+        const malformedStore: Record<string, string> = {
+          [key]: '{not valid json',
+        };
+        Object.defineProperty(malformedStore, 'getItem', {
+          value: (k: string) =>
+            k in malformedStore ? malformedStore[k] : null,
+        });
+        Object.defineProperty(malformedStore, 'setItem', {
+          value: (k: string, v: string) => {
+            malformedStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(malformedStore, 'removeItem', {
+          value: (k: string) => {
+            delete malformedStore[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: malformedStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        expect(key in malformedStore).to.equal(false);
+
+        // A write failure (e.g. quota exceeded) must not wipe out valid,
+        // already-parsed settings - only a JSON.parse failure should.
+        const quotaKey = 'browserless-debugger:http://localhost:3000/debugger/';
+        const originalBlob = JSON.stringify({
+          apiSettings: { baseURL: 'ws://localhost:3000', headless: true },
+          editorTabs: [{ id: 1, code: 'console.log("hello")' }],
+        });
+        const quotaStore: Record<string, string> = {
+          [quotaKey]: originalBlob,
+        };
+        Object.defineProperty(quotaStore, 'getItem', {
+          value: (k: string) => (k in quotaStore ? quotaStore[k] : null),
+        });
+        Object.defineProperty(quotaStore, 'setItem', {
+          value: () => {
+            throw new Error('QuotaExceededError');
+          },
+        });
+        Object.defineProperty(quotaStore, 'removeItem', {
+          value: (k: string) => {
+            delete quotaStore[k];
+          },
+        });
+
+        let quotaWarning: unknown;
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          console: {
+            warn: (...args: unknown[]) => {
+              quotaWarning = args;
+            },
+          },
+          localStorage: quotaStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        expect(quotaStore[quotaKey]).to.equal(originalBlob);
+        expect(quotaWarning).to.not.be.undefined;
+
+        // A different-host baseURL (e.g. a reverse-proxy tunnel) must be
+        // left untouched - merging this server's token into it would send
+        // the wrong token to that host and break the saved connection.
+        const tunnelStore: Record<string, string> = {
+          [key]: JSON.stringify({
+            apiSettings: {
+              baseURL: 'wss://my-tunnel.example.com:8443/?token=OLDTOKEN',
+            },
+          }),
+        };
+        Object.defineProperty(tunnelStore, 'getItem', {
+          value: (k: string) => (k in tunnelStore ? tunnelStore[k] : null),
+        });
+        Object.defineProperty(tunnelStore, 'setItem', {
+          value: (k: string, v: string) => {
+            tunnelStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(tunnelStore, 'removeItem', {
+          value: (k: string) => {
+            delete tunnelStore[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: tunnelStore,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        const tunnelBlob = JSON.parse(tunnelStore[key]);
+        // Unchanged: this server's token must never be written into a
+        // baseURL pointing at a different host.
+        expect(tunnelBlob.apiSettings.baseURL).to.equal(
+          'wss://my-tunnel.example.com:8443/?token=OLDTOKEN',
+        );
+
+        const withoutToken = await fetch('http://localhost:3000/debugger/');
+        expect(withoutToken.status).to.equal(200);
+        const withoutTokenHtml = await withoutToken.text();
+        expect(withoutTokenHtml).to.not.include('browserless-debugger');
+        // A cached token-less response could later shadow a valid-token
+        // request for the same URL, so this must never be cacheable either.
+        expect(withoutToken.headers.get('cache-control')).to.equal('no-store');
+
+        // A proxy in front of browserless may set its own Authorization
+        // header for unrelated reasons; that must not trigger the reset.
+        const withUnrelatedAuth = await fetch(
+          'http://localhost:3000/debugger/',
+          { headers: { Authorization: 'Bearer some-other-value' } },
+        );
+        expect(withUnrelatedAuth.status).to.equal(200);
+        expect(await withUnrelatedAuth.text()).to.not.include(
+          'browserless-debugger',
+        );
+
+        // A valid token can also arrive via the Authorization header alone
+        // (no ?token= in the URL) - e.g. a reverse proxy/SSO layer
+        // injecting it. The script is still injected (the server-side
+        // auth gate doesn't care about the token's source), but it must
+        // never embed the real token server-side: that would leak it to
+        // every such visitor, bypassing whatever gate authorized them.
+        const withValidAuthHeader = await fetch(
+          'http://localhost:3000/debugger/',
+          { headers: { Authorization: 'Bearer 6R0W53R135510' } },
+        );
+        expect(withValidAuthHeader.status).to.equal(200);
+        const withValidAuthHeaderHtml = await withValidAuthHeader.text();
+        expect(withValidAuthHeaderHtml).to.include('browserless-debugger');
+        expect(withValidAuthHeaderHtml).to.not.include('6R0W53R135510');
+
+        // With no ?token= for the client-side script to read, it must
+        // leave an existing baseURL untouched rather than merge nothing.
+        const headerAuthScriptMatch = withValidAuthHeaderHtml.match(
+          /<script>(.*?)<\/script>/i,
+        );
+        expect(headerAuthScriptMatch).to.not.be.null;
+
+        const headerAuthKey =
+          'browserless-debugger:http://localhost:3000/debugger/';
+        const headerAuthStore: Record<string, string> = {
+          [headerAuthKey]: JSON.stringify({
+            apiSettings: { baseURL: 'ws://stale-host:3000' },
+          }),
+        };
+        Object.defineProperty(headerAuthStore, 'getItem', {
+          value: (k: string) =>
+            k in headerAuthStore ? headerAuthStore[k] : null,
+        });
+        Object.defineProperty(headerAuthStore, 'setItem', {
+          value: (k: string, v: string) => {
+            headerAuthStore[k] = String(v);
+          },
+        });
+        Object.defineProperty(headerAuthStore, 'removeItem', {
+          value: (k: string) => {
+            delete headerAuthStore[k];
+          },
+        });
+
+        vm.runInNewContext(headerAuthScriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: headerAuthStore,
+          location: {
+            search: '',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            pathname: '/debugger/',
+          },
+        });
+
+        const headerAuthBlob = JSON.parse(headerAuthStore[headerAuthKey]);
+        expect(headerAuthBlob.apiSettings.baseURL).to.equal(
+          'ws://stale-host:3000',
+        );
+      } finally {
+        if (previousStatic === undefined) {
+          delete process.env.STATIC;
+        } else {
+          process.env.STATIC = previousStatic;
+        }
+        if (previousEnableDebugger === undefined) {
+          delete process.env.ENABLE_DEBUGGER;
+        } else {
+          process.env.ENABLE_DEBUGGER = previousEnableDebugger;
+        }
+        await rm(staticDir, { recursive: true, force: true });
+      }
+    });
+
+    it('normalizes the reset key for /debugger/index.html to match router.js', async () => {
+      const staticDir = await mkdtemp(
+        path.join(os.tmpdir(), 'browserless-debugger-test-'),
+      );
+      const previousStatic = process.env.STATIC;
+      const previousEnableDebugger = process.env.ENABLE_DEBUGGER;
+
+      try {
+        await mkdir(path.join(staticDir, 'debugger'));
+        await writeFile(
+          path.join(staticDir, 'debugger', 'index.html'),
+          '<!DOCTYPE html><html><head><title>Debugger</title></head>' +
+            '<body><script src="app.js"></script></body></html>',
+        );
+
+        process.env.STATIC = staticDir;
+        process.env.ENABLE_DEBUGGER = 'true';
+        const config = new Config();
+        config.setToken('6R0W53R135510');
+
+        await start({ config });
+
+        // Requested with the index.html suffix still present — this is the
+        // URL shape the debugger's own router.js normalizes away on load.
+        const withToken = await fetch(
+          'http://localhost:3000/debugger/index.html?token=6R0W53R135510',
+        );
+        expect(withToken.status).to.equal(200);
+        const html = await withToken.text();
+        const scriptMatch = html.match(/<script>(.*?)<\/script>/i);
+        expect(scriptMatch).to.not.be.null;
+
+        // The app itself (after router.js's pushState) reads/writes under
+        // the normalized "/debugger/" key, not "/debugger/index.html" — the
+        // reset script must clear the same key or it's a silent no-op.
+        const normalizedKey =
+          'browserless-debugger:http://localhost:3000/debugger/';
+        const store: Record<string, string> = {
+          [normalizedKey]: JSON.stringify({
+            apiSettings: { baseURL: 'ws://localhost:3000' },
+          }),
+        };
+        Object.defineProperty(store, 'getItem', {
+          value: (k: string) => (k in store ? store[k] : null),
+        });
+        Object.defineProperty(store, 'setItem', {
+          value: (k: string, v: string) => {
+            store[k] = String(v);
+          },
+        });
+        Object.defineProperty(store, 'removeItem', {
+          value: (k: string) => {
+            delete store[k];
+          },
+        });
+
+        vm.runInNewContext(scriptMatch![1], {
+          URL,
+          URLSearchParams,
+          localStorage: store,
+          location: {
+            search: '?token=6R0W53R135510',
+            origin: 'http://localhost:3000',
+            host: 'localhost:3000',
+            // Un-normalized, matching what the browser has at the moment
+            // this script runs — before router.js's own pushState.
+            pathname: '/debugger/index.html',
+          },
+        });
+
+        const resultingBlob = JSON.parse(store[normalizedKey]);
+        expect(resultingBlob.apiSettings.baseURL).to.equal(
+          'ws://localhost:3000/?token=6R0W53R135510',
+        );
+      } finally {
+        if (previousStatic === undefined) {
+          delete process.env.STATIC;
+        } else {
+          process.env.STATIC = previousStatic;
+        }
+        if (previousEnableDebugger === undefined) {
+          delete process.env.ENABLE_DEBUGGER;
+        } else {
+          process.env.ENABLE_DEBUGGER = previousEnableDebugger;
+        }
+        await rm(staticDir, { recursive: true, force: true });
+      }
     });
 
     it('redirects /docs to /docs/', async () => {
