@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.58.3](https://github.com/browserless/browserless/compare/v2.58.2...v2.58.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* reset stale debugger localStorage settings when a valid token is provided ([#5585](https://github.com/browserless/browserless/issues/5585)) ([a517801](https://github.com/browserless/browserless/commit/a517801414fd30f2573ea9cbdc730696ab4f2f7a))
+
+
+### Build System & Runtime
+
+* bump Node to 26.13.0 ([#5653](https://github.com/browserless/browserless/issues/5653)) ([d554620](https://github.com/browserless/browserless/commit/d5546206a0a25393eb16df1c1317ff0e8b08c2c9))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.79` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.58` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.58.2](https://github.com/browserless/browserless/compare/v2.58.1...v2.58.2) (2026-11-02)
 
 
