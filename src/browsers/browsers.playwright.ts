@@ -304,11 +304,6 @@ class BasePlaywright extends EventEmitter {
         `Proxying ${req.parsed.href} to ${this.constructor.name} ${this.browserWSEndpoint}`,
       );
 
-      // Drops the client's `Origin` (localhost upstream would otherwise
-      // reject it) and any negotiated subprotocol/extensions; `launchServer()`
-      // negotiates neither, matching the prior `http-proxy.ws()` behavior.
-      delete req.headers.origin;
-
       const safeClose = (ws?: { close: () => void }) => {
         try {
           ws?.close();
@@ -361,6 +356,8 @@ class BasePlaywright extends EventEmitter {
           clientWS = ws;
           markSocketAsProxied(socket);
           try {
+            // Do not forward client headers to launchServer. Keep the incoming
+            // request intact for context policies, including deferred checks.
             upstreamWS = new WebSocket(this.browserWSEndpoint!);
           } catch (err) {
             this.logger.error(

@@ -405,7 +405,14 @@ describe('BasePlaywright URL filter', () => {
 
     for (const method of ['newContext', 'newContextForReuse', 'send']) {
       it(`keeps ${method} admission scoped to each connection request`, async () => {
-        const check = (req?: Request) => {
+        const observed: unknown[] = [];
+        const origins: unknown[] = [];
+        fakeUpstreamServer.on('connection', (_ws, req) => {
+          origins.push(req.headers.origin);
+        });
+        const check = async (req?: Request) => {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          observed.push([req?.url, req?.headers.origin]);
           if (req?.parsed.pathname !== '/allowed') throw new Error('denied');
         };
         Object.assign(config, {
@@ -413,8 +420,12 @@ describe('BasePlaywright URL filter', () => {
             check(req),
           getCDPContextPolicy: (req?: Request) => () => check(req),
         });
-        const denied = new WebSocket(`ws://127.0.0.1:${bridgePort}/denied`);
-        const allowed = new WebSocket(`ws://127.0.0.1:${bridgePort}/allowed`);
+        const denied = new WebSocket(`ws://127.0.0.1:${bridgePort}/denied`, {
+          origin: 'https://denied.example',
+        });
+        const allowed = new WebSocket(`ws://127.0.0.1:${bridgePort}/allowed`, {
+          origin: 'https://allowed.example',
+        });
         await Promise.all(
           [denied, allowed].map(
             (client) =>
@@ -434,6 +445,11 @@ describe('BasePlaywright URL filter', () => {
           allowed.send(JSON.stringify({ id: 2, method, params }));
           await waitFor(() => upstreamMessages.length === 1);
           expect(JSON.parse(upstreamMessages[0]).id).to.equal(2);
+          expect(observed).to.deep.equal([
+            ['/denied', 'https://denied.example'],
+            ['/allowed', 'https://allowed.example'],
+          ]);
+          expect(origins).to.deep.equal([undefined, undefined]);
         } finally {
           denied.terminate();
           allowed.terminate();
