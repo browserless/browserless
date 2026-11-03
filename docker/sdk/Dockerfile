@@ -25,7 +25,7 @@ COPY package.json package-lock.json tsconfig.json README.md ./
 # (typescript, marked, typescript-json-schema) is available for `npm run build`.
 # The runtime image sets NODE_ENV=production which would otherwise skip them.
 RUN npm clean-install --include=dev && \
-    node --use-env-proxy "$BLESS_INSTALL_NODE_MODULES/scripts/install-playwright-ffmpeg.js" && \
+    NODE_USE_ENV_PROXY=1 node "$BLESS_INSTALL_NODE_MODULES/scripts/install-playwright-ffmpeg.js" && \
     npm run build && \
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then rm -rf $BLESS_ROUTES/chrome; fi && \
     case "$FROM" in \

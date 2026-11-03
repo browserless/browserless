@@ -76,7 +76,8 @@ const parseDryRun = (output) => {
 };
 
 // Node only applies HTTPS_PROXY/NO_PROXY to fetch() when started with
-// `--use-env-proxy` (the Dockerfiles do), so proxied builds keep working.
+// NODE_USE_ENV_PROXY=1 (the Dockerfiles set it; it is honoured from Node 24.0
+// and ignored by versions that lack it), so proxied builds keep working.
 const download = async (urls) => {
   for (const url of urls) {
     try {
