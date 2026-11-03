@@ -92,8 +92,10 @@ const parseDryRun = (output) => {
   return { dir, urls };
 };
 
-const download = async (url) => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(600_000) });
+const download = async (url, deadline) => {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(Math.max(deadline - Date.now(), 0)),
+  });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 };
@@ -101,11 +103,13 @@ const download = async (url) => {
 // A mirror only counts as working once its archive has been extracted into a
 // clean dir and yielded the `ffmpeg-<platform>` executable: a 200 carrying a
 // corrupt or unexpected archive moves on to the next mirror like an HTTP
-// error does, so one bad mirror cannot block every build.
+// error does, so one bad mirror cannot block every build. All mirrors share
+// one deadline so stalled ones cannot hold the build for a multiple of it.
 const install = async (urls, dir, zip) => {
+  const deadline = Date.now() + 600_000;
   for (const url of urls) {
     try {
-      await writeFile(zip, await download(url));
+      await writeFile(zip, await download(url, deadline));
       await rm(dir, { force: true, recursive: true });
       await mkdir(dir, { recursive: true });
       await extractZip(zip, dir);
