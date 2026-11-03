@@ -9,6 +9,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -90,8 +91,9 @@ async function fixture(t) {
   await addPackage(sdk, 'encoder-current', '900');
   await addPackage(sdk, 'encoder-older', '800');
   // `serve` is the base64 body the working mirror returns; null makes every
-  // mirror 404.
-  const run = async (serve = archive) => {
+  // mirror 404. Proxy variables are cleared so a developer's proxy does not
+  // make the installer re-run itself outside this fetch() stub.
+  const run = async (serve = archive, env = {}) => {
     const source = `
       const requests = [];
       globalThis.fetch = async (url) => {
@@ -112,7 +114,16 @@ async function fixture(t) {
       ['--input-type=module', '-e', source],
       {
         cwd: root,
-        env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: cache },
+        env: {
+          ...Object.fromEntries(
+            Object.entries(process.env).filter(
+              ([name]) =>
+                !/^(https?_proxy|no_proxy|node_use_env_proxy)$/i.test(name),
+            ),
+          ),
+          PLAYWRIGHT_BROWSERS_PATH: cache,
+          ...env,
+        },
       },
     );
     return stdout
@@ -225,6 +236,22 @@ test('unreachable mirrors and corrupt archives never mark FFmpeg installed', asy
   const f = await fixture(t);
   await assert.rejects(f.run(null), /All FFmpeg mirrors failed/);
   assert.deepEqual(await readdir(f.cache), []);
+  // A well-formed archive that lacks the executable is just as broken.
+  await exec(
+    'python3',
+    [
+      '-c',
+      'import zipfile; z=zipfile.ZipFile("license-only.zip","w"); z.writestr("COPYING", "license"); z.close()',
+    ],
+    { cwd: f.root },
+  );
+  await assert.rejects(
+    f.run(
+      (await readFile(join(f.root, 'license-only.zip'))).toString('base64'),
+    ),
+    /No FFmpeg executable extracted/,
+  );
+  assert.deepEqual(await readdir(f.cache), []);
   await assert.rejects(f.run(Buffer.from('not a zip').toString('base64')));
   for (const dir of await readdir(f.cache)) {
     assert.ok(
@@ -239,4 +266,33 @@ test('unreachable mirrors and corrupt archives never mark FFmpeg installed', asy
     ['ffmpeg-800', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
     ['ffmpeg-900', ['INSTALLATION_COMPLETE', 'ffmpeg-linux']],
   ]);
+});
+
+test('a configured proxy is used however the installer is started', async (t) => {
+  const f = await fixture(t);
+  // The stand-in proxy records what reaches it and refuses every request.
+  const seen = [];
+  const proxy = createServer((socket) => {
+    socket.once('data', (data) => {
+      seen.push(data.toString().split('\r\n')[0]);
+      socket.end('HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n');
+    });
+  });
+  await new Promise((done) => proxy.listen(0, '127.0.0.1', done));
+  t.after(() => proxy.close());
+  const { port } = proxy.address();
+  // No NODE_USE_ENV_PROXY in the environment: the installer re-runs itself
+  // with it, so the (unstubbed) fetch() reaches the proxy instead of the host.
+  await assert.rejects(
+    f.run(undefined, { HTTP_PROXY: `http://127.0.0.1:${port}` }),
+    /All FFmpeg mirrors failed/,
+  );
+  // Both mirrors go through the proxy: HTTPS as a CONNECT tunnel, plain HTTP
+  // as a forwarded GET or, on older Node releases, a tunnel too.
+  assert.equal(seen.length, 2, seen.join('\n'));
+  assert.ok(
+    seen.every((line) => /^(GET|CONNECT) \S*mirror\.invalid/.test(line)),
+    seen.join('\n'),
+  );
+  assert.deepEqual(await readdir(f.cache), []);
 });

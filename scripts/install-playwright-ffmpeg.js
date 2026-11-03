@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -6,6 +6,23 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractZip } from './extract-zip-native.js';
+
+// Node only applies HTTP(S)_PROXY/NO_PROXY to fetch() when started with
+// NODE_USE_ENV_PROXY=1 (honoured from Node 24.0), so a proxied environment
+// re-runs this script under it however it was invoked.
+if (
+  process.env.NODE_USE_ENV_PROXY !== '1' &&
+  ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'].some(
+    (name) => process.env[name],
+  )
+) {
+  const { status } = spawnSync(
+    process.execPath,
+    [fileURLToPath(import.meta.url)],
+    { env: { ...process.env, NODE_USE_ENV_PROXY: '1' }, stdio: 'inherit' },
+  );
+  process.exit(status ?? 1);
+}
 
 // Match SDK startup: a consumer's support map overrides the SDK defaults.
 let manifest = resolve('package.json');
@@ -75,9 +92,6 @@ const parseDryRun = (output) => {
   return { dir, urls };
 };
 
-// Node only applies HTTPS_PROXY/NO_PROXY to fetch() when started with
-// NODE_USE_ENV_PROXY=1 (the Dockerfiles set it; it is honoured from Node 24.0
-// and ignored by versions that lack it), so proxied builds keep working.
 const download = async (urls) => {
   for (const url of urls) {
     try {
@@ -87,7 +101,9 @@ const download = async (urls) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return Buffer.from(await response.arrayBuffer());
     } catch (error) {
-      console.warn(`  mirror failed (${error.message}): ${url}`);
+      // fetch() reports "fetch failed"; the cause names the socket error.
+      const reason = error.cause?.message ?? error.message;
+      console.warn(`  mirror failed (${reason}): ${url}`);
     }
   }
   throw new Error(`All FFmpeg mirrors failed: ${urls.join(', ')}`);
@@ -116,14 +132,15 @@ try {
       console.log(`  Fetching ${basename(dir)}`);
       const zip = join(staging, 'ffmpeg.zip');
       await writeFile(zip, await download(urls));
-      // Extract into a clean dir and only mark complete on a verified
-      // extraction, so a partial unzip is never cached as installed.
+      // Extract into a clean dir and only mark complete once the archive has
+      // yielded the `ffmpeg-<platform>` executable, so a partial unzip or an
+      // unexpected archive is never cached as installed.
       await rm(dir, { force: true, recursive: true });
       await mkdir(dir, { recursive: true });
       await extractZip(zip, dir);
-      if (!(await readdir(dir)).length) {
+      if (!(await readdir(dir)).some((entry) => entry.startsWith('ffmpeg'))) {
         await rm(dir, { force: true, recursive: true });
-        throw new Error(`Empty FFmpeg extraction for ${name} in ${dir}`);
+        throw new Error(`No FFmpeg executable extracted for ${name} in ${dir}`);
       }
       await writeFile(join(dir, 'INSTALLATION_COMPLETE'), '');
     }
