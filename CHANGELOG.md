@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.0](https://github.com/browserless/browserless/compare/v2.58.3...v2.59.0) (2026-11-04)
+
+
+### Features
+
+* pass connection requests to context admission policies ([#5657](https://github.com/browserless/browserless/issues/5657)) ([087373b](https://github.com/browserless/browserless/commit/087373b5cbfd42e60b77d4fb839ac008ec25bc5c))
+
 ## [2.58.3](https://github.com/browserless/browserless/compare/v2.58.2...v2.58.3) (2026-11-03)
 
 
