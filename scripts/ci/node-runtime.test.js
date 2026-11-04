@@ -69,6 +69,8 @@ test('check accepts matching pins and rejects drift or non-stable pins without c
   for (const [nvm, docker] of [
     ['v26.9.0', 'v26.8.0'],
     ['v26.9.0-rc.1', 'v26.9.0-rc.1'],
+    ['v26.9.0 ', 'v26.9.0'],
+    ['\nv26.9.0', 'v26.9.0'],
   ]) {
     const f = fixture(t, nvm, docker);
     assert.notEqual(f.run().status, 0);

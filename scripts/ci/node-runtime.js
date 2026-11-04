@@ -8,7 +8,13 @@ assert(
     (process.argv.length === 3 && process.argv[2] === '--update'),
   'Usage: node scripts/ci/node-runtime.js [--update]',
 );
-const current = readFileSync('.nvmrc', 'utf8').trim();
+const nvmrc = readFileSync('.nvmrc', 'utf8');
+const current = nvmrc.trim();
+// Docker workflows consume this file directly, without whitespace trimming.
+assert(
+  nvmrc === current || nvmrc === `${current}\n`,
+  '.nvmrc must contain only the version and an optional final newline',
+);
 const stable = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 assert(stable.test(current), '.nvmrc must pin a stable Node version');
 const dockerPath = 'docker/base/Dockerfile';
