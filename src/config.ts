@@ -1,4 +1,5 @@
 import {
+  type Request,
   exists,
   isWin as isWindows,
   keyLength,
@@ -428,17 +429,23 @@ export class Config extends EventEmitter {
    * Optional policy for native Playwright context creation. Subclasses may
    * normalize options in place or reject creation by throwing. The bridge
    * awaits this hook before forwarding the context or subsequent messages.
+   * The request belongs to this connection; overrides need not accept it.
    */
   public preparePlaywrightContextOptions(
     options: Record<string, unknown>,
+    _request?: Request,
   ): void | Promise<void> {
     void options;
+    void _request;
   }
 
   /** Admission-only policy for raw CDP context creation; null keeps raw forwarding. */
-  public getCDPContextPolicy():
+  public getCDPContextPolicy(
+    _request?: Request,
+  ):
     | ((options: Readonly<Record<string, unknown>>) => void | Promise<void>)
     | null {
+    void _request;
     return null;
   }
 

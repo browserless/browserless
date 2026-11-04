@@ -461,12 +461,16 @@ describe('CDP context admission transport', () => {
       const gate = new Promise<void>((resolve) => {
         release = resolve;
       });
+      const observed: unknown[] = [];
       class RestrictedConfig extends Config {
         getCdpMaxInboundPayload() {
           return mode === 'configured-queue-overflow' ? 4096 : undefined;
         }
-        getCDPContextPolicy() {
+        getCDPContextPolicy(req?: Request) {
           return async (options: Readonly<Record<string, unknown>>) => {
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            observed.push([req?.url, req?.headers.origin]);
+            expect(req?.parsed.pathname).to.equal('/devtools/page/test');
             if (options.proxyServer === 'direct://') throw new Error('secret');
             if (options.proxyServer === 'wait') {
               entered();
@@ -483,8 +487,10 @@ describe('CDP context admission transport', () => {
       });
       await once(upstream, 'listening');
       const forwarded: unknown[] = [];
+      const origins: unknown[] = [];
       let upstreamExtensions: string | undefined;
-      upstream.on('connection', (ws) => {
+      upstream.on('connection', (ws, req) => {
+        origins.push(req.headers.origin);
         upstreamExtensions = ws.extensions;
         ws.on('message', (data, binary) => {
           const command = JSON.parse(data.toString());
@@ -521,7 +527,7 @@ describe('CDP context admission transport', () => {
       );
       const client = new WebSocket(
         `ws://127.0.0.1:${(server.address() as AddressInfo).port}/devtools/page/test`,
-        { maxPayload: 0 },
+        { maxPayload: 0, origin: 'https://client.example' },
       );
       try {
         await once(client, 'open');
@@ -579,6 +585,13 @@ describe('CDP context admission transport', () => {
             'CDP context policy rejected configuration',
           );
           expect(forwarded).to.deep.equal([]);
+          if (method === 'Target.createBrowserContext') {
+            expect(observed[0]).to.deep.equal([
+              '/devtools/page/test',
+              'https://client.example',
+            ]);
+            expect(origins).to.deep.equal([undefined]);
+          }
         }
         for (const command of [
           {

@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import {
   Config,
   Logger,
+  Request,
   browserlessChromiumDisabledFeatures,
   findBlockedUrlInMessage,
   normalizeUrlForBlocklist,
@@ -401,6 +402,60 @@ describe('BasePlaywright URL filter', () => {
       );
       await new Promise<void>((resolve) => bridgeServer.close(() => resolve()));
     });
+
+    for (const method of ['newContext', 'newContextForReuse', 'send']) {
+      it(`keeps ${method} admission scoped to each connection request`, async () => {
+        const observed: unknown[] = [];
+        const origins: unknown[] = [];
+        fakeUpstreamServer.on('connection', (_ws, req) => {
+          origins.push(req.headers.origin);
+        });
+        const check = async (req?: Request) => {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          observed.push([req?.url, req?.headers.origin]);
+          if (req?.parsed.pathname !== '/allowed') throw new Error('denied');
+        };
+        Object.assign(config, {
+          preparePlaywrightContextOptions: (_options: unknown, req?: Request) =>
+            check(req),
+          getCDPContextPolicy: (req?: Request) => () => check(req),
+        });
+        const denied = new WebSocket(`ws://127.0.0.1:${bridgePort}/denied`, {
+          origin: 'https://denied.example',
+        });
+        const allowed = new WebSocket(`ws://127.0.0.1:${bridgePort}/allowed`, {
+          origin: 'https://allowed.example',
+        });
+        await Promise.all(
+          [denied, allowed].map(
+            (client) =>
+              new Promise<void>((resolve) => client.once('open', resolve)),
+          ),
+        );
+        try {
+          const closed = new Promise<number>((resolve) =>
+            denied.once('close', resolve),
+          );
+          const params =
+            method === 'send'
+              ? { method: 'Target.createBrowserContext', params: {} }
+              : {};
+          denied.send(JSON.stringify({ id: 1, method, params }));
+          expect(await closed).to.equal(1008);
+          allowed.send(JSON.stringify({ id: 2, method, params }));
+          await waitFor(() => upstreamMessages.length === 1);
+          expect(JSON.parse(upstreamMessages[0]).id).to.equal(2);
+          expect(observed).to.deep.equal([
+            ['/denied', 'https://denied.example'],
+            ['/allowed', 'https://allowed.example'],
+          ]);
+          expect(origins).to.deep.equal([undefined, undefined]);
+        } finally {
+          denied.terminate();
+          allowed.terminate();
+        }
+      });
+    }
 
     it('enforces context admission through a real launchServer CDP session', async function () {
       if (!fs.existsSync(chromium.executablePath())) this.skip();

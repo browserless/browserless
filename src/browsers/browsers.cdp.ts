@@ -550,12 +550,8 @@ export class ChromiumCDP extends EventEmitter {
       ? path.join('/devtools', '/page', this.getPageId(page))
       : req.parsed.pathname;
     const target = new URL(pathname, this.browserWSEndpoint).href;
-    req.url = '';
 
-    // Delete headers known to cause issues
-    delete req.headers.origin;
-
-    const policy = this.config.getCDPContextPolicy();
+    const policy = this.config.getCDPContextPolicy(req);
     if (policy) {
       try {
         await bridgeCDPContexts(
@@ -572,6 +568,10 @@ export class ChromiumCDP extends EventEmitter {
       }
       return;
     }
+
+    req.url = '';
+    // Only the legacy proxy forwards the incoming request headers.
+    delete req.headers.origin;
 
     return new Promise((resolve, reject) => {
       let backend: Duplex | undefined;
@@ -638,14 +638,13 @@ export class ChromiumCDP extends EventEmitter {
     socket: Duplex,
     head: Buffer,
   ): Promise<void> {
-    const policy = this.config.getCDPContextPolicy();
+    const policy = this.config.getCDPContextPolicy(req);
     if (policy) {
       if (!this.browserWSEndpoint) {
         throw new ServerError(
           'No browserWSEndpoint found, did you launch first?',
         );
       }
-      delete req.headers.origin;
       return bridgeCDPContexts(
         req,
         socket,
