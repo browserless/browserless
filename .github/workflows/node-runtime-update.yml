@@ -1,0 +1,65 @@
+name: Update Node runtime
+
+on:
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: node-runtime-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'browserless/browserless' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Select the latest stable Node 26.x release
+        id: node
+        run: |
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 60 --retry 3 \
+            https://nodejs.org/dist/index.json -o "$RUNNER_TEMP/node-releases.json"
+          node scripts/ci/node-runtime.js --update < "$RUNNER_TEMP/node-releases.json"
+          node scripts/ci/node-runtime.js
+
+      # Mint only after release validation; the App token lets PR changes run CI.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
+          private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # A fixed branch refreshes one PR, is a no-op when unchanged, and closes
+      # an obsolete PR when main already contains the update. Never auto-merge.
+      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: automation/node-26-runtime
+          base: main
+          add-paths: |
+            .nvmrc
+            docker/base/Dockerfile
+          commit-message: 'build: bump Node to ${{ steps.node.outputs.version }}'
+          title: 'build: bump Node to ${{ steps.node.outputs.version }}'
+          body: |
+            Update the Node runtime pins in `.nvmrc` and `docker/base/Dockerfile` together.
+            Selected the newest stable 26.x version from https://nodejs.org/dist/index.json.
+
+            npm, engine minimums, dependencies, and the lockfile are unchanged.
+            Normal PR checks and human review are required; this PR is not auto-merged.
+            This automation owns its branch and refreshes it from main on each run.
