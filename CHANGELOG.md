@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.59.0](https://github.com/browserless/browserless/compare/v2.58.3...v2.59.0) (2026-11-04)
+
+
+### Features
+
+* pass connection requests to context admission policies ([#5657](https://github.com/browserless/browserless/issues/5657)) ([087373b](https://github.com/browserless/browserless/commit/087373b5cbfd42e60b77d4fb839ac008ec25bc5c))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `156.0.8078.79` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.58` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.58.3](https://github.com/browserless/browserless/compare/v2.58.2...v2.58.3) (2026-11-03)
 
 
