@@ -26,6 +26,8 @@ jobs:
           command: npm clean-install
       - name: Test FFmpeg installer
         run: node --test scripts/install-playwright-ffmpeg.test.js
+      - name: Test nvm installer integrity
+        run: node --test scripts/nvm-install.test.js
       - name: Run ESLint
         uses: nick-fields/retry@v4
         with:
