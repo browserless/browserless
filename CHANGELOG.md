@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.60.0](https://github.com/browserless/browserless/compare/v2.59.0...v2.60.0) (2026-11-06)
+
+
+### Features
+
+* support Playwright 1.65 and npm 11.21.2 ([#5664](https://github.com/browserless/browserless/issues/5664)) ([2621416](https://github.com/browserless/browserless/commit/2621416f53200ae01619d4d4d0e78148ceefa68a))
+
 ## [2.59.0](https://github.com/browserless/browserless/compare/v2.58.3...v2.59.0) (2026-11-04)
 
 
