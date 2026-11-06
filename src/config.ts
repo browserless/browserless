@@ -117,7 +117,7 @@ const getDebug = () => {
 
 /**
  * Chromium features Playwright disables by default, mirrored per supported
- * Playwright version (verified against playwright-core 1.60–1.64).
+ * Playwright version (verified against playwright-core 1.61–1.65).
  *
  * `--disable-features` is a single-valued Chromium switch: when it appears more
  * than once on the command line Chrome keeps ONLY the last occurrence — the
@@ -127,7 +127,7 @@ const getDebug = () => {
  * version itself disables or those features are silently re-enabled (e.g.
  * RenderDocument). See https://github.com/browserless/browserless/issues/5450
  *
- * The default is what the pinned playwright-core emits (1.64); versions whose
+ * The default is what the pinned playwright-core emits (1.65); versions whose
  * list differs are overridden below. These lists must stay 1:1 with the
  * installed Playwright versions — see the drift test in
  * browsers.playwright.spec.ts.
@@ -152,17 +152,36 @@ const playwright163DisabledFeatures: readonly string[] = [
 
 // 1.64 additionally prevents startup network-time and AI Mode queries;
 // 1.64.1 also disables the CORS URL loader restart on redirects.
-const defaultChromiumDisabledFeatures: readonly string[] = [
+const playwright164DisabledFeatures: readonly string[] = [
   ...playwright163DisabledFeatures,
   'NetworkTimeServiceQuerying',
   'AimEnabled',
   'AvoidCorsURLLoaderRestartOnRedirect',
 ];
 
-// 1.60 and 1.61 still disable RenderDocument (dropped in 1.62) and do not yet
+const defaultChromiumDisabledFeatures: readonly string[] = [
+  'AvoidUnnecessaryBeforeUnloadCheckSync',
+  'DestroyProfileOnBrowserClose',
+  'HttpsUpgrades',
+  'HttpsFirstBalancedModeAutoEnable',
+  'LensOverlay',
+  'MediaRouter',
+  'PaintHolding',
+  'ThirdPartyStoragePartitioning',
+  'AvoidCorsURLLoaderRestartOnRedirect',
+  'TcpPortRandomizationWin',
+  'OptimizationHints',
+  'NetworkTimeServiceQuerying',
+  'AimEnabled',
+  'PreconnectToSearch',
+  'msForceBrowserSignIn',
+  'msEdgeUpdateLaunchServicesPreferredVersion',
+];
+
+// 1.61 still disables RenderDocument (dropped in 1.62) and does not yet
 // disable BlockOriginHeaderModificationOnRedirect (added in 1.62 for
 // crbug/Chromium 149's redirect-header rejection).
-const playwright160And161DisabledFeatures: readonly string[] = [
+const playwright161DisabledFeatures: readonly string[] = [
   'AvoidUnnecessaryBeforeUnloadCheckSync',
   'BoundaryEventDispatchTracksNodeRemoval',
   'DestroyProfileOnBrowserClose',
@@ -184,14 +203,14 @@ const playwright160And161DisabledFeatures: readonly string[] = [
 const chromiumDisabledFeaturesByPwVersion: Readonly<
   Record<string, readonly string[]>
 > = {
-  '1.60': playwright160And161DisabledFeatures,
-  '1.61': playwright160And161DisabledFeatures,
+  '1.61': playwright161DisabledFeatures,
   // Playwright stopped disabling this feature in 1.63.
   '1.62': [
     ...playwright163DisabledFeatures,
     'BoundaryEventDispatchTracksNodeRemoval',
   ],
   '1.63': playwright163DisabledFeatures,
+  '1.64': playwright164DisabledFeatures,
 };
 
 /**
