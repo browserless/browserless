@@ -303,7 +303,9 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
           res.write(chunk);
         },
         close() {
-          res.end();
+          if (!res.writableEnded) {
+            res.end();
+          }
         },
       });
       await pdfStream.pipeTo(writableStream);
@@ -311,7 +313,13 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       logger.debug('PDF API request completed');
     } finally {
       page.removeAllListeners();
-      page.close().catch(noop);
+      // Await teardown: returning while Target.closeTarget is still in
+      // flight races the browser shutdown in BrowserManager.complete(),
+      // stranding targets and forcing SIGKILL escalation on every request.
+      // Under sequential load (e.g. repeated /chromium/pdf calls) the
+      // overlapping teardowns compound into the progressive slowdown
+      // reported in #5386.
+      await page.close().catch(noop);
     }
   }
 }
