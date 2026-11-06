@@ -16,7 +16,7 @@ jobs:
           node scripts/ci/node-runtime.js
           node --test scripts/ci/node-runtime.test.js
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.1 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts
       - name: Install modules
         uses: nick-fields/retry@v4
         with:
