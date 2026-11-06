@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.60.0](https://github.com/browserless/browserless/compare/v2.59.0...v2.60.0) (2026-11-06)
+
+
+### Features
+
+* support Playwright 1.65 and npm 11.21.2 ([#5664](https://github.com/browserless/browserless/issues/5664)) ([2621416](https://github.com/browserless/browserless/commit/2621416f53200ae01619d4d4d0e78148ceefa68a))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.64.1`, `1.63.0`, `1.62.1`, `1.61.1`, and `1.60.0`.
+- Chromium: `156.0.8078.4`
+- Chrome: `157.0.8103.38` (amd64 only)
+- Firefox: `157.0`
+- Webkit: `27.2`
+- Edge: `156.0.4314.58` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.59.0](https://github.com/browserless/browserless/compare/v2.58.3...v2.59.0) (2026-11-04)
 
 
