@@ -36,7 +36,9 @@ import {
   parseStringParam,
   pwVersionRegex,
 } from '@browserless.io/browserless';
+import si, { Systeminformation } from 'systeminformation';
 import { Page } from 'puppeteer-core';
+import { cpus } from 'os';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
@@ -45,6 +47,21 @@ import path from 'path';
 // of `browser.close()` resolving, so 200/400/800 ms covers the realistic
 // EBUSY/ENOTEMPTY window.
 const REMOVE_RETRY_BACKOFF_MS = [200, 400, 800];
+
+// One `si.processes()` call shared across every session in a request,
+// not one expensive OS-wide enumeration per concurrent session.
+interface ProcessTree {
+  byPid: Map<number, Systeminformation.ProcessesProcessData>;
+  childrenByParentPid: Map<number, number[]>;
+  // Pids with no prior sample - systeminformation reports their lifetime
+  // average CPU share (near 0 on a long-uptime host) rather than recent
+  // usage, so their cpu reading is unreliable until the next sample.
+  coldPids: Set<number>;
+}
+
+// Only Linux's proc.cpu is normalized across all cores via real
+// wall-clock/proc-stat deltas; macOS and Windows already read per-process.
+const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux']);
 
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
@@ -58,6 +75,22 @@ export class BrowserManager {
     CDPJSONPayload,
     'webSocketDebuggerUrl'
   > | null = null;
+  // getProcessTree() forks `ps` plus a per-process `/proc` read on every
+  // call spaced over systeminformation's own 500ms cache window - too
+  // short for a /sessions endpoint that may be polled every 1-2s. Cache
+  // our own result for a couple of seconds on top of that.
+  protected processTreeCache: {
+    expiresAt: number;
+    tree: ProcessTree | null;
+  } | null = null;
+  protected readonly processTreeCacheMs = 2000;
+  protected readonly processTreeIdleStopMs = 30_000;
+  protected lastProcessTreePollAt = 0;
+  protected processTreeRefreshTimer: NodeJS.Timeout | null = null;
+  protected processTreeRefreshPromise: Promise<ProcessTree | null> | null =
+    null;
+  protected seenPids: Set<number> = new Set();
+  protected lastProcessTreeRefreshAt = 0;
   protected log = new Logger('browser-manager');
   protected chromeBrowsers = [ChromiumCDP, ChromeCDP, EdgeCDP];
   protected playwrightBrowserNames = [
@@ -91,6 +124,162 @@ export class BrowserManager {
     return this.chromeBrowsers.some(
       (chromeBrowser) => b instanceof chromeBrowser,
     );
+  }
+
+  // Coalesces concurrent callers (the refresh timer and an in-flight
+  // /sessions request can land at the same time) onto one `si.processes()`
+  // call, so a slower, earlier call can't overwrite a newer cached result.
+  protected async refreshProcessTree(): Promise<ProcessTree | null> {
+    if (this.processTreeRefreshPromise) {
+      return this.processTreeRefreshPromise;
+    }
+    const refresh = this.refreshProcessTreeOnce();
+    this.processTreeRefreshPromise = refresh;
+    try {
+      return await refresh;
+    } finally {
+      if (this.processTreeRefreshPromise === refresh) {
+        this.processTreeRefreshPromise = null;
+      }
+    }
+  }
+
+  // A gap since our last real sample dilutes a recent burst into a
+  // misleadingly low average - treat every pid as cold, not just new ones.
+  protected computeColdPids(pids: Iterable<number>): Set<number> {
+    const gapTooLong =
+      this.lastProcessTreeRefreshAt > 0 &&
+      Date.now() - this.lastProcessTreeRefreshAt > this.processTreeCacheMs * 2;
+    const coldPids = new Set<number>();
+    for (const pid of pids) {
+      if (gapTooLong || !this.seenPids.has(pid)) {
+        coldPids.add(pid);
+      }
+    }
+    return coldPids;
+  }
+
+  // Never throws: a failure here shouldn't break /sessions, just leave
+  // every session's cpu/memoryBytes as null for this one request.
+  protected async refreshProcessTreeOnce(): Promise<ProcessTree | null> {
+    try {
+      const { list } = await si.processes();
+      const byPid = new Map(list.map((p) => [p.pid, p]));
+      const childrenByParentPid = new Map<number, number[]>();
+      const coldPids = this.computeColdPids(byPid.keys());
+
+      for (const p of list) {
+        const siblings = childrenByParentPid.get(p.parentPid) ?? [];
+        siblings.push(p.pid);
+        childrenByParentPid.set(p.parentPid, siblings);
+      }
+      this.seenPids = new Set(byPid.keys());
+      this.lastProcessTreeRefreshAt = Date.now();
+
+      const tree = { byPid, childrenByParentPid, coldPids };
+      this.processTreeCache = {
+        expiresAt: Date.now() + this.processTreeCacheMs,
+        tree,
+      };
+      return tree;
+    } catch (err) {
+      this.log.warn(`Error reading process list for session stats: ${err}`);
+      this.processTreeCache = {
+        expiresAt: Date.now() + this.processTreeCacheMs,
+        tree: null,
+      };
+      return null;
+    }
+  }
+
+  protected async getProcessTree(): Promise<ProcessTree | null> {
+    if (this.processTreeCache && this.processTreeCache.expiresAt > Date.now()) {
+      return this.processTreeCache.tree;
+    }
+    return this.refreshProcessTree();
+  }
+
+  // Demand-driven: runs only while /sessions is polled, not for the life
+  // of every session, and self-stops after an idle gap.
+  protected startProcessTreeRefresh(): void {
+    this.lastProcessTreePollAt = Date.now();
+    if (this.processTreeRefreshTimer) {
+      return;
+    }
+    this.processTreeRefreshTimer = setInterval(
+      () => this.processTreeRefreshTick(),
+      this.processTreeCacheMs,
+    );
+    this.processTreeRefreshTimer.unref?.();
+  }
+
+  protected processTreeRefreshTick(): void {
+    if (Date.now() - this.lastProcessTreePollAt >= this.processTreeIdleStopMs) {
+      this.stopProcessTreeRefresh();
+      return;
+    }
+    this.refreshProcessTree();
+  }
+
+  protected stopProcessTreeRefresh(): void {
+    if (this.processTreeRefreshTimer) {
+      clearInterval(this.processTreeRefreshTimer);
+      this.processTreeRefreshTimer = null;
+    }
+  }
+
+  // Sums the root PID and every descendant (renderer/GPU/utility, ...), so
+  // a session's true footprint isn't understated to just its main process.
+  protected sumProcessTree(
+    pid: number,
+    tree: ProcessTree,
+    numCores: number = cpus().length,
+  ): { cpu: number | null; memoryBytes: number } | null {
+    if (!tree.byPid.has(pid)) {
+      return null;
+    }
+
+    let cpu = 0;
+    let memoryBytes = 0;
+    let hasColdPid = false;
+    const stack = [pid];
+    const seen = new Set<number>();
+
+    while (stack.length) {
+      const current = stack.pop() as number;
+      if (seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+
+      const proc = tree.byPid.get(current);
+      if (proc) {
+        cpu += proc.cpu;
+        memoryBytes += proc.memRss * 1024; // memRss is KB; normalize to bytes.
+        hasColdPid = hasColdPid || tree.coldPids.has(current);
+      }
+
+      for (const child of tree.childrenByParentPid.get(current) ?? []) {
+        if (!seen.has(child)) {
+          stack.push(child);
+        }
+      }
+    }
+
+    // A pid with no prior sample reads its lifetime-average CPU share, not
+    // its recent usage - report unavailable rather than a misleading number.
+    if (hasColdPid) {
+      return { cpu: null, memoryBytes };
+    }
+
+    // See PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU for why only Linux scales.
+    const scaledCpu = PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU.has(
+      process.platform,
+    )
+      ? cpu * numCores
+      : cpu;
+
+    return { cpu: scaledCpu, memoryBytes };
   }
 
   protected async sweepOrphanedDataDirs(): Promise<void> {
@@ -367,20 +556,30 @@ export class BrowserManager {
   protected async generateSessionJson(
     browser: BrowserInstance,
     session: BrowserlessSession,
+    processTree: ProcessTree | null,
+    numCores: number = cpus().length,
   ) {
     const serverHTTPAddress = this.config.getExternalAddress();
     const serverWSAddress = this.config.getExternalWebSocketAddress();
+
+    const pid = browser.process()?.pid;
+    const stats =
+      pid && processTree
+        ? this.sumProcessTree(pid, processTree, numCores)
+        : null;
 
     const sessions = [
       {
         ...session,
         browser: browser.constructor.name,
         browserId: session.id,
+        cpu: stats?.cpu ?? null,
         initialConnectURL: new URL(session.initialConnectURL, serverHTTPAddress)
           .href,
         killURL: session.id
           ? makeExternalURL(serverHTTPAddress, '/kill/', session.id)
           : null,
+        memoryBytes: stats?.memoryBytes ?? null,
         running: browser.isRunning(),
         timeAliveMs: Date.now() - session.startedOn,
         type: 'browser',
@@ -421,7 +620,11 @@ export class BrowserManager {
             ...sessions[0],
             ...page,
             browserWSEndpoint,
+            // Only the browser-level process tree is tracked — drop the
+            // spread-inherited numbers so pages don't look like separate readings.
+            cpu: undefined,
             devtoolsFrontendUrl,
+            memoryBytes: undefined,
             webSocketDebuggerUrl,
           } as unknown as (typeof sessions)[number]);
         }
@@ -535,18 +738,27 @@ export class BrowserManager {
     trackingId?: string,
   ): Promise<BrowserlessSessionJSON[]> {
     const sessions = Array.from(this.browsers);
+    // Skip the process-list read entirely when there's nothing to report -
+    // no point forking `ps` for an empty /sessions response.
+    let processTree: ProcessTree | null = null;
+    if (sessions.length > 0) {
+      this.startProcessTreeRefresh();
+      processTree = await this.getProcessTree();
+    }
 
     // Query browsers concurrently and tolerate individual failures — one
     // wedged or mid-shutdown browser shouldn't stall or 500 /sessions.
     let formattedSessions: BrowserlessSessionJSON[] = (
       await Promise.all(
         sessions.map(([browser, session]) =>
-          this.generateSessionJson(browser, session).catch((err) => {
-            this.log.warn(
-              `Error generating session JSON for "${session.id}": ${err}`,
-            );
-            return [];
-          }),
+          this.generateSessionJson(browser, session, processTree).catch(
+            (err) => {
+              this.log.warn(
+                `Error generating session JSON for "${session.id}": ${err}`,
+              );
+              return [];
+            },
+          ),
         ),
       )
     ).flat();
@@ -904,6 +1116,7 @@ export class BrowserManager {
     );
     this.timers.forEach((t) => clearTimeout(t));
     clearInterval(this.orphanedDataDirSweeper);
+    this.stopProcessTreeRefresh();
     // Last-chance reclaim of dirs whose deletion failed during sessions
     await this.sweepOrphanedDataDirs();
     this.browsers = new Map();
