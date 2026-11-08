@@ -158,6 +158,38 @@ describe('/json/ API', function () {
     expect(resJSON.url).to.equal('http://two.com/');
   });
 
+  it('accepts system parameters before the /json/new target', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?token=browserless&timeout=5000&https://one.com/',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(200);
+    const resJSON = await res.json();
+
+    expect(resJSON.url).to.equal('https://one.com/');
+  });
+
+  it('keeps the 200 no-op when only system parameters are given', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const res = await fetch(
+      'http://localhost:3000/json/new?timeout=60000&token=browserless',
+      { method: 'PUT' },
+    );
+    expect(res.status).to.equal(200);
+    const resJSON = await res.json();
+
+    expect(resJSON.url).to.equal('about:blank');
+  });
+
   it('rejects a non-http /json/new URL', async () => {
     const config = new Config();
     config.setToken('browserless');

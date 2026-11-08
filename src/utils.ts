@@ -721,69 +721,70 @@ export const queryParamsToObject = (
 export const JSON_NEW_TARGET_PARAM = 'url';
 
 /**
- * Query parameters browserless consumes on `/json/new` itself. Anything else
- * in the query string belongs to the caller's navigation target.
+ * Splits the raw query of a DevTools `PUT /json/new?{url}` request into the
+ * Browserless-owned prefix and the navigation target.
+ *
+ * Chrome does not parse the text after `?` as query parameters: per the
+ * DevTools HTTP endpoints spec the entire query string *is* the URL, so it may
+ * legitimately contain its own `?`, `&` and `=`. The target therefore begins
+ * at the first URL-looking segment — the raw `https://example.com` form or the
+ * percent-encoded `https%3A%2F%2Fexample.com` form that curl and most HTTP
+ * libraries send — and everything before it belongs to browserless (token,
+ * timeout, blockAds, trackingId, launch, ...). Keying the split on the URL
+ * segment instead of a reserved-parameter list keeps this shim, the request
+ * shims and the route in agreement, and needs no update when a system
+ * parameter is added.
+ *
+ * @param rawSearch The query string, with or without its leading `?`
+ * @returns `systemSearch`, the query browserless parses normally, and
+ *   `rawTarget`, the navigation target (empty when none is present)
  */
-export const jsonNewReservedParams: readonly string[] = ['token'];
+export const splitJSONNewQuery = (
+  rawSearch: string,
+): { rawTarget: string; systemSearch: string } => {
+  const search = rawSearch.startsWith('?') ? rawSearch.slice(1) : rawSearch;
+  const targetStart = search.search(/(?:^|&)(?=https?:\/\/|https?%3a%2f%2f)/i);
+  const targetOffset =
+    targetStart >= 0 && search[targetStart] === '&'
+      ? targetStart + 1
+      : targetStart;
+  return {
+    rawTarget: targetOffset >= 0 ? search.slice(targetOffset) : '',
+    systemSearch: targetStart >= 0 ? search.slice(0, targetStart) : search,
+  };
+};
 
 /**
- * Extracts the navigation target from a DevTools `PUT /json/new?{url}` request.
+ * Extracts the navigation target from a DevTools `PUT /json/new?{url}`
+ * request, using the same URL-segment rule as the request shim that strips
+ * the `token` parameter (`splitJSONNewQuery`).
  *
- * Chrome does not parse the text after `?` as query parameters. Per the
- * DevTools HTTP endpoints spec the entire query string *is* the URL, so it may
- * legitimately contain its own `?`, `&` and `=`. Browserless still needs its own
- * `token` on the same request, so reserved pairs are accepted only before the
- * target. Once a URL-looking segment starts, everything after it belongs to the
- * target — including a final `token=` query parameter of its own.
- *
- * Both spellings clients send are handled, the raw `?https://example.com` form
- * and the percent-encoded `?https%3A%2F%2Fexample.com` form that curl and most
- * HTTP libraries produce.
+ * A target's own query string is preserved, including a trailing token pair of
+ * its own: once the URL segment starts, everything belongs to the target.
+ * When no URL-looking segment is present there is no target — `about:blank`
+ * and requests carrying only browserless parameters (token, timeout, ...)
+ * resolve to `null`, keeping the historical 200 no-op behavior.
  *
  * @param search The `search` of the inbound URL, with or without its leading `?`
- * @param reserved Parameter names browserless owns on this route
  * @returns The requested URL, or `null` when the caller supplied none
  */
-export const parseJSONNewTarget = (
-  search: string,
-  reserved: readonly string[] = jsonNewReservedParams,
-): string | null => {
-  let rest = search.startsWith('?') ? search.slice(1) : search;
+export const parseJSONNewTarget = (search: string): string | null => {
+  const { rawTarget } = splitJSONNewQuery(search);
 
-  // Leading reserved pairs, e.g. `?token=abc&https://example.com`. Stopping at
-  // the first unrecognised key is what keeps the target’s own query string
-  // intact: `a=1&b=2` inside the target is not more browserless parameters.
-  for (;;) {
-    const pair = /^([^=&]+)=([^&]*)(?:&|$)/.exec(rest);
-    if (!pair) break;
-
-    let key: string;
-    try {
-      key = decodeURIComponent(pair[1]);
-    } catch {
-      break;
-    }
-
-    if (!reserved.includes(key.toLowerCase())) break;
-    rest = rest.slice(pair[0].length);
-  }
-
-  // Browserless parameters after the target are deliberately not removed:
-  // that part of the request is the target's own query string.
-  if (!rest) return null;
+  if (!rawTarget) return null;
 
   // Decode only when the scheme itself is encoded. A raw target may contain
   // meaningful escapes in its path (for example /a%2Fb); decoding that entire
   // URL would silently change where the browser navigates.
-  if (/^https?%3a%2f%2f/i.test(rest)) {
+  if (/^https?%3a%2f%2f/i.test(rawTarget)) {
     try {
-      return decodeURIComponent(rest);
+      return decodeURIComponent(rawTarget);
     } catch {
       // Let URL parsing report malformed percent-encoding in the route.
     }
   }
 
-  return rest;
+  return rawTarget;
 };
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;

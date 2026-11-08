@@ -125,6 +125,21 @@ describe('Utils', () => {
         'https://example.com/100%off',
       );
     });
+    it('finds the target after any system parameter, not just token', () => {
+      expect(
+        parseJSONNewTarget('?blockAds=true&trackingId=abc&https://two.com/'),
+      ).to.equal('https://two.com/');
+    });
+
+    it('returns null when only system parameters are present', () => {
+      expect(parseJSONNewTarget('?timeout=60000&token=browserless')).to.equal(
+        null,
+      );
+    });
+
+    it('treats about:blank as no target', () => {
+      expect(parseJSONNewTarget('?about:blank')).to.equal(null);
+    });
   });
 
   describe('#resolveJSONNewTarget', () => {
