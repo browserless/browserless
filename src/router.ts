@@ -130,7 +130,10 @@ export class Router extends EventEmitter {
 
   /** After terminal closure, refuse every non-admitted routed request. */
   protected rejectIfClosed(route: Route, req: Request) {
-    if (this.lifecycle.isClosed && !this.isAdmittedWhenClosed(route, req)) {
+    if (
+      this.lifecycle.isAdmissionClosed &&
+      !this.isAdmittedWhenClosed(route, req)
+    ) {
       throw new WorkerWithdrawn(
         `worker_closed: not admitting application requests (${this.lifecycle.state})`,
       );

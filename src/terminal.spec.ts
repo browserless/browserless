@@ -194,7 +194,7 @@ const build = async () => {
   router.registerHTTPRoute(
     new TestRoute('control', '/control', async (req, res) => {
       // In-band control: terminate from a request served by this server.
-      const report = await browserless.terminate(
+      const report = await browserless.shutdownGracefully(
         { bootId: lc.bootId, generation: lc.generation },
         { caller: req },
       );
@@ -241,10 +241,10 @@ const build = async () => {
 const instrument = (browserless: Browserless) => {
   const ran: string[] = [];
   const target = browserless as unknown as {
-    terminalStopSteps(): Array<{ name: string; run(): Promise<unknown> }>;
+    gracefulShutdownSteps(): Array<{ name: string; run(): Promise<unknown> }>;
   };
-  const steps = target.terminalStopSteps.bind(browserless);
-  target.terminalStopSteps = () =>
+  const steps = target.gracefulShutdownSteps.bind(browserless);
+  target.gracefulShutdownSteps = () =>
     steps().map((step) => ({
       ...step,
       run: async () => {
@@ -273,8 +273,8 @@ const SDK_STEP_ORDER = [
 
 const closeWorker = async (lc: WorkerLifecycle) => {
   lc.withdraw(expectNow(lc));
-  const snap = await lc.retire(expectNow(lc));
-  expect(snap.state, snap.reasons.join('; ')).to.equal('closed');
+  const snap = await lc.tryCloseAdmission(expectNow(lc));
+  expect(snap.state, snap.reasons.join('; ')).to.equal('admissionClosed');
   return snap;
 };
 
@@ -302,7 +302,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       await until(() => !!lc.snapshot().tracked['server-request'], 'arrival');
 
       const snap = await closeWorker(lc);
-      expect(snap.complete).to.be.false; // still accounted
+      expect(snap.drainComplete).to.be.false; // still accounted
       expect(snap.tracked).to.deep.equal({ 'server-request': 1 });
 
       before.resolve();
@@ -310,7 +310,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       expect(res.status).to.equal(503);
       expect(res.body).to.include('worker_closed');
       await lc.whenIdle();
-      expect(lc.snapshot().complete).to.be.true;
+      expect(lc.snapshot().drainComplete).to.be.true;
       expect(lc.snapshot().failures).to.deep.equal([]);
     });
 
@@ -326,7 +326,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       await lc.whenIdle();
       const snap = lc.snapshot();
       expect(snap.failures).to.deep.equal([]);
-      expect(snap.complete).to.be.true;
+      expect(snap.drainComplete).to.be.true;
     });
 
     it('continuous status polling and arrivals still in hooks.before cannot starve closure', async () => {
@@ -344,7 +344,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         'polls and arrival in flight',
       );
       const snap = await closeWorker(lc);
-      expect(snap.complete).to.be.false;
+      expect(snap.drainComplete).to.be.false;
       health.resolve();
       expect((await Promise.all(polls)).map((r) => r.status)).to.deep.equal([
         200, 200,
@@ -352,7 +352,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       before.resolve();
       expect((await arriving).status).to.equal(503);
       await lc.whenIdle();
-      expect(lc.snapshot().complete).to.be.true;
+      expect(lc.snapshot().drainComplete).to.be.true;
       expect(lc.snapshot().failures).to.deep.equal([]);
     });
 
@@ -367,13 +367,14 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const pending = get('/limited?token=t');
       await until(() => !!lc.snapshot().tracked['route-request'], 'admission');
       lc.withdraw(expectNow(lc));
-      const snap = await lc.retire(expectNow(lc));
+      const snap = await lc.tryCloseAdmission(expectNow(lc));
       expect(snap.state).to.equal('withdrawn');
       expect(snap.reasons).to.include('1 outstanding work "route-request"');
       health.resolve({ cpuOverloaded: false, memoryOverloaded: false });
       expect((await pending).status).to.equal(200);
       await lc.whenIdle();
-      expect((await lc.retire(expectNow(lc))).complete).to.be.true;
+      expect((await lc.tryCloseAdmission(expectNow(lc))).drainComplete).to.be
+        .true;
     });
 
     it('a real client abort leaves the original handler counted and holding closure until it settles', async () => {
@@ -385,12 +386,13 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       req.destroy();
       await aborted;
       lc.withdraw(expectNow(lc));
-      const snap = await lc.retire(expectNow(lc));
+      const snap = await lc.tryCloseAdmission(expectNow(lc));
       expect(snap.state).to.equal('withdrawn');
       expect(snap.reasons).to.include('1 outstanding work "route-handler"');
       gates.slow.resolve();
       await lc.whenIdle();
-      expect((await lc.retire(expectNow(lc))).complete).to.be.true;
+      expect((await lc.tryCloseAdmission(expectNow(lc))).drainComplete).to.be
+        .true;
     });
 
     it('cleanup that synchronously spawns follow-up work keeps closure blocked', async () => {
@@ -405,7 +407,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       lc.withdraw(expectNow(lc));
       first.resolve();
       await new Promise((r) => setImmediate(r));
-      const snap = await lc.retire(expectNow(lc));
+      const snap = await lc.tryCloseAdmission(expectNow(lc));
       expect(snap.state).to.equal('withdrawn');
       expect(snap.tracked).to.deep.equal({ 'cleanup-b': 1 });
     });
@@ -424,7 +426,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         'after-hook',
         'timer-cleanup',
       ]);
-      expect(lc.snapshot().complete).to.be.false;
+      expect(lc.snapshot().drainComplete).to.be.false;
     });
   });
 
@@ -433,14 +435,14 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const { browserless, get, lc } = await stack();
       const ran = instrument(browserless);
       lc.withdraw(expectNow(lc));
-      const report = await browserless.terminate(expectNow(lc));
-      expect(report.complete).to.be.false;
+      const report = await browserless.shutdownGracefully(expectNow(lc));
+      expect(report.shutdownComplete).to.be.false;
       expect(report.steps).to.deep.equal([]);
       expect(report.reasons[0]).to.equal(
         'terminal admission not closed (state withdrawn)',
       );
       expect(() =>
-        browserless.terminate({ bootId: lc.bootId, generation: 0 }),
+        browserless.shutdownGracefully({ bootId: lc.bootId, generation: 0 }),
       ).to.throw(LifecycleConflict);
       expect(ran).to.deep.equal([]);
       expect((await get('/work?token=t')).status).to.equal(200);
@@ -450,8 +452,8 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const { browserless, get, lc } = await stack();
       await closeWorker(lc);
       await lc.track('late-cleanup', Promise.resolve());
-      const report = await browserless.terminate(expectNow(lc));
-      expect(report.complete).to.be.false;
+      const report = await browserless.shutdownGracefully(expectNow(lc));
+      expect(report.shutdownComplete).to.be.false;
       expect(report.steps).to.deep.equal([]);
       expect(report.reasons).to.include(
         'failed "late-cleanup": work started after closed',
@@ -468,7 +470,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const probe = get('/health?token=t');
       await until(() => !!lc.snapshot().tracked['route-handler'], 'probe');
 
-      const terminating = browserless.terminate(expectNow(lc));
+      const terminating = browserless.shutdownGracefully(expectNow(lc));
       await new Promise((r) => setTimeout(r, 50));
       expect(ran).to.deep.equal(SDK_STEP_ORDER.slice(0, 3));
 
@@ -476,7 +478,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const probed = await probe;
       expect(probed.status).to.equal(200);
       const report = await terminating;
-      expect(report.complete, report.reasons.join('; ')).to.be.true;
+      expect(report.shutdownComplete, report.reasons.join('; ')).to.be.true;
       expect(report.state).to.equal('stopped');
       expect(ran).to.deep.equal(SDK_STEP_ORDER);
       expect(report.steps.map((s) => [s.name, s.status])).to.deep.equal(
@@ -485,7 +487,9 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       expect((await get('/health?token=t').catch((e) => e)).code).to.equal(
         'ECONNREFUSED',
       );
-      expect(await browserless.terminate(expectNow(lc))).to.equal(report);
+      expect(await browserless.shutdownGracefully(expectNow(lc))).to.equal(
+        report,
+      );
     });
 
     it('in-band control request: terminate does not wait on its own request, and its descendants are not failures', async () => {
@@ -494,12 +498,12 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const res = await get('/control?token=t');
       expect(res.status).to.equal(200);
       const report = JSON.parse(res.body);
-      expect(report.complete, report.reasons.join('; ')).to.be.true;
+      expect(report.shutdownComplete, report.reasons.join('; ')).to.be.true;
       expect(report.state).to.equal('stopped');
       await lc.whenIdle();
       const snap = lc.snapshot();
       expect(snap.failures).to.deep.equal([]);
-      expect(snap.complete).to.be.true;
+      expect(snap.drainComplete).to.be.true;
     });
 
     it('keep-alive: idle sockets close at close-listener, an in-flight one finishes with Connection: close, new connections are refused', async () => {
@@ -531,7 +535,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const busy = keepAliveGet(busyAgent, '/health?token=t');
       await until(() => !!lc.snapshot().tracked['route-handler'], 'busy');
 
-      const terminating = browserless.terminate(expectNow(lc));
+      const terminating = browserless.shutdownGracefully(expectNow(lc));
       await idleClosed;
       expect(
         (await keepAliveGet(agent, '/health?token=t').catch((e) => e)).code,
@@ -539,7 +543,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       health.resolve();
       const done = await busy;
       expect(done).to.deep.equal({ connection: 'close', status: 200 });
-      expect((await terminating).complete).to.be.true;
+      expect((await terminating).shutdownComplete).to.be.true;
       agent.destroy();
       busyAgent.destroy();
     });
@@ -555,13 +559,13 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         'GET /health-ws?token=t HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
       );
       await until(() => received.includes('101'), 'upgrade');
-      const terminating = browserless.terminate(expectNow(lc));
+      const terminating = browserless.shutdownGracefully(expectNow(lc));
       await new Promise((r) => setTimeout(r, 50));
       expect(ran).to.deep.equal(SDK_STEP_ORDER.slice(0, 3));
       expect(socket.destroyed).to.be.false;
       gates.ws.resolve();
       const report = await terminating;
-      expect(report.complete, report.reasons.join('; ')).to.be.true;
+      expect(report.shutdownComplete, report.reasons.join('; ')).to.be.true;
       socket.destroy();
     });
 
@@ -575,9 +579,9 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         configStopped = true;
       };
 
-      const report = await browserless.terminate(expectNow(lc));
-      expect(report.complete).to.be.false;
-      expect(report.state).to.equal('closed');
+      const report = await browserless.shutdownGracefully(expectNow(lc));
+      expect(report.shutdownComplete).to.be.false;
+      expect(report.state).to.equal('admissionClosed');
       expect(report.steps.map((s) => [s.name, s.status])).to.deep.equal(
         SDK_STEP_ORDER.map((n) => {
           const i = SDK_STEP_ORDER.indexOf(n);
@@ -595,7 +599,9 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       expect(report.reasons).to.include(
         'failed "terminal:webhooks": webhook flush failed',
       );
-      expect(await browserless.terminate(expectNow(lc))).to.equal(report);
+      expect(await browserless.shutdownGracefully(expectNow(lc))).to.equal(
+        report,
+      );
       expect(lc.markStopped()).to.be.false;
     });
   });
@@ -658,18 +664,20 @@ describe('Retained browsers (mock browser, fake clock)', () => {
     lc.withdraw(expectNow(lc));
     for (const elapsed of [0, sixHours / 2, sixHours - 1]) {
       clock.tick(elapsed === 0 ? 0 : elapsed - (Date.now() - 0));
-      const snap = await lc.retire(expectNow(lc));
+      const snap = await lc.tryCloseAdmission(expectNow(lc));
       expect(snap.state).to.equal('withdrawn');
       expect(snap.sources['sdk-browsers']).to.equal(1);
-      expect((await browserless.terminate(expectNow(lc))).complete).to.be.false;
+      expect(
+        (await browserless.shutdownGracefully(expectNow(lc))).shutdownComplete,
+      ).to.be.false;
       expect(browser.closed).to.equal(0);
     }
     clock.tick(1); // the session's own keepUntil timer fires
     clock.restore();
     await until(() => !Object.keys(lc.snapshot().tracked).length, 'close');
     expect(browser.closed).to.equal(1);
-    const snap = await lc.retire(expectNow(lc));
-    expect(snap.complete, snap.reasons.join('; ')).to.be.true;
+    const snap = await lc.tryCloseAdmission(expectNow(lc));
+    expect(snap.drainComplete, snap.reasons.join('; ')).to.be.true;
     (browserless as unknown as { monitoring: Monitoring }).monitoring.stop();
   });
 });

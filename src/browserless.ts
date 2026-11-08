@@ -57,12 +57,14 @@ type Implements<T> = {
 type routeInstances =
   HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute;
 
-export interface TerminalStopStep {
+export interface ShutdownStep {
   name: string;
   run: () => Promise<unknown>;
 }
 
-export type TerminalReport = LifecycleSnapshot & {
+export type ShutdownReport = LifecycleSnapshot & {
+  /** All ordered shutdown steps finished; drainComplete alone is insufficient. */
+  shutdownComplete: boolean;
   steps: Array<{
     name: string;
     status: 'pending' | 'done' | 'failed' | 'skipped';
@@ -96,11 +98,11 @@ export class Browserless extends EventEmitter {
   // default 5-minute cadence). Without a cap the file — and the in-memory
   // cache plus every /metrics response built from it — grows forever.
   metricsMaxEntries: number = 10_000;
-  protected terminating?: Promise<TerminalReport>;
+  protected terminating?: Promise<ShutdownReport>;
   // Owner of the metrics-save producer: its passes may run after closure
   // until the terminal stop clears the interval.
   protected metricsProducer = {};
-  // A request that invoked terminate in-band (through this server's router):
+  // A request that invoked shutdownGracefully through this server's router:
   // its own work is excluded from the idle barrier and the final check, so
   // the stop does not wait on itself.
   protected terminalCaller?: object;
@@ -377,7 +379,7 @@ export class Browserless extends EventEmitter {
    * finalization after `idle-barrier`, before the clients it needs stop) by
    * overriding this and splicing by name.
    */
-  protected terminalStopSteps(): TerminalStopStep[] {
+  protected gracefulShutdownSteps(): ShutdownStep[] {
     return [
       {
         name: 'stop-metrics-interval',
@@ -409,30 +411,30 @@ export class Browserless extends EventEmitter {
   /**
    * Ordered terminal stop, separate from the forced `stop()`.
    *
-   * Requires terminal admission closure first (`lifecycle.retire` reached
-   * `closed`) and no recorded failure. Then runs `terminalStopSteps()` in
+   * Requires terminal admission closure first (`lifecycle.tryCloseAdmission`
+   * reached `admissionClosed`) and no recorded failure. Runs `gracefulShutdownSteps()` in
    * order with no deadline. The first failing step is recorded as a lifecycle
    * failure and every later step is skipped, so dependencies of a component
-   * that failed to stop stay up. `complete` is true only if every step
+   * that failed to stop stay up. `shutdownComplete` is true only if every step
    * resolved and nothing is outstanding, failed or uncovered afterwards; the
    * lifecycle then becomes `stopped`. Repeated calls return the same result.
    * It does not exit the process.
    */
-  public terminate(
+  public shutdownGracefully(
     expect: LifecycleExpect,
     opts: { caller?: object } = {},
-  ): Promise<TerminalReport> {
+  ): Promise<ShutdownReport> {
     if (this.terminating && expect.bootId === this.lifecycle.bootId) {
       return this.terminating;
     }
     this.lifecycle.checkExpect(expect);
     const before = this.lifecycle.snapshot();
-    if (before.state !== 'closed' || before.failures.length) {
+    if (before.state !== 'admissionClosed' || before.failures.length) {
       return Promise.resolve({
         ...before,
-        complete: false,
+        shutdownComplete: false,
         reasons: [
-          ...(before.state !== 'closed'
+          ...(before.state !== 'admissionClosed'
             ? [`terminal admission not closed (state ${before.state})`]
             : []),
           ...before.reasons,
@@ -444,12 +446,12 @@ export class Browserless extends EventEmitter {
     return this.terminating;
   }
 
-  protected async runTerminalStop(caller?: object): Promise<TerminalReport> {
+  protected async runTerminalStop(caller?: object): Promise<ShutdownReport> {
     this.terminalCaller = caller;
-    const steps: TerminalReport['steps'] = this.terminalStopSteps().map(
+    const steps: ShutdownReport['steps'] = this.gracefulShutdownSteps().map(
       ({ name }) => ({ name, status: 'pending' }),
     );
-    const defs = this.terminalStopSteps();
+    const defs = this.gracefulShutdownSteps();
     for (let i = 0; i < defs.length; i++) {
       try {
         await defs[i].run();
@@ -464,9 +466,9 @@ export class Browserless extends EventEmitter {
     }
     this.lifecycle.markStopped(caller);
     const after = this.lifecycle.snapshot();
-    const complete =
+    const shutdownComplete =
       after.state === 'stopped' && steps.every((s) => s.status === 'done');
-    return { ...after, complete, steps };
+    return { ...after, shutdownComplete, steps };
   }
 
   public async stop() {

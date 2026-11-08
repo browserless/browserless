@@ -6,16 +6,17 @@ import { randomUUID } from 'crypto';
  *
  * - `running`: fresh launches are admitted.
  * - `withdrawn`: fresh launches are rejected; attaching to live browsers and
- *   work already holding a launch right continue. Reversible via `resume`.
- * - `closed`: terminal. Reached only through `retire` when nothing is
+ *   work already holding a launch permit continue. Reversible via `resume`.
+ * - `admissionClosed`: terminal. Reached through `tryCloseAdmission` when nothing is
  *   outstanding; attaches and (via the Router) application routes are
  *   rejected too.
- * - `stopped`: an ordered terminal stop (`Browserless.terminate`) finished
+ * - `stopped`: an ordered shutdown (`Browserless.shutdownGracefully`) finished
  *   every step and nothing was outstanding or failed afterwards.
  *
  * Nothing here closes browsers or shortens retention.
  */
-export type WorkerState = 'running' | 'withdrawn' | 'closed' | 'stopped';
+export type WorkerState =
+  'running' | 'withdrawn' | 'admissionClosed' | 'stopped';
 
 export interface LifecycleExpect {
   bootId: string;
@@ -28,7 +29,7 @@ export interface LifecycleExpect {
  * finished cleaning up after failure. Pass the error when that cleanup failed.
  * Idempotent: only the first settle counts.
  */
-export interface LaunchRight {
+export interface LaunchPermit {
   readonly kind: string;
   readonly settled: boolean;
   settle(cleanupError?: unknown): void;
@@ -38,12 +39,12 @@ export interface LaunchRight {
  * Launch authority owned by one admitted background job.
  * Created only while `running`; while unsettled it is
  * outstanding work, and every `acquireLaunch(kind, { adopt: authority })`
- * returns a new, independently counted child right that skips admission.
+ * returns a new, independently counted child permit that skips admission.
  * Settle it exactly once at the job's own end; settling never revokes or
  * uncounts children already started, and a settled authority adopts nothing.
  * It is an in-process object: never serialize it or hand it to another job.
  */
-export type JobAuthority = LaunchRight;
+export type JobLaunchAuthority = LaunchPermit;
 
 export interface LifecycleFailure {
   kind: string;
@@ -55,7 +56,7 @@ export interface LifecycleSnapshot {
   bootId: string;
   generation: number;
   state: WorkerState;
-  rights: Record<string, number>;
+  launchPermits: Record<string, number>;
   tracked: Record<string, number>;
   sources: Record<string, number>;
   producers: Record<string, { enabled: boolean; covered: boolean }>;
@@ -64,11 +65,11 @@ export interface LifecycleSnapshot {
   failureCount: number;
   failures: LifecycleFailure[];
   /**
-   * True only in `closed`/`stopped` with nothing outstanding, failed or
+   * True only in `admissionClosed`/`stopped` with nothing outstanding, failed or
    * uncovered. This is the covered work barrier, not a safe-to-kill signal;
-   * see `Browserless.terminate` for the ordered terminal stop.
+   * see `Browserless.shutdownGracefully` and its `shutdownComplete` report.
    */
-  complete: boolean;
+  drainComplete: boolean;
   reasons: string[];
 }
 
@@ -111,8 +112,8 @@ export class WorkerLifecycle extends EventEmitter {
     { enabled: boolean; covered: boolean }
   >();
   protected admissions = new WeakMap<object, number>();
-  protected adoptable = new WeakSet<LaunchRight>();
-  protected authorities = new WeakSet<LaunchRight>();
+  protected adoptable = new WeakSet<LaunchPermit>();
+  protected authorities = new WeakSet<LaunchPermit>();
   // Owners and requests that have had an authority: one per owner, ever.
   protected authorityOwners = new WeakSet<object>();
   protected lastTransition: { op: string; fromGeneration: number } | null =
@@ -127,9 +128,11 @@ export class WorkerLifecycle extends EventEmitter {
     return this.currentState;
   }
 
-  /** Terminal admission closure has happened (`closed` or `stopped`). */
-  get isClosed(): boolean {
-    return this.currentState === 'closed' || this.currentState === 'stopped';
+  /** Terminal admission closure has happened (`admissionClosed` or `stopped`). */
+  get isAdmissionClosed(): boolean {
+    return (
+      this.currentState === 'admissionClosed' || this.currentState === 'stopped'
+    );
   }
 
   get generation(): number {
@@ -137,10 +140,10 @@ export class WorkerLifecycle extends EventEmitter {
   }
 
   /**
-   * Synchronously take a launch right, before any async launch preparation.
+   * Synchronously take a launch permit, before any async launch preparation.
    *
-   * `adopt`: a right taken earlier by an outer caller for this same launch.
-   * It is honoured once, and only while unsettled; the returned child right is
+   * `adopt`: a permit taken earlier by an outer caller for this same launch.
+   * It is honoured once, and only while unsettled; the returned child permit is
    * counted separately and skips admission. Anything else (no adopt, settled,
    * already adopted, foreign) goes through admission.
    *
@@ -149,19 +152,19 @@ export class WorkerLifecycle extends EventEmitter {
    */
   public acquireLaunch(
     kind: string,
-    opts: { req?: object; adopt?: LaunchRight } = {},
-  ): LaunchRight {
+    opts: { req?: object; adopt?: LaunchPermit } = {},
+  ): LaunchPermit {
     const { req, adopt } = opts;
     if (adopt && !adopt.settled && this.authorities.has(adopt)) {
       // Job authority: any number of children while the job is unsettled.
-      return this.createRight(kind);
+      return this.createLaunchPermit(kind);
     }
     if (adopt && !adopt.settled && this.adoptable.has(adopt)) {
       this.adoptable.delete(adopt);
-      return this.createRight(kind);
+      return this.createLaunchPermit(kind);
     }
     this.assertAdmitting(req);
-    const right = this.createRight(kind);
+    const right = this.createLaunchPermit(kind);
     this.adoptable.add(right);
     return right;
   }
@@ -173,10 +176,10 @@ export class WorkerLifecycle extends EventEmitter {
    * is the job's own in-process object; each owner, and each `req`, can be
    * given at most one authority, even after it settled (LifecycleConflict).
    */
-  public createJobAuthority(
+  public createJobLaunchAuthority(
     kind: string,
     opts: { owner: object; req?: object },
-  ): JobAuthority {
+  ): JobLaunchAuthority {
     const { owner, req } = opts;
     if (
       this.authorityOwners.has(owner) ||
@@ -187,7 +190,7 @@ export class WorkerLifecycle extends EventEmitter {
       );
     }
     this.assertAdmitting(req);
-    const authority = this.createRight(`job:${kind}`);
+    const authority = this.createLaunchPermit(`job:${kind}`);
     this.authorityOwners.add(owner);
     if (req) this.authorityOwners.add(req);
     this.authorities.add(authority);
@@ -210,7 +213,7 @@ export class WorkerLifecycle extends EventEmitter {
 
   /** Throws only when terminal; live attaches stay possible while withdrawn. */
   public assertAttachAllowed(): void {
-    if (this.isClosed) {
+    if (this.isAdmissionClosed) {
       throw new WorkerWithdrawn('worker_withdrawn: worker is closed');
     }
   }
@@ -232,7 +235,7 @@ export class WorkerLifecycle extends EventEmitter {
     opts: { required?: boolean; owner?: object } = {},
   ): Promise<T> {
     const admitted = !!opts.owner && this.admittedAfterClose.has(opts.owner);
-    if (this.isClosed && !admitted) {
+    if (this.isAdmissionClosed && !admitted) {
       this.recordFailure(kind, new Error('work started after closed'));
     }
     return this.watch(kind, p, opts.required ?? true, opts.owner, !admitted);
@@ -276,7 +279,7 @@ export class WorkerLifecycle extends EventEmitter {
   }
 
   /**
-   * Resolves once no launch right or tracked work is outstanding. No deadline:
+   * Resolves once no launch permit or tracked work is outstanding. No deadline:
    * it waits for the actual work. Sources are polled, not awaited; check
    * `snapshot()` afterwards.
    */
@@ -309,11 +312,14 @@ export class WorkerLifecycle extends EventEmitter {
   }
 
   /**
-   * closed -> stopped, only when nothing is outstanding, failed or uncovered.
+   * admissionClosed -> stopped, only with nothing outstanding, failed or uncovered.
    * Called by the ordered terminal stop after its last step.
    */
   public markStopped(except?: object): boolean {
-    if (this.currentState !== 'closed' || this.reasons({ except }).length) {
+    if (
+      this.currentState !== 'admissionClosed' ||
+      this.reasons({ except }).length
+    ) {
       return false;
     }
     this.currentState = 'stopped';
@@ -321,7 +327,7 @@ export class WorkerLifecycle extends EventEmitter {
     return true;
   }
 
-  /** Live-resource counter polled by snapshot/retire. */
+  /** Live-resource counter polled by snapshot/tryCloseAdmission. */
   public registerSource(name: string, count: () => number): void {
     this.sources.set(name, count);
   }
@@ -364,17 +370,21 @@ export class WorkerLifecycle extends EventEmitter {
    * admission (including attaches) synchronously and report complete.
    * Otherwise stay withdrawn and report the reasons.
    */
-  public async retire(expect: LifecycleExpect): Promise<LifecycleSnapshot> {
-    if (this.isClosed && expect.bootId === this.bootId) {
+  public async tryCloseAdmission(
+    expect: LifecycleExpect,
+  ): Promise<LifecycleSnapshot> {
+    if (this.isAdmissionClosed && expect.bootId === this.bootId) {
       return this.snapshot();
     }
     this.checkExpect(expect);
     if (this.currentState !== 'withdrawn') {
-      throw new LifecycleConflict(`Cannot retire from ${this.currentState}`);
+      throw new LifecycleConflict(
+        `Cannot close admission from ${this.currentState}`,
+      );
     }
     if (this.reasons({ blockingOnly: true }).length === 0) {
-      this.currentState = 'closed';
-      this.emit('closed');
+      this.currentState = 'admissionClosed';
+      this.emit('admissionClosed');
     }
     return this.snapshot();
   }
@@ -393,14 +403,14 @@ export class WorkerLifecycle extends EventEmitter {
       bootId: this.bootId,
       generation: this.currentGeneration,
       state: this.currentState,
-      rights,
+      launchPermits: rights,
       tracked,
       sources: this.readSources(),
       producers: Object.fromEntries(this.producers),
       oldestOutstandingMs: oldest === null ? null : Date.now() - oldest,
       failureCount: this.failureCount,
       failures: [...this.failures],
-      complete: this.isClosed && reasons.length === 0,
+      drainComplete: this.isAdmissionClosed && reasons.length === 0,
       reasons,
     };
   }
@@ -455,7 +465,7 @@ export class WorkerLifecycle extends EventEmitter {
     return out;
   }
 
-  protected createRight(kind: string): LaunchRight {
+  protected createLaunchPermit(kind: string): LaunchPermit {
     const id = this.add(kind, true, undefined, true);
     let settled = false;
     return {

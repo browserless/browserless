@@ -19,7 +19,7 @@ import {
   FileSystem,
   FirefoxPlaywright,
   Hooks,
-  LaunchRight,
+  LaunchPermit,
   Logger,
   NotFound,
   Request,
@@ -267,7 +267,7 @@ export class BrowserManager {
    */
   protected closeMetadataBrowser(
     browser: BrowserInstance | undefined,
-    right: LaunchRight,
+    right: LaunchPermit,
   ) {
     if (!browser) return right.settle();
     browser.close().then(
@@ -654,7 +654,7 @@ export class BrowserManager {
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
-    launchRight?: LaunchRight,
+    launchRight?: LaunchPermit,
   ): Promise<BrowserInstance> {
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(

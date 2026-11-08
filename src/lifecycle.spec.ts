@@ -125,18 +125,18 @@ describe('WorkerLifecycle', () => {
     lc.withdraw(expectFor(lc));
 
     expect(() => lc.acquireLaunch('x')).to.throw(WorkerWithdrawn);
-    expect(lc.snapshot().rights).to.deep.equal({ x: 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ x: 1 });
 
-    let snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    let snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.state).to.equal('withdrawn');
     expect(snap.reasons.join()).to.include('launch right "x"');
 
     right.settle();
     right.settle(new Error('ignored: already settled'));
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.true;
-    expect(snap.state).to.equal('closed');
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.true;
+    expect(snap.state).to.equal('admissionClosed');
     expect(() => lc.assertAttachAllowed()).to.throw(WorkerWithdrawn);
     expect(() => lc.resume(expectFor(lc))).to.throw(/Cannot resume/);
   });
@@ -166,7 +166,7 @@ describe('WorkerLifecycle', () => {
 
     // (a) nested acquire adopting the live outer right is admitted and counted.
     const inner = lc.acquireLaunch('sdk-launch', { adopt: outer });
-    expect(lc.snapshot().rights).to.deep.equal({
+    expect(lc.snapshot().launchPermits).to.deep.equal({
       outer: 1,
       'sdk-launch': 1,
     });
@@ -181,12 +181,12 @@ describe('WorkerLifecycle', () => {
       WorkerWithdrawn,
     );
     inner.settle();
-    expect(lc.snapshot().rights).to.deep.equal({ outer: 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ outer: 1 });
     outer.settle();
     expect(() => lc.acquireLaunch('sdk-launch', { adopt: outer })).to.throw(
       WorkerWithdrawn,
     );
-    expect(lc.snapshot().rights).to.deep.equal({});
+    expect(lc.snapshot().launchPermits).to.deep.equal({});
   });
 
   it('a required failure keeps completion blocked after all work settled; handler errors do not', async () => {
@@ -199,12 +199,13 @@ describe('WorkerLifecycle', () => {
     );
     await flush();
     lc.withdraw(expectFor(lc));
-    const snap = await lc.retire(expectFor(lc));
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
     expect(snap.tracked).to.deep.equal({});
-    expect(snap.complete).to.be.false;
+    expect(snap.drainComplete).to.be.false;
     expect(snap.state).to.equal('withdrawn');
     expect(snap.failures.map((f) => f.kind)).to.deep.equal(['cleanup']);
-    expect((await lc.retire(expectFor(lc))).complete).to.be.false;
+    expect((await lc.tryCloseAdmission(expectFor(lc))).drainComplete).to.be
+      .false;
   });
 
   it('bounds retained failure details without forgetting failures or permitting retirement', async () => {
@@ -212,8 +213,8 @@ describe('WorkerLifecycle', () => {
     for (let i = 0; i < 105; i++)
       lc.recordFailure('cleanup', new Error(`failure ${i}`));
     lc.withdraw(expectFor(lc));
-    const snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.equal(false);
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.equal(false);
     expect(snap.failures).to.have.length(100);
     expect(snap.failures[0].message).to.equal('failure 0');
     expect(snap.failures[99].message).to.equal('failure 99');
@@ -230,8 +231,8 @@ describe('WorkerLifecycle', () => {
     expect(() => lc.resume(g0)).to.throw(/Expected/); // stale generation
     lc.registerProducer('crawl', { covered: false, enabled: true });
     lc.registerProducer('agent', { covered: false, enabled: false });
-    const snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.reasons).to.deep.equal([
       'producer "crawl" is enabled but not covered',
     ]);
@@ -257,13 +258,14 @@ describe('BrowserManager drain (mock browsers)', () => {
       new Logger('test'),
     );
     lc.withdraw(expectFor(lc));
-    expect(lc.snapshot().rights).to.deep.equal({ 'sdk-launch': 1 });
-    expect((await lc.retire(expectFor(lc))).complete).to.be.false;
+    expect(lc.snapshot().launchPermits).to.deep.equal({ 'sdk-launch': 1 });
+    expect((await lc.tryCloseAdmission(expectFor(lc))).drainComplete).to.be
+      .false;
 
     launch.resolve();
     const browser = await pending;
     let snap = lc.snapshot();
-    expect(snap.rights).to.deep.equal({});
+    expect(snap.launchPermits).to.deep.equal({});
     expect(snap.sources['sdk-browsers']).to.equal(1);
 
     const close = deferred();
@@ -273,12 +275,13 @@ describe('BrowserManager drain (mock browsers)', () => {
     // Evicted from the browser map, but the close is still in flight.
     expect(snap.sources['sdk-browsers']).to.equal(0);
     expect(snap.tracked).to.deep.equal({ 'sdk-close': 1 });
-    expect((await lc.retire(expectFor(lc))).complete).to.be.false;
+    expect((await lc.tryCloseAdmission(expectFor(lc))).drainComplete).to.be
+      .false;
 
     close.resolve();
     await drained(lc);
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete, snap.reasons.join('; ')).to.be.true;
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete, snap.reasons.join('; ')).to.be.true;
   });
 
   it('after withdrawal: fresh and BLESS page launches are 503 with no browser; live reconnect works; missing target never falls back to launch', async () => {
@@ -334,7 +337,7 @@ describe('BrowserManager drain (mock browsers)', () => {
       outer,
     );
     expect(browser).to.be.instanceOf(FakeBrowser);
-    expect(lc.snapshot().rights).to.deep.equal({ outer: 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ outer: 1 });
     const second = await manager
       .getBrowserForRequest(
         makeReq('/chromium'),
@@ -359,7 +362,7 @@ describe('BrowserManager drain (mock browsers)', () => {
       .catch((e) => e);
     expect(err.message).to.equal('browser hook failed');
     const snap = lc.snapshot();
-    expect(snap.rights).to.deep.equal({});
+    expect(snap.launchPermits).to.deep.equal({});
     expect(snap.failures.map((f) => [f.kind, f.message])).to.deep.equal([
       ['sdk-launch', 'kill failed'],
     ]);
@@ -405,8 +408,8 @@ describe('BrowserManager drain (mock browsers)', () => {
     await manager.complete(browser as never);
     await drained(lc);
     lc.withdraw(expectFor(lc));
-    const snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.reasons).to.deep.equal([
       'failed "page-hook": page hook failed',
     ]);
@@ -557,8 +560,8 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     await flush();
 
     lc.withdraw(expectFor(lc));
-    let snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    let snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.tracked).to.deep.equal({
       'route-handler': 1,
       'sdk-close': 1,
@@ -566,14 +569,14 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
 
     close.resolve();
     await drained(lc, 'sdk-close');
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.tracked).to.deep.equal({ 'route-handler': 1 });
 
     handler.resolve(); // late completion, long after the response closed
     await drained(lc);
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete, snap.reasons.join('; ')).to.be.true;
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete, snap.reasons.join('; ')).to.be.true;
   });
 
   it('limiter timeout frees the queue slot, but the handler stays counted until it settles', async () => {
@@ -591,11 +594,12 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     const snap = lc.snapshot();
     expect(snap.tracked['route-handler']).to.equal(1);
     lc.withdraw(expectFor(lc));
-    expect((await lc.retire(expectFor(lc))).complete).to.be.false;
+    expect((await lc.tryCloseAdmission(expectFor(lc))).drainComplete).to.be
+      .false;
 
     handler.resolve();
     await drained(lc);
-    const done = await lc.retire(expectFor(lc));
+    const done = await lc.tryCloseAdmission(expectFor(lc));
     expect(done.reasons).to.deep.equal([]);
   });
 
@@ -613,8 +617,8 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     after.reject(new Error('billing write failed'));
     await flush();
     lc.withdraw(expectFor(lc));
-    const snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.reasons).to.deep.equal([
       'failed "after-hook": billing write failed',
     ]);
@@ -836,19 +840,19 @@ describe('Job authority', () => {
 
   it('is created only while running, with or without a request, and never after the acceptance fence', () => {
     const lc = new WorkerLifecycle();
-    const a = lc.createJobAuthority('crawl', { owner: {} });
-    expect(lc.snapshot().rights).to.deep.equal({ 'job:crawl': 1 });
+    const a = lc.createJobLaunchAuthority('crawl', { owner: {} });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ 'job:crawl': 1 });
 
     const oldReq = {};
     lc.stampAdmission(oldReq);
     lc.withdraw(expectFor(lc));
-    expect(() => lc.createJobAuthority('crawl', { owner: {} })).to.throw(
+    expect(() => lc.createJobLaunchAuthority('crawl', { owner: {} })).to.throw(
       WorkerWithdrawn,
     );
     lc.resume(expectFor(lc));
     // admitted before withdraw+resume: the fence is the generation, not the state
     expect(() =>
-      lc.createJobAuthority('crawl', { owner: {}, req: oldReq }),
+      lc.createJobLaunchAuthority('crawl', { owner: {}, req: oldReq }),
     ).to.throw(WorkerWithdrawn, /admitted under generation 0/);
     a.settle();
   });
@@ -857,54 +861,57 @@ describe('Job authority', () => {
     const lc = new WorkerLifecycle();
     const owner = {};
     const req = {};
-    lc.createJobAuthority('agent', { owner, req }).settle();
-    expect(() => lc.createJobAuthority('agent', { owner })).to.throw(
+    lc.createJobLaunchAuthority('agent', { owner, req }).settle();
+    expect(() => lc.createJobLaunchAuthority('agent', { owner })).to.throw(
       LifecycleConflict,
     );
-    expect(() => lc.createJobAuthority('agent', { owner: {}, req })).to.throw(
-      LifecycleConflict,
-    );
+    expect(() =>
+      lc.createJobLaunchAuthority('agent', { owner: {}, req }),
+    ).to.throw(LifecycleConflict);
   });
 
   it('adopts repeatedly while unsettled, across withdrawal between child launches; each child is counted', () => {
     const lc = new WorkerLifecycle();
-    const a = lc.createJobAuthority('crawl', { owner: {} });
+    const a = lc.createJobLaunchAuthority('crawl', { owner: {} });
     const c1 = lc.acquireLaunch('bql', { adopt: a });
     lc.withdraw(expectFor(lc));
     const c2 = lc.acquireLaunch('bql', { adopt: a });
     const c3 = lc.acquireLaunch('bql', { adopt: a });
-    expect(lc.snapshot().rights).to.deep.equal({ bql: 3, 'job:crawl': 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({
+      bql: 3,
+      'job:crawl': 1,
+    });
     // ordinary acquisitions are still refused while withdrawn
     expect(() => lc.acquireLaunch('bql')).to.throw(WorkerWithdrawn);
     [c1, c2, c3].forEach((c) => c.settle());
-    expect(lc.snapshot().rights).to.deep.equal({ 'job:crawl': 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ 'job:crawl': 1 });
     a.settle();
   });
 
   it('settling the authority with a live child keeps the child counted; settle is idempotent and irrevocable', async () => {
     const lc = new WorkerLifecycle();
-    const a = lc.createJobAuthority('bundle', { owner: {} });
+    const a = lc.createJobLaunchAuthority('bundle', { owner: {} });
     const child = lc.acquireLaunch('bql', { adopt: a });
     lc.withdraw(expectFor(lc));
     a.settle();
     a.settle(new Error('ignored: already settled'));
-    let snap = await lc.retire(expectFor(lc));
+    let snap = await lc.tryCloseAdmission(expectFor(lc));
     expect(snap.state).to.equal('withdrawn');
-    expect(snap.rights).to.deep.equal({ bql: 1 });
+    expect(snap.launchPermits).to.deep.equal({ bql: 1 });
     expect(snap.failures).to.deep.equal([]);
     expect(() => lc.acquireLaunch('bql', { adopt: a })).to.throw(
       WorkerWithdrawn,
     );
     child.settle();
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete, snap.reasons.join('; ')).to.be.true;
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete, snap.reasons.join('; ')).to.be.true;
   });
 
   it('an unsettled authority blocks retire and whenIdle; a failed settlement is recorded', async () => {
     const lc = new WorkerLifecycle();
-    const a = lc.createJobAuthority('background-task', { owner: {} });
+    const a = lc.createJobLaunchAuthority('background-task', { owner: {} });
     lc.withdraw(expectFor(lc));
-    expect((await lc.retire(expectFor(lc))).reasons).to.deep.equal([
+    expect((await lc.tryCloseAdmission(expectFor(lc))).reasons).to.deep.equal([
       '1 outstanding launch right "job:background-task"',
     ]);
     let idle = false;
@@ -914,8 +921,8 @@ describe('Job authority', () => {
     a.settle(new Error('profile capture failed'));
     await flush();
     expect(idle).to.be.true;
-    const snap = await lc.retire(expectFor(lc));
-    expect(snap.complete).to.be.false;
+    const snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete).to.be.false;
     expect(snap.reasons).to.deep.equal([
       'failed "job:background-task": profile capture failed',
     ]);
@@ -924,8 +931,8 @@ describe('Job authority', () => {
   it('stale, foreign and ordinary rights do not act as authorities', () => {
     const lc = new WorkerLifecycle();
     const other = new WorkerLifecycle();
-    const foreign = other.createJobAuthority('crawl', { owner: {} });
-    const settled = lc.createJobAuthority('crawl', { owner: {} });
+    const foreign = other.createJobLaunchAuthority('crawl', { owner: {} });
+    const settled = lc.createJobLaunchAuthority('crawl', { owner: {} });
     settled.settle();
     const ordinary = lc.acquireLaunch('x');
     lc.acquireLaunch('x', { adopt: ordinary }).settle(); // single use, unchanged
@@ -935,7 +942,7 @@ describe('Job authority', () => {
         WorkerWithdrawn,
       );
     }
-    expect(other.snapshot().rights).to.deep.equal({ 'job:crawl': 1 });
+    expect(other.snapshot().launchPermits).to.deep.equal({ 'job:crawl': 1 });
     foreign.settle();
     ordinary.settle();
   });
@@ -943,7 +950,7 @@ describe('Job authority', () => {
   it('through BrowserManager: repeated launches after withdrawal, settle racing an in-flight launch, then refused', async () => {
     const lc = new WorkerLifecycle();
     const { manager } = buildManager(lc);
-    const a = lc.createJobAuthority('crawl', { owner: {} });
+    const a = lc.createJobLaunchAuthority('crawl', { owner: {} });
     lc.withdraw(expectFor(lc));
     const b1 = await manager.getBrowserForRequest(
       makeReq('/chromium'),
@@ -961,11 +968,11 @@ describe('Job authority', () => {
     );
     await flush();
     a.settle(); // the job ends while its second launch is still in flight
-    expect(lc.snapshot().rights).to.deep.equal({ 'sdk-launch': 1 });
+    expect(lc.snapshot().launchPermits).to.deep.equal({ 'sdk-launch': 1 });
     launch.resolve();
     const b2 = await pending;
     expect(lc.snapshot().sources['sdk-browsers']).to.equal(2);
-    expect(lc.snapshot().rights).to.deep.equal({});
+    expect(lc.snapshot().launchPermits).to.deep.equal({});
     const refused = await manager
       .getBrowserForRequest(makeReq('/chromium'), route, new Logger('test'), a)
       .catch((e) => e);
@@ -977,19 +984,19 @@ describe('Job authority', () => {
     FakeBrowser.closeGate = close.promise;
     await manager.complete(b1);
     await manager.complete(b2);
-    let snap = await lc.retire(expectFor(lc));
+    let snap = await lc.tryCloseAdmission(expectFor(lc));
     expect(snap.state).to.equal('withdrawn');
     expect(snap.tracked).to.deep.equal({ 'sdk-close': 2 });
     close.resolve();
     await drained(lc);
-    snap = await lc.retire(expectFor(lc));
-    expect(snap.complete, snap.reasons.join('; ')).to.be.true;
+    snap = await lc.tryCloseAdmission(expectFor(lc));
+    expect(snap.drainComplete, snap.reasons.join('; ')).to.be.true;
   });
 
   it('a child launch whose cleanup fails is recorded; the authority stays usable until settled', async () => {
     const lc = new WorkerLifecycle();
     const { hooks, manager } = buildManager(lc);
-    const a = lc.createJobAuthority('bundle', { owner: {} });
+    const a = lc.createJobLaunchAuthority('bundle', { owner: {} });
     lc.withdraw(expectFor(lc));
     hooks.browser.onFirstCall().rejects(new Error('browser hook failed'));
     FakeBrowser.closeGate = Promise.reject(new Error('kill failed'));
