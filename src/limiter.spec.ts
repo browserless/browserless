@@ -6,6 +6,7 @@ import {
   Metrics,
   Monitoring,
   WebHooks,
+  WorkerWithdrawn,
   sleep,
 } from '@browserless.io/browserless';
 import Sinon from 'sinon';
@@ -155,6 +156,32 @@ describe(`Limiter`, () => {
       expect(okJob.calledOnce).to.be.true;
       d(undefined);
     });
+  });
+
+  it('withdrawal rejection finishes running metrics without an error alert', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    const monitoring = trackMonitoring(new Monitoring(config));
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    let failures = 0;
+    for (const error of [new WorkerWithdrawn(), new Error('unexpected')]) {
+      const job = limiter.limit(
+        async () => {
+          throw error;
+        },
+        asyncNoop,
+        asyncNoop,
+        noop,
+      );
+      await job().catch(noop);
+      await sleep(0);
+      expect(metrics.get()).to.have.property('running', 0);
+      expect(metrics.get().maxConcurrent).to.equal(1);
+      expect(metrics.get().error).to.equal(++failures);
+      expect(webHooks.callErrorAlertURL.callCount).to.equal(
+        error instanceof WorkerWithdrawn ? 0 : 1,
+      );
+    }
   });
 
   it('bubbles up errors', async () => {

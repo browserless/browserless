@@ -193,7 +193,7 @@ const build = async () => {
   );
   router.registerHTTPRoute(
     new TestRoute('control', '/control', async (req, res) => {
-      // In-band control: terminate from a request served by this server.
+      // In-band control: shut down from a request served by this server.
       const report = await browserless.shutdownGracefully(
         { bootId: lc.bootId, generation: lc.generation },
         { caller: req },
@@ -302,7 +302,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       await until(() => !!lc.snapshot().tracked['server-request'], 'arrival');
 
       const snap = await closeWorker(lc);
-      expect(snap.drainComplete).to.be.false; // still accounted
+      expect(snap.drainComplete).to.be.true; // arrival still counts at the idle barrier
       expect(snap.tracked).to.deep.equal({ 'server-request': 1 });
 
       before.resolve();
@@ -344,7 +344,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         'polls and arrival in flight',
       );
       const snap = await closeWorker(lc);
-      expect(snap.drainComplete).to.be.false;
+      expect(snap.drainComplete).to.be.true;
       health.resolve();
       expect((await Promise.all(polls)).map((r) => r.status)).to.deep.equal([
         200, 200,
@@ -435,34 +435,47 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       const { browserless, get, lc } = await stack();
       const ran = instrument(browserless);
       lc.withdraw(expectNow(lc));
-      const report = await browserless.shutdownGracefully(expectNow(lc));
-      expect(report.shutdownComplete).to.be.false;
-      expect(report.steps).to.deep.equal([]);
-      expect(report.reasons[0]).to.equal(
-        'terminal admission not closed (state withdrawn)',
-      );
-      expect(() =>
-        browserless.shutdownGracefully({ bootId: lc.bootId, generation: 0 }),
-      ).to.throw(LifecycleConflict);
+      expect(
+        await browserless.shutdownGracefully(expectNow(lc)).catch((e) => e),
+      ).to.be.instanceOf(LifecycleConflict);
+      expect(
+        await browserless
+          .shutdownGracefully({ bootId: lc.bootId, generation: 0 })
+          .catch((e) => e),
+      ).to.be.instanceOf(LifecycleConflict);
       expect(ran).to.deep.equal([]);
       expect((await get('/work?token=t')).status).to.equal(200);
     });
 
-    it('refuses when work started after closure was recorded', async () => {
-      const { browserless, get, lc } = await stack();
+    it('runs finalization despite historical failures but never reports clean shutdown', async () => {
+      const { browserless, config, lc } = await stack();
+      let shutdowns = 0;
+      config.shutdown = async () => {
+        shutdowns++;
+      };
+      lc.recordFailure('usage-save', new Error('transient failure'));
       await closeWorker(lc);
-      await lc.track('late-cleanup', Promise.resolve());
       const report = await browserless.shutdownGracefully(expectNow(lc));
       expect(report.shutdownComplete).to.be.false;
-      expect(report.steps).to.deep.equal([]);
-      expect(report.reasons).to.include(
-        'failed "late-cleanup": work started after closed',
+      expect(report.steps.map((step) => step.status)).to.deep.equal(
+        SDK_STEP_ORDER.map(() => 'done'),
       );
-      expect((await get('/health?token=t')).status).to.equal(200);
+      expect(report.reasons).to.include(
+        'failed "usage-save": transient failure',
+      );
+      expect(report.drainComplete).to.be.false;
+      await browserless.stop();
+      expect(shutdowns).to.equal(1);
     });
 
     it('runs the named steps in order; the idle barrier waits for an admitted request; then stopped and idempotent', async () => {
-      const { browserless, gates, get, lc } = await stack();
+      const { browserless, config, gates, get, lc } = await stack();
+      let configShutdowns = 0;
+      const shutdownConfig = config.shutdown.bind(config);
+      config.shutdown = async () => {
+        configShutdowns++;
+        await shutdownConfig();
+      };
       const ran = instrument(browserless);
       await closeWorker(lc);
       const health = deferred();
@@ -490,15 +503,23 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       expect(await browserless.shutdownGracefully(expectNow(lc))).to.equal(
         report,
       );
+      expect(
+        await browserless
+          .shutdownGracefully({ ...expectNow(lc), generation: 0 })
+          .catch((e) => e),
+      ).to.be.instanceOf(LifecycleConflict);
+      await browserless.stop();
+      expect(configShutdowns).to.equal(1);
     });
 
-    it('in-band control request: terminate does not wait on its own request, and its descendants are not failures', async () => {
+    it('in-band graceful shutdown does not wait on its own request, and its descendants are not failures', async () => {
       const { get, lc } = await stack();
       await closeWorker(lc);
       const res = await get('/control?token=t');
       expect(res.status).to.equal(200);
       const report = JSON.parse(res.body);
       expect(report.shutdownComplete, report.reasons.join('; ')).to.be.true;
+      expect(report.drainComplete).to.be.true;
       expect(report.state).to.equal('stopped');
       await lc.whenIdle();
       const snap = lc.snapshot();
@@ -597,12 +618,12 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       );
       expect(configStopped).to.be.false;
       expect(report.reasons).to.include(
-        'failed "terminal:webhooks": webhook flush failed',
+        'failed "shutdown:webhooks": webhook flush failed',
       );
       expect(await browserless.shutdownGracefully(expectNow(lc))).to.equal(
         report,
       );
-      expect(lc.markStopped()).to.be.false;
+      expect(lc.markShutdownComplete()).to.be.false;
     });
   });
 });
@@ -630,7 +651,7 @@ describe('Retained browsers (mock browser, fake clock)', () => {
   let clock: Sinon.SinonFakeTimers;
   afterEach(() => clock?.restore());
 
-  it('no deadline: a retained session keeps retire and terminate incomplete without forced closure until it actually expires', async () => {
+  it('no deadline: a retained session blocks admission closure and graceful shutdown until it actually expires', async () => {
     clock = Sinon.useFakeTimers({ now: 0, toFake: ['Date', 'setTimeout'] });
     const lc = new WorkerLifecycle();
     const config = new Config();
@@ -668,8 +689,8 @@ describe('Retained browsers (mock browser, fake clock)', () => {
       expect(snap.state).to.equal('withdrawn');
       expect(snap.sources['sdk-browsers']).to.equal(1);
       expect(
-        (await browserless.shutdownGracefully(expectNow(lc))).shutdownComplete,
-      ).to.be.false;
+        await browserless.shutdownGracefully(expectNow(lc)).catch((e) => e),
+      ).to.be.instanceOf(LifecycleConflict);
       expect(browser.closed).to.equal(0);
     }
     clock.tick(1); // the session's own keepUntil timer fires

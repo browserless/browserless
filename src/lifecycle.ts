@@ -8,7 +8,7 @@ import { randomUUID } from 'crypto';
  * - `withdrawn`: fresh launches are rejected; attaching to live browsers and
  *   work already holding a launch permit continue. Reversible via `resume`.
  * - `admissionClosed`: terminal. Reached through `tryCloseAdmission` when nothing is
- *   outstanding; attaches and (via the Router) application routes are
+ *   blocking closure; attaches and (via the Router) application routes are
  *   rejected too.
  * - `stopped`: an ordered shutdown (`Browserless.shutdownGracefully`) finished
  *   every step and nothing was outstanding or failed afterwards.
@@ -36,7 +36,7 @@ export interface LaunchPermit {
 }
 
 /**
- * Launch authority owned by one admitted background job.
+ * Launch authority owned by one admitted job, including a multi-launch request.
  * Created only while `running`; while unsettled it is
  * outstanding work, and every `acquireLaunch(kind, { adopt: authority })`
  * returns a new, independently counted child permit that skips admission.
@@ -44,7 +44,10 @@ export interface LaunchPermit {
  * uncounts children already started, and a settled authority adopts nothing.
  * It is an in-process object: never serialize it or hand it to another job.
  */
-export type JobLaunchAuthority = LaunchPermit;
+declare const jobLaunchAuthority: unique symbol;
+export type JobLaunchAuthority = LaunchPermit & {
+  readonly [jobLaunchAuthority]: true;
+};
 
 export interface LifecycleFailure {
   kind: string;
@@ -65,8 +68,9 @@ export interface LifecycleSnapshot {
   failureCount: number;
   failures: LifecycleFailure[];
   /**
-   * True only in `admissionClosed`/`stopped` with nothing outstanding, failed or
-   * uncovered. This is the covered work barrier, not a safe-to-kill signal;
+   * True only in `admissionClosed`/`stopped` with no covered work outstanding,
+   * failures or uncovered producers. Nonblocking arrivals/status work still
+   * count at the shutdown idle barrier. This is not a safe-to-kill signal;
    * see `Browserless.shutdownGracefully` and its `shutdownComplete` report.
    */
   drainComplete: boolean;
@@ -194,7 +198,7 @@ export class WorkerLifecycle extends EventEmitter {
     this.authorityOwners.add(owner);
     if (req) this.authorityOwners.add(req);
     this.authorities.add(authority);
-    return authority;
+    return authority as JobLaunchAuthority;
   }
 
   protected assertAdmitting(req?: object) {
@@ -315,7 +319,7 @@ export class WorkerLifecycle extends EventEmitter {
    * admissionClosed -> stopped, only with nothing outstanding, failed or uncovered.
    * Called by the ordered terminal stop after its last step.
    */
-  public markStopped(except?: object): boolean {
+  public markShutdownComplete(except?: object): boolean {
     if (
       this.currentState !== 'admissionClosed' ||
       this.reasons({ except }).length
@@ -366,23 +370,25 @@ export class WorkerLifecycle extends EventEmitter {
   }
 
   /**
-   * From `withdrawn`: if nothing is outstanding, failed or uncovered, close
-   * admission (including attaches) synchronously and report complete.
-   * Otherwise stay withdrawn and report the reasons.
+   * From `withdrawn`: if no covered work is outstanding and no producer is
+   * uncovered, close admission (including attaches) synchronously.
+   * Historical failures still prevent clean completion, not cleanup attempts.
    */
   public async tryCloseAdmission(
     expect: LifecycleExpect,
   ): Promise<LifecycleSnapshot> {
-    if (this.isAdmissionClosed && expect.bootId === this.bootId) {
+    this.checkExpect(expect);
+    if (this.isAdmissionClosed) {
       return this.snapshot();
     }
-    this.checkExpect(expect);
     if (this.currentState !== 'withdrawn') {
       throw new LifecycleConflict(
         `Cannot close admission from ${this.currentState}`,
       );
     }
-    if (this.reasons({ blockingOnly: true }).length === 0) {
+    if (
+      this.reasons({ blockingOnly: true, ignoreFailures: true }).length === 0
+    ) {
       this.currentState = 'admissionClosed';
       this.emit('admissionClosed');
     }
@@ -410,13 +416,19 @@ export class WorkerLifecycle extends EventEmitter {
       oldestOutstandingMs: oldest === null ? null : Date.now() - oldest,
       failureCount: this.failureCount,
       failures: [...this.failures],
-      drainComplete: this.isAdmissionClosed && reasons.length === 0,
+      drainComplete:
+        this.isAdmissionClosed &&
+        this.reasons({ blockingOnly: true }).length === 0,
       reasons,
     };
   }
 
   protected reasons(
-    opts: { blockingOnly?: boolean; except?: object } = {},
+    opts: {
+      blockingOnly?: boolean;
+      except?: object;
+      ignoreFailures?: boolean;
+    } = {},
   ): string[] {
     const reasons: string[] = [];
     const counts: Record<string, number> = {};
@@ -428,7 +440,7 @@ export class WorkerLifecycle extends EventEmitter {
     } of this.outstanding.values()) {
       if (opts.blockingOnly && !blocksClosure) continue;
       if (opts.except && owner === opts.except) continue;
-      const key = isRight ? `launch right "${kind}"` : `work "${kind}"`;
+      const key = isRight ? `launch permit "${kind}"` : `work "${kind}"`;
       counts[key] = (counts[key] ?? 0) + 1;
     }
     for (const [key, n] of Object.entries(counts)) {
@@ -437,13 +449,15 @@ export class WorkerLifecycle extends EventEmitter {
     for (const [name, n] of Object.entries(this.readSources())) {
       if (n !== 0) reasons.push(`source "${name}" reports ${n}`);
     }
-    for (const f of this.failures) {
-      reasons.push(`failed "${f.kind}": ${f.message}`);
-    }
-    if (this.failureCount > this.failures.length) {
-      reasons.push(
-        `${this.failureCount - this.failures.length} additional failures omitted`,
-      );
+    if (!opts.ignoreFailures) {
+      for (const f of this.failures) {
+        reasons.push(`failed "${f.kind}": ${f.message}`);
+      }
+      if (this.failureCount > this.failures.length) {
+        reasons.push(
+          `${this.failureCount - this.failures.length} additional failures omitted`,
+        );
+      }
     }
     for (const [name, p] of this.producers) {
       if (p.enabled && !p.covered) {

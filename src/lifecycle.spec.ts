@@ -130,7 +130,7 @@ describe('WorkerLifecycle', () => {
     let snap = await lc.tryCloseAdmission(expectFor(lc));
     expect(snap.drainComplete).to.be.false;
     expect(snap.state).to.equal('withdrawn');
-    expect(snap.reasons.join()).to.include('launch right "x"');
+    expect(snap.reasons.join()).to.include('launch permit "x"');
 
     right.settle();
     right.settle(new Error('ignored: already settled'));
@@ -202,13 +202,20 @@ describe('WorkerLifecycle', () => {
     const snap = await lc.tryCloseAdmission(expectFor(lc));
     expect(snap.tracked).to.deep.equal({});
     expect(snap.drainComplete).to.be.false;
-    expect(snap.state).to.equal('withdrawn');
+    expect(snap.state).to.equal('admissionClosed');
     expect(snap.failures.map((f) => f.kind)).to.deep.equal(['cleanup']);
     expect((await lc.tryCloseAdmission(expectFor(lc))).drainComplete).to.be
       .false;
+    expect(lc.markShutdownComplete()).to.be.false;
+    try {
+      await lc.tryCloseAdmission({ ...expectFor(lc), generation: 0 });
+      expect.fail('stale generation accepted after closure');
+    } catch (error) {
+      expect(error).to.be.instanceOf(LifecycleConflict);
+    }
   });
 
-  it('bounds retained failure details without forgetting failures or permitting retirement', async () => {
+  it('bounds retained failure details without forgetting failures or permitting clean shutdown', async () => {
     const lc = new WorkerLifecycle();
     for (let i = 0; i < 105; i++)
       lc.recordFailure('cleanup', new Error(`failure ${i}`));
@@ -912,7 +919,7 @@ describe('Job authority', () => {
     const a = lc.createJobLaunchAuthority('background-task', { owner: {} });
     lc.withdraw(expectFor(lc));
     expect((await lc.tryCloseAdmission(expectFor(lc))).reasons).to.deep.equal([
-      '1 outstanding launch right "job:background-task"',
+      '1 outstanding launch permit "job:background-task"',
     ]);
     let idle = false;
     lc.whenIdle().then(() => (idle = true));

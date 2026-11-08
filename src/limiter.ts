@@ -179,8 +179,11 @@ export class Limiter extends q {
     this.logger.debug(
       `Recording failed stat, cleaning up: "${error?.toString()}"`,
     );
+    // Preserve running/session-time accounting, including refused launches.
     this.metrics.addError(Date.now() - job.start);
-    this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
+    if (!(error instanceof WorkerWithdrawn)) {
+      this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
+    }
     this.jobEnd({
       req: job.args[0],
       start: job.start,

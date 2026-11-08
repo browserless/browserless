@@ -73,9 +73,9 @@ export class HTTPServer extends EventEmitter {
 
   /**
    * Count a request from arrival (before hooks.before, auth and body
-   * reading) until it is fully handled, so terminal closure cannot happen
-   * while one is still on its way to the router. Requests arriving after
-   * closure are counted too; the router refuses non-admitted ones.
+   * reading) until it is fully handled. Arrivals do not block admission
+   * closure, but the shutdown idle barrier waits for them. Requests arriving
+   * after closure are counted too; the router refuses non-admitted ones.
    */
   protected trackRequest(req: Request, p: Promise<void>): Promise<void> {
     return this.lifecycle.trackArrival(req, p);
