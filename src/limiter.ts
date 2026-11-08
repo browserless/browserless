@@ -22,6 +22,7 @@ export type ErrorFn<TArgs extends unknown[]> = (...args: TArgs) => void;
 interface Job {
   (): Promise<unknown>;
   args: unknown[];
+  endJob?: () => void;
   onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
@@ -75,6 +76,13 @@ export class Limiter extends q {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.addEventListener('error', this.handleFail.bind(this) as any);
+
+    // Run after the handlers, even when an SDK override omits super or throws.
+    for (const event of ['success', 'error', 'timeout'] as const) {
+      this.addEventListener(event, ({ detail }) => {
+        (detail as unknown as { job: Job }).job.endJob?.();
+      });
+    }
 
     this.addEventListener('end', this.handleEnd.bind(this));
     this.setLifecycle(this.lifecycle);
@@ -300,6 +308,13 @@ export class Limiter extends q {
           }
 
           const bound: () => Promise<TResult | unknown> = async () => {
+            // The request promise settles before the queue emits completion.
+            // Keep that handoff covered until jobEnd has tracked its after-hook.
+            this.lifecycle.track(
+              'limiter-job-end',
+              new Promise<void>((resolve) => (job.endJob = resolve)),
+              { owner: args[0] as object, required: false },
+            );
             // Billing clock starts at execution, not queue admission
             job.start = Date.now();
             this.logQueue(`Starting new job`);

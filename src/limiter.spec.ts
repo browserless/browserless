@@ -6,6 +6,7 @@ import {
   Metrics,
   Monitoring,
   WebHooks,
+  WorkerLifecycle,
   WorkerWithdrawn,
   sleep,
 } from '@browserless.io/browserless';
@@ -156,6 +157,55 @@ describe(`Limiter`, () => {
       expect(okJob.calledOnce).to.be.true;
       d(undefined);
     });
+  });
+
+  it('keeps admission open until settled jobs hand off to their after-hooks', async () => {
+    class CustomLimiter extends Limiter {
+      protected handleSuccess() {}
+      protected handleFail() {}
+    }
+    for (const LimiterClass of [Limiter, CustomLimiter]) {
+      for (const fails of [false, true]) {
+        const config = new Config();
+        const lifecycle = new WorkerLifecycle();
+        const monitoring = trackMonitoring(new Monitoring(config));
+        const limiter = new LimiterClass(
+          config,
+          new Metrics(),
+          monitoring,
+          webHooks,
+          hooks,
+        );
+        limiter.setLifecycle(lifecycle);
+        const req = {};
+        const job = limiter.limit(
+          async (received: object) => {
+            expect(received).to.equal(req);
+            if (fails) throw new Error('handler failed');
+          },
+          asyncNoop,
+          asyncNoop,
+          noop,
+        );
+        const request = lifecycle.track('route-request', job(req), {
+          owner: req,
+          required: false,
+        });
+        lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+        const close = () =>
+          lifecycle.tryCloseAdmission({
+            bootId: lifecycle.bootId,
+            generation: lifecycle.generation,
+          });
+        const snapshot = await request.then(close, close);
+        expect(snapshot.state).to.equal('withdrawn');
+        await sleep(0);
+        expect(lifecycle.snapshot().tracked).to.deep.equal({});
+        await lifecycle.whenIdle();
+        expect((await close()).drainComplete).to.equal(true);
+        expect(lifecycle.snapshot().failures).to.deep.equal([]);
+      }
+    }
   });
 
   it('withdrawal rejection finishes running metrics without an error alert', async () => {
