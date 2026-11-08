@@ -20,6 +20,8 @@ import {
   Hooks,
   IBrowserlessStats,
   InvalidConfig,
+  LifecycleExpect,
+  LifecycleSnapshot,
   Limiter,
   Metrics,
   Monitoring,
@@ -28,6 +30,7 @@ import {
   WebHooks,
   WebKitPlaywright,
   WebSocketRoute,
+  WorkerLifecycle,
   availableBrowsers,
   dedent,
   exists,
@@ -54,12 +57,26 @@ type Implements<T> = {
 type routeInstances =
   HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute;
 
+export interface TerminalStopStep {
+  name: string;
+  run: () => Promise<unknown>;
+}
+
+export type TerminalReport = LifecycleSnapshot & {
+  steps: Array<{
+    name: string;
+    status: 'pending' | 'done' | 'failed' | 'skipped';
+    error?: string;
+  }>;
+};
+
 export class Browserless extends EventEmitter {
   protected logger: BlessLogger;
   protected browserManager: BrowserManager;
   protected config: Config;
   protected fileSystem: FileSystem;
   protected hooks: Hooks;
+  protected lifecycle: WorkerLifecycle;
   protected limiter: Limiter;
   protected Logger: typeof BlessLogger;
   protected metrics: Metrics;
@@ -79,12 +96,21 @@ export class Browserless extends EventEmitter {
   // default 5-minute cadence). Without a cap the file — and the in-memory
   // cache plus every /metrics response built from it — grows forever.
   metricsMaxEntries: number = 10_000;
+  protected terminating?: Promise<TerminalReport>;
+  // Owner of the metrics-save producer: its passes may run after closure
+  // until the terminal stop clears the interval.
+  protected metricsProducer = {};
+  // A request that invoked terminate in-band (through this server's router):
+  // its own work is excluded from the idle barrier and the final check, so
+  // the stop does not wait on itself.
+  protected terminalCaller?: object;
 
   constructor({
     browserManager,
     config,
     fileSystem,
     hooks,
+    lifecycle,
     limiter,
     Logger: LoggerOverride,
     metrics,
@@ -98,6 +124,7 @@ export class Browserless extends EventEmitter {
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
     hooks?: Browserless['hooks'];
+    lifecycle?: WorkerLifecycle;
     limiter?: Browserless['limiter'];
     metrics?: Browserless['metrics'];
     monitoring?: Browserless['monitoring'];
@@ -136,6 +163,17 @@ export class Browserless extends EventEmitter {
         this.Logger,
         this.hooks,
       );
+    // One process-local lifecycle shared by every module, including ones
+    // the caller constructed and passed in.
+    this.lifecycle = lifecycle || new WorkerLifecycle();
+    this.browserManager.setLifecycle(this.lifecycle);
+    this.limiter.setLifecycle(this.lifecycle);
+    this.router.setLifecycle(this.lifecycle);
+    this.lifecycle.admitAfterClose(this.metricsProducer);
+  }
+
+  public getLifecycle(): WorkerLifecycle {
+    return this.lifecycle;
   }
 
   // Filter out routes that are not able to work on the arm64 architecture
@@ -273,6 +311,20 @@ export class Browserless extends EventEmitter {
     }
   }
 
+  /**
+   * Owned recurring producer. Each pass is counted so the terminal stop waits
+   * for one in flight; a failed save stays best-effort (logged, not a
+   * completion blocker), as before.
+   */
+  protected runMetricsSave() {
+    this.lifecycle
+      .track('metrics-save', this.saveMetrics(), {
+        owner: this.metricsProducer,
+        required: false,
+      })
+      .catch((err) => this.logger.error(`Error saving metrics: ${err}`));
+  }
+
   public setMetricsSaveInterval(interval: number) {
     if (interval <= 0) {
       return console.warn(
@@ -285,10 +337,7 @@ export class Browserless extends EventEmitter {
     clearInterval(this.metricsSaveIntervalID as unknown as number);
     this.metricsSaveInterval = interval;
     this.metricsSaveIntervalID = setInterval(
-      () =>
-        this.saveMetrics().catch((err) =>
-          this.logger.error(`Error saving metrics: ${err}`),
-        ),
+      () => this.runMetricsSave(),
       this.metricsSaveInterval,
     );
   }
@@ -320,6 +369,104 @@ export class Browserless extends EventEmitter {
       );
     }
     this.config.setPort(port);
+  }
+
+  /**
+   * Ordered steps of the terminal stop. Each runs only after the previous
+   * one resolved. SDK extensions insert their own steps (e.g. billing
+   * finalization after `idle-barrier`, before the clients it needs stop) by
+   * overriding this and splicing by name.
+   */
+  protected terminalStopSteps(): TerminalStopStep[] {
+    return [
+      {
+        name: 'stop-metrics-interval',
+        run: async () =>
+          clearInterval(this.metricsSaveIntervalID as unknown as number),
+      },
+      // Stop accepting; idle keep-alive sockets close now, busy ones after
+      // their response. Does not wait for open connections (see idle-barrier).
+      { name: 'close-listener', run: async () => this.server?.stopAccepting() },
+      // Everything still counted: arrivals, admitted requests, upgraded
+      // sockets, after-hooks, cleanups, a metrics pass in flight. No deadline.
+      {
+        name: 'idle-barrier',
+        run: () => this.lifecycle.whenIdle(this.terminalCaller),
+      },
+      { name: 'router', run: () => this.router.shutdown() },
+      { name: 'limiter', run: () => this.limiter.shutdown() },
+      { name: 'browser-manager', run: () => this.browserManager.shutdown() },
+      { name: 'hooks', run: () => this.hooks.shutdown() },
+      { name: 'webhooks', run: () => this.webhooks.shutdown() },
+      { name: 'token', run: () => this.token.shutdown() },
+      { name: 'monitoring', run: () => this.monitoring.shutdown() },
+      { name: 'metrics', run: () => this.metrics.shutdown() },
+      { name: 'file-system', run: () => this.fileSystem.shutdown() },
+      { name: 'config', run: () => this.config.shutdown() },
+    ];
+  }
+
+  /**
+   * Ordered terminal stop, separate from the forced `stop()`.
+   *
+   * Requires terminal admission closure first (`lifecycle.retire` reached
+   * `closed`) and no recorded failure. Then runs `terminalStopSteps()` in
+   * order with no deadline. The first failing step is recorded as a lifecycle
+   * failure and every later step is skipped, so dependencies of a component
+   * that failed to stop stay up. `complete` is true only if every step
+   * resolved and nothing is outstanding, failed or uncovered afterwards; the
+   * lifecycle then becomes `stopped`. Repeated calls return the same result.
+   * It does not exit the process.
+   */
+  public terminate(
+    expect: LifecycleExpect,
+    opts: { caller?: object } = {},
+  ): Promise<TerminalReport> {
+    if (this.terminating && expect.bootId === this.lifecycle.bootId) {
+      return this.terminating;
+    }
+    this.lifecycle.checkExpect(expect);
+    const before = this.lifecycle.snapshot();
+    if (before.state !== 'closed' || before.failures.length) {
+      return Promise.resolve({
+        ...before,
+        complete: false,
+        reasons: [
+          ...(before.state !== 'closed'
+            ? [`terminal admission not closed (state ${before.state})`]
+            : []),
+          ...before.reasons,
+        ],
+        steps: [],
+      });
+    }
+    this.terminating = this.runTerminalStop(opts.caller);
+    return this.terminating;
+  }
+
+  protected async runTerminalStop(caller?: object): Promise<TerminalReport> {
+    this.terminalCaller = caller;
+    const steps: TerminalReport['steps'] = this.terminalStopSteps().map(
+      ({ name }) => ({ name, status: 'pending' }),
+    );
+    const defs = this.terminalStopSteps();
+    for (let i = 0; i < defs.length; i++) {
+      try {
+        await defs[i].run();
+        steps[i].status = 'done';
+      } catch (err) {
+        steps[i].status = 'failed';
+        steps[i].error = err instanceof Error ? err.message : String(err);
+        this.lifecycle.recordFailure(`terminal:${defs[i].name}`, err);
+        for (const later of steps.slice(i + 1)) later.status = 'skipped';
+        break;
+      }
+    }
+    this.lifecycle.markStopped(caller);
+    const after = this.lifecycle.snapshot();
+    const complete =
+      after.state === 'stopped' && steps.every((s) => s.status === 'done');
+    return { ...after, complete, steps };
   }
 
   public async stop() {
@@ -521,13 +668,11 @@ export class Browserless extends EventEmitter {
 
     await this.loadPwVersions();
     await this.loadInstalledBinaries();
+    this.server.setLifecycle(this.lifecycle);
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
-      () =>
-        this.saveMetrics().catch((err) =>
-          this.logger.error(`Error saving metrics: ${err}`),
-        ),
+      () => this.runMetricsSave(),
       this.metricsSaveInterval,
     );
   }

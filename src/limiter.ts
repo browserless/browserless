@@ -8,6 +8,8 @@ import {
   Route,
   TooManyRequests,
   WebHooks,
+  WorkerLifecycle,
+  WorkerWithdrawn,
 } from '@browserless.io/browserless';
 import q from 'queue';
 
@@ -24,11 +26,13 @@ interface Job {
   start: number;
   timeout: number;
   route?: Route;
+  reject(err: unknown): void;
 }
 
 export class Limiter extends q {
   protected queued: number;
   protected logger = new Logger('limiter');
+  protected lifecycle = new WorkerLifecycle();
 
   constructor(
     protected config: Config,
@@ -73,6 +77,37 @@ export class Limiter extends q {
     this.addEventListener('error', this.handleFail.bind(this) as any);
 
     this.addEventListener('end', this.handleEnd.bind(this));
+    this.setLifecycle(this.lifecycle);
+  }
+
+  public setLifecycle(lifecycle: WorkerLifecycle) {
+    this.lifecycle = lifecycle;
+    lifecycle.registerSource('limiter-queued', () => this.waitingJobs.length);
+  }
+
+  protected get waitingJobs(): Job[] {
+    return (this as unknown as { jobs: Job[] }).jobs;
+  }
+
+  /**
+   * Reject not-yet-started jobs that `shouldReject` selects. Used on
+   * withdrawal; started jobs are left alone. This only schedules: jobs kept
+   * here still pass admission/liveness checks when they execute.
+   */
+  public rejectWaiting(shouldReject: (req: unknown) => boolean): number {
+    const rejected = this.waitingJobs.filter((job) =>
+      shouldReject(job.args[0]),
+    );
+    for (const job of rejected) {
+      this.splice(this.waitingJobs.indexOf(job), 1);
+      job.reject(
+        new WorkerWithdrawn('worker_withdrawn: queued request cancelled'),
+      );
+    }
+    if (rejected.length) {
+      this.logQueue(`Rejected ${rejected.length} queued job(s) on withdrawal`);
+    }
+    return rejected.length;
   }
 
   protected _errorHandler({
@@ -88,7 +123,12 @@ export class Limiter extends q {
   }
 
   protected jobEnd(jobInfo: AfterResponse) {
-    this.hooks.after(jobInfo);
+    // Not awaited (response timing unchanged), but counted until settled.
+    const after = Promise.resolve(this.hooks.after(jobInfo));
+    this.lifecycle.track('after-hook', after, { owner: jobInfo.req });
+    after.catch((err) => {
+      this.logger.error(`Error in after() hook: ${err}`);
+    });
   }
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
@@ -187,6 +227,11 @@ export class Limiter extends q {
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise((res, rej) => {
+        // Before any await: a request admitted under this generation cannot
+        // launch under a later one (withdraw then resume while it waited).
+        if (args[0] && typeof args[0] === 'object') {
+          this.lifecycle.stampAdmission(args[0]);
+        }
         const admit = async () => {
           const timeout = timeoutOverrideFn(...args) ?? this.timeout;
           let skipLimits = false;
@@ -271,6 +316,7 @@ export class Limiter extends q {
             start: Date.now(),
             timeout,
             route,
+            reject: rej,
           });
 
           this.push(job);

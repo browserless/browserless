@@ -9,6 +9,7 @@ import {
   Request,
   Response,
   UnwrapPromise,
+  WorkerWithdrawn,
   contentTypes,
   jsonResponse,
   writeResponse,
@@ -41,6 +42,8 @@ export default class ChromiumJSONVersionGetRoute extends HTTPRoute {
       }
       return jsonResponse(res, 200, this.cachedJSON);
     } catch (err) {
+      // Retryable 503 from the server error path, not a generic 500.
+      if (err instanceof WorkerWithdrawn) throw err;
       logger.warn(`Error handling request`, err);
       return writeResponse(
         res,
