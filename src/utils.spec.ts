@@ -137,6 +137,22 @@ describe('Utils', () => {
       );
     });
 
+    it('returns explicit non-parameter text for the route to reject', () => {
+      expect(parseJSONNewTarget('?token=browserless&not-a-url')).to.equal(
+        'not-a-url',
+      );
+      expect(
+        parseJSONNewTarget('?token=browserless&file:///etc/passwd'),
+      ).to.equal('file:///etc/passwd');
+    });
+
+    it('treats value-bearing switches as system parameters', () => {
+      expect(
+        parseJSONNewTarget('?--remote-debugging-pipe=1&https://two.com/'),
+      ).to.equal('https://two.com/');
+      expect(parseJSONNewTarget('?--remote-debugging-pipe=1')).to.equal(null);
+    });
+
     it('treats about:blank as no target', () => {
       expect(parseJSONNewTarget('?about:blank')).to.equal(null);
     });

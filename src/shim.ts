@@ -27,9 +27,10 @@ export function moveTokenToHeader(req: http.IncomingMessage): string {
     .replace(/^[A-Za-z][A-Za-z\d+.-]*:\/\/[^/]*/, '');
   const rawSearch = requestUrl.slice(queryStart + 1);
 
-  // The DevTools /json/new endpoint defines its target by URL segment, not by
-  // a reserved-parameter list — see `splitJSONNewQuery`. Sharing that one rule
-  // with `parseJSONNewTarget` keeps the shim and the route in agreement.
+  // The DevTools /json/new endpoint's target is whatever cannot be a
+  // browserless parameter, not a reserved-parameter list — see
+  // `splitJSONNewQuery`. Sharing that one rule with `parseJSONNewTarget`
+  // keeps the shim and the route in agreement.
   const { rawTarget, systemSearch } = /^\/json\/new\/?$/i.test(rawPathname)
     ? splitJSONNewQuery(rawSearch)
     : { rawTarget: '', systemSearch: rawSearch };
