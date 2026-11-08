@@ -161,6 +161,7 @@ describe(`Limiter`, () => {
 
   it('keeps admission open until settled jobs hand off to their after-hooks', async () => {
     class CustomLimiter extends Limiter {
+      // Existing extension fields must not collide with internal job tracking.
       public activeJobs = 'extension-owned state';
       protected handleSuccess() {}
       protected handleFail() {}
@@ -210,7 +211,7 @@ describe(`Limiter`, () => {
   });
 
   it('clears ended-queue tracking only after its active job settles', async () => {
-    for (const endAt of ['start', 'pending', 'settled']) {
+    for (const endAt of ['event', 'start', 'pending', 'settled']) {
       for (const fails of [false, true]) {
         const config = new Config();
         const lifecycle = new WorkerLifecycle();
@@ -223,6 +224,9 @@ describe(`Limiter`, () => {
           hooks,
         );
         limiter.setLifecycle(lifecycle);
+        if (endAt === 'event') {
+          limiter.addEventListener('start', () => limiter.end());
+        }
         let finish!: () => void;
         const pending = new Promise<void>((resolve) => (finish = resolve));
         let started!: () => void;

@@ -79,6 +79,25 @@ export class Limiter extends q {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.addEventListener('error', this.handleFail.bind(this) as any);
 
+    this.addEventListener('start', ({ detail }) => {
+      const job = detail.job as unknown as Job;
+      // Bare callbacks submitted through queue.push have no limiter metadata.
+      if (!job?.args) return;
+      // Register before external start listeners can end the queue. Keep the
+      // request/completion handoff covered until jobEnd tracks its after-hook.
+      this.lifecycle.track(
+        'limiter-job-end',
+        new Promise<void>((resolve) => {
+          this.#activeJobs.add(job);
+          job.endJob = () => {
+            this.#activeJobs.delete(job);
+            resolve();
+          };
+        }),
+        { owner: job.args[0] as object, required: false },
+      );
+    });
+
     // Run after the handlers, even when an SDK override omits super or throws.
     for (const event of ['success', 'error', 'timeout'] as const) {
       this.addEventListener(event, ({ detail }) => {
@@ -321,19 +340,6 @@ export class Limiter extends q {
           }
 
           const bound: () => Promise<TResult | unknown> = async () => {
-            // The request promise settles before the queue emits completion.
-            // Keep that handoff covered until jobEnd has tracked its after-hook.
-            this.lifecycle.track(
-              'limiter-job-end',
-              new Promise<void>((resolve) => {
-                this.#activeJobs.add(job);
-                job.endJob = () => {
-                  this.#activeJobs.delete(job);
-                  resolve();
-                };
-              }),
-              { owner: args[0] as object, required: false },
-            );
             // Billing clock starts at execution, not queue admission
             job.start = Date.now();
             this.logQueue(`Starting new job`);
