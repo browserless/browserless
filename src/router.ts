@@ -87,7 +87,9 @@ export class Router extends EventEmitter {
   // reaches the execution gate. Kept jobs still revalidate when they run.
   protected onWithdraw = () => {
     this.limiter.rejectWaiting(
-      (req) => !this.browserManager.isExistingBrowserRequest(req as Request),
+      (req, route) =>
+        (!route || !!(route as Route & { browser?: unknown }).browser) &&
+        !this.browserManager.isExistingBrowserRequest(req as Request),
     );
   };
 

@@ -94,9 +94,11 @@ export class Limiter extends q {
    * withdrawal; started jobs are left alone. This only schedules: jobs kept
    * here still pass admission/liveness checks when they execute.
    */
-  public rejectWaiting(shouldReject: (req: unknown) => boolean): number {
+  public rejectWaiting(
+    shouldReject: (req: unknown, route?: Route) => boolean,
+  ): number {
     const rejected = this.waitingJobs.filter((job) =>
-      shouldReject(job.args[0]),
+      shouldReject(job.args[0], job.route),
     );
     for (const job of rejected) {
       this.splice(this.waitingJobs.indexOf(job), 1);

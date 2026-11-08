@@ -653,6 +653,39 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     expect(ran).to.deep.equal(['/first', '/devtools/browser/abc']);
   });
 
+  it('withdraw keeps queued non-browser routes but rejects queued browser routes', async () => {
+    const { lc, limiter } = stack({ concurrent: 1, queued: 5 });
+    const running = deferred();
+    const ran: string[] = [];
+    const makeJob = (browser: boolean) => {
+      const route = new PendingBrowserRoute(async () => undefined, true);
+      if (!browser) route.browser = null as never;
+      return limiter.limit(
+        async (req: Request) => {
+          ran.push(req.parsed.pathname);
+          if (req.parsed.pathname === '/first') await running.promise;
+        },
+        () => undefined,
+        () => undefined,
+        () => undefined,
+        undefined,
+        route,
+      );
+    };
+    const plain = makeJob(false);
+    const first = plain(makeReq('/first'));
+    await flush();
+    const kept = plain(makeReq('/plain')).catch((e) => e);
+    const rejected = makeJob(true)(makeReq('/chromium')).catch((e) => e);
+    await flush();
+    lc.withdraw(expectFor(lc));
+    running.resolve();
+    await first;
+    expect(await rejected).to.be.instanceOf(WorkerWithdrawn);
+    expect(await kept).to.equal(undefined);
+    expect(ran).to.deep.equal(['/first', '/plain']);
+  });
+
   it('a request admitted before withdraw+resume (during the async health check) cannot launch when it executes', async () => {
     const { config, lc, limiter, monitoring } = stack();
     config.enableHealthChecks(true);
