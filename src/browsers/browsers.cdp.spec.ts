@@ -1243,6 +1243,19 @@ describe('ChromiumCDP blocked-URL guard', function () {
     }
   }
 
+  // A range set that blocks one name — enough to police /json/new redirect
+  // hops without touching the loopback the probe server runs on.
+  class RedirectGuardConfig extends Config {
+    public getBlockedNetworkRanges(): NetworkRangeSet {
+      return {
+        hostnames: ['blocked.example'],
+        ipv4Prefixes: [],
+        ipv6Prefixes: [],
+        protocols: [],
+      };
+    }
+  }
+
   before(async function () {
     const installed = await availableBrowsers;
     if (!installed.includes(ChromiumCDP)) {
@@ -1255,6 +1268,14 @@ describe('ChromiumCDP blocked-URL guard', function () {
     proxyChallenges = 0;
     server = createServer((req, res) => {
       hits.push(req.url ?? '');
+      // A redirector for the /json/new redirect-policing cases: the hop's
+      // hostname is what the blocklist judges, and its destination is
+      // whatever the `to` query carries.
+      if (req.url?.startsWith('/redirect')) {
+        const to = new URL(req.url, 'http://localhost').searchParams.get('to');
+        res.writeHead(302, { location: to ?? '/' });
+        return res.end();
+      }
       // A 401 endpoint for the page.authenticate() cases; everything else is
       // an image, which is the shape the blocked sub-resource cases use.
       if (req.url?.startsWith('/auth')) {
@@ -1661,6 +1682,93 @@ describe('ChromiumCDP blocked-URL guard', function () {
 
     expect(loaded).to.be.false;
     expect(hits).not.to.include('/legacy-blocked.svg');
+  });
+
+  it('reports the guard live once the blocklist installs', async () => {
+    await launchGuarded();
+    const page = await browser!.newPage();
+    const install = (
+      browser as unknown as {
+        installBlockedUrlGuard: (page: Page) => Promise<boolean>;
+      }
+    ).installBlockedUrlGuard.bind(browser);
+
+    expect(await install(page)).to.equal(true);
+  });
+
+  it('reports success when nothing is configured to block', async () => {
+    await launchGuarded([], new Config());
+    const page = await browser!.newPage();
+    const install = (
+      browser as unknown as {
+        installBlockedUrlGuard: (page: Page) => Promise<boolean>;
+      }
+    ).installBlockedUrlGuard.bind(browser);
+
+    expect(await install(page)).to.equal(true);
+  });
+
+  it('reports failure when no CDP session can be attached', async () => {
+    class DetachedBrowser extends ChromiumCDP {
+      protected async pageSession() {
+        return null;
+      }
+    }
+    browser = new DetachedBrowser({
+      blockAds: false,
+      config: new GuardedConfig(),
+      logger: new Logger('browsers.cdp.spec'),
+      userDataDir: null,
+    });
+    await browser.launch({ options: { args: [] }, stealth: false });
+    const page = await browser.newPage();
+    const install = (
+      browser as unknown as {
+        installBlockedUrlGuard: (page: Page) => Promise<boolean>;
+      }
+    ).installBlockedUrlGuard.bind(browser);
+
+    expect(await install(page)).to.equal(false);
+  });
+
+  it('aborts a /json/new redirect hop onto a blocked host', async () => {
+    await launchGuarded(resolveEverythingLocally(), new RedirectGuardConfig());
+    const page = await browser!.newPage();
+    const navigate = (
+      browser as unknown as {
+        gotoJSONNewTarget: (page: Page, url: string) => Promise<void>;
+      }
+    ).gotoJSONNewTarget.bind(browser);
+
+    // Every name resolves to the probe server, but the blocklist judges the
+    // hostname of each hop: the redirected request to blocked.example must
+    // never be sent, so `/hit` can never show up in `hits`.
+    await navigate(
+      page,
+      'http://one.example/redirect?to=http://blocked.example/hit',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(hits.some((hit) => hit.startsWith('/redirect'))).to.equal(true);
+    expect(hits).not.to.include('/hit');
+  });
+
+  it('keeps following /json/new redirects the blocklist allows', async () => {
+    await launchGuarded(resolveEverythingLocally(), new RedirectGuardConfig());
+    const page = await browser!.newPage();
+    const navigate = (
+      browser as unknown as {
+        gotoJSONNewTarget: (page: Page, url: string) => Promise<void>;
+      }
+    ).gotoJSONNewTarget.bind(browser);
+
+    await navigate(
+      page,
+      'http://one.example/redirect?to=http://allowed.example/hit',
+    );
+
+    await waitFor(() => page.url().includes('/hit'));
+    expect(hits).to.include('/hit');
   });
 });
 

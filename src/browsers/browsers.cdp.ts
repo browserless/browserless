@@ -174,27 +174,31 @@ export class ChromiumCDP extends EventEmitter {
    * one: a second session has to `Target.attachToTarget` (which failed often
    * enough in production to leave pages unguarded) and would carry a second
    * copy of every `Network` event for the life of the page.
+   *
+   * Resolves `true` when no blocklist is configured or the guard is live, and
+   * `false` when the session is unavailable or the install fails, so a caller
+   * about to navigate can refuse to start unguarded.
    */
-  protected async installBlockedUrlGuard(page: Page): Promise<void> {
+  protected async installBlockedUrlGuard(page: Page): Promise<boolean> {
     const patterns = this.config.getBlockedURLPatterns();
     const ranges = this.config.getBlockedNetworkRanges();
     const selfHosts = this.config.getSelfNavigationHosts();
     const blockedUrls = toBlockedUrlPatterns(patterns, ranges, selfHosts);
 
     if (!blockedUrls.length) {
-      return;
+      return true;
     }
 
     const session = await this.pageSession(page);
 
     if (!session) {
-      return;
+      return false;
     }
 
     // `Network` is already enabled on puppeteer's own session — the page
     // events below depend on it — but the guard is inert without it, so say so
     // rather than inherit it. Both calls are idempotent.
-    await session
+    return session
       .send('Network.enable')
       .then(() => session.send('Network.setBlockedURLs', { urls: blockedUrls }))
       .then(async () => {
@@ -212,8 +216,10 @@ export class ChromiumCDP extends EventEmitter {
             });
         }
       })
+      .then(() => true)
       .catch((err) => {
         this.logger.error(`Could not enable the blocked-URL guard: ${err}`);
+        return false;
       });
   }
 
@@ -240,6 +246,100 @@ export class ChromiumCDP extends EventEmitter {
       this.logger.error(`Could not attach the blocked-URL guard: ${err}`);
       return null;
     });
+  }
+
+  /**
+   * Navigates a page created by `PUT /json/new?{url}` to its target while
+   * checking every redirect hop before its request is sent.
+   *
+   * `Network.setBlockedURLs` does not apply to navigations (measured — see
+   * {@link installBlockedUrlGuard}), so a target that redirects onto a
+   * blocked host would otherwise be contacted: the route-level check only saw
+   * the first URL, and no teardown can unsend a request already in flight.
+   * While this navigation runs, `Fetch` pauses each document request on the
+   * page's own session and the same checks the route applied to the target —
+   * an absolute http(s) URL, then the blocklist with the self-origin
+   * exemption — decide whether the hop continues or is aborted before it
+   * leaves the browser. Interception is scoped to document requests so
+   * sub-resources and auth challenges are never paused (PLT-1596), and it is
+   * removed once the navigation settles. Resolves when the navigation does;
+   * rejects when the policing cannot be set up, which the caller must treat
+   * as "do not navigate".
+   */
+  protected async gotoJSONNewTarget(
+    page: Page,
+    targetURL: string,
+  ): Promise<void> {
+    const patterns = this.config.getBlockedURLPatterns();
+    const ranges = this.config.getBlockedNetworkRanges();
+
+    if (!patterns.length && !ranges) {
+      // Nothing is configured to block, so there is no policy to hold hops
+      // against and no interception needed.
+      await page.goto(targetURL).catch(noop);
+      return;
+    }
+
+    const session = await this.pageSession(page);
+
+    if (!session) {
+      throw new ServerError(
+        'Could not attach a CDP session to police /json/new redirects',
+      );
+    }
+
+    // Structural on purpose: the pause event carries more, but the verdict
+    // only needs the request id and its URL.
+    const onPaused = (event: {
+      requestId: string;
+      request: { url: string };
+    }): void => {
+      const { url } = event.request;
+      try {
+        resolveJSONNewTarget(url);
+        assertNavigationAllowed(
+          url,
+          this.config.getBlockedURLPatterns(),
+          this.config.getBlockedNetworkRanges(),
+          this.config.getSelfNavigationHosts(),
+        );
+      } catch (err) {
+        this.logger.error(
+          `Aborting /json/new redirect to "${url}": ${(err as Error).message}`,
+        );
+        session
+          .send('Fetch.failRequest', {
+            requestId: event.requestId,
+            errorReason: 'BlockedByClient',
+          })
+          .catch(noop);
+        return;
+      }
+      session
+        .send('Fetch.continueRequest', { requestId: event.requestId })
+        .catch(noop);
+    };
+
+    session.on('Fetch.requestPaused', onPaused);
+
+    try {
+      await session.send('Fetch.enable', {
+        patterns: [
+          {
+            requestStage: 'Request',
+            resourceType: 'Document',
+            urlPattern: '*',
+          },
+        ],
+      });
+      // Held until the navigation settles so interception does not outlive
+      // it. The goto failing is an expected outcome — a blocked hop aborts
+      // it — and is logged by the pause handler above.
+      await page.goto(targetURL).catch(noop);
+    } finally {
+      session.off('Fetch.requestPaused', onPaused);
+      await session.send('Fetch.disable').catch(noop);
+    }
   }
 
   protected async onTargetCreated(target: Target) {
@@ -576,10 +676,28 @@ export class ChromiumCDP extends EventEmitter {
         throw err;
       }
 
+      // The navigation must not start until the guard is live: newPage()
+      // resolves before the 'targetcreated' handler finishes installing it.
+      // A failed install leaves the page unguarded, so close it instead.
+      const guarded = await this.installBlockedUrlGuard(page);
+      if (!guarded) {
+        await page.close().catch(noop);
+        throw new ServerError(
+          'Could not enable the blocked-URL guard for the requested target',
+        );
+      }
+
       // Deliberately not awaited. Chrome's /json/new returns before the tab
       // has finished loading, and holding the CDP upgrade open for the whole
-      // navigation would stall clients that attach in order to drive it.
-      page.goto(targetURL).catch(noop);
+      // navigation would stall clients that attach in order to drive it. The
+      // navigation itself polices every redirect hop; failing to set that up
+      // closes the page rather than leaving it unpoliced.
+      this.gotoJSONNewTarget(page, targetURL).catch((err) => {
+        this.logger.error(
+          `Aborting the /json/new navigation to "${targetURL}": ${err}`,
+        );
+        page.close().catch(noop);
+      });
     }
 
     const pathname = page
