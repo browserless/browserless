@@ -23,6 +23,7 @@ interface Job {
   (): Promise<unknown>;
   args: unknown[];
   endJob?: () => void;
+  promise?: Promise<unknown>;
   onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
@@ -34,6 +35,7 @@ export class Limiter extends q {
   protected queued: number;
   protected logger = new Logger('limiter');
   protected lifecycle = new WorkerLifecycle();
+  #activeJobs = new Set<Job>();
 
   constructor(
     protected config: Config,
@@ -84,6 +86,17 @@ export class Limiter extends q {
       });
     }
 
+    this.addEventListener('end', () => {
+      // Explicit queue.end() suppresses completion events for active jobs.
+      // Wait for their execution instead; never release them at cancellation.
+      for (const job of this.#activeJobs) {
+        // queue assigns job.promise after invoking it, so defer the read in
+        // case the handler calls end() synchronously while starting.
+        Promise.resolve()
+          .then(() => job.promise)
+          .then(job.endJob, job.endJob);
+      }
+    });
     this.addEventListener('end', this.handleEnd.bind(this));
     this.setLifecycle(this.lifecycle);
   }
@@ -312,7 +325,13 @@ export class Limiter extends q {
             // Keep that handoff covered until jobEnd has tracked its after-hook.
             this.lifecycle.track(
               'limiter-job-end',
-              new Promise<void>((resolve) => (job.endJob = resolve)),
+              new Promise<void>((resolve) => {
+                this.#activeJobs.add(job);
+                job.endJob = () => {
+                  this.#activeJobs.delete(job);
+                  resolve();
+                };
+              }),
               { owner: args[0] as object, required: false },
             );
             // Billing clock starts at execution, not queue admission

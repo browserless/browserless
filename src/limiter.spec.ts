@@ -161,6 +161,7 @@ describe(`Limiter`, () => {
 
   it('keeps admission open until settled jobs hand off to their after-hooks', async () => {
     class CustomLimiter extends Limiter {
+      public activeJobs = 'extension-owned state';
       protected handleSuccess() {}
       protected handleFail() {}
     }
@@ -204,6 +205,60 @@ describe(`Limiter`, () => {
         await lifecycle.whenIdle();
         expect((await close()).drainComplete).to.equal(true);
         expect(lifecycle.snapshot().failures).to.deep.equal([]);
+      }
+    }
+  });
+
+  it('clears ended-queue tracking only after its active job settles', async () => {
+    for (const endAt of ['start', 'pending', 'settled']) {
+      for (const fails of [false, true]) {
+        const config = new Config();
+        const lifecycle = new WorkerLifecycle();
+        const monitoring = trackMonitoring(new Monitoring(config));
+        const limiter = new Limiter(
+          config,
+          new Metrics(),
+          monitoring,
+          webHooks,
+          hooks,
+        );
+        limiter.setLifecycle(lifecycle);
+        let finish!: () => void;
+        const pending = new Promise<void>((resolve) => (finish = resolve));
+        let started!: () => void;
+        const entered = new Promise<void>((resolve) => (started = resolve));
+        const job = limiter.limit(
+          async () => {
+            if (endAt === 'start') limiter.end();
+            started();
+            await pending;
+            if (fails) throw new Error('handler failed');
+          },
+          asyncNoop,
+          asyncNoop,
+          noop,
+        );
+        const request = job();
+        await entered;
+        lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+        const close = () =>
+          lifecycle.tryCloseAdmission({
+            bootId: lifecycle.bootId,
+            generation: lifecycle.generation,
+          });
+        if (endAt === 'pending') limiter.end();
+        if (endAt === 'settled') {
+          request.then(
+            () => limiter.end(),
+            () => limiter.end(),
+          );
+        }
+        expect((await close()).state).to.equal('withdrawn');
+        finish();
+        await request.catch(noop);
+        await sleep(0);
+        expect((await close()).drainComplete).to.equal(true);
+        expect(lifecycle.snapshot().tracked).to.deep.equal({});
       }
     }
   });
