@@ -50,6 +50,7 @@ export class HTTPServer extends EventEmitter {
   protected acceptingStopped = false;
   protected liveResponses = new Set<http.ServerResponse>();
   protected httpSockets = new Set<net.Socket>();
+  #originalCloseIdleConnections?: http.Server['closeIdleConnections'];
 
   constructor(
     protected config: Config,
@@ -588,6 +589,7 @@ export class HTTPServer extends EventEmitter {
     // check can destroy an ended response before its buffered bytes flush.
     // Retain sockets until their responses emit finish/close, and leave
     // upgraded sockets to their normal browser/request ownership.
+    this.#originalCloseIdleConnections ??= this.server.closeIdleConnections;
     this.server.closeIdleConnections = () => {
       const busy = new Set([...this.liveResponses].map((res) => res.socket));
       for (const socket of this.httpSockets) {
@@ -607,6 +609,11 @@ export class HTTPServer extends EventEmitter {
   public async shutdown(): Promise<void> {
     if (!this.server) return;
     this.logger.info(`HTTP Server is shutting down`);
+    // Forced cleanup must not inherit graceful response-flush protection.
+    if (this.#originalCloseIdleConnections) {
+      this.server.closeIdleConnections = this.#originalCloseIdleConnections;
+      this.#originalCloseIdleConnections = undefined;
+    }
     await new Promise((r) => this.server?.close(r));
 
     if (this.server) {

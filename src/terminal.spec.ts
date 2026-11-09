@@ -600,65 +600,88 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       }
     });
 
-    it('waits for a backpressured response to flush before completing shutdown', async () => {
-      const { browserless, config, lc, router } = await stack();
-      const size = 32 * 1024 * 1024;
-      let response!: Response;
-      router.registerHTTPRoute(
-        new TestRoute('buffered', '/buffered', async (_req, res) => {
-          response = res;
-          res.end(Buffer.alloc(size));
-        }),
-      );
-      const incoming = await new Promise<http.IncomingMessage>(
-        (resolve, reject) => {
-          http
-            .get(
-              `http://localhost:${config.getPort()}/buffered?token=t`,
-              (res) => {
-                res.pause();
-                resolve(res);
-              },
-            )
-            .on('error', reject);
+    for (const forced of [false, true]) {
+      it(
+        forced
+          ? 'forced stop interrupts a backpressured graceful shutdown'
+          : 'waits for a backpressured response to flush before completing shutdown',
+        async () => {
+          const { browserless, config, lc, router } = await stack();
+          const size = 32 * 1024 * 1024;
+          let response!: Response;
+          router.registerHTTPRoute(
+            new TestRoute('buffered', '/buffered', async (_req, res) => {
+              response = res;
+              res.end(Buffer.alloc(size));
+            }),
+          );
+          const incoming = await new Promise<http.IncomingMessage>(
+            (resolve, reject) => {
+              http
+                .get(
+                  `http://localhost:${config.getPort()}/buffered?token=t`,
+                  (res) => {
+                    res.pause();
+                    resolve(res);
+                  },
+                )
+                .on('error', reject);
+            },
+          );
+          try {
+            expect(response.writableFinished).to.be.false;
+            await closeWorker(lc);
+            let completed = false;
+            const stopping = browserless
+              .shutdownGracefully(expectNow(lc))
+              .then((report) => {
+                completed = true;
+                return report;
+              });
+            await new Promise((resolve) => setTimeout(resolve, 30));
+            expect(
+              completed,
+              JSON.stringify({
+                finished: response.writableFinished,
+                destroyed: response.destroyed,
+                report: completed ? await stopping : null,
+              }),
+            ).to.be.false;
+            if (forced) {
+              await browserless.server?.stopAccepting();
+              let stopped = false;
+              const forcedStop = browserless.stop().then(() => {
+                stopped = true;
+              });
+              await until(
+                () => stopped,
+                'forced stop without client disconnect',
+              );
+              await forcedStop;
+              expect(response.destroyed).to.be.true;
+              expect(response.writableFinished).to.be.false;
+              await stopping;
+              return;
+            }
+            let bytes = 0;
+            const ended = new Promise<void>((resolve, reject) => {
+              incoming.on('data', (chunk) => {
+                bytes += chunk.length;
+              });
+              incoming.on('end', resolve);
+              incoming.on('error', reject);
+            });
+            incoming.resume();
+            await ended;
+            expect(bytes).to.equal(size);
+            expect((await stopping).shutdownComplete).to.be.true;
+            expect(response.writableFinished).to.be.true;
+          } finally {
+            incoming.destroy();
+          }
         },
       );
-      try {
-        expect(response.writableFinished).to.be.false;
-        await closeWorker(lc);
-        let completed = false;
-        const stopping = browserless
-          .shutdownGracefully(expectNow(lc))
-          .then((report) => {
-            completed = true;
-            return report;
-          });
-        await new Promise((resolve) => setTimeout(resolve, 30));
-        expect(
-          completed,
-          JSON.stringify({
-            finished: response.writableFinished,
-            destroyed: response.destroyed,
-            report: completed ? await stopping : null,
-          }),
-        ).to.be.false;
-        let bytes = 0;
-        const ended = new Promise<void>((resolve, reject) => {
-          incoming.on('data', (chunk) => {
-            bytes += chunk.length;
-          });
-          incoming.on('end', resolve);
-          incoming.on('error', reject);
-        });
-        incoming.resume();
-        await ended;
-        expect(bytes).to.equal(size);
-        expect((await stopping).shutdownComplete).to.be.true;
-        expect(response.writableFinished).to.be.true;
-      } finally {
-        incoming.destroy();
-      }
-    });
+    }
 
     it('keep-alive: idle sockets close at close-listener, an in-flight one finishes with Connection: close, new connections are refused', async () => {
       const { browserless, config, gates, lc } = await stack();
