@@ -583,6 +583,7 @@ export class HTTPServer extends EventEmitter {
    */
   public async stopAccepting(): Promise<void> {
     this.acceptingStopped = true;
+    if (!this.server) return;
     // Node's close() also invokes closeIdleConnections(), whose `finished`
     // check can destroy an ended response before its buffered bytes flush.
     // Retain sockets until their responses emit finish/close, and leave

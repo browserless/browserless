@@ -478,6 +478,7 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
         expect(cleanups).to.equal(1);
         await browserless.stop();
         await server.shutdown(); // The underlying server may already be cleared.
+        await server.stopAccepting();
       }
     });
 
