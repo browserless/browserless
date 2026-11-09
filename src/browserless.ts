@@ -104,10 +104,6 @@ export class Browserless extends EventEmitter {
   // Owner of the metrics-save producer: its passes may run after closure
   // until the terminal stop clears the interval.
   protected metricsProducer = {};
-  // A request that invoked shutdownGracefully through this server's router:
-  // its own work is excluded from the idle barrier and the final check, so
-  // the stop does not wait on itself.
-  protected shutdownCaller?: object;
 
   constructor({
     browserManager,
@@ -395,7 +391,7 @@ export class Browserless extends EventEmitter {
       // sockets, after-hooks, cleanups, a metrics pass in flight. No deadline.
       {
         name: 'idle-barrier',
-        run: () => this.lifecycle.whenIdle(this.shutdownCaller),
+        run: () => this.lifecycle.whenIdle(),
       },
       { name: 'router', run: () => this.router.shutdown() },
       { name: 'limiter', run: () => this.limiter.shutdown() },
@@ -421,29 +417,36 @@ export class Browserless extends EventEmitter {
    * resolved and nothing is outstanding, failed or uncovered afterwards; the
    * lifecycle then becomes `stopped`. Repeated calls return the same result.
    * It does not exit the process.
+   *
+   * An in-band caller gets an initiation acknowledgment, not final completion.
+   * Its response and after-hook must settle before dependencies are stopped.
+   * Await a call without `caller` out-of-band to obtain the final report.
    */
   public async shutdownGracefully(
     expect: LifecycleExpect,
     opts: { caller?: object } = {},
   ): Promise<ShutdownReport> {
     this.lifecycle.checkExpect(expect);
-    if (this.gracefulShutdown) {
-      return this.gracefulShutdown;
+    if (!this.gracefulShutdown) {
+      const before = this.lifecycle.snapshot();
+      if (before.state !== 'admissionClosed') {
+        throw new LifecycleConflict(
+          `Cannot shut down before admission closes (state ${before.state})`,
+        );
+      }
+      this.gracefulShutdown = this.runGracefulShutdown();
     }
-    const before = this.lifecycle.snapshot();
-    if (before.state !== 'admissionClosed') {
-      throw new LifecycleConflict(
-        `Cannot shut down before admission closes (state ${before.state})`,
-      );
+    if (opts.caller && !this.shutdownStepsFinished) {
+      return {
+        ...this.lifecycle.snapshot(),
+        shutdownComplete: false,
+        steps: [],
+      };
     }
-    this.gracefulShutdown = this.runGracefulShutdown(opts.caller);
     return this.gracefulShutdown;
   }
 
-  protected async runGracefulShutdown(
-    caller?: object,
-  ): Promise<ShutdownReport> {
-    this.shutdownCaller = caller;
+  protected async runGracefulShutdown(): Promise<ShutdownReport> {
     const defs = this.gracefulShutdownSteps();
     const steps: ShutdownReport['steps'] = defs.map(({ name }) => ({
       name,
@@ -462,7 +465,7 @@ export class Browserless extends EventEmitter {
       }
     }
     this.shutdownStepsFinished = steps.every((s) => s.status === 'done');
-    this.lifecycle.markShutdownComplete(caller);
+    this.lifecycle.markShutdownComplete();
     const after = this.lifecycle.snapshot();
     const shutdownComplete =
       after.state === 'stopped' && this.shutdownStepsFinished;

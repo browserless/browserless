@@ -193,12 +193,13 @@ const build = async () => {
   );
   router.registerHTTPRoute(
     new TestRoute('control', '/control', async (req, res) => {
-      // In-band control: shut down from a request served by this server.
+      // In-band control acknowledges initiation; final completion is out-of-band.
       const report = await browserless.shutdownGracefully(
         { bootId: lc.bootId, generation: lc.generation },
         { caller: req },
       );
-      writeResponse(res, 200, JSON.stringify(report));
+      res.writeHead(202, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(report));
     }),
   );
   router.registerWebSocketRoute(
@@ -512,19 +513,101 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
       expect(configShutdowns).to.equal(1);
     });
 
-    it('in-band graceful shutdown does not wait on its own request, and its descendants are not failures', async () => {
-      const { get, lc } = await stack();
-      await closeWorker(lc);
-      const res = await get('/control?token=t');
-      expect(res.status).to.equal(200);
-      const report = JSON.parse(res.body);
-      expect(report.shutdownComplete, report.reasons.join('; ')).to.be.true;
-      expect(report.drainComplete).to.be.true;
-      expect(report.state).to.equal('stopped');
-      await lc.whenIdle();
-      const snap = lc.snapshot();
-      expect(snap.failures).to.deep.equal([]);
-      expect(snap.drainComplete).to.be.true;
+    it('in-band shutdown waits for its after-hook before stopping dependencies', async () => {
+      for (const fails of [false, true]) {
+        const { browserless, get, hooks, lc } = await stack();
+        const after = deferred();
+        let entered = false;
+        let stopped = false;
+        hooks.stop = () => {
+          stopped = true;
+        };
+        hooks.after = async () => {
+          entered = true;
+          if (stopped) throw new Error('after used stopped client');
+          await after.promise;
+          if (fails) throw new Error('after failed');
+        };
+        await closeWorker(lc);
+        try {
+          const res = await get('/control?token=t');
+          expect(res.status).to.equal(202);
+          expect(JSON.parse(res.body).shutdownComplete).to.be.false;
+          expect(entered).to.be.true;
+          expect(stopped).to.be.false;
+        } finally {
+          after.resolve();
+        }
+        const report = await browserless.shutdownGracefully(expectNow(lc));
+        expect(report.shutdownComplete).to.equal(!fails);
+        expect(stopped).to.be.true;
+        expect(report.failures.map((f) => f.message)).to.deep.equal(
+          fails ? ['after failed'] : [],
+        );
+        expect(await browserless.shutdownGracefully(expectNow(lc))).to.equal(
+          report,
+        );
+      }
+    });
+
+    it('waits for a backpressured response to flush before completing shutdown', async () => {
+      const { browserless, config, lc, router } = await stack();
+      const size = 32 * 1024 * 1024;
+      let response!: Response;
+      router.registerHTTPRoute(
+        new TestRoute('buffered', '/buffered', async (_req, res) => {
+          response = res;
+          res.end(Buffer.alloc(size));
+        }),
+      );
+      const incoming = await new Promise<http.IncomingMessage>(
+        (resolve, reject) => {
+          http
+            .get(
+              `http://localhost:${config.getPort()}/buffered?token=t`,
+              (res) => {
+                res.pause();
+                resolve(res);
+              },
+            )
+            .on('error', reject);
+        },
+      );
+      try {
+        expect(response.writableFinished).to.be.false;
+        await closeWorker(lc);
+        let completed = false;
+        const stopping = browserless
+          .shutdownGracefully(expectNow(lc))
+          .then((report) => {
+            completed = true;
+            return report;
+          });
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        expect(
+          completed,
+          JSON.stringify({
+            finished: response.writableFinished,
+            destroyed: response.destroyed,
+            report: completed ? await stopping : null,
+          }),
+        ).to.be.false;
+        let bytes = 0;
+        const ended = new Promise<void>((resolve, reject) => {
+          incoming.on('data', (chunk) => {
+            bytes += chunk.length;
+          });
+          incoming.on('end', resolve);
+          incoming.on('error', reject);
+        });
+        incoming.resume();
+        await ended;
+        expect(bytes).to.equal(size);
+        expect((await stopping).shutdownComplete).to.be.true;
+        expect(response.writableFinished).to.be.true;
+      } finally {
+        incoming.destroy();
+      }
     });
 
     it('keep-alive: idle sockets close at close-listener, an in-flight one finishes with Connection: close, new connections are refused', async () => {

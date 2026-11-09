@@ -396,6 +396,50 @@ describe('BrowserManager drain (mock browsers)', () => {
     });
   });
 
+  it('tracks asynchronous route page hooks through fulfillment or rejection', async () => {
+    for (const fails of [false, true]) {
+      const lc = new WorkerLifecycle();
+      const { manager } = buildManager(lc);
+      const pending = deferred();
+      const entered = deferred();
+      const browser = await manager.getBrowserForRequest(
+        makeReq('/chromium'),
+        {
+          ...route,
+          onNewPage: async () => {
+            entered.resolve();
+            await pending.promise;
+            if (fails) throw new Error('route page failed');
+          },
+        } as unknown as BrowserHTTPRoute,
+        new Logger('test'),
+      );
+      const [listener] = browser.listeners('newPage');
+      const handled = (listener as (p: unknown) => Promise<void>)({}).catch(
+        (e) => e,
+      );
+      await entered.promise;
+      await manager.complete(browser);
+      await drained(lc, 'sdk-close');
+      expect(lc.snapshot().tracked['sdk-close']).to.be.undefined;
+      lc.withdraw(expectFor(lc));
+      try {
+        expect((await lc.tryCloseAdmission(expectFor(lc))).state).to.equal(
+          'withdrawn',
+        );
+      } finally {
+        pending.resolve();
+        await handled;
+      }
+      await lc.whenIdle();
+      const report = await lc.tryCloseAdmission(expectFor(lc));
+      expect(report.drainComplete).to.equal(!fails);
+      expect(report.failures.map((f) => f.message)).to.deep.equal(
+        fails ? ['route page failed'] : [],
+      );
+    }
+  });
+
   it('a rejected newPage hook still rejects the listener and leaves completion blocked', async () => {
     const lc = new WorkerLifecycle();
     const { manager, hooks } = buildManager(lc);

@@ -975,7 +975,7 @@ export class BrowserManager {
         'page-hook',
         (async () => {
           await this.onNewPage(req, page);
-          (router.onNewPage || noop)(req.parsed || '', page);
+          await (router.onNewPage || noop)(req.parsed || '', page);
         })(),
       );
     });

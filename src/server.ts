@@ -49,6 +49,7 @@ export class HTTPServer extends EventEmitter {
   protected lifecycle = new WorkerLifecycle();
   protected acceptingStopped = false;
   protected liveResponses = new Set<http.ServerResponse>();
+  protected httpSockets = new Set<net.Socket>();
 
   constructor(
     protected config: Config,
@@ -142,6 +143,10 @@ export class HTTPServer extends EventEmitter {
   public async start(): Promise<void> {
     this.logger.info(`HTTP Server is starting`);
 
+    this.server.on('connection', (socket) => {
+      this.httpSockets.add(socket);
+      socket.once('close', () => this.httpSockets.delete(socket));
+    });
     this.server.on('request', this.handleRequest.bind(this));
     this.server.on('upgrade', this.handleUpgrade.bind(this));
 
@@ -170,6 +175,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
+    this.httpSockets.delete(socket as net.Socket);
     if (request.headers.upgrade?.toLowerCase() === 'websocket') {
       return this.handleWebSocket(request, socket, head);
     }
@@ -206,12 +212,18 @@ export class HTTPServer extends EventEmitter {
       res.shouldKeepAlive = false;
     }
     this.liveResponses.add(res);
-    res.once('close', () => this.liveResponses.delete(res));
-    res.once('finish', () => {
-      this.liveResponses.delete(res);
-      if (this.acceptingStopped) {
-        setImmediate(() => this.server?.closeIdleConnections());
-      }
+    const responseFinished = new Promise<void>((resolve) => {
+      res.once('close', () => {
+        this.liveResponses.delete(res);
+        resolve();
+      });
+      res.once('finish', () => {
+        this.liveResponses.delete(res);
+        resolve();
+        if (this.acceptingStopped) {
+          setImmediate(() => this.server?.closeIdleConnections());
+        }
+      });
     });
     // Any throw out of this method is an unhandled rejection on the
     // 'request' listener, which kills the whole process — catch and map
@@ -223,6 +235,9 @@ export class HTTPServer extends EventEmitter {
           await this.handleRequestUnsafe(req, res);
         } catch (e: unknown) {
           this.handleErrorRequest(e as Error, res, req);
+        } finally {
+          // Handler completion does not imply buffered response bytes flushed.
+          await responseFinished;
         }
       })(),
     );
@@ -568,6 +583,16 @@ export class HTTPServer extends EventEmitter {
    */
   public async stopAccepting(): Promise<void> {
     this.acceptingStopped = true;
+    // Node's close() also invokes closeIdleConnections(), whose `finished`
+    // check can destroy an ended response before its buffered bytes flush.
+    // Retain sockets until their responses emit finish/close, and leave
+    // upgraded sockets to their normal browser/request ownership.
+    this.server.closeIdleConnections = () => {
+      const busy = new Set([...this.liveResponses].map((res) => res.socket));
+      for (const socket of this.httpSockets) {
+        if (!busy.has(socket)) socket.destroy();
+      }
+    };
     // Responses not yet started must not advertise keep-alive.
     for (const res of this.liveResponses) {
       if (!res.headersSent) res.shouldKeepAlive = false;
