@@ -101,7 +101,16 @@ export class Limiter extends q {
     // Run after the handlers, even when an SDK override omits super or throws.
     for (const event of ['success', 'error', 'timeout'] as const) {
       this.addEventListener(event, ({ detail }) => {
-        (detail as unknown as { job: Job }).job.endJob?.();
+        const job = (detail as unknown as { job: Job }).job;
+        if (!job.endJob) return;
+        if (event === 'timeout') {
+          // A timeout callback need not cancel the underlying execution.
+          Promise.resolve()
+            .then(() => job.promise)
+            .then(job.endJob, job.endJob);
+        } else {
+          job.endJob();
+        }
       });
     }
 

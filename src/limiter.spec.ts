@@ -267,6 +267,54 @@ describe(`Limiter`, () => {
     }
   });
 
+  it('keeps timed-out execution tracked until it settles', async () => {
+    for (const fails of [false, true]) {
+      const config = new Config();
+      config.setTimeout(10);
+      const lifecycle = new WorkerLifecycle();
+      const limiter = new Limiter(
+        config,
+        new Metrics(),
+        trackMonitoring(new Monitoring(config)),
+        webHooks,
+        hooks,
+      );
+      limiter.setLifecycle(lifecycle);
+      let finish!: () => void;
+      const pending = new Promise<void>((resolve) => (finish = resolve));
+      const timedout = new Promise<void>((resolve) =>
+        limiter.addEventListener('timeout', () => resolve(), { once: true }),
+      );
+      const request = limiter
+        .limit(
+          async () => {
+            await pending;
+            if (fails) throw new Error('late failure');
+          },
+          noop,
+          noop,
+          noop,
+        )()
+        .catch(noop);
+      await timedout;
+      await sleep(0);
+      lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+      const close = () =>
+        lifecycle.tryCloseAdmission({
+          bootId: lifecycle.bootId,
+          generation: lifecycle.generation,
+        });
+      try {
+        expect((await close()).state).to.equal('withdrawn');
+      } finally {
+        finish();
+        await request;
+      }
+      await lifecycle.whenIdle();
+      expect((await close()).drainComplete).to.equal(true);
+    }
+  });
+
   it('withdrawal rejection finishes running metrics without an error alert', async () => {
     const config = new Config();
     const metrics = new Metrics();
