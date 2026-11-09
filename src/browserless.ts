@@ -473,19 +473,33 @@ export class Browserless extends EventEmitter {
     // Preserve forced shutdown while graceful cleanup is pending or failed.
     if (this.shutdownStepsFinished) return [];
     clearInterval(this.metricsSaveIntervalID as unknown as number);
-    return Promise.all([
-      this.server?.shutdown(),
-      this.browserManager.shutdown(),
-      this.config.shutdown(),
-      this.fileSystem.shutdown(),
-      this.limiter.shutdown(),
-      this.metrics.shutdown(),
-      this.monitoring.shutdown(),
-      this.router.shutdown(),
-      this.token.shutdown(),
-      this.webhooks.shutdown(),
-      this.hooks.shutdown(),
-    ]);
+    const pending = [
+      this.server,
+      this.browserManager,
+      this.config,
+      this.fileSystem,
+      this.limiter,
+      this.metrics,
+      this.monitoring,
+      this.router,
+      this.token,
+      this.webhooks,
+      this.hooks,
+    ].map((component) => {
+      try {
+        return component?.shutdown();
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    });
+    try {
+      return await Promise.all(pending);
+    } catch (error) {
+      // Preserve the first rejection, but don't let callers exit while other
+      // cleanup attempts are still running.
+      await Promise.allSettled(pending);
+      throw error;
+    }
   }
 
   public async start() {

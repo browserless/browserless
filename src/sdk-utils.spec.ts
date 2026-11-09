@@ -104,6 +104,18 @@ describe('SDK utils', () => {
       modules: 'prefixed',
       signal: 'SIGTERM',
     },
+    {
+      name: 'a rejected cleanup',
+      customHooks: true,
+      modules: 'cleanup-rejection',
+      signal: 'SIGTERM',
+    },
+    {
+      name: 'a synchronously throwing cleanup',
+      customHooks: true,
+      modules: 'cleanup-throw',
+      signal: 'SIGTERM',
+    },
   ] as const) {
     it(`runs CLI requests and cleanup with ${name}`, async () => {
       const sdk = JSON.stringify(
@@ -155,6 +167,16 @@ describe('SDK utils', () => {
           `export { ${name} as default } from ${sdk};`,
         );
       }
+      if (modules.startsWith('cleanup-'))
+        await fs.writeFile(
+          path.join(buildDir, 'config.js'),
+          `import { Config } from ${sdk};
+           export default class extends Config {
+             ${modules === 'cleanup-throw' ? 'shutdown' : 'async stop'}() {
+               throw new Error('Test cleanup failure');
+             }
+           }`,
+        );
       await fs.writeFile(
         path.join(
           buildDir,
@@ -269,7 +291,9 @@ describe('SDK utils', () => {
         }
         await waitFor(async () => child.exitCode !== null);
         expect(child.exitCode, output).to.equal(
-          signal && signal !== 'startup' ? 0 : 1,
+          signal && signal !== 'startup' && !modules.startsWith('cleanup-')
+            ? 0
+            : 1,
         );
         expect(await fs.readFile(stopped, 'utf8')).to.equal('closed\n');
       } finally {
