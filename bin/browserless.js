@@ -6,6 +6,7 @@ import {
   camelCase,
   getArgSwitches,
   getSourceFiles,
+  Hooks as DefaultHooks,
   installBrowsers,
   InvalidConfig,
   installDependencies,
@@ -213,7 +214,9 @@ const start = async (dev = false) => {
   const metrics = isConstructor(Metrics) ? new Metrics() : Metrics;
   const token = isConstructor(Token) ? new Token(config) : Token;
   const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : Webhooks;
-  const hooks = isConstructor(Hooks) ? new Hooks() : Hooks;
+  const hooks = isConstructor(Hooks)
+    ? new Hooks()
+    : Hooks || new DefaultHooks();
   const browserManager = isConstructor(BrowserManager)
     ? new BrowserManager(config)
     : BrowserManager;
@@ -224,7 +227,7 @@ const start = async (dev = false) => {
     ? new FileSystem(config)
     : FileSystem;
   const limiter = isConstructor(Limiter)
-    ? new Limiter(config, metrics, monitoring, webhooks)
+    ? new Limiter(config, metrics, monitoring, webhooks, hooks)
     : Limiter;
   const router = isConstructor(Router)
     ? new Router(config, browserManager, limiter)
