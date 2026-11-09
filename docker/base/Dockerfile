@@ -78,7 +78,11 @@ RUN apt-get update \
   && fc-cache -f -v \
   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/fonts/truetype/noto
 
-RUN curl -sL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash &&\
+# nvm v0.40.8: keep the installer and its payloads on the same immutable commit.
+RUN curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/a885b885fef16fac4bc544188fb25e9e37ae83e8/install.sh -o /tmp/nvm-install.sh &&\
+  echo '48a0eee9a60e07422dce0eb5774754c83889570ca1ee2566c516acbe8af03a9e  /tmp/nvm-install.sh' | sha256sum -c - &&\
+  NVM_INSTALL_VERSION=a885b885fef16fac4bc544188fb25e9e37ae83e8 bash /tmp/nvm-install.sh &&\
+  rm /tmp/nvm-install.sh &&\
   . $NVM_DIR/nvm.sh &&\
   nvm install $NODE_VERSION &&\
   npm install -g npm@$NPM_VERSION
