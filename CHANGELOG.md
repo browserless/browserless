@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.61.0](https://github.com/browserless/browserless/compare/v2.60.0...v2.61.0) (2026-11-09)
+
+
+### Features
+
+* add worker admission and ordered shutdown ([#5667](https://github.com/browserless/browserless/issues/5667)) ([873ed5d](https://github.com/browserless/browserless/commit/873ed5d0a4c046d50ae4584f5457860ada83e829))
+
+
+### Build System & Runtime
+
+* verify pinned nvm installer before execution ([#5662](https://github.com/browserless/browserless/issues/5662)) ([1364289](https://github.com/browserless/browserless/commit/13642891ca2da5841154f76777e01d669486249e))
+
 ## [2.60.0](https://github.com/browserless/browserless/compare/v2.59.0...v2.60.0) (2026-11-06)
 
 
