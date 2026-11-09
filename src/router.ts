@@ -105,14 +105,8 @@ export class Router extends EventEmitter {
     route: Route & { browser?: unknown },
     req: Request,
   ) {
-    if (
-      this.lifecycle.state !== 'running' &&
-      route.browser &&
-      !this.browserManager.isExistingBrowserRequest(req)
-    ) {
-      throw new WorkerWithdrawn(
-        `worker_withdrawn: not admitting new browser launches (${this.lifecycle.state})`,
-      );
+    if (route.browser && !this.browserManager.isExistingBrowserRequest(req)) {
+      this.lifecycle.assertAdmitting(req);
     }
   }
 
@@ -418,6 +412,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
           route,
+          (req) => this.rejectFreshIfWithdrawn(route, req),
         )
       : this.wrapWithAfterHook(wrapped, route);
 
@@ -462,6 +457,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
           route,
+          (req) => this.rejectFreshIfWithdrawn(route, req),
         )
       : this.wrapWithAfterHook(wrapped, route);
 

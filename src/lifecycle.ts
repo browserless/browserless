@@ -201,7 +201,7 @@ export class WorkerLifecycle extends EventEmitter {
     return authority as JobLaunchAuthority;
   }
 
-  protected assertAdmitting(req?: object) {
+  public assertAdmitting(req?: object) {
     if (this.currentState !== 'running') {
       throw new WorkerWithdrawn(
         `worker_withdrawn: not admitting new browser launches (${this.currentState})`,

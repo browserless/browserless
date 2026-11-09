@@ -763,6 +763,54 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
   });
 
   describe('early fresh-launch rejection', () => {
+    it('rechecks admission after a pending health check before capacity or queueing', async () => {
+      for (const [queued, overloaded] of [
+        [0, false],
+        [5, false],
+        [0, true],
+        [5, true],
+      ] as const) {
+        for (const resume of [false, true]) {
+          const { config, lc, limiter, monitoring, router } = stack({
+            concurrent: 1,
+            queued,
+          });
+          const hold = deferred();
+          const route = router.registerHTTPRoute(
+            new PendingBrowserRoute(() => hold.promise, true),
+          );
+          const running = run(route, makeReq('/chromium'), makeRes());
+          await flush();
+          config.enableHealthChecks(true);
+          const health = deferred<{
+            cpuOverloaded: boolean;
+            memoryOverloaded: boolean;
+          }>();
+          Sinon.stub(monitoring, 'overloaded').returns(health.promise as never);
+          const res = makeRes();
+          let error: unknown;
+          const waiting = run(route, makeReq('/chromium'), res).catch((e) => {
+            error = e;
+          });
+          lc.withdraw(expectFor(lc));
+          if (resume) lc.resume(expectFor(lc));
+          health.resolve({
+            cpuOverloaded: overloaded,
+            memoryOverloaded: false,
+          });
+          await flush();
+          try {
+            expect(error).to.be.instanceOf(WorkerWithdrawn);
+            expect(res.code).to.equal(0);
+            expect(limiter.waiting).to.equal(0);
+          } finally {
+            hold.resolve();
+            await Promise.allSettled([running, waiting]);
+          }
+        }
+      }
+    });
+
     // One running job occupies the only concurrency slot.
     const occupied = (queued: number) => {
       const s = stack({ concurrent: 1, queued });

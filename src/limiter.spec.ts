@@ -159,6 +159,32 @@ describe(`Limiter`, () => {
     });
   });
 
+  it('settles job accounting when an after-hook throws synchronously', async () => {
+    const config = new Config();
+    const lifecycle = new WorkerLifecycle();
+    const customHooks = Sinon.createStubInstance(Hooks);
+    customHooks.after.throws(new Error('billing unavailable'));
+    const limiter = new Limiter(
+      config,
+      new Metrics(),
+      trackMonitoring(new Monitoring(config)),
+      webHooks,
+      customHooks,
+    );
+    limiter.setLifecycle(lifecycle);
+    await limiter.limit(
+      async (_req: object) => undefined,
+      asyncNoop,
+      asyncNoop,
+      noop,
+    )({});
+    await sleep(0);
+    expect(lifecycle.snapshot().tracked).to.deep.equal({});
+    expect(lifecycle.snapshot().failures.map((f) => f.message)).to.deep.equal([
+      'billing unavailable',
+    ]);
+  });
+
   it('keeps admission open until settled jobs hand off to their after-hooks', async () => {
     class CustomLimiter extends Limiter {
       // Existing extension fields must not collide with internal job tracking.

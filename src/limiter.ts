@@ -175,7 +175,8 @@ export class Limiter extends q {
 
   protected jobEnd(jobInfo: AfterResponse) {
     // Not awaited (response timing unchanged), but counted until settled.
-    const after = Promise.resolve(this.hooks.after(jobInfo));
+    // Invoke synchronously for compatibility; the executor also captures throws.
+    const after = new Promise((resolve) => resolve(this.hooks.after(jobInfo)));
     this.lifecycle.track('after-hook', after, { owner: jobInfo.req });
     after.catch((err) => {
       this.logger.error(`Error in after() hook: ${err}`);
@@ -278,6 +279,7 @@ export class Limiter extends q {
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
     bypassLimitsFn?: (...args: TArgs) => boolean,
     route?: Route,
+    checkAdmission?: (...args: TArgs) => void,
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise((res, rej) => {
@@ -307,6 +309,7 @@ export class Limiter extends q {
             const { cpuOverloaded, memoryOverloaded } =
               await this.monitor.overloaded();
 
+            checkAdmission?.(...args);
             if (cpuOverloaded || memoryOverloaded) {
               if (skipLimits) {
                 this.logQueue(
@@ -324,6 +327,7 @@ export class Limiter extends q {
             }
           }
 
+          checkAdmission?.(...args);
           if (!this.hasCapacity) {
             if (skipLimits) {
               this.logQueue(`At capacity but limits bypassed; admitting`);
