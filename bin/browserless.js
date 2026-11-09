@@ -12,6 +12,7 @@ import {
   normalizeFileProtocol,
   prompt,
 } from '@browserless.io/browserless';
+import * as defaults from '@browserless.io/browserless';
 import { readFile, writeFile } from 'fs/promises';
 
 import debug from 'debug';
@@ -28,34 +29,40 @@ if (typeof process.env.DEBUG === 'undefined') {
   debug.enable('browserless*');
 }
 
+let browserless;
+let stopping;
+const shutdown = (code) => {
+  if (code) process.exitCode = code;
+  return (stopping ??= (async () => {
+    try {
+      await browserless?.stop();
+    } catch (error) {
+      console.error('Failed to stop:', error);
+      process.exitCode = 1;
+    }
+    process.exit(process.exitCode ?? code);
+  })());
+};
+
 process
   .on('unhandledRejection', async (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    await shutdown(1);
   })
-  .once('uncaughtException', async (err, origin) => {
+  .on('uncaughtException', async (err, origin) => {
     console.error('Unhandled exception at:', origin, 'error:', err);
-    process.exit(1);
-  })
-  .once('SIGTERM', async () => {
-    console.debug(`SIGTERM received, saving and closing down`);
-    process.exit(0);
-  })
-  .once('SIGINT', async () => {
-    console.debug(`SIGINT received, saving and closing down`);
-    process.exit(0);
-  })
-  .once('SIGHUP', async () => {
-    console.debug(`SIGHUP received, saving and closing down`);
-    process.exit(0);
-  })
-  .once('SIGUSR2', async () => {
-    console.debug(`SIGUSR2 received, saving and closing down`);
-    process.exit(0);
+    await shutdown(1);
   })
   .once('exit', (c) => {
     console.debug(`Process finished with code ${c}, exiting`);
-    process.exit(c);
   });
+
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGUSR2']) {
+  process.on(signal, async () => {
+    console.debug(`${signal} received, saving and closing down`);
+    await shutdown(0);
+  });
+}
 
 const log = debug('browserless.io:sdk:log');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -113,9 +120,14 @@ const importDefault = async (files, fileName) => {
     }
   }
 
-  const classModuleFile = files.find((f) =>
-    path.parse(f).name.endsWith(fileName),
-  );
+  const classModuleFile = files.find((f) => {
+    const name = path.parse(f).name;
+    // Preserve legacy suffix matching, but keep WebHooks out of Hooks discovery.
+    return (
+      name.endsWith(fileName) &&
+      !(fileName === 'hooks' && name.endsWith('webhooks'))
+    );
+  });
 
   if (!classModuleFile) {
     return;
@@ -180,18 +192,18 @@ const start = async (dev = false) => {
   log(`Importing all class overrides if present`);
 
   const [
-    BrowserManager,
-    Config,
-    FileSystem,
-    Limiter,
-    Logger,
-    Metrics,
-    Monitoring,
-    Router,
-    Token,
-    Webhooks,
+    BrowserManager = defaults.BrowserManager,
+    Config = defaults.Config,
+    FileSystem = defaults.FileSystem,
+    Limiter = defaults.Limiter,
+    Logger = defaults.Logger,
+    Metrics = defaults.Metrics,
+    Monitoring = defaults.Monitoring,
+    Router = defaults.Router,
+    Token = defaults.Token,
+    Webhooks = defaults.WebHooks,
     disabledRoutes,
-    Hooks,
+    Hooks = defaults.Hooks,
   ] = await Promise.all([
     importDefault(files, 'browser-manager'),
     importDefault(files, 'config'),
@@ -214,23 +226,23 @@ const start = async (dev = false) => {
   const token = isConstructor(Token) ? new Token(config) : Token;
   const webhooks = isConstructor(Webhooks) ? new Webhooks(config) : Webhooks;
   const hooks = isConstructor(Hooks) ? new Hooks() : Hooks;
-  const browserManager = isConstructor(BrowserManager)
-    ? new BrowserManager(config)
-    : BrowserManager;
   const monitoring = isConstructor(Monitoring)
     ? new Monitoring(config)
     : Monitoring;
   const fileSystem = isConstructor(FileSystem)
     ? new FileSystem(config)
     : FileSystem;
+  const browserManager = isConstructor(BrowserManager)
+    ? new BrowserManager(config, hooks, fileSystem)
+    : BrowserManager;
   const limiter = isConstructor(Limiter)
-    ? new Limiter(config, metrics, monitoring, webhooks)
+    ? new Limiter(config, metrics, monitoring, webhooks, hooks)
     : Limiter;
   const router = isConstructor(Router)
-    ? new Router(config, browserManager, limiter)
+    ? new Router(config, browserManager, limiter, Logger, hooks)
     : Router;
 
-  const browserless = new Browserless({
+  browserless = new Browserless({
     Logger,
     browserManager,
     config,
@@ -259,46 +271,11 @@ const start = async (dev = false) => {
   webSocketRoutes.forEach((r) => browserless.addWebSocketRoute(r));
 
   log(`Starting Browserless HTTP Service`);
-  browserless.start().catch((err) => {
+  browserless.start().catch(async (err) => {
     if (!(err instanceof InvalidConfig)) throw err;
     console.error(`Failed to start: ${err.message}`);
-    process.exit(1);
+    await shutdown(1);
   });
-
-  log(`Binding signal interruption handlers and uncaught errors`);
-  process
-    .on('unhandledRejection', async (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    })
-    .once('uncaughtException', async (err, origin) => {
-      console.error('Unhandled exception at:', origin, 'error:', err);
-      await browserless.stop();
-      process.exit(1);
-    })
-    .once('SIGTERM', async () => {
-      debug(`SIGTERM received, saving and closing down`);
-      await browserless.stop();
-      process.exit(0);
-    })
-    .once('SIGINT', async () => {
-      debug(`SIGINT received, saving and closing down`);
-      await browserless.stop();
-      process.exit(0);
-    })
-    .once('SIGHUP', async () => {
-      debug(`SIGHUP received, saving and closing down`);
-      await browserless.stop();
-      process.exit(0);
-    })
-    .once('SIGUSR2', async () => {
-      debug(`SIGUSR2 received, saving and closing down`);
-      await browserless.stop();
-      process.exit(0);
-    })
-    .once('exit', (c) => {
-      console.debug(`Process finished with code ${c}, exiting`);
-      process.exit(c);
-    });
 };
 
 const buildDocker = async () => {

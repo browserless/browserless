@@ -6,6 +6,8 @@ import {
   Metrics,
   Monitoring,
   WebHooks,
+  WorkerLifecycle,
+  WorkerWithdrawn,
   sleep,
 } from '@browserless.io/browserless';
 import Sinon from 'sinon';
@@ -155,6 +157,214 @@ describe(`Limiter`, () => {
       expect(okJob.calledOnce).to.be.true;
       d(undefined);
     });
+  });
+
+  it('settles job accounting when an after-hook throws synchronously', async () => {
+    const config = new Config();
+    const lifecycle = new WorkerLifecycle();
+    const customHooks = Sinon.createStubInstance(Hooks);
+    customHooks.after.throws(new Error('billing unavailable'));
+    const limiter = new Limiter(
+      config,
+      new Metrics(),
+      trackMonitoring(new Monitoring(config)),
+      webHooks,
+      customHooks,
+    );
+    limiter.setLifecycle(lifecycle);
+    await limiter.limit(
+      async (_req: object) => undefined,
+      asyncNoop,
+      asyncNoop,
+      noop,
+    )({});
+    await sleep(0);
+    expect(lifecycle.snapshot().tracked).to.deep.equal({});
+    expect(lifecycle.snapshot().failures.map((f) => f.message)).to.deep.equal([
+      'billing unavailable',
+    ]);
+  });
+
+  it('keeps admission open until settled jobs hand off to their after-hooks', async () => {
+    class CustomLimiter extends Limiter {
+      // Existing extension fields must not collide with internal job tracking.
+      public activeJobs = 'extension-owned state';
+      protected handleSuccess() {}
+      protected handleFail() {}
+    }
+    for (const LimiterClass of [Limiter, CustomLimiter]) {
+      for (const fails of [false, true]) {
+        const config = new Config();
+        const lifecycle = new WorkerLifecycle();
+        const monitoring = trackMonitoring(new Monitoring(config));
+        const limiter = new LimiterClass(
+          config,
+          new Metrics(),
+          monitoring,
+          webHooks,
+          hooks,
+        );
+        limiter.setLifecycle(lifecycle);
+        const req = {};
+        const job = limiter.limit(
+          async (received: object) => {
+            expect(received).to.equal(req);
+            if (fails) throw new Error('handler failed');
+          },
+          asyncNoop,
+          asyncNoop,
+          noop,
+        );
+        const request = lifecycle.track('route-request', job(req), {
+          owner: req,
+          required: false,
+        });
+        lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+        const close = () =>
+          lifecycle.tryCloseAdmission({
+            bootId: lifecycle.bootId,
+            generation: lifecycle.generation,
+          });
+        const snapshot = await request.then(close, close);
+        expect(snapshot.state).to.equal('withdrawn');
+        await sleep(0);
+        expect(lifecycle.snapshot().tracked).to.deep.equal({});
+        await lifecycle.whenIdle();
+        expect((await close()).drainComplete).to.equal(true);
+        expect(lifecycle.snapshot().failures).to.deep.equal([]);
+      }
+    }
+  });
+
+  it('clears ended-queue tracking only after its active job settles', async () => {
+    for (const endAt of ['event', 'start', 'pending', 'settled']) {
+      for (const fails of [false, true]) {
+        const config = new Config();
+        const lifecycle = new WorkerLifecycle();
+        const monitoring = trackMonitoring(new Monitoring(config));
+        const limiter = new Limiter(
+          config,
+          new Metrics(),
+          monitoring,
+          webHooks,
+          hooks,
+        );
+        limiter.setLifecycle(lifecycle);
+        if (endAt === 'event') {
+          limiter.addEventListener('start', () => limiter.end());
+        }
+        let finish!: () => void;
+        const pending = new Promise<void>((resolve) => (finish = resolve));
+        let started!: () => void;
+        const entered = new Promise<void>((resolve) => (started = resolve));
+        const job = limiter.limit(
+          async () => {
+            if (endAt === 'start') limiter.end();
+            started();
+            await pending;
+            if (fails) throw new Error('handler failed');
+          },
+          asyncNoop,
+          asyncNoop,
+          noop,
+        );
+        const request = job();
+        await entered;
+        lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+        const close = () =>
+          lifecycle.tryCloseAdmission({
+            bootId: lifecycle.bootId,
+            generation: lifecycle.generation,
+          });
+        if (endAt === 'pending') limiter.end();
+        if (endAt === 'settled') {
+          request.then(
+            () => limiter.end(),
+            () => limiter.end(),
+          );
+        }
+        expect((await close()).state).to.equal('withdrawn');
+        finish();
+        await request.catch(noop);
+        await sleep(0);
+        expect((await close()).drainComplete).to.equal(true);
+        expect(lifecycle.snapshot().tracked).to.deep.equal({});
+      }
+    }
+  });
+
+  it('keeps timed-out execution tracked until it settles', async () => {
+    for (const fails of [false, true]) {
+      const config = new Config();
+      config.setTimeout(10);
+      const lifecycle = new WorkerLifecycle();
+      const limiter = new Limiter(
+        config,
+        new Metrics(),
+        trackMonitoring(new Monitoring(config)),
+        webHooks,
+        hooks,
+      );
+      limiter.setLifecycle(lifecycle);
+      let finish!: () => void;
+      const pending = new Promise<void>((resolve) => (finish = resolve));
+      const timedout = new Promise<void>((resolve) =>
+        limiter.addEventListener('timeout', () => resolve(), { once: true }),
+      );
+      const request = limiter
+        .limit(
+          async () => {
+            await pending;
+            if (fails) throw new Error('late failure');
+          },
+          noop,
+          noop,
+          noop,
+        )()
+        .catch(noop);
+      await timedout;
+      await sleep(0);
+      lifecycle.withdraw({ bootId: lifecycle.bootId, generation: 0 });
+      const close = () =>
+        lifecycle.tryCloseAdmission({
+          bootId: lifecycle.bootId,
+          generation: lifecycle.generation,
+        });
+      try {
+        expect((await close()).state).to.equal('withdrawn');
+      } finally {
+        finish();
+        await request;
+      }
+      await lifecycle.whenIdle();
+      expect((await close()).drainComplete).to.equal(true);
+    }
+  });
+
+  it('withdrawal rejection finishes running metrics without an error alert', async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    const monitoring = trackMonitoring(new Monitoring(config));
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    let failures = 0;
+    for (const error of [new WorkerWithdrawn(), new Error('unexpected')]) {
+      const job = limiter.limit(
+        async () => {
+          throw error;
+        },
+        asyncNoop,
+        asyncNoop,
+        noop,
+      );
+      await job().catch(noop);
+      await sleep(0);
+      expect(metrics.get()).to.have.property('running', 0);
+      expect(metrics.get().maxConcurrent).to.equal(1);
+      expect(metrics.get().error).to.equal(++failures);
+      expect(webHooks.callErrorAlertURL.callCount).to.equal(
+        error instanceof WorkerWithdrawn ? 0 : 1,
+      );
+    }
   });
 
   it('bubbles up errors', async () => {

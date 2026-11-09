@@ -20,6 +20,9 @@ import {
   Hooks,
   IBrowserlessStats,
   InvalidConfig,
+  LifecycleConflict,
+  LifecycleExpect,
+  LifecycleSnapshot,
   Limiter,
   Metrics,
   Monitoring,
@@ -28,6 +31,7 @@ import {
   WebHooks,
   WebKitPlaywright,
   WebSocketRoute,
+  WorkerLifecycle,
   availableBrowsers,
   dedent,
   exists,
@@ -54,12 +58,28 @@ type Implements<T> = {
 type routeInstances =
   HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute;
 
+export interface ShutdownStep {
+  name: string;
+  run: () => Promise<unknown>;
+}
+
+export type ShutdownReport = LifecycleSnapshot & {
+  /** All ordered shutdown steps finished; drainComplete alone is insufficient. */
+  shutdownComplete: boolean;
+  steps: Array<{
+    name: string;
+    status: 'pending' | 'done' | 'failed' | 'skipped';
+    error?: string;
+  }>;
+};
+
 export class Browserless extends EventEmitter {
   protected logger: BlessLogger;
   protected browserManager: BrowserManager;
   protected config: Config;
   protected fileSystem: FileSystem;
   protected hooks: Hooks;
+  protected lifecycle: WorkerLifecycle;
   protected limiter: Limiter;
   protected Logger: typeof BlessLogger;
   protected metrics: Metrics;
@@ -79,12 +99,19 @@ export class Browserless extends EventEmitter {
   // default 5-minute cadence). Without a cap the file — and the in-memory
   // cache plus every /metrics response built from it — grows forever.
   metricsMaxEntries: number = 10_000;
+  protected gracefulShutdown?: Promise<ShutdownReport>;
+  protected serverShutdown = new WeakMap<HTTPServer, Promise<void>>();
+  protected shutdownStepsFinished = false;
+  // Owner of the metrics-save producer: its passes may run after closure
+  // until the terminal stop clears the interval.
+  protected metricsProducer = {};
 
   constructor({
     browserManager,
     config,
     fileSystem,
     hooks,
+    lifecycle,
     limiter,
     Logger: LoggerOverride,
     metrics,
@@ -98,6 +125,7 @@ export class Browserless extends EventEmitter {
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
     hooks?: Browserless['hooks'];
+    lifecycle?: WorkerLifecycle;
     limiter?: Browserless['limiter'];
     metrics?: Browserless['metrics'];
     monitoring?: Browserless['monitoring'];
@@ -136,6 +164,17 @@ export class Browserless extends EventEmitter {
         this.Logger,
         this.hooks,
       );
+    // One process-local lifecycle shared by every module, including ones
+    // the caller constructed and passed in.
+    this.lifecycle = lifecycle || new WorkerLifecycle();
+    this.browserManager.setLifecycle(this.lifecycle);
+    this.limiter.setLifecycle(this.lifecycle);
+    this.router.setLifecycle(this.lifecycle);
+    this.lifecycle.admitAfterClose(this.metricsProducer);
+  }
+
+  public getLifecycle(): WorkerLifecycle {
+    return this.lifecycle;
   }
 
   // Filter out routes that are not able to work on the arm64 architecture
@@ -273,6 +312,20 @@ export class Browserless extends EventEmitter {
     }
   }
 
+  /**
+   * Owned recurring producer. Each pass is counted so the terminal stop waits
+   * for one in flight; a failed save stays best-effort (logged, not a
+   * completion blocker), as before.
+   */
+  protected runMetricsSave() {
+    this.lifecycle
+      .track('metrics-save', this.saveMetrics(), {
+        owner: this.metricsProducer,
+        required: false,
+      })
+      .catch((err) => this.logger.error(`Error saving metrics: ${err}`));
+  }
+
   public setMetricsSaveInterval(interval: number) {
     if (interval <= 0) {
       return console.warn(
@@ -285,10 +338,7 @@ export class Browserless extends EventEmitter {
     clearInterval(this.metricsSaveIntervalID as unknown as number);
     this.metricsSaveInterval = interval;
     this.metricsSaveIntervalID = setInterval(
-      () =>
-        this.saveMetrics().catch((err) =>
-          this.logger.error(`Error saving metrics: ${err}`),
-        ),
+      () => this.runMetricsSave(),
       this.metricsSaveInterval,
     );
   }
@@ -322,21 +372,152 @@ export class Browserless extends EventEmitter {
     this.config.setPort(port);
   }
 
+  /**
+   * Ordered steps of the terminal stop. Each runs only after the previous
+   * one resolved. SDK extensions insert their own steps (e.g. billing
+   * finalization after `idle-barrier`, before the clients it needs stop) by
+   * overriding this and splicing by name.
+   */
+  protected gracefulShutdownSteps(): ShutdownStep[] {
+    return [
+      {
+        name: 'stop-metrics-interval',
+        run: async () =>
+          clearInterval(this.metricsSaveIntervalID as unknown as number),
+      },
+      // Stop accepting; idle keep-alive sockets close now, busy ones after
+      // their response. Does not wait for open connections (see idle-barrier).
+      { name: 'close-listener', run: async () => this.server?.stopAccepting() },
+      // Everything still counted: arrivals, admitted requests, upgraded
+      // sockets, after-hooks, cleanups, a metrics pass in flight. No deadline.
+      {
+        name: 'idle-barrier',
+        run: () => this.lifecycle.whenIdle(),
+      },
+      { name: 'server', run: () => this.shutdownServer() },
+      { name: 'router', run: () => this.router.shutdown() },
+      { name: 'limiter', run: () => this.limiter.shutdown() },
+      { name: 'browser-manager', run: () => this.browserManager.shutdown() },
+      { name: 'hooks', run: () => this.hooks.shutdown() },
+      { name: 'webhooks', run: () => this.webhooks.shutdown() },
+      { name: 'token', run: () => this.token.shutdown() },
+      { name: 'monitoring', run: () => this.monitoring.shutdown() },
+      { name: 'metrics', run: () => this.metrics.shutdown() },
+      { name: 'file-system', run: () => this.fileSystem.shutdown() },
+      { name: 'config', run: () => this.config.shutdown() },
+    ];
+  }
+
+  /**
+   * Ordered terminal stop, separate from the forced `stop()`.
+   *
+   * Requires terminal admission closure first (`lifecycle.tryCloseAdmission`
+   * reached `admissionClosed`). Runs `gracefulShutdownSteps()` in
+   * order with no deadline. The first failing step is recorded as a lifecycle
+   * failure and every later step is skipped, so dependencies of a component
+   * that failed to stop stay up. `shutdownComplete` is true only if every step
+   * resolved and nothing is outstanding, failed or uncovered afterwards; the
+   * lifecycle then becomes `stopped`. Repeated calls return the same result.
+   * It does not exit the process.
+   *
+   * An in-band caller gets an initiation acknowledgment, not final completion.
+   * Its response and after-hook must settle before dependencies are stopped.
+   * Await a call without `caller` out-of-band to obtain the final report.
+   */
+  public async shutdownGracefully(
+    expect: LifecycleExpect,
+    opts: { caller?: object } = {},
+  ): Promise<ShutdownReport> {
+    this.lifecycle.checkExpect(expect);
+    if (!this.gracefulShutdown) {
+      const before = this.lifecycle.snapshot();
+      if (before.state !== 'admissionClosed') {
+        throw new LifecycleConflict(
+          `Cannot shut down before admission closes (state ${before.state})`,
+        );
+      }
+      this.gracefulShutdown = this.runGracefulShutdown();
+    }
+    if (opts.caller && !this.shutdownStepsFinished) {
+      return {
+        ...this.lifecycle.snapshot(),
+        shutdownComplete: false,
+        steps: [],
+      };
+    }
+    return this.gracefulShutdown;
+  }
+
+  protected async runGracefulShutdown(): Promise<ShutdownReport> {
+    const defs = this.gracefulShutdownSteps();
+    const steps: ShutdownReport['steps'] = defs.map(({ name }) => ({
+      name,
+      status: 'pending',
+    }));
+    for (let i = 0; i < defs.length; i++) {
+      try {
+        await defs[i].run();
+        steps[i].status = 'done';
+      } catch (err) {
+        steps[i].status = 'failed';
+        steps[i].error = err instanceof Error ? err.message : String(err);
+        this.lifecycle.recordFailure(`shutdown:${defs[i].name}`, err);
+        for (const later of steps.slice(i + 1)) later.status = 'skipped';
+        break;
+      }
+    }
+    this.shutdownStepsFinished = steps.every((s) => s.status === 'done');
+    this.lifecycle.markShutdownComplete();
+    const after = this.lifecycle.snapshot();
+    const shutdownComplete =
+      after.state === 'stopped' && this.shutdownStepsFinished;
+    return { ...after, shutdownComplete, steps };
+  }
+
+  protected shutdownServer(): Promise<void> {
+    const server = this.server;
+    if (!server) return Promise.resolve();
+    const existing = this.serverShutdown.get(server);
+    if (existing) return existing;
+    const pending = new Promise<void>((resolve) => resolve(server.shutdown()));
+    this.serverShutdown.set(server, pending);
+    // Preserve explicit forced-stop retries after an override fails.
+    void pending.catch(() => this.serverShutdown.delete(server));
+    return pending;
+  }
+
   public async stop() {
+    // Preserve forced shutdown while graceful cleanup is pending or failed.
+    if (this.shutdownStepsFinished) return [];
     clearInterval(this.metricsSaveIntervalID as unknown as number);
-    return Promise.all([
-      this.server?.shutdown(),
-      this.browserManager.shutdown(),
-      this.config.shutdown(),
-      this.fileSystem.shutdown(),
-      this.limiter.shutdown(),
-      this.metrics.shutdown(),
-      this.monitoring.shutdown(),
-      this.router.shutdown(),
-      this.token.shutdown(),
-      this.webhooks.shutdown(),
-      this.hooks.shutdown(),
-    ]);
+    const pending = [
+      this.server,
+      this.browserManager,
+      this.config,
+      this.fileSystem,
+      this.limiter,
+      this.metrics,
+      this.monitoring,
+      this.router,
+      this.token,
+      this.webhooks,
+      this.hooks,
+    ].map((component) => {
+      try {
+        if (component === this.server) return this.shutdownServer();
+        return component?.shutdown();
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    });
+    try {
+      return await Promise.all(pending);
+    } catch (error) {
+      // Preserve the first rejection, but don't let callers exit while other
+      // cleanup attempts are still running.
+      await Promise.allSettled(pending);
+      throw error;
+    }
   }
 
   public async start() {
@@ -521,13 +702,11 @@ export class Browserless extends EventEmitter {
 
     await this.loadPwVersions();
     await this.loadInstalledBinaries();
+    this.server.setLifecycle(this.lifecycle);
     await this.server.start();
     this.logger.debug(`Starting metrics collection.`);
     this.metricsSaveIntervalID = setInterval(
-      () =>
-        this.saveMetrics().catch((err) =>
-          this.logger.error(`Error saving metrics: ${err}`),
-        ),
+      () => this.runMetricsSave(),
       this.metricsSaveInterval,
     );
   }

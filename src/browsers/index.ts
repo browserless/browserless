@@ -19,11 +19,13 @@ import {
   FileSystem,
   FirefoxPlaywright,
   Hooks,
+  LaunchPermit,
   Logger,
   NotFound,
   Request,
   ServerError,
   WebKitPlaywright,
+  WorkerLifecycle,
   availableBrowsers,
   convertIfBase64,
   exists,
@@ -73,6 +75,7 @@ export class BrowserManager {
   // permanently leak disk.
   protected orphanedDataDirs: Set<string> = new Set();
   protected orphanedDataDirSweeper: NodeJS.Timeout;
+  protected lifecycle = new WorkerLifecycle();
 
   constructor(
     protected config: Config,
@@ -85,6 +88,34 @@ export class BrowserManager {
     );
     // Don't hold the process open for the sweeper
     this.orphanedDataDirSweeper.unref?.();
+    this.setLifecycle(this.lifecycle);
+  }
+
+  public setLifecycle(lifecycle: WorkerLifecycle) {
+    this.lifecycle = lifecycle;
+    lifecycle.registerSource('sdk-browsers', () => this.browsers.size);
+    lifecycle.registerSource(
+      'sdk-orphaned-dirs',
+      () => this.orphanedDataDirs.size,
+    );
+  }
+
+  /**
+   * Whether a request targets an already-running browser rather than asking
+   * for a new one. Queue scheduling only (queued work kept on withdrawal): it
+   * grants nothing, and the request is still resolved against live browsers
+   * when it runs. A BLESS page id launches a fresh browser, so it is not an
+   * existing-browser request.
+   */
+  public isExistingBrowserRequest(req: Request): boolean {
+    const pathname = req.parsed?.pathname ?? '';
+    if (this.reconnectionPatterns.some((p) => pathname.includes(p))) {
+      return true;
+    }
+    if (pathname.includes('/devtools/page')) {
+      return !getFinalPathSegment(pathname)?.includes(BLESS_PAGE_IDENTIFIER);
+    }
+    return false;
   }
 
   protected browserIsChrome(b: BrowserInstance) {
@@ -183,25 +214,28 @@ export class BrowserManager {
     if (this.protocolJSONCache) {
       return this.protocolJSONCache;
     }
-    const Browser = (await availableBrowsers).find((InstalledBrowser) =>
-      this.chromeBrowsers.some(
-        (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
-      ),
-    );
-    if (!Browser) {
-      throw new Error(`No Chrome or Chromium browsers are installed!`);
-    }
-    const browser = new Browser({
-      blockAds: false,
-      config: this.config,
-      logger,
-      userDataDir: null,
-    });
+    // A cache miss boots a browser, so it needs a launch right like any other.
+    const right = this.lifecycle.acquireLaunch('sdk-metadata');
+    let browser: BrowserInstance | undefined;
 
     // The finally guarantees the throwaway browser dies even when the
     // fetch or JSON parse throws — otherwise every failed request here
     // leaked a Chrome process.
     try {
+      const Browser = (await availableBrowsers).find((InstalledBrowser) =>
+        this.chromeBrowsers.some(
+          (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
+        ),
+      );
+      if (!Browser) {
+        throw new Error(`No Chrome or Chromium browsers are installed!`);
+      }
+      browser = new Browser({
+        blockAds: false,
+        config: this.config,
+        logger,
+        userDataDir: null,
+      });
       await browser.launch({ options: {} });
       const wsEndpoint = browser.wsEndpoint();
 
@@ -222,8 +256,24 @@ export class BrowserManager {
       this.protocolJSONCache = protocolJSON;
       return protocolJSON;
     } finally {
-      browser.close().catch(noop);
+      this.closeMetadataBrowser(browser, right);
     }
+  }
+
+  /**
+   * Close a metadata probe browser without delaying the response; its launch
+   * right stays counted until the close settles, and a failed close is
+   * recorded.
+   */
+  protected closeMetadataBrowser(
+    browser: BrowserInstance | undefined,
+    right: LaunchPermit,
+  ) {
+    if (!browser) return right.settle();
+    browser.close().then(
+      () => right.settle(),
+      (err) => right.settle(err ?? new Error('metadata browser close failed')),
+    );
   }
 
   /**
@@ -242,27 +292,29 @@ export class BrowserManager {
     }
 
     this.log.debug(`Launching Chromium to generate /json/version results`);
-    const Browser = (await availableBrowsers).find((InstalledBrowser) =>
-      this.chromeBrowsers.some(
-        (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
-      ),
-    );
-
-    if (!Browser) {
-      throw new ServerError(`No Chrome or Chromium browsers are installed!`);
-    }
-    const browser = new Browser({
-      blockAds: false,
-      config: this.config,
-      logger,
-      userDataDir: null,
-    });
+    const right = this.lifecycle.acquireLaunch('sdk-metadata');
+    let browser: BrowserInstance | undefined;
 
     // The finally guarantees the throwaway browser dies even when the
     // fetch or JSON parse throws — otherwise every failed request here
     // leaked a Chrome process.
     let meta;
     try {
+      const Browser = (await availableBrowsers).find((InstalledBrowser) =>
+        this.chromeBrowsers.some(
+          (ChromeBrowser) => InstalledBrowser === ChromeBrowser,
+        ),
+      );
+
+      if (!Browser) {
+        throw new ServerError(`No Chrome or Chromium browsers are installed!`);
+      }
+      browser = new Browser({
+        blockAds: false,
+        config: this.config,
+        logger,
+        userDataDir: null,
+      });
       await browser.launch({ options: {} });
       const wsEndpoint = browser.wsEndpoint();
 
@@ -275,7 +327,7 @@ export class BrowserManager {
         `http://127.0.0.1:${port}/json/version`,
       );
     } finally {
-      browser.close().catch(noop);
+      this.closeMetadataBrowser(browser, right);
     }
 
     if (!meta) {
@@ -482,29 +534,45 @@ export class BrowserManager {
       // checks for the duration of browser.close() (hundreds of ms).
       this.browsers.delete(browser);
 
-      // Serialise browser shutdown then data-dir removal: chromium
-      // releases its file handles when `browser.close()` resolves, so
-      // running `removeUserDataDir` in parallel produced silent EBUSY
-      // failures and orphaned profile directories. The `finally` block
-      // guarantees data-dir cleanup runs even if `browser.close()`
-      // rejects (process already gone, IPC error, etc.).
-      try {
-        await browser.close();
-      } catch (err) {
-        this.log.warn(
-          `browser.close() rejected for session "${session.id}": ${err}; proceeding with data-dir cleanup`,
-        );
-      } finally {
-        if (session.isTempDataDir) {
-          this.log.debug(`Deleting "${session.userDataDir}" user-data-dir`);
-          await this.removeUserDataDir(session.userDataDir);
-        }
-        // Unconditional: the scratch dir is browserless-owned even when the
-        // caller brought their own data dir. Ordered after browser.close() for
-        // the same reason as the data dir — Chrome releases its handles first.
-        await this.removeScratchDir(session.scratchDir);
-      }
+      // Counted from eviction (same tick) until teardown settles; a rejected
+      // browser.close() is recorded as a failure but close() still resolves.
+      const teardown = this.lifecycle.track(
+        'sdk-close',
+        this.teardownBrowser(browser, session),
+      );
+      await teardown.catch(noop);
     }
+  }
+
+  protected async teardownBrowser(
+    browser: BrowserInstance,
+    session: BrowserlessSession,
+  ): Promise<void> {
+    let closeError: unknown;
+    // Serialise browser shutdown then data-dir removal: chromium
+    // releases its file handles when `browser.close()` resolves, so
+    // running `removeUserDataDir` in parallel produced silent EBUSY
+    // failures and orphaned profile directories. The `finally` block
+    // guarantees data-dir cleanup runs even if `browser.close()`
+    // rejects (process already gone, IPC error, etc.).
+    try {
+      await browser.close();
+    } catch (err) {
+      closeError = err ?? new Error('browser.close() rejected');
+      this.log.warn(
+        `browser.close() rejected for session "${session.id}": ${err}; proceeding with data-dir cleanup`,
+      );
+    } finally {
+      if (session.isTempDataDir) {
+        this.log.debug(`Deleting "${session.userDataDir}" user-data-dir`);
+        await this.removeUserDataDir(session.userDataDir);
+      }
+      // Unconditional: the scratch dir is browserless-owned even when the
+      // caller brought their own data dir. Ordered after browser.close() for
+      // the same reason as the data dir — Chrome releases its handles first.
+      await this.removeScratchDir(session.scratchDir);
+    }
+    if (closeError !== undefined) throw closeError;
   }
 
   public async killSessions(target: string): Promise<void> {
@@ -566,7 +634,7 @@ export class BrowserManager {
       this.log.debug(
         `Couldn't locate session for browser, proceeding with close`,
       );
-      return browser.close();
+      return this.lifecycle.track('sdk-close', browser.close());
     }
 
     const { id, resolver } = session;
@@ -586,6 +654,7 @@ export class BrowserManager {
     req: Request,
     router: BrowserHTTPRoute | BrowserWebsocketRoute,
     logger: Logger,
+    launchRight?: LaunchPermit,
   ): Promise<BrowserInstance> {
     const { browser: Browser } = router;
     const blockAds = parseBooleanParam(
@@ -626,12 +695,12 @@ export class BrowserManager {
     const decodedLaunchOptions = convertIfBase64(
       req.parsed.searchParams.get('launch') || '{}',
     );
-    let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
 
     // Handle browser re-connects here
     if (
       this.reconnectionPatterns.some((p) => req.parsed.pathname.includes(p))
     ) {
+      this.lifecycle.assertAttachAllowed();
       const sessions = Array.from(this.browsers);
       const id = getFinalPathSegment(req.parsed.pathname);
       if (!id) {
@@ -657,6 +726,7 @@ export class BrowserManager {
     if (req.parsed.pathname.includes('/devtools/page')) {
       const id = getFinalPathSegment(req.parsed.pathname);
       if (!id?.includes(BLESS_PAGE_IDENTIFIER)) {
+        this.lifecycle.assertAttachAllowed();
         const browsers = Array.from(this.browsers).map(([browser]) => browser);
         const allPages = await Promise.all(
           browsers
@@ -685,6 +755,45 @@ export class BrowserManager {
       }
     }
 
+    // Everything below launches a new browser. Take the right synchronously,
+    // before any await; it is settled once the browser is in `this.browsers`
+    // or failure cleanup finished.
+    const right = this.lifecycle.acquireLaunch('sdk-launch', {
+      req,
+      adopt: launchRight,
+    });
+    const cleanup: { error?: unknown } = {};
+    try {
+      return await this.launchForRequest(
+        req,
+        router,
+        logger,
+        { Browser, blockAds, decodedLaunchOptions, trackingId },
+        cleanup,
+      );
+    } finally {
+      right.settle(cleanup.error);
+    }
+  }
+
+  protected async launchForRequest(
+    req: Request,
+    router: BrowserHTTPRoute | BrowserWebsocketRoute,
+    logger: Logger,
+    {
+      Browser,
+      blockAds,
+      decodedLaunchOptions,
+      trackingId,
+    }: {
+      Browser: BrowserHTTPRoute['browser'];
+      blockAds: boolean;
+      decodedLaunchOptions: string;
+      trackingId: string | undefined;
+    },
+    cleanup: { error?: unknown },
+  ): Promise<BrowserInstance> {
+    let parsedLaunchOptions: BrowserServerOptions | CDPLaunchOptions;
     try {
       parsedLaunchOptions = JSON.parse(decodedLaunchOptions);
     } catch (err) {
@@ -819,13 +928,12 @@ export class BrowserManager {
       // Tear down both explicitly before rethrowing. Manual data-dirs
       // (caller-supplied via --user-data-dir or launchOptions.userDataDir)
       // are the caller's lifecycle to manage and stay put.
-      await browser
-        .close()
-        .catch((closeErr) =>
-          this.log.debug(
-            `browser.close() during launch-failure cleanup also failed: ${closeErr}`,
-          ),
+      await browser.close().catch((closeErr) => {
+        cleanup.error = closeErr ?? new Error('launch cleanup close failed');
+        this.log.debug(
+          `browser.close() during launch-failure cleanup also failed: ${closeErr}`,
         );
+      });
       if (!manualUserDataDir && userDataDir) {
         await this.removeUserDataDir(userDataDir);
       }
@@ -860,9 +968,18 @@ export class BrowserManager {
 
     this.browsers.set(browser, session);
 
+    // EventEmitter does not await listeners; retain failures in the lifecycle
+    // without letting a page-level rejection escape to the process.
     browser.on('newPage', async (page: Page) => {
-      await this.onNewPage(req, page);
-      (router.onNewPage || noop)(req.parsed || '', page);
+      await this.lifecycle
+        .track(
+          'page-hook',
+          (async () => {
+            await this.onNewPage(req, page);
+            await (router.onNewPage || noop)(req.parsed || '', page);
+          })(),
+        )
+        .catch((err) => logger.error(`Error running page hook: ${err}`));
     });
 
     // A still-present session here means nobody called close() — the

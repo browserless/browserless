@@ -15,6 +15,8 @@ import {
   Response,
   Route,
   WebSocketRoute,
+  WorkerLifecycle,
+  WorkerWithdrawn,
   closeProxiedSocket,
   contentTypes,
   isConnected,
@@ -43,6 +45,7 @@ export class Router extends EventEmitter {
   protected httpRoutes: Array<HTTPRoute | BrowserHTTPRoute> = [];
   protected webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
   protected hooks: Hooks;
+  protected lifecycle = new WorkerLifecycle();
   // Glob-to-regex compilation is expensive enough to matter when it runs
   // per-route per-request, so matchers are compiled once at registration.
   protected pathMatchers = new WeakMap<
@@ -71,6 +74,98 @@ export class Router extends EventEmitter {
         'Router constructed without explicit hooks — after() will use the no-op default for concurrency=false routes. SDK consumers subclassing Router should forward hooks via super(...).',
       );
     }
+    this.setLifecycle(this.lifecycle);
+  }
+
+  public setLifecycle(lifecycle: WorkerLifecycle) {
+    this.lifecycle.off('withdraw', this.onWithdraw);
+    this.lifecycle = lifecycle;
+    lifecycle.on('withdraw', this.onWithdraw);
+  }
+
+  // Queue scheduling only: drop queued fresh work now instead of when it
+  // reaches the execution gate. Kept jobs still revalidate when they run.
+  protected onWithdraw = () => {
+    this.limiter.rejectWaiting(
+      (req, route) =>
+        (!route || !!(route as Route & { browser?: unknown }).browser) &&
+        !this.browserManager.isExistingBrowserRequest(req as Request),
+    );
+  };
+
+  /**
+   * While not running, refuse fresh-launch requests before limiter admission,
+   * so they get a 503 instead of a capacity 429 or a place in the queue. Runs
+   * after the server's token auth. The path classifier only lets
+   * existing-browser requests take the normal path, where they are still
+   * resolved against live browsers; the launch gate in BrowserManager stays
+   * authoritative.
+   */
+  protected rejectFreshIfWithdrawn(
+    route: Route & { browser?: unknown },
+    req: Request,
+  ) {
+    if (route.browser && !this.browserManager.isExistingBrowserRequest(req)) {
+      this.lifecycle.assertAdmitting(req);
+    }
+  }
+
+  /**
+   * After terminal closure, which application routes may still run (e.g.
+   * health/status). Default: none. Runs after token auth, so it never
+   * discloses state to unauthenticated callers. Work from admitted routes is
+   * still counted and awaited by the ordered terminal stop.
+   */
+  protected isAdmittedWhenClosed(route: Route, req: Request): boolean {
+    void route;
+    void req;
+    return false;
+  }
+
+  /** After terminal closure, refuse every non-admitted routed request. */
+  protected rejectIfClosed(route: Route, req: Request) {
+    if (
+      this.lifecycle.isAdmissionClosed &&
+      !this.isAdmittedWhenClosed(route, req)
+    ) {
+      throw new WorkerWithdrawn(
+        `worker_closed: not admitting application requests (${this.lifecycle.state})`,
+      );
+    }
+  }
+
+  /**
+   * Gate a routed request synchronously, then count it from entry: this
+   * covers the async limiter admission (health check) before the job is
+   * queued or its handler runs.
+   */
+  protected admitRoutedRequest<T>(
+    route: Route,
+    req: Request,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    if (this.isAdmittedWhenClosed(route, req)) {
+      // Status/control work: may run after closure and never blocks it.
+      this.lifecycle.admitAfterClose(req);
+    } else {
+      this.rejectIfClosed(route, req);
+    }
+    this.rejectFreshIfWithdrawn(route, req);
+    return this.lifecycle.track('route-request', run(), {
+      owner: req,
+      required: false,
+    });
+  }
+
+  /**
+   * Count a route's original handler promise until it settles, which can be
+   * after the response closed. Returns it unchanged.
+   */
+  protected trackHandler<T>(p: Promise<T>, req: Request): Promise<T> {
+    return this.lifecycle.track('route-handler', p, {
+      owner: req,
+      required: false,
+    });
   }
 
   protected routeMatches(
@@ -181,11 +276,12 @@ export class Router extends EventEmitter {
     // SDK overrides of Hooks.after may throw synchronously or return a
     // rejected promise. Promise.resolve(...) normalizes both shapes so a
     // broken hook never breaks the response path.
-    Promise.resolve()
-      .then(() => this.hooks.after(jobInfo))
-      .catch((err) => {
-        this.log.error(`Error in after() hook: ${err}`);
-      });
+    const after = Promise.resolve().then(() => this.hooks.after(jobInfo));
+    // Counted (and a rejection recorded) without delaying the response.
+    this.lifecycle.track('after-hook', after, { owner: jobInfo.req });
+    after.catch((err) => {
+      this.log.error(`Error in after() hook: ${err}`);
+    });
   }
 
   protected wrapHTTPHandler(
@@ -222,7 +318,7 @@ export class Router extends EventEmitter {
         try {
           this.log.trace(`Running found HTTP handler.`);
           return await Promise.race([
-            handler(req, res, logger, browser),
+            this.trackHandler(handler(req, res, logger, browser), req),
             new Promise((resolve, reject) => {
               res.once('close', () => {
                 if (!res.writableEnded) {
@@ -239,7 +335,10 @@ export class Router extends EventEmitter {
         }
       }
 
-      return (handler as HTTPRoute['handler'])(req, res, logger);
+      return this.trackHandler(
+        (handler as HTTPRoute['handler'])(req, res, logger),
+        req,
+      );
     };
   }
 
@@ -276,14 +375,20 @@ export class Router extends EventEmitter {
 
         try {
           this.log.trace(`Running found WebSocket handler.`);
-          await handler(req, socket, head, logger, browser);
+          await this.trackHandler(
+            handler(req, socket, head, logger, browser),
+            req,
+          );
         } finally {
           this.log.trace(`WebSocket Request handler has finished.`);
           this.browserManager.complete(browser);
         }
         return;
       }
-      return (handler as WebSocketRoute['handler'])(req, socket, head, logger);
+      return this.trackHandler(
+        (handler as WebSocketRoute['handler'])(req, socket, head, logger),
+        req,
+      );
     };
   }
 
@@ -307,6 +412,7 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
           route,
+          (req) => this.rejectFreshIfWithdrawn(route, req),
         )
       : this.wrapWithAfterHook(wrapped, route);
 
@@ -315,8 +421,7 @@ export class Router extends EventEmitter {
         this.log.warn(`HTTP Request has closed prior to running`);
         return ROUTE_DID_NOT_RUN;
       }
-
-      return handler(req, res);
+      return this.admitRoutedRequest(route, req, () => handler(req, res));
     };
 
     route.path = Array.isArray(route.path) ? route.path : [route.path];
@@ -344,7 +449,7 @@ export class Router extends EventEmitter {
 
     // Invariant: exactly one of limiter.limit / wrapWithAfterHook wraps the
     // handler, so hooks.after() fires exactly once per request.
-    route.handler = route.concurrency
+    const handler = route.concurrency
       ? this.limiter.limit(
           wrapped,
           this.onQueueFullWebSocket.bind(this),
@@ -352,8 +457,19 @@ export class Router extends EventEmitter {
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
           route,
+          (req) => this.rejectFreshIfWithdrawn(route, req),
         )
       : this.wrapWithAfterHook(wrapped, route);
+
+    route.handler = async (
+      req: Request,
+      socket: stream.Duplex,
+      head: Buffer,
+    ) => {
+      return this.admitRoutedRequest(route, req, () =>
+        handler(req, socket, head),
+      );
+    };
     route.path = Array.isArray(route.path) ? route.path : [route.path];
     this.compilePathMatchers(route);
     const registeredPaths = this.webSocketRoutes.map((r) => r.path).flat();

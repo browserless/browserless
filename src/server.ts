@@ -18,6 +18,8 @@ import {
   TooManyRequests,
   Unauthorized,
   WebSocketRoute,
+  WorkerLifecycle,
+  WorkerWithdrawn,
   contentTypes,
   convertPathToURL,
   isMatch,
@@ -44,6 +46,11 @@ export class HTTPServer extends EventEmitter {
   protected port: number;
   protected host?: string;
   protected logger = new BlessLogger('server');
+  protected lifecycle = new WorkerLifecycle();
+  protected acceptingStopped = false;
+  protected liveResponses = new Set<http.ServerResponse>();
+  protected httpSockets = new Set<net.Socket>();
+  #originalCloseIdleConnections?: http.Server['closeIdleConnections'];
 
   constructor(
     protected config: Config,
@@ -60,6 +67,20 @@ export class HTTPServer extends EventEmitter {
     this.logger.info(
       `Server instantiated with host "${this.host}" on port "${this.port}`,
     );
+  }
+
+  public setLifecycle(lifecycle: WorkerLifecycle) {
+    this.lifecycle = lifecycle;
+  }
+
+  /**
+   * Count a request from arrival (before hooks.before, auth and body
+   * reading) until it is fully handled. Arrivals do not block admission
+   * closure, but the shutdown idle barrier waits for them. Requests arriving
+   * after closure are counted too; the router refuses non-admitted ones.
+   */
+  protected trackRequest(req: Request, p: Promise<void>): Promise<void> {
+    return this.lifecycle.trackArrival(req, p);
   }
 
   protected handleErrorRequest(
@@ -93,6 +114,10 @@ export class HTTPServer extends EventEmitter {
       return writeResponse(res, 408, e.message, contentType);
     }
 
+    if (e instanceof WorkerWithdrawn) {
+      return writeResponse(res, 503, e.message, contentType);
+    }
+
     this.logger.error(`Error handling request: ${e}\n${e.stack}`);
 
     // Full details are logged above — don't echo internals (paths, stack
@@ -119,6 +144,10 @@ export class HTTPServer extends EventEmitter {
   public async start(): Promise<void> {
     this.logger.info(`HTTP Server is starting`);
 
+    this.server.on('connection', (socket) => {
+      this.httpSockets.add(socket);
+      socket.once('close', () => this.httpSockets.delete(socket));
+    });
     this.server.on('request', this.handleRequest.bind(this));
     this.server.on('upgrade', this.handleUpgrade.bind(this));
 
@@ -147,6 +176,7 @@ export class HTTPServer extends EventEmitter {
     socket: stream.Duplex,
     head: Buffer,
   ) {
+    this.httpSockets.delete(socket as net.Socket);
     if (request.headers.upgrade?.toLowerCase() === 'websocket') {
       return this.handleWebSocket(request, socket, head);
     }
@@ -179,14 +209,39 @@ export class HTTPServer extends EventEmitter {
     res: http.ServerResponse,
   ) {
     const req = request as Request;
+    if (this.acceptingStopped) {
+      res.shouldKeepAlive = false;
+    }
+    this.liveResponses.add(res);
+    const responseFinished = new Promise<void>((resolve) => {
+      res.once('close', () => {
+        this.liveResponses.delete(res);
+        resolve();
+      });
+      res.once('finish', () => {
+        this.liveResponses.delete(res);
+        resolve();
+        if (this.acceptingStopped) {
+          setImmediate(() => this.server?.closeIdleConnections());
+        }
+      });
+    });
     // Any throw out of this method is an unhandled rejection on the
     // 'request' listener, which kills the whole process — catch and map
     // to an error response instead.
-    try {
-      await this.handleRequestUnsafe(req, res);
-    } catch (e: unknown) {
-      this.handleErrorRequest(e as Error, res, req);
-    }
+    return this.trackRequest(
+      req,
+      (async () => {
+        try {
+          await this.handleRequestUnsafe(req, res);
+        } catch (e: unknown) {
+          this.handleErrorRequest(e as Error, res, req);
+        } finally {
+          // Handler completion does not imply buffered response bytes flushed.
+          await responseFinished;
+        }
+      })(),
+    );
   }
 
   protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
@@ -407,11 +462,16 @@ export class HTTPServer extends EventEmitter {
 
     // Same rationale as handleRequest: a throw here is an unhandled
     // rejection on the 'upgrade' listener and crashes the process.
-    try {
-      await this.handleWebSocketUnsafe(req, socket, head);
-    } catch (e: unknown) {
-      this.handleErrorRequest(e as Error, socket, req);
-    }
+    return this.trackRequest(
+      req,
+      (async () => {
+        try {
+          await this.handleWebSocketUnsafe(req, socket, head);
+        } catch (e: unknown) {
+          this.handleErrorRequest(e as Error, socket, req);
+        }
+      })(),
+    );
   }
 
   protected async handleWebSocketUnsafe(
@@ -514,8 +574,46 @@ export class HTTPServer extends EventEmitter {
     return writeResponse(socket, 404, 'Not Found');
   }
 
+  /**
+   * Terminal-stop step: stop accepting connections and close idle keep-alive
+   * ones, without waiting for open connections to end (an in-band caller's
+   * own connection would never end first). Connections still serving a
+   * request are closed once their response finishes. Requests and upgraded
+   * sockets already in progress stay counted by the lifecycle. The forced
+   * `shutdown()` is unchanged.
+   */
+  public async stopAccepting(): Promise<void> {
+    this.acceptingStopped = true;
+    if (!this.server) return;
+    // Node's close() also invokes closeIdleConnections(), whose `finished`
+    // check can destroy an ended response before its buffered bytes flush.
+    // Retain sockets until their responses emit finish/close, and leave
+    // upgraded sockets to their normal browser/request ownership.
+    this.#originalCloseIdleConnections ??= this.server.closeIdleConnections;
+    this.server.closeIdleConnections = () => {
+      const busy = new Set([...this.liveResponses].map((res) => res.socket));
+      for (const socket of this.httpSockets) {
+        if (!busy.has(socket)) socket.destroy();
+      }
+    };
+    // Responses not yet started must not advertise keep-alive.
+    for (const res of this.liveResponses) {
+      if (!res.headersSent) res.shouldKeepAlive = false;
+    }
+    if (this.server?.listening) {
+      this.server.close();
+    }
+    this.server?.closeIdleConnections();
+  }
+
   public async shutdown(): Promise<void> {
+    if (!this.server) return;
     this.logger.info(`HTTP Server is shutting down`);
+    // Forced cleanup must not inherit graceful response-flush protection.
+    if (this.#originalCloseIdleConnections) {
+      this.server.closeIdleConnections = this.#originalCloseIdleConnections;
+      this.#originalCloseIdleConnections = undefined;
+    }
     await new Promise((r) => this.server?.close(r));
 
     if (this.server) {

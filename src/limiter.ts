@@ -8,6 +8,8 @@ import {
   Route,
   TooManyRequests,
   WebHooks,
+  WorkerLifecycle,
+  WorkerWithdrawn,
 } from '@browserless.io/browserless';
 import q from 'queue';
 
@@ -20,15 +22,20 @@ export type ErrorFn<TArgs extends unknown[]> = (...args: TArgs) => void;
 interface Job {
   (): Promise<unknown>;
   args: unknown[];
+  endJob?: () => void;
+  promise?: Promise<unknown>;
   onTimeoutFn(job: Job): unknown;
   start: number;
   timeout: number;
   route?: Route;
+  reject(err: unknown): void;
 }
 
 export class Limiter extends q {
   protected queued: number;
   protected logger = new Logger('limiter');
+  protected lifecycle = new WorkerLifecycle();
+  #activeJobs = new Set<Job>();
 
   constructor(
     protected config: Config,
@@ -72,7 +79,86 @@ export class Limiter extends q {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.addEventListener('error', this.handleFail.bind(this) as any);
 
+    this.addEventListener('start', ({ detail }) => {
+      const job = detail.job as unknown as Job;
+      // Bare callbacks submitted through queue.push have no limiter metadata.
+      if (!job?.args) return;
+      // Register before external start listeners can end the queue. Keep the
+      // request/completion handoff covered until jobEnd tracks its after-hook.
+      this.lifecycle.track(
+        'limiter-job-end',
+        new Promise<void>((resolve) => {
+          this.#activeJobs.add(job);
+          job.endJob = () => {
+            this.#activeJobs.delete(job);
+            resolve();
+          };
+        }),
+        { owner: job.args[0] as object, required: false },
+      );
+    });
+
+    // Run after the handlers, even when an SDK override omits super or throws.
+    for (const event of ['success', 'error', 'timeout'] as const) {
+      this.addEventListener(event, ({ detail }) => {
+        const job = (detail as unknown as { job: Job }).job;
+        if (!job.endJob) return;
+        if (event === 'timeout') {
+          // A timeout callback need not cancel the underlying execution.
+          Promise.resolve()
+            .then(() => job.promise)
+            .then(job.endJob, job.endJob);
+        } else {
+          job.endJob();
+        }
+      });
+    }
+
+    this.addEventListener('end', () => {
+      // Explicit queue.end() suppresses completion events for active jobs.
+      // Wait for their execution instead; never release them at cancellation.
+      for (const job of this.#activeJobs) {
+        // queue assigns job.promise after invoking it, so defer the read in
+        // case the handler calls end() synchronously while starting.
+        Promise.resolve()
+          .then(() => job.promise)
+          .then(job.endJob, job.endJob);
+      }
+    });
     this.addEventListener('end', this.handleEnd.bind(this));
+    this.setLifecycle(this.lifecycle);
+  }
+
+  public setLifecycle(lifecycle: WorkerLifecycle) {
+    this.lifecycle = lifecycle;
+    lifecycle.registerSource('limiter-queued', () => this.waitingJobs.length);
+  }
+
+  protected get waitingJobs(): Job[] {
+    return (this as unknown as { jobs: Job[] }).jobs;
+  }
+
+  /**
+   * Reject not-yet-started jobs that `shouldReject` selects. Used on
+   * withdrawal; started jobs are left alone. This only schedules: jobs kept
+   * here still pass admission/liveness checks when they execute.
+   */
+  public rejectWaiting(
+    shouldReject: (req: unknown, route?: Route) => boolean,
+  ): number {
+    const rejected = this.waitingJobs.filter((job) =>
+      shouldReject(job.args[0], job.route),
+    );
+    for (const job of rejected) {
+      this.splice(this.waitingJobs.indexOf(job), 1);
+      job.reject(
+        new WorkerWithdrawn('worker_withdrawn: queued request cancelled'),
+      );
+    }
+    if (rejected.length) {
+      this.logQueue(`Rejected ${rejected.length} queued job(s) on withdrawal`);
+    }
+    return rejected.length;
   }
 
   protected _errorHandler({
@@ -88,7 +174,13 @@ export class Limiter extends q {
   }
 
   protected jobEnd(jobInfo: AfterResponse) {
-    this.hooks.after(jobInfo);
+    // Not awaited (response timing unchanged), but counted until settled.
+    // Invoke synchronously for compatibility; the executor also captures throws.
+    const after = new Promise((resolve) => resolve(this.hooks.after(jobInfo)));
+    this.lifecycle.track('after-hook', after, { owner: jobInfo.req });
+    after.catch((err) => {
+      this.logger.error(`Error in after() hook: ${err}`);
+    });
   }
 
   protected handleSuccess({ detail: { job } }: { detail: { job: Job } }) {
@@ -137,8 +229,11 @@ export class Limiter extends q {
     this.logger.debug(
       `Recording failed stat, cleaning up: "${error?.toString()}"`,
     );
+    // Preserve running/session-time accounting, including refused launches.
     this.metrics.addError(Date.now() - job.start);
-    this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
+    if (!(error instanceof WorkerWithdrawn)) {
+      this.webhooks.callErrorAlertURL(error?.toString() ?? 'Unknown Error');
+    }
     this.jobEnd({
       req: job.args[0],
       start: job.start,
@@ -184,9 +279,15 @@ export class Limiter extends q {
     timeoutOverrideFn: (...args: TArgs) => number | undefined,
     bypassLimitsFn?: (...args: TArgs) => boolean,
     route?: Route,
+    checkAdmission?: (...args: TArgs) => void,
   ): LimitFn<TArgs, unknown> {
     return (...args: TArgs) =>
       new Promise((res, rej) => {
+        // Before any await: a request admitted under this generation cannot
+        // launch under a later one (withdraw then resume while it waited).
+        if (args[0] && typeof args[0] === 'object') {
+          this.lifecycle.stampAdmission(args[0]);
+        }
         const admit = async () => {
           const timeout = timeoutOverrideFn(...args) ?? this.timeout;
           let skipLimits = false;
@@ -208,6 +309,7 @@ export class Limiter extends q {
             const { cpuOverloaded, memoryOverloaded } =
               await this.monitor.overloaded();
 
+            checkAdmission?.(...args);
             if (cpuOverloaded || memoryOverloaded) {
               if (skipLimits) {
                 this.logQueue(
@@ -225,6 +327,7 @@ export class Limiter extends q {
             }
           }
 
+          checkAdmission?.(...args);
           if (!this.hasCapacity) {
             if (skipLimits) {
               this.logQueue(`At capacity but limits bypassed; admitting`);
@@ -271,6 +374,7 @@ export class Limiter extends q {
             start: Date.now(),
             timeout,
             route,
+            reject: rej,
           });
 
           this.push(job);

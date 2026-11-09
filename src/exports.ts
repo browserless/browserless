@@ -5,6 +5,7 @@ export * from './constants.js';
 export * from './file-system.js';
 export * from './hooks.js';
 export * from './http.js';
+export * from './lifecycle.js';
 export * from './limiter.js';
 export * from './logger.js';
 export * from './metrics.js';
