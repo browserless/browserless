@@ -77,6 +77,8 @@ Aside form scaffolding the project, Browserless also looks for the following:
 - `token.ts` Loads the default export as a token override.
 - `webhooks.ts` Loads the default export as a WebHook override.
 
+Module auto-discovery matches these filenames exactly, so `webhooks.ts` cannot also be loaded as `hooks.ts`. For other filenames, specify a source path in your project's `package.json`, for example `"browserless": { "hooks": "src/custom-handler.ts" }`.
+
 When enhancing overrides it's highly recommended to extend the existing implementation versus re-implementing the entire module. You can either default export a Class or an instance of a class and Browserless will handle it appropriately for you. This is useful if your enhancements require new constructor arguments or other features. See below for more details.
 
 Once you're satisfied with your work, you can run `npm start` and Browserless will compile your TypeScript, generate runtime validation, generate the embedded documentation site, and start the development server.
