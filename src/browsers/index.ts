@@ -968,16 +968,18 @@ export class BrowserManager {
 
     this.browsers.set(browser, session);
 
-    // Awaiting the tracked promise keeps this listener's rejection exactly as
-    // before (unhandled); tracking additionally records it as a failure.
+    // EventEmitter does not await listeners; retain failures in the lifecycle
+    // without letting a page-level rejection escape to the process.
     browser.on('newPage', async (page: Page) => {
-      await this.lifecycle.track(
-        'page-hook',
-        (async () => {
-          await this.onNewPage(req, page);
-          await (router.onNewPage || noop)(req.parsed || '', page);
-        })(),
-      );
+      await this.lifecycle
+        .track(
+          'page-hook',
+          (async () => {
+            await this.onNewPage(req, page);
+            await (router.onNewPage || noop)(req.parsed || '', page);
+          })(),
+        )
+        .catch((err) => logger.error(`Error running page hook: ${err}`));
     });
 
     // A still-present session here means nobody called close() — the

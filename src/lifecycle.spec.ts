@@ -429,7 +429,7 @@ describe('BrowserManager drain (mock browsers)', () => {
         );
       } finally {
         pending.resolve();
-        await handled;
+        expect(await handled).to.be.undefined;
       }
       await lc.whenIdle();
       const report = await lc.tryCloseAdmission(expectFor(lc));
@@ -440,7 +440,7 @@ describe('BrowserManager drain (mock browsers)', () => {
     }
   });
 
-  it('a rejected newPage hook still rejects the listener and leaves completion blocked', async () => {
+  it('contains rejected page hooks while retaining the lifecycle failure', async () => {
     const lc = new WorkerLifecycle();
     const { manager, hooks } = buildManager(lc);
     const browser = (await manager.getBrowserForRequest(
@@ -450,11 +450,17 @@ describe('BrowserManager drain (mock browsers)', () => {
     )) as unknown as FakeBrowser;
     hooks.page.rejects(new Error('page hook failed'));
 
-    const [listener] = browser.listeners('newPage');
-    const err = await (listener as (p: unknown) => Promise<void>)({}).catch(
-      (e: Error) => e,
-    );
-    expect((err as Error).message).to.equal('page hook failed');
+    const unhandled: unknown[] = [];
+    const onUnhandled = (error: unknown) => unhandled.push(error);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      browser.emit('newPage', {});
+      await lc.whenIdle();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(unhandled).to.deep.equal([]);
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+    }
 
     await manager.complete(browser as never);
     await drained(lc);
