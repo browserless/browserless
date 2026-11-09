@@ -120,7 +120,14 @@ const importDefault = async (files, fileName) => {
     }
   }
 
-  const classModuleFile = files.find((f) => path.parse(f).name === fileName);
+  const classModuleFile = files.find((f) => {
+    const name = path.parse(f).name;
+    // Preserve legacy suffix matching, but keep WebHooks out of Hooks discovery.
+    return (
+      name.endsWith(fileName) &&
+      !(fileName === 'hooks' && name.endsWith('webhooks'))
+    );
+  });
 
   if (!classModuleFile) {
     return;

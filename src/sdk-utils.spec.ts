@@ -92,6 +92,18 @@ describe('SDK utils', () => {
       modules: 'none',
       signal: 'startup',
     },
+    {
+      name: 'legacy prefixed module filenames',
+      customHooks: true,
+      modules: 'prefixed',
+      signal: 'SIGTERM',
+    },
+    {
+      name: 'default hooks beside prefixed webhooks',
+      customHooks: false,
+      modules: 'prefixed',
+      signal: 'SIGTERM',
+    },
   ] as const) {
     it(`runs CLI requests and cleanup with ${name}`, async () => {
       const sdk = JSON.stringify(
@@ -136,12 +148,18 @@ describe('SDK utils', () => {
         );
       for (const [file, name] of overrides) {
         await fs.writeFile(
-          path.join(buildDir, `${file}.js`),
+          path.join(
+            buildDir,
+            `${modules === 'prefixed' ? 'custom-' : ''}${file}.js`,
+          ),
           `export { ${name} as default } from ${sdk};`,
         );
       }
       await fs.writeFile(
-        path.join(buildDir, 'limiter.js'),
+        path.join(
+          buildDir,
+          modules === 'prefixed' ? 'custom-limiter.js' : 'limiter.js',
+        ),
         `import { Limiter } from ${sdk};
        import { appendFile } from 'node:fs/promises';
        export default class CustomLimiter extends Limiter {
@@ -155,7 +173,11 @@ describe('SDK utils', () => {
         await fs.writeFile(
           path.join(
             buildDir,
-            modules === 'mapped' ? 'custom-handler.js' : 'hooks.js',
+            modules === 'mapped'
+              ? 'custom-handler.js'
+              : modules === 'prefixed'
+                ? 'custom-hooks.js'
+                : 'hooks.js',
           ),
           `import { Hooks } from ${sdk};
        import { writeFile } from 'node:fs/promises';
