@@ -100,6 +100,7 @@ export class Browserless extends EventEmitter {
   // cache plus every /metrics response built from it — grows forever.
   metricsMaxEntries: number = 10_000;
   protected gracefulShutdown?: Promise<ShutdownReport>;
+  protected serverShutdown = new WeakMap<HTTPServer, Promise<void>>();
   protected shutdownStepsFinished = false;
   // Owner of the metrics-save producer: its passes may run after closure
   // until the terminal stop clears the interval.
@@ -393,6 +394,7 @@ export class Browserless extends EventEmitter {
         name: 'idle-barrier',
         run: () => this.lifecycle.whenIdle(),
       },
+      { name: 'server', run: () => this.shutdownServer() },
       { name: 'router', run: () => this.router.shutdown() },
       { name: 'limiter', run: () => this.limiter.shutdown() },
       { name: 'browser-manager', run: () => this.browserManager.shutdown() },
@@ -472,6 +474,18 @@ export class Browserless extends EventEmitter {
     return { ...after, shutdownComplete, steps };
   }
 
+  protected shutdownServer(): Promise<void> {
+    const server = this.server;
+    if (!server) return Promise.resolve();
+    const existing = this.serverShutdown.get(server);
+    if (existing) return existing;
+    const pending = new Promise<void>((resolve) => resolve(server.shutdown()));
+    this.serverShutdown.set(server, pending);
+    // Preserve explicit forced-stop retries after an override fails.
+    void pending.catch(() => this.serverShutdown.delete(server));
+    return pending;
+  }
+
   public async stop() {
     // Preserve forced shutdown while graceful cleanup is pending or failed.
     if (this.shutdownStepsFinished) return [];
@@ -490,6 +504,7 @@ export class Browserless extends EventEmitter {
       this.hooks,
     ].map((component) => {
       try {
+        if (component === this.server) return this.shutdownServer();
         return component?.shutdown();
       } catch (error) {
         return Promise.reject(error);

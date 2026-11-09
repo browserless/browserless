@@ -260,6 +260,7 @@ const SDK_STEP_ORDER = [
   'stop-metrics-interval',
   'close-listener',
   'idle-barrier',
+  'server',
   'router',
   'limiter',
   'browser-manager',
@@ -432,6 +433,54 @@ describe('Terminal admission closure and ordered stop (real listener, no browser
   });
 
   describe('ordered terminal stop', () => {
+    it('allows forced stop after missing, failed, or replaced server cleanup', async () => {
+      const { browserless, server } = await stack();
+      browserless.server = undefined;
+      await browserless.stop();
+      browserless.server = server;
+      const shutdown = server.shutdown.bind(server);
+      let attempts = 0;
+      const error = new Error('transient server cleanup failure');
+      server.shutdown = async () => {
+        if (++attempts === 1) throw error;
+        await shutdown();
+      };
+      expect(await browserless.stop().catch((e) => e)).to.equal(error);
+      await browserless.stop();
+      expect(attempts).to.equal(2);
+      let replacementStopped = false;
+      browserless.server = {
+        shutdown: async () => {
+          replacementStopped = true;
+        },
+      } as unknown as HTTPServer;
+      await browserless.stop();
+      expect(replacementStopped).to.be.true;
+    });
+
+    it('awaits server override cleanup exactly once across graceful and forced stop', async () => {
+      for (const forced of [false, true]) {
+        const { browserless, get, hooks, lc, server } = await stack();
+        const after = deferred();
+        hooks.after = () => after.promise;
+        let cleanups = 0;
+        const shutdown = server.shutdown.bind(server);
+        server.shutdown = async () => {
+          cleanups++;
+          await shutdown();
+        };
+        await closeWorker(lc);
+        await get('/control?token=t');
+        if (forced) await browserless.stop();
+        after.resolve();
+        const report = await browserless.shutdownGracefully(expectNow(lc));
+        expect(report.shutdownComplete).to.be.true;
+        expect(cleanups).to.equal(1);
+        await browserless.stop();
+        await server.shutdown(); // The underlying server may already be cleared.
+      }
+    });
+
     it('refuses before closure and on a stale boot/generation, without running steps', async () => {
       const { browserless, get, lc } = await stack();
       const ran = instrument(browserless);

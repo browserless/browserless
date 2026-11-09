@@ -604,6 +604,7 @@ export class HTTPServer extends EventEmitter {
   }
 
   public async shutdown(): Promise<void> {
+    if (!this.server) return;
     this.logger.info(`HTTP Server is shutting down`);
     await new Promise((r) => this.server?.close(r));
 
