@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.61.0](https://github.com/browserless/browserless/compare/v2.60.0...v2.61.0) (2026-11-09)
+
+
+### Features
+
+* add worker admission and ordered shutdown ([#5667](https://github.com/browserless/browserless/issues/5667)) ([873ed5d](https://github.com/browserless/browserless/commit/873ed5d0a4c046d50ae4584f5457860ada83e829))
+
+
+### Build System & Runtime
+
+* verify pinned nvm installer before execution ([#5662](https://github.com/browserless/browserless/issues/5662)) ([1364289](https://github.com/browserless/browserless/commit/13642891ca2da5841154f76777e01d669486249e))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.65.0`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `158.0.8127.18`
+- Chrome: `157.0.8103.38` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.42` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.60.0](https://github.com/browserless/browserless/compare/v2.59.0...v2.60.0) (2026-11-06)
 
 
