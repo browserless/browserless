@@ -75,7 +75,6 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
-  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.html];
   description = `A JSON-based API. Given a "url" or "html" field, runs and returns HTML content after the page has loaded and JavaScript has parsed.`;
   method = Methods.post;

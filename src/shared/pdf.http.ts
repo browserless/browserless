@@ -75,7 +75,6 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
-  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.pdf];
   description = dedent(`
     A JSON-based API for getting a PDF binary from either a supplied

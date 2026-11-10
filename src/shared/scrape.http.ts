@@ -228,7 +228,6 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
-  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.json];
   description = dedent(`
     A JSON-based API that returns text, html, and meta-data from a given list of selectors.

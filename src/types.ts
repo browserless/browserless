@@ -164,8 +164,9 @@ export abstract class Route<Req extends Request = Request> {
    *
    * When defined, its result (true or false) is what the default
    * `BrowserManager.isExistingBrowserRequest` returns for this route; when
-   * undefined, the request path is classified as before. Subclasses inherit
-   * it, so redeclare it when a subclass changes what its paths target.
+   * undefined, as on the built-in routes, the request path is classified as
+   * before. Subclasses inherit it, so redeclare it when a subclass changes
+   * what its paths target.
    */
   targetsExistingBrowser?: (req: Req) => boolean;
 

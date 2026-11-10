@@ -22,7 +22,6 @@ export default class ChromiumBrowserWebSocketRoute extends BrowserWebsocketRoute
   browser = ChromiumCDP;
   concurrency = true;
   bypassLimits = (): boolean => true;
-  targetsExistingBrowser = (): boolean => true;
   description = dedent(
     `Connect to an already-running Chromium process with a library like
     puppeteer, or others, that work over chrome-devtools-protocol. Chromium

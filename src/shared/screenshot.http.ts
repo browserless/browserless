@@ -78,7 +78,6 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
-  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.png, contentTypes.jpeg, contentTypes.text];
   description = dedent(`
     A JSON-based API for getting a screenshot binary from either a supplied

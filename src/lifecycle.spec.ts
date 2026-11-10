@@ -24,9 +24,12 @@ import {
   WebHooks,
   WorkerLifecycle,
   WorkerWithdrawn,
+  WebsocketRoutes,
   contentTypes,
   getRouteFiles,
 } from '@browserless.io/browserless';
+import ChromiumBrowserWebSocketRoute from './shared/browser.ws.js';
+import ChromiumCDPWebSocketRoute from './shared/chromium.ws.js';
 import { EventEmitter } from 'events';
 import Sinon from 'sinon';
 import { expect } from 'chai';
@@ -978,36 +981,74 @@ describe('Route-declared drain classification', () => {
   type Setup = {
     Manager: typeof BrowserManager;
     declared?: (req: Request) => boolean;
+    // The route under test; defaults to an undeclared HTTP browser route.
+    make?: () => BrowserHTTPRoute | BrowserWebsocketRoute;
   };
 
-  const stackWith = (
-    { Manager, declared }: Setup,
+  // Each stack holds one live browser, launched while running; `{live}` in a
+  // request path is replaced by its id.
+  const stackWith = async (
+    { Manager, declared, make }: Setup,
+    path: string,
     opts: Parameters<typeof buildStack>[0] = {},
   ) => {
     const s = buildStack({ ...opts, Manager });
     monitorings.push(s.monitoring);
-    const route = new PendingBrowserRoute(async () => 'ran', true);
-    if (declared) route.targetsExistingBrowser = declared;
-    const r = s.router.registerHTTPRoute(route);
+    const live = (await s.manager.getBrowserForRequest(
+      makeReq('/chromium'),
+      route,
+      new Logger('test'),
+    )) as unknown as FakeBrowser;
+    const subject =
+      make?.() ?? new PendingBrowserRoute(async () => 'ran', true);
+    if (declared) subject.targetsExistingBrowser = declared;
+    let call: () => Promise<unknown>;
+    const req = makeReq(path.replace('{live}', live.id));
+    if (subject instanceof BrowserWebsocketRoute) {
+      const r = s.router.registerWebSocketRoute(subject);
+      call = () =>
+        (r.handler as (...a: unknown[]) => Promise<unknown>)(
+          req,
+          makeSocket(),
+          Buffer.alloc(0),
+        );
+    } else {
+      const r = s.router.registerHTTPRoute(subject);
+      call = () => run(r, req, makeRes());
+    }
     const resolve = Sinon.spy(s.manager, 'getBrowserForRequest');
-    return { ...s, r, resolve };
+    return { ...s, call, live, resolve };
   };
 
-  // Every observer runs while withdrawn. "existing" means the request kept the
-  // normal path and reached target resolution; nothing may launch either way.
-  const atEntry = async (setup: Setup, path: string) => {
-    const { lc, r, resolve } = stackWith(setup);
-    lc.withdraw(expectFor(lc));
-    const before = FakeBrowser.constructed;
-    const err = await run(r, makeReq(path), makeRes()).catch((e) => e);
-    expect(err).to.be.instanceOf(resolve.called ? Error : WorkerWithdrawn);
+  // "existing" means the request kept the normal path and reached target
+  // resolution, whose result is returned; "fresh" means it was refused with
+  // WorkerWithdrawn first. Nothing may launch either way.
+  const outcome = async (
+    { live, resolve }: { live: FakeBrowser; resolve: Sinon.SinonSpy },
+    settled: Promise<unknown>,
+    before: number,
+  ) => {
+    const result = await settled.catch((e) => e);
     expect(FakeBrowser.constructed).to.equal(before);
-    return resolve.called ? 'existing' : 'fresh';
+    if (!resolve.called) {
+      expect(result).to.be.instanceOf(WorkerWithdrawn);
+      return { kind: 'fresh', live };
+    }
+    const target = await resolve.firstCall.returnValue.catch((e: unknown) => e);
+    return { kind: 'existing', live, target };
+  };
+
+  const atEntry = async (setup: Setup, path: string) => {
+    const s = await stackWith(setup, path);
+    s.lc.withdraw(expectFor(s.lc));
+    const before = FakeBrowser.constructed;
+    return outcome(s, s.call(), before);
   };
 
   // Admitted while running, withdrawn during the limiter's health check.
   const atAdmission = async (setup: Setup, path: string) => {
-    const { config, lc, monitoring, r, resolve } = stackWith(setup);
+    const s = await stackWith(setup, path);
+    const { call, config, lc, monitoring } = s;
     config.enableHealthChecks(true);
     const health = deferred<{
       cpuOverloaded: boolean;
@@ -1015,40 +1056,45 @@ describe('Route-declared drain classification', () => {
     }>();
     Sinon.stub(monitoring, 'overloaded').returns(health.promise as never);
     const before = FakeBrowser.constructed;
-    const pending = run(r, makeReq(path), makeRes()).catch((e) => e);
+    const pending = call();
     lc.withdraw(expectFor(lc));
     health.resolve({ cpuOverloaded: false, memoryOverloaded: false });
-    expect(await pending).to.be.instanceOf(Error);
-    expect(FakeBrowser.constructed).to.equal(before);
-    return resolve.called ? 'existing' : 'fresh';
+    return outcome(s, pending, before);
   };
 
   // Queued while running behind a held slot, then withdrawn.
   const inSweep = async (setup: Setup, path: string) => {
-    const { lc, limiter, r, resolve, router } = stackWith(setup, {
-      concurrent: 1,
-      queued: 5,
-    });
+    const s = await stackWith(setup, path, { concurrent: 1, queued: 5 });
+    const { call, lc, limiter, resolve, router } = s;
     const hold = deferred();
+    const entered = deferred();
     const holder = router.registerHTTPRoute(
-      new PendingBrowserRoute(() => hold.promise, true),
+      new PendingBrowserRoute(() => {
+        entered.resolve();
+        return hold.promise;
+      }, true),
     );
     const held = run(holder, makeReq('/chromium'), makeRes());
-    await flush();
+    await entered.promise;
     resolve.resetHistory();
     const before = FakeBrowser.constructed;
-    const queued = run(r, makeReq(path), makeRes()).catch((e) => e);
+    const queued = call();
     await flush();
     expect(limiter.waiting).to.equal(1);
     lc.withdraw(expectFor(lc));
     const kept = limiter.waiting === 1;
     hold.resolve();
     await held;
-    expect(await queued).to.be.instanceOf(Error);
-    expect(resolve.called).to.equal(kept);
-    expect(FakeBrowser.constructed).to.equal(before);
-    return kept ? 'existing' : 'fresh';
+    const observed = await outcome(s, queued, before);
+    expect(observed.kind).to.equal(kept ? 'existing' : 'fresh');
+    return observed;
   };
+
+  const atAllSites = async (setup: Setup, path: string) => [
+    await atEntry(setup, path),
+    await atAdmission(setup, path),
+    await inSweep(setup, path),
+  ];
 
   const cases: Array<[string, Setup, string, 'existing' | 'fresh']> = [
     [
@@ -1103,37 +1149,72 @@ describe('Route-declared drain classification', () => {
 
   for (const [name, setup, path, expected] of cases) {
     it(`${name}: same at entry, limiter admission and withdrawal sweep`, async () => {
-      expect([
-        await atEntry(setup, path),
-        await atAdmission(setup, path),
-        await inSweep(setup, path),
-      ]).to.deep.equal([expected, expected, expected]);
+      const kinds = (await atAllSites(setup, path)).map((o) => o.kind);
+      expect(kinds).to.deep.equal([expected, expected, expected]);
     });
   }
 
-  it('every launch-capable built-in route declares it, matching the path classification of each path it serves', async () => {
-    const { manager } = buildManager(new WorkerLifecycle());
+  // 2.61.0-style subclasses of shared built-in routes that change `path` and
+  // declare nothing keep path classification.
+  const deps = Array(7).fill(null) as unknown as ConstructorParameters<
+    typeof ChromiumCDPWebSocketRoute
+  >;
+
+  it('a launch-route subclass that adds a reconnect path still attaches to its live target at every site', async () => {
+    class MixedRoute extends ChromiumCDPWebSocketRoute {
+      path = [WebsocketRoutes.chromium, WebsocketRoutes.browser];
+    }
+    const setup = {
+      Manager: BrowserManager,
+      make: () => new MixedRoute(...deps),
+    };
+    for (const o of await atAllSites(setup, '/devtools/browser/{live}')) {
+      expect(o.kind).to.equal('existing');
+      expect(o.target).to.equal(o.live);
+    }
+  });
+
+  it('a reconnect-route subclass moved to a launch path stays fresh at every site', async () => {
+    class FreshRoute extends ChromiumBrowserWebSocketRoute {
+      path = WebsocketRoutes.chromium;
+    }
+    const setup = {
+      Manager: BrowserManager,
+      make: () => new FreshRoute(...deps),
+    };
+    const kinds = (await atAllSites(setup, '/chromium')).map((o) => o.kind);
+    expect(kinds).to.deep.equal(['fresh', 'fresh', 'fresh']);
+  });
+
+  it('classifies every path a launch-capable built-in route serves the way execution treats it', async () => {
+    const lc = new WorkerLifecycle();
+    const { manager } = buildManager(lc);
+    lc.withdraw(expectFor(lc));
     const seen = new Set<string>();
     const files = (await getRouteFiles(new Config()))
       .flat()
       .filter((f) => f.endsWith('.js'));
     for (const file of files) {
       const { default: BuiltIn } = await import(file);
-      const route = new BuiltIn(...Array(7).fill(null)) as Route & {
-        browser?: unknown;
-      };
-      if (!route.browser) continue;
-      expect(route.targetsExistingBrowser, route.name).to.be.a('function');
-      for (const glob of [route.path].flat() as string[]) {
+      const builtIn = new BuiltIn(...deps) as
+        BrowserHTTPRoute | BrowserWebsocketRoute;
+      if (!builtIn.browser) continue;
+      for (const glob of [builtIn.path].flat() as string[]) {
         for (const id of ['abc123', `${BLESS_PAGE_IDENTIFIER}abc123`]) {
-          const pathname = glob.replace('?(/)', '').replace('*', id) || '/';
+          const pathname =
+            glob.replaceAll('?(/)', '').replaceAll('*', id) || '/';
           expect(micromatch.isMatch(pathname, glob), pathname).to.be.true;
           const req = makeReq(pathname);
-          const declared = manager.isExistingBrowserRequest(req, route);
-          expect(declared, `${route.name} ${pathname}`).to.equal(
-            manager.isExistingBrowserRequest(req),
-          );
-          seen.add(`${route.name}:${declared}`);
+          const existing = manager.isExistingBrowserRequest(req, builtIn);
+          // While withdrawn, only a launch reaches the launch gate.
+          const err = await manager
+            .getBrowserForRequest(req, builtIn, new Logger('test'))
+            .catch((e) => e);
+          expect(
+            err instanceof WorkerWithdrawn,
+            `${builtIn.name} ${pathname}`,
+          ).to.equal(!existing);
+          seen.add(`${builtIn.name}:${existing}`);
         }
       }
     }
