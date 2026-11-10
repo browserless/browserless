@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
+import { spawnSync } from 'node:child_process';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
@@ -1141,15 +1142,54 @@ test('capture and readback hooks run before CDP read operations', async () => {
 
 test('invalid and excessive network regexes are rejected when registered', async () => {
   const api = new API();
-  await assert.rejects(api.reject({ enabled: true, regex: ['('] }), /regex/i);
-  await assert.rejects(
-    api.fulfill({ regex: ['x'.repeat(201)], body: 'test' }),
-    /regex/i,
+  for (const regex of ['(', 'x'.repeat(201), '(?=x)', '(x)\\1']) {
+    for (const run of [
+      () => api.reject({ enabled: true, regex: [regex] }),
+      () => api.fulfill({ regex: [regex], body: 'test' }),
+      () => api.request({ regex: [regex], wait: false }),
+      () => api.response({ regex: [regex], wait: false }),
+    ]) {
+      await assert.rejects(run(), /regex/i);
+    }
+  }
+});
+
+test('network regexes handle ambiguous alternations without blocking', function () {
+  this.timeout(15000);
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
+    import assert from 'node:assert/strict';
+    import { BQLBrowserAPI } from '@browserless.io/browserless';
+    import { EventEmitter } from 'node:events';
+    class API extends BQLBrowserAPI {
+      async setup() {
+        this.mainCDP = new EventEmitter();
+        this.mainCDP.send = async () => ({});
+        await this.setupTarget(this.mainCDP, 'page');
+      }
+    }
+    const api = new API({ browser: {}, config: {}, logger: {}, req: {} });
+    await api.setup();
+    api.mainCDP.emit('Network.requestWillBeSent', {
+      requestId: 'r', type: 'Document',
+      request: { url: 'https://example.com/' + 'a'.repeat(40000) + '!', method: 'GET', headers: {} },
+    });
+    const args = { regex: ['(a|aa)+$'], wait: false };
+    assert.equal(await api.request(args), null);
+    args.regex = ['example[.]com', 'missing'];
+    assert.equal((await api.request(args)).length, 1);
+    assert.equal(await api.request({ ...args, operator: 'and' }), null);
+    assert.equal((await api.request({ ...args, regex: ['example[.]com', 'a+!$'], operator: 'and' })).length, 1);
+  `,
+    ],
+    { timeout: 10000, encoding: 'utf8' },
   );
-  await assert.rejects(
-    api.reject({ enabled: true, regex: ['(a+)+'] }),
-    /regex/i,
-  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test('intentional document rejects return null status instead of navigate errors', async () => {
