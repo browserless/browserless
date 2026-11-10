@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.62.0](https://github.com/browserless/browserless/compare/v2.61.0...v2.62.0) (2026-11-10)
+
+
+### Features
+
+* let routes declare whether they target an existing browser ([#5671](https://github.com/browserless/browserless/issues/5671)) ([2cc98ef](https://github.com/browserless/browserless/commit/2cc98ef47795ceef65533e5d81a6cc51cdc6ad2a))
+
 ## [2.61.0](https://github.com/browserless/browserless/compare/v2.60.0...v2.61.0) (2026-11-09)
 
 
