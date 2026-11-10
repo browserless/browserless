@@ -386,6 +386,9 @@ export class BQLBrowserAPI {
     void _result;
   }
   protected async beforeReadback(): Promise<void> {}
+  protected supportsAuthChallenge(challenge: Protocol.Fetch.AuthChallenge) {
+    return challenge.source === 'Server';
+  }
   protected async beforeCapture(): Promise<void> {}
   protected getCaptureViewportState(): {
     metrics?: Protocol.Emulation.SetDeviceMetricsOverrideRequest;
@@ -692,7 +695,7 @@ export class BQLBrowserAPI {
       let authChallengeResponse: Protocol.Fetch.AuthChallengeResponse = {
         response: 'Default',
       };
-      if (event.authChallenge.source === 'Server' && this.httpAuth) {
+      if (this.httpAuth && this.supportsAuthChallenge(event.authChallenge)) {
         let challenges = this.authChallenges.get(cdp);
         if (!challenges) this.authChallenges.set(cdp, (challenges = new Map()));
         const challenge = challenges.get(event.requestId) ?? {

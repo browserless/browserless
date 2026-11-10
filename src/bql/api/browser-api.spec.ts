@@ -1644,6 +1644,47 @@ test('HTTP authentication is origin scoped and cancels repeated challenges', asy
   await api.close();
 });
 
+test('custom authentication sources retain origin and retry limits', async () => {
+  class CustomAuthAPI extends API {
+    protected supportsAuthChallenge() {
+      return true;
+    }
+  }
+  const api = new CustomAuthAPI();
+  await api.setup();
+  await api.authenticate({
+    username: 'test-user',
+    password: 'test-password',
+    origin: 'https://example.com',
+  });
+  for (const [requestId, origin] of [
+    ['first', 'https://example.com'],
+    ['first', 'https://example.com'],
+    ['other', 'https://other.example.com'],
+  ]) {
+    api.client.emit('Fetch.authRequired', {
+      requestId,
+      authChallenge: { origin, source: 'Proxy' },
+    });
+  }
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(
+    api.client.calls
+      .filter((call) => call.method === 'Fetch.continueWithAuth')
+      .map((call) => call.params.authChallengeResponse),
+    [
+      {
+        response: 'ProvideCredentials',
+        username: 'test-user',
+        password: 'test-password',
+      },
+      { response: 'CancelAuth' },
+      { response: 'CancelAuth' },
+    ],
+  );
+  await api.close();
+});
+
 test('disconnect notifications distinguish active target loss, replacement and intentional close', async () => {
   const api = new API();
   api.browserCDP = new CDP() as any;
