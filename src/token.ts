@@ -25,8 +25,17 @@ export class Token extends EventEmitter {
       return true;
     }
 
-    if (route.auth !== true && !this.requiresStrictAuth(route)) {
-      return true;
+    if (!this.requiresStrictAuth(route)) {
+      try {
+        const requiresToken =
+          typeof route.auth === 'function' ? await route.auth(req) : route.auth;
+        if (!requiresToken) {
+          return true;
+        }
+      } catch {
+        // A failed policy must not grant access, even with a valid token.
+        return false;
+      }
     }
 
     const requestToken = getTokenFromRequest(req);
