@@ -1735,6 +1735,41 @@ test('disconnect notifications distinguish active target loss, replacement and i
   assert.equal(notifications, 1);
 });
 
+test('tab-managing APIs recover from page closure without ignoring browser loss', async () => {
+  const replacement = new CDP('survivor');
+  class TabAPI extends API {
+    protected closeOnPageDisconnect = false;
+    override async listPageTargets() {
+      return [
+        {
+          id: 'survivor',
+          type: 'page',
+          title: 'Survivor',
+          url: 'about:blank',
+          webSocketDebuggerUrl: replacement.url(),
+        },
+      ];
+    }
+    protected override async connect() {
+      return replacement as any;
+    }
+  }
+  const api = new TabAPI();
+  const browser = new CDP('browser');
+  api.browserCDP = browser as any;
+  await api.setup();
+  api.client.dispose();
+  assert.equal(api.hasErrored(), false);
+  assert.equal(
+    (await api.switchToWindow({ targetId: 'survivor', timeout: 100 })).success,
+    true,
+  );
+  assert.equal(api.getCurrentTargetId(), 'survivor');
+  browser.dispose();
+  assert.equal(api.hasErrored(), true);
+  await api.close();
+});
+
 test('window switching recognizes restored document milestones without lifecycle replay', async () => {
   class Restored extends API {
     override async listPageTargets() {
