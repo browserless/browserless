@@ -17,6 +17,7 @@ import Sinon from 'sinon';
 import { expect } from 'chai';
 import getPort from 'get-port';
 import { request as httpRequest } from 'http';
+import { spawnSync } from 'child_process';
 
 describe('Function-valued route authentication', () => {
   const config = new Config();
@@ -73,6 +74,34 @@ describe('Function-valued route authentication', () => {
       },
     } as unknown as HTTPRoute;
     expect(await token.isAuthorized(request(), route)).to.equal(false);
+  });
+
+  it('warns without exposing policy error contents', () => {
+    const { status, stdout, stderr } = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { Config, Token } from '@browserless.io/browserless';
+        const config = new Config();
+        config.setToken('synthetic-sensitive-value');
+        config.setStrictTokenUse(false);
+        const req = { headers: {}, parsed: new URL('http://localhost/') };
+        const route = { name: 'BrokenPolicy', auth: async () => {
+          throw new Error('synthetic-sensitive-value');
+        }};
+        console.log(await new Token(config).isAuthorized(req, route));`,
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 10000,
+        env: { ...process.env, DEBUG: 'browserless.io:token:warn' },
+      },
+    );
+    expect(status).to.equal(0);
+    expect(stdout.trim()).to.equal('false');
+    expect(stderr).to.include('Route authentication policy failed');
+    expect(stderr).not.to.include('synthetic-sensitive-value');
   });
 
   it('requires a token unless the policy explicitly returns false', async () => {

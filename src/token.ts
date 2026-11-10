@@ -35,9 +35,9 @@ export class Token extends EventEmitter {
         if (requiresToken === false) {
           return true;
         }
-      } catch (error) {
+      } catch {
         // A failed policy must not grant access, even with a valid token.
-        this.logger.warn('Route authentication policy failed', error);
+        this.logger.warn('Route authentication policy failed');
         return false;
       }
     }
