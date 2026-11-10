@@ -89,14 +89,15 @@ export class Router extends EventEmitter {
     this.limiter.rejectWaiting(
       (req, route) =>
         (!route || !!(route as Route & { browser?: unknown }).browser) &&
-        !this.browserManager.isExistingBrowserRequest(req as Request),
+        !this.browserManager.isExistingBrowserRequest(req as Request, route),
     );
   };
 
   /**
    * While not running, refuse fresh-launch requests before limiter admission,
    * so they get a 503 instead of a capacity 429 or a place in the queue. Runs
-   * after the server's token auth. The path classifier only lets
+   * after the server's token auth. The classifier (the route's
+   * `targetsExistingBrowser` declaration, else the request path) only lets
    * existing-browser requests take the normal path, where they are still
    * resolved against live browsers; the launch gate in BrowserManager stays
    * authoritative.
@@ -105,7 +106,10 @@ export class Router extends EventEmitter {
     route: Route & { browser?: unknown },
     req: Request,
   ) {
-    if (route.browser && !this.browserManager.isExistingBrowserRequest(req)) {
+    if (
+      route.browser &&
+      !this.browserManager.isExistingBrowserRequest(req, route)
+    ) {
       this.lifecycle.assertAdmitting(req);
     }
   }

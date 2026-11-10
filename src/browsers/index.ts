@@ -23,6 +23,7 @@ import {
   Logger,
   NotFound,
   Request,
+  Route,
   ServerError,
   WebKitPlaywright,
   WorkerLifecycle,
@@ -106,8 +107,17 @@ export class BrowserManager {
    * grants nothing, and the request is still resolved against live browsers
    * when it runs. A BLESS page id launches a fresh browser, so it is not an
    * existing-browser request.
+   *
+   * The router passes the matched route. A route that declares
+   * `targetsExistingBrowser` is classified by that declaration, true or false;
+   * otherwise, or without a route, the request path is classified. Overrides
+   * that ignore `route`, or call super with the request alone, keep the
+   * path-only classification.
    */
-  public isExistingBrowserRequest(req: Request): boolean {
+  public isExistingBrowserRequest(req: Request, route?: Route): boolean {
+    if (route?.targetsExistingBrowser) {
+      return route.targetsExistingBrowser(req);
+    }
     const pathname = req.parsed?.pathname ?? '';
     if (this.reconnectionPatterns.some((p) => pathname.includes(p))) {
       return true;
