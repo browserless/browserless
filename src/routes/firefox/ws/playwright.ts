@@ -23,6 +23,7 @@ export default class FirefoxPlaywrightWebSocketRoute extends BrowserWebsocketRou
   auth = true;
   browser = FirefoxPlaywright;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   description = `Connect to Firefox with any playwright-compliant library.`;
   path = [WebsocketRoutes.firefoxPlaywright, WebsocketRoutes.playwrightFirefox];
   tags = [APITags.browserWS];

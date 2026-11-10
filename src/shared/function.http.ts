@@ -46,6 +46,7 @@ export default class ChromiumFunctionPostRoute extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.any];
   description = dedent(`
   A JSON or JavaScript content-type API for running puppeteer code in the browser's context.

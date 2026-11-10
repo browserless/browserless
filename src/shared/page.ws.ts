@@ -1,5 +1,6 @@
 import {
   APITags,
+  BLESS_PAGE_IDENTIFIER,
   BrowserWebsocketRoute,
   BrowserlessRoutes,
   CDPLaunchOptions,
@@ -9,6 +10,7 @@ import {
   SystemQueryParameters,
   WebsocketRoutes,
   dedent,
+  getFinalPathSegment,
 } from '@browserless.io/browserless';
 import { Duplex } from 'stream';
 
@@ -21,6 +23,9 @@ export default class ChromiumPageWebSocketRoute extends BrowserWebsocketRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = false;
+  // A BLESS page id launches a fresh browser; any other id attaches to a page.
+  targetsExistingBrowser = (req: Request): boolean =>
+    !getFinalPathSegment(req.parsed.pathname)?.includes(BLESS_PAGE_IDENTIFIER);
   description = dedent(
     `Connect to an existing page in Chromium with a library like
     chrome-remote-interface or others that work the page websocketDebugger

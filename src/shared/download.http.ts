@@ -49,6 +49,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.any];
   description = dedent(`
   A JSON or JavaScript content-type API for returning files Chrome has downloaded during

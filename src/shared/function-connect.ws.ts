@@ -20,6 +20,7 @@ export default class ChromiumFunctionConnectWebSocketRoute extends BrowserWebsoc
   name = BrowserlessRoutes.ChromiumFunctionConnectWebSocketRoute;
   auth = true;
   concurrency = false;
+  targetsExistingBrowser = (): boolean => true;
   browser = ChromiumCDP;
   description = dedent(
     `Internally used by the POST /function API to connect the underlying client-side code to. Not intended for direct use but documented for completeness and to distinguish between other reconnect style calls.`,

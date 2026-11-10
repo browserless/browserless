@@ -21,6 +21,7 @@ export default class WebKitPlaywrightWebSocketRoute extends BrowserWebsocketRout
   auth = true;
   browser = WebKitPlaywright;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   description = `Connect to Webkit with any playwright-compliant library.`;
   path = [WebsocketRoutes.webkitPlaywright, WebsocketRoutes.playwrightWebkit];
   tags = [APITags.browserWS];

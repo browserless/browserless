@@ -5,6 +5,7 @@ import {
   BrowserHTTPRoute,
   BrowserManager,
   BrowserWebsocketRoute,
+  BrowserlessRoutes,
   Config,
   HTTPServer,
   Hooks,
@@ -16,6 +17,7 @@ import {
   Monitoring,
   NotFound,
   Request,
+  Route,
   Router,
   Token,
   TooManyRequests,
@@ -23,10 +25,12 @@ import {
   WorkerLifecycle,
   WorkerWithdrawn,
   contentTypes,
+  getRouteFiles,
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 import Sinon from 'sinon';
 import { expect } from 'chai';
+import micromatch from 'micromatch';
 
 // All browsers in this file are mocks (FakeBrowser): launch/close are
 // barrier-controlled promises, no Chromium process is started. The SDK
@@ -557,7 +561,12 @@ const makeRes = () => {
   return res;
 };
 
-const buildStack = ({ timeout = 0, concurrent = 5, queued = 5 } = {}) => {
+const buildStack = ({
+  timeout = 0,
+  concurrent = 5,
+  queued = 5,
+  Manager = BrowserManager,
+} = {}) => {
   const lc = new WorkerLifecycle();
   const config = new Config();
   config.setConcurrent(concurrent);
@@ -574,7 +583,7 @@ const buildStack = ({ timeout = 0, concurrent = 5, queued = 5 } = {}) => {
     Sinon.createStubInstance(WebHooks),
     hooks,
   );
-  const manager = new BrowserManager(config, hooks, null as never);
+  const manager = new Manager(config, hooks, null as never);
   const router = new Router(config, manager, limiter, Logger, hooks);
   manager.setLifecycle(lc);
   limiter.setLifecycle(lc);
@@ -933,6 +942,210 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     };
     server.fail(new WorkerWithdrawn(), socket);
     expect(written.join('')).to.include('HTTP/1.1 503');
+  });
+});
+
+// Shaped like a 2.61.0 downstream override: it extends the path classifier
+// and calls super with the request alone.
+class PathListManager extends BrowserManager {
+  public override isExistingBrowserRequest(req: Request): boolean {
+    return (
+      super.isExistingBrowserRequest(req) ||
+      req.parsed.pathname.startsWith('/reconnect/')
+    );
+  }
+}
+
+// An override that opted in by forwarding the route to super.
+class ForwardingManager extends BrowserManager {
+  public override isExistingBrowserRequest(
+    req: Request,
+    route?: Route,
+  ): boolean {
+    return (
+      super.isExistingBrowserRequest(req, route) ||
+      req.parsed.pathname.startsWith('/reconnect/')
+    );
+  }
+}
+
+describe('Route-declared drain classification', () => {
+  const monitorings: Monitoring[] = [];
+  afterEach(() => {
+    monitorings.forEach((m) => m.stop());
+    monitorings.length = 0;
+  });
+  type Declared = ((req: Request) => boolean) | undefined;
+  type Setup = { Manager: typeof BrowserManager; declared: Declared };
+
+  const stackWith = (
+    { Manager, declared }: Setup,
+    opts: Parameters<typeof buildStack>[0] = {},
+  ) => {
+    const s = buildStack({ ...opts, Manager });
+    monitorings.push(s.monitoring);
+    const route = new PendingBrowserRoute(async () => 'ran', true);
+    if (declared) route.targetsExistingBrowser = declared;
+    const r = s.router.registerHTTPRoute(route);
+    const resolve = Sinon.spy(s.manager, 'getBrowserForRequest');
+    return { ...s, r, resolve };
+  };
+
+  // Every observer runs while withdrawn. "existing" means the request kept the
+  // normal path and reached target resolution; nothing may launch either way.
+  const atEntry = async (setup: Setup, path: string) => {
+    const { lc, r, resolve } = stackWith(setup);
+    lc.withdraw(expectFor(lc));
+    const before = FakeBrowser.constructed;
+    const err = await run(r, makeReq(path), makeRes()).catch((e) => e);
+    expect(err).to.be.instanceOf(resolve.called ? Error : WorkerWithdrawn);
+    expect(FakeBrowser.constructed).to.equal(before);
+    return resolve.called ? 'existing' : 'fresh';
+  };
+
+  // Admitted while running, withdrawn during the limiter's health check.
+  const atAdmission = async (setup: Setup, path: string) => {
+    const { config, lc, monitoring, r, resolve } = stackWith(setup);
+    config.enableHealthChecks(true);
+    const health = deferred<{
+      cpuOverloaded: boolean;
+      memoryOverloaded: boolean;
+    }>();
+    Sinon.stub(monitoring, 'overloaded').returns(health.promise as never);
+    const before = FakeBrowser.constructed;
+    const pending = run(r, makeReq(path), makeRes()).catch((e) => e);
+    lc.withdraw(expectFor(lc));
+    health.resolve({ cpuOverloaded: false, memoryOverloaded: false });
+    expect(await pending).to.be.instanceOf(Error);
+    expect(FakeBrowser.constructed).to.equal(before);
+    return resolve.called ? 'existing' : 'fresh';
+  };
+
+  // Queued while running behind a held slot, then withdrawn.
+  const inSweep = async (setup: Setup, path: string) => {
+    const { lc, limiter, r, resolve, router } = stackWith(setup, {
+      concurrent: 1,
+      queued: 5,
+    });
+    const hold = deferred();
+    const holder = router.registerHTTPRoute(
+      new PendingBrowserRoute(() => hold.promise, true),
+    );
+    const held = run(holder, makeReq('/chromium'), makeRes());
+    await flush();
+    resolve.resetHistory();
+    const before = FakeBrowser.constructed;
+    const queued = run(r, makeReq(path), makeRes()).catch((e) => e);
+    await flush();
+    expect(limiter.waiting).to.equal(1);
+    lc.withdraw(expectFor(lc));
+    const kept = limiter.waiting === 1;
+    hold.resolve();
+    await held;
+    expect(await queued).to.be.instanceOf(Error);
+    expect(resolve.called).to.equal(kept);
+    expect(FakeBrowser.constructed).to.equal(before);
+    return kept ? 'existing' : 'fresh';
+  };
+
+  const cases: Array<[string, Setup, string, 'existing' | 'fresh']> = [
+    [
+      'undeclared route, fresh path',
+      { Manager: BrowserManager, declared: undefined },
+      '/chromium',
+      'fresh',
+    ],
+    [
+      'undeclared route, reconnect path (missing target)',
+      { Manager: BrowserManager, declared: undefined },
+      '/devtools/browser/fake-missing',
+      'existing',
+    ],
+    [
+      'declared false wins over a reconnect path',
+      { Manager: BrowserManager, declared: () => false },
+      '/devtools/browser/fake-missing',
+      'fresh',
+    ],
+    [
+      'declared true wins over a fresh path (launch gate still rejects)',
+      { Manager: BrowserManager, declared: () => true },
+      '/reconnect/fake-missing',
+      'existing',
+    ],
+    [
+      'custom override, undeclared route',
+      { Manager: PathListManager, declared: undefined },
+      '/reconnect/fake-missing',
+      'existing',
+    ],
+    [
+      'custom override calling super(req) is not bypassed by declared false',
+      { Manager: PathListManager, declared: () => false },
+      '/reconnect/fake-missing',
+      'existing',
+    ],
+    [
+      'custom override calling super(req) is not bypassed by declared true',
+      { Manager: PathListManager, declared: () => true },
+      '/chromium',
+      'fresh',
+    ],
+    [
+      'override forwarding the route applies declared false',
+      { Manager: ForwardingManager, declared: () => false },
+      '/devtools/browser/fake-missing',
+      'fresh',
+    ],
+  ];
+
+  for (const [name, setup, path, expected] of cases) {
+    it(`${name}: same at entry, limiter admission and withdrawal sweep`, async () => {
+      expect([
+        await atEntry(setup, path),
+        await atAdmission(setup, path),
+        await inSweep(setup, path),
+      ]).to.deep.equal([expected, expected, expected]);
+    });
+  }
+
+  it('every launch-capable built-in route declares it, matching the path classification of each path it serves', async () => {
+    const config = new Config();
+    const manager = new BrowserManager(
+      config,
+      Sinon.createStubInstance(Hooks),
+      null as never,
+    );
+    const seen = new Set<string>();
+    const files = (await getRouteFiles(config))
+      .flat()
+      .filter((f) => f.endsWith('.js'));
+    for (const file of files) {
+      const { default: BuiltIn } = await import(file);
+      const route = new BuiltIn(...Array(7).fill(null)) as Route & {
+        browser?: unknown;
+      };
+      if (!route.browser) continue;
+      expect(route.targetsExistingBrowser, route.name).to.be.a('function');
+      for (const glob of [route.path].flat() as string[]) {
+        for (const id of ['abc123', `${BLESS_PAGE_IDENTIFIER}abc123`]) {
+          const pathname = glob.replace('?(/)', '').replace('*', id) || '/';
+          expect(micromatch.isMatch(pathname, glob), pathname).to.be.true;
+          const req = makeReq(pathname);
+          const declared = manager.isExistingBrowserRequest(req, route);
+          expect(declared, `${route.name} ${pathname}`).to.equal(
+            manager.isExistingBrowserRequest(req),
+          );
+          seen.add(`${route.name}:${declared}`);
+        }
+      }
+    }
+    expect([...seen]).to.include.members([
+      `${BrowserlessRoutes.ChromiumCDPWebSocketRoute}:false`,
+      `${BrowserlessRoutes.ChromiumBrowserWebSocketRoute}:true`,
+      `${BrowserlessRoutes.ChromiumPageWebSocketRoute}:true`,
+      `${BrowserlessRoutes.ChromiumPageWebSocketRoute}:false`,
+    ]);
   });
 });
 

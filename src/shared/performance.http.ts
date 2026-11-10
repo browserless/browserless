@@ -41,6 +41,7 @@ export default class PerformancePost extends BrowserHTTPRoute {
   auth = true;
   browser = ChromiumCDP;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   contentTypes = [contentTypes.json];
   description = `Run lighthouse performance audits with a supplied "url" in your JSON payload.`;
   method = Methods.post;

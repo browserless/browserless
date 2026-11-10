@@ -153,6 +153,23 @@ export abstract class Route<Req extends Request = Request> {
   bypassLimits?: (req: Req) => boolean;
 
   /**
+   * Optional per-request predicate: whether this request attaches to an
+   * already-running browser instead of launching one. Used only to schedule
+   * work while the worker is withdrawn: fresh launches are refused at entry
+   * and dropped from the queue, while existing-browser requests keep the
+   * normal path. It grants nothing; the target is still resolved, and any
+   * launch still gated, when the request runs. It can run at entry, during
+   * limiter admission and in the withdrawal sweep, so keep it synchronous,
+   * side-effect free and non-throwing.
+   *
+   * When defined, its result (true or false) is what the default
+   * `BrowserManager.isExistingBrowserRequest` returns for this route; when
+   * undefined, the request path is classified as before. Subclasses inherit
+   * it, so redeclare it when a subclass changes what its paths target.
+   */
+  targetsExistingBrowser?: (req: Req) => boolean;
+
+  /**
    * Description of the route and what it does. This description
    * is then used in the embedded documentation site.
    */

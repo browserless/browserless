@@ -21,6 +21,7 @@ export default class ChromiumPlaywrightWebSocketRoute extends BrowserWebsocketRo
   auth = true;
   browser = ChromiumPlaywright;
   concurrency = true;
+  targetsExistingBrowser = (): boolean => false;
   description = `Connect to Chromium with any playwright style library.`;
   path = [
     WebsocketRoutes.chromiumPlaywright,
