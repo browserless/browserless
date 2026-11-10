@@ -695,25 +695,31 @@ export class BQLBrowserAPI {
       let authChallengeResponse: Protocol.Fetch.AuthChallengeResponse = {
         response: 'Default',
       };
-      if (this.httpAuth && this.supportsAuthChallenge(event.authChallenge)) {
-        let challenges = this.authChallenges.get(cdp);
-        if (!challenges) this.authChallenges.set(cdp, (challenges = new Map()));
-        const challenge = challenges.get(event.requestId) ?? {
-          attempted: false,
-        };
-        const allowed =
-          !this.httpAuth.origin ||
-          event.authChallenge.origin === this.httpAuth.origin;
-        authChallengeResponse =
-          allowed && !challenge.attempted
-            ? {
-                response: 'ProvideCredentials',
-                username: this.httpAuth.username,
-                password: this.httpAuth.password,
-              }
-            : { response: 'CancelAuth' };
-        challenge.attempted = true;
-        challenges.set(event.requestId, challenge);
+      try {
+        if (this.httpAuth && this.supportsAuthChallenge(event.authChallenge)) {
+          let challenges = this.authChallenges.get(cdp);
+          if (!challenges)
+            this.authChallenges.set(cdp, (challenges = new Map()));
+          const challenge = challenges.get(event.requestId) ?? {
+            attempted: false,
+          };
+          const allowed =
+            !this.httpAuth.origin ||
+            event.authChallenge.origin === this.httpAuth.origin;
+          authChallengeResponse =
+            allowed && !challenge.attempted
+              ? {
+                  response: 'ProvideCredentials',
+                  username: this.httpAuth.username,
+                  password: this.httpAuth.password,
+                }
+              : { response: 'CancelAuth' };
+          challenge.attempted = true;
+          challenges.set(event.requestId, challenge);
+        }
+      } catch (error) {
+        authChallengeResponse = { response: 'CancelAuth' };
+        this.logFetchReplyError(error);
       }
       void cdp
         .send('Fetch.continueWithAuth', {
