@@ -38,7 +38,7 @@ class API extends BQLBrowserAPI {
     super({
       browser: {} as any,
       config: {} as any,
-      logger: {} as any,
+      logger: { error: Sinon.stub() } as any,
       req: {} as any,
       blockConsentModals: false,
     });
@@ -1646,7 +1646,9 @@ test('HTTP authentication is origin scoped and cancels repeated challenges', asy
 
 test('custom authentication sources retain origin and retry limits', async () => {
   class CustomAuthAPI extends API {
+    failPolicy = false;
     protected supportsAuthChallenge() {
+      if (this.failPolicy) throw new Error('Policy unavailable');
       return true;
     }
   }
@@ -1682,6 +1684,20 @@ test('custom authentication sources retain origin and retry limits', async () =>
       { response: 'CancelAuth' },
     ],
   );
+  api.failPolicy = true;
+  assert.doesNotThrow(() =>
+    api.client.emit('Fetch.authRequired', {
+      requestId: 'failed-policy',
+      authChallenge: { origin: 'https://example.com', source: 'Proxy' },
+    }),
+  );
+  assert.deepEqual(api.client.calls.at(-1), {
+    method: 'Fetch.continueWithAuth',
+    params: {
+      requestId: 'failed-policy',
+      authChallengeResponse: { response: 'CancelAuth' },
+    },
+  });
   await api.close();
 });
 
