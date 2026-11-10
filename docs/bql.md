@@ -156,6 +156,11 @@ dispatched.
 Scripts downloaded by `evaluate(url: ...)` are limited to 10 MiB of decoded
 response bytes. This limit applies even when the response has no Content-Length.
 
+Network `regex` filters use RE2 syntax with Unicode support and linear-time
+matching. Each pattern is limited to 200 characters. Lookaround and
+backreferences are unsupported; invalid or unsupported patterns fail when the
+filter is registered. This also applies to SDK `request` and `response` filters.
+
 CSS selectors support shadow roots. Deep selectors beginning with `<` are not
 supported. `userAgent` applies an ordinary browser user-agent override. Window
 selection uses page targets; switching windows does not reset the session's

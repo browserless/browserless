@@ -8,6 +8,7 @@ extend type Mutation {
     operator: OperatorTypes = or
     type: [ResourceType]
     url: [String]
+    "RE2 patterns, at most 200 characters each. Lookaround and backreferences are unsupported."
     regex: [String]
   ): RejectResponse
   """
@@ -38,6 +39,7 @@ extend type Mutation {
   """
   fulfill(
     url: [String]
+    "RE2 patterns, at most 200 characters each. Lookaround and backreferences are unsupported."
     regex: [String]
     method: [Method]
     type: [ResourceType]

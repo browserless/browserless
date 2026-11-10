@@ -28,6 +28,7 @@ import {
 } from 'rxjs';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import { EventEmitter } from 'node:events';
+import { RE2JS } from 're2js';
 import { Script } from 'node:vm';
 import TurndownService from 'turndown';
 import micromatch from 'micromatch';
@@ -186,6 +187,21 @@ export type PDFOptionsInput = Omit<
 
 const glob = (value: string, pattern: string) =>
   micromatch.isMatch(value, pattern, { bash: true });
+const compiledRegexes = new WeakMap<Filter, RE2JS[]>();
+const compileRegexes = (filter: Filter): RE2JS[] => {
+  const cached = compiledRegexes.get(filter);
+  if (cached) return cached;
+  const regexes = (filter.regex ?? []).map((pattern) => {
+    if (pattern.length > 200) throw new BadRequest('Network regex is too long');
+    try {
+      return RE2JS.compile(pattern);
+    } catch {
+      throw new BadRequest('Network regex is invalid or unsupported');
+    }
+  });
+  compiledRegexes.set(filter, regexes);
+  return regexes;
+};
 const matches = (
   r: { url: string; method: string; type: string; status?: number },
   f: Filter,
@@ -196,7 +212,7 @@ const matches = (
   const checks: boolean[] = [];
   if (f.url?.length) checks.push(check(f.url, (p) => glob(r.url, p)));
   if (f.regex?.length)
-    checks.push(check(f.regex, (p) => new RegExp(p).test(r.url)));
+    checks.push(check(compileRegexes(f), (pattern) => pattern.test(r.url)));
   if (f.method?.length)
     checks.push(
       check(f.method, (m) => m.toLowerCase() === r.method.toLowerCase()),
@@ -2801,6 +2817,8 @@ export class BQLBrowserAPI {
     }
   }
   public async request(args: Filter & { wait: boolean; timeout?: number }) {
+    args = { ...args };
+    compileRegexes(args);
     const records = await this.waitNetwork(
       'request',
       args,
@@ -2819,6 +2837,8 @@ export class BQLBrowserAPI {
     );
   }
   public async response(args: Filter & { wait: boolean; timeout?: number }) {
+    args = { ...args };
+    compileRegexes(args);
     const grant = args.wait ? (args.timeout ?? this.timeout) : undefined;
     const deadline = grant ? Date.now() + grant : undefined;
     const records = await this.waitNetwork(
@@ -2875,21 +2895,7 @@ export class BQLBrowserAPI {
       throw new BadRequest(
         'One of URL, regex, method or type must be specified',
       );
-    for (const regex of filter.regex ?? []) {
-      if (
-        regex.length > 200 ||
-        /\([^)]*[+*{][^)]*\)\s*[+*{]/.test(regex) ||
-        /\((?:[^()]*\([^)]*[+*{][^)]*\)[^()]*)\)\s*[+*{]/.test(regex)
-      )
-        throw new BadRequest(
-          'Network regex is too complex and potentially unsafe',
-        );
-      try {
-        new RegExp(regex);
-      } catch {
-        throw new BadRequest('Network regex is invalid');
-      }
-    }
+    compileRegexes(filter);
   }
   public async fulfill({
     status = 200,
