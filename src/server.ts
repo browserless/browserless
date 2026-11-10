@@ -316,9 +316,14 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
+    // HTTP policies receive the same parsed, validated input as the handler.
+    // Static token requirements and strict mode still reject before body reads.
+    const deferredAuth =
+      typeof route.auth === 'function' && !this.config.getStrictTokenUse();
+
     // Under STRICT_TOKEN_USE every route is sent to Token, which owns the
     // per-route exemptions (static files).
-    if (route.auth || this.config.getStrictTokenUse()) {
+    if (!deferredAuth && (route.auth || this.config.getStrictTokenUse())) {
       this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
       const isPermitted = await this.token.isAuthorized(req, route);
 
@@ -438,6 +443,10 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
+    if (deferredAuth && !(await this.token.isAuthorized(req, route))) {
+      return this.onHTTPUnauthorized(req, res);
+    }
+
     return (route as HTTPRoute)
       .handler(req, res, new this.Logger(route.name, req))
       .then(() => {
@@ -504,8 +513,11 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
+      const deferredAuth =
+        typeof route.auth === 'function' && !this.config.getStrictTokenUse();
+
       // See the HTTP gate above: Token owns the strict-mode exemptions.
-      if (route.auth || this.config.getStrictTokenUse()) {
+      if (!deferredAuth && (route.auth || this.config.getStrictTokenUse())) {
         this.logger.trace(
           `Authorizing WebSocket request to "${req.parsed.href}"`,
         );
@@ -558,6 +570,10 @@ export class HTTPServer extends EventEmitter {
           );
           return Promise.resolve();
         }
+      }
+
+      if (deferredAuth && !(await this.token.isAuthorized(req, route))) {
+        return this.onWebsocketUnauthorized(req, socket);
       }
 
       return (route as WebSocketRoute)
