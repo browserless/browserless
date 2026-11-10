@@ -975,8 +975,10 @@ describe('Route-declared drain classification', () => {
     monitorings.forEach((m) => m.stop());
     monitorings.length = 0;
   });
-  type Declared = ((req: Request) => boolean) | undefined;
-  type Setup = { Manager: typeof BrowserManager; declared: Declared };
+  type Setup = {
+    Manager: typeof BrowserManager;
+    declared?: (req: Request) => boolean;
+  };
 
   const stackWith = (
     { Manager, declared }: Setup,
@@ -1051,13 +1053,13 @@ describe('Route-declared drain classification', () => {
   const cases: Array<[string, Setup, string, 'existing' | 'fresh']> = [
     [
       'undeclared route, fresh path',
-      { Manager: BrowserManager, declared: undefined },
+      { Manager: BrowserManager },
       '/chromium',
       'fresh',
     ],
     [
       'undeclared route, reconnect path (missing target)',
-      { Manager: BrowserManager, declared: undefined },
+      { Manager: BrowserManager },
       '/devtools/browser/fake-missing',
       'existing',
     ],
@@ -1075,7 +1077,7 @@ describe('Route-declared drain classification', () => {
     ],
     [
       'custom override, undeclared route',
-      { Manager: PathListManager, declared: undefined },
+      { Manager: PathListManager },
       '/reconnect/fake-missing',
       'existing',
     ],
@@ -1110,14 +1112,9 @@ describe('Route-declared drain classification', () => {
   }
 
   it('every launch-capable built-in route declares it, matching the path classification of each path it serves', async () => {
-    const config = new Config();
-    const manager = new BrowserManager(
-      config,
-      Sinon.createStubInstance(Hooks),
-      null as never,
-    );
+    const { manager } = buildManager(new WorkerLifecycle());
     const seen = new Set<string>();
-    const files = (await getRouteFiles(config))
+    const files = (await getRouteFiles(new Config()))
       .flat()
       .filter((f) => f.endsWith('.js'));
     for (const file of files) {
