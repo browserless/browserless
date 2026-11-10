@@ -7,6 +7,20 @@
 
 * let routes declare whether they target an existing browser ([#5671](https://github.com/browserless/browserless/issues/5671)) ([2cc98ef](https://github.com/browserless/browserless/commit/2cc98ef47795ceef65533e5d81a6cc51cdc6ad2a))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.65.0`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `158.0.8127.18`
+- Chrome: `157.0.8103.38` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.42` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.61.0](https://github.com/browserless/browserless/compare/v2.60.0...v2.61.0) (2026-11-09)
 
 
