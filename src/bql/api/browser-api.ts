@@ -257,6 +257,8 @@ export class BQLBrowserAPI {
   protected readonly req: Request;
   protected readonly blockConsentModals: boolean;
   protected readonly events = new EventEmitter();
+  // Tab-managing subclasses can recover after a page closes; browser loss is fatal.
+  protected closeOnPageDisconnect = true;
   protected readonly requestPipeline = {
     use: (handler: RequestHandler) => {
       this.handlers.push(handler);
@@ -3099,7 +3101,14 @@ export class BQLBrowserAPI {
     const connections = [this.mainCDP, this.browserCDP] as Array<
       Connection & { readonly _closed?: boolean }
     >;
-    return this.closed || connections.some((cdp) => cdp?._closed);
+    return (
+      this.closed ||
+      connections.some(
+        (cdp) =>
+          cdp?._closed &&
+          (cdp === this.browserCDP || this.closeOnPageDisconnect),
+      )
+    );
   }
   public onDisconnected(listener: () => void): () => void {
     this.events.on('disconnected', listener);
@@ -3109,7 +3118,11 @@ export class BQLBrowserAPI {
   }
   private observeDisconnect(cdp: Connection, cleanup = this.cleanup): void {
     const disconnected = () => {
-      if (this.closed || (cdp !== this.mainCDP && cdp !== this.browserCDP))
+      if (
+        this.closed ||
+        (cdp !== this.browserCDP &&
+          (cdp !== this.mainCDP || !this.closeOnPageDisconnect))
+      )
         return;
       this.events.emit('disconnected');
       void this.close().catch(() =>
