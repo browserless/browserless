@@ -1770,6 +1770,39 @@ test('tab-managing APIs recover from page closure without ignoring browser loss'
   await api.close();
 });
 
+test('tab-managing APIs reconnect when the selected target connection has closed', async () => {
+  const replacement = new CDP('test');
+  class TabAPI extends API {
+    protected closeOnPageDisconnect = false;
+    override async listPageTargets() {
+      return [
+        {
+          id: 'test',
+          type: 'page',
+          title: 'Tab',
+          url: 'about:blank',
+          webSocketDebuggerUrl: replacement.url(),
+        },
+      ];
+    }
+    protected override async connect() {
+      return replacement as any;
+    }
+  }
+  const api = new TabAPI();
+  api.browserCDP = new CDP('browser') as any;
+  await api.setup();
+  api.client.dispose();
+  assert.equal(
+    (await api.switchToWindow({ targetId: 'test', timeout: 100 })).success,
+    true,
+  );
+  assert.equal(api.mainCDP, replacement);
+  replacement.value = 'Recovered';
+  assert.equal((await api.title()).value, 'Recovered');
+  await api.close();
+});
+
 test('window switching recognizes restored document milestones without lifecycle replay', async () => {
   class Restored extends API {
     override async listPageTargets() {

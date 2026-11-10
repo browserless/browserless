@@ -3021,7 +3021,8 @@ export class BQLBrowserAPI {
         let next: Connection | undefined;
         try {
           next =
-            target.id === this.getCurrentTargetId()
+            target.id === this.getCurrentTargetId() &&
+            !(previous as Connection & { readonly _closed?: boolean })._closed
               ? previous
               : await this.connect(target.webSocketDebuggerUrl);
           this.mainCDP = next;
