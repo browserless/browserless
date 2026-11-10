@@ -4,6 +4,7 @@ import {
   BrowserlessRoutes,
   Config,
   HTTPRoute,
+  Logger,
   Request,
   WebSocketRoute,
   getTokenFromRequest,
@@ -14,6 +15,8 @@ type AuthRoute =
   BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute;
 
 export class Token extends EventEmitter {
+  protected logger = new Logger('token');
+
   constructor(protected config: Config) {
     super();
   }
@@ -29,11 +32,12 @@ export class Token extends EventEmitter {
       try {
         const requiresToken =
           typeof route.auth === 'function' ? await route.auth(req) : route.auth;
-        if (!requiresToken) {
+        if (requiresToken === false) {
           return true;
         }
-      } catch {
+      } catch (error) {
         // A failed policy must not grant access, even with a valid token.
+        this.logger.warn('Route authentication policy failed', error);
         return false;
       }
     }
@@ -53,7 +57,7 @@ export class Token extends EventEmitter {
    * Static files stay public: they grant no browser access, and the debugger
    * and DevTools frontend load their sub-resources without a token.
    */
-  protected requiresStrictAuth(route: AuthRoute): boolean {
+  public requiresStrictAuth(route: AuthRoute): boolean {
     return (
       this.config.getStrictTokenUse() &&
       route.name !== BrowserlessRoutes.StaticGetRoute

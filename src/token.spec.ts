@@ -1,4 +1,5 @@
 import {
+  BrowserlessRoutes,
   Config,
   HTTPRoute,
   HTTPServer,
@@ -72,6 +73,20 @@ describe('Function-valued route authentication', () => {
       },
     } as unknown as HTTPRoute;
     expect(await token.isAuthorized(request(), route)).to.equal(false);
+  });
+
+  it('requires a token unless the policy explicitly returns false', async () => {
+    for (const result of [undefined, null, 0, '']) {
+      const route = {
+        name: 'IncompletePolicyRoute',
+        auth: async () => result,
+      } as unknown as HTTPRoute;
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
+      expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+      expect(
+        await token.isAuthorized(request('first-test-token'), route),
+      ).to.equal(true);
+    }
   });
 
   it('leaves policies inert when no token is configured', async () => {
@@ -165,6 +180,22 @@ describe('Function-valued route authentication', () => {
         ).to.equal(200);
         expect(await status('/query?private=invalid', upgrade)).to.equal(400);
       });
+
+      it(`defers policies on strict-exempt ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
+        config.setStrictTokenUse(true);
+        route.name = BrowserlessRoutes.StaticGetRoute;
+        route.querySchema = {
+          type: 'object',
+          properties: { private: { type: 'boolean' } },
+          required: ['private'],
+        };
+        route.auth = async (req) => req.queryParams?.private === true;
+        expect(await status('/query?private=true', upgrade)).to.equal(401);
+        expect(await status('/query?private=false', upgrade)).to.equal(200);
+        expect(
+          await status('/query?private=true&token=local-test-token', upgrade),
+        ).to.equal(200);
+      });
     }
 
     for (const method of ['POST', 'GET']) {
@@ -210,6 +241,41 @@ describe('Function-valued route authentication', () => {
         expect((await send('invalid')).status).to.equal(401);
       });
     }
+
+    it('rejects static token requirements before body parsing, validation or size checks', async () => {
+      route.auth = true;
+      route.accepts = [contentTypes.json];
+      route.bodySchema = {
+        type: 'object',
+        properties: { private: { type: 'boolean' } },
+        required: ['private'],
+      };
+      config.setMaxPayloadSize(64);
+      for (const [body, expected] of [
+        ['{', 400],
+        ['{}', 400],
+        [JSON.stringify({ private: true, padding: 'x'.repeat(100) }), 400],
+      ] as const) {
+        for (const token of ['', 'wrong', 'local-test-token']) {
+          const res = await fetch(
+            `http://localhost:${port}/body?token=${token}`,
+            {
+              method: 'POST',
+              headers: { 'content-type': contentTypes.json },
+              body,
+            },
+          );
+          expect(res.status).to.equal(
+            token === 'local-test-token' ? expected : 401,
+          );
+          if (res.status === 401) {
+            expect(await res.text()).not.to.include('private');
+          } else if (body.length > 64) {
+            expect(await res.text()).to.include('exceeds maximum allowed size');
+          }
+        }
+      }
+    });
 
     for (const [upgrade, strict] of [
       [false, false],
