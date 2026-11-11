@@ -174,6 +174,9 @@ export interface Request extends http.IncomingMessage {
   // The `?token=` value as supplied in the query string, before
   // moveTokenToHeader() strips it and may overwrite it with an unrelated header.
   queryToken?: string;
+  // Set when queryToken, not the Authorization header, authorized the request,
+  // so getTokenFromRequest() reports the credential that was validated.
+  validatedQueryToken?: string;
 }
 
 export type Response = http.ServerResponse;

@@ -340,6 +340,22 @@ describe('Function-valued route authentication', () => {
           }),
         ).to.equal(200);
       });
+
+      it(`gives ${upgrade ? 'WebSocket' : 'HTTP'} policies the token that authorized the request, not an unrelated header (#5636)`, async () => {
+        route.strictAuthPolicy = true;
+        route.auth = async (req: Request) =>
+          getTokenFromRequest(req) === 'local-test-token';
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            Authorization: 'Bearer unrelated-proxy-value',
+          }),
+        ).to.equal(200);
+        expect(
+          await status('/protected?token=wrong', upgrade, {
+            Authorization: 'Bearer local-test-token',
+          }),
+        ).to.equal(200);
+      });
     }
 
     for (const upgrade of [false, true]) {

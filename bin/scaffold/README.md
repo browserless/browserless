@@ -314,7 +314,7 @@ Browserless comes out-of-the-box with many utilities and functions to help with 
 - `isConnected(res)` Checks if the underlying connection is still there. Useful for exiting early if a request disconnects.
 - `writeResponse(res, code, message, contentType)` Function that writes a basic response, excepting the Response object, the HTTP Code, the message and the content type.
 - `jsonResponse(res, code, object)` Function that writes JSON responses back with the appropriate headers.
-- `getTokenFromRequest(req)` Gets the token from the request, whether it be a token parameter Basic/Bearer Authorization header. Token query-parameter is checked first.
+- `getTokenFromRequest(req)` Gets the token from the request, whether it be a token parameter Basic/Bearer Authorization header. Token query-parameter is checked first. When the built-in token service authorized the request with the `?token=` value while the Authorization header carried something else, that query token is returned.
 - `readBody(req)` Parses the request's body and returns the result as a string or object for JSON content-types.
 - `safeParse(JSON)` Attempts to parse the input from JSON to object, returning null if it fails.
 - `sleep(milliseconds)` Sleeps or waits for the number of milliseconds passed. Async.

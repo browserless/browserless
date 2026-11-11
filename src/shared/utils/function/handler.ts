@@ -13,7 +13,7 @@ import {
   convertIfBase64,
   exists,
   getFinalPathSegment,
-  getValidatedRequestToken,
+  getTokenFromRequest,
   makeExternalURL,
   mimeTypes,
 } from '@browserless.io/browserless';
@@ -80,7 +80,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     }
 
     const browserID = getFinalPathSegment(privateWSEndpoint)!;
-    const validatedToken = getValidatedRequestToken(req, config.getToken());
+    const validatedToken = getTokenFromRequest(req);
     // queryParamsToObject() parses an empty value as a boolean flag, not a
     // string, which fails the connect route's token schema - omit the
     // param entirely rather than send an empty one.

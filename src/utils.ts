@@ -334,13 +334,18 @@ export const fetchJson = (
 export const getTokenFromRequest = (req: Request) => {
   const authHeader = req.headers.authorization;
   const tokenParam = req.parsed.searchParams.get('token');
-  return tokenParam ?? getAuthHeaderToken(authHeader || '');
+  return (
+    req.validatedQueryToken ??
+    tokenParam ??
+    getAuthHeaderToken(authHeader || '')
+  );
 };
 
 // Accepts the token getTokenFromRequest reports, as before, or the query-string
 // token preserved by moveTokenToHeader(), so an unrelated pre-existing header
 // (e.g. a proxy's own auth) can't silently shadow a valid token the client
-// actually put in the URL.
+// actually put in the URL. When only the query token is valid, it's recorded
+// so getTokenFromRequest reports the credential that authorized the request.
 export const isRequestTokenValid = (
   req: Request,
   configuredToken: string | string[],
@@ -348,28 +353,13 @@ export const isRequestTokenValid = (
   const allowed = Array.isArray(configuredToken)
     ? configuredToken
     : [configuredToken];
-  const candidates = [req.queryToken, getTokenFromRequest(req)].filter(
-    (t): t is string => !!t,
-  );
-  return candidates.some((t) => allowed.includes(t));
-};
-
-// For forwarding onward: prefers req.queryToken when it's the one that
-// actually validated the request, instead of an unrelated header value.
-export const getValidatedRequestToken = (
-  req: Request,
-  configuredToken: string | string[] | null,
-) => {
-  const allowed =
-    configuredToken === null
-      ? []
-      : Array.isArray(configuredToken)
-        ? configuredToken
-        : [configuredToken];
+  const requestToken = getTokenFromRequest(req);
+  if (requestToken && allowed.includes(requestToken)) return true;
   if (req.queryToken && allowed.includes(req.queryToken)) {
-    return req.queryToken;
+    req.validatedQueryToken = req.queryToken;
+    return true;
   }
-  return getTokenFromRequest(req);
+  return false;
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again
