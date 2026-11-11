@@ -130,7 +130,7 @@ With a configured `TOKEN` and non-strict authentication:
 
 - `auth = false` makes a route public.
 - `auth = true` requires valid credentials before reading the HTTP body or validating request schemas.
-- A function-valued `auth` first requires valid credentials, then runs with validated query parameters and, for HTTP, the parsed and validated body. It must resolve to exactly `true` to allow the request. `false`, missing returns, thrown errors and rejected promises deny access with 401, even with valid credentials. Policy methods retain their route receiver (`this`).
+- A function-valued `auth` first requires valid credentials, then runs with validated query parameters and, for HTTP, the parsed and validated body. It must resolve to exactly `true` to allow the request. `false`, missing returns, thrown errors and rejected promises deny access with 403 Forbidden. These policy refusals do not count toward unauthorized-request metrics. Policy methods retain their route receiver (`this`).
 
 **Breaking change:** a function returning `false` no longer makes a route public or admits a valid-token caller. Use the static `auth = false` for a public route. Missing or invalid credentials receive 401 before body reads and schema validation; a valid-token caller can still receive a schema-validation error before its policy runs.
 
@@ -453,7 +453,9 @@ export default class MultiToken extends Token {
 }
 ```
 
-The server continues to call `isAuthorized`, not a required `authStage` method, so existing replacement Token services still own authorization. Its optional third argument is `'credentials'` before input preparation and `'policy'` afterward on function-auth routes; direct calls default to the full `'policy'` check. If you wrap `isAuthorized`, forward this argument to `super.isAuthorized` to preserve policy ordering. Prefer migrating credential-only overrides to `isTokenValid`: an override returning `true` directly from `isAuthorized` still replaces the complete authorization decision, including the route policy. `requiresStrictAuth` remains protected for existing strict-mode overrides.
+`Token.authorizeRoute(req, route)` owns public-route and strict-mode decisions. It calls `isAuthorized(req, route)` for credentials before input preparation, then returns either a boolean admission result or a deferred policy check for the server to run after validation. Strict non-exempt routes have no second pass. `isAuthorized` defaults to the `'credentials'` stage, so existing two-argument wrappers can call `super.isAuthorized(req, route)` without running a body-dependent policy early. Direct callers wanting the full check on already-validated input can explicitly pass `'policy'`. Inherited `authorizeRoute` still enforces the route policy after an `isAuthorized` override accepts credentials; prefer `isTokenValid` for credential-only extensions. `requiresStrictAuth` remains protected and governs these decisions, including when overridden by an SDK.
+
+Replacement Token services that do not inherit `Token` and implement only `isAuthorized` remain supported: the server calls their method once before input preparation, and they retain their complete authorization contract. Public routes remain usable without a Token service through the default Token behavior.
 
 ## Disabling Routes
 

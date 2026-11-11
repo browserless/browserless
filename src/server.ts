@@ -316,7 +316,8 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
-    if (!(await this.isAuthorized(req, route, 'credentials'))) {
+    const authorization = await this.authorizeRoute(req, route);
+    if (!authorization) {
       return this.onHTTPUnauthorized(req, res);
     }
 
@@ -431,8 +432,8 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    if (!(await this.isAuthorized(req, route, 'policy'))) {
-      return this.onHTTPUnauthorized(req, res);
+    if (typeof authorization === 'function' && !(await authorization())) {
+      return writeResponse(res, 403, 'Forbidden');
     }
 
     return (route as HTTPRoute)
@@ -501,7 +502,8 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
-      if (!(await this.isAuthorized(req, route, 'credentials'))) {
+      const authorization = await this.authorizeRoute(req, route);
+      if (!authorization) {
         return this.onWebsocketUnauthorized(req, socket);
       }
 
@@ -549,8 +551,8 @@ export class HTTPServer extends EventEmitter {
         }
       }
 
-      if (!(await this.isAuthorized(req, route, 'policy'))) {
-        return this.onWebsocketUnauthorized(req, socket);
+      if (typeof authorization === 'function' && !(await authorization())) {
+        return writeResponse(socket, 403, 'Forbidden');
       }
 
       return (route as WebSocketRoute)
@@ -567,19 +569,24 @@ export class HTTPServer extends EventEmitter {
     return writeResponse(socket, 404, 'Not Found');
   }
 
-  protected async isAuthorized(
+  protected async authorizeRoute(
     req: Request,
     route: Parameters<Token['isAuthorized']>[1],
-    stage: 'credentials' | 'policy',
-  ): Promise<boolean> {
-    // Public routes need no Token service. Static auth has no deferred policy.
-    if (
-      (!route.auth && !this.config.getStrictTokenUse()) ||
-      (stage === 'policy' && typeof route.auth !== 'function')
-    ) {
-      return true;
+  ): ReturnType<Token['authorizeRoute']> {
+    // Token owns exemptions and deferred policy checks. Replacement services
+    // with only isAuthorized retain their complete authorization contract.
+    const token = this.token ?? new Token(this.config);
+    const authorization =
+      typeof token.authorizeRoute === 'function'
+        ? await token.authorizeRoute(req, route)
+        : await token.isAuthorized(req, route);
+    if (!authorization) {
+      this.logger.trace(
+        'Route authorization denied in credentials pass',
+        route.name,
+      );
     }
-    return this.token.isAuthorized(req, route, stage);
+    return authorization;
   }
 
   /**

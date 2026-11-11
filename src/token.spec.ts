@@ -42,15 +42,19 @@ describe('Function-valued route authentication', () => {
     } as unknown as HTTPRoute;
     const req = request();
     req.parsed.pathname = '/protected';
-    expect(await token.isAuthorized(req, route)).to.equal(false);
+    expect(await token.isAuthorized(req, route, 'policy')).to.equal(false);
     req.parsed.searchParams.set('token', 'wrong');
-    expect(await token.isAuthorized(req, route)).to.equal(false);
+    expect(await token.isAuthorized(req, route, 'policy')).to.equal(false);
     req.parsed.searchParams.set('token', 'first-test-token');
-    expect(await token.isAuthorized(req, route)).to.equal(true);
-    expect(await token.isAuthorized(request(), route)).to.equal(false);
-    expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+    expect(await token.isAuthorized(req, route, 'policy')).to.equal(true);
+    expect(await token.isAuthorized(request(), route, 'policy')).to.equal(
+      false,
+    );
     expect(
-      await token.isAuthorized(request('first-test-token'), route),
+      await token.isAuthorized(request('wrong'), route, 'policy'),
+    ).to.equal(false);
+    expect(
+      await token.isAuthorized(request('first-test-token'), route, 'policy'),
     ).to.equal(false);
   });
 
@@ -64,10 +68,14 @@ describe('Function-valued route authentication', () => {
   ]) {
     it(`denies access when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
       expect(
-        await token.isAuthorized(request('first-test-token'), {
-          auth,
-          name: 'BrokenPolicyRoute',
-        } as unknown as HTTPRoute),
+        await token.isAuthorized(
+          request('first-test-token'),
+          {
+            auth,
+            name: 'BrokenPolicyRoute',
+          } as unknown as HTTPRoute,
+          'policy',
+        ),
       ).to.equal(false);
     });
   }
@@ -82,31 +90,41 @@ describe('Function-valued route authentication', () => {
       },
     } as unknown as HTTPRoute;
     expect(
-      await token.isAuthorized(request('first-test-token'), route),
+      await token.isAuthorized(request('first-test-token'), route, 'policy'),
     ).to.equal(true);
   });
 
   it('warns without exposing policy error contents', async () => {
     const namespaces = debug.disable();
-    debug.enable('browserless.io:token:warn');
+    debug.enable('browserless.io:token:*');
     const output: string[] = [];
     const log = Sinon.stub(debug, 'log').callsFake((...args) => {
       output.push(format(...args));
     });
     try {
       expect(
-        await token.isAuthorized(request('first-test-token'), {
-          name: 'BrokenPolicy',
-          auth: async () => {
-            throw new Error('synthetic-sensitive-value');
-          },
-        } as unknown as HTTPRoute),
+        await token.isAuthorized(
+          request('first-test-token'),
+          {
+            name: 'BrokenPolicy',
+            auth: async () => {
+              const error = new TypeError('synthetic-sensitive-value');
+              error.name = 'synthetic-sensitive-type';
+              throw error;
+            },
+          } as unknown as HTTPRoute,
+          'policy',
+        ),
       ).to.equal(false);
       expect(output.join('\n')).to.include(
         'Route authentication policy failed',
       );
       expect(output.join('\n')).to.include('BrokenPolicy');
+      expect(output.join('\n')).to.include('token:debug');
+      expect(output.join('\n')).to.include('TypeError');
+      expect(output.join('\n')).to.include('policy pass');
       expect(output.join('\n')).not.to.include('synthetic-sensitive-value');
+      expect(output.join('\n')).not.to.include('synthetic-sensitive-type');
     } finally {
       log.restore();
       debug.enable(namespaces);
@@ -119,10 +137,14 @@ describe('Function-valued route authentication', () => {
         name: 'IncompletePolicyRoute',
         auth: async () => result,
       } as unknown as HTTPRoute;
-      expect(await token.isAuthorized(request(), route)).to.equal(false);
-      expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+      expect(await token.isAuthorized(request(), route, 'policy')).to.equal(
+        false,
+      );
       expect(
-        await token.isAuthorized(request('first-test-token'), route),
+        await token.isAuthorized(request('wrong'), route, 'policy'),
+      ).to.equal(false);
+      expect(
+        await token.isAuthorized(request('first-test-token'), route, 'policy'),
       ).to.equal(false);
     }
   });
@@ -131,12 +153,16 @@ describe('Function-valued route authentication', () => {
     const config = new Config();
     config.setToken(null);
     expect(
-      await new Token(config).isAuthorized(request(), {
-        name: 'NoTokenRoute',
-        auth: async () => {
-          throw new Error('policy must not run');
-        },
-      } as unknown as HTTPRoute),
+      await new Token(config).isAuthorized(
+        request(),
+        {
+          name: 'NoTokenRoute',
+          auth: async () => {
+            throw new Error('policy must not run');
+          },
+        } as unknown as HTTPRoute,
+        'policy',
+      ),
     ).to.equal(true);
   });
 
@@ -147,12 +173,16 @@ describe('Function-valued route authentication', () => {
       }
     }
     expect(
-      await new StrictToken(config).isAuthorized(request('first-test-token'), {
-        name: 'OverriddenStrictRoute',
-        auth: async () => {
-          throw new Error('strict routes must not run policies');
-        },
-      } as unknown as HTTPRoute),
+      await new StrictToken(config).isAuthorized(
+        request('first-test-token'),
+        {
+          name: 'OverriddenStrictRoute',
+          auth: async () => {
+            throw new Error('strict routes must not run policies');
+          },
+        } as unknown as HTTPRoute,
+        'policy',
+      ),
     ).to.equal(true);
   });
 
@@ -161,6 +191,7 @@ describe('Function-valued route authentication', () => {
     let port: number;
     let config: Config;
     let route: HTTPRoute;
+    let metrics: Metrics;
 
     beforeEach(async () => {
       route = {
@@ -185,9 +216,10 @@ describe('Function-valued route authentication', () => {
       router.getRouteForWebSocketRequest.resolves(
         route as unknown as WebSocketRoute,
       );
+      metrics = new Metrics();
       server = new HTTPServer(
         config,
-        new Metrics(),
+        metrics,
         new Token(config),
         router,
         new Hooks(),
@@ -220,6 +252,44 @@ describe('Function-valued route authentication', () => {
       });
 
     for (const upgrade of [false, true]) {
+      it(`honors Token strict-auth overrides on public ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
+        class StrictToken extends Token {
+          protected requiresStrictAuth(): boolean {
+            return true;
+          }
+        }
+        route.auth = false;
+        server['token'] = new StrictToken(config);
+        expect(await status('/public', upgrade)).to.equal(401);
+        expect(await status('/public?token=wrong', upgrade)).to.equal(401);
+        expect(
+          await status('/public?token=local-test-token', upgrade),
+        ).to.equal(200);
+      });
+
+      it(`does not revalidate one-use credentials in strict ${upgrade ? 'WebSocket' : 'HTTP'} admission`, async () => {
+        class OneUseToken extends Token {
+          private used = false;
+          protected async isTokenValid(req: Request): Promise<boolean> {
+            if (this.used) return false;
+            this.used = true;
+            return super.isTokenValid(req);
+          }
+        }
+        config.setStrictTokenUse(true);
+        server['token'] = new OneUseToken(config);
+        expect(await status('/error?token=local-test-token', upgrade)).to.equal(
+          200,
+        );
+      });
+
+      it(`does not call an SDK server's unrelated isAuthorized method for ${upgrade ? 'WebSocket' : 'HTTP'} admission`, async () => {
+        Object.assign(server, { isAuthorized: async () => false });
+        expect(
+          await status('/protected?token=local-test-token', upgrade),
+        ).to.equal(200);
+      });
+
       it(`keeps public ${upgrade ? 'WebSocket' : 'HTTP'} routes usable without a Token service`, async () => {
         route.auth = false;
         server['token'] = null as unknown as Token;
@@ -240,22 +310,26 @@ describe('Function-valued route authentication', () => {
             );
           }
         }
-        route.auth = true;
         server['token'] = new MultiToken(config);
         expect(
           await status('/protected?token=extra-test-token', upgrade),
         ).to.equal(200);
+        expect(
+          await status('/public?token=extra-test-token', upgrade),
+        ).to.equal(403);
         expect(
           await status('/protected?token=local-test-token', upgrade),
         ).to.equal(200);
         expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
       });
 
-      it(`supports replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services without authStage`, async () => {
+      it(`supports replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services with only isAuthorized`, async () => {
         route.auth = true;
         server['token'] = {
-          isAuthorized: async (req: Request) =>
-            getTokenFromRequest(req) === 'extra-test-token',
+          isAuthorized: async (req: Request) => {
+            if (getTokenFromRequest(req) === 'extra-test-token') return true;
+            return undefined;
+          },
         } as unknown as Token;
         expect(
           await status('/protected?token=extra-test-token', upgrade),
@@ -275,9 +349,9 @@ describe('Function-valued route authentication', () => {
         ).to.equal(200);
         expect(
           await status('/public?token=extra-test-token', upgrade),
-        ).to.equal(401);
+        ).to.equal(403);
         expect(await status('/error?token=extra-test-token', upgrade)).to.equal(
-          401,
+          403,
         );
         expect(
           await status('/protected?token=local-test-token', upgrade),
@@ -301,7 +375,7 @@ describe('Function-valued route authentication', () => {
         ).to.equal(200);
         expect(
           await status('/query?private=false&token=local-test-token', upgrade),
-        ).to.equal(401);
+        ).to.equal(403);
         expect(await status('/query?private=invalid', upgrade)).to.equal(401);
         expect(
           await status('/query?private=invalid&token=wrong', upgrade),
@@ -336,7 +410,13 @@ describe('Function-valued route authentication', () => {
     }
 
     for (const method of ['POST', 'GET']) {
-      it(`supplies the validated ${method} body to the policy and handler`, async () => {
+      it(`supplies the validated ${method} body through a two-argument Token wrapper`, async () => {
+        class WrappedToken extends Token {
+          public async isAuthorized(req: Request, route: HTTPRoute) {
+            return super.isAuthorized(req, route);
+          }
+        }
+        server['token'] = new WrappedToken(config);
         config.enableGETRequests(true);
         route.bodySchema = {
           type: 'object',
@@ -376,7 +456,7 @@ describe('Function-valued route authentication', () => {
         expect(await authorized.json()).to.deep.equal({ private: true });
         expect((await send('false')).status).to.equal(401);
         const falsePolicyResponse = await send('false', 'local-test-token');
-        expect(falsePolicyResponse.status).to.equal(401);
+        expect(falsePolicyResponse.status).to.equal(403);
         expect((await send('invalid')).status).to.equal(401);
         expect((await send('invalid', 'local-test-token')).status).to.equal(
           400,
@@ -466,14 +546,18 @@ describe('Function-valued route authentication', () => {
         expect(
           await status('/protected?token=local-test-token', upgrade),
         ).to.equal(200);
+        expect(metrics.get().unauthorized).to.equal(2);
         expect(await status('/public', upgrade)).to.equal(401);
         expect(await status('/public?token=wrong', upgrade)).to.equal(401);
+        expect(metrics.get().unauthorized).to.equal(4);
         expect(
           await status('/public?token=local-test-token', upgrade),
-        ).to.equal(strict ? 200 : 401);
+        ).to.equal(strict ? 200 : 403);
+        expect(metrics.get().unauthorized).to.equal(4);
         expect(await status('/error?token=local-test-token', upgrade)).to.equal(
-          strict ? 200 : 401,
+          strict ? 200 : 403,
         );
+        expect(metrics.get().unauthorized).to.equal(4);
       });
     }
   });
