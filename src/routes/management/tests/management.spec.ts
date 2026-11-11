@@ -730,13 +730,26 @@ describe('Management APIs', function () {
       }
     });
 
-    it('redirects /docs to /docs/', async () => {
+    it('redirects /docs to /docs/, preserving a supplied query token', async () => {
       await start();
 
       const res = await fetch(
         'http://localhost:3000/docs?token=6R0W53R135510',
         { redirect: 'manual' },
       );
+
+      expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal(
+        '/docs/?token=6R0W53R135510',
+      );
+    });
+
+    it('drops no query params across the /docs redirect when none were supplied', async () => {
+      await start();
+
+      const res = await fetch('http://localhost:3000/docs', {
+        redirect: 'manual',
+      });
 
       expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/docs/');

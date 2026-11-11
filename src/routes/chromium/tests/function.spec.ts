@@ -424,4 +424,64 @@ describe('/chromium/function API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('forwards the validated query token for the internal reconnect, not an unrelated Authorization header (#5674)', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+        Authorization: 'Bearer unrelated-proxy-value',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows header-only authorization, forwarding it for the internal reconnect', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/chromium/function', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+        Authorization: 'Bearer browserless',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
 });

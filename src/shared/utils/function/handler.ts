@@ -13,7 +13,7 @@ import {
   convertIfBase64,
   exists,
   getFinalPathSegment,
-  getTokenFromRequest,
+  getValidatedRequestToken,
   makeExternalURL,
   mimeTypes,
 } from '@browserless.io/browserless';
@@ -85,7 +85,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
       'function',
       'connect',
       browserID,
-      '?token=' + getTokenFromRequest(req),
+      '?token=' + getValidatedRequestToken(req, config.getToken()),
     );
     const functionCodeJS = `browserless-function-${browserID}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<

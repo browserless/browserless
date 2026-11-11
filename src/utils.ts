@@ -354,6 +354,24 @@ export const isRequestTokenValid = (
   return candidates.some((t) => allowed.includes(t));
 };
 
+// For forwarding onward: prefers req.queryToken when it's the one that
+// actually validated the request, instead of an unrelated header value.
+export const getValidatedRequestToken = (
+  req: Request,
+  configuredToken: string | string[] | null,
+) => {
+  const allowed =
+    configuredToken === null
+      ? []
+      : Array.isArray(configuredToken)
+        ? configuredToken
+        : [configuredToken];
+  if (req.queryToken && allowed.includes(req.queryToken)) {
+    return req.queryToken;
+  }
+  return getTokenFromRequest(req);
+};
+
 // NOTE, if proxying request elsewhere, you must re-stream the body again
 export const readRequestBody = async (
   req: Request,
