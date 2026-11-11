@@ -3,7 +3,9 @@ import {
   BrowserWebsocketRoute,
   BrowserlessRoutes,
   Config,
+  Forbidden,
   HTTPRoute,
+  Logger,
   Request,
   WebSocketRoute,
   getTokenFromRequest,
@@ -14,28 +16,61 @@ type AuthRoute =
   BrowserHTTPRoute | BrowserWebsocketRoute | HTTPRoute | WebSocketRoute;
 
 export class Token extends EventEmitter {
+  protected logger = new Logger('token');
+
   constructor(protected config: Config) {
     super();
   }
 
-  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
+  /**
+   * Override credential validation here to support additional keys without
+   * bypassing route policies or changing their input-validation ordering.
+   */
+  public async isTokenValid(req: Request): Promise<boolean> {
     const token = this.config.getToken();
-
-    if (token === null) {
-      return true;
-    }
-
-    if (route.auth !== true && !this.requiresStrictAuth(route)) {
-      return true;
-    }
-
     const requestToken = getTokenFromRequest(req);
+    return (
+      token === null ||
+      (!!requestToken &&
+        (Array.isArray(token) ? token : [token]).includes(requestToken))
+    );
+  }
 
-    if (!requestToken) {
+  /** Whether this route needs authorization, including SDK strict overrides. */
+  public requiresAuth(route: AuthRoute): boolean {
+    return route.auth !== false || this.requiresStrictAuth(route);
+  }
+
+  /** Check validated input; return false for credentials, throw Forbidden for policy denial. */
+  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
+    if (this.config.getToken() === null || !this.requiresAuth(route)) {
+      return true;
+    }
+    if (!(await this.isTokenValid(req))) {
       return false;
     }
-
-    return (Array.isArray(token) ? token : [token]).includes(requestToken);
+    if (this.requiresStrictAuth(route) || typeof route.auth !== 'function') {
+      return true;
+    }
+    try {
+      if ((await route.auth(req)) === true) return true;
+    } catch (error) {
+      // Error names and messages can contain request data; log only safe types.
+      this.logger.warn(
+        'Route authentication policy failed for route',
+        route.name,
+      );
+      this.logger.debug(
+        'Route authentication policy error type',
+        error instanceof TypeError
+          ? 'TypeError'
+          : error instanceof Error
+            ? 'Error'
+            : typeof error,
+      );
+    }
+    this.logger.trace('Route authorization denied in policy pass', route.name);
+    throw new Forbidden('Forbidden');
   }
 
   /**

@@ -50,6 +50,7 @@ export class HTTPServer extends EventEmitter {
   protected acceptingStopped = false;
   protected liveResponses = new Set<http.ServerResponse>();
   protected httpSockets = new Set<net.Socket>();
+  protected fallbackToken: Token;
   #originalCloseIdleConnections?: http.Server['closeIdleConnections'];
 
   constructor(
@@ -61,6 +62,7 @@ export class HTTPServer extends EventEmitter {
     protected Logger: typeof BlessLogger,
   ) {
     super();
+    this.fallbackToken = new Token(config);
     this.host = config.getHost();
     this.port = config.getPort();
 
@@ -316,15 +318,9 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
-    // Under STRICT_TOKEN_USE every route is sent to Token, which owns the
-    // per-route exemptions (static files).
-    if (route.auth || this.config.getStrictTokenUse()) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
-      const isPermitted = await this.token.isAuthorized(req, route);
-
-      if (!isPermitted) {
-        return this.onHTTPUnauthorized(req, res);
-      }
+    const authorization = await this.authorizeRoute(req, route);
+    if (!authorization) {
+      return this.onHTTPUnauthorized(req, res);
     }
 
     let body;
@@ -438,6 +434,10 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
+    if (typeof authorization === 'function' && !(await authorization())) {
+      return this.onHTTPUnauthorized(req, res);
+    }
+
     return (route as HTTPRoute)
       .handler(req, res, new this.Logger(route.name, req))
       .then(() => {
@@ -504,16 +504,9 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
-      // See the HTTP gate above: Token owns the strict-mode exemptions.
-      if (route.auth || this.config.getStrictTokenUse()) {
-        this.logger.trace(
-          `Authorizing WebSocket request to "${req.parsed.href}"`,
-        );
-        const isPermitted = await this.token.isAuthorized(req, route);
-
-        if (!isPermitted) {
-          return this.onWebsocketUnauthorized(req, socket);
-        }
+      const authorization = await this.authorizeRoute(req, route);
+      if (!authorization) {
+        return this.onWebsocketUnauthorized(req, socket);
       }
 
       if (route.querySchema) {
@@ -560,6 +553,10 @@ export class HTTPServer extends EventEmitter {
         }
       }
 
+      if (typeof authorization === 'function' && !(await authorization())) {
+        return this.onWebsocketUnauthorized(req, socket);
+      }
+
       return (route as WebSocketRoute)
         .handler(req, socket, head, new this.Logger(route.name, req))
         .then(() => {
@@ -572,6 +569,36 @@ export class HTTPServer extends EventEmitter {
       `No matching WebSocket route handler for "${req.parsed.href}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
+  }
+
+  protected async authorizeRoute(
+    req: Request,
+    route: Parameters<Token['isAuthorized']>[1],
+  ): Promise<boolean | (() => Promise<boolean>)> {
+    const token = this.token ?? this.fallbackToken;
+    const routeToken =
+      typeof token.requiresAuth === 'function' ? token : this.fallbackToken;
+    if (!routeToken.requiresAuth(route)) return true;
+
+    const checksCredentials = typeof token.isTokenValid === 'function';
+    if (checksCredentials && !(await token.isTokenValid(req))) {
+      this.logger.trace(
+        'Route authorization denied in credentials pass',
+        route.name,
+      );
+      return false;
+    }
+
+    // Full SDK authorization runs only after the caller validates input.
+    // Policy denials throw Forbidden; false results retain 401s and metrics.
+    return async () => {
+      if (await token.isAuthorized(req, route)) return true;
+      this.logger.trace(
+        'Route authorization denied in full authorization pass',
+        route.name,
+      );
+      return false;
+    };
   }
 
   /**

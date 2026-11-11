@@ -111,8 +111,13 @@ export abstract class Route<Req extends Request = Request> {
   abstract name: string;
 
   /**
-   * A boolean, or a function that returns a boolean, on
-   * whether the route requires an API token to access.
+   * A static false makes the route public unless strict mode requires a token.
+   * With a configured token, true and function policies require valid credentials
+   * before body reads or schema validation, even if a policy would return false.
+   * Non-strict function policies run after input validation and must return true;
+   * false, incomplete results and errors return 403 without unauthorized metrics.
+   * Invalid credentials return 401. Strict mode on non-exempt routes overrides
+   * policies. Without a token, policies stay inert.
    */
   auth: boolean | ((req: Req) => Promise<boolean>) = true;
 

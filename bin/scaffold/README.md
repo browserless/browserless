@@ -124,6 +124,18 @@ Browserless has 4 different types of primitive routes:
 
 Internally, we use this same class-based system, so feel free to see how those work in our open-source repositories. All routes are TypeScript-based and all our modules are documented, so you should be able to effectively write routes and modules with your code editor and not necessarily need these examples open. Below are a few examples:
 
+### Route authentication
+
+With a configured `TOKEN` and non-strict authentication:
+
+- `auth = false` makes a route public.
+- `auth = true` requires valid credentials before reading the HTTP body or validating request schemas.
+- A function-valued `auth` first requires valid credentials, then runs with validated query parameters and, for HTTP, the parsed and validated body. It must resolve to exactly `true` to allow the request. `false`, missing returns, thrown errors and rejected promises deny access with 403 Forbidden. These policy refusals do not count toward unauthorized-request metrics. Policy methods retain their route receiver (`this`).
+
+**Breaking change:** a function returning `false` no longer makes a route public or admits a valid-token caller. Use the static `auth = false` for a public route. Subclasses that previously accepted extra keys by overriding `isAuthorized` must now override `isTokenValid` instead, so early credential checks accept those keys too. Missing or invalid credentials receive 401 before body reads and schema validation; a valid-token caller can still receive a schema-validation error before its policy runs.
+
+Without a configured `TOKEN`, the default Token service leaves policies inert and permits requests without credentials. `STRICT_TOKEN_USE=true` continues to require credentials and bypass function policies on non-exempt routes; the static-file route retains its exemption. Global and route `before` hooks keep their existing ordering before authentication and input validation.
+
 ### Basic HTTP Route
 
 ```ts
@@ -149,8 +161,8 @@ export default class HelloWorldRoute extends HTTPRoute {
   // If the content-type does not match then a 404 will be sent back
   accepts = [contentTypes.any];
 
-  // A boolean to indicate if authorization (token auth) is required to access this route. Can also be a function
-  // that returns a boolean with the request object being the only argument.
+  // true requires credentials; static false makes the route public in non-strict mode.
+  // An async function requires credentials first, then must return true to allow access.
   auth = true;
 
   // If this route requires a browser. `null` indicates no browser needed.
@@ -417,6 +429,43 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
 On shutdown (SIGTERM, SIGINT, SIGHUP, SIGUSR2, process.on('exit'), `uncaughtException`) browserless will call a `stop` method on all modules. This method is intentionally left blank for SDK extensions to implement. This allows for you to implement any teardown, cleanup, timer clearing, or event unbinding. You don't need to copy over any browserless-core specific teardown as these are handled elsewhere.
 
 With this approach you can effectively write, extend and author your own workflows within browserless!
+
+### Custom credentials
+
+Override the public `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. The server uses it before reading HTTP bodies or validating input; `isAuthorized(req, route)` uses it again as part of the full authorization check after validation. Keep this method credential-only and safe to call twice. Move credential-only logic from `isAuthorized` overrides into this hook so the early check accepts the same keys. The example below requires a configured `TOKEN` and optionally accepts `EXTRA_TOKEN` as a second key. Setting only `EXTRA_TOKEN` is rejected at startup rather than inheriting the default no-token authentication bypass:
+
+```ts
+// src/token.ts
+import {
+  Config,
+  Request,
+  Token,
+  getTokenFromRequest,
+} from '@browserless.io/browserless';
+
+export default class MultiToken extends Token {
+  constructor(config: Config) {
+    super(config);
+    if (config.getToken() === null) {
+      throw new Error('MultiToken requires TOKEN to be configured');
+    }
+  }
+
+  public async isTokenValid(req: Request): Promise<boolean> {
+    const extraToken = process.env.EXTRA_TOKEN;
+    return (
+      (!!extraToken && getTokenFromRequest(req) === extraToken) ||
+      super.isTokenValid(req)
+    );
+  }
+}
+```
+
+`Token.isAuthorized(req, route)` always performs the full credentials-plus-policy check, with no stage argument. The server calls it once after query and body validation, so wrappers calling `super.isAuthorized(req, route)` receive the validated input and run the policy too. Direct callers must supply already-validated input and handle `Forbidden` for a policy denial. Strict non-exempt routes still skip the route policy, but receive the same full SDK authorization call. Invalid credentials and `false` results from `isAuthorized` overrides receive 401 and increase unauthorized metrics, even if early credential validation passed. Only a route-policy denial throws `Forbidden`, producing 403 without increasing unauthorized metrics.
+
+`Token.requiresAuth(route)` is the shared public-route decision used by the server and full authorization. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes bypass credential and authorization calls when strict enforcement does not apply.
+
+Replacement Token services that do not inherit `Token` and implement only `isAuthorized` remain supported: the server skips the early credential check and calls their method once after input validation. They retain their complete authorization contract, including 401 on refusal. Public non-strict routes bypass replacement services too, using the default Token's route decision when the replacement has no `requiresAuth` method. The server creates its fallback Token once, and public routes remain usable without a Token service.
 
 ## Disabling Routes
 
