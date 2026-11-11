@@ -23,8 +23,9 @@ export class Token extends EventEmitter {
   }
 
   /**
-   * Override credential validation here to support additional keys without
-   * bypassing route policies or changing their input-validation ordering.
+   * Checks the request's credentials. Override it to accept additional keys:
+   * unlike an isAuthorized override, it also covers the credential check that
+   * routes with `strictAuthPolicy` run before reading input.
    */
   public async isTokenValid(req: Request): Promise<boolean> {
     const token = this.config.getToken();
@@ -41,19 +42,34 @@ export class Token extends EventEmitter {
     return route.auth !== false || this.requiresStrictAuth(route);
   }
 
-  /** Check validated input; return false for credentials, throw Forbidden for policy denial. */
+  /**
+   * Whether a function-valued `auth` decides access to this route. The server
+   * then authorizes after validating input, so the policy sees validated
+   * query parameters and body.
+   */
+  public usesAuthPolicy(route: AuthRoute): boolean {
+    return typeof route.auth === 'function' && !this.requiresStrictAuth(route);
+  }
+
+  /**
+   * Returns false (401) for requests that lack required credentials. Only a
+   * `strictAuthPolicy` denial throws Forbidden (403).
+   */
   public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
     if (this.config.getToken() === null || !this.requiresAuth(route)) {
       return true;
     }
-    if (!(await this.isTokenValid(req))) {
-      return false;
+    const validToken = await this.isTokenValid(req);
+    if (!this.usesAuthPolicy(route) || typeof route.auth !== 'function') {
+      return validToken;
     }
-    if (this.requiresStrictAuth(route) || typeof route.auth !== 'function') {
-      return true;
-    }
+    // A default policy says whether the request needs credentials, so valid
+    // ones always pass. A strict policy needs them and must also return true.
+    if (validToken && !route.strictAuthPolicy) return true;
+    if (!validToken && route.strictAuthPolicy) return false;
+    let result: unknown;
     try {
-      if ((await route.auth(req)) === true) return true;
+      result = await route.auth(req);
     } catch (error) {
       // Error names and messages can contain request data; log only safe types.
       this.logger.warn(
@@ -69,6 +85,10 @@ export class Token extends EventEmitter {
             : typeof error,
       );
     }
+    // Only an explicit false makes a default policy's request public; errors
+    // and other results require credentials.
+    if (!route.strictAuthPolicy) return result === false;
+    if (result === true) return true;
     this.logger.trace('Route authorization denied in policy pass', route.name);
     throw new Forbidden('Forbidden');
   }

@@ -111,15 +111,25 @@ export abstract class Route<Req extends Request = Request> {
   abstract name: string;
 
   /**
-   * A static false makes the route public unless strict mode requires a token.
-   * With a configured token, true and function policies require valid credentials
-   * before body reads or schema validation, even if a policy would return false.
-   * Non-strict function policies run after input validation and must return true;
-   * false, incomplete results and errors return 403 without unauthorized metrics.
-   * Invalid credentials return 401. Strict mode on non-exempt routes overrides
-   * policies. Without a token, policies stay inert.
+   * Whether the route requires an API token. With a configured token, true
+   * requires valid credentials before the body is read or schemas validated,
+   * and false makes the route public. A function decides per request, after
+   * input validation, so it sees validated query parameters and body: false
+   * lets that request through without credentials, while true, any other
+   * result or an error requires them (401). Valid credentials always pass.
+   * See `strictAuthPolicy` for a stricter contract. STRICT_TOKEN_USE overrides
+   * this on non-exempt routes. Without a token, policies stay inert.
    */
   auth: boolean | ((req: Req) => Promise<boolean>) = true;
+
+  /**
+   * Opt-in for a function-valued `auth`: callers always need valid credentials,
+   * checked with `Token.isTokenValid` before the body is read or schemas are
+   * validated (401), and the function must then resolve to exactly true.
+   * False, other results and errors return 403 without counting toward
+   * unauthorized metrics.
+   */
+  strictAuthPolicy?: boolean;
 
   /**
    * The schematic of the submitted BODY (typically)
