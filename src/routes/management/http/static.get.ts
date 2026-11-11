@@ -93,9 +93,9 @@ export default class StaticGetRoute extends HTTPRoute {
     const { pathname } = req.parsed;
     const config = this.config();
 
-    // `?token=` never reaches req.parsed - moveTokenToHeader() moves it to
-    // the Authorization header but preserves it separately as req.queryToken,
-    // so a proxy's own unrelated header can't shadow it here.
+    // A non-empty `?token=` never reaches req.parsed - moveTokenToHeader()
+    // moves it to the Authorization header but preserves it separately as
+    // req.queryToken, so a proxy's own unrelated header can't shadow it here.
     const configuredToken = config.getToken();
     // A wrong query token must block the script even if the header still
     // authorizes the request - the client-side script only reads
@@ -183,18 +183,17 @@ export default class StaticGetRoute extends HTTPRoute {
       !pathname.endsWith('/') &&
       !pathname.endsWith('/index.html')
     ) {
-      // req.parsed.search never has ?token= (already stripped by
-      // moveTokenToHeader) - re-add it from req.queryToken so the
-      // redirect doesn't silently lose it.
+      // moveTokenToHeader() strips a non-empty ?token= from req.parsed.search
+      // - re-add it from req.queryToken so the redirect doesn't silently lose
+      // it. Without one, keep the query string exactly as the client sent it.
       const redirectParams = new URLSearchParams(req.parsed.search);
       if (req.queryToken) {
         redirectParams.set('token', req.queryToken);
       }
-      const redirectSearch = redirectParams.toString();
       const location =
         req.parsed.pathname +
         '/' +
-        (redirectSearch ? `?${redirectSearch}` : '');
+        (req.queryToken ? `?${redirectParams.toString()}` : req.parsed.search);
       res.writeHead(301, { Location: location });
       res.end();
       return;

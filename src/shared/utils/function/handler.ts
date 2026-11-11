@@ -80,7 +80,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     }
 
     const browserID = getFinalPathSegment(privateWSEndpoint)!;
-    const validatedToken = getTokenFromRequest(req);
+    const requestToken = getTokenFromRequest(req);
     // queryParamsToObject() parses an empty value as a boolean flag, not a
     // string, which fails the connect route's token schema - omit the
     // param entirely rather than send an empty one.
@@ -89,7 +89,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
       'function',
       'connect',
       browserID,
-      validatedToken ? `?token=${encodeURIComponent(validatedToken)}` : '',
+      requestToken ? `?token=${encodeURIComponent(requestToken)}` : '',
     );
     const functionCodeJS = `browserless-function-${browserID}.js`;
     const page = (await browser.newPage()) as UnwrapPromise<

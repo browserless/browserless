@@ -425,7 +425,7 @@ describe('/chromium/function API', function () {
     });
   });
 
-  it('forwards the validated query token for the internal reconnect, not an unrelated Authorization header (#5674)', async () => {
+  it('forwards the validated query token for the internal reconnect, not an unrelated Authorization header (#5636)', async () => {
     const config = new Config();
     config.setToken('browserless');
     const metrics = new Metrics();

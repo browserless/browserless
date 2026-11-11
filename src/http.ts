@@ -172,7 +172,8 @@ export interface Request extends http.IncomingMessage {
   parsed: URL;
   queryParams: Record<string, unknown>;
   // The `?token=` value as supplied in the query string, before
-  // moveTokenToHeader() strips it and may overwrite it with an unrelated header.
+  // moveTokenToHeader() strips it. A pre-existing Authorization header takes
+  // precedence over it there, so this keeps it from being lost.
   queryToken?: string;
   // Set when queryToken, not the Authorization header, authorized the request,
   // so getTokenFromRequest() reports the credential that was validated.
