@@ -21,20 +21,44 @@ export class Token extends EventEmitter {
     super();
   }
 
-  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
+  /**
+   * Check credentials before input is read. Only policy evaluation needs the
+   * handler's validated input; a policy cannot waive configured credentials.
+   */
+  public authStage(
+    req: Request,
+    route: AuthRoute,
+  ): 'authorized' | 'denied' | 'policy' {
     const token = this.config.getToken();
 
     if (token === null) {
-      return true;
+      return 'authorized';
     }
 
-    if (!this.requiresStrictAuth(route)) {
+    const strict = this.requiresStrictAuth(route);
+    if (!strict && route.auth === false) {
+      return 'authorized';
+    }
+
+    const requestToken = getTokenFromRequest(req);
+    if (
+      !requestToken ||
+      !(Array.isArray(token) ? token : [token]).includes(requestToken)
+    ) {
+      return 'denied';
+    }
+
+    return !strict && typeof route.auth === 'function'
+      ? 'policy'
+      : 'authorized';
+  }
+
+  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
+    const stage = this.authStage(req, route);
+    if (stage === 'policy' && typeof route.auth === 'function') {
       try {
-        const requiresToken =
-          typeof route.auth === 'function' ? await route.auth(req) : route.auth;
-        if (requiresToken === false) {
-          return true;
-        }
+        await route.auth(req);
+        return true;
       } catch {
         // A failed policy must not grant access, even with a valid token.
         this.logger.warn('Route authentication policy failed');
@@ -42,13 +66,7 @@ export class Token extends EventEmitter {
       }
     }
 
-    const requestToken = getTokenFromRequest(req);
-
-    if (!requestToken) {
-      return false;
-    }
-
-    return (Array.isArray(token) ? token : [token]).includes(requestToken);
+    return stage === 'authorized';
   }
 
   /**
@@ -57,7 +75,7 @@ export class Token extends EventEmitter {
    * Static files stay public: they grant no browser access, and the debugger
    * and DevTools frontend load their sub-resources without a token.
    */
-  public requiresStrictAuth(route: AuthRoute): boolean {
+  protected requiresStrictAuth(route: AuthRoute): boolean {
     return (
       this.config.getStrictTokenUse() &&
       route.name !== BrowserlessRoutes.StaticGetRoute

@@ -5,7 +5,6 @@ import {
   Logger,
   NetworkRangeSet,
   Request,
-  Token,
   availableBrowsers,
   isSocketProxied,
 } from '@browserless.io/browserless';
@@ -228,11 +227,10 @@ describe('CDP context admission transport', () => {
     const server = createServer();
     const bridges: Promise<void>[] = [];
     const clients: WebSocket[] = [];
-    const config = new Config();
     const errorServer = new HTTPServer(
-      config,
+      new Config(),
       null as never,
-      new Token(config),
+      null as never,
       {
         getRouteForWebSocketRequest: async () => ({
           auth: false,

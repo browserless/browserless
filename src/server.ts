@@ -316,17 +316,17 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
-    // HTTP policies receive the same parsed, validated input as the handler.
-    // Static token requirements and strict mode still reject before body reads.
-    const strictAuth = this.token.requiresStrictAuth(route);
-    const deferredAuth = typeof route.auth === 'function' && !strictAuth;
-
-    // Token owns strict-mode requirements, including per-route exemptions.
-    if (!deferredAuth && (route.auth || strictAuth)) {
+    // Credentials are checked before body reads; only policies need validated input.
+    let deferredAuth = false;
+    if (route.auth || this.config.getStrictTokenUse()) {
       this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
-      const isPermitted = await this.token.isAuthorized(req, route);
+      const stage = this.token.authStage(req, route);
+      deferredAuth = stage === 'policy';
 
-      if (!isPermitted) {
+      if (
+        stage === 'denied' ||
+        (!deferredAuth && !(await this.token.isAuthorized(req, route)))
+      ) {
         return this.onHTTPUnauthorized(req, res);
       }
     }
@@ -512,17 +512,19 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
-      const strictAuth = this.token.requiresStrictAuth(route);
-      const deferredAuth = typeof route.auth === 'function' && !strictAuth;
-
-      // See the HTTP gate above: Token owns the strict-mode exemptions.
-      if (!deferredAuth && (route.auth || strictAuth)) {
+      // Token owns the credential check and strict-mode exemptions on both paths.
+      let deferredAuth = false;
+      if (route.auth || this.config.getStrictTokenUse()) {
         this.logger.trace(
           `Authorizing WebSocket request to "${req.parsed.href}"`,
         );
-        const isPermitted = await this.token.isAuthorized(req, route);
+        const stage = this.token.authStage(req, route);
+        deferredAuth = stage === 'policy';
 
-        if (!isPermitted) {
+        if (
+          stage === 'denied' ||
+          (!deferredAuth && !(await this.token.isAuthorized(req, route)))
+        ) {
           return this.onWebsocketUnauthorized(req, socket);
         }
       }

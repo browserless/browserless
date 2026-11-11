@@ -8,16 +8,17 @@ import {
   Metrics,
   Request,
   Router,
-  Token,
   WebSocketRoute,
   contentTypes,
   writeResponse,
 } from '@browserless.io/browserless';
 import Sinon from 'sinon';
+import { Token } from './token.js';
+import debug from 'debug';
 import { expect } from 'chai';
+import { format } from 'util';
 import getPort from 'get-port';
 import { request as httpRequest } from 'http';
-import { spawnSync } from 'child_process';
 
 describe('Function-valued route authentication', () => {
   const config = new Config();
@@ -30,7 +31,7 @@ describe('Function-valued route authentication', () => {
       parsed: new URL(`http://localhost/${value ? `?token=${value}` : ''}`),
     }) as Request;
 
-  it('awaits a request-dependent policy before checking configured tokens', async () => {
+  it('requires configured credentials even when a policy returns false', async () => {
     const route = {
       name: 'ConditionalRoute',
       async auth(req: Request) {
@@ -45,7 +46,11 @@ describe('Function-valued route authentication', () => {
     expect(await token.isAuthorized(req, route)).to.equal(false);
     req.parsed.searchParams.set('token', 'first-test-token');
     expect(await token.isAuthorized(req, route)).to.equal(true);
-    expect(await token.isAuthorized(request(), route)).to.equal(true);
+    expect(await token.isAuthorized(request(), route)).to.equal(false);
+    expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+    expect(
+      await token.isAuthorized(request('first-test-token'), route),
+    ).to.equal(true);
   });
 
   for (const auth of [
@@ -70,41 +75,43 @@ describe('Function-valued route authentication', () => {
     const route = {
       name: 'ProtectedRoute',
       async auth(this: { name: string }) {
-        return this.name === 'ProtectedRoute';
+        if (this.name !== 'ProtectedRoute')
+          throw new Error('lost route receiver');
+        return true;
       },
     } as unknown as HTTPRoute;
-    expect(await token.isAuthorized(request(), route)).to.equal(false);
+    expect(
+      await token.isAuthorized(request('first-test-token'), route),
+    ).to.equal(true);
   });
 
-  it('warns without exposing policy error contents', () => {
-    const { status, stdout, stderr } = spawnSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `import { Config, Token } from '@browserless.io/browserless';
-        const config = new Config();
-        config.setToken('synthetic-sensitive-value');
-        config.setStrictTokenUse(false);
-        const req = { headers: {}, parsed: new URL('http://localhost/') };
-        const route = { name: 'BrokenPolicy', auth: async () => {
-          throw new Error('synthetic-sensitive-value');
-        }};
-        console.log(await new Token(config).isAuthorized(req, route));`,
-      ],
-      {
-        encoding: 'utf8',
-        timeout: 10000,
-        env: { ...process.env, DEBUG: 'browserless.io:token:warn' },
-      },
-    );
-    expect(status).to.equal(0);
-    expect(stdout.trim()).to.equal('false');
-    expect(stderr).to.include('Route authentication policy failed');
-    expect(stderr).not.to.include('synthetic-sensitive-value');
+  it('warns without exposing policy error contents', async () => {
+    const namespaces = debug.disable();
+    debug.enable('browserless.io:token:warn');
+    const output: string[] = [];
+    const log = Sinon.stub(debug, 'log').callsFake((...args) => {
+      output.push(format(...args));
+    });
+    try {
+      expect(
+        await token.isAuthorized(request('first-test-token'), {
+          name: 'BrokenPolicy',
+          auth: async () => {
+            throw new Error('synthetic-sensitive-value');
+          },
+        } as unknown as HTTPRoute),
+      ).to.equal(false);
+      expect(output.join('\n')).to.include(
+        'Route authentication policy failed',
+      );
+      expect(output.join('\n')).not.to.include('synthetic-sensitive-value');
+    } finally {
+      log.restore();
+      debug.enable(namespaces);
+    }
   });
 
-  it('requires a token unless the policy explicitly returns false', async () => {
+  it('requires a token for incomplete policies', async () => {
     for (const result of [undefined, null, 0, '']) {
       const route = {
         name: 'IncompletePolicyRoute',
@@ -126,6 +133,22 @@ describe('Function-valued route authentication', () => {
         name: 'NoTokenRoute',
         auth: async () => {
           throw new Error('policy must not run');
+        },
+      } as unknown as HTTPRoute),
+    ).to.equal(true);
+  });
+
+  it('retains protected strict-auth overrides for Token subclasses', async () => {
+    class StrictToken extends Token {
+      protected requiresStrictAuth(): boolean {
+        return true;
+      }
+    }
+    expect(
+      await new StrictToken(config).isAuthorized(request('first-test-token'), {
+        name: 'OverriddenStrictRoute',
+        auth: async () => {
+          throw new Error('strict routes must not run policies');
         },
       } as unknown as HTTPRoute),
     ).to.equal(true);
@@ -195,19 +218,46 @@ describe('Function-valued route authentication', () => {
       });
 
     for (const upgrade of [false, true]) {
+      it(`keeps public ${upgrade ? 'WebSocket' : 'HTTP'} routes usable without a Token service`, async () => {
+        route.auth = false;
+        server['token'] = null as unknown as Token;
+        expect(await status('/public', upgrade)).to.equal(200);
+      });
+
+      it(`leaves ${upgrade ? 'WebSocket' : 'HTTP'} policies inert without a configured token`, async () => {
+        config.setToken(null);
+        expect(await status('/error', upgrade)).to.equal(200);
+      });
+
       it(`supplies validated query parameters to ${upgrade ? 'WebSocket' : 'HTTP'} policies`, async () => {
         route.querySchema = {
           type: 'object',
           properties: { private: { type: 'boolean' } },
           required: ['private'],
         };
-        route.auth = async (req) => req.queryParams?.private === true;
+        route.auth = async (req) => {
+          if (req.queryParams?.private !== true)
+            throw new Error('policy denied');
+          return true;
+        };
         expect(await status('/query?private=true', upgrade)).to.equal(401);
-        expect(await status('/query?private=false', upgrade)).to.equal(200);
+        expect(await status('/query?private=false', upgrade)).to.equal(401);
         expect(
           await status('/query?private=true&token=local-test-token', upgrade),
         ).to.equal(200);
-        expect(await status('/query?private=invalid', upgrade)).to.equal(400);
+        expect(
+          await status('/query?private=false&token=local-test-token', upgrade),
+        ).to.equal(401);
+        expect(await status('/query?private=invalid', upgrade)).to.equal(401);
+        expect(
+          await status('/query?private=invalid&token=wrong', upgrade),
+        ).to.equal(401);
+        expect(
+          await status(
+            '/query?private=invalid&token=local-test-token',
+            upgrade,
+          ),
+        ).to.equal(400);
       });
 
       it(`defers policies on strict-exempt ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
@@ -218,9 +268,13 @@ describe('Function-valued route authentication', () => {
           properties: { private: { type: 'boolean' } },
           required: ['private'],
         };
-        route.auth = async (req) => req.queryParams?.private === true;
+        route.auth = async (req) => {
+          if (typeof req.queryParams?.private !== 'boolean')
+            throw new Error('policy needs validated query');
+          return req.queryParams.private;
+        };
         expect(await status('/query?private=true', upgrade)).to.equal(401);
-        expect(await status('/query?private=false', upgrade)).to.equal(200);
+        expect(await status('/query?private=false', upgrade)).to.equal(401);
         expect(
           await status('/query?private=true&token=local-test-token', upgrade),
         ).to.equal(200);
@@ -235,8 +289,12 @@ describe('Function-valued route authentication', () => {
           properties: { private: { type: 'boolean' } },
           required: ['private'],
         };
-        route.auth = async (req) =>
-          (req.body as { private?: boolean })?.private === true;
+        route.auth = async (req) => {
+          const body = req.body as { private?: boolean };
+          if (typeof body?.private !== 'boolean')
+            throw new Error('policy needs validated body');
+          return body.private;
+        };
         route.before = async (req) => {
           // Hooks still run before parsing (GET helpers supply a raw string).
           expect(typeof req.body).to.equal(
@@ -262,47 +320,85 @@ describe('Function-valued route authentication', () => {
         const authorized = await send('true', 'local-test-token');
         expect(authorized.status).to.equal(200);
         expect(await authorized.json()).to.deep.equal({ private: true });
-        const publicResponse = await send('false');
-        expect(publicResponse.status).to.equal(200);
-        expect(await publicResponse.json()).to.deep.equal({ private: false });
-        expect((await send('invalid')).status).to.equal(400);
+        expect((await send('false')).status).to.equal(401);
+        const falsePolicyResponse = await send('false', 'local-test-token');
+        expect(falsePolicyResponse.status).to.equal(200);
+        expect(await falsePolicyResponse.json()).to.deep.equal({
+          private: false,
+        });
+        expect((await send('invalid')).status).to.equal(401);
+        expect((await send('invalid', 'local-test-token')).status).to.equal(
+          400,
+        );
         config.setStrictTokenUse(true);
         expect((await send('invalid')).status).to.equal(401);
       });
     }
 
-    it('rejects static token requirements before body parsing, validation or size checks', async () => {
-      route.auth = true;
-      route.accepts = [contentTypes.json];
-      route.bodySchema = {
-        type: 'object',
-        properties: { private: { type: 'boolean' } },
-        required: ['private'],
-      };
-      config.setMaxPayloadSize(64);
-      for (const [body, expected] of [
-        ['{', 400],
-        ['{}', 400],
-        [JSON.stringify({ private: true, padding: 'x'.repeat(100) }), 400],
-      ] as const) {
-        for (const token of ['', 'wrong', 'local-test-token']) {
-          const res = await fetch(
-            `http://localhost:${port}/body?token=${token}`,
-            {
-              method: 'POST',
-              headers: { 'content-type': contentTypes.json },
-              body,
-            },
-          );
-          expect(res.status).to.equal(
-            token === 'local-test-token' ? expected : 401,
-          );
-          if (res.status === 401) {
-            expect(await res.text()).not.to.include('private');
-          } else if (body.length > 64) {
-            expect(await res.text()).to.include('exceeds maximum allowed size');
+    for (const auth of [true, async () => false]) {
+      it(`rejects ${typeof auth === 'function' ? 'function' : 'static'} token requirements before body parsing, validation or size checks`, async () => {
+        route.auth = auth;
+        route.accepts = [contentTypes.json];
+        route.bodySchema = {
+          type: 'object',
+          properties: { private: { type: 'boolean' } },
+          required: ['private'],
+        };
+        config.setMaxPayloadSize(64);
+        for (const [body, expected] of [
+          ['{', 400],
+          ['{}', 400],
+          [JSON.stringify({ private: true, padding: 'x'.repeat(100) }), 400],
+        ] as const) {
+          for (const token of ['', 'wrong', 'local-test-token']) {
+            const res = await fetch(
+              `http://localhost:${port}/body?token=${token}`,
+              {
+                method: 'POST',
+                headers: { 'content-type': contentTypes.json },
+                body,
+              },
+            );
+            expect(res.status).to.equal(
+              token === 'local-test-token' ? expected : 401,
+            );
+            if (res.status === 401) {
+              expect(await res.text()).not.to.include('private');
+            } else if (body.length > 64) {
+              expect(await res.text()).to.include(
+                'exceeds maximum allowed size',
+              );
+            }
           }
         }
+      });
+    }
+
+    it('rejects missing or wrong credentials without waiting for the HTTP body', async () => {
+      for (const token of ['', 'wrong']) {
+        const code = await new Promise<number>((resolve, reject) => {
+          const req = httpRequest(
+            {
+              port,
+              path: `/body?token=${token}`,
+              method: 'POST',
+              headers: { 'content-length': '1024' },
+            },
+            (res) => {
+              res.resume();
+              res.on('end', () => {
+                resolve(res.statusCode!);
+                req.destroy();
+              });
+            },
+          );
+          req.on('error', reject);
+          req.setTimeout(1000, () =>
+            req.destroy(new Error('auth waited for body')),
+          );
+          req.flushHeaders();
+        });
+        expect(code).to.equal(401);
       }
     });
 
@@ -319,7 +415,8 @@ describe('Function-valued route authentication', () => {
         expect(
           await status('/protected?token=local-test-token', upgrade),
         ).to.equal(200);
-        expect(await status('/public', upgrade)).to.equal(strict ? 401 : 200);
+        expect(await status('/public', upgrade)).to.equal(401);
+        expect(await status('/public?token=wrong', upgrade)).to.equal(401);
         expect(
           await status('/public?token=local-test-token', upgrade),
         ).to.equal(200);
