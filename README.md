@@ -142,7 +142,7 @@ Example Domain
 - **Fonts & emoji** — All system fonts and emoji support out-of-the-box
 - **Configurable timeouts** — Set session timers and health-checks to keep things running smoothly
 - **Error tolerant** — If Chrome crashes, Browserless won't
-- **ARM64 architecture support** — Full support for ARM64 platforms including Apple Silicon; some browsers (Edge, Chrome) have limited ARM64 compatibility
+- **ARM64 architecture support** — Full support for ARM64 platforms including Apple Silicon; Edge is the one exception and remains amd64-only
 
 ### Premium Features
 

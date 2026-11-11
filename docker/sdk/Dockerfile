@@ -8,7 +8,6 @@ ARG TARGETPLATFORM
 # Change to root for install
 USER root
 
-# Needed for determining if Chrome is eligible for install
 ENV TARGETPLATFORM=${TARGETPLATFORM}
 ENV FROM=${FROM}
 ENV BLESS_INSTALL_NODE_MODULES=${APP_DIR}/node_modules/@browserless.io/browserless
@@ -27,7 +26,6 @@ COPY package.json package-lock.json tsconfig.json README.md ./
 RUN npm clean-install --include=dev && \
     node "$BLESS_INSTALL_NODE_MODULES/scripts/install-playwright-ffmpeg.js" && \
     npm run build && \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then rm -rf $BLESS_ROUTES/chrome; fi && \
     case "$FROM" in \
       *chromium*) rm -rf $BLESS_ROUTES/chrome $BLESS_ROUTES/edge $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \
       *chrome*) rm -rf $BLESS_ROUTES/chromium $BLESS_ROUTES/edge $BLESS_ROUTES/firefox $BLESS_ROUTES/webkit ;; \

@@ -49,7 +49,8 @@ const routeSchemas = ['body', 'query'];
 
 const isArm64 = process.arch === 'arm64';
 const isMacOS = process.platform === 'darwin';
-const unavailableARM64Browsers = ['edge', 'chrome'];
+// Edge has no arm64 Linux build. Chrome does, as of 2026.
+const unavailableARM64Browsers = ['edge'];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -178,7 +179,7 @@ export class Browserless extends EventEmitter {
   }
 
   // Filter out routes that are not able to work on the arm64 architecture
-  // and log a message as to why that is (can't run Chrome on non-apple arm64)
+  // and log a message as to why that is (can't run Edge on non-apple arm64)
   protected filterNonMacArm64Browsers(
     route:
       HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
