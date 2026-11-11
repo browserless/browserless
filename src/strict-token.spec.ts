@@ -24,13 +24,12 @@ const withEnv = (value: string | undefined, fn: () => void) => {
   }
 };
 
-// Mirrors the real post-shim shape: moveTokenToHeader() strips ?token=
-// from the URL and preserves it separately as req.queryToken.
 const request = (token?: string) =>
   ({
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-    parsed: new URL('http://localhost/json/version'),
-    queryToken: token,
+    headers: {},
+    parsed: new URL(
+      `http://localhost/json/version${token ? `?token=${token}` : ''}`,
+    ),
   }) as unknown as Request;
 
 const route = (auth: HTTPRoute['auth'], name = 'SomeRoute') =>

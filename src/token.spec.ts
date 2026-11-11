@@ -30,13 +30,10 @@ describe('Function-valued route authentication', () => {
   config.setToken('first-test-token');
   config.setStrictTokenUse(false);
   const token = new Token(config);
-  // Mirrors the real post-shim shape: moveTokenToHeader() strips ?token=
-  // from the URL and preserves it separately as req.queryToken.
   const request = (value?: string) =>
     ({
-      headers: value ? { authorization: `Bearer ${value}` } : {},
-      parsed: new URL('http://localhost/'),
-      queryToken: value,
+      headers: {},
+      parsed: new URL(`http://localhost/${value ? `?token=${value}` : ''}`),
     }) as Request;
 
   const at = (path: string, value?: string) => {

@@ -337,9 +337,10 @@ export const getTokenFromRequest = (req: Request) => {
   return tokenParam ?? getAuthHeaderToken(authHeader || '');
 };
 
-// Checks the query-supplied token and the Authorization header independently,
-// so an unrelated pre-existing header (e.g. a proxy's own auth) can't
-// silently shadow a valid token the client actually put in the URL.
+// Accepts the token getTokenFromRequest reports, as before, or the query-string
+// token preserved by moveTokenToHeader(), so an unrelated pre-existing header
+// (e.g. a proxy's own auth) can't silently shadow a valid token the client
+// actually put in the URL.
 export const isRequestTokenValid = (
   req: Request,
   configuredToken: string | string[],
@@ -347,10 +348,9 @@ export const isRequestTokenValid = (
   const allowed = Array.isArray(configuredToken)
     ? configuredToken
     : [configuredToken];
-  const candidates = [
-    req.queryToken,
-    getAuthHeaderToken(req.headers.authorization || ''),
-  ].filter((t): t is string => !!t);
+  const candidates = [req.queryToken, getTokenFromRequest(req)].filter(
+    (t): t is string => !!t,
+  );
   return candidates.some((t) => allowed.includes(t));
 };
 
