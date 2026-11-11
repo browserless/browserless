@@ -246,13 +246,35 @@ export class HTTPServer extends EventEmitter {
 
   protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
     const request = req as http.IncomingMessage;
-    req.rawUrl = request.url ?? '';
+    const originalRawUrl = request.url ?? '';
+    req.rawUrl = originalRawUrl;
     request.url = moveTokenToHeader(request);
+    // moveTokenToHeader normalizes the target; the hook-rewrite check
+    // below must compare against this shimmed form, not the raw one.
+    const shimmedTarget = request.url;
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
 
     const proceed = await this.hooks.before({ req, res });
+    // A hook may rewrite the request target. Routing picks that up via
+    // request.url below, but rawUrl still holds the original, and the
+    // target-carrying /json/new shim opens from rawUrl. Keep it
+    // consistent: when the hook changed the target but sent no query of
+    // its own, carry over the original raw query (valueless parameters
+    // must survive); a query the hook explicitly sets is never overwritten.
+    const rewritten = request.url ?? '';
+    if (proceed && rewritten && rewritten !== shimmedTarget) {
+      if (rewritten.includes('?')) {
+        req.rawUrl = rewritten;
+      } else {
+        const queryAt = originalRawUrl.indexOf('?');
+        req.rawUrl =
+          queryAt === -1
+            ? rewritten
+            : rewritten + originalRawUrl.slice(queryAt);
+      }
+    }
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 
