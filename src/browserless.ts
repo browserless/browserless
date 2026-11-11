@@ -181,12 +181,7 @@ export class Browserless extends EventEmitter {
     return this.lifecycle;
   }
 
-  // Filter out routes that are not able to work on the arm64 architecture
-  // and log a message as to why that is. Browsers with no arm64 build at all
-  // are always dropped; ones that merely aren't installed here are dropped
-  // only when their binary is absent, so a host without them still starts.
-  // `installedBrowsers` defaults to empty so an unknown install set degrades
-  // to skipping rather than to a startup failure.
+  // Drop routes whose browser can't run on arm64, or isn't installed here.
   protected filterNonMacArm64Browsers(
     route:
       HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
@@ -206,9 +201,12 @@ export class Browserless extends EventEmitter {
       return false;
     }
 
+    // Keyword-matched on both sides so subclasses resolve too.
+    const optional = optionalARM64Browsers.find((b) => needle.includes(b));
+
     if (
-      optionalARM64Browsers.some((b) => needle.includes(b)) &&
-      !installedBrowsers.some((b) => b.name === browserName)
+      optional &&
+      !installedBrowsers.some((b) => b.name.toLowerCase().includes(optional))
     ) {
       this.logger.warn(
         `Ignoring route "${route.path}" because browser "${browserName}" is not installed on this arm64 platform.`,
