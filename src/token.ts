@@ -22,51 +22,49 @@ export class Token extends EventEmitter {
   }
 
   /**
-   * Check credentials before input is read. Only policy evaluation needs the
-   * handler's validated input; a policy cannot waive configured credentials.
+   * Override credential validation here to support additional keys without
+   * bypassing route policies or changing their input-validation ordering.
    */
-  public authStage(
-    req: Request,
-    route: AuthRoute,
-  ): 'authorized' | 'denied' | 'policy' {
+  protected async isTokenValid(req: Request): Promise<boolean> {
     const token = this.config.getToken();
-
-    if (token === null) {
-      return 'authorized';
-    }
-
-    const strict = this.requiresStrictAuth(route);
-    if (!strict && route.auth === false) {
-      return 'authorized';
-    }
-
     const requestToken = getTokenFromRequest(req);
-    if (
-      !requestToken ||
-      !(Array.isArray(token) ? token : [token]).includes(requestToken)
-    ) {
-      return 'denied';
-    }
-
-    return !strict && typeof route.auth === 'function'
-      ? 'policy'
-      : 'authorized';
+    return (
+      token === null ||
+      (!!requestToken &&
+        (Array.isArray(token) ? token : [token]).includes(requestToken))
+    );
   }
 
-  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
-    const stage = this.authStage(req, route);
-    if (stage === 'policy' && typeof route.auth === 'function') {
+  /**
+   * The server first checks credentials before reading input, then evaluates
+   * policies with validated input. Direct callers get the full check by default.
+   */
+  public async isAuthorized(
+    req: Request,
+    route: AuthRoute,
+    stage: 'credentials' | 'policy' = 'policy',
+  ): Promise<boolean> {
+    const strict = this.requiresStrictAuth(route);
+    if (this.config.getToken() === null || (!strict && route.auth === false)) {
+      return true;
+    }
+    if (!(await this.isTokenValid(req))) {
+      return false;
+    }
+    if (stage === 'policy' && !strict && typeof route.auth === 'function') {
       try {
-        await route.auth(req);
-        return true;
+        return (await route.auth(req)) === true;
       } catch {
         // A failed policy must not grant access, even with a valid token.
-        this.logger.warn('Route authentication policy failed');
+        this.logger.warn(
+          'Route authentication policy failed for route',
+          route.name,
+        );
         return false;
       }
     }
 
-    return stage === 'authorized';
+    return true;
   }
 
   /**

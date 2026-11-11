@@ -316,19 +316,8 @@ export class HTTPServer extends EventEmitter {
       return;
     }
 
-    // Credentials are checked before body reads; only policies need validated input.
-    let deferredAuth = false;
-    if (route.auth || this.config.getStrictTokenUse()) {
-      this.logger.trace(`Authorizing HTTP request to "${request.url || ''}"`);
-      const stage = this.token.authStage(req, route);
-      deferredAuth = stage === 'policy';
-
-      if (
-        stage === 'denied' ||
-        (!deferredAuth && !(await this.token.isAuthorized(req, route)))
-      ) {
-        return this.onHTTPUnauthorized(req, res);
-      }
+    if (!(await this.isAuthorized(req, route, 'credentials'))) {
+      return this.onHTTPUnauthorized(req, res);
     }
 
     let body;
@@ -442,7 +431,7 @@ export class HTTPServer extends EventEmitter {
       }
     }
 
-    if (deferredAuth && !(await this.token.isAuthorized(req, route))) {
+    if (!(await this.isAuthorized(req, route, 'policy'))) {
       return this.onHTTPUnauthorized(req, res);
     }
 
@@ -512,21 +501,8 @@ export class HTTPServer extends EventEmitter {
         return;
       }
 
-      // Token owns the credential check and strict-mode exemptions on both paths.
-      let deferredAuth = false;
-      if (route.auth || this.config.getStrictTokenUse()) {
-        this.logger.trace(
-          `Authorizing WebSocket request to "${req.parsed.href}"`,
-        );
-        const stage = this.token.authStage(req, route);
-        deferredAuth = stage === 'policy';
-
-        if (
-          stage === 'denied' ||
-          (!deferredAuth && !(await this.token.isAuthorized(req, route)))
-        ) {
-          return this.onWebsocketUnauthorized(req, socket);
-        }
+      if (!(await this.isAuthorized(req, route, 'credentials'))) {
+        return this.onWebsocketUnauthorized(req, socket);
       }
 
       if (route.querySchema) {
@@ -573,7 +549,7 @@ export class HTTPServer extends EventEmitter {
         }
       }
 
-      if (deferredAuth && !(await this.token.isAuthorized(req, route))) {
+      if (!(await this.isAuthorized(req, route, 'policy'))) {
         return this.onWebsocketUnauthorized(req, socket);
       }
 
@@ -589,6 +565,21 @@ export class HTTPServer extends EventEmitter {
       `No matching WebSocket route handler for "${req.parsed.href}"`,
     );
     return writeResponse(socket, 404, 'Not Found');
+  }
+
+  protected async isAuthorized(
+    req: Request,
+    route: Parameters<Token['isAuthorized']>[1],
+    stage: 'credentials' | 'policy',
+  ): Promise<boolean> {
+    // Public routes need no Token service. Static auth has no deferred policy.
+    if (
+      (!route.auth && !this.config.getStrictTokenUse()) ||
+      (stage === 'policy' && typeof route.auth !== 'function')
+    ) {
+      return true;
+    }
+    return this.token.isAuthorized(req, route, stage);
   }
 
   /**

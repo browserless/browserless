@@ -124,6 +124,18 @@ Browserless has 4 different types of primitive routes:
 
 Internally, we use this same class-based system, so feel free to see how those work in our open-source repositories. All routes are TypeScript-based and all our modules are documented, so you should be able to effectively write routes and modules with your code editor and not necessarily need these examples open. Below are a few examples:
 
+### Route authentication
+
+With a configured `TOKEN` and non-strict authentication:
+
+- `auth = false` makes a route public.
+- `auth = true` requires valid credentials before reading the HTTP body or validating request schemas.
+- A function-valued `auth` first requires valid credentials, then runs with validated query parameters and, for HTTP, the parsed and validated body. It must resolve to exactly `true` to allow the request. `false`, missing returns, thrown errors and rejected promises deny access with 401, even with valid credentials. Policy methods retain their route receiver (`this`).
+
+**Breaking change:** a function returning `false` no longer makes a route public or admits a valid-token caller. Use the static `auth = false` for a public route. Missing or invalid credentials receive 401 before body reads and schema validation; a valid-token caller can still receive a schema-validation error before its policy runs.
+
+Without a configured `TOKEN`, the default Token service leaves policies inert and permits requests without credentials. `STRICT_TOKEN_USE=true` continues to require credentials and bypass function policies on non-exempt routes; the static-file route retains its exemption. Global and route `before` hooks keep their existing ordering before authentication and input validation.
+
 ### Basic HTTP Route
 
 ```ts
@@ -149,8 +161,8 @@ export default class HelloWorldRoute extends HTTPRoute {
   // If the content-type does not match then a 404 will be sent back
   accepts = [contentTypes.any];
 
-  // A boolean to indicate if authorization (token auth) is required to access this route. Can also be a function
-  // that returns a boolean with the request object being the only argument.
+  // true requires credentials; static false makes the route public in non-strict mode.
+  // An async function requires credentials first, then must return true to allow access.
   auth = true;
 
   // If this route requires a browser. `null` indicates no browser needed.
@@ -417,6 +429,31 @@ export default class PDFToS3Route extends BrowserHTTPRoute {
 On shutdown (SIGTERM, SIGINT, SIGHUP, SIGUSR2, process.on('exit'), `uncaughtException`) browserless will call a `stop` method on all modules. This method is intentionally left blank for SDK extensions to implement. This allows for you to implement any teardown, cleanup, timer clearing, or event unbinding. You don't need to copy over any browserless-core specific teardown as these are handled elsewhere.
 
 With this approach you can effectively write, extend and author your own workflows within browserless!
+
+### Custom credentials
+
+Override the protected `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. Both pre-body admission and full authorization use this same method. For example, an SDK module can accept a second key configured through an environment variable:
+
+```ts
+// src/token.ts
+import {
+  Request,
+  Token,
+  getTokenFromRequest,
+} from '@browserless.io/browserless';
+
+export default class MultiToken extends Token {
+  protected async isTokenValid(req: Request): Promise<boolean> {
+    const extraToken = process.env.EXTRA_TOKEN;
+    return (
+      (!!extraToken && getTokenFromRequest(req) === extraToken) ||
+      super.isTokenValid(req)
+    );
+  }
+}
+```
+
+The server continues to call `isAuthorized`, not a required `authStage` method, so existing replacement Token services still own authorization. Its optional third argument is `'credentials'` before input preparation and `'policy'` afterward on function-auth routes; direct calls default to the full `'policy'` check. If you wrap `isAuthorized`, forward this argument to `super.isAuthorized` to preserve policy ordering. Prefer migrating credential-only overrides to `isTokenValid`: an override returning `true` directly from `isAuthorized` still replaces the complete authorization decision, including the route policy. `requiresStrictAuth` remains protected for existing strict-mode overrides.
 
 ## Disabling Routes
 

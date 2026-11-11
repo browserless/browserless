@@ -114,8 +114,8 @@ export abstract class Route<Req extends Request = Request> {
    * A static false makes the route public unless strict mode requires a token.
    * With a configured token, true and function policies require valid credentials
    * before body reads or schema validation, even if a policy would return false.
-   * Non-strict function policies still run after input validation; a thrown or
-   * rejected policy denies access even with valid credentials. Strict mode on
+   * Non-strict function policies run after input validation and must return true;
+   * false, incomplete results and errors deny even valid credentials. Strict mode on
    * non-exempt routes overrides policies. Without a token, policies stay inert.
    */
   auth: boolean | ((req: Req) => Promise<boolean>) = true;
