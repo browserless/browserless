@@ -39,25 +39,52 @@ describe('Function-valued route authentication', () => {
       queryToken: value,
     }) as Request;
 
-  it('requires configured credentials even when a policy returns false', async () => {
-    const route = {
+  const at = (path: string, value?: string) => {
+    const req = request(value);
+    req.parsed.pathname = path;
+    return req;
+  };
+  const conditional = (strictAuthPolicy: boolean) =>
+    ({
       name: 'ConditionalRoute',
+      strictAuthPolicy,
       async auth(req: Request) {
         await Promise.resolve();
         return req.parsed.pathname === '/protected';
       },
-    } as unknown as HTTPRoute;
-    const req = request();
-    req.parsed.pathname = '/protected';
-    expect(await token.isAuthorized(req, route)).to.equal(false);
-    req.queryToken = 'wrong';
-    expect(await token.isAuthorized(req, route)).to.equal(false);
-    req.queryToken = 'first-test-token';
-    expect(await token.isAuthorized(req, route)).to.equal(true);
-    expect(await token.isAuthorized(request(), route)).to.equal(false);
-    expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+    }) as unknown as HTTPRoute;
+
+  it('lets a false policy result through and requires credentials otherwise', async () => {
+    const route = conditional(false);
+    for (const value of [undefined, 'wrong']) {
+      expect(await token.isAuthorized(at('/protected', value), route)).to.equal(
+        false,
+      );
+      expect(await token.isAuthorized(at('/public', value), route)).to.equal(
+        true,
+      );
+    }
+    for (const path of ['/protected', '/public']) {
+      expect(
+        await token.isAuthorized(at(path, 'first-test-token'), route),
+      ).to.equal(true);
+    }
+  });
+
+  it('requires credentials and an explicit true result with strictAuthPolicy', async () => {
+    const route = conditional(true);
+    for (const value of [undefined, 'wrong']) {
+      for (const path of ['/protected', '/public']) {
+        expect(await token.isAuthorized(at(path, value), route)).to.equal(
+          false,
+        );
+      }
+    }
+    expect(
+      await token.isAuthorized(at('/protected', 'first-test-token'), route),
+    ).to.equal(true);
     await rejects(
-      token.isAuthorized(request('first-test-token'), route),
+      token.isAuthorized(at('/public', 'first-test-token'), route),
       Forbidden,
     );
   });
@@ -70,12 +97,15 @@ describe('Function-valued route authentication', () => {
       throw new Error('policy failure');
     },
   ]) {
-    it(`denies access when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
+    it(`requires credentials when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
+      const route = { auth, name: 'BrokenPolicyRoute' } as unknown as HTTPRoute;
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
+      expect(
+        await token.isAuthorized(request('first-test-token'), route),
+      ).to.equal(true);
+      route.strictAuthPolicy = true;
       await rejects(
-        token.isAuthorized(request('first-test-token'), {
-          auth,
-          name: 'BrokenPolicyRoute',
-        } as unknown as HTTPRoute),
+        token.isAuthorized(request('first-test-token'), route),
         Forbidden,
       );
     });
@@ -83,16 +113,13 @@ describe('Function-valued route authentication', () => {
 
   it('preserves the route receiver for policy methods', async () => {
     const route = {
-      name: 'ProtectedRoute',
+      name: 'PublicRoute',
       async auth(this: { name: string }) {
-        if (this.name !== 'ProtectedRoute')
-          throw new Error('lost route receiver');
-        return true;
+        if (this.name !== 'PublicRoute') throw new Error('lost route receiver');
+        return false;
       },
     } as unknown as HTTPRoute;
-    expect(
-      await token.isAuthorized(request('first-test-token'), route),
-    ).to.equal(true);
+    expect(await token.isAuthorized(request(), route)).to.equal(true);
   });
 
   it('warns without exposing policy error contents', async () => {
@@ -106,6 +133,7 @@ describe('Function-valued route authentication', () => {
       await rejects(
         token.isAuthorized(request('first-test-token'), {
           name: 'BrokenPolicy',
+          strictAuthPolicy: true,
           auth: async () => {
             const error = new TypeError('synthetic-sensitive-value');
             error.name = 'synthetic-sensitive-type';
@@ -129,7 +157,7 @@ describe('Function-valued route authentication', () => {
     }
   });
 
-  it('denies incomplete policies even with valid credentials', async () => {
+  it('requires credentials unless a policy returns exactly false', async () => {
     for (const result of [undefined, null, 0, '']) {
       const route = {
         name: 'IncompletePolicyRoute',
@@ -137,6 +165,10 @@ describe('Function-valued route authentication', () => {
       } as unknown as HTTPRoute;
       expect(await token.isAuthorized(request(), route)).to.equal(false);
       expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+      expect(
+        await token.isAuthorized(request('first-test-token'), route),
+      ).to.equal(true);
+      route.strictAuthPolicy = true;
       await rejects(
         token.isAuthorized(request('first-test-token'), route),
         Forbidden,
@@ -367,10 +399,6 @@ describe('Function-valued route authentication', () => {
           ),
         ).to.equal(200);
         expect(
-          await status('/public?allowed=true&token=extra-test-token', upgrade),
-        ).to.equal(403);
-        expect(metrics.get().unauthorized).to.equal(0);
-        expect(
           await status(
             '/protected?allowed=true&token=local-test-token',
             upgrade,
@@ -383,61 +411,86 @@ describe('Function-valued route authentication', () => {
           ),
         ).to.equal(401);
         expect(metrics.get().unauthorized).to.equal(1);
-        expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
+        expect(
+          await status('/protected?allowed=true&token=wrong', upgrade),
+        ).to.equal(401);
         expect(metrics.get().unauthorized).to.equal(2);
       });
 
-      it(`supports replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services with only isAuthorized`, async () => {
-        route.auth = true;
+      it(`keeps ${upgrade ? 'WebSocket' : 'HTTP'} isAuthorized overrides that accept extra keys`, async () => {
+        class LegacyMultiToken extends Token {
+          public async isAuthorized(req: Request, route: HTTPRoute) {
+            return (
+              getTokenFromRequest(req) === 'extra-test-token' ||
+              super.isAuthorized(req, route)
+            );
+          }
+        }
+        server['token'] = new LegacyMultiToken(config);
+        for (const auth of [route.auth, true]) {
+          route.auth = auth;
+          expect(
+            await status('/protected?token=extra-test-token', upgrade),
+          ).to.equal(200);
+          expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
+        }
+      });
+
+      it(`keeps the previous admission flow for replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services`, async () => {
         route.querySchema = {
           type: 'object',
           properties: { allowed: { type: 'boolean' } },
           required: ['allowed'],
         };
-        const seen = new WeakSet<Request>();
+        const seen: unknown[] = [];
         server['token'] = {
           isAuthorized: async (req: Request) => {
-            if (seen.has(req)) return false;
-            seen.add(req);
-            if (getTokenFromRequest(req) === 'extra-test-token') {
-              return req.queryParams?.allowed === true;
-            }
-            return undefined;
+            seen.push(req.queryParams?.allowed);
+            return getTokenFromRequest(req) === 'extra-test-token';
           },
+          // A partial Token API doesn't make the service a Token subclass.
+          usesAuthPolicy: () => true,
         } as unknown as Token;
-        expect(
-          await status(
-            '/protected?allowed=true&token=extra-test-token',
-            upgrade,
-          ),
-        ).to.equal(200);
-        expect(
-          await status('/protected?allowed=true&token=wrong', upgrade),
-        ).to.equal(401);
+        // The replacement owns function policies: the server doesn't run them.
+        expect(await status('/public?allowed=true', upgrade)).to.equal(401);
         expect(
           await status(
             '/protected?allowed=invalid&token=extra-test-token',
             upgrade,
           ),
         ).to.equal(400);
+        expect(
+          await status(
+            '/protected?allowed=true&token=extra-test-token',
+            upgrade,
+          ),
+        ).to.equal(200);
+        // Called once per request, before validation coerces `allowed`.
+        expect(seen).to.have.length(3);
+        expect(seen).not.to.include(true);
       });
 
-      it(`bypasses replacement services for public non-strict ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
+      it(`lets replacement services decide public non-strict ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
         route.auth = false;
-        server['token'] = {
-          isAuthorized: async () => false,
-        } as unknown as Token;
+        const replacement = { isAuthorized: async () => false };
+        server['token'] = replacement as unknown as Token;
+        expect(await status('/public', upgrade)).to.equal(200);
+        // Its own requiresAuth applies without the rest of Token's API.
+        Object.assign(replacement, { requiresAuth: () => true });
+        expect(await status('/public', upgrade)).to.equal(401);
+        Object.assign(replacement, { requiresAuth: () => false });
         expect(await status('/public', upgrade)).to.equal(200);
         config.setStrictTokenUse(true);
         expect(await status('/public', upgrade)).to.equal(401);
       });
 
-      it(`applies ${upgrade ? 'WebSocket' : 'HTTP'} policies to custom credential validation`, async () => {
+      it(`applies strict ${upgrade ? 'WebSocket' : 'HTTP'} policies to custom credential validation`, async () => {
         class MultiToken extends Token {
           public async isTokenValid(req: Request): Promise<boolean> {
             return getTokenFromRequest(req) === 'extra-test-token';
           }
         }
+        route.strictAuthPolicy = true;
         server['token'] = new MultiToken(config);
         expect(
           await status('/protected?token=extra-test-token', upgrade),
@@ -463,24 +516,26 @@ describe('Function-valued route authentication', () => {
         route.auth = async (req) => {
           return req.queryParams?.private === true;
         };
-        expect(await status('/query?private=true', upgrade)).to.equal(401);
-        expect(await status('/query?private=false', upgrade)).to.equal(401);
-        expect(
-          await status('/query?private=true&token=local-test-token', upgrade),
-        ).to.equal(200);
-        expect(
-          await status('/query?private=false&token=local-test-token', upgrade),
-        ).to.equal(403);
-        expect(await status('/query?private=invalid', upgrade)).to.equal(401);
-        expect(
-          await status('/query?private=invalid&token=wrong', upgrade),
-        ).to.equal(401);
-        expect(
-          await status(
+        for (const [strictAuthPolicy, expected] of [
+          [false, [401, 200, 200, 200, 400, 400, 400]],
+          [true, [401, 401, 200, 403, 401, 401, 400]],
+        ] as const) {
+          route.strictAuthPolicy = strictAuthPolicy;
+          for (const [i, path] of [
+            '/query?private=true',
+            '/query?private=false',
+            '/query?private=true&token=local-test-token',
+            '/query?private=false&token=local-test-token',
+            '/query?private=invalid',
+            '/query?private=invalid&token=wrong',
             '/query?private=invalid&token=local-test-token',
-            upgrade,
-          ),
-        ).to.equal(400);
+          ].entries()) {
+            expect(
+              await status(path, upgrade),
+              `${path} (strictAuthPolicy=${strictAuthPolicy})`,
+            ).to.equal(expected[i]);
+          }
+        }
       });
 
       it(`defers policies on strict-exempt ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
@@ -497,21 +552,36 @@ describe('Function-valued route authentication', () => {
           return req.queryParams.private;
         };
         expect(await status('/query?private=true', upgrade)).to.equal(401);
-        expect(await status('/query?private=false', upgrade)).to.equal(401);
+        expect(await status('/query?private=false', upgrade)).to.equal(200);
         expect(
           await status('/query?private=true&token=local-test-token', upgrade),
         ).to.equal(200);
       });
     }
 
-    for (const method of ['POST', 'GET']) {
-      it(`supplies the validated ${method} body through a two-argument Token wrapper`, async () => {
+    for (const [method, copy] of [
+      ['POST', false],
+      ['GET', false],
+      ['POST', true],
+    ] as const) {
+      it(`supplies the validated ${method} body through a two-argument Token wrapper${copy ? ' from another package copy' : ''}`, async () => {
         class WrappedToken extends Token {
           public async isAuthorized(req: Request, route: HTTPRoute) {
             return super.isAuthorized(req, route);
           }
         }
-        server['token'] = new WrappedToken(config);
+        const wrapped = new WrappedToken(config);
+        // A subclass of another package copy's Token fails instanceof here
+        // but implements the same methods.
+        server['token'] = copy
+          ? ({
+              requiresAuth: (r: HTTPRoute) => wrapped.requiresAuth(r),
+              usesAuthPolicy: (r: HTTPRoute) => wrapped.usesAuthPolicy(r),
+              isTokenValid: (req: Request) => wrapped.isTokenValid(req),
+              isAuthorized: (req: Request, r: HTTPRoute) =>
+                wrapped.isAuthorized(req, r),
+            } as unknown as Token)
+          : wrapped;
         config.enableGETRequests(true);
         route.bodySchema = {
           type: 'object',
@@ -545,25 +615,45 @@ describe('Function-valued route authentication', () => {
             ...(method === 'POST' ? { body } : {}),
           });
         };
-        expect((await send('true')).status).to.equal(401);
-        const authorized = await send('true', 'local-test-token');
-        expect(authorized.status).to.equal(200);
-        expect(await authorized.json()).to.deep.equal({ private: true });
-        expect((await send('false')).status).to.equal(401);
-        const falsePolicyResponse = await send('false', 'local-test-token');
-        expect(falsePolicyResponse.status).to.equal(403);
-        expect((await send('invalid')).status).to.equal(401);
-        expect((await send('invalid', 'local-test-token')).status).to.equal(
-          400,
-        );
-        config.setStrictTokenUse(true);
-        expect((await send('invalid')).status).to.equal(401);
+        for (const [strictAuthPolicy, expected] of [
+          [false, [401, 200, 200, 200, 400, 400]],
+          [true, [401, 200, 401, 403, 401, 400]],
+        ] as const) {
+          route.strictAuthPolicy = strictAuthPolicy;
+          config.setStrictTokenUse(false);
+          for (const [i, [value, token]] of [
+            ['true'],
+            ['true', 'local-test-token'],
+            ['false'],
+            ['false', 'local-test-token'],
+            ['invalid'],
+            ['invalid', 'local-test-token'],
+          ].entries()) {
+            const res = await send(value, token);
+            expect(
+              res.status,
+              `${value} ${token} (strictAuthPolicy=${strictAuthPolicy})`,
+            ).to.equal(expected[i]);
+            if (res.status === 200) {
+              expect(await res.json()).to.deep.equal({
+                private: value === 'true',
+              });
+            }
+          }
+          config.setStrictTokenUse(true);
+          expect((await send('invalid')).status).to.equal(401);
+        }
       });
     }
 
-    for (const auth of [true, async () => false]) {
-      it(`rejects ${typeof auth === 'function' ? 'function' : 'static'} token requirements before body parsing, validation or size checks`, async () => {
+    for (const [auth, strictAuthPolicy] of [
+      [true, false],
+      [async () => false, true],
+    ] as const) {
+      const label = strictAuthPolicy ? 'strictAuthPolicy' : 'static';
+      it(`rejects ${label} token requirements before body parsing, validation or size checks`, async () => {
         route.auth = auth;
+        route.strictAuthPolicy = strictAuthPolicy;
         route.accepts = [contentTypes.json];
         route.bodySchema = {
           type: 'object',
@@ -598,62 +688,79 @@ describe('Function-valued route authentication', () => {
           }
         }
       });
+
+      it(`rejects missing or wrong credentials for ${label} token requirements without waiting for the HTTP body`, async () => {
+        route.auth = auth;
+        route.strictAuthPolicy = strictAuthPolicy;
+        for (const token of ['', 'wrong']) {
+          const code = await new Promise<number>((resolve, reject) => {
+            const req = httpRequest(
+              {
+                port,
+                path: `/body?token=${token}`,
+                method: 'POST',
+                headers: { 'content-length': '1024' },
+              },
+              (res) => {
+                res.resume();
+                res.on('end', () => {
+                  resolve(res.statusCode!);
+                  req.destroy();
+                });
+              },
+            );
+            req.on('error', reject);
+            req.setTimeout(1000, () =>
+              req.destroy(new Error('auth waited for body')),
+            );
+            req.flushHeaders();
+          });
+          expect(code).to.equal(401);
+        }
+      });
     }
 
-    it('rejects missing or wrong credentials without waiting for the HTTP body', async () => {
-      for (const token of ['', 'wrong']) {
-        const code = await new Promise<number>((resolve, reject) => {
-          const req = httpRequest(
-            {
-              port,
-              path: `/body?token=${token}`,
-              method: 'POST',
-              headers: { 'content-length': '1024' },
-            },
-            (res) => {
-              res.resume();
-              res.on('end', () => {
-                resolve(res.statusCode!);
-                req.destroy();
-              });
-            },
-          );
-          req.on('error', reject);
-          req.setTimeout(1000, () =>
-            req.destroy(new Error('auth waited for body')),
-          );
-          req.flushHeaders();
+    // Statuses for no token, a wrong token and a valid token on each path.
+    const policyOutcomes = {
+      default: {
+        protected: [401, 401, 200],
+        public: [200, 200, 200],
+        error: [401, 401, 200],
+      },
+      strictAuthPolicy: {
+        protected: [401, 401, 200],
+        public: [401, 401, 403],
+        error: [401, 401, 403],
+      },
+      STRICT_TOKEN_USE: {
+        protected: [401, 401, 200],
+        public: [401, 401, 200],
+        error: [401, 401, 200],
+      },
+    };
+    for (const upgrade of [false, true]) {
+      for (const [mode, outcomes] of Object.entries(policyOutcomes)) {
+        it(`enforces callback policies on ${upgrade ? 'WebSocket upgrades' : 'HTTP requests'} (${mode})`, async () => {
+          config.setStrictTokenUse(mode === 'STRICT_TOKEN_USE');
+          route.strictAuthPolicy = mode === 'strictAuthPolicy';
+          let unauthorized = 0;
+          for (const [path, expected] of Object.entries(outcomes)) {
+            for (const [i, token] of [
+              '',
+              'wrong',
+              'local-test-token',
+            ].entries()) {
+              expect(
+                await status(`/${path}?token=${token}`, upgrade),
+                `/${path} with token "${token}"`,
+              ).to.equal(expected[i]);
+              if (expected[i] === 401) unauthorized++;
+              // Only 401s count toward unauthorized metrics, not policy 403s.
+              expect(metrics.get().unauthorized).to.equal(unauthorized);
+            }
+          }
         });
-        expect(code).to.equal(401);
       }
-    });
-
-    for (const [upgrade, strict] of [
-      [false, false],
-      [true, false],
-      [false, true],
-      [true, true],
-    ]) {
-      it(`enforces callback policies on ${upgrade ? 'WebSocket upgrades' : 'HTTP requests'} (strict=${strict})`, async () => {
-        config.setStrictTokenUse(strict);
-        expect(await status('/protected', upgrade)).to.equal(401);
-        expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
-        expect(
-          await status('/protected?token=local-test-token', upgrade),
-        ).to.equal(200);
-        expect(metrics.get().unauthorized).to.equal(2);
-        expect(await status('/public', upgrade)).to.equal(401);
-        expect(await status('/public?token=wrong', upgrade)).to.equal(401);
-        expect(metrics.get().unauthorized).to.equal(4);
-        expect(
-          await status('/public?token=local-test-token', upgrade),
-        ).to.equal(strict ? 200 : 403);
-        expect(metrics.get().unauthorized).to.equal(4);
-        expect(await status('/error?token=local-test-token', upgrade)).to.equal(
-          strict ? 200 : 403,
-        );
-        expect(metrics.get().unauthorized).to.equal(4);
-      });
     }
   });
 });
