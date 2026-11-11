@@ -3,6 +3,7 @@ import {
   BrowserWebsocketRoute,
   BrowserlessRoutes,
   Config,
+  Forbidden,
   HTTPRoute,
   Logger,
   Request,
@@ -40,7 +41,7 @@ export class Token extends EventEmitter {
     return route.auth !== false || this.requiresStrictAuth(route);
   }
 
-  /** Check credentials and policy together, using already-validated input. */
+  /** Check validated input; return false for credentials, throw Forbidden for policy denial. */
   public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
     if (this.config.getToken() === null || !this.requiresAuth(route)) {
       return true;
@@ -69,7 +70,7 @@ export class Token extends EventEmitter {
       );
     }
     this.logger.trace('Route authorization denied in policy pass', route.name);
-    return false;
+    throw new Forbidden('Forbidden');
   }
 
   /**

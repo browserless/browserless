@@ -1,6 +1,7 @@
 import {
   BrowserlessRoutes,
   Config,
+  Forbidden,
   HTTPRoute,
   HTTPServer,
   Hooks,
@@ -14,12 +15,15 @@ import {
   writeResponse,
 } from '@browserless.io/browserless';
 import Sinon from 'sinon';
+import { ModuleKind, transpileModule } from 'typescript';
 import { Token } from './token.js';
 import debug from 'debug';
 import { expect } from 'chai';
 import { format } from 'util';
 import getPort from 'get-port';
 import { request as httpRequest } from 'http';
+import { readFile } from 'fs/promises';
+import { rejects } from 'assert/strict';
 
 describe('Function-valued route authentication', () => {
   const config = new Config();
@@ -49,9 +53,10 @@ describe('Function-valued route authentication', () => {
     expect(await token.isAuthorized(req, route)).to.equal(true);
     expect(await token.isAuthorized(request(), route)).to.equal(false);
     expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
-    expect(
-      await token.isAuthorized(request('first-test-token'), route),
-    ).to.equal(false);
+    await rejects(
+      token.isAuthorized(request('first-test-token'), route),
+      Forbidden,
+    );
   });
 
   for (const auth of [
@@ -63,12 +68,13 @@ describe('Function-valued route authentication', () => {
     },
   ]) {
     it(`denies access when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
-      expect(
-        await token.isAuthorized(request('first-test-token'), {
+      await rejects(
+        token.isAuthorized(request('first-test-token'), {
           auth,
           name: 'BrokenPolicyRoute',
         } as unknown as HTTPRoute),
-      ).to.equal(false);
+        Forbidden,
+      );
     });
   }
 
@@ -94,8 +100,8 @@ describe('Function-valued route authentication', () => {
       output.push(format(...args));
     });
     try {
-      expect(
-        await token.isAuthorized(request('first-test-token'), {
+      await rejects(
+        token.isAuthorized(request('first-test-token'), {
           name: 'BrokenPolicy',
           auth: async () => {
             const error = new TypeError('synthetic-sensitive-value');
@@ -103,7 +109,8 @@ describe('Function-valued route authentication', () => {
             throw error;
           },
         } as unknown as HTTPRoute),
-      ).to.equal(false);
+        Forbidden,
+      );
       expect(output.join('\n')).to.include(
         'Route authentication policy failed',
       );
@@ -127,9 +134,10 @@ describe('Function-valued route authentication', () => {
       } as unknown as HTTPRoute;
       expect(await token.isAuthorized(request(), route)).to.equal(false);
       expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
-      expect(
-        await token.isAuthorized(request('first-test-token'), route),
-      ).to.equal(false);
+      await rejects(
+        token.isAuthorized(request('first-test-token'), route),
+        Forbidden,
+      );
     }
   });
 
@@ -160,6 +168,50 @@ describe('Function-valued route authentication', () => {
         },
       } as unknown as HTTPRoute),
     ).to.equal(true);
+  });
+
+  it('requires TOKEN in the documented MultiToken example even when EXTRA_TOKEN is set', async () => {
+    const readme = await readFile(
+      new URL('../bin/scaffold/README.md', import.meta.url),
+      'utf8',
+    );
+    const source = readme
+      .split('### Custom credentials')[1]
+      .match(/```ts\n([\s\S]*?)\n```/)![1];
+    const { outputText } = transpileModule(
+      source.replace(
+        '@browserless.io/browserless',
+        new URL('./exports.js', import.meta.url).href,
+      ),
+      { compilerOptions: { module: ModuleKind.ESNext } },
+    );
+    const { default: MultiToken } = (await import(
+      `data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`
+    )) as { default: typeof Token };
+    const previous = process.env.EXTRA_TOKEN;
+    process.env.EXTRA_TOKEN = 'extra-test-token';
+    try {
+      const config = new Config();
+      config.setToken(null);
+      expect(() => new MultiToken(config)).to.throw('requires TOKEN');
+      config.setToken('first-test-token');
+      const token = new MultiToken(config);
+      const route = {
+        name: 'ExampleRoute',
+        auth: async () => true,
+      } as unknown as HTTPRoute;
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
+      expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
+      expect(
+        await token.isAuthorized(request('extra-test-token'), route),
+      ).to.equal(true);
+      expect(
+        await token.isAuthorized(request('first-test-token'), route),
+      ).to.equal(true);
+    } finally {
+      if (previous === undefined) delete process.env.EXTRA_TOKEN;
+      else process.env.EXTRA_TOKEN = previous;
+    }
   });
 
   describe('HTTP and WebSocket admission', () => {
@@ -289,6 +341,7 @@ describe('Function-valued route authentication', () => {
         expect(
           await status('/public?allowed=true&token=extra-test-token', upgrade),
         ).to.equal(403);
+        expect(metrics.get().unauthorized).to.equal(0);
         expect(
           await status(
             '/protected?allowed=true&token=local-test-token',
@@ -300,8 +353,10 @@ describe('Function-valued route authentication', () => {
             '/protected?allowed=false&token=extra-test-token',
             upgrade,
           ),
-        ).to.equal(403);
+        ).to.equal(401);
+        expect(metrics.get().unauthorized).to.equal(1);
         expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
+        expect(metrics.get().unauthorized).to.equal(2);
       });
 
       it(`supports replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services with only isAuthorized`, async () => {

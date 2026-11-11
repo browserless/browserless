@@ -590,14 +590,13 @@ export class HTTPServer extends EventEmitter {
     }
 
     // Full SDK authorization runs only after the caller validates input.
-    // Legacy replacements have no early credential check and retain 401s.
+    // Policy denials throw Forbidden; false results retain 401s and metrics.
     return async () => {
       if (await token.isAuthorized(req, route)) return true;
       this.logger.trace(
         'Route authorization denied in full authorization pass',
         route.name,
       );
-      if (checksCredentials) throw new Forbidden('Forbidden');
       return false;
     };
   }
