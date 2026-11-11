@@ -79,6 +79,17 @@ describe('hook-rewritten request targets keep rawUrl consistent', () => {
     expect(rawUrl).to.equal('/json/new?http://two.com?x=1');
   });
 
+  it('keeps the original raw encoding when the hook only changes system parameters', async () => {
+    // moveTokenToHeader re-encodes the shimmed target; a hook that edits
+    // system parameters around it must not push that encoding into
+    // rawUrl - the /json/new route parses the original raw query.
+    const rawUrl = await runThroughHook(
+      '/json/new?http://one.com',
+      '/json/new?headless=true&http%3A%2F%2Fone.com',
+    );
+    expect(rawUrl).to.equal('/json/new?http://one.com');
+  });
+
   it('carries the original raw query when the hook changes only the target', async () => {
     const rawUrl = await runThroughHook(
       '/json/new?http://one.com',

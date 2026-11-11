@@ -24,6 +24,7 @@ import {
   convertPathToURL,
   isMatch,
   moveTokenToHeader,
+  splitJSONNewQuery,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -40,6 +41,28 @@ export interface HTTPServerOptions {
   queued: number;
   timeout: number;
 }
+
+const pathnameOf = (u: string): string => {
+  const q = u.indexOf('?');
+  return u
+    .slice(0, q === -1 ? u.length : q)
+    .replace(/^[A-Za-z][A-Za-z\d+.-]*:\/\/[^/]*/, '');
+};
+
+const searchOf = (u: string): string => {
+  const q = u.indexOf('?');
+  return q === -1 ? '' : u.slice(q + 1);
+};
+
+const jsonNewPath = /^\/json\/new\/?$/i;
+
+// The /json/new target parameter (whatever cannot be a browserless
+// parameter - the same rule the token shim and the route share), or null
+// for non-/json/new requests.
+const jsonNewTargetOf = (u: string): string | null =>
+  jsonNewPath.test(pathnameOf(u))
+    ? splitJSONNewQuery(searchOf(u)).rawTarget
+    : null;
 
 export class HTTPServer extends EventEmitter {
   protected server: http.Server = http.createServer();
@@ -265,14 +288,26 @@ export class HTTPServer extends EventEmitter {
     // must survive); a query the hook explicitly sets is never overwritten.
     const rewritten = request.url ?? '';
     if (proceed && rewritten && rewritten !== shimmedTarget) {
-      if (rewritten.includes('?')) {
-        req.rawUrl = rewritten;
-      } else {
-        const queryAt = originalRawUrl.indexOf('?');
-        req.rawUrl =
-          queryAt === -1
-            ? rewritten
-            : rewritten + originalRawUrl.slice(queryAt);
+      // Adopt the hook's query into rawUrl only when the target itself
+      // was replaced - a different path, or a different /json/new target
+      // parameter. A system-parameter-only rewrite keeps req.rawUrl at
+      // the original raw encoding (the /json/new route parses that
+      // string directly), while the rewritten parameters still flow
+      // through request.url / req.parsed for routing.
+      const replacedTarget =
+        pathnameOf(rewritten) !== pathnameOf(shimmedTarget) ||
+        (jsonNewTargetOf(rewritten) !== null &&
+          jsonNewTargetOf(rewritten) !== jsonNewTargetOf(shimmedTarget));
+      if (replacedTarget) {
+        if (rewritten.includes('?')) {
+          req.rawUrl = rewritten;
+        } else {
+          const queryAt = originalRawUrl.indexOf('?');
+          req.rawUrl =
+            queryAt === -1
+              ? rewritten
+              : rewritten + originalRawUrl.slice(queryAt);
+        }
       }
     }
     req.parsed = convertPathToURL(request.url || '', this.config);
