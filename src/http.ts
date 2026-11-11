@@ -171,6 +171,9 @@ export interface Request extends http.IncomingMessage {
   body: unknown;
   parsed: URL;
   queryParams: Record<string, unknown>;
+  // The `?token=` value as supplied in the query string, before
+  // moveTokenToHeader() strips it and may overwrite it with an unrelated header.
+  queryToken?: string;
 }
 
 export type Response = http.ServerResponse;

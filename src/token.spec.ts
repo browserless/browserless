@@ -30,10 +30,13 @@ describe('Function-valued route authentication', () => {
   config.setToken('first-test-token');
   config.setStrictTokenUse(false);
   const token = new Token(config);
+  // Mirrors the real post-shim shape: moveTokenToHeader() strips ?token=
+  // from the URL and preserves it separately as req.queryToken.
   const request = (value?: string) =>
     ({
-      headers: {},
-      parsed: new URL(`http://localhost/${value ? `?token=${value}` : ''}`),
+      headers: value ? { authorization: `Bearer ${value}` } : {},
+      parsed: new URL('http://localhost/'),
+      queryToken: value,
     }) as Request;
 
   it('requires configured credentials even when a policy returns false', async () => {
@@ -47,9 +50,9 @@ describe('Function-valued route authentication', () => {
     const req = request();
     req.parsed.pathname = '/protected';
     expect(await token.isAuthorized(req, route)).to.equal(false);
-    req.parsed.searchParams.set('token', 'wrong');
+    req.queryToken = 'wrong';
     expect(await token.isAuthorized(req, route)).to.equal(false);
-    req.parsed.searchParams.set('token', 'first-test-token');
+    req.queryToken = 'first-test-token';
     expect(await token.isAuthorized(req, route)).to.equal(true);
     expect(await token.isAuthorized(request(), route)).to.equal(false);
     expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
@@ -260,15 +263,22 @@ describe('Function-valued route authentication', () => {
       await server.shutdown();
     });
 
-    const status = (path: string, upgrade = false) =>
+    const status = (
+      path: string,
+      upgrade = false,
+      extraHeaders: Record<string, string> = {},
+    ) =>
       new Promise<number>((resolve, reject) => {
         httpRequest(
           {
             port,
             path,
-            headers: upgrade
-              ? { Connection: 'Upgrade', Upgrade: 'websocket' }
-              : {},
+            headers: {
+              ...(upgrade
+                ? { Connection: 'Upgrade', Upgrade: 'websocket' }
+                : {}),
+              ...extraHeaders,
+            },
           },
           (res) => {
             res.resume();
@@ -278,6 +288,24 @@ describe('Function-valued route authentication', () => {
           .on('error', reject)
           .end();
       });
+
+    for (const upgrade of [false, true]) {
+      it(`authorizes a valid query token even behind an unrelated pre-existing Authorization header on ${upgrade ? 'WebSocket' : 'HTTP'} routes (#5636)`, async () => {
+        // moveTokenToHeader() only writes the Authorization header when none
+        // already exists, so a proxy's own header must not shadow a valid
+        // query token here.
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            Authorization: 'Bearer unrelated-proxy-value',
+          }),
+        ).to.equal(200);
+        expect(
+          await status('/protected?token=wrong', upgrade, {
+            Authorization: 'Bearer unrelated-proxy-value',
+          }),
+        ).to.equal(401);
+      });
+    }
 
     for (const upgrade of [false, true]) {
       it(`honors Token strict-auth overrides on public ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {

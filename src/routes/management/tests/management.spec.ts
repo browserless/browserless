@@ -300,6 +300,29 @@ describe('Management APIs', function () {
       );
 
       expect(res.status).to.equal(301);
+      // moveTokenToHeader() strips the token from req.parsed before this
+      // handler runs, so it must be re-added from req.queryToken, not
+      // just copied from req.parsed.
+      expect(res.headers.get('location')).to.equal(
+        '/debugger/?token=6R0W53R135510',
+      );
+    });
+
+    it('drops no query params across the /debugger redirect when none were supplied', async function () {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+
+      if (!(await exists(config.getDebuggerDir()))) {
+        this.skip();
+      }
+
+      await start({ config });
+
+      const res = await fetch('http://localhost:3000/debugger', {
+        redirect: 'manual',
+      });
+
+      expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
     });
 
@@ -590,6 +613,18 @@ describe('Management APIs', function () {
         const headerAuthBlob = JSON.parse(headerAuthStore[headerAuthKey]);
         expect(headerAuthBlob.apiSettings.baseURL).to.equal(
           'ws://stale-host:3000',
+        );
+
+        // A valid header authorizes the request, but a wrong ?token= must
+        // still block the script - it can only read location.search, so
+        // injecting here would persist that wrong value into the baseURL.
+        const withWrongQueryToken = await fetch(
+          'http://localhost:3000/debugger/?token=totally-wrong',
+          { headers: { Authorization: 'Bearer 6R0W53R135510' } },
+        );
+        expect(withWrongQueryToken.status).to.equal(200);
+        expect(await withWrongQueryToken.text()).to.not.include(
+          'browserless-debugger',
         );
       } finally {
         if (previousStatic === undefined) {

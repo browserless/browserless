@@ -337,6 +337,23 @@ export const getTokenFromRequest = (req: Request) => {
   return tokenParam ?? getAuthHeaderToken(authHeader || '');
 };
 
+// Checks the query-supplied token and the Authorization header independently,
+// so an unrelated pre-existing header (e.g. a proxy's own auth) can't
+// silently shadow a valid token the client actually put in the URL.
+export const isRequestTokenValid = (
+  req: Request,
+  configuredToken: string | string[],
+): boolean => {
+  const allowed = Array.isArray(configuredToken)
+    ? configuredToken
+    : [configuredToken];
+  const candidates = [
+    req.queryToken,
+    getAuthHeaderToken(req.headers.authorization || ''),
+  ].filter((t): t is string => !!t);
+  return candidates.some((t) => allowed.includes(t));
+};
+
 // NOTE, if proxying request elsewhere, you must re-stream the body again
 export const readRequestBody = async (
   req: Request,

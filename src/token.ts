@@ -8,7 +8,7 @@ import {
   Logger,
   Request,
   WebSocketRoute,
-  getTokenFromRequest,
+  isRequestTokenValid,
 } from '@browserless.io/browserless';
 import { EventEmitter } from 'events';
 
@@ -28,12 +28,7 @@ export class Token extends EventEmitter {
    */
   public async isTokenValid(req: Request): Promise<boolean> {
     const token = this.config.getToken();
-    const requestToken = getTokenFromRequest(req);
-    return (
-      token === null ||
-      (!!requestToken &&
-        (Array.isArray(token) ? token : [token]).includes(requestToken))
-    );
+    return token === null || isRequestTokenValid(req, token);
   }
 
   /** Whether this route needs authorization, including SDK strict overrides. */

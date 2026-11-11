@@ -1,6 +1,7 @@
 import * as http from 'http';
 import {
   CDPLaunchOptions,
+  Request,
   convertIfBase64,
   safeParse,
 } from '@browserless.io/browserless';
@@ -29,6 +30,9 @@ export function moveTokenToHeader(req: http.IncomingMessage): string {
 
   if (token) {
     searchParams.delete('token');
+    // Preserved separately so downstream code can tell this exact value
+    // apart from whatever ends up in the Authorization header below.
+    (req as Request).queryToken = token;
     req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
     const search = searchParams.toString();
     req.url = `${rawPathname || '/'}${search ? `?${search}` : ''}`;
