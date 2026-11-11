@@ -527,14 +527,29 @@ describe('Function-valued route authentication', () => {
       });
     }
 
-    for (const method of ['POST', 'GET']) {
-      it(`supplies the validated ${method} body through a two-argument Token wrapper`, async () => {
+    for (const [method, copy] of [
+      ['POST', false],
+      ['GET', false],
+      ['POST', true],
+    ] as const) {
+      it(`supplies the validated ${method} body through a two-argument Token wrapper${copy ? ' from another package copy' : ''}`, async () => {
         class WrappedToken extends Token {
           public async isAuthorized(req: Request, route: HTTPRoute) {
             return super.isAuthorized(req, route);
           }
         }
-        server['token'] = new WrappedToken(config);
+        const wrapped = new WrappedToken(config);
+        // A subclass of another package copy's Token fails instanceof here
+        // but implements the same methods.
+        server['token'] = copy
+          ? ({
+              requiresAuth: (r: HTTPRoute) => wrapped.requiresAuth(r),
+              usesAuthPolicy: (r: HTTPRoute) => wrapped.usesAuthPolicy(r),
+              isTokenValid: (req: Request) => wrapped.isTokenValid(req),
+              isAuthorized: (req: Request, r: HTTPRoute) =>
+                wrapped.isAuthorized(req, r),
+            } as unknown as Token)
+          : wrapped;
         config.enableGETRequests(true);
         route.bodySchema = {
           type: 'object',
