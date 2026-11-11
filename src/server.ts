@@ -50,7 +50,6 @@ export class HTTPServer extends EventEmitter {
   protected acceptingStopped = false;
   protected liveResponses = new Set<http.ServerResponse>();
   protected httpSockets = new Set<net.Socket>();
-  protected fallbackToken: Token;
   #originalCloseIdleConnections?: http.Server['closeIdleConnections'];
 
   constructor(
@@ -62,7 +61,6 @@ export class HTTPServer extends EventEmitter {
     protected Logger: typeof BlessLogger,
   ) {
     super();
-    this.fallbackToken = new Token(config);
     this.host = config.getHost();
     this.port = config.getPort();
 
@@ -575,30 +573,31 @@ export class HTTPServer extends EventEmitter {
     req: Request,
     route: Parameters<Token['isAuthorized']>[1],
   ): Promise<boolean | (() => Promise<boolean>)> {
-    const token = this.token ?? this.fallbackToken;
-    const routeToken =
-      typeof token.requiresAuth === 'function' ? token : this.fallbackToken;
-    if (!routeToken.requiresAuth(route)) return true;
+    const authorize = async () => {
+      if (await this.token.isAuthorized(req, route)) return true;
+      this.logger.trace('Route authorization denied', route.name);
+      return false;
+    };
+    // Under STRICT_TOKEN_USE every route goes to Token, which owns the
+    // per-route exemptions (static files). Token services that don't extend
+    // Token keep the 2.62 flow and handle function policies themselves.
+    const extendsToken = typeof this.token?.usesAuthPolicy === 'function';
+    const requiresAuth = extendsToken
+      ? this.token.requiresAuth(route)
+      : !!route.auth;
+    if (!requiresAuth && !this.config.getStrictTokenUse()) return true;
+    if (!extendsToken || !this.token.usesAuthPolicy(route)) return authorize();
 
-    const checksCredentials = typeof token.isTokenValid === 'function';
-    if (checksCredentials && !(await token.isTokenValid(req))) {
+    if (route.strictAuthPolicy && !(await this.token.isTokenValid(req))) {
       this.logger.trace(
         'Route authorization denied in credentials pass',
         route.name,
       );
       return false;
     }
-
-    // Full SDK authorization runs only after the caller validates input.
-    // Policy denials throw Forbidden; false results retain 401s and metrics.
-    return async () => {
-      if (await token.isAuthorized(req, route)) return true;
-      this.logger.trace(
-        'Route authorization denied in full authorization pass',
-        route.name,
-      );
-      return false;
-    };
+    // Policies see validated input, so the caller authorizes after validation.
+    // Strict policy denials throw Forbidden; false results return 401.
+    return authorize;
   }
 
   /**

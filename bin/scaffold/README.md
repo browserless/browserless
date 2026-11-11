@@ -130,9 +130,8 @@ With a configured `TOKEN` and non-strict authentication:
 
 - `auth = false` makes a route public.
 - `auth = true` requires valid credentials before reading the HTTP body or validating request schemas.
-- A function-valued `auth` first requires valid credentials, then runs with validated query parameters and, for HTTP, the parsed and validated body. It must resolve to exactly `true` to allow the request. `false`, missing returns, thrown errors and rejected promises deny access with 403 Forbidden. These policy refusals do not count toward unauthorized-request metrics. Policy methods retain their route receiver (`this`).
-
-**Breaking change:** a function returning `false` no longer makes a route public or admits a valid-token caller. Use the static `auth = false` for a public route. Subclasses that previously accepted extra keys by overriding `isAuthorized` must now override `isTokenValid` instead, so early credential checks accept those keys too. Missing or invalid credentials receive 401 before body reads and schema validation; a valid-token caller can still receive a schema-validation error before its policy runs.
+- A function-valued `auth` decides per request whether credentials are required. It runs after input validation, with validated query parameters and, for HTTP, the parsed and validated body, so a tokenless caller can receive a validation error before the policy runs. Resolving to `false` lets that request through without credentials. `true`, any other result, a thrown error or a rejected promise requires valid credentials (401). Callers with valid credentials always pass. Policy methods retain their route receiver (`this`).
+- Set `strictAuthPolicy = true` alongside a function-valued `auth` to make it an access policy instead: missing or invalid credentials receive 401 before body reads and schema validation, and the function must then resolve to exactly `true`. `false`, other results and errors deny access with 403 Forbidden, which does not count toward unauthorized-request metrics.
 
 Without a configured `TOKEN`, the default Token service leaves policies inert and permits requests without credentials. `STRICT_TOKEN_USE=true` continues to require credentials and bypass function policies on non-exempt routes; the static-file route retains its exemption. Global and route `before` hooks keep their existing ordering before authentication and input validation.
 
@@ -161,8 +160,8 @@ export default class HelloWorldRoute extends HTTPRoute {
   // If the content-type does not match then a 404 will be sent back
   accepts = [contentTypes.any];
 
-  // true requires credentials; static false makes the route public in non-strict mode.
-  // An async function requires credentials first, then must return true to allow access.
+  // A boolean to indicate if authorization (token auth) is required to access this route. Can also be a function
+  // that returns a boolean with the request object being the only argument.
   auth = true;
 
   // If this route requires a browser. `null` indicates no browser needed.
@@ -432,7 +431,7 @@ With this approach you can effectively write, extend and author your own workflo
 
 ### Custom credentials
 
-Override the public `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. The server uses it before reading HTTP bodies or validating input; `isAuthorized(req, route)` uses it again as part of the full authorization check after validation. Keep this method credential-only and safe to call twice. Move credential-only logic from `isAuthorized` overrides into this hook so the early check accepts the same keys. The example below requires a configured `TOKEN` and optionally accepts `EXTRA_TOKEN` as a second key. Setting only `EXTRA_TOKEN` is rejected at startup rather than inheriting the default no-token authentication bypass:
+Override the public `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. `isAuthorized(req, route)` uses it for every credential check, and routes with `strictAuthPolicy` also call it before reading the HTTP body or validating input, so keep it credential-only and safe to call twice. Existing `isAuthorized` overrides that accept extra keys keep working, but only `isTokenValid` covers that early check on `strictAuthPolicy` routes. The example below requires a configured `TOKEN` and optionally accepts `EXTRA_TOKEN` as a second key. Setting only `EXTRA_TOKEN` is rejected at startup rather than inheriting the default no-token authentication bypass:
 
 ```ts
 // src/token.ts
@@ -461,11 +460,11 @@ export default class MultiToken extends Token {
 }
 ```
 
-`Token.isAuthorized(req, route)` always performs the full credentials-plus-policy check, with no stage argument. The server calls it once after query and body validation, so wrappers calling `super.isAuthorized(req, route)` receive the validated input and run the policy too. Direct callers must supply already-validated input and handle `Forbidden` for a policy denial. Strict non-exempt routes still skip the route policy, but receive the same full SDK authorization call. Invalid credentials and `false` results from `isAuthorized` overrides receive 401 and increase unauthorized metrics, even if early credential validation passed. Only a route-policy denial throws `Forbidden`, producing 403 without increasing unauthorized metrics.
+The server calls `Token.isAuthorized(req, route)` once per request: before reading input on routes without a function policy, and after query and body validation on routes whose function policy decides access (`Token.usesAuthPolicy(route)`), so wrappers calling `super.isAuthorized(req, route)` see the same input as the policy. A `false` result receives 401 and counts toward unauthorized metrics. It throws `Forbidden` (403) only when a `strictAuthPolicy` policy denies a caller with valid credentials.
 
-`Token.requiresAuth(route)` is the shared public-route decision used by the server and full authorization. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes bypass credential and authorization calls when strict enforcement does not apply.
+`Token.requiresAuth(route)` decides whether a route is public. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes skip authorization unless `STRICT_TOKEN_USE` is on or `requiresStrictAuth` applies; under `STRICT_TOKEN_USE` every route goes through `isAuthorized`, which exempts static files.
 
-Replacement Token services that do not inherit `Token` and implement only `isAuthorized` remain supported: the server skips the early credential check and calls their method once after input validation. They retain their complete authorization contract, including 401 on refusal. Public non-strict routes bypass replacement services too, using the default Token's route decision when the replacement has no `requiresAuth` method. The server creates its fallback Token once, and public routes remain usable without a Token service.
+Replacement Token services that do not inherit `Token` keep the previous admission flow: the server calls their `isAuthorized` before reading input on every route with a truthy `auth`, or on every route under `STRICT_TOKEN_USE`, and they own any function-policy handling.
 
 ## Disabling Routes
 
