@@ -50,6 +50,7 @@ export class HTTPServer extends EventEmitter {
   protected acceptingStopped = false;
   protected liveResponses = new Set<http.ServerResponse>();
   protected httpSockets = new Set<net.Socket>();
+  protected fallbackToken: Token;
   #originalCloseIdleConnections?: http.Server['closeIdleConnections'];
 
   constructor(
@@ -61,6 +62,7 @@ export class HTTPServer extends EventEmitter {
     protected Logger: typeof BlessLogger,
   ) {
     super();
+    this.fallbackToken = new Token(config);
     this.host = config.getHost();
     this.port = config.getPort();
 
@@ -433,7 +435,7 @@ export class HTTPServer extends EventEmitter {
     }
 
     if (typeof authorization === 'function' && !(await authorization())) {
-      return writeResponse(res, 403, 'Forbidden');
+      return this.onHTTPUnauthorized(req, res);
     }
 
     return (route as HTTPRoute)
@@ -552,7 +554,7 @@ export class HTTPServer extends EventEmitter {
       }
 
       if (typeof authorization === 'function' && !(await authorization())) {
-        return writeResponse(socket, 403, 'Forbidden');
+        return this.onWebsocketUnauthorized(req, socket);
       }
 
       return (route as WebSocketRoute)
@@ -572,21 +574,32 @@ export class HTTPServer extends EventEmitter {
   protected async authorizeRoute(
     req: Request,
     route: Parameters<Token['isAuthorized']>[1],
-  ): ReturnType<Token['authorizeRoute']> {
-    // Token owns exemptions and deferred policy checks. Replacement services
-    // with only isAuthorized retain their complete authorization contract.
-    const token = this.token ?? new Token(this.config);
-    const authorization =
-      typeof token.authorizeRoute === 'function'
-        ? await token.authorizeRoute(req, route)
-        : await token.isAuthorized(req, route);
-    if (!authorization) {
+  ): Promise<boolean | (() => Promise<boolean>)> {
+    const token = this.token ?? this.fallbackToken;
+    const routeToken =
+      typeof token.requiresAuth === 'function' ? token : this.fallbackToken;
+    if (!routeToken.requiresAuth(route)) return true;
+
+    const checksCredentials = typeof token.isTokenValid === 'function';
+    if (checksCredentials && !(await token.isTokenValid(req))) {
       this.logger.trace(
         'Route authorization denied in credentials pass',
         route.name,
       );
+      return false;
     }
-    return authorization;
+
+    // Full SDK authorization runs only after the caller validates input.
+    // Legacy replacements have no early credential check and retain 401s.
+    return async () => {
+      if (await token.isAuthorized(req, route)) return true;
+      this.logger.trace(
+        'Route authorization denied in full authorization pass',
+        route.name,
+      );
+      if (checksCredentials) throw new Forbidden('Forbidden');
+      return false;
+    };
   }
 
   /**

@@ -25,7 +25,7 @@ export class Token extends EventEmitter {
    * Override credential validation here to support additional keys without
    * bypassing route policies or changing their input-validation ordering.
    */
-  protected async isTokenValid(req: Request): Promise<boolean> {
+  public async isTokenValid(req: Request): Promise<boolean> {
     const token = this.config.getToken();
     const requestToken = getTokenFromRequest(req);
     return (
@@ -35,52 +35,22 @@ export class Token extends EventEmitter {
     );
   }
 
-  /**
-   * Check credentials by default so two-argument SDK wrappers are safe before
-   * input preparation. Explicit policy checks require validated input.
-   */
-  public async isAuthorized(
-    req: Request,
-    route: AuthRoute,
-    stage: 'credentials' | 'policy' = 'credentials',
-  ): Promise<boolean> {
-    const strict = this.requiresStrictAuth(route);
-    if (this.config.getToken() === null || (!strict && route.auth === false)) {
+  /** Whether this route needs authorization, including SDK strict overrides. */
+  public requiresAuth(route: AuthRoute): boolean {
+    return route.auth !== false || this.requiresStrictAuth(route);
+  }
+
+  /** Check credentials and policy together, using already-validated input. */
+  public async isAuthorized(req: Request, route: AuthRoute): Promise<boolean> {
+    if (this.config.getToken() === null || !this.requiresAuth(route)) {
       return true;
     }
     if (!(await this.isTokenValid(req))) {
       return false;
     }
-    if (stage === 'policy' && !strict && typeof route.auth === 'function') {
-      return this.isPolicyAuthorized(req, route);
-    }
-
-    return true;
-  }
-
-  /** Return admission now, or a policy to run after input validation. */
-  public async authorizeRoute(
-    req: Request,
-    route: AuthRoute,
-  ): Promise<boolean | (() => Promise<boolean>)> {
-    const strict = this.requiresStrictAuth(route);
-    if (!strict && route.auth === false) return true;
-    if (!(await this.isAuthorized(req, route))) return false;
-    if (
-      this.config.getToken() === null ||
-      strict ||
-      typeof route.auth !== 'function'
-    ) {
+    if (this.requiresStrictAuth(route) || typeof route.auth !== 'function') {
       return true;
     }
-    return () => this.isPolicyAuthorized(req, route);
-  }
-
-  protected async isPolicyAuthorized(
-    req: Request,
-    route: AuthRoute,
-  ): Promise<boolean> {
-    if (typeof route.auth !== 'function') return true;
     try {
       if ((await route.auth(req)) === true) return true;
     } catch (error) {

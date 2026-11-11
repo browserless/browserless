@@ -432,7 +432,7 @@ With this approach you can effectively write, extend and author your own workflo
 
 ### Custom credentials
 
-Override the protected `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. Both pre-body admission and full authorization use this same method. For example, an SDK module can accept a second key configured through an environment variable:
+Override the public `Token.isTokenValid(req)` method to accept additional credentials while keeping the default route-policy and strict-mode behavior. The server uses it before reading HTTP bodies or validating input; `isAuthorized(req, route)` uses it again as part of the full authorization check after validation. Keep this method credential-only and safe to call twice. Move credential-only logic from `isAuthorized` overrides into this hook so the early check accepts the same keys. For example, an SDK module can accept a second key configured through an environment variable:
 
 ```ts
 // src/token.ts
@@ -443,7 +443,7 @@ import {
 } from '@browserless.io/browserless';
 
 export default class MultiToken extends Token {
-  protected async isTokenValid(req: Request): Promise<boolean> {
+  public async isTokenValid(req: Request): Promise<boolean> {
     const extraToken = process.env.EXTRA_TOKEN;
     return (
       (!!extraToken && getTokenFromRequest(req) === extraToken) ||
@@ -453,9 +453,11 @@ export default class MultiToken extends Token {
 }
 ```
 
-`Token.authorizeRoute(req, route)` owns public-route and strict-mode decisions. It calls `isAuthorized(req, route)` for credentials before input preparation, then returns either a boolean admission result or a deferred policy check for the server to run after validation. Strict non-exempt routes have no second pass. `isAuthorized` defaults to the `'credentials'` stage, so existing two-argument wrappers can call `super.isAuthorized(req, route)` without running a body-dependent policy early. Direct callers wanting the full check on already-validated input can explicitly pass `'policy'`. Inherited `authorizeRoute` still enforces the route policy after an `isAuthorized` override accepts credentials; prefer `isTokenValid` for credential-only extensions. `requiresStrictAuth` remains protected and governs these decisions, including when overridden by an SDK.
+`Token.isAuthorized(req, route)` always performs the full credentials-plus-policy check, with no stage argument. The server calls it once after query and body validation, so wrappers calling `super.isAuthorized(req, route)` receive the validated input and run the policy too. Direct callers must supply already-validated input. Strict non-exempt routes still skip the route policy, but receive the same full SDK authorization call. Invalid credentials are rejected early with 401; a full authorization refusal after successful early credential validation returns 403 without increasing unauthorized metrics.
 
-Replacement Token services that do not inherit `Token` and implement only `isAuthorized` remain supported: the server calls their method once before input preparation, and they retain their complete authorization contract. Public routes remain usable without a Token service through the default Token behavior.
+`Token.requiresAuth(route)` is the shared public-route decision used by the server and full authorization. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes bypass credential and authorization calls when strict enforcement does not apply.
+
+Replacement Token services that do not inherit `Token` and implement only `isAuthorized` remain supported: the server skips the early credential check and calls their method once after input validation. They retain their complete authorization contract, including 401 on refusal. Public non-strict routes bypass replacement services too, using the default Token's route decision when the replacement has no `requiresAuth` method. The server creates its fallback Token once, and public routes remain usable without a Token service.
 
 ## Disabling Routes
 

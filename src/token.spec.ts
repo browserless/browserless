@@ -42,19 +42,15 @@ describe('Function-valued route authentication', () => {
     } as unknown as HTTPRoute;
     const req = request();
     req.parsed.pathname = '/protected';
-    expect(await token.isAuthorized(req, route, 'policy')).to.equal(false);
+    expect(await token.isAuthorized(req, route)).to.equal(false);
     req.parsed.searchParams.set('token', 'wrong');
-    expect(await token.isAuthorized(req, route, 'policy')).to.equal(false);
+    expect(await token.isAuthorized(req, route)).to.equal(false);
     req.parsed.searchParams.set('token', 'first-test-token');
-    expect(await token.isAuthorized(req, route, 'policy')).to.equal(true);
-    expect(await token.isAuthorized(request(), route, 'policy')).to.equal(
-      false,
-    );
+    expect(await token.isAuthorized(req, route)).to.equal(true);
+    expect(await token.isAuthorized(request(), route)).to.equal(false);
+    expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
     expect(
-      await token.isAuthorized(request('wrong'), route, 'policy'),
-    ).to.equal(false);
-    expect(
-      await token.isAuthorized(request('first-test-token'), route, 'policy'),
+      await token.isAuthorized(request('first-test-token'), route),
     ).to.equal(false);
   });
 
@@ -68,14 +64,10 @@ describe('Function-valued route authentication', () => {
   ]) {
     it(`denies access when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
       expect(
-        await token.isAuthorized(
-          request('first-test-token'),
-          {
-            auth,
-            name: 'BrokenPolicyRoute',
-          } as unknown as HTTPRoute,
-          'policy',
-        ),
+        await token.isAuthorized(request('first-test-token'), {
+          auth,
+          name: 'BrokenPolicyRoute',
+        } as unknown as HTTPRoute),
       ).to.equal(false);
     });
   }
@@ -90,7 +82,7 @@ describe('Function-valued route authentication', () => {
       },
     } as unknown as HTTPRoute;
     expect(
-      await token.isAuthorized(request('first-test-token'), route, 'policy'),
+      await token.isAuthorized(request('first-test-token'), route),
     ).to.equal(true);
   });
 
@@ -103,18 +95,14 @@ describe('Function-valued route authentication', () => {
     });
     try {
       expect(
-        await token.isAuthorized(
-          request('first-test-token'),
-          {
-            name: 'BrokenPolicy',
-            auth: async () => {
-              const error = new TypeError('synthetic-sensitive-value');
-              error.name = 'synthetic-sensitive-type';
-              throw error;
-            },
-          } as unknown as HTTPRoute,
-          'policy',
-        ),
+        await token.isAuthorized(request('first-test-token'), {
+          name: 'BrokenPolicy',
+          auth: async () => {
+            const error = new TypeError('synthetic-sensitive-value');
+            error.name = 'synthetic-sensitive-type';
+            throw error;
+          },
+        } as unknown as HTTPRoute),
       ).to.equal(false);
       expect(output.join('\n')).to.include(
         'Route authentication policy failed',
@@ -137,14 +125,10 @@ describe('Function-valued route authentication', () => {
         name: 'IncompletePolicyRoute',
         auth: async () => result,
       } as unknown as HTTPRoute;
-      expect(await token.isAuthorized(request(), route, 'policy')).to.equal(
-        false,
-      );
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
+      expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
       expect(
-        await token.isAuthorized(request('wrong'), route, 'policy'),
-      ).to.equal(false);
-      expect(
-        await token.isAuthorized(request('first-test-token'), route, 'policy'),
+        await token.isAuthorized(request('first-test-token'), route),
       ).to.equal(false);
     }
   });
@@ -153,16 +137,12 @@ describe('Function-valued route authentication', () => {
     const config = new Config();
     config.setToken(null);
     expect(
-      await new Token(config).isAuthorized(
-        request(),
-        {
-          name: 'NoTokenRoute',
-          auth: async () => {
-            throw new Error('policy must not run');
-          },
-        } as unknown as HTTPRoute,
-        'policy',
-      ),
+      await new Token(config).isAuthorized(request(), {
+        name: 'NoTokenRoute',
+        auth: async () => {
+          throw new Error('policy must not run');
+        },
+      } as unknown as HTTPRoute),
     ).to.equal(true);
   });
 
@@ -173,16 +153,12 @@ describe('Function-valued route authentication', () => {
       }
     }
     expect(
-      await new StrictToken(config).isAuthorized(
-        request('first-test-token'),
-        {
-          name: 'OverriddenStrictRoute',
-          auth: async () => {
-            throw new Error('strict routes must not run policies');
-          },
-        } as unknown as HTTPRoute,
-        'policy',
-      ),
+      await new StrictToken(config).isAuthorized(request('first-test-token'), {
+        name: 'OverriddenStrictRoute',
+        auth: async () => {
+          throw new Error('strict routes must not run policies');
+        },
+      } as unknown as HTTPRoute),
     ).to.equal(true);
   });
 
@@ -267,22 +243,6 @@ describe('Function-valued route authentication', () => {
         ).to.equal(200);
       });
 
-      it(`does not revalidate one-use credentials in strict ${upgrade ? 'WebSocket' : 'HTTP'} admission`, async () => {
-        class OneUseToken extends Token {
-          private used = false;
-          protected async isTokenValid(req: Request): Promise<boolean> {
-            if (this.used) return false;
-            this.used = true;
-            return super.isTokenValid(req);
-          }
-        }
-        config.setStrictTokenUse(true);
-        server['token'] = new OneUseToken(config);
-        expect(await status('/error?token=local-test-token', upgrade)).to.equal(
-          200,
-        );
-      });
-
       it(`does not call an SDK server's unrelated isAuthorized method for ${upgrade ? 'WebSocket' : 'HTTP'} admission`, async () => {
         Object.assign(server, { isAuthorized: async () => false });
         expect(
@@ -301,45 +261,97 @@ describe('Function-valued route authentication', () => {
         expect(await status('/error', upgrade)).to.equal(200);
       });
 
-      it(`accepts extra credentials from legacy ${upgrade ? 'WebSocket' : 'HTTP'} Token overrides`, async () => {
+      it(`accepts extra credentials through ${upgrade ? 'WebSocket' : 'HTTP'} Token wrappers`, async () => {
         class MultiToken extends Token {
-          public async isAuthorized(req: Request, route: HTTPRoute) {
+          public async isTokenValid(req: Request): Promise<boolean> {
             return (
               getTokenFromRequest(req) === 'extra-test-token' ||
-              super.isAuthorized(req, route)
+              super.isTokenValid(req)
             );
           }
+          public async isAuthorized(req: Request, route: HTTPRoute) {
+            const allowed = await super.isAuthorized(req, route);
+            return allowed && req.queryParams?.allowed === true;
+          }
         }
+        route.querySchema = {
+          type: 'object',
+          properties: { allowed: { type: 'boolean' } },
+          required: ['allowed'],
+        };
         server['token'] = new MultiToken(config);
         expect(
-          await status('/protected?token=extra-test-token', upgrade),
+          await status(
+            '/protected?allowed=true&token=extra-test-token',
+            upgrade,
+          ),
         ).to.equal(200);
         expect(
-          await status('/public?token=extra-test-token', upgrade),
+          await status('/public?allowed=true&token=extra-test-token', upgrade),
         ).to.equal(403);
         expect(
-          await status('/protected?token=local-test-token', upgrade),
+          await status(
+            '/protected?allowed=true&token=local-test-token',
+            upgrade,
+          ),
         ).to.equal(200);
+        expect(
+          await status(
+            '/protected?allowed=false&token=extra-test-token',
+            upgrade,
+          ),
+        ).to.equal(403);
         expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
       });
 
       it(`supports replacement ${upgrade ? 'WebSocket' : 'HTTP'} Token services with only isAuthorized`, async () => {
         route.auth = true;
+        route.querySchema = {
+          type: 'object',
+          properties: { allowed: { type: 'boolean' } },
+          required: ['allowed'],
+        };
+        const seen = new WeakSet<Request>();
         server['token'] = {
           isAuthorized: async (req: Request) => {
-            if (getTokenFromRequest(req) === 'extra-test-token') return true;
+            if (seen.has(req)) return false;
+            seen.add(req);
+            if (getTokenFromRequest(req) === 'extra-test-token') {
+              return req.queryParams?.allowed === true;
+            }
             return undefined;
           },
         } as unknown as Token;
         expect(
-          await status('/protected?token=extra-test-token', upgrade),
+          await status(
+            '/protected?allowed=true&token=extra-test-token',
+            upgrade,
+          ),
         ).to.equal(200);
-        expect(await status('/protected?token=wrong', upgrade)).to.equal(401);
+        expect(
+          await status('/protected?allowed=true&token=wrong', upgrade),
+        ).to.equal(401);
+        expect(
+          await status(
+            '/protected?allowed=invalid&token=extra-test-token',
+            upgrade,
+          ),
+        ).to.equal(400);
+      });
+
+      it(`bypasses replacement services for public non-strict ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
+        route.auth = false;
+        server['token'] = {
+          isAuthorized: async () => false,
+        } as unknown as Token;
+        expect(await status('/public', upgrade)).to.equal(200);
+        config.setStrictTokenUse(true);
+        expect(await status('/public', upgrade)).to.equal(401);
       });
 
       it(`applies ${upgrade ? 'WebSocket' : 'HTTP'} policies to custom credential validation`, async () => {
         class MultiToken extends Token {
-          protected async isTokenValid(req: Request): Promise<boolean> {
+          public async isTokenValid(req: Request): Promise<boolean> {
             return getTokenFromRequest(req) === 'extra-test-token';
           }
         }
