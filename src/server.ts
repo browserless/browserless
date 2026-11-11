@@ -581,7 +581,7 @@ export class HTTPServer extends EventEmitter {
     // Under STRICT_TOKEN_USE every route goes to Token, which owns the
     // per-route exemptions (static files). Token services that don't extend
     // Token keep the 2.62 flow and handle function policies themselves.
-    const extendsToken = typeof this.token?.usesAuthPolicy === 'function';
+    const extendsToken = this.token instanceof Token;
     const requiresAuth = extendsToken
       ? this.token.requiresAuth(route)
       : !!route.auth;

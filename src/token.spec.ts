@@ -420,6 +420,8 @@ describe('Function-valued route authentication', () => {
             seen.push(req.queryParams?.allowed);
             return getTokenFromRequest(req) === 'extra-test-token';
           },
+          // A partial Token API doesn't make the service a Token subclass.
+          usesAuthPolicy: () => true,
         } as unknown as Token;
         // The replacement owns function policies: the server doesn't run them.
         expect(await status('/public?allowed=true', upgrade)).to.equal(401);

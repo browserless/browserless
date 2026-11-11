@@ -160,8 +160,8 @@ export default class HelloWorldRoute extends HTTPRoute {
   // If the content-type does not match then a 404 will be sent back
   accepts = [contentTypes.any];
 
-  // A boolean to indicate if authorization (token auth) is required to access this route. Can also be a function
-  // that returns a boolean with the request object being the only argument.
+  // A boolean to indicate if authorization (token auth) is required to access this route. Can also be an async
+  // function that resolves to a boolean, with the request object being the only argument.
   auth = true;
 
   // If this route requires a browser. `null` indicates no browser needed.
@@ -460,7 +460,7 @@ export default class MultiToken extends Token {
 }
 ```
 
-The server calls `Token.isAuthorized(req, route)` once per request: before reading input on routes without a function policy, and after query and body validation on routes whose function policy decides access (`Token.usesAuthPolicy(route)`), so wrappers calling `super.isAuthorized(req, route)` see the same input as the policy. A `false` result receives 401 and counts toward unauthorized metrics. It throws `Forbidden` (403) only when a `strictAuthPolicy` policy denies a caller with valid credentials.
+The server calls `Token.isAuthorized(req, route)` at most once per request: before reading input on routes without a function policy, and after query and body validation on routes whose function policy decides access (`Token.usesAuthPolicy(route)`), so wrappers calling `super.isAuthorized(req, route)` see the same input as the policy. Public routes skip it, and on `strictAuthPolicy` routes a failed early `isTokenValid` check returns 401 without calling it. A `false` result receives 401 and counts toward unauthorized metrics. It throws `Forbidden` (403) only when a `strictAuthPolicy` policy denies a caller with valid credentials.
 
 `Token.requiresAuth(route)` decides whether a route is public. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes skip authorization unless `STRICT_TOKEN_USE` is on or `requiresStrictAuth` applies; under `STRICT_TOKEN_USE` every route goes through `isAuthorized`, which exempts static files.
 
