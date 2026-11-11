@@ -1270,7 +1270,7 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
         undefined,
         'default',
         currentVersion,
-        `${major}.${minor - 5}`, // The just-evicted version must fall back too.
+        '0.1', // Old enough to never collide with a real per-version override key.
         `${major}.${minor + 1}`,
         'unsupported',
       ]) {
