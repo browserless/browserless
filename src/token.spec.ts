@@ -95,21 +95,14 @@ describe('Function-valued route authentication', () => {
     },
   ]) {
     it(`requires credentials when the policy ${auth.constructor.name === 'AsyncFunction' ? 'rejects' : 'throws'}`, async () => {
-      const route = { auth, name: 'BrokenPolicyRoute' };
+      const route = { auth, name: 'BrokenPolicyRoute' } as unknown as HTTPRoute;
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
       expect(
-        await token.isAuthorized(request(), route as unknown as HTTPRoute),
-      ).to.equal(false);
-      expect(
-        await token.isAuthorized(
-          request('first-test-token'),
-          route as unknown as HTTPRoute,
-        ),
+        await token.isAuthorized(request('first-test-token'), route),
       ).to.equal(true);
+      route.strictAuthPolicy = true;
       await rejects(
-        token.isAuthorized(request('first-test-token'), {
-          ...route,
-          strictAuthPolicy: true,
-        } as unknown as HTTPRoute),
+        token.isAuthorized(request('first-test-token'), route),
         Forbidden,
       );
     });
@@ -166,20 +159,15 @@ describe('Function-valued route authentication', () => {
       const route = {
         name: 'IncompletePolicyRoute',
         auth: async () => result,
-      };
-      const policy = route as unknown as HTTPRoute;
-      expect(await token.isAuthorized(request(), policy)).to.equal(false);
-      expect(await token.isAuthorized(request('wrong'), policy)).to.equal(
-        false,
-      );
+      } as unknown as HTTPRoute;
+      expect(await token.isAuthorized(request(), route)).to.equal(false);
+      expect(await token.isAuthorized(request('wrong'), route)).to.equal(false);
       expect(
-        await token.isAuthorized(request('first-test-token'), policy),
+        await token.isAuthorized(request('first-test-token'), route),
       ).to.equal(true);
+      route.strictAuthPolicy = true;
       await rejects(
-        token.isAuthorized(request('first-test-token'), {
-          ...route,
-          strictAuthPolicy: true,
-        } as unknown as HTTPRoute),
+        token.isAuthorized(request('first-test-token'), route),
         Forbidden,
       );
     }
