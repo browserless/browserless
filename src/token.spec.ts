@@ -333,6 +333,12 @@ describe('Function-valued route authentication', () => {
             Authorization: 'Bearer unrelated-proxy-value',
           }),
         ).to.equal(401);
+        // A valid header still authorizes alongside a wrong query token.
+        expect(
+          await status('/protected?token=wrong', upgrade, {
+            Authorization: 'Bearer local-test-token',
+          }),
+        ).to.equal(200);
       });
     }
 
