@@ -49,8 +49,11 @@ const routeSchemas = ['body', 'query'];
 
 const isArm64 = process.arch === 'arm64';
 const isMacOS = process.platform === 'darwin';
-// Edge has no arm64 Linux build. Chrome does, as of 2026.
+// No arm64 Linux build exists, so these can never run there.
 const unavailableARM64Browsers = ['edge'];
+// Published for arm64, but not present in every image or host install. Skip
+// their routes when the binary is missing rather than failing startup.
+const optionalARM64Browsers = ['chrome'];
 
 type Implements<T> = {
   new (...args: unknown[]): T;
@@ -179,25 +182,40 @@ export class Browserless extends EventEmitter {
   }
 
   // Filter out routes that are not able to work on the arm64 architecture
-  // and log a message as to why that is (can't run Edge on non-apple arm64)
+  // and log a message as to why that is. Browsers with no arm64 build at all
+  // are always dropped; ones that merely aren't installed here are dropped
+  // only when their binary is absent, so a host without them still starts.
+  // `installedBrowsers` defaults to empty so an unknown install set degrades
+  // to skipping rather than to a startup failure.
   protected filterNonMacArm64Browsers(
     route:
       HTTPRoute | BrowserHTTPRoute | WebSocketRoute | BrowserWebsocketRoute,
+    installedBrowsers: { name: string }[] = [],
   ) {
-    if (
-      isArm64 &&
-      !isMacOS &&
-      'browser' in route &&
-      route.browser &&
-      unavailableARM64Browsers.some((b) =>
-        route.browser.name.toLowerCase().includes(b),
-      )
-    ) {
+    if (!isArm64 || isMacOS || !('browser' in route) || !route.browser) {
+      return true;
+    }
+
+    const browserName = route.browser.name;
+    const needle = browserName.toLowerCase();
+
+    if (unavailableARM64Browsers.some((b) => needle.includes(b))) {
       this.logger.warn(
-        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "${route.browser.name}").`,
+        `Ignoring route "${route.path}" because it is not supported on arm64 platforms (route requires browser "${browserName}").`,
       );
       return false;
     }
+
+    if (
+      optionalARM64Browsers.some((b) => needle.includes(b)) &&
+      !installedBrowsers.some((b) => b.name === browserName)
+    ) {
+      this.logger.warn(
+        `Ignoring route "${route.path}" because browser "${browserName}" is not installed on this arm64 platform.`,
+      );
+      return false;
+    }
+
     return true;
   }
 
@@ -654,8 +672,12 @@ export class Browserless extends EventEmitter {
       (HTTPRoute | BrowserHTTPRoute)[],
       (WebSocketRoute | BrowserWebsocketRoute)[],
     ] = [
-      [...httpRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
-      [...wsRoutes].filter((r) => this.filterNonMacArm64Browsers(r)),
+      [...httpRoutes].filter((r) =>
+        this.filterNonMacArm64Browsers(r, installedBrowsers),
+      ),
+      [...wsRoutes].filter((r) =>
+        this.filterNonMacArm64Browsers(r, installedBrowsers),
+      ),
     ];
 
     // Validate that we have the browsers they are asking for
