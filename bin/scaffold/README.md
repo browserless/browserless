@@ -464,7 +464,7 @@ The server calls `Token.isAuthorized(req, route)` at most once per request: befo
 
 `Token.requiresAuth(route)` decides whether a route is public. It delegates strict enforcement to the protected `requiresStrictAuth` method, preserving SDK overrides and the static-file exemption. Public `auth=false` routes skip authorization unless `STRICT_TOKEN_USE` is on or `requiresStrictAuth` applies; under `STRICT_TOKEN_USE` every route goes through `isAuthorized`, which exempts static files.
 
-Replacement Token services that do not implement `Token`'s `requiresAuth`, `usesAuthPolicy` and `isTokenValid` methods, for example ones that implement only `isAuthorized`, keep the previous admission flow: the server calls their `isAuthorized` before reading input on every route with a truthy `auth`, or on every route under `STRICT_TOKEN_USE`, and they own any function-policy handling.
+Replacement Token services that do not implement `Token`'s `usesAuthPolicy` and `isTokenValid` methods, for example ones that implement only `isAuthorized`, keep the previous admission flow: the server calls their `isAuthorized` before reading input on every route with a truthy `auth` (or, if they implement `requiresAuth`, every route it requires), or on every route under `STRICT_TOKEN_USE`, and they own any function-policy handling.
 
 ## Disabling Routes
 

@@ -442,11 +442,15 @@ describe('Function-valued route authentication', () => {
         expect(seen).not.to.include(true);
       });
 
-      it(`bypasses replacement services for public non-strict ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
+      it(`lets replacement services decide public non-strict ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {
         route.auth = false;
-        server['token'] = {
-          isAuthorized: async () => false,
-        } as unknown as Token;
+        const replacement = { isAuthorized: async () => false };
+        server['token'] = replacement as unknown as Token;
+        expect(await status('/public', upgrade)).to.equal(200);
+        // Its own requiresAuth applies without the rest of Token's API.
+        Object.assign(replacement, { requiresAuth: () => true });
+        expect(await status('/public', upgrade)).to.equal(401);
+        Object.assign(replacement, { requiresAuth: () => false });
         expect(await status('/public', upgrade)).to.equal(200);
         config.setStrictTokenUse(true);
         expect(await status('/public', upgrade)).to.equal(401);

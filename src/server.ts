@@ -579,18 +579,21 @@ export class HTTPServer extends EventEmitter {
       return false;
     };
     // Under STRICT_TOKEN_USE every route goes to Token, which owns the
-    // per-route exemptions (static files). Token services without Token's
-    // admission methods keep the 2.62 flow and handle function policies
-    // themselves. Check methods, not instanceof: a Token subclass from another
-    // package copy must still evaluate its policies on validated input.
-    const implementsToken = (
-      ['requiresAuth', 'usesAuthPolicy', 'isTokenValid'] as const
-    ).every((method) => typeof this.token?.[method] === 'function');
-    const requiresAuth = implementsToken
-      ? this.token.requiresAuth(route)
-      : !!route.auth;
+    // per-route exemptions (static files). A service's own requiresAuth
+    // decides which other routes need authorization.
+    const requiresAuth =
+      typeof this.token?.requiresAuth === 'function'
+        ? this.token.requiresAuth(route)
+        : !!route.auth;
     if (!requiresAuth && !this.config.getStrictTokenUse()) return true;
-    if (!implementsToken || !this.token.usesAuthPolicy(route)) {
+    // Token services without the policy methods keep the 2.62 flow and handle
+    // function policies themselves. Check methods, not instanceof: a Token
+    // subclass from another package copy must still evaluate its policies on
+    // validated input.
+    const defersPolicies = (['usesAuthPolicy', 'isTokenValid'] as const).every(
+      (method) => typeof this.token?.[method] === 'function',
+    );
+    if (!defersPolicies || !this.token.usesAuthPolicy(route)) {
       return authorize();
     }
 
