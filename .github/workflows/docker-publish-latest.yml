@@ -5,9 +5,14 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   publish:
-    uses: ./.github/workflows/docker-publish.yml
-    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-publish.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
     with:
       tag: latest

@@ -45,6 +45,9 @@ on:
         type: string
         default: ''
 
+permissions:
+  contents: read
+
 env:
   BASE_IMAGE: ghcr.io/browserless/base
 
@@ -56,6 +59,9 @@ jobs:
   base-build:
     name: Build base (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -68,23 +74,23 @@ jobs:
             }
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v4.4.1
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push base by digest
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           file: ./docker/base/Dockerfile
@@ -101,13 +107,14 @@ jobs:
           outputs: type=image,name=${{ env.BASE_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p "${RUNNER_TEMP}/digests"
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: digest-base__${{ matrix.pair }}
           path: ${{ runner.temp }}/digests/*
@@ -121,7 +128,11 @@ jobs:
   # ============================================================
   base-merge:
     name: Merge base manifest
-    runs-on: ubuntu-26.04
+    # imagetools only needs the Docker client/Buildx, not a Docker daemon.
+    runs-on: ubuntu-slim
+    permissions:
+      packages: write
+    timeout-minutes: 15
     needs: base-build
     # TAG is passed via env rather than interpolated into run: scripts to avoid
     # template/shell injection from the caller-supplied tag.
@@ -129,18 +140,18 @@ jobs:
       TAG: ${{ inputs.tag }}
     steps:
       - name: Download base digests
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           path: ${{ runner.temp }}/digests
           pattern: digest-base__*
           merge-multiple: true
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Create and push base manifest list
         working-directory: ${{ runner.temp }}/digests
@@ -160,6 +171,9 @@ jobs:
   images-build:
     name: Build ${{ matrix.image }} (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     needs: base-merge
     strategy:
       fail-fast: false
@@ -279,23 +293,23 @@ jobs:
             }
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@v4.4.1
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push ${{ matrix.image }} by digest
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           file: ./docker/${{ matrix.file }}/Dockerfile
@@ -312,13 +326,14 @@ jobs:
           outputs: type=image,name=ghcr.io/browserless/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p "${RUNNER_TEMP}/digests"
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: digest-${{ matrix.image }}__${{ matrix.pair }}
           path: ${{ runner.temp }}/digests/*
@@ -332,7 +347,11 @@ jobs:
   # ============================================================
   images-merge:
     name: Merge ${{ matrix.image }} manifest
-    runs-on: ubuntu-26.04
+    # imagetools only needs the Docker client/Buildx, not a Docker daemon.
+    runs-on: ubuntu-slim
+    permissions:
+      packages: write
+    timeout-minutes: 15
     needs: images-build
     # Run even when some images-build legs failed. images-build is one matrix
     # job, so a single failed leg (one image on one arch) marks the whole job
@@ -365,7 +384,7 @@ jobs:
           - { image: multi-heavy, arches: 2 }
     steps:
       - name: Download ${{ matrix.image }} digests
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           path: ${{ runner.temp }}/digests
           # The "__" delimiter prevents the webkit pattern from also matching
@@ -374,11 +393,11 @@ jobs:
           merge-multiple: true
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       # Guard the decoupling above: now that this leg runs even when a sibling
       # image failed, make sure THIS image is whole before tagging. Missing a

@@ -15,16 +15,17 @@ concurrency:
 jobs:
   update:
     if: github.repository == 'browserless/browserless' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: main
           persist-credentials: false
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       - name: Select the latest stable Node 26.x release
         id: node
@@ -36,7 +37,7 @@ jobs:
           node scripts/ci/node-runtime.js
 
       # Mint only after release validation; the App token lets PR changes run CI.
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@v3.3.0
         id: app-token
         with:
           client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
@@ -46,7 +47,7 @@ jobs:
 
       # A fixed branch refreshes one PR, is a no-op when unchanged, and closes
       # an obsolete PR when main already contains the update. Never auto-merge.
-      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+      - uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
           branch: automation/node-26-runtime

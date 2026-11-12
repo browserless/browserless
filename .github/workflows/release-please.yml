@@ -22,7 +22,7 @@ name: Release Please
 on:
   push:
     branches: [main]
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- successful same-repo main push only; no PR artifacts (see job guard)
     workflows: ['Publish Latest Docker Images to GitHub Container Registry']
     types: [completed]
     branches: [main]
@@ -33,17 +33,24 @@ concurrency:
   group: release-please
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
+  # Every additional job must depend on release-please and preserve success gating.
+  # The workflow_run suppression is safe only while all jobs inherit this guard.
   release-please:
-    runs-on: ubuntu-26.04
-    # On workflow_run, only proceed when the image build actually succeeded.
-    # (On push the second clause is never evaluated.)
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    # Only our successful main-branch push publisher may cross this boundary.
+    # No PR artifacts or PR head code are consumed by workflow_run.
     if: >-
-      github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+      github.repository == 'browserless/browserless' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
@@ -51,13 +58,15 @@ jobs:
     steps:
       # App token (not GITHUB_TOKEN) so the tag/PR it creates can trigger the
       # downstream npm-publish and docker-publish workflows.
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@v3.3.0
         id: app-token
         with:
           client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
           private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@v5.0.0
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -81,27 +90,30 @@ jobs:
       # Check out the Release PR branch so the changelog commit lands on it.
       # GITHUB_TOKEN is used to push, which intentionally does NOT re-trigger
       # workflows (no release-please loop).
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.2 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
 
       # multi:latest tracks main, so it is the image this release will ship.
       # Anonymous pull works for public packages; log in for reliability.
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Insert browser/library versions into the changelog
+        id: changelog
         run: |
           node scripts/changelog-browser-versions.js > "${RUNNER_TEMP}/block.md"
           node scripts/insert-changelog-browser-versions.js CHANGELOG.md < "${RUNNER_TEMP}/block.md"
@@ -113,4 +125,15 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add CHANGELOG.md
           git commit -m 'chore: add browser versions to changelog'
-          git push
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Push changelog
+        if: steps.changelog.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The helper reads the token only for this push, never from git config.
+        run: |
+          # shellcheck disable=SC2016  # Git's helper shell expands GH_TOKEN, not this shell.
+          git -c credential.helper= \
+            -c 'credential.helper=!f() { printf "%s\n" "username=x-access-token" "password=$GH_TOKEN"; }; f' \
+            push

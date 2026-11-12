@@ -1,0 +1,9 @@
+rules:
+  dependabot-cooldown:
+    config:
+      # Approved minimum; lint.yml also checks past zizmor 1.32.0's early return.
+      days: 3
+    ignore:
+      # Docker has no configured cooldown; preserve the approved exception.
+      # Revisit this specific exception if the Docker update policy changes.
+      - dependabot.yml:28

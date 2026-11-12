@@ -6,14 +6,16 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
-permissions:
-  issues: write
+permissions: {}
 
 jobs:
   stale:
-    runs-on: ubuntu-26.04
+    permissions:
+      issues: write
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
-      - uses: actions/stale@v11
+      - uses: actions/stale@v11.0.0
         with:
           # Mark an issue stale after 30 days of inactivity, then close it
           # after a further 60 days (90 days of inactivity in total).

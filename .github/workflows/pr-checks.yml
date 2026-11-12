@@ -2,32 +2,38 @@ name: Pull Request Checks
 
 on: [pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
-    uses: ./.github/workflows/lint.yml
+    uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   leak-check:
-    uses: ./.github/workflows/leak-check.yml
+    uses: ./.github/workflows/leak-check.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-chrome:
-    uses: ./.github/workflows/docker-chrome.yml
+    uses: ./.github/workflows/docker-chrome.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-chromium:
-    uses: ./.github/workflows/docker-chromium.yml
+    uses: ./.github/workflows/docker-chromium.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-edge:
-    uses: ./.github/workflows/docker-edge.yml
+    uses: ./.github/workflows/docker-edge.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-firefox:
-    uses: ./.github/workflows/docker-firefox.yml
+    uses: ./.github/workflows/docker-firefox.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-webkit:
-    uses: ./.github/workflows/docker-webkit.yml
+    uses: ./.github/workflows/docker-webkit.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   test-multi:
-    uses: ./.github/workflows/docker-multi.yml
+    uses: ./.github/workflows/docker-multi.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
 
   automerge:
+    permissions:
+      contents: write
+      pull-requests: write
     needs:
       [
         lint,
@@ -38,4 +44,4 @@ jobs:
         test-webkit,
         test-multi,
       ]
-    uses: ./.github/workflows/merge-dependabot.yml
+    uses: ./.github/workflows/merge-dependabot.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
