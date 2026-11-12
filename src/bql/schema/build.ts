@@ -66,6 +66,16 @@ export function buildBQLSchema<API extends BQLBrowserAPI = BQLBrowserAPI>(
   );
   const schema = buildASTSchema(concatAST([...base, ...documents]));
   const resolvers: Record<string, Record<string, Resolver<API>>> = {
+    EvaluateResponse: {
+      value: (source) => {
+        const { value } = source as { value: unknown };
+        return value == null
+          ? null
+          : typeof value === 'string' || typeof value === 'number'
+            ? String(value)
+            : JSON.stringify(value);
+      },
+    },
     Mutation: {
       ...navigation,
       ...dom,

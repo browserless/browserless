@@ -60,6 +60,9 @@ describe('BrowserQL primitive contracts', () => {
     }
     const service = new BrowserQL({ apiFactory: () => new ObjectAPI(options) });
     const context = service.createContext(options);
+    const raw = await service.schema.getMutationType()!.getFields().evaluate
+      .resolve!(undefined, { content: 'value' }, context, {} as any);
+    assert.equal((raw as { value: unknown }).value, value);
     const result = await service.execute(
       { query: 'mutation { evaluate(content:"value") { value } }' },
       context,
