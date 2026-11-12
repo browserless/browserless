@@ -30,7 +30,8 @@ jobs:
       - name: Test the multi image
         uses: nick-fields/retry@v4
         with:
-          timeout_minutes: 10
+          # Includes dependency installation and all browser suites.
+          timeout_minutes: 15
           max_attempts: 5
           retry_wait_seconds: 30
           command: docker run --ipc=host -e CI=true --entrypoint ./scripts/test.sh ghcr.io/browserless/multi:"$NODE_VERSION"
