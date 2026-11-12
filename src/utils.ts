@@ -332,34 +332,14 @@ export const fetchJson = (
   });
 
 export const getTokenFromRequest = (req: Request) => {
-  const authHeader = req.headers.authorization;
   const tokenParam = req.parsed.searchParams.get('token');
-  return (
-    req.validatedQueryToken ??
-    tokenParam ??
-    getAuthHeaderToken(authHeader || '')
-  );
-};
-
-// Accepts the token getTokenFromRequest reports, as before, or the query-string
-// token preserved by moveTokenToHeader(), so an unrelated pre-existing header
-// (e.g. a proxy's own auth) can't silently shadow a valid token the client
-// actually put in the URL. When only the query token is valid, it's recorded
-// so getTokenFromRequest reports the credential that authorized the request.
-export const isRequestTokenValid = (
-  req: Request,
-  configuredToken: string | string[],
-): boolean => {
-  const allowed = Array.isArray(configuredToken)
-    ? configuredToken
-    : [configuredToken];
-  const requestToken = getTokenFromRequest(req);
-  if (requestToken && allowed.includes(requestToken)) return true;
-  if (req.queryToken && allowed.includes(req.queryToken)) {
-    req.validatedQueryToken = req.queryToken;
-    return true;
+  if (req.tokenHeader) {
+    // TOKEN_HEADER: the header carries the raw token, with no auth scheme.
+    const header = req.headers[req.tokenHeader];
+    return tokenParam ?? (typeof header === 'string' && header ? header : null);
   }
-  return false;
+  const authHeader = req.headers.authorization;
+  return tokenParam ?? getAuthHeaderToken(authHeader || '');
 };
 
 // NOTE, if proxying request elsewhere, you must re-stream the body again

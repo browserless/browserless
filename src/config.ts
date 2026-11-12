@@ -259,6 +259,9 @@ export class Config extends EventEmitter {
 
   protected token = process.env.TOKEN || null;
   protected strictTokenUse = !!parseEnvVars(false, 'STRICT_TOKEN_USE');
+  protected tokenHeader = (
+    process.env.TOKEN_HEADER?.trim() || 'authorization'
+  ).toLowerCase();
   protected concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -350,6 +353,16 @@ export class Config extends EventEmitter {
    */
   public getStrictTokenUse(): boolean {
     return this.strictTokenUse;
+  }
+
+  /**
+   * The lowercase name of the header that carries the token, `authorization`
+   * by default. `?token=` is moved into it, and it is the only header the
+   * token is read from. Set TOKEN_HEADER when a proxy in front of browserless
+   * uses the Authorization header for itself.
+   */
+  public getTokenHeader(): string {
+    return this.tokenHeader;
   }
 
   public getDebug(): string {
@@ -726,6 +739,12 @@ export class Config extends EventEmitter {
   public setStrictTokenUse(strictTokenUse: boolean): boolean {
     this.emit('strictTokenUse', strictTokenUse);
     return (this.strictTokenUse = strictTokenUse);
+  }
+
+  public setTokenHeader(tokenHeader: string): string {
+    const normalized = tokenHeader.trim().toLowerCase() || 'authorization';
+    this.emit('tokenHeader', normalized);
+    return (this.tokenHeader = normalized);
   }
 
   public setTimeout(newTimeout: number): number {

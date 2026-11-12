@@ -425,9 +425,10 @@ describe('/chromium/function API', function () {
     });
   });
 
-  it('forwards the validated query token for the internal reconnect, not an unrelated Authorization header (#5636)', async () => {
+  it('runs functions behind a proxy that sets its own Authorization header when TOKEN_HEADER is set (#5636)', async () => {
     const config = new Config();
     config.setToken('browserless');
+    config.setTokenHeader('x-browserless-token');
     const metrics = new Metrics();
     await start({ config, metrics });
     const body = {
@@ -507,7 +508,6 @@ describe('/chromium/function API', function () {
         body: JSON.stringify(body),
         headers: {
           'content-type': 'application/json',
-          Authorization: 'Bearer unrelated-proxy-value',
         },
         method: 'POST',
       },

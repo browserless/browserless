@@ -9,7 +9,7 @@ import {
   Request,
   contentTypes,
   fileExists,
-  isRequestTokenValid,
+  getTokenFromRequest,
   mimeTypes,
 } from '@browserless.io/browserless';
 import { createReadStream, promises as fs } from 'fs';
@@ -93,24 +93,21 @@ export default class StaticGetRoute extends HTTPRoute {
     const { pathname } = req.parsed;
     const config = this.config();
 
-    // A non-empty `?token=` never reaches req.parsed - moveTokenToHeader()
-    // moves it to the Authorization header but preserves it separately as
-    // req.queryToken, so a proxy's own unrelated header can't shadow it here.
+    // The reset script reads the token from location.search, so check the
+    // `?token=` the client sent (kept as req.queryToken, since
+    // moveTokenToHeader() strips it), and the header token only when there is
+    // none. A proxy's own Authorization header then can't hide a valid
+    // `?token=`, and a valid header can't vouch for a wrong one.
     const configuredToken = config.getToken();
-    // A wrong query token must block the script even if the header still
-    // authorizes the request - the client-side script only reads
-    // location.search, so letting it through would persist that wrong value.
-    const queryTokenIsUntrustworthy =
-      req.queryToken !== undefined &&
-      configuredToken !== null &&
-      !(
-        Array.isArray(configuredToken) ? configuredToken : [configuredToken]
-      ).includes(req.queryToken);
+    const requestToken = req.queryToken ?? getTokenFromRequest(req);
     const resetDebuggerSettings =
       DEBUGGER_INDEX_PATHS.has(pathname) &&
+      !!requestToken &&
       configuredToken !== null &&
-      !queryTokenIsUntrustworthy &&
-      isRequestTokenValid(req, configuredToken);
+      (Array.isArray(configuredToken)
+        ? configuredToken
+        : [configuredToken]
+      ).includes(requestToken);
 
     // Applies regardless of token validity: a token-less response cached by
     // a browser or CDN could later shadow a valid-token request for the
@@ -183,17 +180,15 @@ export default class StaticGetRoute extends HTTPRoute {
       !pathname.endsWith('/') &&
       !pathname.endsWith('/index.html')
     ) {
-      // moveTokenToHeader() strips a non-empty ?token= from req.parsed.search
-      // - re-add it from req.queryToken so the redirect doesn't silently lose
-      // it. Without one, keep the query string exactly as the client sent it.
-      const redirectParams = new URLSearchParams(req.parsed.search);
+      // moveTokenToHeader() strips ?token= from req.parsed.search, so re-add
+      // it from req.queryToken. Without one, keep the query string as sent.
+      let search = req.parsed.search;
       if (req.queryToken) {
-        redirectParams.set('token', req.queryToken);
+        const params = new URLSearchParams(search);
+        params.set('token', req.queryToken);
+        search = `?${params}`;
       }
-      const location =
-        req.parsed.pathname +
-        '/' +
-        (req.queryToken ? `?${redirectParams.toString()}` : req.parsed.search);
+      const location = req.parsed.pathname + '/' + search;
       res.writeHead(301, { Location: location });
       res.end();
       return;

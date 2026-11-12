@@ -319,21 +319,14 @@ describe('Function-valued route authentication', () => {
       });
 
     for (const upgrade of [false, true]) {
-      it(`authorizes a valid query token even behind an unrelated pre-existing Authorization header on ${upgrade ? 'WebSocket' : 'HTTP'} routes (#5636)`, async () => {
-        // moveTokenToHeader() only writes the Authorization header when none
-        // already exists, so a proxy's own header must not shadow a valid
-        // query token here.
+      const kind = upgrade ? 'WebSocket' : 'HTTP';
+
+      it(`keeps a header the client already sent ahead of ?token= on ${kind} routes`, async () => {
         expect(
           await status('/protected?token=local-test-token', upgrade, {
             Authorization: 'Bearer unrelated-proxy-value',
           }),
-        ).to.equal(200);
-        expect(
-          await status('/protected?token=wrong', upgrade, {
-            Authorization: 'Bearer unrelated-proxy-value',
-          }),
         ).to.equal(401);
-        // A valid header still authorizes alongside a wrong query token.
         expect(
           await status('/protected?token=wrong', upgrade, {
             Authorization: 'Bearer local-test-token',
@@ -341,7 +334,9 @@ describe('Function-valued route authentication', () => {
         ).to.equal(200);
       });
 
-      it(`gives ${upgrade ? 'WebSocket' : 'HTTP'} policies the token that authorized the request, not an unrelated header (#5636)`, async () => {
+      it(`reads the token only from TOKEN_HEADER on ${kind} routes, leaving Authorization to a proxy (#5636)`, async () => {
+        config.setTokenHeader('X-Browserless-Token');
+        // Policies and SDK code see the same token the server checked.
         route.strictAuthPolicy = true;
         route.auth = async (req: Request) =>
           getTokenFromRequest(req) === 'local-test-token';
@@ -351,10 +346,20 @@ describe('Function-valued route authentication', () => {
           }),
         ).to.equal(200);
         expect(
-          await status('/protected?token=wrong', upgrade, {
-            Authorization: 'Bearer local-test-token',
+          await status('/protected', upgrade, {
+            'X-Browserless-Token': 'local-test-token',
           }),
         ).to.equal(200);
+        expect(
+          await status('/protected', upgrade, {
+            Authorization: 'Bearer local-test-token',
+          }),
+        ).to.equal(401);
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            'X-Browserless-Token': 'wrong',
+          }),
+        ).to.equal(401);
       });
     }
 
