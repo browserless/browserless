@@ -4,6 +4,7 @@
 
 import { spawn } from 'child_process';
 import { watch } from 'fs';
+import { cp } from 'node:fs/promises';
 import path from 'path';
 
 /**
@@ -161,6 +162,21 @@ const startWatchers = () => {
   // Fallback: if tsc's banner never matches (e.g. a future flag change), start
   // the server anyway after a short grace period so the loop is never stuck.
   setTimeout(startServer, 15000);
+
+  // TypeScript does not emit SDL; copying it also triggers node --watch.
+  const bqlSource = path.join(cwd, 'src/bql/schema/base');
+  let bqlTimer;
+  watch(bqlSource, { recursive: true }, (_event, filename) => {
+    if (!filename?.endsWith('.graphql')) return;
+    clearTimeout(bqlTimer);
+    bqlTimer = setTimeout(() => {
+      cp(bqlSource, path.join(cwd, 'build/bql/schema/base'), {
+        recursive: true,
+      }).catch((error) =>
+        console.error('[watch] BQL schema copy failed:', error),
+      );
+    }, 100);
+  });
 
   // 3. Regenerate per-route JSON schemas when route sources change. tsc needs a
   //    moment to emit the updated .d.ts files that build-schemas reads, so this

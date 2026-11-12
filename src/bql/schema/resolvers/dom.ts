@@ -27,7 +27,15 @@ export const dom: Record<string, Resolver> = {
       timeout: args.timeout || undefined,
       executionTimeout,
     };
-    const evaluation = api.evaluate(options);
+    const evaluation = api.evaluate(options).then(({ value, ...result }) => ({
+      ...result,
+      value:
+        value == null
+          ? null
+          : typeof value === 'string' || typeof value === 'number'
+            ? String(value)
+            : JSON.stringify(value),
+    }));
     if (executionTimeout <= 0) return evaluation;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
