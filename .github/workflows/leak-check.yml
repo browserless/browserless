@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7.1.0
@@ -19,10 +19,10 @@ jobs:
           package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.2 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
 
       - name: Install modules
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 10
           max_attempts: 5
@@ -39,7 +39,7 @@ jobs:
         run: node scripts/install-adblock.js
 
       - name: Build
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 15
           max_attempts: 3
@@ -53,7 +53,7 @@ jobs:
       # NOTE it's important to not use npx playwright-core here since it'll likely install
       # a more recent version than we potentially have in our own package.json
       - name: Install browsers
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 15
           max_attempts: 5

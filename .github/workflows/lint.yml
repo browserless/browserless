@@ -7,9 +7,10 @@ permissions:
 
 jobs:
   Lint:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7.1.0
@@ -22,12 +23,12 @@ jobs:
           node scripts/ci/node-runtime.js
           node --test scripts/ci/node-runtime.test.js
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.2 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
       - name: Install modules
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
-          timeout_minutes: 10
-          max_attempts: 5
+          timeout_minutes: 4
+          max_attempts: 2
           retry_wait_seconds: 30
           command: npm clean-install
       - name: Test FFmpeg installer
@@ -35,9 +36,68 @@ jobs:
       - name: Test nvm installer integrity
         run: node --test scripts/nvm-install.test.js
       - name: Run ESLint
-        uses: nick-fields/retry@v4
+        run: npx --no-install eslint .
+
+  lockfile:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
         with:
-          timeout_minutes: 10
-          max_attempts: 5
-          retry_wait_seconds: 30
-          command: npm run lint
+          persist-credentials: false
+      - name: Install and verify workflow lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin v0.4.1
+          gh actions-lock --verify
+
+  zizmor:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install zizmor 1.32.0
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            https://github.com/zizmorcore/zizmor/releases/download/v1.32.0/zizmor-x86_64-unknown-linux-gnu.tar.gz \
+            -o zizmor.tar.gz
+          echo 'bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b  zizmor.tar.gz' | sha256sum --check
+          mkdir -p workflow-tools
+          tar -xzf zizmor.tar.gz -C workflow-tools zizmor
+          echo "$RUNNER_TEMP/workflow-tools" >> "$GITHUB_PATH"
+      - name: Audit workflows from the repository root
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: zizmor .
+
+  actionlint:
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install actionlint 1.7.12 and ShellCheck 0.11.0
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            -o actionlint.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | sha256sum --check
+          curl --fail --silent --show-error --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz \
+            -o shellcheck.tar.xz
+          echo '8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  shellcheck.tar.xz' | sha256sum --check
+          mkdir -p workflow-tools
+          tar -xzf actionlint.tar.gz -C workflow-tools actionlint
+          tar -xJf shellcheck.tar.xz --strip-components=1 -C workflow-tools shellcheck-v0.11.0/shellcheck
+          echo "$RUNNER_TEMP/workflow-tools" >> "$GITHUB_PATH"
+      - name: Check workflow expressions and shell scripts
+        run: actionlint

@@ -1,0 +1,10 @@
+rules:
+  dependabot-cooldown:
+    ignore:
+      # Approved policy: preserve the existing Dependabot configuration.
+      # npm and Actions use 3 days, rather than zizmor's recommended 7.
+      - dependabot.yml:12
+      - dependabot.yml:40
+      # Docker currently has no cooldown. Leave it unchanged, not implicitly 3.
+      # Revisit this specific exception if the Docker update policy changes.
+      - dependabot.yml:28

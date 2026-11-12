@@ -35,7 +35,7 @@ jobs:
       id-token: write
     steps:
       # No git push/pull after checkout, so don't persist credentials.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -47,7 +47,7 @@ jobs:
           package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.2 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
 
       - name: Install dependencies
         run: npm ci

@@ -9,13 +9,14 @@ permissions:
 
 jobs:
   dependabot:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'browserless/browserless'
     steps:
       - uses: hmarr/auto-approve-action@v4
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@v3.1.0
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
       - name: Enable auto-merge for Dependabot PRs

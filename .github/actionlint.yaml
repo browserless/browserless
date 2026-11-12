@@ -1,0 +1,8 @@
+# Compatibility exceptions for actionlint 1.7.12's bundled metadata only.
+# Remove this when upgrading to a version that recognizes these runners.
+# https://github.com/actions/runner-images/blob/main/README.md
+# Full-semver action inputs are not validated by 1.7.12; see the security doc.
+paths:
+  .github/workflows/*.yml:
+    ignore:
+      - '^label "ubuntu-26\.04(-arm)?" is unknown\.'

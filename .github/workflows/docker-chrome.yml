@@ -9,7 +9,7 @@ jobs:
   Test:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -17,7 +17,7 @@ jobs:
         run: echo "NODE_VERSION=$(cat .nvmrc)" >> "$GITHUB_ENV"
 
       - name: Build the base layer
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 10
           max_attempts: 5
@@ -25,7 +25,7 @@ jobs:
           command: docker build --build-arg NODE_VERSION="$NODE_VERSION" -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:"$NODE_VERSION" .
 
       - name: Build the Chrome image
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 10
           max_attempts: 5
@@ -33,7 +33,7 @@ jobs:
           command: docker build --build-arg VERSION="$NODE_VERSION" -f ./docker/chrome/Dockerfile -t ghcr.io/browserless/chrome:"$NODE_VERSION" .
 
       - name: Test the Chrome image
-        uses: nick-fields/retry@v4
+        uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 10
           max_attempts: 5

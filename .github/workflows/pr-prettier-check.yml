@@ -8,9 +8,10 @@ permissions:
 
 jobs:
   prettier:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           # Full history so origin/<base> exists for the merge-base diff below.
           fetch-depth: 0
@@ -21,6 +22,7 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       # Runs the exact Prettier version from package-lock.json — the same one
       # devs get from `npm install` and the pre-commit hook uses — without

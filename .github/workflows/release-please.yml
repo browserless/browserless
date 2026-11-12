@@ -22,7 +22,7 @@ name: Release Please
 on:
   push:
     branches: [main]
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- successful same-repo main push only; no PR artifacts (see job guard)
     workflows: ['Publish Latest Docker Images to GitHub Container Registry']
     types: [completed]
     branches: [main]
@@ -37,7 +37,8 @@ permissions: {}
 
 jobs:
   release-please:
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
     # Only our successful main-branch push publisher may cross this boundary.
     # No PR artifacts or PR head code are consumed by workflow_run.
     if: >-
@@ -55,7 +56,7 @@ jobs:
     steps:
       # App token (not GITHUB_TOKEN) so the tag/PR it creates can trigger the
       # downstream npm-publish and docker-publish workflows.
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@v3.3.0
         id: app-token
         with:
           client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
@@ -63,7 +64,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@v5.0.0
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -87,7 +88,7 @@ jobs:
       # Check out the Release PR branch so the changelog commit lands on it.
       # GITHUB_TOKEN is used to push, which intentionally does NOT re-trigger
       # workflows (no release-please loop).
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
           persist-credentials: false
@@ -98,12 +99,12 @@ jobs:
           package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
-        run: npm install -g npm@11.21.2 --ignore-scripts
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
 
       # multi:latest tracks main, so it is the image this release will ship.
       # Anonymous pull works for public packages; log in for reliability.
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
