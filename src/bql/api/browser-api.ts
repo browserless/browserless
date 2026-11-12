@@ -1067,17 +1067,22 @@ export class BQLBrowserAPI {
 
   protected selectorExpression(selector: string, root = 'document'): string {
     selector = this.resolveSelector(selector);
+    const literal = JSON.stringify(selector).replace(
+      /[<>\u2028\u2029]/g,
+      (character) =>
+        `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    );
     return `((root) => {
       const result = [];
       const visit = (scope) => {
-        result.push(...scope.querySelectorAll(${JSON.stringify(selector)}));
+        result.push(...scope.querySelectorAll(${literal}));
         for (const el of scope.querySelectorAll('*')) if (el.shadowRoot) visit(el.shadowRoot);
       };
       try {
         if (root) visit(root);
       } catch (error) {
         if (error.name !== 'SyntaxError') throw error;
-        const selected = (0, eval)(${JSON.stringify(selector)});
+        const selected = (0, eval)(${literal});
         return selected == null ? [] : selected instanceof Element ? [selected] : Array.from(selected);
       }
       return result;
