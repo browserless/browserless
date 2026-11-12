@@ -171,6 +171,13 @@ export interface Request extends http.IncomingMessage {
   body: unknown;
   parsed: URL;
   queryParams: Record<string, unknown>;
+  // The `?token=` value as supplied in the query string, before
+  // moveTokenToHeader() strips it. A header the client already sent takes
+  // precedence over it there, so this keeps it for redirects and the debugger.
+  queryToken?: string;
+  // The TOKEN_HEADER name when it isn't Authorization, so getTokenFromRequest()
+  // reads the token from the same header moveTokenToHeader() writes it to.
+  tokenHeader?: string;
 }
 
 export type Response = http.ServerResponse;

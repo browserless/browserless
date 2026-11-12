@@ -288,5 +288,54 @@ describe('Request Shimming', () => {
       expect(shimmed).not.to.include('?token=');
       expect(request.headers.authorization).to.eql(oldAuth);
     });
+
+    it('preserves the query token separately, even when an unrelated header already exists (#5636)', () => {
+      const url = 'wss://localhost?token=12345';
+      const request = {
+        url,
+        headers: { authorization: 'Bearer unrelated-value' },
+      } as unknown as http.IncomingMessage & { queryToken?: string };
+
+      moveTokenToHeader(request);
+
+      // The pre-existing, unrelated header wins for the header slot, but the
+      // query-supplied token must still be recoverable downstream - not
+      // silently discarded just because a header was already present.
+      expect(request.queryToken).to.equal('12345');
+      expect(request.headers.authorization).to.equal('Bearer unrelated-value');
+    });
+
+    it('moves the raw token into a configured token header, leaving Authorization alone (#5636)', () => {
+      const request = {
+        url: '/config?token=12345',
+        headers: { authorization: 'Basic cHJveHk6bG9naW4=' },
+      } as unknown as http.IncomingMessage & { tokenHeader?: string };
+
+      expect(moveTokenToHeader(request, 'x-browserless-token')).to.equal(
+        '/config',
+      );
+      expect(request.headers['x-browserless-token']).to.equal('12345');
+      expect(request.headers.authorization).to.equal('Basic cHJveHk6bG9naW4=');
+      expect(request.tokenHeader).to.equal('x-browserless-token');
+
+      // A token header the client already sent still wins.
+      const withHeader = {
+        url: '/config?token=12345',
+        headers: { 'x-browserless-token': 'abcde' },
+      } as unknown as http.IncomingMessage;
+      moveTokenToHeader(withHeader, 'x-browserless-token');
+      expect(withHeader.headers['x-browserless-token']).to.equal('abcde');
+    });
+
+    it('does not set queryToken when no token was supplied in the query', () => {
+      const request = {
+        url: '/debugger/',
+        headers: {},
+      } as unknown as http.IncomingMessage & { queryToken?: string };
+
+      moveTokenToHeader(request);
+
+      expect(request.queryToken).to.be.undefined;
+    });
   });
 });

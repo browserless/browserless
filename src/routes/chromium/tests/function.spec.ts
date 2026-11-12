@@ -424,4 +424,98 @@ describe('/chromium/function API', function () {
       expect(res.status).to.equal(200);
     });
   });
+
+  it('runs functions behind a proxy that sets its own Authorization header when TOKEN_HEADER is set (#5636)', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    config.setTokenHeader('x-browserless-token');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/chromium/function?token=browserless', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+        Authorization: 'Bearer unrelated-proxy-value',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('allows header-only authorization, forwarding it for the internal reconnect', async () => {
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch('http://localhost:3000/chromium/function', {
+      body: JSON.stringify(body),
+      headers: {
+        'content-type': 'application/json',
+        Authorization: 'Bearer browserless',
+      },
+      method: 'POST',
+    }).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
+
+  it('forwards a special-character query token unchanged for the internal reconnect', async () => {
+    const config = new Config();
+    const specialToken = 'bl&ess=1';
+    config.setToken(specialToken);
+    const metrics = new Metrics();
+    await start({ config, metrics });
+    const body = {
+      code: `export default async function ({ page }) {
+        return Promise.resolve({
+          data: "ok",
+          type: "application/text",
+        });
+      }`,
+      context: {},
+    };
+
+    await fetch(
+      `http://localhost:3000/chromium/function?token=${encodeURIComponent(specialToken)}`,
+      {
+        body: JSON.stringify(body),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+      },
+    ).then(async (res) => {
+      const json = await res.json();
+      expect(json).to.have.property('data');
+      expect(json.data).to.equal('ok');
+      expect(res.status).to.equal(200);
+    });
+  });
 });

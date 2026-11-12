@@ -332,6 +332,12 @@ export const fetchJson = (
   });
 
 export const getTokenFromRequest = (req: Request) => {
+  if (req.tokenHeader) {
+    // TOKEN_HEADER: only that header is read, and it carries the raw token.
+    // A ?token= a hook puts back on the URL doesn't override it.
+    const header = req.headers[req.tokenHeader];
+    return typeof header === 'string' && header ? header : null;
+  }
   const authHeader = req.headers.authorization;
   const tokenParam = req.parsed.searchParams.get('token');
   return tokenParam ?? getAuthHeaderToken(authHeader || '');

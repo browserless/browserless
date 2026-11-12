@@ -1,6 +1,7 @@
 import * as http from 'http';
 import {
   CDPLaunchOptions,
+  Request,
   convertIfBase64,
   safeParse,
 } from '@browserless.io/browserless';
@@ -15,8 +16,16 @@ const shimParam = [
 
 /**
  * Obfuscates the ?token parameter by shifting it to a header instead of a query-parameter.
+ * A header the client already sent wins. With a TOKEN_HEADER other than
+ * Authorization, the raw token goes there, leaving Authorization to a proxy.
  */
-export function moveTokenToHeader(req: http.IncomingMessage): string {
+export function moveTokenToHeader(
+  req: http.IncomingMessage,
+  tokenHeader = 'authorization',
+): string {
+  if (tokenHeader !== 'authorization') {
+    (req as Request).tokenHeader = tokenHeader;
+  }
   const requestUrl = req.url || '';
   const queryStart = requestUrl.indexOf('?');
   if (queryStart === -1) return requestUrl;
@@ -29,7 +38,12 @@ export function moveTokenToHeader(req: http.IncomingMessage): string {
 
   if (token) {
     searchParams.delete('token');
-    req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
+    // Preserved separately so downstream code can tell this exact value
+    // apart from whatever ends up in the token header below.
+    (req as Request).queryToken = token;
+    req.headers[tokenHeader] =
+      req.headers[tokenHeader] ??
+      (tokenHeader === 'authorization' ? `Bearer ${token}` : token);
     const search = searchParams.toString();
     req.url = `${rawPathname || '/'}${search ? `?${search}` : ''}`;
   }

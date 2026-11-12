@@ -259,6 +259,9 @@ export class Config extends EventEmitter {
 
   protected token = process.env.TOKEN || null;
   protected strictTokenUse = !!parseEnvVars(false, 'STRICT_TOKEN_USE');
+  protected tokenHeader = Config.validateTokenHeader(
+    process.env.TOKEN_HEADER ?? '',
+  );
   protected concurrent = +(
     process.env.CONCURRENT ??
     process.env.MAX_CONCURRENT_SESSIONS ??
@@ -350,6 +353,16 @@ export class Config extends EventEmitter {
    */
   public getStrictTokenUse(): boolean {
     return this.strictTokenUse;
+  }
+
+  /**
+   * The lowercase name of the header that carries the token, `authorization`
+   * by default. `?token=` is moved into it. Any other header carries the raw
+   * token and is the only place it is read from. Set TOKEN_HEADER when a proxy
+   * in front of browserless uses the Authorization header for itself.
+   */
+  public getTokenHeader(): string {
+    return this.tokenHeader;
   }
 
   public getDebug(): string {
@@ -726,6 +739,34 @@ export class Config extends EventEmitter {
   public setStrictTokenUse(strictTokenUse: boolean): boolean {
     this.emit('strictTokenUse', strictTokenUse);
     return (this.strictTokenUse = strictTokenUse);
+  }
+
+  public setTokenHeader(tokenHeader: string): string {
+    const normalized = Config.validateTokenHeader(tokenHeader);
+    this.emit('tokenHeader', normalized);
+    return (this.tokenHeader = normalized);
+  }
+
+  /**
+   * Lowercases a TOKEN_HEADER name, `authorization` when empty. Only
+   * Authorization or a dedicated `X-` header is accepted: standard headers
+   * are read, merged or logged by HTTP, Node, proxies or browserless itself,
+   * which can mangle or expose the token, and proxies set `X-Forwarded-*` and
+   * `X-Real-IP`. The value is left out of the error in case it is the token.
+   */
+  public static validateTokenHeader(tokenHeader: string): string {
+    const name = tokenHeader.trim().toLowerCase() || 'authorization';
+    if (
+      name !== 'authorization' &&
+      (!/^x-[!#$%&'*+.^_`|~0-9a-z-]+$/.test(name) ||
+        name.startsWith('x-forwarded-') ||
+        name === 'x-real-ip')
+    ) {
+      throw new Error(
+        'TOKEN_HEADER must be Authorization or a dedicated X- header such as X-Browserless-Token, not X-Forwarded-* or X-Real-IP',
+      );
+    }
+    return name;
   }
 
   public setTimeout(newTimeout: number): number {

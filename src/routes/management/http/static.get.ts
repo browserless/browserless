@@ -93,13 +93,13 @@ export default class StaticGetRoute extends HTTPRoute {
     const { pathname } = req.parsed;
     const config = this.config();
 
-    // `?token=` never reaches req.parsed — moveTokenToHeader() (src/shim.ts)
-    // moves it to the Authorization header before routing. Compare against
-    // the configured token(s) rather than just checking for any
-    // Authorization header, since a proxy in front of browserless may set
-    // that header unconditionally for unrelated reasons.
+    // The reset script reads the token from location.search, so check the
+    // `?token=` the client sent (kept as req.queryToken, since
+    // moveTokenToHeader() strips it), and the header token only when there is
+    // none. A proxy's own Authorization header then can't hide a valid
+    // `?token=`, and a valid header can't vouch for a wrong one.
     const configuredToken = config.getToken();
-    const requestToken = getTokenFromRequest(req);
+    const requestToken = req.queryToken ?? getTokenFromRequest(req);
     const resetDebuggerSettings =
       DEBUGGER_INDEX_PATHS.has(pathname) &&
       !!requestToken &&
@@ -180,7 +180,15 @@ export default class StaticGetRoute extends HTTPRoute {
       !pathname.endsWith('/') &&
       !pathname.endsWith('/index.html')
     ) {
-      const location = req.parsed.pathname + '/' + (req.parsed.search || '');
+      // moveTokenToHeader() strips ?token= from req.parsed.search, so re-add
+      // it from req.queryToken. Without one, keep the query string as sent.
+      let search = req.parsed.search;
+      if (req.queryToken) {
+        const params = new URLSearchParams(search);
+        params.set('token', req.queryToken);
+        search = `?${params}`;
+      }
+      const location = req.parsed.pathname + '/' + search;
       res.writeHead(301, { Location: location });
       res.end();
       return;

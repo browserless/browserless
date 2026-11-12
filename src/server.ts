@@ -22,6 +22,7 @@ import {
   WorkerWithdrawn,
   contentTypes,
   convertPathToURL,
+  getTokenFromRequest,
   isMatch,
   moveTokenToHeader,
   queryParamsToObject,
@@ -125,18 +126,36 @@ export class HTTPServer extends EventEmitter {
     return writeResponse(res, 500, 'Internal Server Error');
   }
 
-  protected onHTTPUnauthorized(_req: Request, res: Response) {
+  /**
+   * A header the client already sent wins over `?token=`, which then goes
+   * unused. That usually means a proxy sets its own header, so log it.
+   */
+  protected logIgnoredQueryToken(req: Request) {
+    if (
+      req.queryToken === undefined ||
+      getTokenFromRequest(req) === req.queryToken
+    ) {
+      return;
+    }
+    this.logger.debug(
+      `The ?token= query parameter was ignored because the request already had a "${this.config.getTokenHeader()}" header, which takes precedence. If a proxy in front of browserless sets that header, stop it from forwarding the header, send the token in it, or set TOKEN_HEADER to a header clients don't otherwise send.`,
+    );
+  }
+
+  protected onHTTPUnauthorized(req: Request, res: Response) {
     this.logger.error(
       `HTTP request is not properly authorized, responding with 401`,
     );
+    this.logIgnoredQueryToken(req);
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
   }
 
-  protected onWebsocketUnauthorized(_req: Request, socket: stream.Duplex) {
+  protected onWebsocketUnauthorized(req: Request, socket: stream.Duplex) {
     this.logger.error(
       `Websocket request is not properly authorized, responding with 401`,
     );
+    this.logIgnoredQueryToken(req);
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
   }
@@ -246,7 +265,7 @@ export class HTTPServer extends EventEmitter {
 
   protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
     const request = req as http.IncomingMessage;
-    request.url = moveTokenToHeader(request);
+    request.url = moveTokenToHeader(request, this.config.getTokenHeader());
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
@@ -478,7 +497,7 @@ export class HTTPServer extends EventEmitter {
     head: Buffer,
   ) {
     const request = req as http.IncomingMessage;
-    request.url = moveTokenToHeader(request);
+    request.url = moveTokenToHeader(request, this.config.getTokenHeader());
 
     this.logger.trace(
       `Handling inbound WebSocket request on "${request.url || ''}"`,

@@ -300,6 +300,29 @@ describe('Management APIs', function () {
       );
 
       expect(res.status).to.equal(301);
+      // moveTokenToHeader() strips the token from req.parsed before this
+      // handler runs, so it must be re-added from req.queryToken, not
+      // just copied from req.parsed.
+      expect(res.headers.get('location')).to.equal(
+        '/debugger/?token=6R0W53R135510',
+      );
+    });
+
+    it('adds no query string across the /debugger redirect when none was supplied', async function () {
+      process.env.ENABLE_DEBUGGER = 'true';
+      const config = new Config();
+
+      if (!(await exists(config.getDebuggerDir()))) {
+        this.skip();
+      }
+
+      await start({ config });
+
+      const res = await fetch('http://localhost:3000/debugger', {
+        redirect: 'manual',
+      });
+
+      expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/debugger/');
     });
 
@@ -591,6 +614,29 @@ describe('Management APIs', function () {
         expect(headerAuthBlob.apiSettings.baseURL).to.equal(
           'ws://stale-host:3000',
         );
+
+        // A valid header authorizes the request, but a wrong ?token= must
+        // still block the script - it can only read location.search, so
+        // injecting here would persist that wrong value into the baseURL.
+        const withWrongQueryToken = await fetch(
+          'http://localhost:3000/debugger/?token=totally-wrong',
+          { headers: { Authorization: 'Bearer 6R0W53R135510' } },
+        );
+        expect(withWrongQueryToken.status).to.equal(200);
+        expect(await withWrongQueryToken.text()).to.not.include(
+          'browserless-debugger',
+        );
+
+        // A valid ?token= still gets the script behind a proxy's unrelated
+        // Authorization header: it's the value the script persists.
+        const withValidQueryBehindProxy = await fetch(
+          'http://localhost:3000/debugger/?token=6R0W53R135510',
+          { headers: { Authorization: 'Bearer some-other-value' } },
+        );
+        expect(withValidQueryBehindProxy.status).to.equal(200);
+        expect(await withValidQueryBehindProxy.text()).to.include(
+          'browserless-debugger',
+        );
       } finally {
         if (previousStatic === undefined) {
           delete process.env.STATIC;
@@ -695,7 +741,7 @@ describe('Management APIs', function () {
       }
     });
 
-    it('redirects /docs to /docs/', async () => {
+    it('redirects /docs to /docs/, preserving a supplied query token', async () => {
       await start();
 
       const res = await fetch(
@@ -704,7 +750,37 @@ describe('Management APIs', function () {
       );
 
       expect(res.status).to.equal(301);
+      expect(res.headers.get('location')).to.equal(
+        '/docs/?token=6R0W53R135510',
+      );
+
+      // The token is kept as supplied, even when it's wrong, alongside any
+      // other params.
+      const withOtherParams = await fetch(
+        'http://localhost:3000/docs?token=wrong&x=1',
+        { redirect: 'manual' },
+      );
+      expect(withOtherParams.status).to.equal(301);
+      expect(withOtherParams.headers.get('location')).to.equal(
+        '/docs/?x=1&token=wrong',
+      );
+    });
+
+    it('keeps a token-less query string unchanged across the /docs redirect', async () => {
+      await start();
+
+      const res = await fetch('http://localhost:3000/docs', {
+        redirect: 'manual',
+      });
+
+      expect(res.status).to.equal(301);
       expect(res.headers.get('location')).to.equal('/docs/');
+
+      const withParams = await fetch('http://localhost:3000/docs?x=%2B&y', {
+        redirect: 'manual',
+      });
+      expect(withParams.status).to.equal(301);
+      expect(withParams.headers.get('location')).to.equal('/docs/?x=%2B&y');
     });
 
     it('handles requests without authentication token for static files', async () => {

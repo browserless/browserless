@@ -292,15 +292,22 @@ describe('Function-valued route authentication', () => {
       await server.shutdown();
     });
 
-    const status = (path: string, upgrade = false) =>
+    const status = (
+      path: string,
+      upgrade = false,
+      extraHeaders: Record<string, string> = {},
+    ) =>
       new Promise<number>((resolve, reject) => {
         httpRequest(
           {
             port,
             path,
-            headers: upgrade
-              ? { Connection: 'Upgrade', Upgrade: 'websocket' }
-              : {},
+            headers: {
+              ...(upgrade
+                ? { Connection: 'Upgrade', Upgrade: 'websocket' }
+                : {}),
+              ...extraHeaders,
+            },
           },
           (res) => {
             res.resume();
@@ -310,6 +317,63 @@ describe('Function-valued route authentication', () => {
           .on('error', reject)
           .end();
       });
+
+    for (const upgrade of [false, true]) {
+      const kind = upgrade ? 'WebSocket' : 'HTTP';
+
+      it(`keeps a header the client already sent ahead of ?token= on ${kind} routes`, async () => {
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            Authorization: 'Bearer unrelated-proxy-value',
+          }),
+        ).to.equal(401);
+        expect(
+          await status('/protected?token=wrong', upgrade, {
+            Authorization: 'Bearer local-test-token',
+          }),
+        ).to.equal(200);
+      });
+
+      it(`reads the token only from TOKEN_HEADER on ${kind} routes, leaving Authorization to a proxy (#5636)`, async () => {
+        config.setTokenHeader('X-Browserless-Token');
+        // Policies and SDK code see the same token the server checked.
+        route.strictAuthPolicy = true;
+        route.auth = async (req: Request) =>
+          getTokenFromRequest(req) === 'local-test-token';
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            Authorization: 'Bearer unrelated-proxy-value',
+          }),
+        ).to.equal(200);
+        expect(
+          await status('/protected', upgrade, {
+            'X-Browserless-Token': 'local-test-token',
+          }),
+        ).to.equal(200);
+        expect(
+          await status('/protected', upgrade, {
+            Authorization: 'Bearer local-test-token',
+          }),
+        ).to.equal(401);
+        expect(
+          await status('/protected?token=local-test-token', upgrade, {
+            'X-Browserless-Token': 'wrong',
+          }),
+        ).to.equal(401);
+        // Nor does a ?token= a before hook puts back on the URL.
+        server['hooks'] = new (class extends Hooks {
+          async before({ req }: Parameters<Hooks['before']>[0]) {
+            req.url += `${req.url?.includes('?') ? '&' : '?'}token=local-test-token`;
+            return true;
+          }
+        })();
+        expect(
+          await status('/protected', upgrade, {
+            'X-Browserless-Token': 'wrong',
+          }),
+        ).to.equal(401);
+      });
+    }
 
     for (const upgrade of [false, true]) {
       it(`honors Token strict-auth overrides on public ${upgrade ? 'WebSocket' : 'HTTP'} routes`, async () => {

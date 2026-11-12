@@ -49,6 +49,53 @@ describe('Config', () => {
     }
   });
 
+  it('accepts only Authorization or a dedicated X- header as TOKEN_HEADER', () => {
+    const original = process.env.TOKEN_HEADER;
+    try {
+      for (const [value, expected] of [
+        [undefined, 'authorization'],
+        ['', 'authorization'],
+        [' Authorization ', 'authorization'],
+        [' X-Browserless-Token ', 'x-browserless-token'],
+      ]) {
+        if (value === undefined) delete process.env.TOKEN_HEADER;
+        else process.env.TOKEN_HEADER = value;
+        expect(new Config().getTokenHeader()).to.equal(expected);
+      }
+      // Standard headers get read, merged or logged on the way (Upgrade is
+      // logged before routing), proxies set X-Forwarded-* and X-Real-IP, and
+      // a mistyped value may be the token itself, so it's never echoed.
+      for (const value of [
+        'upgrade',
+        'set-cookie',
+        'cookie',
+        'host',
+        'content-length',
+        'user-agent',
+        'proxy-authorization',
+        'browserless-token',
+        'X-Forwarded-For',
+        'x-real-ip',
+        'x-',
+        'x-bad header',
+        'private-invalid-value',
+      ]) {
+        process.env.TOKEN_HEADER = value;
+        expect(() => new Config())
+          .to.throw(/TOKEN_HEADER/)
+          .with.property('message')
+          .that.does.not.include('private-invalid-value');
+        delete process.env.TOKEN_HEADER;
+        expect(() => new Config().setTokenHeader(value)).to.throw(
+          /TOKEN_HEADER/,
+        );
+      }
+    } finally {
+      if (original === undefined) delete process.env.TOKEN_HEADER;
+      else process.env.TOKEN_HEADER = original;
+    }
+  });
+
   describe('getSelfNavigationHosts', () => {
     it('returns the server own host:port, deduped across the http + ws address', () => {
       const config = new Config();
