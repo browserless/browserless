@@ -33,8 +33,6 @@ workflows:
     '.github/workflows/docker-webkit.yml':
         - 'actions/checkout@v7.0.1'
         - 'nick-fields/retry@v4.0.0'
-    '.github/workflows/ghcr-token-probe.yml':
-        - 'docker/login-action@v4.8.0'
     '.github/workflows/leak-check.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-node@v7.1.0'

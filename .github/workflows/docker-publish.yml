@@ -21,11 +21,6 @@ name: Publish Docker Images to GitHub Container Registry
 
 on:
   workflow_call:
-    secrets:
-      GHCR_USERNAME:
-        required: true
-      GHCR_PASSWORD:
-        required: true
     inputs:
       tag:
         description: >-
@@ -64,6 +59,9 @@ jobs:
   base-build:
     name: Build base (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -87,8 +85,8 @@ jobs:
         uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push base by digest
         id: build
@@ -132,6 +130,8 @@ jobs:
     name: Merge base manifest
     # imagetools only needs the Docker client/Buildx, not a Docker daemon.
     runs-on: ubuntu-slim
+    permissions:
+      packages: write
     timeout-minutes: 15
     needs: base-build
     # TAG is passed via env rather than interpolated into run: scripts to avoid
@@ -150,8 +150,8 @@ jobs:
         uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Create and push base manifest list
         working-directory: ${{ runner.temp }}/digests
@@ -171,6 +171,9 @@ jobs:
   images-build:
     name: Build ${{ matrix.image }} (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
     needs: base-merge
     strategy:
       fail-fast: false
@@ -301,8 +304,8 @@ jobs:
         uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push ${{ matrix.image }} by digest
         id: build
@@ -346,6 +349,8 @@ jobs:
     name: Merge ${{ matrix.image }} manifest
     # imagetools only needs the Docker client/Buildx, not a Docker daemon.
     runs-on: ubuntu-slim
+    permissions:
+      packages: write
     timeout-minutes: 15
     needs: images-build
     # Run even when some images-build legs failed. images-build is one matrix
@@ -391,8 +396,8 @@ jobs:
         uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       # Guard the decoupling above: now that this leg runs even when a sibling
       # image failed, make sure THIS image is whole before tagging. Missing a

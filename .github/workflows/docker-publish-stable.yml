@@ -9,9 +9,9 @@ permissions:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/docker-publish.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
-    secrets:
-      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-      GHCR_PASSWORD: ${{ secrets.GHCR_PASSWORD }}
     with:
       tag: ${{ github.ref_name }}

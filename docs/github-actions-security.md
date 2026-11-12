@@ -125,18 +125,29 @@ only contents and pull-request permissions. The release changelog push uses a
 step-local token and transient Git credential helper, not stored checkout auth.
 There is no `pull_request_target` workflow.
 
-Docker publishing explicitly declares and forwards only `GHCR_USERNAME` and
-`GHCR_PASSWORD`; it no longer uses `secrets: inherit`. The existing personal-token
-login remains. The release browser-version probe's existing read login with
-`GITHUB_TOKEN` is unchanged and is not proof that publishing works with it.
+All four Docker publishing jobs log in with `github.actor` and `github.token`,
+with job-scoped `packages: write`. Build jobs also have `contents: read` for
+checkout; manifest-only jobs need no source access. The two reusable-workflow
+callers explicitly permit those scopes on their publishing job, since callees
+cannot elevate the caller's token. No GHCR personal-token secrets are declared or
+forwarded. The release browser-version probe retains its read-only package scope.
 
-On 2026-11-12, read-only package API requests returned HTTP 403 for all nine
-packages: `base`, `chromium`, `chrome`, `edge`, `firefox`, `webkit`, `webkit-heavy`,
-`multi`, and `multi-heavy`. The available integration could not inspect package
-settings/Manage Actions access or establish write access. No package pushes,
-scratch tags, or settings changes were attempted. Switching publishing credentials
-requires evidence for **every** package; package linkage or successful reads alone
-are insufficient. Any write probe or settings change requires separate approval.
+After all nine packages granted this repository Admin under Manage Actions
+access, the [2026-11-12 token proof](https://github.com/browserless/browserless/actions/runs/43238389609)
+copied existing published manifests with `docker buildx imagetools create` using
+only `github.token` on `ubuntu-slim`. Every package passed both the push and
+cleanup: `base`, `chromium`, `chrome`, `edge`, `firefox`, `webkit`, `webkit-heavy`,
+`multi`, and `multi-heavy`.
+
+Only the disposable `gh-token-auth-test` tags were written. Unique index
+annotations created isolated versions so deleting them could not delete a
+version shared by production tags. Cleanup checked that each version was new and
+had only the test tag, deleted it with the same workflow token, then confirmed
+the tag was absent. No `latest` or `v2.*` tag was modified and no image was built.
+The temporary workflow was removed and the lockfile regenerated after the proof.
+This proves registry access and client-only manifest operations, not a full
+production build/publish. Any future write probe or access-setting change still
+requires separate approval.
 
 ## Runner allocation
 
