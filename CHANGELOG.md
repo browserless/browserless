@@ -19,6 +19,20 @@
 
 * bump Node to v26.13.1 ([#5675](https://github.com/browserless/browserless/issues/5675)) ([77e5068](https://github.com/browserless/browserless/commit/77e50680bd2592da5729ad4a905cb50c82cf6e22))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.65.0`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `158.0.8127.18`
+- Chrome: `157.0.8103.50` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.46` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.62.0](https://github.com/browserless/browserless/compare/v2.61.0...v2.62.0) (2026-11-10)
 
 
