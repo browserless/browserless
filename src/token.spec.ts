@@ -360,6 +360,18 @@ describe('Function-valued route authentication', () => {
             'X-Browserless-Token': 'wrong',
           }),
         ).to.equal(401);
+        // Nor does a ?token= a before hook puts back on the URL.
+        server['hooks'] = new (class extends Hooks {
+          async before({ req }: Parameters<Hooks['before']>[0]) {
+            req.url += `${req.url?.includes('?') ? '&' : '?'}token=local-test-token`;
+            return true;
+          }
+        })();
+        expect(
+          await status('/protected', upgrade, {
+            'X-Browserless-Token': 'wrong',
+          }),
+        ).to.equal(401);
       });
     }
 

@@ -139,7 +139,7 @@ Without a configured `TOKEN`, the default Token service leaves policies inert an
 
 Clients send the token as a `?token=` query parameter or in the `Authorization` header (`Bearer <token>`, or Basic). Before hooks run, browserless moves `?token=` into that header so it isn't logged. A header the client already sent takes precedence, and when a `?token=` it hides leads to a 401, that is logged at debug level.
 
-If a proxy in front of browserless uses the `Authorization` header for itself, set `TOKEN_HEADER` to another header name, such as `X-Browserless-Token`. `?token=` is then moved into that header as the raw token, the proxy's `Authorization` header passes through untouched, and the token is read only from that header, so clients that send it in `Authorization` must send it in `TOKEN_HEADER` instead. Hooks that read the token from `req.headers.authorization` should read `req.headers[config.getTokenHeader()]`; `getTokenFromRequest` follows the setting.
+If a proxy in front of browserless uses the `Authorization` header for itself, set `TOKEN_HEADER` to a dedicated header, such as `X-Browserless-Token`. It must be `Authorization` or an `X-` header other than the `X-Forwarded-*` and `X-Real-IP` headers proxies set; browserless refuses to start otherwise, since standard headers are read, merged or logged along the way. `?token=` is then moved into that header as the raw token, the proxy's `Authorization` header passes through untouched, and the token is read only from that header: clients that send it in `Authorization` must send it in `TOKEN_HEADER` instead, and a `?token=` a hook adds to the URL is ignored. Hooks that read the token from `req.headers.authorization` should read `req.headers[config.getTokenHeader()]`; `getTokenFromRequest` follows the setting.
 
 ### Basic HTTP Route
 
@@ -320,7 +320,7 @@ Browserless comes out-of-the-box with many utilities and functions to help with 
 - `isConnected(res)` Checks if the underlying connection is still there. Useful for exiting early if a request disconnects.
 - `writeResponse(res, code, message, contentType)` Function that writes a basic response, excepting the Response object, the HTTP Code, the message and the content type.
 - `jsonResponse(res, code, object)` Function that writes JSON responses back with the appropriate headers.
-- `getTokenFromRequest(req)` Gets the token from the request: a `token` query parameter still in `req.parsed` (for example one a `before` hook added), otherwise the token header, which is `Authorization` with a Basic or Bearer value, or the raw value of the `TOKEN_HEADER` header when that is set. Browserless moves `?token=` into the token header before hooks run, so a token header the client already sent takes precedence over it.
+- `getTokenFromRequest(req)` Gets the token from the request. By default that is a `token` query parameter still in `req.parsed` (for example one a `before` hook added), otherwise the `Authorization` header with a Basic or Bearer value. Browserless moves `?token=` into the header before hooks run, so a header the client already sent takes precedence over it. When `TOKEN_HEADER` is set, only the raw value of that header is read.
 - `readBody(req)` Parses the request's body and returns the result as a string or object for JSON content-types.
 - `safeParse(JSON)` Attempts to parse the input from JSON to object, returning null if it fails.
 - `sleep(milliseconds)` Sleeps or waits for the number of milliseconds passed. Async.
