@@ -194,6 +194,70 @@ describe('raw CDP browser primitives', () => {
       (await mapped[0].mapSelector({ selector: 'b' }))[0].innerText,
       'Hello',
     );
+    await api.evaluate({
+      content: `document.body.insertAdjacentHTML('beforeend', '<article><div class="row"><span>First</span></div></article><article><div class="row"><span>Second</span></div></article>')`,
+    });
+    const articles = await api.mapSelector({ selector: 'article' });
+    const rows = await articles[1].mapSelector({ selector: '.row' });
+    assert.equal(
+      (await rows[0].mapSelector({ selector: 'span' }))[0].innerText,
+      'Second',
+    );
+    const cleaned = await api.html({
+      clean: {
+        removeNonTextNodes: true,
+        selectors: ['button'],
+        removeAttributes: true,
+        attributes: ['id'],
+        mode: 'DENY',
+        removeRegex: false,
+        regexes: [],
+      },
+    });
+    assert.ok(!cleaned.html.includes('>Click</button>'));
+    assert.ok(!cleaned.html.includes('id="read"'));
+    assert.equal(
+      (await api.querySelector({ selector: '#click' })).innerText,
+      'Click',
+    );
+    assert.equal(
+      (
+        await api.text({
+          selector: '#read',
+          clean: {
+            removeNonTextNodes: true,
+            selectors: ['b'],
+            removeAttributes: false,
+            removeRegex: false,
+            regexes: [],
+          },
+        })
+      ).text,
+      '',
+    );
+    assert.equal((await api.text({ selector: '#read' })).text, 'Hello');
+    await api.evaluate({
+      content: `document.querySelector('#read').insertAdjacentHTML('beforeend', '<a href="/original">Link</a>')`,
+    });
+    const rewritten = await api.html({
+      selector: '#read',
+      rewrite: {
+        baseURL: origin,
+        resources: [{ url: origin + '/original', path: '/offline' }],
+      },
+    });
+    assert.ok(rewritten.html.includes('href="/offline"'));
+    assert.equal(
+      (
+        await api.evaluate({
+          content: `document.querySelector('#read a').getAttribute('href')`,
+        })
+      ).value,
+      '/original',
+    );
+    await api.evaluate({
+      content: `document.querySelector('#read a').remove()`,
+    });
     await assert.rejects(
       api.querySelector({ selector: '< iframe button' }),
       /not supported/,
@@ -307,6 +371,16 @@ describe('raw CDP browser primitives', () => {
       'PNG',
     );
     assert.ok(Buffer.from(screenshot.base64, 'base64').readUInt32BE(20) > 2000);
+    const scaled = await api.screenshot({
+      selector: '#read',
+      options: {
+        type: 'png',
+        clip: { x: 0, y: 0, width: 40, height: 20, scale: 2 },
+      },
+    });
+    const scaledPng = Buffer.from(scaled.base64, 'base64');
+    assert.equal(scaledPng.readUInt32BE(16), 80);
+    assert.equal(scaledPng.readUInt32BE(20), 40);
     const resized = await api.screenshot({
       options: { fullPage: true, captureBeyondViewport: false },
     });
