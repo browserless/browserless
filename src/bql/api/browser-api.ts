@@ -325,6 +325,8 @@ export class BQLBrowserAPI {
   private rules: Array<{ filter: Filter; decision: FetchDecision }> = [];
   private requests = new Map<string, NetworkRecord>();
   private responses = new Map<string, NetworkRecord>();
+  private failedRequests = new Set<string>();
+  private navigationError: string | null = null;
   private responseOrigins = new Map<string, ResponseOrigin>();
   private responseBodyBytes = 0;
   private responseMetadata = new Map<string, ResponseMetadata>();
@@ -658,26 +660,36 @@ export class BQLBrowserAPI {
       'Network.loadingFinished',
       'Network.loadingFailed',
     ] as const)
-      listen(event, (e: { requestId: string }) => {
-        pending.delete(e.requestId);
-        const challenges = this.authChallenges.get(cdp);
-        for (const [id, challenge] of challenges ?? []) {
-          if (challenge.networkId === e.requestId) challenges!.delete(id);
-        }
-        const origin = this.responseOrigins.get(e.requestId);
-        if (origin?.cdp === cdp) {
-          if (event === 'Network.loadingFinished') {
-            void this.captureResponseBody(e.requestId, origin);
-          } else {
-            origin.pending = false;
-            origin.failed = true;
-            this.events.emit('body', e.requestId);
+      listen(
+        event,
+        (e: { requestId: string; canceled?: boolean; errorText?: string }) => {
+          pending.delete(e.requestId);
+          const challenges = this.authChallenges.get(cdp);
+          for (const [id, challenge] of challenges ?? []) {
+            if (challenge.networkId === e.requestId) challenges!.delete(id);
           }
-        }
-        if (cdp !== this.mainCDP) return;
-        this.inflight.delete(e.requestId);
-        this.events.emit('network-change');
-      });
+          const origin = this.responseOrigins.get(e.requestId);
+          if (origin?.cdp === cdp) {
+            if (event === 'Network.loadingFinished') {
+              void this.captureResponseBody(e.requestId, origin);
+            } else {
+              origin.pending = false;
+              origin.failed = true;
+              this.events.emit('body', e.requestId);
+            }
+          }
+          if (cdp !== this.mainCDP) return;
+          if (
+            event === 'Network.loadingFailed' &&
+            !e.canceled &&
+            e.errorText !== 'net::ERR_BLOCKED_BY_CLIENT'
+          ) {
+            this.failedRequests.add(e.requestId);
+          }
+          this.inflight.delete(e.requestId);
+          this.events.emit('network-change');
+        },
+      );
     listen('Fetch.requestPaused', (e: Protocol.Fetch.RequestPausedEvent) => {
       if (this.httpAuth) {
         let challenges = this.authChallenges.get(cdp);
@@ -687,10 +699,10 @@ export class BQLBrowserAPI {
           networkId: e.networkId,
         });
       }
-      void this.dispatchFetch(e, cdp).catch(() => {
+      void this.dispatchFetch(e, cdp).catch((error: unknown) => {
         // A paused request may disappear during navigation or target teardown.
         // Its terminal-command failure does not describe the active navigation.
-        this.logger.error?.('Fetch dispatch failed');
+        this.logFetchReplyError(error);
       });
     });
     listen('Fetch.authRequired', (event: Protocol.Fetch.AuthRequiredEvent) => {
@@ -728,7 +740,7 @@ export class BQLBrowserAPI {
           requestId: event.requestId,
           authChallengeResponse,
         })
-        .catch(() => this.logger.error?.('HTTP authentication failed'));
+        .catch((error: unknown) => this.logFetchReplyError(error));
     });
     listen(
       'Runtime.consoleAPICalled',
@@ -932,6 +944,11 @@ export class BQLBrowserAPI {
     });
     if (intentionalDocumentReject)
       this.events.emit('document-rejected', cdp, event.request.url);
+  }
+
+  protected logFetchReplyError(_error: unknown): void {
+    void _error;
+    this.logger.error?.('Fetch reply failed');
   }
 
   public preferences({ timeout }: { timeout?: number | null }) {
@@ -1338,11 +1355,21 @@ export class BQLBrowserAPI {
       content: `(() => {
       const root = ${mode === 'html' && !args.selector ? 'document' : `${query}[0]`};
       const rewrite = ${JSON.stringify(args.rewrite ?? null)};
-      if (rewrite) for (const el of document.querySelectorAll('[src],[href]')) for (const name of ['src','href']) {
-        const raw = el.getAttribute(name); if (!raw) continue;
-        const url = new URL(raw,rewrite.baseURL).href;
-        const resource = rewrite.resources.find(r => r.url === url);
-        if (resource) el.setAttribute(name,resource.path);
+      if (rewrite) {
+        const paths = new Map(rewrite.resources.map(r => [r.url, r.path]));
+        const replace = raw => {
+          try { return paths.get(new URL(raw, rewrite.baseURL).href) ?? raw; }
+          catch { return raw; }
+        };
+        for (const el of document.querySelectorAll('[src],[href],[srcset]')) for (const name of ['src','href','srcset']) {
+          const raw = el.getAttribute(name); if (!raw) continue;
+          const value = name === 'srcset' ? raw.split(',').map(candidate => {
+            const parts = candidate.trim().split(/\\s+/);
+            if (parts[0]) parts[0] = replace(parts[0]);
+            return parts.join(' ');
+          }).join(', ') : replace(raw);
+          el.setAttribute(name, value);
+        }
       }
       const clean = ${JSON.stringify(args.clean ?? null)};
       if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of document.querySelectorAll(sel)) el.remove();
@@ -1640,6 +1667,7 @@ export class BQLBrowserAPI {
   private resetNetwork() {
     this.requests.clear();
     this.responses.clear();
+    this.failedRequests.clear();
     this.networkOwners.clear();
     this.clearResponseMetadata();
     for (const id of this.responseOrigins.keys())
@@ -1649,6 +1677,42 @@ export class BQLBrowserAPI {
     this.rejectedDocuments.clear();
     this.events.emit('network-change');
   }
+
+  protected isIntentionalResource(resource: {
+    url: string;
+    method: string;
+    type: string;
+  }): boolean {
+    return this.rules.some(
+      ({ filter, decision }) =>
+        (decision.method === 'Fetch.failRequest' ||
+          decision.method === 'Fetch.fulfillRequest') &&
+        matches(resource, filter),
+    );
+  }
+
+  public failedSubResources(): { total: number; stylesheets: number } {
+    const failed = new Map<string, NetworkRecord>();
+    for (const id of this.failedRequests) {
+      const request = this.requests.get(id);
+      if (request) failed.set(id, request);
+    }
+    // Responses are recorded before extra-info arrives, so pending HTTP errors
+    // are counted too, without counting the same request twice.
+    for (const [id, response] of this.responses) {
+      if ((response.status ?? 0) >= 400) failed.set(id, response);
+    }
+    let total = 0;
+    let stylesheets = 0;
+    for (const resource of failed.values()) {
+      if (resource.type === 'document' || this.isIntentionalResource(resource))
+        continue;
+      total++;
+      if (resource.type === 'stylesheet') stylesheets++;
+    }
+    return { total, stylesheets };
+  }
+
   private async navigate(
     command: 'Page.navigate' | 'Page.reload' | 'Page.navigateToHistoryEntry',
     params:
@@ -1662,6 +1726,8 @@ export class BQLBrowserAPI {
     if (url) await this.assertNavigationAllowed(url);
     await this.beforeNavigate(url);
     this.resetNetwork();
+    this.navigationError = null;
+    let errorText: string | null = null;
     const waiting = this.waitForNavigation(args.waitUntil, args.timeout);
     const sent = this.mainCDP
       .send(command, params)
@@ -1675,8 +1741,9 @@ export class BQLBrowserAPI {
                 rule.decision.method === 'Fetch.failRequest' &&
                 matches({ url, method: 'GET', type: 'Document' }, rule.filter),
             ));
-        if (!intentional) throw new Error(r.errorText);
-        return true;
+        errorText = r.errorText;
+        if (!intentional) this.onNavigationError(r.errorText);
+        return intentional;
       })
       .catch((error: unknown) => {
         this.events.emit('failure', error);
@@ -1691,9 +1758,20 @@ export class BQLBrowserAPI {
         ip: null,
         port: null,
       });
+    this.navigationError =
+      result.status == null && !result.rejected ? errorText : null;
     await this.afterNavigate(result);
     return result;
   }
+
+  protected onNavigationError(errorText: string): void {
+    throw new Error(errorText);
+  }
+
+  public lastNavigationError(): string | null {
+    return this.navigationError;
+  }
+
   public goto({
     url,
     referer,

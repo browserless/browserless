@@ -28,6 +28,29 @@ class API extends BQLBrowserAPI {
 }
 
 describe('BrowserQL primitive contracts', () => {
+  it('rejects unsafe session deadlines before starting a browser', async () => {
+    let starts = 0;
+    const service = new BrowserQL({
+      apiFactory: () => {
+        starts++;
+        return new API(options);
+      },
+    });
+    for (const timeout of [-1, 0, 0.5, 2147483648]) {
+      const context = service.createContext(options);
+      const result = await service.execute(
+        { query: `mutation { preferences(timeout: ${timeout}) { timeout } }` },
+        context,
+      );
+      assert.match(
+        result.errors?.[0].message ?? '',
+        /between 1 and 2147483647/,
+      );
+      await context.close();
+    }
+    assert.equal(starts, 0);
+  });
+
   it('separates script fetch and execution deadlines and normalizes nullable sources', async () => {
     const api = new API(options);
     const service = new BrowserQL({ apiFactory: () => api });

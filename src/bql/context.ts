@@ -9,6 +9,7 @@ export type APIFactory<API extends BQLBrowserAPI = BQLBrowserAPI> = (
 export class Context<API extends BQLBrowserAPI = BQLBrowserAPI> {
   private started?: Promise<API>;
   private api?: API;
+  private initialized = false;
   private disconnectListeners = new Set<() => void>();
   private disconnectBridge?: () => void;
   private closing?: Promise<void>;
@@ -34,6 +35,7 @@ export class Context<API extends BQLBrowserAPI = BQLBrowserAPI> {
         });
         try {
           await api.start();
+          this.initialized = true;
           return api;
         } catch (error) {
           this.disconnectBridge?.();
@@ -44,6 +46,10 @@ export class Context<API extends BQLBrowserAPI = BQLBrowserAPI> {
       });
     }
     return this.started;
+  }
+
+  public startedBrowser(): API | undefined {
+    return this.initialized ? this.api : undefined;
   }
 
   public runSerial<T>(handler: () => T | PromiseLike<T>): Promise<T> {

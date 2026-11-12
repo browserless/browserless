@@ -239,6 +239,21 @@ describe('BrowserQL schema and execution', () => {
     assert.deepEqual(plain(result), {
       data: { first: { aliased: value }, second: { value } },
     });
+    for (const name of ['', 'a}b', 'a.b']) {
+      const context = service.createContext(options);
+      const placeholder = JSON.stringify('${' + name + '} / ${unknown}');
+      const literal = await service.execute(
+        {
+          query: `mutation($input:String!) { first:echo(value:$input) { value @export(as:${JSON.stringify(name)}) } second:echo(value:${placeholder}) { value } }`,
+          variables: { input: value },
+        },
+        context,
+      );
+      assert.deepEqual(plain(literal), {
+        data: { first: { value }, second: { value: value + ' / ${unknown}' } },
+      });
+      await context.close();
+    }
     for (const variables of [undefined, null]) {
       const context = service.createContext(options);
       assert.deepEqual(
@@ -305,14 +320,13 @@ describe('BrowserQL schema and execution', () => {
         await service.execute(
           {
             query:
-              'mutation { zero:preferences(timeout:0) { timeout } null:preferences(timeout:null) { timeout } reset:preferences { timeout } }',
+              'mutation { null:preferences(timeout:null) { timeout } reset:preferences { timeout } }',
           },
           context,
         ),
       ),
       {
         data: {
-          zero: { timeout: 17 },
           null: { timeout: 17 },
           reset: { timeout: 30000 },
         },

@@ -123,12 +123,13 @@ export async function executeWithChaining(
     };
     const replaced = visit(single, {
       StringValue(node) {
-        return {
-          ...node,
-          value: node.value.replace(/\$\{([^}]+)\}/g, (match, name: string) =>
-            Object.hasOwn(exports, name) ? String(exports[name]) : match,
-          ),
-        };
+        let value = node.value;
+        for (const [name, exportedValue] of Object.entries(exports)) {
+          value = value.replaceAll('${' + name + '}', () =>
+            String(exportedValue),
+          );
+        }
+        return { ...node, value };
       },
     });
     const result = await execute({ ...args, document: replaced });
