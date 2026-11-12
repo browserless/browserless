@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.63.0](https://github.com/browserless/browserless/compare/v2.62.0...v2.63.0) (2026-11-12)
+
+
+### Features
+
+* add TOKEN_HEADER and keep ?token= across debugger redirects ([#5674](https://github.com/browserless/browserless/issues/5674)) ([37f1b0a](https://github.com/browserless/browserless/commit/37f1b0ac6b98683934c70cb1b09d6f91d294977a))
+* make strict route auth policies opt-in ([#5676](https://github.com/browserless/browserless/issues/5676)) ([3ce2dc2](https://github.com/browserless/browserless/commit/3ce2dc2e46b4e55ea27d0092df85c1252b405bc9))
+
+
+### Bug Fixes
+
+* enforce route authentication policies ([#5670](https://github.com/browserless/browserless/issues/5670)) ([c6cd2d9](https://github.com/browserless/browserless/commit/c6cd2d9fda6ff843a9211d8c38ea6d006e839685))
+* expose per-session CPU and memory in /sessions ([#5615](https://github.com/browserless/browserless/issues/5615)) ([#5616](https://github.com/browserless/browserless/issues/5616)) ([9695440](https://github.com/browserless/browserless/commit/96954409de4f60f9abf394d39d31a25bfeebb55c))
+
+
+### Build System & Runtime
+
+* bump Node to v26.13.1 ([#5675](https://github.com/browserless/browserless/issues/5675)) ([77e5068](https://github.com/browserless/browserless/commit/77e50680bd2592da5729ad4a905cb50c82cf6e22))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.16.0`
+- playwright-core: `1.65.0`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `158.0.8127.18`
+- Chrome: `157.0.8103.50` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.46` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.62.0](https://github.com/browserless/browserless/compare/v2.61.0...v2.62.0) (2026-11-10)
 
 
