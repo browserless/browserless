@@ -41,6 +41,7 @@ jobs:
       - name: Test the multi image
         uses: nick-fields/retry@v4.0.0
         with:
+          # Includes dependency installation and all browser suites.
           timeout_minutes: 15
           max_attempts: 5
           retry_wait_seconds: 30
