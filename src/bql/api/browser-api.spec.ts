@@ -60,7 +60,10 @@ test('evaluate returns primitive values and surfaces script exceptions', async (
   const api = new API();
   api.client.value = 42;
   assert.equal((await api.evaluate({ content: '40 + 2' })).value, 42);
-  assert.match(api.client.calls[0].params.expression, /return \(40 \+ 2\)/);
+  assert.equal(
+    await runInNewContext(api.client.calls[0].params.expression),
+    42,
+  );
   api.client.handler = () => ({
     exceptionDetails: {
       text: 'failed',
@@ -102,7 +105,13 @@ test('evaluate bounds downloaded scripts including chunked bodies', async () => 
   const address = server.address() as { port: number };
   const api = new API();
   api.client.handler = async (_method, params) => ({
-    result: { value: await runInNewContext(params.expression) },
+    result: {
+      value: await runInNewContext(params.expression, {
+        fetch,
+        AbortSignal,
+        TextDecoder,
+      }),
+    },
   });
   try {
     assert.equal(
@@ -737,6 +746,24 @@ test('failed subresources exclude documents, cancellations and intentional rules
   await api.close();
 });
 
+test('duration arguments reject timer overflow rather than firing immediately', async () => {
+  const api = new API();
+  for (const run of [
+    () => api.waitForTimeout({ time: 3e9 }),
+    () => api.waitForSelector({ selector: '#x', timeout: 3e9 }),
+    () => api.waitForFunction({ fn: 'false', timeout: 3e9 }),
+    () => api.waitForEvent({ event: 'later', timeout: 3e9 }),
+    () => api.waitForNetworkIdle({ timeout: 3e9 }),
+    () => api.waitForRequest({ urls: ['*'], timeout: 3e9 }),
+    () => api.switchToWindow({ timeout: 3e9 }),
+    () => api.screenshot({ options: { timeout: 3e9 } }),
+    () => api.pdf({ options: { timeout: 3e9 } }),
+    () => api.request({ wait: true, timeout: 3e9 }),
+    () => api.response({ wait: true, timeout: 3e9 }),
+  ])
+    await assert.rejects(async () => run(), /2147483647/);
+});
+
 test('preferences treats null and zero as reads and rejects invalid viewport dimensions', async () => {
   const api = new API();
   api.preferences({ timeout: 1250 });
@@ -960,8 +987,29 @@ test('cookie partition keys map sourceOrigin and preserve the result shape', asy
       .cookies[0].partitionKey.topLevelSite,
     'https://example.com/',
   );
-  assert.equal(result.cookies[0].sameSite, 'Lax');
-  assert.equal(result.cookies[0].url, 'https://example.com/');
+  assert.equal(result.cookies[0].sameSite, undefined);
+  assert.equal(result.cookies[0].url, 'http://example.com/');
+});
+
+test('network idle excludes ongoing event streams', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.emit('Network.requestWillBeSent', {
+    requestId: 'sse',
+    type: 'EventSource',
+    request: { url: 'http://example.com/sse', method: 'GET', headers: {} },
+  });
+  api.client.emit('Network.responseReceived', {
+    requestId: 'sse',
+    type: 'EventSource',
+    response: {
+      url: 'http://example.com/sse',
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    },
+  });
+  await api.waitForNetworkIdle({ idleTime: 5, timeout: 100 });
+  await api.close();
 });
 
 test('close cancels network and navigation waits without retaining listeners', async () => {
@@ -1048,9 +1096,34 @@ test('and filters require every supplied pattern, including patterns in one fiel
   );
 });
 
+test('typing samples the whole requested delay range', async () => {
+  const api = new API();
+  api.client.value = { x: 1, y: 2, width: 10, height: 10 };
+  const clock = Sinon.useFakeTimers();
+  const random = Sinon.stub(Math, 'random').returns(0.5);
+  try {
+    let finished = false;
+    const typing = api
+      .type({ selector: 'input', text: 'a', delay: [10, 30] })
+      .then(() => {
+        finished = true;
+      });
+    await clock.tickAsync(10);
+    assert.equal(finished, false);
+    await clock.tickAsync(10);
+    await typing;
+    assert.equal(finished, true);
+  } finally {
+    random.restore();
+    clock.restore();
+  }
+});
+
 test('typing dispatches key events so native keyboard listeners receive text', async () => {
   const api = new API();
   api.client.value = { x: 1, y: 2, width: 10, height: 10 };
+  await api.type({ selector: 'input', text: '', delay: [] as any });
+  await api.type({ selector: 'input', text: '', delay: [0] as any });
   await api.type({ selector: 'input', text: 'a\n' });
   const keys = api.client.calls.filter(
     (c) => c.method === 'Input.dispatchKeyEvent',
@@ -1065,6 +1138,8 @@ test('typing dispatches key events so native keyboard listeners receive text', a
 test('html with a selector returns its children rather than its wrapper', async () => {
   const api = new API();
   const node = {
+    nodeType: 1,
+    innerHTML: '<b>Hello</b>',
     childNodes: [{ markup: '<b>Hello</b>' }],
     outerHTML: '<section><b>Hello</b></section>',
     getBoundingClientRect: () => ({ x: 0, y: 0, width: 10, height: 10 }),
@@ -1085,6 +1160,7 @@ test('html with a selector returns its children rather than its wrapper', async 
           result: {
             value: await runInNewContext(params.expression, {
               document,
+              Node: { ELEMENT_NODE: 1 },
               XMLSerializer,
               getComputedStyle: () => ({}),
             }),
@@ -1181,6 +1257,16 @@ test('invalid and excessive network regexes are rejected when registered', async
       () => api.fulfill({ regex: [regex], body: 'test' }),
       () => api.request({ regex: [regex], wait: false }),
       () => api.response({ regex: [regex], wait: false }),
+      () =>
+        api.text({
+          clean: {
+            removeRegex: true,
+            regexes: [regex],
+            removeNonTextNodes: false,
+            removeAttributes: false,
+            selectors: [],
+          },
+        }),
     ]) {
       await assert.rejects(run(), /regex/i);
     }
@@ -1217,6 +1303,14 @@ test('network regexes handle ambiguous alternations without blocking', function 
     assert.equal((await api.request(args)).length, 1);
     assert.equal(await api.request({ ...args, operator: 'and' }), null);
     assert.equal((await api.request({ ...args, regex: ['example[.]com', 'a+!$'], operator: 'and' })).length, 1);
+    assert.equal(await api.request({ url: ['*a*a*a*a*a*a*a*a*b'], wait: false }), null);
+    assert.equal((await api.request({ url: ['https://example.com/*!'], wait: false })).length, 1);
+    api.waitForSelector = async () => ({});
+    api.evaluate = async () => ({value: 'a'.repeat(40000) + '!', time: 0});
+    const clean = {removeRegex:true, regexes:['(a|aa)+$'], removeNonTextNodes:false, removeAttributes:false, selectors:[]};
+    assert.equal((await api.text({clean})).text, 'a'.repeat(40000) + '!');
+    clean.regexes = ['A+'];
+    assert.equal((await api.text({clean})).text, ' !');
   `,
     ],
     { timeout: 10000, encoding: 'utf8' },

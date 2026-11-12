@@ -54,6 +54,7 @@ describe('raw CDP browser primitives', () => {
       chrome.once('error', reject);
     });
     let authRequests = 0;
+    let scriptHeader: string | string[] | undefined;
     const server = createServer((req, res) => {
       res.setHeader('Content-Type', 'text/html');
       if (req.url === '/auth') {
@@ -73,6 +74,7 @@ describe('raw CDP browser primitives', () => {
         return;
       }
       if (req.url === '/script') {
+        scriptHeader = req.headers['x-script-test'];
         res.end('window.injected = 42;');
         return;
       }
@@ -97,6 +99,20 @@ describe('raw CDP browser primitives', () => {
     );
     const address = server.address() as { port: number };
     const origin = `http://127.0.0.1:${address.port}`;
+    const cdn = createServer((req, res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req.url === '/redirect') {
+        res.writeHead(302, { Location: '/script' });
+        res.end();
+      } else res.end('42');
+    });
+    cdn.listen(0, '127.0.0.1');
+    await once(cdn, 'listening');
+    cleanup.push(() => {
+      cdn.closeAllConnections();
+      return new Promise<void>((resolve) => cdn.close(() => resolve()));
+    });
+    const cdnURL = `http://127.0.0.1:${(cdn.address() as { port: number }).port}`;
     const api = new BQLBrowserAPI({
       browser: { wsEndpoint: () => endpoint } as any,
       config: {} as any,
@@ -107,7 +123,9 @@ describe('raw CDP browser primitives', () => {
     cleanup.push(() => api.close());
     await api.start();
     api.preferences({ timeout: 3000 });
+    assert.equal((await api.evaluate({ url: `${cdnURL}/script` })).value, 42);
     assert.equal((await api.goto({ url: origin })).status, 200);
+    assert.equal((await api.evaluate({ url: `${cdnURL}/redirect` })).value, 42);
     await api.ensureConsoleCapture();
     const consoleEvents = api.streamEvents<{ text: string; args: string[] }>(
       'console',
@@ -237,6 +255,63 @@ describe('raw CDP browser primitives', () => {
     );
     assert.equal((await api.text({ selector: '#read' })).text, 'Hello');
     await api.evaluate({
+      content: `
+      window.readConstructors = 0;
+      customElements.define('read-probe', class extends HTMLElement { constructor() { super(); window.readConstructors++; } });
+      document.body.insertAdjacentHTML('beforeend', '<div id="read-probe"><div>Hello</div><div>World</div><b>Remove</b><span hidden>Secret</span><span style="display:none">Hidden</span><div>line1<br>line2</div><script>ignored</script><read-probe></read-probe></div>');
+    `,
+    });
+    const textClean = {
+      removeNonTextNodes: true,
+      selectors: ['b'],
+      removeAttributes: false,
+      removeRegex: false,
+      regexes: [],
+    };
+    assert.equal(
+      (await api.text({ selector: '#read-probe', clean: textClean })).text,
+      'Hello\nWorld\nline1\nline2',
+    );
+    await api.html({ selector: '#read-probe', clean: textClean });
+    assert.equal(
+      (await api.evaluate({ content: 'window.readConstructors' })).value,
+      1,
+    );
+    await api.evaluate({
+      content: `document.querySelector('#read-probe').remove()`,
+    });
+    for (const html of [
+      '<div>Hello</div>\n<div>World</div><div>Tight</div>',
+      '<div>Hello </div><div>World</div>',
+      'a&nbsp;&nbsp;&nbsp;b',
+      '<select><option>Opt1</option><option>Opt2</option></select>',
+      '<pre>function x() {\n    return 1;\n}</pre>',
+      '<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>',
+      '<div style="visibility:hidden">Hidden<span style="visibility:visible">Shown</span></div>',
+      '<details><summary>Sum</summary>ClosedBody</details>',
+      '<p>First</p><p style="text-transform:uppercase">second</p>',
+    ]) {
+      await api.evaluate({
+        content: `document.querySelector('#read').innerHTML = ${JSON.stringify(html)}`,
+      });
+      const expected = (await api.text({ selector: '#read' })).text;
+      assert.equal(
+        (await api.text({ selector: '#read', clean: textClean })).text,
+        expected,
+        html,
+      );
+    }
+    await api.evaluate({
+      content: `document.querySelector('#read').style.display = 'none'; document.querySelector('#read').innerHTML = 'HiddenRootText<b>Removed</b>';`,
+    });
+    assert.equal(
+      (await api.text({ selector: '#read', clean: textClean })).text,
+      'HiddenRootText',
+    );
+    await api.evaluate({
+      content: `document.querySelector('#read').style.display = ''; document.querySelector('#read').innerHTML = '<b>Hello</b>'`,
+    });
+    await api.evaluate({
       content: `document.querySelector('#read').insertAdjacentHTML('beforeend', '<a href="/original">Link</a>')`,
     });
     const rewritten = await api.html({
@@ -316,10 +391,7 @@ describe('raw CDP browser primitives', () => {
     );
     await api.hover({ selector: '#click', scroll: true });
     await api.scroll({ y: 100 });
-    assert.equal(
-      (await api.html({ selector: '#read' })).html,
-      '<b xmlns="http://www.w3.org/1999/xhtml">Hello</b>',
-    );
+    assert.equal((await api.html({ selector: '#read' })).html, '<b>Hello</b>');
     assert.equal((await api.text({ selector: '#read' })).text, 'Hello');
     assert.match(
       (await api.markdown({ selector: 'body' })).markdown,
@@ -333,7 +405,18 @@ describe('raw CDP browser primitives', () => {
     );
     await api.addScriptTag({ content: 'window.tag = true' });
     await api.addStyleTag({ content: 'body { background: rgb(1, 2, 3); }' });
+    await api.setExtraHTTPHeaders({ headers: { 'X-Script-Test': 'session' } });
     assert.equal((await api.evaluate({ url: `${origin}/script` })).value, 42);
+    assert.equal(scriptHeader, 'session');
+    await api.reject({ enabled: true, url: [`${origin}/script`] });
+    await assert.rejects(api.evaluate({ url: `${origin}/script` }), /fetch/i);
+    await api.reject({ enabled: false });
+    await api.setExtraHTTPHeaders({ headers: {} });
+    assert.equal((await api.evaluate({ content: '1 + 1 // two' })).value, 2);
+    assert.equal(
+      (await api.evaluate({ content: 'return 5 // five' })).value,
+      5,
+    );
     assert.equal(
       (await api.evaluate({ content: 'window.injected' })).value,
       42,
@@ -381,6 +464,15 @@ describe('raw CDP browser primitives', () => {
     const scaledPng = Buffer.from(scaled.base64, 'base64');
     assert.equal(scaledPng.readUInt32BE(16), 80);
     assert.equal(scaledPng.readUInt32BE(20), 40);
+    await api.evaluate({
+      content: `document.querySelector('#read').style.cssText = 'width:40px;height:20px'`,
+    });
+    const scaleOnly = await api.screenshot({
+      selector: '#read',
+      options: { clip: { scale: 2 } as any },
+    });
+    assert.equal(Buffer.from(scaleOnly.base64, 'base64').readUInt32BE(16), 80);
+    assert.equal(Buffer.from(scaleOnly.base64, 'base64').readUInt32BE(20), 40);
     const resized = await api.screenshot({
       options: { fullPage: true, captureBeyondViewport: false },
     });

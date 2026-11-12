@@ -244,7 +244,11 @@ export class BQLWebSocketSession {
   }
 
   private active(id: string, operation: Operation): boolean {
-    return !this.closed && this.operations.get(id) === operation;
+    return (
+      !this.closed &&
+      this.client.readyState === WebSocket.OPEN &&
+      this.operations.get(id) === operation
+    );
   }
 
   private async execute(
@@ -324,6 +328,18 @@ export class BQLWebSocketSession {
           this.send({ id, type: 'complete' });
           return;
         }
+        const drainDeadline = Date.now() + 5000;
+        while (
+          this.active(id, operation) &&
+          this.client.bufferedAmount > 16 * 1024 * 1024
+        ) {
+          if (Date.now() >= drainDeadline) {
+            this.client.close(1013, 'Client is not consuming responses');
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        if (!this.active(id, operation)) return;
         this.send({ id, type: 'next', payload: this.format(value.value) });
       }
     } catch (error) {

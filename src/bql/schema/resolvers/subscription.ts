@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo, Kind, SelectionSetNode } from 'graphql';
 import type { Resolver } from '@browserless.io/browserless';
-import micromatch from 'micromatch';
+import { matchesGlob } from '../../patterns.js';
 
 interface NetworkEvent {
   id: string;
@@ -24,11 +24,7 @@ function matches(event: NetworkEvent, filter: Filter): boolean {
     filter.operator === 'and' ? results.every(Boolean) : results.some(Boolean);
   if (filter.url?.length)
     checks.push(
-      match(
-        filter.url.map((pattern) =>
-          micromatch.isMatch(event.url, pattern, { bash: true }),
-        ),
-      ),
+      match(filter.url.map((pattern) => matchesGlob(event.url, pattern))),
     );
   if (filter.method?.length)
     checks.push(match(filter.method.map((method) => event.method === method)));
@@ -60,6 +56,7 @@ function wantsBody(info: GraphQLResolveInfo): boolean {
 
 function stream(field: 'console' | 'request' | 'response'): Resolver {
   return async (_source, args: Filter, context, info) => {
+    for (const pattern of args.url ?? []) matchesGlob('', pattern);
     const api = await context.getBrowser();
     if (field === 'console') await api.ensureConsoleCapture();
     const events = api.streamEvents<NetworkEvent>(field);

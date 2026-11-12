@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
 import { buildSchema, execute, parse } from 'graphql';
 import type { WebSocket } from 'ws';
+import Sinon from 'sinon';
 import {
   BrowserQL,
   Context,
@@ -12,6 +13,7 @@ import {
 class Socket extends EventEmitter {
   protocol = 'graphql-transport-ws';
   readyState = 1;
+  bufferedAmount = 0;
   frames: any[] = [];
   code?: number;
   send(data: string) {
@@ -101,6 +103,66 @@ describe('BrowserQL WebSocket transport', () => {
       { id: 'one', type: 'next', payload: { data: { run: true } } },
       { id: 'one', type: 'complete' },
     ]);
+  });
+
+  it('delivers a large response when no outgoing data is queued', async () => {
+    const value = 'x'.repeat(17 * 1024 * 1024);
+    service.execute = async () => ({ data: { value } });
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('large');
+    await setImmediate();
+    assert.deepEqual(socket.frames[1], {
+      id: 'large',
+      type: 'next',
+      payload: { data: { value } },
+    });
+  });
+
+  it('closes a client whose outgoing buffer exceeds the limit', async () => {
+    service.subscribe = async () =>
+      (async function* () {
+        yield { data: { event: true } };
+      })();
+    start();
+    socket.receive({ type: 'connection_init' });
+    socket.bufferedAmount = 32 * 1024 * 1024;
+    subscribe('slow', 'subscription { event }');
+    const clock = Sinon.useFakeTimers();
+    try {
+      await clock.tickAsync(5000);
+      assert.equal(socket.code, 1013);
+      assert.equal(closed, 1);
+      assert.equal(socket.frames.length, 1);
+    } finally {
+      clock.restore();
+    }
+  });
+
+  it('waits for a large response to drain before sending subscription events', async () => {
+    service.subscribe = async () =>
+      (async function* () {
+        yield { data: { event: true } };
+      })();
+    start();
+    socket.receive({ type: 'connection_init' });
+    socket.bufferedAmount = 17 * 1024 * 1024;
+    const clock = Sinon.useFakeTimers();
+    try {
+      subscribe('stream', 'subscription { event }');
+      await clock.tickAsync(100);
+      assert.equal(socket.frames.length, 1);
+      socket.bufferedAmount = 0;
+      await clock.tickAsync(25);
+      assert.equal(socket.code, undefined);
+      assert.deepEqual(socket.frames[1], {
+        id: 'stream',
+        type: 'next',
+        payload: { data: { event: true } },
+      });
+    } finally {
+      clock.restore();
+    }
   });
 
   it('formats errors without changing operation framing and exposes execution metadata', async () => {

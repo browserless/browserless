@@ -44,6 +44,12 @@ export async function executeWithChaining(
   const errors = [...validate(schema, ast)];
   if (errors.length) return { errors };
   const operation = getOperationAST(ast, operationName);
+  if (operation?.operation === 'subscription')
+    return {
+      errors: [
+        executionError(new Error('Subscriptions require graphql-transport-ws')),
+      ],
+    };
   const args = {
     schema,
     document: ast,

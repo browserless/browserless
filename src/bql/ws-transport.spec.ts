@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter, once } from 'node:events';
 import type { AddressInfo } from 'node:net';
+import { setImmediate } from 'node:timers/promises';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   BrowserQL,
@@ -92,6 +93,50 @@ describe('BrowserQL WebSocket wire transport', () => {
         },
         { id: 'one', type: 'complete' },
       ]);
+      service.execute = async () => ({
+        data: { value: 'x'.repeat(17 * 1024 * 1024) },
+      });
+      service.subscribe = async () =>
+        (async function* () {
+          await setImmediate();
+          for (let i = 0; i < 20; i++) yield { data: { tick: i } };
+        })();
+      const mixed: any[] = [];
+      const streamed = new Promise<void>((resolve, reject) => {
+        standard.once('close', () =>
+          reject(new Error('Closed before stream completed')),
+        );
+        standard.on('message', (data) => {
+          const frame = JSON.parse(data.toString());
+          mixed.push(frame);
+          if (frame.id === 'stream' && frame.type === 'complete') resolve();
+        });
+      });
+      standard.send(
+        JSON.stringify({
+          type: 'subscribe',
+          id: 'stream',
+          payload: { query: 'subscription { tick }' },
+        }),
+      );
+      standard.send(
+        JSON.stringify({
+          type: 'subscribe',
+          id: 'big',
+          payload: { query: 'mutation { evaluate }' },
+        }),
+      );
+      await streamed;
+      assert.equal(
+        mixed.find((frame) => frame.id === 'big' && frame.type === 'next')
+          .payload.data.value.length,
+        17 * 1024 * 1024,
+      );
+      assert.equal(
+        mixed.filter((frame) => frame.id === 'stream' && frame.type === 'next')
+          .length,
+        20,
+      );
       const legacyClosed = once(legacy, 'close');
       const standardClosed = once(standard, 'close');
       browsers.get('')!.emit('close');

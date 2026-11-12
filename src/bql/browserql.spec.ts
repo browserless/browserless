@@ -10,6 +10,18 @@ const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 describe('BrowserQL schema and execution', () => {
+  it('rejects subscription operations through the non-streaming executor', async () => {
+    const service = new BrowserQL();
+    const context = service.createContext(options);
+    const result = await service.execute(
+      { query: 'subscription { console { text } }' },
+      context,
+    );
+    assert.match(result.errors?.[0].message ?? '', /graphql-transport-ws/);
+    assert.equal(result.data, undefined);
+    await context.close();
+  });
+
   it('composes additive modules and discovers capabilities without starting a browser', async () => {
     const service = new BrowserQL({
       modules: [
