@@ -357,9 +357,9 @@ export class Config extends EventEmitter {
 
   /**
    * The lowercase name of the header that carries the token, `authorization`
-   * by default. `?token=` is moved into it, and it is the only header the
-   * token is read from. Set TOKEN_HEADER when a proxy in front of browserless
-   * uses the Authorization header for itself.
+   * by default. `?token=` is moved into it. Any other header carries the raw
+   * token and is the only place it is read from. Set TOKEN_HEADER when a proxy
+   * in front of browserless uses the Authorization header for itself.
    */
   public getTokenHeader(): string {
     return this.tokenHeader;
