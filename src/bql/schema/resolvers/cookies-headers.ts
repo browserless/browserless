@@ -1,4 +1,4 @@
-import type { Resolver } from '@browserless.io/browserless';
+import { BadRequest, type Resolver } from '@browserless.io/browserless';
 
 export const cookiesHeaders: Record<string, Resolver> = {
   authenticate: async (_source, args, context) =>
@@ -15,6 +15,13 @@ export const cookiesHeaders: Record<string, Resolver> = {
     (await context.getBrowser()).userAgent({ userAgent: args.userAgent }),
   javaScriptEnabled: async (_source, args, context) =>
     (await context.getBrowser()).javaScriptEnabled({ enabled: args.enabled }),
-  preferences: async (_source, args, context) =>
-    (await context.getBrowser()).preferences(args),
+  preferences: async (_source, args, context) => {
+    if (
+      args.timeout != null &&
+      (args.timeout < 1 || args.timeout > 2147483647)
+    ) {
+      throw new BadRequest('"timeout" must be between 1 and 2147483647');
+    }
+    return (await context.getBrowser()).preferences(args);
+  },
 };

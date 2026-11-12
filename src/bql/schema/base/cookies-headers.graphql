@@ -24,7 +24,7 @@ extend type Mutation {
   """
   javaScriptEnabled(enabled: Boolean): JavaScriptResponse
   """
-  Set the default operation timeout in milliseconds. Omitting timeout resets it to 30000; null or zero reads the current value without changing it.
+  Set the default operation timeout in milliseconds, between 1 and 2147483647. Omitting timeout resets it to 30000; null reads the current value without changing it. To disable the deadline for one evaluation, use evaluate(timeout: 0).
   """
   preferences(timeout: Float = 30000): DefaultResponse
 }

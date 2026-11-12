@@ -4,6 +4,29 @@ import { BQLBrowserAPI, Context } from '@browserless.io/browserless';
 const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 
 describe('BrowserQL context lifetime', () => {
+  it('exposes only a successfully started browser without starting one', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    class API extends BQLBrowserAPI {
+      override async start() {
+        await gate;
+      }
+      override async close() {}
+    }
+    const context = new Context(options, (options) => new API(options));
+    assert.equal(context.startedBrowser(), undefined);
+    const starting = context.getBrowser();
+    await Promise.resolve();
+    assert.equal(context.startedBrowser(), undefined);
+    release();
+    assert.equal(context.startedBrowser(), undefined);
+    const api = await starting;
+    assert.equal(context.startedBrowser(), api);
+    await context.close();
+  });
+
   it('bridges disconnect listeners before startup and unsubscribes during teardown', async () => {
     let starts = 0;
     let notifications = 0;
