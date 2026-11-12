@@ -155,11 +155,30 @@ dispatched.
 
 Scripts downloaded by `evaluate(url: ...)` are limited to 10 MiB of decoded
 response bytes. This limit applies even when the response has no Content-Length.
+Downloads use the current page's browser network stack, including session proxy,
+cookies, headers and request rules. The page's CORS and CSP restrictions apply;
+there is no server-side fallback. Use `content` for scripts that cannot be fetched
+under those restrictions. Structured evaluation results are JSON-encoded in the
+response's `value` string; strings are returned unchanged.
 
-Network `regex` filters use RE2 syntax with Unicode support and linear-time
+Network `regex` filters and readback `clean.regexes` use RE2 syntax with Unicode support and linear-time
 matching. Each pattern is limited to 200 characters. Lookaround and
 backreferences are unsupported; invalid or unsupported patterns fail when the
 filter is registered. This also applies to SDK `request` and `response` filters.
+Cleanup replacements are case-insensitive. URL and title patterns use only `*`
+(any sequence) and `?` (one character), with all other characters treated literally
+and a 200-character limit. Shell extglobs, brace expansion and character classes
+are not supported. The GraphQL `reject` and `fulfill` fields and SDK network
+filters offer `regex` as an alternative; other GraphQL URL/title filters do not.
+
+Readback cleanup does not modify the live page. HTML cleanup and URL rewriting
+use an inert document. Cleaned text excludes selected and hidden elements while
+retaining block and line-break separators. Explicit waits accept durations from
+0 through 2147483647 ms; larger values are rejected rather than overflowing timers.
+WebSocket subscription events pause while more than 16 MiB is queued. If the
+buffer does not drain below that threshold within five seconds, the connection
+closes with code `1013`. This grace period lets large query/mutation responses
+flush without immediately terminating concurrent subscriptions.
 
 CSS selectors support shadow roots. Deep selectors beginning with `<` are not
 supported. `userAgent` applies an ordinary browser user-agent override. Window

@@ -28,6 +28,62 @@ class API extends BQLBrowserAPI {
 }
 
 describe('BrowserQL primitive contracts', () => {
+  it('accepts a response wait timeout in the schema', async () => {
+    class ResponseAPI extends API {
+      override async waitForResponse(args: any) {
+        assert.equal(args.timeout, 19);
+        return [{ url: 'https://example.com/', status: 204 }] as any;
+      }
+    }
+    const service = new BrowserQL({
+      apiFactory: () => new ResponseAPI(options),
+    });
+    const context = service.createContext(options);
+    const result = await service.execute(
+      { query: 'mutation { waitForResponse(timeout:19) { status } }' },
+      context,
+    );
+    assert.equal(result.errors, undefined);
+    assert.equal(
+      (result.data?.waitForResponse as { status: number }).status,
+      204,
+    );
+    await context.close();
+  });
+
+  it('serializes structured evaluation values without GraphQL coercion errors', async () => {
+    let value: unknown = { count: 2, items: ['a', 'b'] };
+    class ObjectAPI extends API {
+      override async evaluate() {
+        return { value: value as any, time: 1 };
+      }
+    }
+    const service = new BrowserQL({ apiFactory: () => new ObjectAPI(options) });
+    const context = service.createContext(options);
+    const result = await service.execute(
+      { query: 'mutation { evaluate(content:"value") { value } }' },
+      context,
+    );
+    assert.equal(result.errors, undefined);
+    assert.equal(
+      (result.data?.evaluate as { value: string }).value,
+      '{"count":2,"items":["a","b"]}',
+    );
+    for (const number of [NaN, Infinity, -Infinity]) {
+      value = number;
+      const result = await service.execute(
+        { query: 'mutation { evaluate(content:"value") { value } }' },
+        context,
+      );
+      assert.equal(result.errors, undefined);
+      assert.equal(
+        (result.data?.evaluate as { value: string }).value,
+        String(number),
+      );
+    }
+    await context.close();
+  });
+
   it('rejects unsafe session deadlines before starting a browser', async () => {
     let starts = 0;
     const service = new BrowserQL({

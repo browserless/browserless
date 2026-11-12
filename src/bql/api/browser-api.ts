@@ -26,12 +26,12 @@ import {
   throwError,
   timeout as throwTimeout,
 } from 'rxjs';
+import { compileRegex, matchesGlob as glob } from '../patterns.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import { EventEmitter } from 'node:events';
 import { RE2JS } from 're2js';
 import { Script } from 'node:vm';
 import TurndownService from 'turndown';
-import micromatch from 'micromatch';
 
 const restoredLifecycleEvents = [
   'load',
@@ -185,20 +185,12 @@ export type PDFOptionsInput = Omit<
   outline?: boolean;
 };
 
-const glob = (value: string, pattern: string) =>
-  micromatch.isMatch(value, pattern, { bash: true });
 const compiledRegexes = new WeakMap<Filter, RE2JS[]>();
 const compileRegexes = (filter: Filter): RE2JS[] => {
   const cached = compiledRegexes.get(filter);
   if (cached) return cached;
-  const regexes = (filter.regex ?? []).map((pattern) => {
-    if (pattern.length > 200) throw new BadRequest('Network regex is too long');
-    try {
-      return RE2JS.compile(pattern);
-    } catch {
-      throw new BadRequest('Network regex is invalid or unsupported');
-    }
-  });
+  for (const pattern of filter.url ?? []) glob('', pattern);
+  const regexes = (filter.regex ?? []).map((pattern) => compileRegex(pattern));
   compiledRegexes.set(filter, regexes);
   return regexes;
 };
@@ -223,14 +215,20 @@ const matches = (
     checks.push(check(f.status, (status) => status === r.status));
   return !checks.length || check(checks, Boolean);
 };
+const duration = (ms: number): number => {
+  if (!Number.isFinite(ms) || ms < 0 || ms > 2147483647)
+    throw new BadRequest('Duration must be between 0 and 2147483647ms');
+  return ms;
+};
 const pause = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
+  new Promise<void>((resolve) => setTimeout(resolve, duration(ms)));
 const bounded = async <T>(
   promise: Promise<T>,
   timeout: number,
   label: string,
   timeoutError?: () => Error,
 ): Promise<T> => {
+  duration(timeout);
   if (!timeout) return promise;
   return firstValueFrom(
     from(promise).pipe(
@@ -315,7 +313,10 @@ export class BQLBrowserAPI {
               }
             : {}),
         });
-        if (delay?.[0]) await pause(delay[0]);
+        if (delay)
+          await pause(
+            delay[0] + Math.floor(Math.random() * (delay[1] - delay[0] + 1)),
+          );
       }
     },
   };
@@ -624,6 +625,7 @@ export class BQLBrowserAPI {
           contentType?.startsWith('multipart/x-mixed-replace')
         ) {
           pending.delete(e.requestId);
+          this.inflight.delete(e.requestId);
           this.events.emit('network-change');
         }
         const record = this.responses.get(e.requestId)!;
@@ -978,11 +980,14 @@ export class BQLBrowserAPI {
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<{ value: any; time: number }> {
+    duration(timeout);
+    duration(executionTimeout);
+    duration(runtimeTimeout);
     if (!content && !url)
       throw new BadRequest('One of "content" or "url" is required');
     if (content && url)
       throw new BadRequest('Only one of "content" or "url" is allowed');
-    if (url) content = await this.fetchScript(url, timeout);
+    if (url) content = await this.fetchScript(url, timeout, cdp);
     const start = Date.now();
     const body = content!.trim();
     let end = body.length;
@@ -990,12 +995,12 @@ export class BQLBrowserAPI {
     const expression = body.slice(0, end).trimEnd();
     let isExpression = false;
     try {
-      new Script(`(async() => (${expression}))`);
+      new Script(`(async() => (\n${expression}\n))`);
       isExpression = true;
     } catch {}
     const result = await bounded(
       cdp.send('Runtime.evaluate', {
-        expression: `(async() => { ${isExpression ? `return (${expression});` : body} })()`,
+        expression: `(async() => {\n${isExpression ? `return (\n${expression}\n);` : body}\n})()`,
         returnByValue: true,
         awaitPromise: true,
         ...(executionTimeout > 0 ? { timeout: executionTimeout } : {}),
@@ -1026,47 +1031,38 @@ export class BQLBrowserAPI {
     return this.evaluate({ content: 'document.title' });
   }
 
-  protected async fetchScript(url: string, timeout: number): Promise<string> {
-    const signal = AbortSignal.timeout(timeout || 30_000);
-    const limit = 10 * 1024 * 1024;
-    for (let hops = 0; ; hops++) {
-      await this.assertNavigationAllowed(url);
-      const response: Response = await fetch(url, {
-        signal,
-        redirect: 'manual',
-      });
-      if (
-        response.status >= 300 &&
-        response.status < 400 &&
-        response.headers.has('location')
-      ) {
-        await response.body?.cancel();
-        if (hops >= 20) throw new Error('Too many script redirects');
-        url = new URL(response.headers.get('location')!, url).href;
-        continue;
-      }
-      const reader = response.body?.getReader();
-      try {
-        if (!response.ok) throw new Error('Error getting script from URL');
-        if (Number(response.headers.get('content-length')) > limit)
-          throw new Error('Script exceeds 10 MiB download limit');
-        const chunks: Uint8Array[] = [];
-        let size = 0;
-        if (reader) {
-          for (;;) {
+  protected async fetchScript(
+    url: string,
+    timeout: number,
+    cdp = this.mainCDP,
+  ): Promise<string> {
+    await this.assertNavigationAllowed(url);
+    // Browser fetch retains the session proxy, cookies, headers and request rules.
+    // It also observes the current page's CORS/CSP policy; there is no Node fallback.
+    const { value } = await this.evaluateInternal({
+      cdp,
+      timeout: timeout || 30_000,
+      content: `(async () => {
+        const response = await fetch(${JSON.stringify(url)}, { signal: AbortSignal.timeout(${timeout || 30_000}) });
+        const reader = response.body?.getReader();
+        try {
+          if (!response.ok) throw new Error('Error getting script from URL');
+          const limit = 10 * 1024 * 1024;
+          if (Number(response.headers.get('content-length')) > limit) throw new Error('Script exceeds 10 MiB download limit');
+          const decoder = new TextDecoder();
+          let size = 0, text = '';
+          if (reader) for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             size += value.byteLength;
-            if (size > limit)
-              throw new Error('Script exceeds 10 MiB download limit');
-            chunks.push(value);
+            if (size > limit) throw new Error('Script exceeds 10 MiB download limit');
+            text += decoder.decode(value, { stream: true });
           }
-        }
-        return new TextDecoder().decode(Buffer.concat(chunks, size));
-      } finally {
-        await reader?.cancel();
-      }
-    }
+          return text + decoder.decode();
+        } finally { await reader?.cancel(); }
+      })()`,
+    });
+    return value;
   }
 
   protected selectorExpression(selector: string, root = 'document'): string {
@@ -1238,16 +1234,26 @@ export class BQLBrowserAPI {
   public async type(
     args: ElementArgs & {
       text: string;
-      delay?: [number, number];
+      delay?: [] | [number] | [number, number];
       interactable?: boolean;
     },
   ) {
     const start = Date.now();
+    const delay: [number, number] | undefined = args.delay?.length
+      ? [args.delay[0]!, args.delay[1] ?? args.delay[0]!]
+      : undefined;
+    if (delay) {
+      if (args.delay!.length > 2 || delay[0] > delay[1])
+        throw new BadRequest(
+          'Typing delay requires an ordered [min, max] range',
+        );
+      delay.forEach(duration);
+    }
     const result = await this.click({
       ...args,
       checkInteractable: args.interactable ?? true,
     });
-    await this.inputDriver.type(result.cdp, args.text, args.delay);
+    await this.inputDriver.type(result.cdp, args.text, delay);
     return { ...result, text: args.text, time: Date.now() - start };
   }
   public async checkbox(args: ElementArgs & { checked: boolean }) {
@@ -1348,6 +1354,11 @@ export class BQLBrowserAPI {
   }
 
   private async read(args: ReadArgs, mode: 'html' | 'text'): Promise<string> {
+    const regexes = args.clean?.removeRegex
+      ? args.clean.regexes.map((pattern) =>
+          compileRegex(pattern, RE2JS.CASE_INSENSITIVE),
+        )
+      : [];
     const selector = args.selector ?? 'html';
     const query = this.selectorExpression(selector);
     await this.waitForSelector({ ...args, selector });
@@ -1356,7 +1367,63 @@ export class BQLBrowserAPI {
       timeout: args.timeout,
       content: `(() => {
       const source = ${mode === 'html' && !args.selector ? 'document' : `${query}[0]`};
-      const root = ${!!(args.clean || args.rewrite)} ? source.cloneNode(true) : source;
+      const clean = ${JSON.stringify(args.clean ?? null)};
+      if (${mode === 'text'}) {
+        if (!clean?.removeNonTextNodes || !clean.selectors.length) return source.innerText ?? source.textContent ?? '';
+        if (getComputedStyle(source).display === 'none') {
+          const root = document.implementation.createHTMLDocument('').importNode(source, true);
+          for (const selector of clean.selectors) for (const node of root.querySelectorAll(selector)) node.remove();
+          return root.textContent;
+        }
+        let output = '', breaks = 0, preserved = false;
+        const newline = (count = 1) => {
+          if (!preserved) output = output.replace(/[ \\t]+$/, '');
+          breaks = Math.max(breaks, count);
+        };
+        const append = (text, pre = false) => {
+          if (!pre) {
+            text = text.replace(/[ \\t\\n\\r\\f]+/g, ' ');
+            if (breaks || !output || /[ \\t\\n\\r\\f]$/.test(output)) text = text.replace(/^ +/, '');
+          }
+          if (!text) return;
+          if (breaks && output) output += '\\n'.repeat(breaks);
+          breaks = 0; output += text; preserved = pre;
+        };
+        const visit = (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const style = getComputedStyle(node.parentElement);
+            if (style.visibility !== 'visible') return;
+            const range = document.createRange(); range.selectNodeContents(node);
+            if (![...range.getClientRects()].some(rect => rect.width && rect.height)) return;
+            let text = node.textContent;
+            if (style.textTransform === 'uppercase') text = text.toUpperCase();
+            if (style.textTransform === 'lowercase') text = text.toLowerCase();
+            if (style.textTransform === 'capitalize') text = text.replace(/\\b\\w/g, char => char.toUpperCase());
+            append(text, /^(pre|break-spaces)/.test(style.whiteSpace)); return;
+          }
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+          if (node !== source && clean.selectors.some(selector => node.matches(selector))) return;
+          const style = getComputedStyle(node);
+          if (style.display === 'none' || style.contentVisibility === 'hidden') return;
+          if (node.tagName === 'OPTION') { newline(); append(node.textContent); newline(); return; }
+          if (node.tagName === 'BR') { if (style.visibility === 'visible') append('\\n', true); return; }
+          const cell = style.display === 'table-cell';
+          const block = !cell && !['inline', 'inline-block', 'inline-flex', 'inline-grid', 'contents'].includes(style.display);
+          const count = node.tagName === 'P' ? 2 : 1;
+          if (block) newline(count);
+          if (node.tagName === 'DETAILS' && !node.open) {
+            const summary = [...node.children].find(child => child.tagName === 'SUMMARY');
+            if (summary) visit(summary);
+          } else for (const child of node.childNodes) visit(child);
+          if (cell && node.nextElementSibling) append('\\t', true);
+          if (block) newline(count);
+        };
+        visit(source);
+        return output;
+      }
+      const root = ${!!(args.clean || args.rewrite)}
+        ? (source.nodeType === Node.DOCUMENT_NODE ? source.cloneNode(true) : document.implementation.createHTMLDocument('').importNode(source, true))
+        : source;
       const rewrite = ${JSON.stringify(args.rewrite ?? null)};
       if (rewrite) {
         const paths = new Map(rewrite.resources.map(r => [r.url, r.path]));
@@ -1374,21 +1441,18 @@ export class BQLBrowserAPI {
           el.setAttribute(name, value);
         }
       }
-      const clean = ${JSON.stringify(args.clean ?? null)};
       if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of root.querySelectorAll(sel)) el.remove();
       if (clean?.removeAttributes) for (const el of root.querySelectorAll('*')) for (const attr of [...el.attributes]) {
         const listed = clean.attributes?.includes(attr.name) ?? false;
         if (!clean.attributes || (clean.mode === 'ALLOW' ? !listed : listed)) el.removeAttribute(attr.name);
       }
-      return ${mode === 'html' ? "[...root.childNodes].map(node => node === root.documentElement ? node.outerHTML : new XMLSerializer().serializeToString(node)).join('')" : "root.innerText ?? root.textContent ?? ''"};
+      return root.nodeType === Node.ELEMENT_NODE ? root.innerHTML : [...root.childNodes].map(node => node === root.documentElement ? node.outerHTML : new XMLSerializer().serializeToString(node)).join('');
     })()`,
     });
-    return args.clean?.removeRegex
-      ? args.clean.regexes.reduce(
-          (text, regex) => text.replace(new RegExp(regex, 'gi'), ' '),
-          value as string,
-        )
-      : value;
+    return regexes.reduce(
+      (text, regex) => regex.matcher(text).replaceAll(' '),
+      value as string,
+    );
   }
   public async html(args: ReadArgs = {}) {
     const start = Date.now();
@@ -1430,6 +1494,7 @@ export class BQLBrowserAPI {
     documentOpen = false,
     currentDocument = false,
   ): ReturnType<BQLBrowserAPI['waitForNavigation']> {
+    duration(timeout);
     const start = Date.now();
     const waits = (Array.isArray(waitUntil) ? waitUntil : [waitUntil]).map(
       (w) => w.toLowerCase(),
@@ -1924,14 +1989,14 @@ export class BQLBrowserAPI {
         name: cookie.name,
         value: cookie.value,
         url: cookie.domain
-          ? `https://${cookie.domain}${cookie.path || '/'}`
+          ? `${cookie.secure ? 'https' : 'http'}://${cookie.domain.replace(/^\./, '')}${cookie.path || '/'}`
           : location.url,
         domain: cookie.domain || location.domain,
         path: cookie.path || location.path,
         expires: cookie.expires,
         secure: cookie.secure || false,
         httpOnly: cookie.httpOnly || false,
-        sameSite: cookie.sameSite || 'Lax',
+        sameSite: cookie.sameSite,
       })),
       time: Date.now() - start,
     };
@@ -2173,10 +2238,10 @@ export class BQLBrowserAPI {
       fullPage?: boolean;
       omitBackground?: boolean;
       clip?: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
         scale?: number;
       };
       captureBeyondViewport?: boolean;
@@ -2188,6 +2253,7 @@ export class BQLBrowserAPI {
     cdp?: Connection;
   } = {}) {
     const start = Date.now();
+    duration(options.timeout ?? this.timeout);
     await this.beforeCapture();
     if (
       options.quality !== undefined &&
@@ -2201,18 +2267,26 @@ export class BQLBrowserAPI {
       );
     if (
       options.clip &&
-      (!Number.isFinite(options.clip.width) ||
-        !Number.isFinite(options.clip.height) ||
-        options.clip.width <= 0 ||
-        options.clip.height <= 0)
+      (['width', 'height'] as const).some(
+        (key) =>
+          !(selector && options.clip![key] === undefined) &&
+          (!Number.isFinite(options.clip![key]) || options.clip![key]! <= 0),
+      )
     )
       throw new BadRequest('Invalid screenshot clip');
     if ((selector || options.clip) && options.fullPage)
       throw new BadRequest('selector or clip and fullPage are exclusive');
     if (options.waitForImages) await this.waitForImages(cdp, options.timeout);
-    let clip: Protocol.Page.Viewport | undefined = options.clip
-      ? { ...options.clip, scale: options.clip.scale ?? 1 }
-      : undefined;
+    let clip: Protocol.Page.Viewport | undefined =
+      options.clip && !selector
+        ? {
+            x: options.clip.x!,
+            y: options.clip.y!,
+            width: options.clip.width!,
+            height: options.clip.height!,
+            scale: options.clip.scale ?? 1,
+          }
+        : undefined;
     const captureBeyondViewport =
       selector || options.clip || options.fullPage
         ? (options.captureBeyondViewport ?? true)
@@ -2376,6 +2450,7 @@ export class BQLBrowserAPI {
     cdp = this.mainCDP,
   }: { options?: PDFOptionsInput; cdp?: Connection } = {}) {
     const start = Date.now();
+    duration(options.timeout ?? this.timeout);
     await this.beforeCapture();
     if (options.waitForFonts)
       await this.evaluateInternal({
@@ -2561,6 +2636,7 @@ export class BQLBrowserAPI {
     const start = Date.now();
     if (!Number.isFinite(polling) || polling < 0)
       throw new BadRequest('Cannot poll with non-positive interval');
+    duration(polling);
     await this.evaluateInternal({
       cdp,
       timeout,
@@ -2636,6 +2712,8 @@ export class BQLBrowserAPI {
     concurrency = 0,
     timeout = this.timeout,
   }: { idleTime?: number; concurrency?: number; timeout?: number } = {}) {
+    duration(idleTime);
+    duration(timeout);
     if (idleTime < 0 || concurrency < 0)
       return Promise.reject(new Error('Invalid idle time or concurrency'));
     const start = Date.now();
@@ -2732,6 +2810,8 @@ export class BQLBrowserAPI {
     filter: Filter,
     timeout = this.timeout,
   ): Promise<NetworkRecord[]> {
+    duration(timeout);
+    compileRegexes(filter);
     const records = () =>
       [
         ...(kind === 'request' ? this.requests : this.responses).values(),
@@ -2910,6 +2990,7 @@ export class BQLBrowserAPI {
   }
   public async request(args: Filter & { wait: boolean; timeout?: number }) {
     args = { ...args };
+    if (args.wait) duration(args.timeout ?? this.timeout);
     compileRegexes(args);
     const records = await this.waitNetwork(
       'request',
@@ -2930,6 +3011,7 @@ export class BQLBrowserAPI {
   }
   public async response(args: Filter & { wait: boolean; timeout?: number }) {
     args = { ...args };
+    if (args.wait) duration(args.timeout ?? this.timeout);
     compileRegexes(args);
     const grant = args.wait ? (args.timeout ?? this.timeout) : undefined;
     const deadline = grant ? Date.now() + grant : undefined;
@@ -3081,6 +3163,7 @@ export class BQLBrowserAPI {
     timeout?: number;
     waitUntil?: WaitUntil;
   }) {
+    duration(timeout);
     const start = Date.now();
     let lastError: string | undefined;
     do {

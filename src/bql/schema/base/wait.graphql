@@ -25,6 +25,7 @@ extend type Mutation {
       )
     operator: OperatorTypes = or
     statuses: [Int]
+    timeout: Float
     url: String
   ): WaitForResponse
   """
