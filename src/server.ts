@@ -24,6 +24,7 @@ import {
   convertPathToURL,
   isMatch,
   moveTokenToHeader,
+  splitJSONNewQuery,
   queryParamsToObject,
   readBody,
   shimLegacyRequests,
@@ -40,6 +41,28 @@ export interface HTTPServerOptions {
   queued: number;
   timeout: number;
 }
+
+const pathnameOf = (u: string): string => {
+  const q = u.indexOf('?');
+  return u
+    .slice(0, q === -1 ? u.length : q)
+    .replace(/^[A-Za-z][A-Za-z\d+.-]*:\/\/[^/]*/, '');
+};
+
+const searchOf = (u: string): string => {
+  const q = u.indexOf('?');
+  return q === -1 ? '' : u.slice(q + 1);
+};
+
+const jsonNewPath = /^\/json\/new\/?$/i;
+
+// The /json/new target parameter (whatever cannot be a browserless
+// parameter - the same rule the token shim and the route share), or null
+// for non-/json/new requests.
+const jsonNewTargetOf = (u: string): string | null =>
+  jsonNewPath.test(pathnameOf(u))
+    ? splitJSONNewQuery(searchOf(u)).rawTarget
+    : null;
 
 export class HTTPServer extends EventEmitter {
   protected server: http.Server = http.createServer();
@@ -246,12 +269,47 @@ export class HTTPServer extends EventEmitter {
 
   protected async handleRequestUnsafe(req: Request, res: http.ServerResponse) {
     const request = req as http.IncomingMessage;
+    const originalRawUrl = request.url ?? '';
+    req.rawUrl = originalRawUrl;
     request.url = moveTokenToHeader(request);
+    // moveTokenToHeader normalizes the target; the hook-rewrite check
+    // below must compare against this shimmed form, not the raw one.
+    const shimmedTarget = request.url;
     this.logger.trace(
       `Handling inbound HTTP request on "${request.method}: ${request.url || ''}"`,
     );
 
     const proceed = await this.hooks.before({ req, res });
+    // A hook may rewrite the request target. Routing picks that up via
+    // request.url below, but rawUrl still holds the original, and the
+    // target-carrying /json/new shim opens from rawUrl. Keep it
+    // consistent: when the hook changed the target but sent no query of
+    // its own, carry over the original raw query (valueless parameters
+    // must survive); a query the hook explicitly sets is never overwritten.
+    const rewritten = request.url ?? '';
+    if (proceed && rewritten && rewritten !== shimmedTarget) {
+      // Adopt the hook's query into rawUrl only when the target itself
+      // was replaced - a different path, or a different /json/new target
+      // parameter. A system-parameter-only rewrite keeps req.rawUrl at
+      // the original raw encoding (the /json/new route parses that
+      // string directly), while the rewritten parameters still flow
+      // through request.url / req.parsed for routing.
+      const replacedTarget =
+        pathnameOf(rewritten) !== pathnameOf(shimmedTarget) ||
+        (jsonNewTargetOf(rewritten) !== null &&
+          jsonNewTargetOf(rewritten) !== jsonNewTargetOf(shimmedTarget));
+      if (replacedTarget) {
+        if (rewritten.includes('?')) {
+          req.rawUrl = rewritten;
+        } else {
+          const queryAt = originalRawUrl.indexOf('?');
+          req.rawUrl =
+            queryAt === -1
+              ? rewritten
+              : rewritten + originalRawUrl.slice(queryAt);
+        }
+      }
+    }
     req.parsed = convertPathToURL(request.url || '', this.config);
     shimLegacyRequests(req.parsed);
 
@@ -478,6 +536,7 @@ export class HTTPServer extends EventEmitter {
     head: Buffer,
   ) {
     const request = req as http.IncomingMessage;
+    req.rawUrl = request.url ?? '';
     request.url = moveTokenToHeader(request);
 
     this.logger.trace(

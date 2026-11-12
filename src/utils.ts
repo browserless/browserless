@@ -714,6 +714,96 @@ export const queryParamsToObject = (
     {} as ReturnType<typeof queryParamsToObject>,
   );
 
+/**
+ * The query parameter carrying a `/json/new` navigation target from the JSON
+ * response to the websocket connect that actually creates the page.
+ */
+export const JSON_NEW_TARGET_PARAM = 'url';
+
+/**
+ * Splits the raw query of a DevTools `PUT /json/new?{url}` request into the
+ * Browserless-owned prefix and the navigation target.
+ *
+ * Chrome does not parse the text after `?` as query parameters: per the
+ * DevTools HTTP endpoints spec the entire query string *is* the URL, so it may
+ * legitimately contain its own `?`, `&` and `=`. The target therefore begins
+ * at the first segment that cannot be a browserless parameter — a
+ * `name=value` pair with a plain ASCII name (token, timeout, blockAds,
+ * trackingId, `--switch=value`, ...). A URL segment never parses as one, be
+ * it the raw `https://example.com` form or the percent-encoded
+ * `https%3A%2F%2Fexample.com` form that curl and most HTTP libraries send:
+ * `://`, `%` and `?` are not parameter-name characters. Neither does other
+ * explicit text such as `not-a-url` or `file:///etc/passwd`; it comes back as
+ * the target so the route's absolute-URL check rejects it with a 400 instead
+ * of it being mistaken for a system parameter and silently dropped. Keying
+ * the split on parameter shape instead of a reserved-parameter list keeps
+ * this shim, the request shims and the route in agreement, and needs no
+ * update when a system parameter is added.
+ *
+ * @param rawSearch The query string, with or without its leading `?`
+ * @returns `systemSearch`, the query browserless parses normally, and
+ *   `rawTarget`, the navigation target (empty when none is present)
+ */
+export const splitJSONNewQuery = (
+  rawSearch: string,
+): { rawTarget: string; systemSearch: string } => {
+  const search = rawSearch.startsWith('?') ? rawSearch.slice(1) : rawSearch;
+  // A boundary starts a target when the segment beginning there is not a
+  // well-formed system parameter (`name=value`, or a stray `&&`). A bare
+  // segment without `=` cannot be a system parameter, so it is the start of
+  // explicit target text the route will validate.
+  const targetStart = search.search(/(?:^|&)(?![A-Za-z0-9_.-]+=)(?=[^&])/);
+  const targetOffset =
+    targetStart >= 0 && search[targetStart] === '&'
+      ? targetStart + 1
+      : targetStart;
+  return {
+    rawTarget: targetOffset >= 0 ? search.slice(targetOffset) : '',
+    systemSearch: targetStart >= 0 ? search.slice(0, targetStart) : search,
+  };
+};
+
+/**
+ * Extracts the navigation target from a DevTools `PUT /json/new?{url}`
+ * request, using the same parameter-shape rule as the request shim that
+ * strips the `token` parameter (`splitJSONNewQuery`).
+ *
+ * A target's own query string is preserved, including a trailing token pair of
+ * its own: once the target starts, everything belongs to the target. When
+ * every segment parses as a browserless parameter (token, timeout, ...) there
+ * is no target and this returns `null`, keeping the historical 200 no-op
+ * behavior. Text that is neither — `not-a-url`, `file:///etc/passwd` — is
+ * returned as-is, so the route's `resolveJSONNewTarget` rejects it with a 400
+ * rather than it counting as "no target". The one exception is `about:blank`
+ * itself, which Chrome's own /json/new answers with a blank tab: it stays
+ * `null`.
+ *
+ * @param search The `search` of the inbound URL, with or without its leading `?`
+ * @returns The requested URL, or `null` when the caller supplied none
+ */
+export const parseJSONNewTarget = (search: string): string | null => {
+  const { rawTarget } = splitJSONNewQuery(search);
+
+  if (!rawTarget) return null;
+
+  // An explicit `about:blank` is the no-navigation request, not a malformed
+  // URL: keep it on the historical 200 blank-tab path.
+  if (rawTarget === 'about:blank') return null;
+
+  // Decode only when the scheme itself is encoded. A raw target may contain
+  // meaningful escapes in its path (for example /a%2Fb); decoding that entire
+  // URL would silently change where the browser navigates.
+  if (/^https?%3a%2f%2f/i.test(rawTarget)) {
+    try {
+      return decodeURIComponent(rawTarget);
+    } catch {
+      // Let URL parsing report malformed percent-encoding in the route.
+    }
+  }
+
+  return rawTarget;
+};
+
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 const wrapUserFunction = (fn: string) => {
@@ -850,6 +940,33 @@ export class BadRequest extends Error {
     errorLog(this.message);
   }
 }
+
+/**
+ * Parses and canonicalizes a /json/new target, rejecting relative URLs and
+ * schemes that a direct page-websocket connection must not be able to smuggle
+ * past the HTTP route's validation.
+ */
+export const resolveJSONNewTarget = (requested: string): string => {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(requested);
+  } catch {
+    throw new BadRequest(
+      'The /json/new target "' + requested + '" is not a valid absolute URL.',
+    );
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequest(
+      'The /json/new target must use http or https, got "' +
+        parsed.protocol +
+        '".',
+    );
+  }
+
+  return parsed.href;
+};
 
 export class TooManyRequests extends Error {
   constructor(message: string) {

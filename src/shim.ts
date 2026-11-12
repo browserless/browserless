@@ -3,6 +3,7 @@ import {
   CDPLaunchOptions,
   convertIfBase64,
   safeParse,
+  splitJSONNewQuery,
 } from '@browserless.io/browserless';
 
 const shimParam = [
@@ -24,13 +25,31 @@ export function moveTokenToHeader(req: http.IncomingMessage): string {
   const rawPathname = requestUrl
     .slice(0, queryStart)
     .replace(/^[A-Za-z][A-Za-z\d+.-]*:\/\/[^/]*/, '');
-  const searchParams = new URLSearchParams(requestUrl.slice(queryStart + 1));
+  const rawSearch = requestUrl.slice(queryStart + 1);
+
+  // The DevTools /json/new endpoint's target is whatever cannot be a
+  // browserless parameter, not a reserved-parameter list — see
+  // `splitJSONNewQuery`. Sharing that one rule with `parseJSONNewTarget`
+  // keeps the shim and the route in agreement.
+  const { rawTarget, systemSearch } = /^\/json\/new\/?$/i.test(rawPathname)
+    ? splitJSONNewQuery(rawSearch)
+    : { rawTarget: '', systemSearch: rawSearch };
+  const searchParams = new URLSearchParams(systemSearch);
   const token = searchParams.get('token');
 
   if (token) {
     searchParams.delete('token');
     req.headers.authorization = req.headers.authorization ?? `Bearer ${token}`;
-    const search = searchParams.toString();
+  }
+
+  if (token || rawTarget) {
+    // req.rawUrl already preserves the target for the route. Encode it here so
+    // generic query parsing cannot mistake the target's own &token= for a
+    // Browserless credential (query credentials take precedence over headers).
+    const internalTarget = rawTarget ? encodeURIComponent(rawTarget) : '';
+    const search = [searchParams.toString(), internalTarget]
+      .filter(Boolean)
+      .join('&');
     req.url = `${rawPathname || '/'}${search ? `?${search}` : ''}`;
   }
 

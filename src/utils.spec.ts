@@ -15,6 +15,8 @@ import {
   isSocketProxied,
   makeDefaultScreenInfoArg,
   markSocketAsProxied,
+  parseJSONNewTarget,
+  resolveJSONNewTarget,
   toSetContentOptions,
   writeResponse,
 } from '@browserless.io/browserless';
@@ -62,6 +64,115 @@ describe('Utils', () => {
         expect(makeDefaultScreenInfoArg(options)).to.equal(expected);
       });
     }
+  });
+
+  describe('#parseJSONNewTarget', () => {
+    it('returns the bare URL form the DevTools spec defines', () => {
+      expect(parseJSONNewTarget('?http://google.com')).to.equal(
+        'http://google.com',
+      );
+    });
+
+    it('decodes the percent-encoded form curl sends', () => {
+      expect(parseJSONNewTarget('?http%3A%2F%2Fgoogle.com')).to.equal(
+        'http://google.com',
+      );
+    });
+
+    it('skips a leading token parameter', () => {
+      expect(
+        parseJSONNewTarget('?token=browserless&http://google.com'),
+      ).to.equal('http://google.com');
+    });
+
+    it('preserves the final token parameter of a target', () => {
+      expect(
+        parseJSONNewTarget(
+          '?https://example.com/callback?state=x&token=target-token',
+        ),
+      ).to.equal('https://example.com/callback?state=x&token=target-token');
+    });
+
+    it('returns null when only browserless parameters are present', () => {
+      expect(parseJSONNewTarget('?token=browserless')).to.equal(null);
+    });
+
+    it('returns null when there is no query string', () => {
+      expect(parseJSONNewTarget('')).to.equal(null);
+      expect(parseJSONNewTarget('?')).to.equal(null);
+    });
+
+    it("preserves the target's own query string", () => {
+      expect(
+        parseJSONNewTarget('?token=t&https://example.com/s?q=a&b=2'),
+      ).to.equal('https://example.com/s?q=a&b=2');
+    });
+
+    it('leaves an inner token pair alone, it belongs to the target', () => {
+      expect(
+        parseJSONNewTarget('?https://example.com/s?token=inner&q=1'),
+      ).to.equal('https://example.com/s?token=inner&q=1');
+    });
+
+    it('preserves escapes inside a raw URL path', () => {
+      expect(parseJSONNewTarget('?https://example.com/a%2Fb')).to.equal(
+        'https://example.com/a%2Fb',
+      );
+    });
+
+    it('falls back to the raw text on malformed percent-encoding', () => {
+      expect(parseJSONNewTarget('?https://example.com/100%off')).to.equal(
+        'https://example.com/100%off',
+      );
+    });
+    it('finds the target after any system parameter, not just token', () => {
+      expect(
+        parseJSONNewTarget('?blockAds=true&trackingId=abc&https://two.com/'),
+      ).to.equal('https://two.com/');
+    });
+
+    it('returns null when only system parameters are present', () => {
+      expect(parseJSONNewTarget('?timeout=60000&token=browserless')).to.equal(
+        null,
+      );
+    });
+
+    it('returns explicit non-parameter text for the route to reject', () => {
+      expect(parseJSONNewTarget('?token=browserless&not-a-url')).to.equal(
+        'not-a-url',
+      );
+      expect(
+        parseJSONNewTarget('?token=browserless&file:///etc/passwd'),
+      ).to.equal('file:///etc/passwd');
+    });
+
+    it('treats value-bearing switches as system parameters', () => {
+      expect(
+        parseJSONNewTarget('?--remote-debugging-pipe=1&https://two.com/'),
+      ).to.equal('https://two.com/');
+      expect(parseJSONNewTarget('?--remote-debugging-pipe=1')).to.equal(null);
+    });
+
+    it('treats about:blank as no target', () => {
+      expect(parseJSONNewTarget('?about:blank')).to.equal(null);
+    });
+  });
+
+  describe('#resolveJSONNewTarget', () => {
+    it('canonicalizes absolute HTTP(S) targets', () => {
+      expect(resolveJSONNewTarget('https://example.com')).to.equal(
+        'https://example.com/',
+      );
+    });
+
+    it('rejects relative and non-HTTP(S) targets', () => {
+      expect(() => resolveJSONNewTarget('not-a-url')).to.throw(
+        'not a valid absolute URL',
+      );
+      expect(() => resolveJSONNewTarget('data:text/html,test')).to.throw(
+        'must use http or https',
+      );
+    });
   });
 
   describe('#getFinalPathSegment', () => {
