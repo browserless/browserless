@@ -1103,26 +1103,25 @@ export class BQLBrowserAPI {
   public async querySelector(args: ElementArgs) {
     return (await this.querySelectorAll(args))?.[0] ?? null;
   }
-  public async mapSelector({
-    selector,
-    cdp = this.mainCDP,
-    timeout,
-    wait,
-    parent,
-    parentIdx,
-  }: ElementArgs & { parent?: string; parentIdx?: number }): Promise<
-    SelectorNode[]
-  > {
+  public async mapSelector(
+    {
+      selector,
+      cdp = this.mainCDP,
+      timeout,
+      wait,
+      parent,
+      parentIdx,
+    }: ElementArgs & { parent?: string; parentIdx?: number },
+    root = 'document',
+  ): Promise<SelectorNode[]> {
     await this.waitForSelector({
       selector: parent ?? selector,
       cdp,
       timeout: wait ? timeout : 100,
       visible: false,
     });
-    const root =
-      parent === undefined
-        ? 'document'
-        : `${this.selectorExpression(parent)}[${parentIdx ?? 0}]`;
+    if (parent !== undefined)
+      root = `${this.selectorExpression(parent, root)}[${parentIdx ?? 0}]`;
     const { value } = await this.evaluate({
       cdp,
       content: `${this.selectorExpression(selector, root)}.map(el => ({ id: el.id, class: [...el.classList], innerHTML: el.innerHTML, innerText: el.innerText, attributes: Object.fromEntries([...el.attributes].map(a => [a.name,a.value])) }))`,
@@ -1134,7 +1133,10 @@ export class BQLBrowserAPI {
         value: node.attributes[name],
       }),
       mapSelector: (args: ElementArgs) =>
-        this.mapSelector({ ...args, cdp, parent: selector, parentIdx: index }),
+        this.mapSelector(
+          { ...args, cdp, parent: selector, parentIdx: index },
+          root,
+        ),
     }));
   }
   public async waitForSelector({
@@ -1353,7 +1355,8 @@ export class BQLBrowserAPI {
       cdp: args.cdp,
       timeout: args.timeout,
       content: `(() => {
-      const root = ${mode === 'html' && !args.selector ? 'document' : `${query}[0]`};
+      const source = ${mode === 'html' && !args.selector ? 'document' : `${query}[0]`};
+      const root = ${!!(args.clean || args.rewrite)} ? source.cloneNode(true) : source;
       const rewrite = ${JSON.stringify(args.rewrite ?? null)};
       if (rewrite) {
         const paths = new Map(rewrite.resources.map(r => [r.url, r.path]));
@@ -1361,7 +1364,7 @@ export class BQLBrowserAPI {
           try { return paths.get(new URL(raw, rewrite.baseURL).href) ?? raw; }
           catch { return raw; }
         };
-        for (const el of document.querySelectorAll('[src],[href],[srcset]')) for (const name of ['src','href','srcset']) {
+        for (const el of root.querySelectorAll('[src],[href],[srcset]')) for (const name of ['src','href','srcset']) {
           const raw = el.getAttribute(name); if (!raw) continue;
           const value = name === 'srcset' ? raw.split(',').map(candidate => {
             const parts = candidate.trim().split(/\\s+/);
@@ -1372,12 +1375,12 @@ export class BQLBrowserAPI {
         }
       }
       const clean = ${JSON.stringify(args.clean ?? null)};
-      if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of document.querySelectorAll(sel)) el.remove();
-      if (clean?.removeAttributes) for (const el of document.querySelectorAll('*')) for (const attr of [...el.attributes]) {
+      if (clean?.removeNonTextNodes) for (const sel of clean.selectors) for (const el of root.querySelectorAll(sel)) el.remove();
+      if (clean?.removeAttributes) for (const el of root.querySelectorAll('*')) for (const attr of [...el.attributes]) {
         const listed = clean.attributes?.includes(attr.name) ?? false;
         if (!clean.attributes || (clean.mode === 'ALLOW' ? !listed : listed)) el.removeAttribute(attr.name);
       }
-      return ${mode === 'html' ? "[...root.childNodes].map(node => node === document.documentElement ? node.outerHTML : new XMLSerializer().serializeToString(node)).join('')" : "root.innerText ?? root.textContent ?? ''"};
+      return ${mode === 'html' ? "[...root.childNodes].map(node => node === root.documentElement ? node.outerHTML : new XMLSerializer().serializeToString(node)).join('')" : "root.innerText ?? root.textContent ?? ''"};
     })()`,
     });
     return args.clean?.removeRegex
@@ -2247,7 +2250,7 @@ export class BQLBrowserAPI {
           (rect.documentY ?? rect.y + viewport!.pageY) + (options.clip?.y ?? 0),
         width: options.clip?.width ?? rect.width,
         height: options.clip?.height ?? rect.height,
-        scale: 1,
+        scale: options.clip?.scale ?? 1,
       };
     }
     if (clip && !captureBeyondViewport) {
