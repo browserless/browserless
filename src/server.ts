@@ -128,16 +128,16 @@ export class HTTPServer extends EventEmitter {
 
   /**
    * A header the client already sent wins over `?token=`, which then goes
-   * unused. Say so, since it usually means a proxy sets its own header.
+   * unused. That usually means a proxy sets its own header, so log it.
    */
-  protected warnIfQueryTokenIgnored(req: Request) {
+  protected logIgnoredQueryToken(req: Request) {
     if (
       req.queryToken === undefined ||
       getTokenFromRequest(req) === req.queryToken
     ) {
       return;
     }
-    this.logger.warn(
+    this.logger.debug(
       `The ?token= query parameter was ignored because the request already had a "${this.config.getTokenHeader()}" header, which takes precedence. If a proxy in front of browserless sets that header, stop it from forwarding the header, send the token in it, or set TOKEN_HEADER to a header clients don't otherwise send.`,
     );
   }
@@ -146,7 +146,7 @@ export class HTTPServer extends EventEmitter {
     this.logger.error(
       `HTTP request is not properly authorized, responding with 401`,
     );
-    this.warnIfQueryTokenIgnored(req);
+    this.logIgnoredQueryToken(req);
     this.metrics.addUnauthorized();
     return writeResponse(res, 401, 'Bad or missing authentication.');
   }
@@ -155,7 +155,7 @@ export class HTTPServer extends EventEmitter {
     this.logger.error(
       `Websocket request is not properly authorized, responding with 401`,
     );
-    this.warnIfQueryTokenIgnored(req);
+    this.logIgnoredQueryToken(req);
     this.metrics.addUnauthorized();
     return writeResponse(socket, 401, 'Bad or missing authentication.');
   }

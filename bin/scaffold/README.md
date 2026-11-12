@@ -137,7 +137,7 @@ Without a configured `TOKEN`, the default Token service leaves policies inert an
 
 ### Where the token is read from
 
-Clients send the token as a `?token=` query parameter or in the `Authorization` header (`Bearer <token>`, or Basic). Before hooks run, browserless moves `?token=` into that header so it isn't logged. A header the client already sent takes precedence, and a `?token=` it hides is logged as a warning when the request is rejected with 401.
+Clients send the token as a `?token=` query parameter or in the `Authorization` header (`Bearer <token>`, or Basic). Before hooks run, browserless moves `?token=` into that header so it isn't logged. A header the client already sent takes precedence, and when a `?token=` it hides leads to a 401, that is logged at debug level.
 
 If a proxy in front of browserless uses the `Authorization` header for itself, set `TOKEN_HEADER` to another header name, such as `X-Browserless-Token`. `?token=` is then moved into that header as the raw token, the proxy's `Authorization` header passes through untouched, and the token is read only from that header, so clients that send it in `Authorization` must send it in `TOKEN_HEADER` instead. Hooks that read the token from `req.headers.authorization` should read `req.headers[config.getTokenHeader()]`; `getTokenFromRequest` follows the setting.
 
