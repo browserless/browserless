@@ -704,6 +704,39 @@ test('screenshot clips retain relative offsets and scale and reject empty inters
   );
 });
 
+test('failed subresources exclude documents, cancellations and intentional rules', async () => {
+  const api = new API();
+  await api.setup();
+  for (const [id, type, status, canceled, errorText] of [
+    ['css', 'Stylesheet', 404, false, 'net::ERR_FAILED'],
+    ['image', 'Image', 200, false, 'net::ERR_CONNECTION_RESET'],
+    ['document', 'Document', 500, false, 'net::ERR_FAILED'],
+    ['canceled', 'Stylesheet', 200, true, 'net::ERR_ABORTED'],
+    ['blocked', 'Stylesheet', 200, false, 'net::ERR_BLOCKED_BY_CLIENT'],
+    ['intentional', 'Stylesheet', 500, false, 'net::ERR_FAILED'],
+  ] as const) {
+    api.client.emit('Network.requestWillBeSent', {
+      requestId: id,
+      type,
+      request: { url: `https://example.com/${id}`, method: 'GET', headers: {} },
+    });
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type,
+      hasExtraInfo: true,
+      response: { url: `https://example.com/${id}`, status, headers: {} },
+    });
+    api.client.emit('Network.loadingFailed', {
+      requestId: id,
+      canceled,
+      errorText,
+    });
+  }
+  await api.reject({ enabled: true, url: ['**/intentional'] });
+  assert.deepEqual(api.failedSubResources(), { total: 2, stylesheets: 1 });
+  await api.close();
+});
+
 test('preferences treats null and zero as reads and rejects invalid viewport dimensions', async () => {
   const api = new API();
   api.preferences({ timeout: 1250 });
@@ -1214,6 +1247,33 @@ test('intentional document rejects return null status instead of navigate errors
   const result = await api.goto({ url: 'https://example.com/blocked' });
   assert.equal(result.status, null);
   assert.equal(result.rejected, true);
+});
+
+test('navigation error policy preserves settled responses and clears stale metadata', async () => {
+  class SettledAPI extends API {
+    protected override onNavigationError(_errorText: string): void {}
+  }
+  const api = new SettledAPI();
+  const wait = Sinon.stub(api, 'waitForNavigation');
+  api.client.handler = (method) =>
+    method === 'Page.navigate'
+      ? { errorText: 'net::ERR_CONNECTION_REFUSED' }
+      : undefined;
+  for (const [status, rejected, expected] of [
+    [null, false, 'net::ERR_CONNECTION_REFUSED'],
+    [200, false, null],
+    [404, false, null],
+    [null, true, null],
+  ] as const) {
+    const response = { status, rejected } as any;
+    wait.resolves(response);
+    assert.equal(await api.goto({ url: 'https://example.com' }), response);
+    assert.equal(api.lastNavigationError(), expected);
+  }
+  wait.rejects(new Error('deadline'));
+  await assert.rejects(api.goto({ url: 'https://example.com' }), /deadline/);
+  assert.equal(api.lastNavigationError(), null);
+  await api.close();
 });
 
 test('content waits for the new document and every requested lifecycle event', async () => {
