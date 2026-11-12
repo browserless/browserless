@@ -6,7 +6,7 @@ name: Publish to npm
 #
 # Browser/unit tests are NOT re-run here: they run via pr-checks.yml on the
 # Release PR before it is merged, and they require Docker/browser images that a
-# bare runner does not have. This job only builds and publishes the SDK package.
+# bare runner does not have. Build without OIDC, then publish the packed SDK.
 
 on:
   push:
@@ -28,11 +28,10 @@ env:
 permissions: {}
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-26.04
     permissions:
       contents: read
-      id-token: write
     steps:
       # No git push/pull after checkout, so don't persist credentials.
       - uses: actions/checkout@v7.0.1
@@ -52,11 +51,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # `npm publish` runs the prepack hook (build:dev), which compiles
-      # TypeScript and assembles the published artifacts. Provenance is attached
-      # automatically via npm trusted publishing (OIDC, id-token: write).
+      # prepack runs build:dev here, without access to a publishing identity.
+      - name: Pack SDK
+        run: |
+          mkdir -p "$RUNNER_TEMP/npm-package"
+          npm pack --pack-destination "$RUNNER_TEMP/npm-package"
+          mv "$RUNNER_TEMP/npm-package/"*.tgz "$RUNNER_TEMP/npm-package/package.tgz"
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/npm-package/package.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+          check-latest: true
+      - name: Ensure npm >= 11.10.0 (min-release-age support)
+        run: npm install -g npm@11.21.2 --ignore-scripts # zizmor: ignore[adhoc-packages] -- exact npm bootstrap; lifecycle scripts disabled
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/npm-package
+      # Publish the same-run tarball without dependency/package lifecycle scripts.
+      # Provenance is attached automatically via npm trusted publishing (OIDC).
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish "$RUNNER_TEMP/npm-package/package.tgz" --access public --ignore-scripts
 
       # The package is already published by this point; a Slack hiccup must not
       # mark the release as failed.

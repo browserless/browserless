@@ -6,11 +6,12 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
-permissions:
-  issues: write
+permissions: {}
 
 jobs:
   stale:
+    permissions:
+      issues: write
     runs-on: ubuntu-slim
     timeout-minutes: 15
     steps:

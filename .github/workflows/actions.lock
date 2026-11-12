@@ -43,7 +43,7 @@ workflows:
         - 'nick-fields/retry@v4.0.0'
     '.github/workflows/merge-dependabot.yml':
         - 'dependabot/fetch-metadata@v3.1.0'
-        - 'hmarr/auto-approve-action@v4'
+        - 'hmarr/auto-approve-action@v4.0.0'
     '.github/workflows/node-runtime-update.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
@@ -51,7 +51,9 @@ workflows:
         - 'peter-evans/create-pull-request@v8.1.1'
     '.github/workflows/npm-publish.yml':
         - 'actions/checkout@v7.0.1'
+        - 'actions/download-artifact@v8.0.2'
         - 'actions/setup-node@v7.1.0'
+        - 'actions/upload-artifact@v7.0.2'
     '.github/workflows/pr-checks.yml': []
     '.github/workflows/pr-prettier-check.yml':
         - 'actions/checkout@v7.0.1'
@@ -132,9 +134,9 @@ dependencies:
         commit: 'sha1-45996ed1f6d02564a971a2fa1b5860e934307cf7'
         owner_id: 16785467
         repo_id: 262236530
-    'hmarr/auto-approve-action@v4':
-        ref: 'v4'
-        commit: 'sha1-05a696a09d381a5a0d142c755f7eacbb19eb6525'
+    'hmarr/auto-approve-action@v4.0.0':
+        ref: 'v4.0.0'
+        commit: 'sha1-f0939ea97e9205ef24d872e76833fa908a770363'
         owner_id: 110275
         repo_id: 154219663
     'nick-fields/retry@v4.0.0':

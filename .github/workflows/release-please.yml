@@ -36,6 +36,8 @@ concurrency:
 permissions: {}
 
 jobs:
+  # Every additional job must depend on release-please and preserve success gating.
+  # The workflow_run suppression is safe only while all jobs inherit this guard.
   release-please:
     runs-on: ubuntu-slim
     timeout-minutes: 10

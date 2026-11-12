@@ -31,6 +31,20 @@ jobs:
           max_attempts: 2
           retry_wait_seconds: 30
           command: npm clean-install
+      # zizmor 1.32.0 stops checking cooldowns after its first compliant updater.
+      - name: Enforce Dependabot cooldown policy
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { load } from 'js-yaml';
+          const { updates } = load(readFileSync('.github/dependabot.yml', 'utf8'));
+          for (const update of updates) {
+            if (update['package-ecosystem'] === 'docker') continue;
+            assert(update.cooldown?.['default-days'] >= 3,
+              `${update['package-ecosystem']} requires a cooldown of at least three days`);
+          }
+          NODE
       - name: Test FFmpeg installer
         run: node --test scripts/install-playwright-ffmpeg.test.js
       - name: Test nvm installer integrity
