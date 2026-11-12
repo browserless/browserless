@@ -2,11 +2,16 @@ name: Edge
 
 on: [workflow_call, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   Test:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Read Node runtime
         run: echo "NODE_VERSION=$(cat .nvmrc)" >> "$GITHUB_ENV"

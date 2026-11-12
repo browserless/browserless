@@ -2,14 +2,20 @@ name: Lint
 
 on: [workflow_call]
 
+permissions:
+  contents: read
+
 jobs:
   Lint:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
           check-latest: true
       - name: Check Node runtime pins and updater
         run: |

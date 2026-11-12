@@ -21,6 +21,11 @@ name: Publish Docker Images to GitHub Container Registry
 
 on:
   workflow_call:
+    secrets:
+      GHCR_USERNAME:
+        required: true
+      GHCR_PASSWORD:
+        required: true
     inputs:
       tag:
         description: >-
@@ -44,6 +49,9 @@ on:
         required: false
         type: string
         default: ''
+
+permissions:
+  contents: read
 
 env:
   BASE_IMAGE: ghcr.io/browserless/base
@@ -101,10 +109,11 @@ jobs:
           outputs: type=image,name=${{ env.BASE_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p "${RUNNER_TEMP}/digests"
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
 
       - name: Upload digest
         uses: actions/upload-artifact@v7
@@ -312,10 +321,11 @@ jobs:
           outputs: type=image,name=ghcr.io/browserless/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p "${RUNNER_TEMP}/digests"
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
 
       - name: Upload digest
         uses: actions/upload-artifact@v7

@@ -9,10 +9,15 @@ on:
   schedule:
     - cron: '0 0 * * 5'
 
+permissions: {}
+
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
@@ -30,6 +35,7 @@ jobs:
           # We must fetch at least the immediate parents so that if this is
           # a pull request then we can checkout the head.
           fetch-depth: 2
+          persist-credentials: false
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL

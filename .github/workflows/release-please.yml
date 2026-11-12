@@ -33,17 +33,21 @@ concurrency:
   group: release-please
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   release-please:
     runs-on: ubuntu-26.04
-    # On workflow_run, only proceed when the image build actually succeeded.
-    # (On push the second clause is never evaluated.)
+    # Only our successful main-branch push publisher may cross this boundary.
+    # No PR artifacts or PR head code are consumed by workflow_run.
     if: >-
-      github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+      github.repository == 'browserless/browserless' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
@@ -56,6 +60,8 @@ jobs:
         with:
           client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
           private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: googleapis/release-please-action@v5
         id: release
@@ -84,10 +90,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.pr_branch }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v7.1.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
         run: npm install -g npm@11.21.2 --ignore-scripts
@@ -102,6 +110,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Insert browser/library versions into the changelog
+        id: changelog
         run: |
           node scripts/changelog-browser-versions.js > "${RUNNER_TEMP}/block.md"
           node scripts/insert-changelog-browser-versions.js CHANGELOG.md < "${RUNNER_TEMP}/block.md"
@@ -113,4 +122,15 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add CHANGELOG.md
           git commit -m 'chore: add browser versions to changelog'
-          git push
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Push changelog
+        if: steps.changelog.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The helper reads the token only for this push, never from git config.
+        run: |
+          # shellcheck disable=SC2016  # Git's helper shell expands GH_TOKEN, not this shell.
+          git -c credential.helper= \
+            -c 'credential.helper=!f() { printf "%s\n" "username=x-access-token" "password=$GH_TOKEN"; }; f' \
+            push

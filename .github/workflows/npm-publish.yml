@@ -25,6 +25,8 @@ env:
   TAG: ${{ github.ref_name }}
   RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
 
+permissions: {}
+
 jobs:
   publish:
     runs-on: ubuntu-26.04
@@ -42,7 +44,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org
-          cache: npm
+          package-manager-cache: false
           check-latest: true
       - name: Ensure npm >= 11.10.0 (min-release-age support)
         run: npm install -g npm@11.21.2 --ignore-scripts
