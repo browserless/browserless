@@ -130,6 +130,7 @@ describe(`Limiter`, () => {
 
     expect(handlerTwo.calledOnce).to.be.false;
     await wait;
+    await sleep(10);
     expect(handlerTwo.calledOnce).to.be.true;
   });
 
@@ -498,6 +499,24 @@ describe(`Limiter`, () => {
 
     expect(timeout.called).not.to.be.true;
     expect(webHooks.callTimeoutAlertURL.calledOnce).not.to.be.true;
+  });
+
+  it(`doesn't time out jobs when the timeout is set to -1 at startup`, async () => {
+    const config = new Config();
+    const metrics = new Metrics();
+    const monitoring = trackMonitoring(new Monitoring(config));
+    config.setConcurrent(1);
+    config.setQueued(0);
+    config.setTimeout(-1);
+
+    const limiter = new Limiter(config, metrics, monitoring, webHooks, hooks);
+    const handler = () => new Promise((r) => setTimeout(r, 20));
+    const timeout = spy();
+    const job = limiter.limit(handler, noop, timeout, noop);
+    await job();
+
+    expect(timeout.called).not.to.be.true;
+    expect(webHooks.callTimeoutAlertURL.called).not.to.be.true;
   });
 
   it(`won't add items to the queue when reached`, () =>

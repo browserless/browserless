@@ -47,7 +47,7 @@ export class Limiter extends q {
     super({
       autostart: true,
       concurrency: config.getConcurrent(),
-      timeout: config.getTimeout(),
+      timeout: Math.max(config.getTimeout(), 0),
     });
     this.queued = config.getQueued();
 
