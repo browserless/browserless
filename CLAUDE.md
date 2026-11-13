@@ -46,6 +46,9 @@ npm run install:browsers
 - **`router.ts`** - Route registration and request matching
 - **`limiter.ts`** - Concurrency control and request queuing
 - **`config.ts`** - Configuration management via environment variables
+- **`bql/`** - BrowserQL service, extensible GraphQL schema, raw-CDP browser API,
+  and shared HTTP/WebSocket transports. `Browserless({ bql })` injects one service;
+  contexts own per-session API state. Base SDL is copied by `build:ts`.
 
 ### Browser Management (`src/browsers/`)
 
