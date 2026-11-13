@@ -16,6 +16,12 @@ jobs:
       - name: Read Node runtime
         run: echo "NODE_VERSION=$(cat .nvmrc)" >> "$GITHUB_ENV"
 
+      # Copy verified assets into the base image; never pass credentials to Docker.
+      - name: Install latest adblock release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/install-adblock.js
+
       - name: Build the base layer
         uses: nick-fields/retry@v4.0.0
         with:
