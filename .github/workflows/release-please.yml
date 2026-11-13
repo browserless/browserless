@@ -22,7 +22,7 @@ name: Release Please
 on:
   push:
     branches: [main]
-  workflow_run: # zizmor: ignore[dangerous-triggers] -- successful same-repo main push only; no PR artifacts (see job guard)
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- successful same-repo main publisher only; no PR artifacts (see job guard)
     workflows: ['Publish Latest Docker Images to GitHub Container Registry']
     types: [completed]
     branches: [main]
@@ -41,20 +41,20 @@ jobs:
   release-please:
     runs-on: ubuntu-slim
     timeout-minutes: 10
-    # Only our successful main-branch push publisher may cross this boundary.
+    # Only our successful main-branch publisher may cross this boundary.
     # No PR artifacts or PR head code are consumed by workflow_run.
     if: >-
       github.repository == 'browserless/browserless' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
        (github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
+        (github.event.workflow_run.event == 'push' ||
+         github.event.workflow_run.event == 'workflow_dispatch') &&
         github.event.workflow_run.head_branch == 'main' &&
         github.event.workflow_run.head_repository.full_name == github.repository))
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
-      pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
-      pr_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName }}
+      pr_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName || steps.existing-pr.outputs.branch }}
     steps:
       # App token (not GITHUB_TOKEN) so the tag/PR it creates can trigger the
       # downstream npm-publish and docker-publish workflows.
@@ -73,6 +73,19 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # An unchanged PR is omitted from release-please's outputs. Find it so a
+      # newly published image still refreshes its browser versions block.
+      - name: Find unchanged release PR
+        id: existing-pr
+        if: '!steps.release.outputs.pr'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          branch=$(gh pr list --base main --label 'autorelease: pending' \
+            --json headRefName --jq '.[] | select(.headRefName | startswith("release-please--branches--main--")) | .headRefName')
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
   # When a Release PR exists, regenerate the "Supports the following libraries and
   # browsers" block from the published multi image and commit it into CHANGELOG.md
   # on the Release PR branch. Runs after release-please (which recreates that
@@ -81,7 +94,7 @@ jobs:
   # shipping versions. The insert is idempotent and scoped to the newest section.
   browser-versions:
     needs: release-please
-    if: needs.release-please.outputs.pr_number
+    if: needs.release-please.outputs.pr_branch
     runs-on: ubuntu-26.04
     permissions:
       contents: write

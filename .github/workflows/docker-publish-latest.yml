@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   publish:
+    if: github.repository == 'browserless/browserless' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write

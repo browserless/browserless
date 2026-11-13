@@ -49,6 +49,8 @@ jobs:
         run: node --test scripts/install-playwright-ffmpeg.test.js
       - name: Test nvm installer integrity
         run: node --test scripts/nvm-install.test.js
+      - name: Test Dependabot merge eligibility
+        run: node --test scripts/ci/dependabot-automerge.test.js
       - name: Run ESLint
         run: npx --no-install eslint .
 
