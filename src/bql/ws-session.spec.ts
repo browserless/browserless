@@ -105,6 +105,42 @@ describe('BrowserQL WebSocket transport', () => {
     ]);
   });
 
+  it('can omit ping payloads and customize parse errors without changing operation errors', async () => {
+    start({
+      echoPingPayload: false,
+      formatParseError: (error) => ({ errors: [{ message: error.message }] }),
+      formatResponse: (result) => ({
+        ...result,
+        errors: result.errors?.map((error) => ({
+          ...error,
+          message: `${error.message} [operation]`,
+        })),
+      }),
+    });
+    socket.receive({ type: 'connection_init' });
+    socket.receive({ type: 'ping', payload: { nonce: 7 } });
+    subscribe('invalid', 'mutation {');
+    await setImmediate();
+    assert.deepEqual(socket.frames.slice(1), [
+      { type: 'pong' },
+      {
+        id: 'invalid',
+        type: 'error',
+        payload: [{ message: 'Syntax Error: Expected Name, found <EOF>.' }],
+      },
+    ]);
+    service.execute = async () => ({
+      errors: [{ message: 'operation failure' }] as any,
+    });
+    subscribe('failure');
+    await setImmediate();
+    assert.deepEqual(socket.frames.at(-1), {
+      id: 'failure',
+      type: 'error',
+      payload: [{ message: 'operation failure [operation]' }],
+    });
+  });
+
   it('delivers a large response when no outgoing data is queued', async () => {
     const value = 'x'.repeat(17 * 1024 * 1024);
     service.execute = async () => ({ data: { value } });
