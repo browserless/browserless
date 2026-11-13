@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.63.1](https://github.com/browserless/browserless/compare/v2.63.0...v2.63.1) (2026-11-13)
+
+
+### Build System & Runtime
+
+* exempt ubuntu from Dependabot cooldown ([#5682](https://github.com/browserless/browserless/issues/5682)) ([f96a9ae](https://github.com/browserless/browserless/commit/f96a9aeb4b7c2405cf7afdbe5440a9e571e8d371))
+
 ## [2.63.0](https://github.com/browserless/browserless/compare/v2.62.0...v2.63.0) (2026-11-12)
 
 
