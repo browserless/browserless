@@ -11,7 +11,7 @@
 
 ### Supported Libraries & Browsers
 
-- puppeteer-core: `25.16.0`
+- puppeteer-core: `25.17.0`
 - playwright-core: `1.65.0`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
 - Chromium: `158.0.8127.18`
 - Chrome: `157.0.8103.78` (amd64 only)
