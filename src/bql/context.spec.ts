@@ -116,11 +116,12 @@ describe('BrowserQL context lifetime', () => {
     await assert.rejects(context.getBrowser(), /closed/);
   });
 
-  it('cleans failed startup and does not create another API on a poisoned context', async () => {
+  it('retries after failed startup and closes both API instances', async () => {
     let closes = 0;
+    let starts = 0;
     class API extends BQLBrowserAPI {
       override async start() {
-        throw new Error('start failed');
+        if (++starts === 1) throw new Error('start failed');
       }
       override async close() {
         closes++;
@@ -128,8 +129,9 @@ describe('BrowserQL context lifetime', () => {
     }
     const context = new Context(options, (options) => new API(options));
     await assert.rejects(context.getBrowser(), /start failed/);
-    await assert.rejects(context.getBrowser(), /start failed/);
+    assert.equal(context.startedBrowser(), undefined);
+    assert.equal(await context.getBrowser(), context.startedBrowser());
     await context.close();
-    assert.equal(closes, 1);
+    assert.equal(closes, 2);
   });
 });

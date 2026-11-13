@@ -7,6 +7,7 @@ import {
   GraphQLSchema,
   GraphQLSkipDirective,
   Kind,
+  OperationDefinitionNode,
   SelectionSetNode,
   execute,
   getDirectiveValues,
@@ -33,6 +34,7 @@ export async function executeWithChaining(
   variableValues?: Record<string, unknown> | null,
   operationName?: string,
   mutationResultPolicy?: MutationResultPolicy,
+  legacyMutationSemantics = false,
 ): Promise<ExecutionResult> {
   variableValues ??= {};
   let ast: DocumentNode;
@@ -43,7 +45,13 @@ export async function executeWithChaining(
   }
   const errors = [...validate(schema, ast)];
   if (errors.length) return { errors };
-  const operation = getOperationAST(ast, operationName);
+  const operation = legacyMutationSemantics
+    ? (ast.definitions.find(
+        (node): node is OperationDefinitionNode =>
+          node.kind === Kind.OPERATION_DEFINITION &&
+          node.operation === 'mutation',
+      ) ?? getOperationAST(ast))
+    : getOperationAST(ast, operationName);
   if (operation?.operation === 'subscription')
     return {
       errors: [
@@ -56,7 +64,7 @@ export async function executeWithChaining(
     rootValue,
     contextValue,
     variableValues,
-    operationName,
+    operationName: legacyMutationSemantics ? undefined : operationName,
   };
   if (!operation || operation.operation !== 'mutation') return execute(args);
 
@@ -70,7 +78,13 @@ export async function executeWithChaining(
     operation.variableDefinitions ?? [],
     variableValues,
   );
-  if (coerced.errors) return { errors: coerced.errors };
+  if (coerced.errors) {
+    if (!legacyMutationSemantics) return { errors: coerced.errors };
+    const errors = operation.selectionSet.selections.flatMap((selection) =>
+      selection.kind === Kind.FIELD ? coerced.errors! : [],
+    );
+    return { data: {}, ...(errors.length ? { errors } : {}) };
+  }
   const variables = coerced.variableValues;
   function fields(set: SelectionSetNode): FieldNode[] {
     return set.selections.flatMap((selection) => {
@@ -91,11 +105,6 @@ export async function executeWithChaining(
   }
   const exports: Record<string, unknown> = Object.create(null);
   const data: Record<string, unknown> = Object.create(null);
-  const groups = new Map<string, FieldNode[]>();
-  for (const field of fields(operation.selectionSet)) {
-    const key = field.alias?.value ?? field.name.value;
-    groups.set(key, [...(groups.get(key) ?? []), field]);
-  }
   function collect(set: SelectionSetNode, value: unknown): void {
     if (Array.isArray(value)) {
       for (const item of value) collect(set, item);
@@ -116,7 +125,13 @@ export async function executeWithChaining(
       if (field.selectionSet) collect(field.selectionSet, result);
     }
   }
-  for (const selections of groups.values()) {
+  const selectionsToExecute = legacyMutationSemantics
+    ? operation.selectionSet.selections.filter(
+        (node): node is FieldNode => node.kind === Kind.FIELD,
+      )
+    : fields(operation.selectionSet);
+  for (const field of selectionsToExecute) {
+    const selections = [field];
     const single: DocumentNode = {
       kind: Kind.DOCUMENT,
       definitions: [
@@ -144,7 +159,25 @@ export async function executeWithChaining(
     if (result.data === null && decision !== 'continue')
       return { data: null, errors };
     Object.assign(data, result.data);
-    collect({ kind: Kind.SELECTION_SET, selections }, result.data);
+    if (legacyMutationSemantics) {
+      if (result.data) {
+        const value = result.data[
+          field.alias?.value ?? field.name.value
+        ] as Record<string, unknown> | null;
+        for (const child of field.selectionSet?.selections ?? []) {
+          if (child.kind !== Kind.FIELD) continue;
+          const directive = child.directives?.find(
+            (d) => d.name.value === 'export',
+          );
+          const name = directive?.arguments?.find(
+            (a) => a.name.value === 'as',
+          )?.value;
+          if (name?.kind === Kind.STRING)
+            exports[name.value] =
+              value?.[child.alias?.value ?? child.name.value];
+        }
+      }
+    } else collect({ kind: Kind.SELECTION_SET, selections }, result.data);
     if (decision === 'stop') break;
   }
   return { data, ...(errors.length ? { errors } : {}) };

@@ -18,6 +18,8 @@ type Payload = {
 };
 
 export interface BQLWebSocketSessionOptions {
+  /** Enforce graphql-transport-ws control-frame sequencing. Defaults to true. */
+  strictProtocol?: boolean;
   /** Echo the optional ping payload in pong frames. Defaults to true. */
   echoPingPayload?: boolean;
   /** Format parse failures separately from executed operation results. */
@@ -172,13 +174,14 @@ export class BQLWebSocketSession {
       return;
     }
     const { type, id, payload } = message;
+    const strict = this.options.strictProtocol !== false;
     switch (type) {
       case 'connection_init':
-        if (payload != null && !object(payload)) {
+        if (strict && payload != null && !object(payload)) {
           this.client.close(4400, 'Invalid connection_init');
           return;
         }
-        if (this.initialized) {
+        if (strict && this.initialized) {
           this.client.close(4429, 'Too many initialization requests');
           return;
         }
@@ -193,7 +196,7 @@ export class BQLWebSocketSession {
         return;
       case 'ping':
       case 'pong':
-        if (payload != null && !object(payload)) {
+        if (strict && payload != null && !object(payload)) {
           this.client.close(4400, 'Invalid ping/pong');
           return;
         }
@@ -207,13 +210,14 @@ export class BQLWebSocketSession {
         return;
       case 'complete':
         if (typeof id !== 'string' || !id) {
-          this.client.close(4400, 'Invalid operation ID');
+          if (strict) this.client.close(4400, 'Invalid operation ID');
           return;
         }
+        if (!strict && !this.operations.get(id)?.iterator) return;
         this.cancel(id);
         return;
       case 'subscribe': {
-        if (!this.initialized) {
+        if (strict && !this.initialized) {
           this.client.close(4401, 'Unauthorized');
           return;
         }
@@ -227,16 +231,28 @@ export class BQLWebSocketSession {
                 ? payload.operationName
                 : undefined,
           });
-          this.client.close(4400, 'Invalid subscribe message');
+          if (strict) this.client.close(4400, 'Invalid subscribe message');
+          else
+            this.send({
+              id,
+              type: 'error',
+              payload: [{ message: 'Invalid subscribe message' }],
+            });
           return;
         }
-        if (this.operations.has(id)) {
+        if (strict && this.operations.has(id)) {
           this.client.close(4409, 'Subscriber already exists');
           return;
         }
         const operation: Operation = {};
-        this.operations.set(id, operation);
-        this.enqueue(() => this.execute(id, payload, operation));
+        if (strict) this.operations.set(id, operation);
+        this.enqueue(() => {
+          if (!strict) {
+            this.cancel(id);
+            this.operations.set(id, operation);
+          }
+          return this.execute(id, payload, operation);
+        });
         return;
       }
       default:

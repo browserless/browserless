@@ -56,8 +56,9 @@ or mutation/subscription fields without a resolver. Invalid modules therefore
 fail during service construction rather than on a client's first request.
 
 Mutation resolvers, including module fields and conditional nested actions, run
-through the context's serial queue. Separate contexts do not block one another.
-Subscription iterators remain outside that queue. Always release listeners and
+serially within each execution. Independent in-process operations on the same
+context can run concurrently, including wait/action pairs. WebSocket operations
+remain queued per connection. Subscription iterators remain outside that queue. Always release listeners and
 other resources when an iterator receives `return()` or its context closes.
 
 Services that need different top-level mutation failure handling can supply
@@ -66,8 +67,16 @@ field name, even when the client aliases it. Returning `continue` preserves prio
 partial results and executes later fields even after a non-null field error;
 returning `stop` skips later fields. Returning `undefined` keeps the default
 GraphQL non-null propagation. Errors remain in the response in every case. This
-policy runs after a top-level field group completes; it does not cancel actions
+policy runs after a top-level field completes; it does not cancel actions
 already dispatched or change execution within a nested selection.
+
+`legacyMutationSemantics: true` retains first-mutation selection regardless of
+`operationName`, skips root fragments, and collects only direct child exports
+(including `undefined` exports from null or list results). Leave it disabled for
+standard operation selection and recursive exports. Repeated top-level mutation
+fields execute in document order, including repeated response keys. In legacy
+mode, invalid variables return empty `data` and repeat coercion errors for each
+top-level field, preserving partial-result WebSocket envelopes.
 
 ## Customize the browser API
 
@@ -90,7 +99,7 @@ const bql = new BrowserQL({
 The constructor options contain `browser`, `config`, `logger`, `req`, and
 `blockConsentModals`. A context starts the API lazily and shares the in-flight
 startup promise between callers. A failed startup must not expose a partially
-initialized browser API. Transports close the context when their session ends.
+initialized browser API; a later call retries after cleanup. Transports close the context when their session ends.
 
 | Extension point                    | Default behavior                                             |
 | ---------------------------------- | ------------------------------------------------------------ |
@@ -122,3 +131,7 @@ execution and cleanup rather than implementing another GraphQL transport.
 `BQLWebSocketSessionOptions` supports response formatting and operation or invalid
 frame observers. Formatting applies to GraphQL envelopes, not protocol control
 frames. Invalid-frame observers cannot change the protocol outcome.
+`strictProtocol: false` retains permissive initialization, ping payloads and
+queued repeated operation IDs; invalid subscribe frames return an error without
+closing the connection. In this mode, `complete` cancels subscriptions, but a
+running mutation still sends its result. The default enforces graphql-transport-ws sequencing.
