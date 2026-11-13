@@ -29,19 +29,3 @@ jobs:
 
   test-multi:
     uses: ./.github/workflows/docker-multi.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
-
-  automerge:
-    permissions:
-      contents: write
-      pull-requests: write
-    needs:
-      [
-        lint,
-        leak-check,
-        test-chrome,
-        test-chromium,
-        test-firefox,
-        test-webkit,
-        test-multi,
-      ]
-    uses: ./.github/workflows/merge-dependabot.yml # zizmor: ignore[self-repository] -- reusable workflow at this commit
