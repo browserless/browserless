@@ -76,6 +76,22 @@ test('evaluate returns primitive values and surfaces script exceptions', async (
   );
 });
 
+test('page metadata remains available when content readback is blocked', async () => {
+  class ProtectedAPI extends API {
+    protected override async beforeReadback() {
+      throw new Error('CaptureBlocked');
+    }
+  }
+  const api = new ProtectedAPI();
+  api.client.value = 'metadata';
+  assert.equal((await api.url()).value, 'metadata');
+  assert.equal((await api.title()).value, 'metadata');
+  await assert.rejects(
+    api.evaluate({ content: 'document.body.innerText' }),
+    /CaptureBlocked/,
+  );
+});
+
 test('evaluate handles long semicolon sequences without blocking', async function () {
   this.timeout(1000);
   const api = new API();
@@ -741,7 +757,7 @@ test('failed subresources exclude documents, cancellations and intentional rules
       errorText,
     });
   }
-  await api.reject({ enabled: true, url: ['**/intentional'] });
+  await api.reject({ enabled: true, url: ['*/intentional'] });
   assert.deepEqual(api.failedSubResources(), { total: 2, stylesheets: 1 });
   await api.close();
 });
@@ -942,8 +958,11 @@ test('PDF rejects long invalid dimensions without blocking', async function () {
   const api = new API();
   await assert.rejects(
     api.pdf({ options: { width: '9'.repeat(40_000) + 'x' } }),
-    /Invalid paper dimension/,
+    /Invalid css unit/,
   );
+  await assert.rejects(api.pdf({ options: { width: '612', height: '792' } }), {
+    message: 'Invalid css unit: 612',
+  });
 });
 
 test('cookie partition keys map sourceOrigin and preserve the result shape', async () => {
@@ -1955,6 +1974,245 @@ test('tab-managing APIs reconnect when the selected target connection has closed
   replacement.value = 'Recovered';
   assert.equal((await api.title()).value, 'Recovered');
   await api.close();
+});
+
+for (const title of ['Tab ?', 'Tab [12]']) {
+  test(`window switching matches UTF-16 target titles for ${title}`, async () => {
+    class Switching extends API {
+      override async listPageTargets() {
+        return ['Tab 😀', 'Tab 1'].map((title, index) => ({
+          id: index === 0 ? 'emoji' : 'test',
+          type: 'page',
+          title,
+          url: 'about:blank',
+          webSocketDebuggerUrl: this.client.url(),
+        }));
+      }
+    }
+    const api = new Switching();
+    await api.setup();
+    try {
+      assert.equal(
+        (await api.switchToWindow({ title, timeout: 100 })).success,
+        true,
+      );
+      assert.equal(api.getCurrentTargetId(), 'test');
+      assert.equal(
+        (
+          await api.switchToWindow({
+            title: title.replace('Tab', 'Missing'),
+            timeout: 10,
+          })
+        ).success,
+        false,
+      );
+      await assert.rejects(
+        api.switchToWindow({ title: '!(Tab)', timeout: 10 }),
+        /Glob is invalid or unsupported/,
+      );
+    } finally {
+      await api.close();
+    }
+  });
+}
+
+test('window switching selects the first UTF-16 match rather than skipping emoji', async () => {
+  class Switching extends API {
+    protected override async connect() {
+      return this.client as any;
+    }
+    override async listPageTargets() {
+      return ['a😀', 'ab'].map((title, index) => ({
+        id: index === 0 ? 'test' : 'ascii',
+        type: 'page',
+        title,
+        url: 'about:blank',
+        webSocketDebuggerUrl: this.client.url(),
+      }));
+    }
+  }
+  const api = new Switching();
+  await api.setup();
+  try {
+    assert.equal(
+      (await api.switchToWindow({ title: '*a?*', timeout: 100 })).success,
+      true,
+    );
+    assert.deepEqual(
+      api.client.calls
+        .filter(({ method }) => method === 'Target.activateTarget')
+        .map(({ params }) => params.targetId),
+      ['test'],
+    );
+  } finally {
+    await api.close();
+  }
+});
+
+test('window switching rejects unsupported values without skipping targets and preserves targetId precedence', async () => {
+  class Switching extends API {
+    override async listPageTargets() {
+      return ['\uE000', 'Supported'].map((title, index) => ({
+        id: index === 0 ? 'reserved' : 'test',
+        type: 'page',
+        title,
+        url: 'about:blank',
+        webSocketDebuggerUrl: this.client.url(),
+      }));
+    }
+  }
+  const api = new Switching();
+  await api.setup();
+  try {
+    await assert.rejects(
+      api.switchToWindow({ title: '*', timeout: 10 }),
+      /reserved private-use/,
+    );
+    assert.equal(
+      (
+        await api.switchToWindow({
+          targetId: 'test',
+          title: '**',
+          timeout: 100,
+        })
+      ).success,
+      true,
+    );
+  } finally {
+    await api.close();
+  }
+});
+
+for (const unsupported of ['\uE001', '\u2028']) {
+  test(`window switching waits for the newest popup before ${JSON.stringify(unsupported)}`, async () => {
+    class Switching extends API {
+      polls = 0;
+      override async listPageTargets() {
+        const ready = ++this.polls > 1;
+        return [unsupported, ready ? 'Popup ready' : 'Loading'].map(
+          (title, index) => ({
+            id: index === 0 ? 'old' : 'test',
+            type: 'page',
+            title,
+            url: 'about:blank',
+            webSocketDebuggerUrl: this.client.url(),
+          }),
+        );
+      }
+    }
+    const api = new Switching();
+    await api.setup();
+    try {
+      assert.equal(
+        (
+          await api.switchToWindow({
+            title: 'Popup*',
+            newest: true,
+            timeout: 500,
+          })
+        ).success,
+        true,
+      );
+      assert.equal(api.polls, 2);
+      assert.deepEqual(
+        api.client.calls
+          .filter(({ method }) => method === 'Target.activateTarget')
+          .map(({ params }) => params.targetId),
+        ['test'],
+      );
+    } finally {
+      await api.close();
+    }
+  });
+
+  test(`window switching never falls through an earlier unsupported ${JSON.stringify(unsupported)}`, async () => {
+    class Switching extends API {
+      polls = 0;
+      override async listPageTargets() {
+        this.polls++;
+        return [unsupported, 'Popup ready'].map((title, index) => ({
+          id: index === 0 ? 'old' : 'test',
+          type: 'page',
+          title,
+          url: 'about:blank',
+          webSocketDebuggerUrl: this.client.url(),
+        }));
+      }
+    }
+    const api = new Switching();
+    await api.setup();
+    try {
+      await assert.rejects(
+        api.switchToWindow({ title: 'Popup*', timeout: 100 }),
+        /unsupported/,
+      );
+      assert.ok(api.polls >= 2);
+      assert.equal(
+        api.client.calls.some(
+          ({ method }) => method === 'Target.activateTarget',
+        ),
+        false,
+      );
+    } finally {
+      await api.close();
+    }
+  });
+}
+
+test('window switching clears a selection error after the unsupported target disappears', async () => {
+  class Switching extends API {
+    polls = 0;
+    override async listPageTargets() {
+      return [
+        {
+          id: 'test',
+          type: 'page',
+          title: ++this.polls === 1 ? '\uE001' : 'Loading',
+          url: 'about:blank',
+          webSocketDebuggerUrl: this.client.url(),
+        },
+      ];
+    }
+  }
+  const api = new Switching();
+  await api.setup();
+  try {
+    assert.deepEqual(
+      await api.switchToWindow({ title: 'Popup*', timeout: 100 }),
+      { success: false, error: 'No matching window found' },
+    );
+    assert.ok(api.polls >= 2);
+  } finally {
+    await api.close();
+  }
+});
+
+test('window switching polls past emoji titles until a delayed title matches', async () => {
+  class Switching extends API {
+    polls = 0;
+    override async listPageTargets() {
+      return [
+        {
+          id: 'test',
+          type: 'page',
+          title: ++this.polls === 1 ? 'Tab 😀' : 'Tab 1',
+          url: 'about:blank',
+          webSocketDebuggerUrl: this.client.url(),
+        },
+      ];
+    }
+  }
+  const api = new Switching();
+  await api.setup();
+  try {
+    assert.equal(
+      (await api.switchToWindow({ title: 'Tab ?', timeout: 500 })).success,
+      true,
+    );
+    assert.equal(api.polls, 2);
+  } finally {
+    await api.close();
+  }
 });
 
 test('window switching recognizes restored document milestones without lifecycle replay', async () => {

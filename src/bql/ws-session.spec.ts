@@ -88,6 +88,43 @@ describe('BrowserQL WebSocket transport', () => {
     await done;
   });
 
+  it('can retain permissive control frames and queued duplicate IDs', async () => {
+    start({ strictProtocol: false, echoPingPayload: false });
+    subscribe('same');
+    subscribe('same');
+    await setImmediate();
+    assert.equal(socket.frames.filter((f) => f.type === 'next').length, 2);
+    socket.receive({ type: 'connection_init' });
+    socket.receive({ type: 'connection_init' });
+    socket.receive({ type: 'ping', payload: 'nonce' });
+    socket.receive({ type: 'subscribe', id: 'bad', payload: {} });
+    assert.deepEqual(socket.frames.at(-2), { type: 'pong' });
+    assert.deepEqual(socket.frames.at(-1), {
+      id: 'bad',
+      type: 'error',
+      payload: [{ message: 'Invalid subscribe message' }],
+    });
+    subscribe('after');
+    await setImmediate();
+    assert.equal(socket.readyState, 1);
+    assert.deepEqual(socket.frames.at(-1), { id: 'after', type: 'complete' });
+  });
+
+  it('retains running mutation results after complete in permissive mode', async () => {
+    const pending = deferred<any>();
+    service.execute = () => pending.promise;
+    start({ strictProtocol: false });
+    subscribe('mutation');
+    await setImmediate();
+    socket.receive({ type: 'complete', id: 'mutation' });
+    pending.resolve({ data: { run: 'finished' } });
+    await setImmediate();
+    assert.deepEqual(socket.frames, [
+      { id: 'mutation', type: 'next', payload: { data: { run: 'finished' } } },
+      { id: 'mutation', type: 'complete' },
+    ]);
+  });
+
   it('acks capabilities, echoes ping payload and completes an operation', async () => {
     start();
     socket.receive({ type: 'connection_init' });

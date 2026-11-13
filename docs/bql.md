@@ -165,10 +165,28 @@ Network `regex` filters and readback `clean.regexes` use RE2 syntax with Unicode
 matching. Each pattern is limited to 200 characters. Lookaround and
 backreferences are unsupported; invalid or unsupported patterns fail when the
 filter is registered. This also applies to SDK `request` and `response` filters.
-Cleanup replacements are case-insensitive. URL and title patterns use only `*`
-(any sequence) and `?` (one character), with all other characters treated literally
-and a 200-character limit. Shell extglobs, brace expansion and character classes
-are not supported. The GraphQL `reject` and `fulfill` fields and SDK network
+Cleanup replacements are case-insensitive. URL and title globs are compiled to
+RE2 with a 200-character limit. Common `*`/`?` wildcards, brace alternatives,
+character classes and leading negation are supported; wildcard segments exclude
+leading dots. Supported examples include `*/*`, `*/*.png`, `*/*.js`, `cdn.*`,
+`example.com*`, `www.example.com*`, `*.*`, `Slow *opup`, `Order * confirmed`
+and `a*b*c`.
+Patterns requiring unsupported assertions (including globstar, negative extglobs
+and some grouped stars such as `http://example.test/{a,lib/*}.js`), invalid
+character ranges, quoted/escaped patterns and `./` normalization return an
+explicit input error rather than silently matching literally. Globs preserve
+legacy UTF-16 code-unit matching, including emoji and lone surrogates. Patterns
+and values containing private-use characters U+E000–U+E7FF are rejected because
+that range is reserved internally for surrogate encoding. Nonliteral matches
+against values containing line terminators also return an explicit input error.
+Window switching examines targets in order and continues polling when no title
+or URL matches. An unsupported pattern or value stops that poll's ordered search,
+not the wait: later polls may find a match before reaching the unsupported target.
+At timeout, an input error is thrown only if the final poll's ordered search failed.
+If that search completed normally without a match, an ordinary timeout result is
+returned instead; historical input errors are discarded. Targets are never silently
+skipped. Selecting by `targetId` takes precedence over patterns.
+The GraphQL `reject` and `fulfill` fields and SDK network
 filters offer `regex` as an alternative; other GraphQL URL/title filters do not.
 
 Readback cleanup does not modify the live page. HTML cleanup and URL rewriting

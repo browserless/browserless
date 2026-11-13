@@ -979,7 +979,7 @@ export class BQLBrowserAPI {
     runtimeTimeout = timeout,
     // Runtime.evaluate returns caller-defined JSON, not a fixed browser schema.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<{ value: any; time: number }> {
+  ): Promise<{ value: any; time: number; unserializableValue?: string }> {
     duration(timeout);
     duration(executionTimeout);
     duration(runtimeTimeout);
@@ -1022,13 +1022,19 @@ export class BQLBrowserAPI {
           >
         )[remote.unserializableValue] ?? remote.unserializableValue)
       : remote.value;
-    return { value, time: Date.now() - start };
+    return {
+      value,
+      time: Date.now() - start,
+      ...(remote.unserializableValue === undefined
+        ? {}
+        : { unserializableValue: remote.unserializableValue }),
+    };
   }
   public url() {
-    return this.evaluate({ content: 'location.href' });
+    return this.evaluateInternal({ content: 'location.href' }, 0);
   }
   public title() {
-    return this.evaluate({ content: 'document.title' });
+    return this.evaluateInternal({ content: 'document.title' }, 0);
   }
 
   protected async fetchScript(
@@ -1065,6 +1071,8 @@ export class BQLBrowserAPI {
     return value;
   }
 
+  protected readonly pierceShadowRoots: boolean = true;
+
   protected selectorExpression(selector: string, root = 'document'): string {
     selector = this.resolveSelector(selector);
     const literal = JSON.stringify(selector).replace(
@@ -1076,7 +1084,7 @@ export class BQLBrowserAPI {
       const result = [];
       const visit = (scope) => {
         result.push(...scope.querySelectorAll(${literal}));
-        for (const el of scope.querySelectorAll('*')) if (el.shadowRoot) visit(el.shadowRoot);
+        if (${this.pierceShadowRoots}) for (const el of scope.querySelectorAll('*')) if (el.shadowRoot) visit(el.shadowRoot);
       };
       try {
         if (root) visit(root);
@@ -1161,7 +1169,7 @@ export class BQLBrowserAPI {
         if (!el) return ${hidden ? '{ x:0,y:0,width:0,height:0 }' : 'null'};
         const r = el.getBoundingClientRect();
         const style = getComputedStyle(el);
-        const shown = !!(r.width && r.height && style.visibility !== 'hidden' && style.display !== 'none');
+        const shown = !!(r.width && r.height && style.visibility !== 'hidden' && style.display !== 'none' && el.checkVisibility?.({checkOpacity:true, checkVisibilityCSS:true}) !== false);
         if (${!!hidden}) return shown ? null : {x:0,y:0,width:0,height:0};
         if (${!!visible} && !shown) return null;
         if (${!!checkInteractable} && (el.disabled || style.pointerEvents === 'none')) return null;
@@ -1186,7 +1194,7 @@ export class BQLBrowserAPI {
       const el = ${this.selectorExpression(args.selector)}[0];
       if (!el) return null;
       const r = el.getBoundingClientRect(); const style = getComputedStyle(el);
-      if (${!!args.visible} && (!r.width || !r.height || style.visibility === 'hidden' || style.display === 'none')) return null;
+      if (${!!args.visible} && (!r.width || !r.height || style.visibility === 'hidden' || style.display === 'none' || el.checkVisibility?.({checkOpacity:true, checkVisibilityCSS:true}) === false)) return null;
       return {x:r.x,y:r.y,width:r.width,height:r.height};
     })()`,
     });
@@ -1248,11 +1256,10 @@ export class BQLBrowserAPI {
       ? [args.delay[0]!, args.delay[1] ?? args.delay[0]!]
       : undefined;
     if (delay) {
-      if (args.delay!.length > 2 || delay[0] > delay[1])
-        throw new BadRequest(
-          'Typing delay requires an ordered [min, max] range',
-        );
+      if (args.delay!.length > 2)
+        throw new BadRequest('Typing delay requires a [min, max] range');
       delay.forEach(duration);
+      delay.sort((a, b) => a - b);
     }
     const result = await this.click({
       ...args,
@@ -1737,11 +1744,13 @@ export class BQLBrowserAPI {
         : navigation$,
     );
   }
-  private resetNetwork() {
-    this.requests.clear();
-    this.responses.clear();
-    this.failedRequests.clear();
-    this.networkOwners.clear();
+  private resetNetwork(preserveRecords = false) {
+    if (!preserveRecords) {
+      this.requests.clear();
+      this.responses.clear();
+      this.failedRequests.clear();
+      this.networkOwners.clear();
+    }
     this.clearResponseMetadata();
     for (const id of this.responseOrigins.keys())
       this.dropResponseOrigin(id, true);
@@ -1798,7 +1807,7 @@ export class BQLBrowserAPI {
     if (this.closed) throw new Error('Browser is no longer running');
     if (url) await this.assertNavigationAllowed(url);
     await this.beforeNavigate(url);
-    this.resetNetwork();
+    this.resetNetwork(command !== 'Page.navigate');
     this.navigationError = null;
     let errorText: string | null = null;
     const waiting = this.waitForNavigation(args.waitUntil, args.timeout);
@@ -2472,15 +2481,20 @@ export class BQLBrowserAPI {
     ): number => {
       if (value === undefined) return fallback;
       if (typeof value === 'number') return value;
-      const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(px|in|cm|mm)$/i.exec(
+      const match = /^(-?(?:\d+(?:\.\d+)?|\.\d+))\s*(px|in|cm|mm|pt|pc)$/i.exec(
         value.trim(),
       );
-      if (!match) throw new BadRequest('Invalid paper dimension');
+      if (!match) throw new BadRequest(`Invalid css unit: ${value}`);
       return (
         Number(match[1]) *
-        { px: 1 / 96, in: 1, cm: 1 / 2.54, mm: 1 / 25.4 }[
-          match[2].toLowerCase()
-        ]!
+        {
+          px: 1 / 96,
+          in: 1,
+          cm: 1 / 2.54,
+          mm: 1 / 25.4,
+          pt: 1 / 72,
+          pc: 1 / 6,
+        }[match[2].toLowerCase()]!
       );
     };
     const formats: Record<string, [number, number]> = {
@@ -2488,18 +2502,19 @@ export class BQLBrowserAPI {
       legal: [8.5, 14],
       tabloid: [11, 17],
       ledger: [17, 11],
-      a0: [33.1, 46.8],
-      a1: [23.4, 33.1],
-      a2: [16.54, 23.4],
-      a3: [11.7, 16.54],
-      a4: [8.27, 11.7],
-      a5: [5.83, 8.27],
-      a6: [4.13, 5.83],
+      a0: [33.1102, 46.811],
+      a1: [23.3858, 33.1102],
+      a2: [16.5354, 23.3858],
+      a3: [11.6929, 16.5354],
+      a4: [8.2677, 11.6929],
+      a5: [5.8268, 8.2677],
+      a6: [4.1339, 5.8268],
     };
     const format = options.format
       ? formats[options.format.toLowerCase()]
       : undefined;
     if (options.format && !format) throw new Error('Invalid paper format');
+    const paperWidth = format?.[0] ?? inches(options.width, 8.5);
     let paperHeight = format?.[1] ?? inches(options.height, 11);
     if (options.fullPage)
       paperHeight =
@@ -2520,7 +2535,7 @@ export class BQLBrowserAPI {
             footerTemplate: options.footerTemplate,
             printBackground: options.printBackground,
             scale: options.scale,
-            paperWidth: format?.[0] ?? inches(options.width, 8.5),
+            paperWidth,
             paperHeight,
             marginTop:
               options.marginTop === undefined &&
@@ -2642,10 +2657,12 @@ export class BQLBrowserAPI {
     if (!Number.isFinite(polling) || polling < 0)
       throw new BadRequest('Cannot poll with non-positive interval');
     duration(polling);
-    await this.evaluateInternal({
-      cdp,
-      timeout,
-      content: `new Promise((resolve,reject) => {
+    await bounded(
+      this.evaluateInternal(
+        {
+          cdp,
+          timeout,
+          content: `new Promise((resolve,reject) => {
       let timer, deadline, observer, frame, finished = false;
       const finish = (error) => { if (finished) return; finished = true; clearTimeout(timer); clearTimeout(deadline); observer?.disconnect(); if (frame !== undefined) cancelAnimationFrame(frame); error ? reject(error) : resolve(true); };
       const tick = async () => { if (finished) return; try { let value = (${fn}); if (typeof value === 'function') value = value(); if (await value) return finish(); } catch(error) { return finish(error); }
@@ -2653,9 +2670,18 @@ export class BQLBrowserAPI {
         else if (${JSON.stringify(pollingType)} === 'mutation') { observer = new MutationObserver(() => { observer.disconnect(); tick(); }); observer.observe(document,{subtree:true,childList:true,attributes:true}); }
         else timer = setTimeout(tick,${polling});
       };
-      if (${timeout}) deadline = setTimeout(() => finish(new Error('waitForFunction timed out')),${timeout}); tick();
+      if (${timeout}) deadline = setTimeout(() => finish(new Error('waitForFunction: Waiting failed, timeout ${timeout}ms exceeded')),${timeout}); tick();
     })`,
-    });
+        },
+        0,
+      ),
+      timeout,
+      'waitForFunction',
+      () =>
+        new Error(
+          `Error: waitForFunction: Waiting failed, timeout ${timeout}ms exceeded`,
+        ),
+    );
     return { time: Date.now() - start };
   }
   private eventTracker(event: string) {
@@ -3171,6 +3197,7 @@ export class BQLBrowserAPI {
     duration(timeout);
     const start = Date.now();
     let lastError: string | undefined;
+    let selectionError: unknown;
     do {
       if (this.closed)
         return { success: false, error: 'Browser is no longer running' };
@@ -3180,11 +3207,19 @@ export class BQLBrowserAPI {
         targets.sort(
           (a, b) => this.targetOrder.get(b.id)! - this.targetOrder.get(a.id)!,
         );
-      const target = targets.find((t) =>
-        targetId
-          ? t.id === targetId
-          : (!url || glob(t.url, url)) && (!title || glob(t.title, title)),
-      );
+      let target: PageTarget | undefined;
+      selectionError = undefined;
+      try {
+        target = targets.find((t) =>
+          targetId
+            ? t.id === targetId
+            : (!url || glob(t.url, url)) && (!title || glob(t.title, title)),
+        );
+      } catch (error) {
+        // Preserve ordering: never skip an unsupported candidate. A later
+        // poll may find a matching popup before reaching that candidate.
+        selectionError = error;
+      }
       if (target) {
         const previous = this.mainCDP;
         let next: Connection | undefined;
@@ -3216,8 +3251,13 @@ export class BQLBrowserAPI {
             'Window setup',
           );
           if (this.closed) throw new Error('Browser is no longer running');
+          const { value: currentTitle } = await bounded(
+            this.title(),
+            Math.max(1, timeout - (Date.now() - start)),
+            'Window title',
+          );
           if (next !== previous) this.retireTarget(previous);
-          return { success: true, url: target.url, title: target.title };
+          return { success: true, url: target.url, title: currentTitle };
         } catch (error) {
           this.mainCDP = previous;
           if (next && next !== previous) this.retireTarget(next);
@@ -3226,6 +3266,7 @@ export class BQLBrowserAPI {
       }
       await pause(50);
     } while (Date.now() - start < timeout);
+    if (selectionError) throw selectionError;
     return {
       success: false,
       error: lastError

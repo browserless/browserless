@@ -31,6 +31,8 @@ export interface BrowserQLOptions<API extends BQLBrowserAPI = BQLBrowserAPI> {
   apiFactory?: APIFactory<API>;
   capabilities?: string[];
   mutationResultPolicy?: MutationResultPolicy;
+  /** Preserve first-mutation selection and shallow exports for existing clients. */
+  legacyMutationSemantics?: boolean;
 }
 
 export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
@@ -41,15 +43,18 @@ export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
   ).version;
   private readonly apiFactory: APIFactory<API>;
   private readonly mutationResultPolicy?: MutationResultPolicy;
+  private readonly legacyMutationSemantics: boolean;
 
   constructor({
     modules = [],
     apiFactory = (options) => new BQLBrowserAPI(options) as API,
     capabilities = [],
     mutationResultPolicy,
+    legacyMutationSemantics = false,
   }: BrowserQLOptions<API> = {}) {
     this.apiFactory = apiFactory;
     this.mutationResultPolicy = mutationResultPolicy;
+    this.legacyMutationSemantics = legacyMutationSemantics;
     this.capabilities = [
       ...new Set([
         'core',
@@ -85,6 +90,7 @@ export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
       request.variables,
       request.operationName,
       this.mutationResultPolicy,
+      this.legacyMutationSemantics,
     );
   }
 

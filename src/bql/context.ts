@@ -40,7 +40,14 @@ export class Context<API extends BQLBrowserAPI = BQLBrowserAPI> {
         } catch (error) {
           this.disconnectBridge?.();
           this.disconnectBridge = undefined;
-          await api.close();
+          try {
+            await api.close();
+          } finally {
+            if (!this.closed) {
+              this.started = undefined;
+              this.api = undefined;
+            }
+          }
           throw error;
         }
       });
