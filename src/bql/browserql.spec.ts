@@ -10,6 +10,142 @@ const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 describe('BrowserQL schema and execution', () => {
+  it('preserves per-field variable errors only in legacy mutation mode', async () => {
+    for (const legacyMutationSemantics of [false, true]) {
+      const service = new BrowserQL({ legacyMutationSemantics });
+      const context = service.createContext(options);
+      for (const variables of [{}, { content: 5 }]) {
+        const result = await service.execute(
+          {
+            query:
+              'mutation ($content: String!) { a:evaluate(content:$content){value} b:evaluate(content:"2"){value} }',
+            variables,
+          },
+          context,
+        );
+        assert.deepEqual(
+          plain(result.data ?? null),
+          legacyMutationSemantics ? {} : null,
+        );
+        assert.equal(result.errors?.length, legacyMutationSemantics ? 2 : 1);
+        if (legacyMutationSemantics)
+          assert.deepEqual(plain(result.errors![0]), plain(result.errors![1]));
+      }
+      await context.close();
+    }
+  });
+
+  it('preserves first-mutation selection and shallow exports when requested', async () => {
+    const service = new BrowserQL({
+      legacyMutationSemantics: true,
+      modules: [
+        {
+          name: 'echo',
+          typeDefs:
+            'type Echo { value: String } extend type Mutation { echo(value:String!):Echo list:[Echo] fail:Echo }',
+          resolvers: {
+            Mutation: {
+              echo: (_s, args) => ({ value: args.value }),
+              list: () => [{ value: 'one' }, { value: 'two' }],
+              fail: () => {
+                throw new Error('failure');
+              },
+            },
+          },
+        },
+      ],
+    });
+    const context = service.createContext(options);
+    const query =
+      'mutation A { echo(value:"A") {value} } mutation B {echo(value:"B"){value}}';
+    for (const operationName of [undefined, 'B'])
+      assert.deepEqual(
+        plain(await service.execute({ query, operationName }, context)),
+        { data: { echo: { value: 'A' } } },
+      );
+    assert.deepEqual(
+      plain(
+        await service.execute(
+          {
+            query:
+              'mutation { ...F } fragment F on Mutation {echo(value:"not run"){value}}',
+          },
+          context,
+        ),
+      ),
+      { data: {} },
+    );
+    for (const field of ['list', 'fail']) {
+      const result = await service.execute(
+        {
+          query: `mutation { ${field} {value @export(as:"v")} echo(value:"\${v}"){value} }`,
+        },
+        context,
+      );
+      assert.deepEqual(plain(result.data?.echo), { value: 'undefined' });
+    }
+    await context.close();
+  });
+
+  it('executes repeated mutation fields in document order', async () => {
+    let count = 0;
+    const service = new BrowserQL({
+      modules: [
+        {
+          name: 'counter',
+          typeDefs: 'extend type Mutation { increment: Int }',
+          resolvers: { Mutation: { increment: () => ++count } },
+        },
+      ],
+    });
+    const context = service.createContext(options);
+    const result = await service.execute(
+      { query: 'mutation { increment increment }' },
+      context,
+    );
+    assert.deepEqual(plain(result), { data: { increment: 2 } });
+    await context.close();
+  });
+
+  it('allows concurrent operations to release each other on one context', async function () {
+    this.timeout(1000);
+    let release!: () => void;
+    const gate = new Promise<string>((resolve) => {
+      release = () => resolve('released');
+    });
+    const service = new BrowserQL({
+      modules: [
+        {
+          name: 'race',
+          typeDefs: 'extend type Mutation { wait: String release: String }',
+          resolvers: {
+            Mutation: {
+              wait: () => gate,
+              release: () => {
+                release();
+                return 'triggered';
+              },
+            },
+          },
+        },
+      ],
+    });
+    const context = service.createContext(options);
+    try {
+      const results = await Promise.all([
+        service.execute({ query: 'mutation { wait }' }, context),
+        service.execute({ query: 'mutation { release }' }, context),
+      ]);
+      assert.deepEqual(results.map(plain), [
+        { data: { wait: 'released' } },
+        { data: { release: 'triggered' } },
+      ]);
+    } finally {
+      release();
+      await context.close();
+    }
+  });
+
   it('rejects subscription operations through the non-streaming executor', async () => {
     const service = new BrowserQL();
     const context = service.createContext(options);

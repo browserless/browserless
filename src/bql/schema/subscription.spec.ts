@@ -35,7 +35,7 @@ describe('BrowserQL subscriptions', () => {
       await service.subscribe(
         {
           query:
-            'subscription { response(url:["https://example.com/**"],status:[201],operator:and) { url status headers { name value } ...Body } } fragment Body on ResponseResponse { body base64Encoded }',
+            'subscription { response(url:["https://example.com/*"],status:[201],operator:and) { url status headers { name value } ...Body } } fragment Body on ResponseResponse { body base64Encoded }',
         },
         context,
       ),

@@ -123,6 +123,29 @@ describe('raw CDP browser primitives', () => {
     cleanup.push(() => api.close());
     await api.start();
     api.preferences({ timeout: 3000 });
+    await api.content({
+      html: '<button id="hidden" style="opacity:0">Hidden</button>',
+    });
+    await assert.rejects(
+      api.waitForSelector({ selector: '#hidden', visible: true, timeout: 100 }),
+      /Timeout/,
+    );
+    await api.waitForSelector({
+      selector: '#hidden',
+      hidden: true,
+      timeout: 100,
+    });
+    for (const content of ['NaN', 'Infinity', '-0', '10n'])
+      assert.ok((await api.evaluate({ content })).unserializableValue);
+    const pointsPdf = await api.pdf({
+      options: { format: 'a4', marginTop: '12pt', marginBottom: '1pc' },
+    });
+    const box = /\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/.exec(
+      Buffer.from(pointsPdf.base64, 'base64').toString('latin1'),
+    );
+    assert.ok(box);
+    assert.ok(Math.abs(Number(box[1]) - 595.92) < 0.01);
+    assert.ok(Math.abs(Number(box[2]) - 841.92) < 0.01);
     assert.equal((await api.evaluate({ url: `${cdnURL}/script` })).value, 42);
     assert.equal((await api.goto({ url: origin })).status, 200);
     assert.equal((await api.evaluate({ url: `${cdnURL}/redirect` })).value, 42);
