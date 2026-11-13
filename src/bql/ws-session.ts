@@ -18,6 +18,10 @@ type Payload = {
 };
 
 export interface BQLWebSocketSessionOptions {
+  /** Echo the optional ping payload in pong frames. Defaults to true. */
+  echoPingPayload?: boolean;
+  /** Format parse failures separately from executed operation results. */
+  formatParseError?: (error: GraphQLError) => FormattedExecutionResult;
   /** Format GraphQL envelopes without changing protocol control frames. */
   formatResponse?: (
     result: FormattedExecutionResult,
@@ -196,7 +200,9 @@ export class BQLWebSocketSession {
         if (type === 'ping')
           this.send({
             type: 'pong',
-            ...(payload === undefined ? {} : { payload }),
+            ...(payload === undefined || this.options.echoPingPayload === false
+              ? {}
+              : { payload }),
           });
         return;
       case 'complete':
@@ -264,7 +270,18 @@ export class BQLWebSocketSession {
         protocol: BQL_WEBSOCKET_PROTOCOL,
       });
       // Parsing here selects the transport path; schema validation remains in the service.
-      const document = parse(payload.query);
+      let document;
+      try {
+        document = parse(payload.query);
+      } catch (error) {
+        this.fail(
+          id,
+          operation,
+          error,
+          this.options.formatParseError?.(error as GraphQLError),
+        );
+        return;
+      }
       const subscription =
         getOperationAST(document, payload.operationName)?.operation ===
         'subscription';
@@ -297,18 +314,28 @@ export class BQLWebSocketSession {
     }
   }
 
-  private fail(id: string, operation: Operation, error: unknown): void {
+  private fail(
+    id: string,
+    operation: Operation,
+    error: unknown,
+    formatted?: FormattedExecutionResult,
+  ): void {
     if (!this.active(id, operation)) return;
     this.operations.delete(id);
     this.returnIterator(operation.iterator);
     this.send({
       id,
       type: 'error',
-      payload: this.format({
-        errors: [
-          error instanceof GraphQLError ? error : { message: messageOf(error) },
-        ],
-      }).errors,
+      payload: (
+        formatted ??
+        this.format({
+          errors: [
+            error instanceof GraphQLError
+              ? error
+              : { message: messageOf(error) },
+          ],
+        })
+      ).errors,
     });
     if (this.context.hasErrored())
       this.client.close(1011, 'Browser session ended');
