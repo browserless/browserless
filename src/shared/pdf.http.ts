@@ -181,7 +181,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
         await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
       }
 
-      if (setJavaScriptEnabled) {
+      if (typeof setJavaScriptEnabled === 'boolean') {
         await page.setJavaScriptEnabled(setJavaScriptEnabled);
       }
 
