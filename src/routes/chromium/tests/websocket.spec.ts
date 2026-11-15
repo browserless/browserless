@@ -493,7 +493,10 @@ describe('Chromium WebSocket API', function () {
     const metrics = new Metrics();
 
     class KillDuringHook extends Hooks {
+      private killed = false;
       async browser({ browser }: BrowserHook) {
+        if (this.killed) return;
+        this.killed = true;
         const proc = browser.process();
         if (!proc) return;
         const exited = once(proc, 'exit');
