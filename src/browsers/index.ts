@@ -46,6 +46,18 @@ import { cpus } from 'os';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
+import { realpathSync } from 'fs';
+
+// Synchronous (no await) so two concurrent launches naming the same path
+// can't interleave between resolving it and reserving it. Falls back to
+// path.resolve() when the directory doesn't exist yet to be resolved.
+const canonicalizeUserDataDir = (dir: string): string => {
+  try {
+    return realpathSync(dir);
+  } catch {
+    return path.resolve(dir);
+  }
+};
 
 // Chrome releases its profile-dir file handles within a few hundred ms
 // of `browser.close()` resolving, so 200/400/800 ms covers the realistic
@@ -70,6 +82,8 @@ const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux']);
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
+  // this.browsers is updated too late/early to double as this check.
+  protected reservedUserDataDirs: Set<string> = new Set();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   // /json/version and /json/protocol are invariant for the life of the
   // installed binary — cache them so we don't boot a whole Chromium per
@@ -755,6 +769,14 @@ export class BrowserManager {
         this.teardownBrowser(browser, session),
       );
       await teardown.catch(noop);
+
+      // Only now, once the browser has actually torn down, is this manual
+      // profile free for a new launch to reserve.
+      if (!session.isTempDataDir && session.userDataDir) {
+        this.reservedUserDataDirs.delete(
+          canonicalizeUserDataDir(session.userDataDir),
+        );
+      }
     }
   }
 
@@ -1059,18 +1081,19 @@ export class BrowserManager {
       );
     }
 
-    // A second request naming the same persistent profile must not reach
-    // ChromiumCDP's stale-lock cleanup while the first browser still holds
-    // it - that would strip the lock out from under a live Chrome process.
-    if (
-      manualUserDataDir &&
-      [...this.browsers.values()].some(
-        (session) => session.userDataDir === manualUserDataDir,
-      )
-    ) {
-      throw new TooManyRequests(
-        `user-data-dir "${manualUserDataDir}" is already in use by another session`,
-      );
+    // No await before this point: closes the race where two concurrent
+    // launches for the same profile could both pass the check below.
+    const canonicalManualUserDataDir = manualUserDataDir
+      ? canonicalizeUserDataDir(manualUserDataDir)
+      : null;
+
+    if (canonicalManualUserDataDir) {
+      if (this.reservedUserDataDirs.has(canonicalManualUserDataDir)) {
+        throw new TooManyRequests(
+          `user-data-dir "${manualUserDataDir}" is already in use by another session`,
+        );
+      }
+      this.reservedUserDataDirs.add(canonicalManualUserDataDir);
     }
 
     // Always specify a user-data-dir since plugins can "inject" their own
@@ -1101,6 +1124,9 @@ export class BrowserManager {
       // BrowserlessSession exists yet to route through the normal close path.
       if (!manualUserDataDir && userDataDir) {
         await this.removeUserDataDir(userDataDir);
+      }
+      if (canonicalManualUserDataDir) {
+        this.reservedUserDataDirs.delete(canonicalManualUserDataDir);
       }
       throw err;
     }
@@ -1177,6 +1203,9 @@ export class BrowserManager {
       // Owned by browserless regardless of who supplied the data dir, so it is
       // reclaimed unconditionally.
       await this.removeScratchDir(scratchDir);
+      if (canonicalManualUserDataDir) {
+        this.reservedUserDataDirs.delete(canonicalManualUserDataDir);
+      }
       throw err;
     }
 
