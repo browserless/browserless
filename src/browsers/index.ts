@@ -25,6 +25,7 @@ import {
   Request,
   Route,
   ServerError,
+  TooManyRequests,
   WebKitPlaywright,
   WorkerLifecycle,
   availableBrowsers,
@@ -1055,6 +1056,20 @@ export class BrowserManager {
     if (manualUserDataDir && launchOptions.args) {
       launchOptions.args = launchOptions.args.filter(
         (arg) => !arg.includes('--user-data-dir='),
+      );
+    }
+
+    // A second request naming the same persistent profile must not reach
+    // ChromiumCDP's stale-lock cleanup while the first browser still holds
+    // it - that would strip the lock out from under a live Chrome process.
+    if (
+      manualUserDataDir &&
+      [...this.browsers.values()].some(
+        (session) => session.userDataDir === manualUserDataDir,
+      )
+    ) {
+      throw new TooManyRequests(
+        `user-data-dir "${manualUserDataDir}" is already in use by another session`,
       );
     }
 

@@ -448,6 +448,41 @@ describe('Chromium WebSocket API', function () {
     await deleteAsync(userDataDir, { force: true });
   });
 
+  it('rejects a second launch against a user-data-dir already in use (#5680)', async () => {
+    const dataDirLocation = '/tmp/browserless-test-dir-conflict';
+    const launch = JSON.stringify({ userDataDir: dataDirLocation });
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const first = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+    });
+
+    try {
+      const conflictError = await puppeteer
+        .connect({
+          browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+        })
+        .then(() => null)
+        .catch((e: Error) => e);
+
+      expect(conflictError?.message).to.include('429');
+
+      await first.disconnect();
+      await sleep(500);
+
+      // Releasing the first session frees the directory for reuse.
+      const second = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+      });
+      await second.disconnect();
+    } finally {
+      await deleteAsync(dataDirLocation, { force: true });
+    }
+  });
+
   it('creates user-data-dirs with CLI flags', async () => {
     const dataDirLocation = '/tmp/browserless-test-dir';
     const launch = JSON.stringify({
