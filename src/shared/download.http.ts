@@ -117,6 +117,20 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       }
     };
 
+    const rmDownload = once(() =>
+      deleteAsync(downloadPath, { force: true })
+        .then(() => {
+          logger.debug(
+            `Successfully deleted downloads from disk at "${downloadPath}"`,
+          );
+        })
+        .catch((err) => {
+          logger.error(
+            `Error cleaning up downloaded files: "${err}" at "${downloadPath}"`,
+          );
+        }),
+    );
+
     const handler = functionHandler(
       config,
       logger,
@@ -125,6 +139,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
     );
     const { page } = await handler(req, browser).catch((e) => {
       logger.error(`Error running download code handler: "${e}"`);
+      rmDownload();
       throw e;
     });
 
@@ -166,30 +181,25 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       }
     }
 
-    const rmDownload = once(() =>
-      deleteAsync(downloadPath, { force: true })
-        .then(() => {
-          logger.debug(
-            `Successfully deleted downloads from disk at "${downloadPath}"`,
-          );
-        })
-        .catch((err) => {
-          logger.error(
-            `Error cleaning up downloaded files: "${err}" at "${downloadPath}"`,
-          );
-        }),
-    );
-
     let filePath: string | null = null;
     try {
       filePath = await waitForDownload();
     } finally {
       logger.debug(`Closing pages.`);
       page.removeAllListeners();
-      const pageClosed = page.close().catch(() => {});
-      (downloadEvents as CDPSession | null)?.detach().catch(() => {});
+      const session = downloadEvents as CDPSession | null;
+      const stopped = Promise.all(
+        [...downloads]
+          .filter(([, { state }]) => state === 'inProgress')
+          .map(([guid]) =>
+            session?.send('Browser.cancelDownload', { guid }).catch(() => {}),
+          ),
+      )
+        .then(() => page.close())
+        .catch(() => {})
+        .finally(() => session?.detach().catch(() => {}));
       if (!filePath || res.headersSent) {
-        pageClosed.then(rmDownload);
+        stopped.then(rmDownload);
       }
     }
 

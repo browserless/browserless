@@ -156,6 +156,15 @@ describe('/chromium/download API', function () {
         res.end('<html><body>files</body></html>');
         return;
       }
+      if (req.url === '/slow') {
+        res.writeHead(200, {
+          'content-disposition': 'attachment; filename="slow.bin"',
+          'content-type': 'application/octet-stream',
+        });
+        const drip = setInterval(() => res.write(Buffer.alloc(1024)), 100);
+        res.on('close', () => clearInterval(drip));
+        return;
+      }
       const status = Number(req.url?.split('/status/')[1]) || 404;
       res.writeHead(status, { 'content-type': 'text/html' });
       res.end(`<h1>${status}</h1>`);
@@ -169,6 +178,72 @@ describe('/chromium/download API', function () {
 
     after(() => {
       fileServer.close();
+    });
+
+    it('removes the download directory when the function throws', async () => {
+      const config = new Config();
+      await start({ config });
+      const downloadsDir = await config.getDownloadsDir();
+      const listDownloadDirs = async () =>
+        (await readdir(downloadsDir)).filter((name) =>
+          name.startsWith('.browserless.download.'),
+        );
+      const dirsBefore = await listDownloadDirs();
+
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        body: JSON.stringify({
+          code: `export default async () => { throw new Error('boom'); }`,
+        }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+      });
+
+      expect(res.status).to.not.equal(200);
+      await new Promise((r) => setTimeout(r, 1000));
+      const leftover = (await listDownloadDirs()).filter(
+        (name) => !dirsBefore.includes(name),
+      );
+      expect(leftover).to.deep.equal([]);
+    });
+
+    it('removes the download directory when the client disconnects mid-download', async () => {
+      const config = new Config();
+      await start({ config });
+      const downloadsDir = await config.getDownloadsDir();
+      const listDownloadDirs = async () =>
+        (await readdir(downloadsDir)).filter((name) =>
+          name.startsWith('.browserless.download.'),
+        );
+      const dirsBefore = await listDownloadDirs();
+      const newDirs = async () =>
+        (await listDownloadDirs()).filter((name) => !dirsBefore.includes(name));
+
+      const controller = new AbortController();
+      const req = fetch('http://localhost:3000/chromium/download', {
+        body: JSON.stringify({
+          code: `export default async ({ page, context }) => {
+            await page.goto(context.origin);
+            await page.evaluate((url) => {
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = '';
+              document.body.appendChild(link);
+              link.click();
+            }, context.url);
+          }`,
+          context: { origin, url: `${origin}/slow` },
+        }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        signal: controller.signal,
+      }).catch(() => null);
+
+      await new Promise((r) => setTimeout(r, 3000));
+      expect(await newDirs()).to.have.length(1);
+      controller.abort();
+      await req;
+      await new Promise((r) => setTimeout(r, 2000));
+      expect(await newDirs()).to.deep.equal([]);
     });
 
     for (const status of [403, 404, 500]) {
