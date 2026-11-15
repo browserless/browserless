@@ -1189,6 +1189,7 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
+    let sessionId: string;
     try {
       await browser.launch({
         options: { ...launchOptions, env: browserEnv } as BrowserServerOptions,
@@ -1197,6 +1198,15 @@ export class BrowserManager {
         stealth: launchOptions?.stealth,
       });
       await this.hooks.browser({ browser, req });
+
+      // Chrome can exit while the hook above awaits, which clears
+      // wsEndpoint; treat that the same as any other launch failure
+      // rather than letting it throw past this cleanup block.
+      const wsEndpoint = browser.wsEndpoint();
+      if (!wsEndpoint) {
+        throw new ServerError('Browser disconnected before launch completed');
+      }
+      sessionId = getFinalPathSegment(wsEndpoint)!;
     } catch (err) {
       // No BrowserlessSession exists yet at this point, so the normal
       // close path cannot reclaim the auto-generated user-data-dir.
@@ -1221,7 +1231,6 @@ export class BrowserManager {
       throw err;
     }
 
-    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
       id: sessionId,
       initialConnectURL:
