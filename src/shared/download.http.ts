@@ -144,24 +144,23 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           return path.join(downloadPath, fileName);
         }
 
-        if (!fileName) {
-          const started = [...downloads.values()];
-          if (
-            started.length &&
-            started.every(({ state }) => state === 'canceled')
-          ) {
-            throw new NotFound(
-              `Download of "${started[started.length - 1].url}" failed: the browser canceled it, which usually means the server responded with an error status.`,
-            );
-          }
-          if (
-            !started.length &&
-            Date.now() - functionReturnedAt > downloadStartTimeoutMs
-          ) {
-            throw new NotFound(
-              `No download was started within ${downloadStartTimeoutMs / 1000}s of the function returning.`,
-            );
-          }
+        const started = [...downloads.values()];
+        if (
+          started.length &&
+          started.every(({ state }) => state === 'canceled')
+        ) {
+          throw new NotFound(
+            `Download of "${started[started.length - 1].url}" failed: the browser canceled it, which usually means the server responded with an error status.`,
+          );
+        }
+        if (
+          !fileName &&
+          !started.length &&
+          Date.now() - functionReturnedAt > downloadStartTimeoutMs
+        ) {
+          throw new NotFound(
+            `No download was started within ${downloadStartTimeoutMs / 1000}s of the function returning.`,
+          );
         }
         await sleep(500);
       }
