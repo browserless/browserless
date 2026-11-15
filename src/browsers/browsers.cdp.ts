@@ -25,6 +25,7 @@ import httpProxy from 'http-proxy';
 import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 import playwright from 'playwright-core';
+import { rm } from 'fs/promises';
 
 import { bridgeCDPContexts } from './cdp-context-bridge.js';
 
@@ -62,6 +63,22 @@ puppeteerStealth.use(
  * (`--disable-background-networking`) but not this one.
  */
 export const disableComponentUpdaterArg = '--disable-component-update';
+
+// A SingletonLock left by a non-gracefully-killed Chrome makes the next
+// launch against this userDataDir fail as "already in use." Safe to clear
+// unconditionally: CONCURRENT already guarantees nothing legitimate holds it.
+const singletonLockFiles = [
+  'SingletonLock',
+  'SingletonCookie',
+  'SingletonSocket',
+];
+
+const clearStaleSingletonLock = (userDataDir: string) =>
+  Promise.all(
+    singletonLockFiles.map((file) =>
+      rm(path.join(userDataDir, file), { force: true }),
+    ),
+  );
 
 export class ChromiumCDP extends EventEmitter {
   protected config: Config;
@@ -481,6 +498,10 @@ export class ChromiumCDP extends EventEmitter {
     const launch = stealth
       ? puppeteerStealth.launch.bind(puppeteerStealth)
       : puppeteer.launch.bind(puppeteer);
+
+    if (this.userDataDir) {
+      await clearStaleSingletonLock(this.userDataDir);
+    }
 
     this.logger.debug(
       finalOptions,
