@@ -49,13 +49,22 @@ import path from 'path';
 import { realpathSync } from 'fs';
 
 // Synchronous (no await) so two concurrent launches naming the same path
-// can't interleave between resolving it and reserving it. Falls back to
-// path.resolve() when the directory doesn't exist yet to be resolved.
+// can't interleave between resolving it and reserving it. Walks up to the
+// nearest existing ancestor to resolve any symlink in it, since a path that
+// doesn't exist yet would otherwise keep an alias spelling as its key.
 const canonicalizeUserDataDir = (dir: string): string => {
-  try {
-    return realpathSync(dir);
-  } catch {
-    return path.resolve(dir);
+  const resolved = path.resolve(dir);
+  let existingAncestor = resolved;
+  const missingSegments: string[] = [];
+  while (true) {
+    try {
+      return path.join(realpathSync(existingAncestor), ...missingSegments);
+    } catch {
+      const parent = path.dirname(existingAncestor);
+      if (parent === existingAncestor) return resolved;
+      missingSegments.unshift(path.basename(existingAncestor));
+      existingAncestor = parent;
+    }
   }
 };
 
@@ -84,6 +93,9 @@ export class BrowserManager {
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
   // this.browsers is updated too late/early to double as this check.
   protected reservedUserDataDirs: Set<string> = new Set();
+  // Keyed by the same BrowserInstance as this.browsers so release always
+  // uses the exact key reserved at launch, never a path re-resolved later.
+  protected reservedUserDataDirKeys: Map<BrowserInstance, string> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   // /json/version and /json/protocol are invariant for the life of the
   // installed binary — cache them so we don't boot a whole Chromium per
@@ -772,10 +784,10 @@ export class BrowserManager {
 
       // Only now, once the browser has actually torn down, is this manual
       // profile free for a new launch to reserve.
-      if (!session.isTempDataDir && session.userDataDir) {
-        this.reservedUserDataDirs.delete(
-          canonicalizeUserDataDir(session.userDataDir),
-        );
+      const reservedKey = this.reservedUserDataDirKeys.get(browser);
+      if (reservedKey) {
+        this.reservedUserDataDirs.delete(reservedKey);
+        this.reservedUserDataDirKeys.delete(browser);
       }
     }
   }
@@ -1233,6 +1245,9 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
+    if (canonicalManualUserDataDir) {
+      this.reservedUserDataDirKeys.set(browser, canonicalManualUserDataDir);
+    }
 
     // EventEmitter does not await listeners; retain failures in the lifecycle
     // without letting a page-level rejection escape to the process.

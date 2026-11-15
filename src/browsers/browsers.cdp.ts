@@ -21,10 +21,12 @@ import { EventEmitter } from 'events';
 import StealthPlugin from '@zorilla/puppeteer-extra-plugin-stealth';
 import { addExtra } from '@zorilla/puppeteer-extra';
 import getPort from 'get-port';
+import { hostname } from 'os';
 import httpProxy from 'http-proxy';
 import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 import playwright from 'playwright-core';
+import { readlinkSync } from 'fs';
 import { rm } from 'fs/promises';
 
 import { bridgeCDPContexts } from './cdp-context-bridge.js';
@@ -64,21 +66,30 @@ puppeteerStealth.use(
  */
 export const disableComponentUpdaterArg = '--disable-component-update';
 
-// A SingletonLock left by a non-gracefully-killed Chrome makes the next
-// launch against this userDataDir fail as "already in use." Safe to clear
-// unconditionally: CONCURRENT already guarantees nothing legitimate holds it.
+// Chrome already self-heals a same-host dead-pid lock on its own; only a
+// cross-host mismatch (e.g. a container restart) leaves it stuck, since
+// Chrome won't touch a lock recorded under "another computer."
 const singletonLockFiles = [
   'SingletonLock',
   'SingletonCookie',
   'SingletonSocket',
 ];
 
-const clearStaleSingletonLock = (userDataDir: string) =>
-  Promise.all(
+const clearStaleSingletonLock = async (userDataDir: string) => {
+  let lockTarget: string;
+  try {
+    lockTarget = readlinkSync(path.join(userDataDir, 'SingletonLock'));
+  } catch {
+    return;
+  }
+  if (lockTarget.slice(0, lockTarget.lastIndexOf('-')) === hostname()) return;
+
+  await Promise.all(
     singletonLockFiles.map((file) =>
       rm(path.join(userDataDir, file), { force: true }),
     ),
   );
+};
 
 export class ChromiumCDP extends EventEmitter {
   protected config: Config;
