@@ -166,37 +166,37 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       }
     }
 
+    const rmDownload = once(() =>
+      deleteAsync(downloadPath, { force: true })
+        .then(() => {
+          logger.debug(
+            `Successfully deleted downloads from disk at "${downloadPath}"`,
+          );
+        })
+        .catch((err) => {
+          logger.error(
+            `Error cleaning up downloaded files: "${err}" at "${downloadPath}"`,
+          );
+        }),
+    );
+
     let filePath: string | null = null;
     try {
       filePath = await waitForDownload();
     } finally {
       logger.debug(`Closing pages.`);
       page.removeAllListeners();
-      page.close().catch(() => {});
+      const pageClosed = page.close().catch(() => {});
       (downloadEvents as CDPSession | null)?.detach().catch(() => {});
+      if (!filePath || res.headersSent) {
+        pageClosed.then(rmDownload);
+      }
     }
-
-    const rmDownload = once(
-      () =>
-        filePath &&
-        deleteAsync(filePath, { force: true })
-          .then(() => {
-            logger.debug(
-              `Successfully deleted downloads from disk at "${filePath}"`,
-            );
-          })
-          .catch((err) => {
-            logger.error(
-              `Error cleaning up downloaded files: "${err}" at "${filePath}"`,
-            );
-          }),
-    );
 
     // Settle (rather than hang) when nothing was downloaded or a timeout
     // already wrote the response — otherwise this request holds its
     // concurrency slot until the global timeout fires.
     if (res.headersSent || !filePath) {
-      rmDownload();
       return;
     }
     const contentType = mimeTypes.get(path.extname(filePath));

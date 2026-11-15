@@ -2,6 +2,7 @@ import { Browserless, Config, Metrics } from '@browserless.io/browserless';
 import { AddressInfo } from 'net';
 import { createServer } from 'http';
 import { expect } from 'chai';
+import { readdir } from 'fs/promises';
 
 describe('/chromium/download API', function () {
   let browserless: Browserless;
@@ -172,7 +173,14 @@ describe('/chromium/download API', function () {
 
     for (const status of [403, 404, 500]) {
       it(`responds with a 404 instead of hanging when the download gets a ${status}`, async () => {
-        await start();
+        const config = new Config();
+        await start({ config });
+        const downloadsDir = await config.getDownloadsDir();
+        const listDownloadDirs = async () =>
+          (await readdir(downloadsDir)).filter((name) =>
+            name.startsWith('.browserless.download.'),
+          );
+        const dirsBefore = await listDownloadDirs();
         const startedAt = Date.now();
 
         const res = await fetch('http://localhost:3000/chromium/download', {
@@ -197,6 +205,12 @@ describe('/chromium/download API', function () {
         expect(res.status).to.equal(404);
         expect(await res.text()).to.contain(`/status/${status}`);
         expect(Date.now() - startedAt).to.be.below(15000);
+
+        await new Promise((r) => setTimeout(r, 1000));
+        const leftover = (await listDownloadDirs()).filter(
+          (name) => !dirsBefore.includes(name),
+        );
+        expect(leftover).to.deep.equal([]);
       });
     }
   });
