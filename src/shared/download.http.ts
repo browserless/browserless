@@ -144,7 +144,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           return path.join(downloadPath, fileName);
         }
 
-        if (downloadEvents && !fileName) {
+        if (!fileName) {
           const started = [...downloads.values()];
           if (
             started.length &&
