@@ -1,4 +1,6 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import { AddressInfo } from 'net';
+import { createServer } from 'http';
 import { expect } from 'chai';
 
 describe('/chromium/download API', function () {
@@ -144,5 +146,58 @@ describe('/chromium/download API', function () {
       expect(res.headers.get('content-type')).to.equal('text/plain');
       expect(await res.text()).to.equal('Hello world!');
     });
+  });
+
+  describe('when the triggered download fails', () => {
+    const fileServer = createServer((req, res) => {
+      if (req.url === '/') {
+        res.writeHead(200, { 'content-type': 'text/html' });
+        res.end('<html><body>files</body></html>');
+        return;
+      }
+      const status = Number(req.url?.split('/status/')[1]) || 404;
+      res.writeHead(status, { 'content-type': 'text/html' });
+      res.end(`<h1>${status}</h1>`);
+    });
+    let origin: string;
+
+    before(async () => {
+      await new Promise<void>((r) => fileServer.listen(0, '127.0.0.1', r));
+      origin = `http://127.0.0.1:${(fileServer.address() as AddressInfo).port}`;
+    });
+
+    after(() => {
+      fileServer.close();
+    });
+
+    for (const status of [403, 404, 500]) {
+      it(`responds with a 404 instead of hanging when the download gets a ${status}`, async () => {
+        await start();
+        const startedAt = Date.now();
+
+        const res = await fetch('http://localhost:3000/chromium/download', {
+          body: JSON.stringify({
+            code: `export default async ({ page, context }) => {
+              await page.goto(context.origin);
+              await page.evaluate((url) => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+              }, context.url);
+              await new Promise(r => setTimeout(r, 1000));
+            }`,
+            context: { origin, url: `${origin}/status/${status}` },
+          }),
+          headers: { 'content-type': 'application/json' },
+          method: 'POST',
+        });
+
+        expect(res.status).to.equal(404);
+        expect(await res.text()).to.contain(`/status/${status}`);
+        expect(Date.now() - startedAt).to.be.below(15000);
+      });
+    }
   });
 });

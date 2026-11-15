@@ -38,7 +38,19 @@ interface HandlerOptions {
   protocolTimeout?: number;
 }
 
-export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
+interface HandlerHooks {
+  /**
+   * Runs once the host page exists, before the user's code is loaded.
+   */
+  beforeRun?: (page: Page) => Promise<void>;
+}
+
+export default (
+    config: Config,
+    logger: Logger,
+    options: HandlerOptions = {},
+    hooks: HandlerHooks = {},
+  ) =>
   async (
     req: Request,
     browser: BrowserInstance,
@@ -164,6 +176,7 @@ export default (config: Config, logger: Logger, options: HandlerOptions = {}) =>
     // any throw from goto/evaluate must close it here or it leaks for the
     // life of the browser.
     try {
+      await hooks.beforeRun?.(page);
       await page.goto(functionIndexHTML);
 
       const { contentType, payload } = await page

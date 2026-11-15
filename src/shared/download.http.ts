@@ -19,6 +19,7 @@ import {
   once,
   sleep,
 } from '@browserless.io/browserless';
+import { CDPSession, Page } from 'puppeteer-core';
 import { mkdir, readdir } from 'fs/promises';
 import { ServerResponse } from 'http';
 import { createReadStream } from 'fs';
@@ -42,6 +43,14 @@ export interface QuerySchema extends SystemQueryParameters {
  * themselves, so there isn't a static response type for this API.
  */
 export type ResponseSchema = unknown;
+
+type DownloadState = 'inProgress' | 'completed' | 'canceled';
+
+/**
+ * How long to wait, after the function returns, for Chrome to report that a
+ * download has started before answering that nothing was downloaded.
+ */
+const downloadStartTimeoutMs = 30_000;
 
 export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   name = BrowserlessRoutes.ChromiumDownloadPostRoute;
@@ -74,38 +83,98 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
 
     logger.debug(`Generating a download directory at "${downloadPath}"`);
     await mkdir(downloadPath);
-    const handler = functionHandler(config, logger, { downloadPath });
+
+    let clientClosed = false;
+    res.once('close', () => (clientClosed = true));
+
+    // Chrome reports a download it gave up on (an error status, a blocked
+    // or failed request) only through these events: no file is ever written.
+    const downloads = new Map<string, { state: DownloadState; url: string }>();
+    let downloadEvents: CDPSession | null = null;
+    const watchDownloads = async (hostPage: Page) => {
+      try {
+        const session = await hostPage.browser().target().createCDPSession();
+        session.on('Browser.downloadWillBegin', ({ guid, url }) => {
+          logger.debug(`Download of "${url}" has started`);
+          downloads.set(guid, { state: 'inProgress', url });
+        });
+        session.on('Browser.downloadProgress', ({ guid, state }) => {
+          const download = downloads.get(guid);
+          if (!download) return;
+          download.state = state;
+          if (state === 'canceled') {
+            logger.debug(`Download of "${download.url}" was canceled`);
+          }
+        });
+        await session.send('Browser.setDownloadBehavior', {
+          behavior: 'allow',
+          downloadPath,
+          eventsEnabled: true,
+        });
+        downloadEvents = session;
+      } catch (e) {
+        logger.debug(`Download events are unavailable: "${e}"`);
+      }
+    };
+
+    const handler = functionHandler(
+      config,
+      logger,
+      { downloadPath },
+      { beforeRun: watchDownloads },
+    );
     const { page } = await handler(req, browser).catch((e) => {
       logger.error(`Error running download code handler: "${e}"`);
       throw e;
     });
 
     logger.debug(`Download function has returned, finding downloads...`);
-    async function checkIfDownloadComplete(): Promise<string | null> {
-      if (res.headersSent) {
-        logger.trace(
-          `Request headers have been sent, terminating download watch.`,
-        );
-        return null;
-      }
-      const [fileName] = await readdir(downloadPath);
-      if (!fileName || fileName.endsWith('.crdownload')) {
+    const functionReturnedAt = Date.now();
+    async function waitForDownload(): Promise<string | null> {
+      for (;;) {
+        if (res.headersSent || clientClosed) {
+          logger.trace(
+            `Request has been answered or closed, terminating download watch.`,
+          );
+          return null;
+        }
+        const [fileName] = await readdir(downloadPath);
+        if (fileName && !fileName.endsWith('.crdownload')) {
+          logger.debug(`All files have finished downloading`);
+          return path.join(downloadPath, fileName);
+        }
+
+        if (downloadEvents && !fileName) {
+          const started = [...downloads.values()];
+          if (
+            started.length &&
+            started.every(({ state }) => state === 'canceled')
+          ) {
+            throw new NotFound(
+              `Download of "${started[started.length - 1].url}" failed: the browser canceled it, which usually means the server responded with an error status.`,
+            );
+          }
+          if (
+            !started.length &&
+            Date.now() - functionReturnedAt > downloadStartTimeoutMs
+          ) {
+            throw new NotFound(
+              `No download was started within ${downloadStartTimeoutMs / 1000}s of the function returning.`,
+            );
+          }
+        }
         await sleep(500);
-        return checkIfDownloadComplete();
       }
-
-      logger.debug(`All files have finished downloading`);
-
-      return path.join(downloadPath, fileName);
     }
 
     let filePath: string | null = null;
     try {
-      filePath = await checkIfDownloadComplete();
+      filePath = await waitForDownload();
     } finally {
       logger.debug(`Closing pages.`);
       page.removeAllListeners();
       page.close().catch(() => {});
+      (downloadEvents as CDPSession | null)?.detach().catch(() => {});
     }
 
     const rmDownload = once(
