@@ -3,6 +3,7 @@ import { AddressInfo } from 'net';
 import { createServer } from 'http';
 import { expect } from 'chai';
 import { readdir } from 'fs/promises';
+import path from 'path';
 
 describe('/chromium/download API', function () {
   let browserless: Browserless;
@@ -162,7 +163,10 @@ describe('/chromium/download API', function () {
           'content-type': 'application/octet-stream',
         });
         const drip = setInterval(() => res.write(Buffer.alloc(1024)), 100);
-        res.on('close', () => clearInterval(drip));
+        res.on('close', () => {
+          clearInterval(drip);
+          onSlowClose?.();
+        });
         return;
       }
       const status = Number(req.url?.split('/status/')[1]) || 404;
@@ -170,6 +174,7 @@ describe('/chromium/download API', function () {
       res.end(`<h1>${status}</h1>`);
     });
     let origin: string;
+    let onSlowClose: (() => void) | undefined;
 
     before(async () => {
       await new Promise<void>((r) => fileServer.listen(0, '127.0.0.1', r));
@@ -206,45 +211,73 @@ describe('/chromium/download API', function () {
       expect(leftover).to.deep.equal([]);
     });
 
-    it('removes the download directory when the client disconnects mid-download', async () => {
-      const config = new Config();
-      await start({ config });
-      const downloadsDir = await config.getDownloadsDir();
-      const listDownloadDirs = async () =>
-        (await readdir(downloadsDir)).filter((name) =>
-          name.startsWith('.browserless.download.'),
-        );
-      const dirsBefore = await listDownloadDirs();
-      const newDirs = async () =>
-        (await listDownloadDirs()).filter((name) => !dirsBefore.includes(name));
+    for (const exit of ['client disconnect', 'request timeout'] as const) {
+      it(`stops an active download and removes its directory on ${exit}`, async () => {
+        const config = new Config();
+        if (exit === 'request timeout') config.setTimeout(5000);
+        await start({ config });
+        const downloadsDir = await config.getDownloadsDir();
+        const listDownloadDirs = async () =>
+          (await readdir(downloadsDir)).filter((name) =>
+            name.startsWith('.browserless.download.'),
+          );
+        const dirsBefore = await listDownloadDirs();
+        const newDirs = async () =>
+          (await listDownloadDirs()).filter(
+            (name) => !dirsBefore.includes(name),
+          );
+        const transferStopped = new Promise<void>((r) => (onSlowClose = r));
 
-      const controller = new AbortController();
-      const req = fetch('http://localhost:3000/chromium/download', {
-        body: JSON.stringify({
-          code: `export default async ({ page, context }) => {
-            await page.goto(context.origin);
-            await page.evaluate((url) => {
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = '';
-              document.body.appendChild(link);
-              link.click();
-            }, context.url);
-          }`,
-          context: { origin, url: `${origin}/slow` },
-        }),
-        headers: { 'content-type': 'application/json' },
-        method: 'POST',
-        signal: controller.signal,
-      }).catch(() => null);
+        const controller = new AbortController();
+        const req = fetch('http://localhost:3000/chromium/download', {
+          body: JSON.stringify({
+            code: `export default async ({ page, context }) => {
+              await page.goto(context.origin);
+              await page.evaluate((url) => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+              }, context.url);
+              await new Promise((r) => setTimeout(r, 1000));
+            }`,
+            context: { origin, url: `${origin}/slow` },
+          }),
+          headers: { 'content-type': 'application/json' },
+          method: 'POST',
+          signal: controller.signal,
+        }).catch(() => null);
 
-      await new Promise((r) => setTimeout(r, 3000));
-      expect(await newDirs()).to.have.length(1);
-      controller.abort();
-      await req;
-      await new Promise((r) => setTimeout(r, 2000));
-      expect(await newDirs()).to.deep.equal([]);
-    });
+        let partial: string[] = [];
+        for (let i = 0; i < 40 && !partial.length; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          const [dir] = await newDirs();
+          partial = dir
+            ? (await readdir(path.join(downloadsDir, dir))).filter((f) =>
+                f.endsWith('.crdownload'),
+              )
+            : [];
+        }
+        expect(partial, 'download should be in progress').to.have.length(1);
+
+        if (exit === 'client disconnect') {
+          controller.abort();
+          await req;
+        } else {
+          expect((await req)?.status).to.equal(408);
+        }
+
+        await Promise.race([
+          transferStopped,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('transfer kept running')), 5000),
+          ),
+        ]);
+        await new Promise((r) => setTimeout(r, 2000));
+        expect(await newDirs()).to.deep.equal([]);
+      });
+    }
 
     for (const status of [403, 404, 500]) {
       it(`responds with a 404 instead of hanging when the download gets a ${status}`, async () => {
