@@ -95,12 +95,19 @@ class FakeBrowser extends EventEmitter {
   }
 }
 
+let nextTestUserDataDir = 0;
 const makeReq = (pathname: string, args?: string[]): Request => {
   const url = new URL(`http://127.0.0.1${pathname}`);
-  // Caller-owned data dir: nothing temp for the mock to create or delete.
+  // Caller-owned, nonexistent data dir: nothing temp for the mock to create
+  // or delete. Unique per call so unrelated requests in the same test don't
+  // collide on #5689's duplicate-userDataDir guard.
   url.searchParams.set(
     'launch',
-    JSON.stringify({ args: args ?? ['--user-data-dir=/nonexistent-test-dir'] }),
+    JSON.stringify({
+      args: args ?? [
+        `--user-data-dir=/nonexistent-test-dir-${nextTestUserDataDir++}`,
+      ],
+    }),
   );
   return {
     headers: {},
