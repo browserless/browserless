@@ -16,6 +16,39 @@ describe('/chromium/pdf API', function () {
     await browserless.stop();
   });
 
+  for (const input of ['html', 'url']) {
+    for (const { setting, selector } of [
+      { setting: false, selector: '#static' },
+      { setting: true, selector: '#executed' },
+      { setting: undefined, selector: '#executed' },
+    ]) {
+      it(`honors setJavaScriptEnabled=${setting} with ${input}`, async () => {
+        const config = new Config();
+        config.setToken('browserless');
+        await start({ config });
+        const html = `<!doctype html><p id="static">Static content</p>
+          <script>document.querySelector('p').id = 'executed';</script>`;
+        const res = await fetch('http://localhost:3000/pdf?token=browserless', {
+          body: JSON.stringify({
+            [input]:
+              input === 'html'
+                ? html
+                : `data:text/html,${encodeURIComponent(html)}`,
+            setJavaScriptEnabled: setting,
+            // The script removes #static, so the wrong setting times out.
+            waitForSelector: { selector, timeout: 1000 },
+          }),
+          headers: { 'content-type': 'application/json' },
+          method: 'POST',
+        });
+        const body = Buffer.from(await res.arrayBuffer());
+        expect(res.status, body.toString()).to.equal(200);
+        expect(res.headers.get('content-type')).to.equal('application/pdf');
+        expect(body.subarray(0, 5).toString()).to.equal('%PDF-');
+      });
+    }
+  }
+
   it('allows requests', async () => {
     const config = new Config();
     config.setToken('browserless');
