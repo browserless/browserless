@@ -1,4 +1,10 @@
-import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import {
+  Browserless,
+  ChromiumCDP,
+  Config,
+  Hooks,
+  Metrics,
+} from '@browserless.io/browserless';
 import { AddressInfo } from 'net';
 import { createServer } from 'http';
 import { expect } from 'chai';
@@ -151,10 +157,34 @@ describe('/chromium/download API', function () {
   });
 
   describe('when the triggered download fails', () => {
+    let retries = 0;
     const fileServer = createServer((req, res) => {
       if (req.url === '/') {
         res.writeHead(200, { 'content-type': 'text/html' });
         res.end('<html><body>files</body></html>');
+        return;
+      }
+      if (req.url === '/retry') {
+        res.writeHead(++retries === 1 ? 403 : 200, {
+          'content-type': 'text/html',
+        });
+        res.end('retry');
+        return;
+      }
+      if (req.url === '/file') {
+        res.writeHead(200, {
+          'content-disposition': 'attachment; filename="file.bin"',
+        });
+        res.end(Buffer.from([0, 1, 254, 255]));
+        return;
+      }
+      if (req.url === '/broken') {
+        res.writeHead(200, {
+          'content-disposition': 'attachment; filename="broken.bin"',
+          'content-length': '100000',
+        });
+        res.write('partial');
+        setTimeout(() => res.destroy(), 100);
         return;
       }
       if (req.url === '/slow') {
@@ -183,6 +213,99 @@ describe('/chromium/download API', function () {
 
     after(() => {
       fileServer.close();
+    });
+
+    it('preserves binary downloads, request interception and healthy keepalive', async () => {
+      const hooks = new Hooks();
+      const child: { process: ReturnType<ChromiumCDP['process']> } = {
+        process: null,
+      };
+      hooks.browser = async ({ browser }) => {
+        const cdp = browser as ChromiumCDP;
+        cdp.setKeepUntil(Date.now() + 60_000);
+        child.process = cdp.process();
+      };
+      browserless = new Browserless({ hooks });
+      await browserless.start();
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: `export default async ({page, context}) => {
+            await page.setRequestInterception(true);
+            page.on('request', request => request.continue());
+            await page.goto(context.origin);
+            await page.evaluate(url => { const a = document.createElement('a'); a.href = url; a.download = ''; a.click(); }, context.url);
+            await new Promise(r => setTimeout(r, 1000));
+          }`,
+          context: { origin, url: `${origin}/file` },
+        }),
+      });
+      expect(res.status).to.equal(200);
+      expect([...new Uint8Array(await res.arrayBuffer())]).to.deep.equal([
+        0, 1, 254, 255,
+      ]);
+      expect(child.process).to.not.equal(null);
+      expect(child.process?.exitCode).to.equal(null);
+      expect(child.process?.signalCode).to.equal(null);
+    });
+
+    it('does not overwrite a failed download status with a later fetch to the same URL', async () => {
+      await start();
+      retries = 0;
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: `export default async ({page, context}) => {
+            await page.goto(context.origin);
+            await page.evaluate(url => { const a = document.createElement('a'); a.href = url; a.download = ''; a.click(); }, context.url);
+            await new Promise(r => setTimeout(r, 1000));
+            await page.evaluate(url => fetch(url).then(r => r.text()), context.url);
+          }`,
+          context: { origin, url: `${origin}/retry` },
+        }),
+      });
+      expect(retries).to.equal(2);
+      expect(res.status).to.equal(403);
+      expect((await res.json()).error).to.contain('HTTP 403');
+    });
+
+    it('returns 502 for a canceled transfer without an HTTP error', async () => {
+      await start();
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: `export default async ({page, context}) => {
+            await page.goto(context.origin);
+            await page.evaluate(url => { const a = document.createElement('a'); a.href = url; a.download = ''; a.click(); }, context.url);
+            await new Promise(r => setTimeout(r, 1000));
+          }`,
+          context: { origin, url: `${origin}/broken` },
+        }),
+      });
+      expect(res.status).to.equal(502);
+      expect((await res.json()).error).to.contain(
+        'without an HTTP error status',
+      );
+    });
+
+    it('bounds the no-download wait even with TIMEOUT disabled', async () => {
+      const config = new Config();
+      config.setTimeout(0);
+      await start({ config });
+      const started = Date.now();
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: 'export default async () => {}' }),
+      });
+      expect(res.status).to.equal(404);
+      expect((await res.json()).error).to.contain(
+        'No download was started within 30s',
+      );
+      expect(Date.now() - started).to.be.within(30_000, 40_000);
     });
 
     it('removes the download directory when the function throws', async () => {
@@ -279,8 +402,108 @@ describe('/chromium/download API', function () {
       });
     }
 
-    for (const status of [403, 404, 500]) {
-      it(`responds with a 404 instead of hanging when the download gets a ${status}`, async () => {
+    for (const delay of [1000, 20_000]) {
+      it(`stops the browser after cleanup failures with keepalive and a ${delay}ms function`, async () => {
+        const config = new Config();
+        const hooks = new Hooks();
+        const child: { process: ReturnType<ChromiumCDP['process']> } = {
+          process: null,
+        };
+        hooks.browser = async ({ browser }) => {
+          const cdp = browser as ChromiumCDP;
+          child.process = cdp.process();
+          cdp.setKeepUntil(Date.now() + 60_000);
+          const newPage = cdp.newPage.bind(cdp);
+          cdp.newPage = async () => {
+            const page = await newPage();
+            page.close = async () => {
+              throw new Error('page close failed');
+            };
+            const target = page.browser().target();
+            const createSession = target.createCDPSession.bind(target);
+            target.createCDPSession = async () => {
+              const session = await createSession();
+              const send = session.send.bind(session);
+              session.send = ((...args: Parameters<typeof send>) => {
+                if (args[0] === 'Browser.cancelDownload')
+                  return Promise.reject(new Error('cancel failed'));
+                return send(...args);
+              }) as typeof session.send;
+              return session;
+            };
+            page.browser().target = () => target;
+            return page;
+          };
+        };
+        browserless = new Browserless({ config, hooks });
+        await browserless.start();
+        const downloadsDir = await config.getDownloadsDir();
+        const before = await readdir(downloadsDir);
+        const transferStopped = new Promise<void>(
+          (resolve) => (onSlowClose = resolve),
+        );
+        const controller = new AbortController();
+        const request = fetch('http://localhost:3000/chromium/download', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            code: `export default async ({page, context}) => {
+            await page.goto(context.origin);
+            await page.evaluate(url => {
+              const a = document.createElement('a'); a.href = url; a.download = ''; a.click();
+            }, context.url);
+            await new Promise(r => setTimeout(r, context.delay));
+          }`,
+            context: { origin, url: `${origin}/slow`, delay },
+          }),
+        }).catch(() => null);
+        let partial = false;
+        for (let i = 0; i < 40 && !partial; i++) {
+          await new Promise((r) => setTimeout(r, 100));
+          const dirs = (await readdir(downloadsDir)).filter(
+            (name) =>
+              !before.includes(name) &&
+              name.startsWith('.browserless.download.'),
+          );
+          for (const dir of dirs) {
+            partial ||= (await readdir(path.join(downloadsDir, dir))).some(
+              (name) => name.endsWith('.crdownload'),
+            );
+          }
+        }
+        expect(partial, 'an active transfer is required').to.equal(true);
+        if (delay === 1000) await new Promise((r) => setTimeout(r, 1500));
+        controller.abort();
+        await request;
+        await Promise.race([
+          transferStopped,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('transfer kept running')), 5000),
+          ),
+        ]);
+        const process = child.process;
+        expect(process).to.not.equal(null);
+        for (
+          let i = 0;
+          i < 50 && process?.exitCode === null && process?.signalCode === null;
+          i++
+        )
+          await new Promise((r) => setTimeout(r, 100));
+        expect(
+          process?.exitCode !== null || process?.signalCode !== null,
+          'browser must exit despite keepalive',
+        ).to.equal(true);
+        const leftover = (await readdir(downloadsDir)).filter(
+          (name) =>
+            !before.includes(name) && name.startsWith('.browserless.download.'),
+        );
+        expect(leftover).to.deep.equal([]);
+      });
+    }
+
+    for (const status of [403, 404, 429, 500]) {
+      it(`preserves upstream status ${status} instead of hanging`, async () => {
         const config = new Config();
         await start({ config });
         const downloadsDir = await config.getDownloadsDir();
@@ -310,8 +533,10 @@ describe('/chromium/download API', function () {
           method: 'POST',
         });
 
-        expect(res.status).to.equal(404);
-        expect(await res.text()).to.contain(`/status/${status}`);
+        expect(res.status).to.equal(status);
+        const body = await res.json();
+        expect(body.error).to.contain(`/status/${status}`);
+        expect(body.error).to.contain(`HTTP ${status}`);
         expect(Date.now() - startedAt).to.be.below(15000);
 
         await new Promise((r) => setTimeout(r, 1000));

@@ -16,7 +16,6 @@ import {
   dedent,
   id,
   mimeTypes,
-  once,
   sleep,
 } from '@browserless.io/browserless';
 import { CDPSession, Page } from 'puppeteer-core';
@@ -26,6 +25,7 @@ import { createReadStream } from 'fs';
 import { deleteAsync } from 'del';
 import functionHandler from './utils/function/handler.js';
 import path from 'path';
+import { pipeline } from 'stream/promises';
 
 interface JSONSchema {
   code: string;
@@ -59,13 +59,28 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   browser = ChromiumCDP;
   concurrency = true;
   contentTypes = [contentTypes.any];
+  errorCodes = {
+    502: {
+      code: 502,
+      description:
+        'The browser canceled the download without an upstream HTTP error status.',
+      message: 'HTTP/1.1 502 Bad Gateway',
+    },
+  };
   description = dedent(`
   A JSON or JavaScript content-type API for returning files Chrome has downloaded during
   the execution of puppeteer code, which is ran inside context of the browser.
   Browserless sets up a blank page, a fresh download directory, injects your puppeteer code, and then executes it.
   You can load external libraries via the "import" syntax, and import ESM-style modules
   that are written for execution inside of the browser. Once your script is finished, any
-  downloaded files from Chromium are returned back with the appropriate content-type header.`);
+  downloaded files from Chromium are returned back with the appropriate content-type header.
+  Failed downloads return a JSON object with an "error" message and the upstream HTTP
+  error status when available, or 502 for a browser cancellation without an HTTP error.
+  If no download starts within 30 seconds after the function returns, the response is 404.
+  The configured request TIMEOUT (or timeout query parameter) may return 408 sooner.
+  Cleanup is awaited; if cancellation or page closure fails, the browser is stopped
+  before its download directory is removed, even when keepalive was requested.
+  Disconnects and timeouts during running user code also stop the browser.`);
   method = Methods.post;
   path = [HTTPRoutes.chromiumDownload, HTTPRoutes.download];
   tags = [APITags.browserAPI];
@@ -84,16 +99,26 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
     logger.debug(`Generating a download directory at "${downloadPath}"`);
     await mkdir(downloadPath);
 
-    let clientClosed = false;
-    res.once('close', () => (clientClosed = true));
+    let clientClosed = res.destroyed;
+    const responseClosed = new Promise<null>((resolve) => {
+      if (clientClosed) resolve(null);
+      res.once('close', () => {
+        clientClosed = true;
+        resolve(null);
+      });
+    });
 
-    // Chrome reports a download it gave up on (an error status, a blocked
-    // or failed request) only through these events: no file is ever written.
+    // Chrome reports failed downloads through these events, even when it
+    // never writes a file or leaves an unfinished .crdownload behind.
     const downloads = new Map<string, { state: DownloadState; url: string }>();
     let downloadEvents: CDPSession | null = null;
+    let page: Page | undefined;
     const watchDownloads = async (hostPage: Page) => {
+      page = hostPage;
+      if (clientClosed) throw new Error('Download request already closed');
       try {
         const session = await hostPage.browser().target().createCDPSession();
+        downloadEvents = session;
         session.on('Browser.downloadWillBegin', ({ guid, url }) => {
           logger.debug(`Download of "${url}" has started`);
           downloads.set(guid, { state: 'inProgress', url });
@@ -111,25 +136,10 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           downloadPath,
           eventsEnabled: true,
         });
-        downloadEvents = session;
       } catch (e) {
         logger.debug(`Download events are unavailable: "${e}"`);
       }
     };
-
-    const rmDownload = once(() =>
-      deleteAsync(downloadPath, { force: true })
-        .then(() => {
-          logger.debug(
-            `Successfully deleted downloads from disk at "${downloadPath}"`,
-          );
-        })
-        .catch((err) => {
-          logger.error(
-            `Error cleaning up downloaded files: "${err}" at "${downloadPath}"`,
-          );
-        }),
-    );
 
     const handler = functionHandler(
       config,
@@ -137,14 +147,9 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       { downloadPath },
       { beforeRun: watchDownloads },
     );
-    const { page } = await handler(req, browser).catch((e) => {
-      logger.error(`Error running download code handler: "${e}"`);
-      rmDownload();
-      throw e;
-    });
-
-    logger.debug(`Download function has returned, finding downloads...`);
-    const functionReturnedAt = Date.now();
+    let functionReturnedAt = 0;
+    let responses: Array<{ guid: string; status?: number }> = [];
+    let failure: { status: number; error: string } | undefined;
     async function waitForDownload(): Promise<string | null> {
       for (;;) {
         if (res.headersSent || clientClosed) {
@@ -159,14 +164,20 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           return path.join(downloadPath, fileName);
         }
 
-        const started = [...downloads.values()];
+        const started = [...downloads];
         if (
           started.length &&
-          started.every(({ state }) => state === 'canceled')
+          started.every(([, { state }]) => state === 'canceled')
         ) {
-          throw new NotFound(
-            `Download of "${started[started.length - 1].url}" failed: the browser canceled it, which usually means the server responded with an error status.`,
-          );
+          const [guid, { url }] = started[started.length - 1];
+          const upstream = responses.find((response) => response.guid === guid);
+          const status =
+            upstream?.status && upstream.status >= 400 ? upstream.status : 502;
+          failure = {
+            status,
+            error: `Download of "${url}" failed: ${status === upstream?.status ? `HTTP ${status}` : 'the browser canceled it without an HTTP error status'}.`,
+          };
+          return null;
         }
         if (
           !fileName &&
@@ -181,55 +192,72 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       }
     }
 
-    let filePath: string | null = null;
+    let functionSettled = false;
     try {
-      filePath = await waitForDownload();
-    } finally {
-      logger.debug(`Closing pages.`);
-      page.removeAllListeners();
-      const session = downloadEvents as CDPSession | null;
-      const stopped = Promise.all(
-        [...downloads]
-          .filter(([, { state }]) => state === 'inProgress')
-          .map(([guid]) =>
-            session?.send('Browser.cancelDownload', { guid }).catch(() => {}),
-          ),
-      )
-        .then(() => page.close())
-        .catch(() => {})
-        .finally(() => session?.detach().catch(() => {}));
-      if (!filePath || res.headersSent) {
-        stopped.then(rmDownload);
+      const execution = handler(req, browser).finally(() => {
+        functionSettled = true;
+      });
+      const result = await Promise.race([execution, responseClosed]);
+      if (!result) return;
+      // The download runner returns HTTP metadata rather than the user's
+      // unused function result. Ordinary /function callers are unchanged.
+      responses = result.payload as typeof responses;
+      functionReturnedAt = Date.now();
+      const filePath = await waitForDownload();
+      if (res.headersSent || clientClosed) return;
+      if (failure) {
+        res.writeHead(failure.status, {
+          'Content-Type': 'application/json; charset=UTF-8',
+        });
+        res.end(JSON.stringify({ error: failure.error }));
+        return;
       }
+      if (!filePath) return;
+      const contentType = mimeTypes.get(path.extname(filePath));
+      if (contentType) res.setHeader('Content-Type', contentType);
+      await pipeline(createReadStream(filePath), res);
+    } finally {
+      const session = downloadEvents as CDPSession | null;
+      // Closing the host page alone cannot stop user code in its inner page.
+      let shutdownRequired = !functionSettled;
+      for (const [guid, { state }] of downloads) {
+        if (state !== 'inProgress') continue;
+        try {
+          await session?.send('Browser.cancelDownload', { guid });
+        } catch {
+          shutdownRequired = true;
+        }
+      }
+      try {
+        page?.removeAllListeners();
+        await page?.close();
+      } catch {
+        shutdownRequired = true;
+      }
+      if (shutdownRequired) {
+        // A retained browser must not keep writing into a directory we delete.
+        // Browser.close suppresses CDP close errors, so confirm process exit too.
+        const child = browser.process();
+        const exited =
+          child && child.exitCode === null && child.signalCode === null
+            ? new Promise<void>((resolve) =>
+                child.once('exit', () => resolve()),
+              )
+            : Promise.resolve();
+        try {
+          await browser.close();
+        } finally {
+          if (child && child.exitCode === null && child.signalCode === null)
+            child.kill('SIGKILL');
+          await exited;
+        }
+      }
+      await session?.detach().catch(() => {});
+      await deleteAsync(downloadPath, { force: true }).catch((error) => {
+        logger.error(
+          `Error cleaning up downloads at "${downloadPath}": ${error}`,
+        );
+      });
     }
-
-    // Settle (rather than hang) when nothing was downloaded or a timeout
-    // already wrote the response — otherwise this request holds its
-    // concurrency slot until the global timeout fires.
-    if (res.headersSent || !filePath) {
-      return;
-    }
-    const contentType = mimeTypes.get(path.extname(filePath));
-    if (contentType) {
-      res.setHeader('Content-Type', contentType);
-    }
-
-    return new Promise((resolve, reject) => {
-      createReadStream(filePath as string)
-        .on('error', () => {
-          rmDownload();
-          reject(
-            new NotFound(
-              `Couldn't locate or send downloads in "${downloadPath}"`,
-            ),
-          );
-        })
-        .on('end', () => {
-          logger.debug(`Downloads successfully sent`);
-          rmDownload();
-          resolve();
-        })
-        .pipe(res);
-    });
   }
 }

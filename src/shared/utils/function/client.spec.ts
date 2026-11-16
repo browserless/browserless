@@ -65,9 +65,10 @@ describe('FunctionRunner', function () {
     const close = Sinon.stub().resolves();
     const disconnect = Sinon.stub();
     const page = {
-      _client: {
-        call: () => ({ send: Sinon.stub().rejects(setupError) }),
-      },
+      createCDPSession: Sinon.stub().resolves({
+        on: Sinon.stub(),
+        send: Sinon.stub().rejects(setupError),
+      }),
       close,
     } as unknown as Page;
     const browser = {

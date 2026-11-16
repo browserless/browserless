@@ -1,4 +1,4 @@
-import { Browser, Page } from 'puppeteer-core';
+import { Browser, CDPSession, Page } from 'puppeteer-core';
 import { BrowserWebSocketTransport } from 'puppeteer-core/internal/common/BrowserWebSocketTransport.js';
 import { _connectToCdpBrowser as connect } from 'puppeteer-core/internal/cdp/BrowserConnector.js';
 
@@ -44,13 +44,40 @@ export class FunctionRunner {
   ) {
     try {
       this.page = await this.browser!.newPage();
+      const downloadResponses: Array<{ guid: string; status?: number }> = [];
 
       if (options.downloadPath) {
         console.debug(
           `_browserless_function_client_: Setting downloads for page to "${options.downloadPath}"`,
         );
-        // @ts-ignore
-        const client = this.page._client.call(this.page);
+        const client: CDPSession = await this.page.createCDPSession();
+        const responses = new Map<string, number>();
+        // Download navigations do not emit Puppeteer's response event.
+        // Observe response headers before Chrome hands them to its downloader.
+        client.on(
+          'Fetch.requestPaused',
+          ({ requestId, request, responseStatusCode }) => {
+            if (responseStatusCode)
+              responses.set(request.url, responseStatusCode);
+            void client
+              .send('Fetch.continueRequest', { requestId })
+              .catch(this.log);
+          },
+        );
+        await client.send('Fetch.enable', {
+          patterns: [{ urlPattern: '*', requestStage: 'Response' }],
+        });
+        const downloads = await this.browser!.target().createCDPSession();
+        // Snapshot each attempt when it begins; later fetches to the same URL
+        // must not change the status belonging to this download GUID.
+        downloads.on('Browser.downloadWillBegin', ({ guid, url }) => {
+          downloadResponses.push({ guid, status: responses.get(url) });
+        });
+        await downloads.send('Browser.setDownloadBehavior', {
+          behavior: 'allow',
+          downloadPath: options.downloadPath,
+          eventsEnabled: true,
+        });
         await client.send('Page.setDownloadBehavior', {
           behavior: 'allow',
           downloadPath: options.downloadPath,
@@ -69,6 +96,14 @@ export class FunctionRunner {
         `_browserless_function_client_: Code is finished executing, closing page.`,
       );
       await this.closePage();
+
+      // /download returns the file itself, not the user's function result.
+      if (options.downloadPath) {
+        return {
+          contentType: 'application/json',
+          payload: downloadResponses,
+        };
+      }
 
       if (response instanceof Uint8Array) {
         return {
