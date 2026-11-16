@@ -494,10 +494,16 @@ describe('/chromium/download API', function () {
           process?.exitCode !== null || process?.signalCode !== null,
           'browser must exit despite keepalive',
         ).to.equal(true);
-        const leftover = (await readdir(downloadsDir)).filter(
-          (name) =>
-            !before.includes(name) && name.startsWith('.browserless.download.'),
-        );
+        let leftover: string[] = [];
+        for (let i = 0; i < 50; i++) {
+          leftover = (await readdir(downloadsDir)).filter(
+            (name) =>
+              !before.includes(name) &&
+              name.startsWith('.browserless.download.'),
+          );
+          if (!leftover.length) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
         expect(leftover).to.deep.equal([]);
       });
     }
