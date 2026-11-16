@@ -170,7 +170,7 @@ describe('/chromium/download API', function () {
         res.end(`<html><body><script>
           setTimeout(() => {
             const link = document.createElement('a');
-            link.href = '/status/${status}'; link.download = ''; link.click();
+            link.href = '/status/${Number(status)}'; link.download = ''; link.click();
           }, ${Number(delay)});
         </script></body></html>`);
         return;
