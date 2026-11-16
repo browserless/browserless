@@ -164,6 +164,17 @@ describe('/chromium/download API', function () {
         res.end('<html><body>files</body></html>');
         return;
       }
+      if (req.url?.startsWith('/popup/')) {
+        const [, , status, delay] = req.url.split('/');
+        res.writeHead(200, { 'content-type': 'text/html' });
+        res.end(`<html><body><script>
+          setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = '/status/${status}'; link.download = ''; link.click();
+          }, ${Number(delay)});
+        </script></body></html>`);
+        return;
+      }
       if (req.url === '/retry') {
         res.writeHead(++retries === 1 ? 403 : 200, {
           'content-type': 'text/html',
@@ -171,11 +182,15 @@ describe('/chromium/download API', function () {
         res.end('retry');
         return;
       }
-      if (req.url === '/file') {
-        res.writeHead(200, {
-          'content-disposition': 'attachment; filename="file.bin"',
-        });
-        res.end(Buffer.from([0, 1, 254, 255]));
+      if (req.url === '/file' || req.url === '/delayed-file') {
+        const send = () => {
+          res.writeHead(200, {
+            'content-disposition': 'attachment; filename="file.bin"',
+          });
+          res.end(Buffer.from([0, 1, 254, 255]));
+        };
+        if (req.url === '/delayed-file') setTimeout(send, 300);
+        else send();
         return;
       }
       if (req.url === '/broken') {
@@ -188,6 +203,7 @@ describe('/chromium/download API', function () {
         return;
       }
       if (req.url === '/slow') {
+        onSlowStart?.();
         res.writeHead(200, {
           'content-disposition': 'attachment; filename="slow.bin"',
           'content-type': 'application/octet-stream',
@@ -205,6 +221,7 @@ describe('/chromium/download API', function () {
     });
     let origin: string;
     let onSlowClose: (() => void) | undefined;
+    let onSlowStart: (() => void) | undefined;
 
     before(async () => {
       await new Promise<void>((r) => fileServer.listen(0, '127.0.0.1', r));
@@ -213,6 +230,104 @@ describe('/chromium/download API', function () {
 
     after(() => {
       fileServer.close();
+    });
+
+    for (const file of ['/file', '/delayed-file']) {
+      it(`returns an immediate-return download from ${file}`, async () => {
+        const config = new Config();
+        config.setTimeout(4000);
+        await start({ config });
+        const res = await fetch('http://localhost:3000/chromium/download', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code: `export default async ({page, context}) => {
+              await page.goto(context.origin);
+              await page.evaluate(url => {
+                const link = document.createElement('a');
+                link.href = url; link.download = ''; link.click();
+              }, context.url);
+            }`,
+            context: { origin, url: origin + file },
+          }),
+        });
+        expect(res.status).to.equal(200);
+        expect([...new Uint8Array(await res.arrayBuffer())]).to.deep.equal([
+          0, 1, 254, 255,
+        ]);
+      });
+    }
+
+    it('fails before user code if the download directory cannot be configured', async () => {
+      const hooks = new Hooks();
+      hooks.browser = async ({ browser }) => {
+        const cdp = browser as ChromiumCDP;
+        const newPage = cdp.newPage.bind(cdp);
+        cdp.newPage = async () => {
+          const page = await newPage();
+          const target = page.browser().target();
+          const createSession = target.createCDPSession.bind(target);
+          target.createCDPSession = async () => {
+            const session = await createSession();
+            const send = session.send.bind(session);
+            session.send = ((...args: Parameters<typeof send>) =>
+              args[0] === 'Browser.setDownloadBehavior'
+                ? Promise.reject(new Error('download setup failed'))
+                : send(...args)) as typeof session.send;
+            return session;
+          };
+          page.browser().target = () => target;
+          return page;
+        };
+      };
+      browserless = new Browserless({ hooks });
+      await browserless.start();
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: 'export default async () => { throw new Error("user code executed"); }',
+        }),
+      });
+      expect(res.status).to.equal(500);
+      expect(await res.text()).to.equal('Internal Server Error\n');
+    });
+
+    it('returns an error if the browser exits during a download with TIMEOUT disabled', async () => {
+      const config = new Config();
+      config.setTimeout(0);
+      const hooks = new Hooks();
+      let child: ReturnType<ChromiumCDP['process']> = null;
+      hooks.browser = async ({ browser }) => {
+        child = (browser as ChromiumCDP).process();
+      };
+      browserless = new Browserless({ config, hooks });
+      await browserless.start();
+      const started = new Promise<void>((resolve) => (onSlowStart = resolve));
+      const response = fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        signal: AbortSignal.timeout(8000),
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: `export default async ({page, context}) => {
+            const tab = await page.browser().newPage();
+            await tab.goto(context.origin);
+            await tab.evaluate(url => {
+              const link = document.createElement('a');
+              link.href = url; link.download = ''; link.click();
+            }, context.url);
+            await new Promise(r => setTimeout(r, 500));
+          }`,
+          context: { origin, url: origin + '/slow' },
+        }),
+      });
+      await started;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      expect(child).to.not.equal(null);
+      (child as ReturnType<ChromiumCDP['process']>)?.kill('SIGKILL');
+      const res = await response;
+      expect(res.status).to.equal(502);
+      expect((await res.json()).error).to.contain('browser disconnected');
     });
 
     it('preserves binary downloads, request interception and healthy keepalive', async () => {
@@ -250,7 +365,40 @@ describe('/chromium/download API', function () {
       expect(child.process?.signalCode).to.equal(null);
     });
 
-    it('does not overwrite a failed download status with a later fetch to the same URL', async () => {
+    it('returns a completed download while another tab is still downloading', async () => {
+      const config = new Config();
+      config.setTimeout(5000);
+      await start({ config });
+      const stopped = new Promise<void>((resolve) => (onSlowClose = resolve));
+      const res = await fetch('http://localhost:3000/chromium/download', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: `export default async ({page, context}) => {
+            for (const url of [context.origin + '/slow', 'data:text/plain,complete']) {
+              const tab = await page.browser().newPage();
+              await tab.goto(context.origin);
+              await tab.evaluate(url => {
+                const link = document.createElement('a');
+                link.href = url; link.download = 'z.txt'; link.click();
+              }, url);
+            }
+            await new Promise(r => setTimeout(r, 1000));
+          }`,
+          context: { origin },
+        }),
+      });
+      expect(res.status).to.equal(200);
+      expect(await res.text()).to.equal('complete');
+      await Promise.race([
+        stopped,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('transfer kept running')), 5000),
+        ),
+      ]);
+    });
+
+    it('does not overwrite a paused download status with a concurrent fetch to the same URL', async () => {
       await start();
       retries = 0;
       const res = await fetch('http://localhost:3000/chromium/download', {
@@ -258,10 +406,26 @@ describe('/chromium/download API', function () {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           code: `export default async ({page, context}) => {
+            const client = await page.createCDPSession();
+            let resume;
+            const paused = new Promise(resolve => {
+              client.on('Fetch.requestPaused', event => {
+                const proceed = () => client.send('Fetch.continueRequest', {requestId: event.requestId});
+                if (event.request.url === context.url && event.responseStatusCode === 403) {
+                  resume = proceed;
+                  resolve();
+                } else {
+                  void proceed();
+                }
+              });
+            });
+            await client.send('Fetch.enable', {patterns: [{urlPattern: '*', requestStage: 'Response'}]});
             await page.goto(context.origin);
             await page.evaluate(url => { const a = document.createElement('a'); a.href = url; a.download = ''; a.click(); }, context.url);
-            await new Promise(r => setTimeout(r, 1000));
+            await paused;
             await page.evaluate(url => fetch(url).then(r => r.text()), context.url);
+            await resume();
+            await new Promise(r => setTimeout(r, 500));
           }`,
           context: { origin, url: `${origin}/retry` },
         }),
@@ -270,6 +434,69 @@ describe('/chromium/download API', function () {
       expect(res.status).to.equal(403);
       expect((await res.json()).error).to.contain('HTTP 403');
     });
+
+    for (const [status, delay] of [
+      [403, 0],
+      [429, 1500],
+    ]) {
+      it(`preserves popup status ${status} with a ${delay}ms delayed download`, async () => {
+        await start();
+        const res = await fetch('http://localhost:3000/chromium/download', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code: `export default async ({page, context}) => {
+              await page.goto(context.origin);
+              await page.evaluate(url => window.open(url), context.url);
+              await new Promise(r => setTimeout(r, 500));
+            }`,
+            context: { origin, url: `${origin}/popup/${status}/${delay}` },
+          }),
+        });
+        expect(res.status).to.equal(status);
+        expect((await res.json()).error).to.contain(`HTTP ${status}`);
+      });
+    }
+
+    for (const target of ['fragment', 'tab', 'iframe']) {
+      it(`preserves upstream status for a download from a ${target}`, async () => {
+        await start();
+        const res = await fetch('http://localhost:3000/chromium/download', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code: `export default async ({page, context}) => {
+              await page.goto(context.origin);
+              let target = page;
+              if (context.target === 'tab') {
+                target = await page.browser().newPage();
+                await target.goto(context.origin);
+              } else if (context.target === 'iframe') {
+                await page.evaluate(url => {
+                  const frame = document.createElement('iframe'); frame.src = url;
+                  document.body.appendChild(frame);
+                }, context.frameOrigin);
+                target = await page.waitForFrame(frame => frame.url() === context.frameOrigin + '/');
+                await target.waitForSelector('body');
+              }
+              await target.evaluate(url => {
+                const link = document.createElement('a'); link.href = url;
+                link.download = ''; link.click();
+              }, context.url);
+              await new Promise(r => setTimeout(r, 500));
+            }`,
+            context: {
+              origin,
+              frameOrigin: origin.replace('127.0.0.1', 'localhost'),
+              target,
+              url: `${target === 'iframe' ? origin.replace('127.0.0.1', 'localhost') : origin}/status/403${target === 'fragment' ? '#file' : ''}`,
+            },
+          }),
+        });
+        expect(res.status).to.equal(403);
+        expect((await res.json()).error).to.contain('HTTP 403');
+      });
+    }
 
     it('returns 502 for a canceled transfer without an HTTP error', async () => {
       await start();
@@ -287,7 +514,7 @@ describe('/chromium/download API', function () {
       });
       expect(res.status).to.equal(502);
       expect((await res.json()).error).to.contain(
-        'without an HTTP error status',
+        'without an observed HTTP error status',
       );
     });
 

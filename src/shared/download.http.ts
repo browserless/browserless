@@ -11,6 +11,7 @@ import {
   Methods,
   NotFound,
   Request,
+  ServerError,
   SystemQueryParameters,
   contentTypes,
   dedent,
@@ -18,7 +19,7 @@ import {
   mimeTypes,
   sleep,
 } from '@browserless.io/browserless';
-import { CDPSession, Page } from 'puppeteer-core';
+import { CDPSession, Page, Protocol } from 'puppeteer-core';
 import { mkdir, readdir } from 'fs/promises';
 import { ServerResponse } from 'http';
 import { createReadStream } from 'fs';
@@ -63,7 +64,7 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
     502: {
       code: 502,
       description:
-        'The browser canceled the download without an upstream HTTP error status.',
+        'The browser disconnected or canceled the download without an observed upstream HTTP error status.',
       message: 'HTTP/1.1 502 Bad Gateway',
     },
   };
@@ -75,7 +76,8 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
   that are written for execution inside of the browser. Once your script is finished, any
   downloaded files from Chromium are returned back with the appropriate content-type header.
   Failed downloads return a JSON object with an "error" message and the upstream HTTP
-  error status when available, or 502 for a browser cancellation without an HTTP error.
+  error status when observed, or 502 for a browser cancellation without an observed
+  HTTP error or a browser disconnection before completion. Download setup failures return 500.
   If no download starts within 30 seconds after the function returns, the response is 404.
   The configured request TIMEOUT (or timeout query parameter) may return 408 sooner.
   Cleanup is awaited; if cancellation or page closure fails, the browser is stopped
@@ -110,7 +112,10 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
 
     // Chrome reports failed downloads through these events, even when it
     // never writes a file or leaves an unfinished .crdownload behind.
-    const downloads = new Map<string, { state: DownloadState; url: string }>();
+    const downloads = new Map<
+      string,
+      { state: DownloadState; url: string; status?: number }
+    >();
     let downloadEvents: CDPSession | null = null;
     let page: Page | undefined;
     const watchDownloads = async (hostPage: Page) => {
@@ -119,9 +124,65 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       try {
         const session = await hostPage.browser().target().createCDPSession();
         downloadEvents = session;
-        session.on('Browser.downloadWillBegin', ({ guid, url }) => {
+        const responses = new Map<string, number[]>();
+        const pending: Promise<unknown>[] = [];
+        const attached = ({
+          sessionId,
+        }: Protocol.Target.AttachedToTargetEvent) => {
+          const target = session.connection()!.session(sessionId)!;
+          target.on('Target.attachedToTarget', attached);
+          target.on(
+            'Fetch.requestPaused',
+            ({
+              requestId,
+              request,
+              frameId,
+              resourceType,
+              networkId,
+              responseStatusCode,
+            }) => {
+              // Browser-initiated download navigations are not tracked by
+              // the renderer's Network domain. Do not attribute XHR/fetch
+              // or ordinary page-navigation responses to a download.
+              if (
+                responseStatusCode &&
+                resourceType === 'Document' &&
+                !networkId
+              ) {
+                const key = `${frameId}\n${request.url.split('#', 1)[0]}`;
+                const attempts = responses.get(key) || [];
+                attempts.push(responseStatusCode);
+                responses.set(key, attempts);
+              }
+              void target
+                .send('Fetch.continueRequest', { requestId })
+                .catch(() => {});
+            },
+          );
+          const ready = Promise.all([
+            target.send('Fetch.enable', {
+              patterns: [{ urlPattern: '*', requestStage: 'Response' }],
+            }),
+            target.send('Target.setAutoAttach', {
+              autoAttach: true,
+              waitForDebuggerOnStart: true,
+              flatten: true,
+              filter: [{ type: 'iframe' }, { exclude: true }],
+            }),
+          ]).finally(() => target.send('Runtime.runIfWaitingForDebugger'));
+          pending.push(ready);
+          void ready.catch(() => {});
+        };
+        session.on('Target.attachedToTarget', attached);
+        session.on('Browser.downloadWillBegin', ({ guid, url, frameId }) => {
           logger.debug(`Download of "${url}" has started`);
-          downloads.set(guid, { state: 'inProgress', url });
+          downloads.set(guid, {
+            state: 'inProgress',
+            url,
+            status: responses
+              .get(`${frameId}\n${url.split('#', 1)[0]}`)
+              ?.shift(),
+          });
         });
         session.on('Browser.downloadProgress', ({ guid, state }) => {
           const download = downloads.get(guid);
@@ -136,19 +197,30 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           downloadPath,
           eventsEnabled: true,
         });
+        // Pause each new page before its first request, including popups.
+        // A separate session preserves the caller's request interception.
+        await session.send('Target.setAutoAttach', {
+          autoAttach: true,
+          waitForDebuggerOnStart: true,
+          flatten: true,
+          filter: [{ type: 'page' }, { exclude: true }],
+        });
+        await Promise.all(pending);
       } catch (e) {
-        logger.debug(`Download events are unavailable: "${e}"`);
+        logger.error(`Could not configure browser downloads: "${e}"`);
+        throw new ServerError('Could not configure browser downloads.');
       }
     };
 
+    // The route-owned session outlives the runner's inner page. Do not also
+    // configure download behavior on that short-lived page's session.
     const handler = functionHandler(
       config,
       logger,
-      { downloadPath },
+      {},
       { beforeRun: watchDownloads },
     );
     let functionReturnedAt = 0;
-    let responses: Array<{ guid: string; status?: number }> = [];
     let failure: { status: number; error: string } | undefined;
     async function waitForDownload(): Promise<string | null> {
       for (;;) {
@@ -158,10 +230,19 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           );
           return null;
         }
-        const [fileName] = await readdir(downloadPath);
-        if (fileName && !fileName.endsWith('.crdownload')) {
-          logger.debug(`All files have finished downloading`);
+        const files = await readdir(downloadPath);
+        const fileName = files.find((name) => !name.endsWith('.crdownload'));
+        if (fileName) {
+          logger.debug(`A download has finished`);
           return path.join(downloadPath, fileName);
+        }
+
+        if (!browser.isRunning()) {
+          failure = {
+            status: 502,
+            error: 'The browser disconnected before the download completed.',
+          };
+          return null;
         }
 
         const started = [...downloads];
@@ -169,18 +250,16 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
           started.length &&
           started.every(([, { state }]) => state === 'canceled')
         ) {
-          const [guid, { url }] = started[started.length - 1];
-          const upstream = responses.find((response) => response.guid === guid);
-          const status =
-            upstream?.status && upstream.status >= 400 ? upstream.status : 502;
+          const [, { url, status: upstream }] = started[started.length - 1];
+          const status = upstream && upstream >= 400 ? upstream : 502;
           failure = {
             status,
-            error: `Download of "${url}" failed: ${status === upstream?.status ? `HTTP ${status}` : 'the browser canceled it without an HTTP error status'}.`,
+            error: `Download of "${url}" failed: ${status === upstream ? `HTTP ${status}` : 'the browser canceled it without an observed HTTP error status'}.`,
           };
           return null;
         }
         if (
-          !fileName &&
+          !files.length &&
           !started.length &&
           Date.now() - functionReturnedAt > downloadStartTimeoutMs
         ) {
@@ -199,9 +278,6 @@ export default class ChromiumDownloadPostRoute extends BrowserHTTPRoute {
       });
       const result = await Promise.race([execution, responseClosed]);
       if (!result) return;
-      // The download runner returns HTTP metadata rather than the user's
-      // unused function result. Ordinary /function callers are unchanged.
-      responses = result.payload as typeof responses;
       functionReturnedAt = Date.now();
       const filePath = await waitForDownload();
       if (res.headersSent || clientClosed) return;
