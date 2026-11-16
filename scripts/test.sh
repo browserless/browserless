@@ -11,7 +11,7 @@ export PUPPETEER_DISABLE_HEADLESS_WARNING=true
 
 if [ -z "$DISPLAY" ]
 then
-  Xvfb :99 -screen 0 1024x768x16 -nolisten tcp -nolisten unix >/dev/null 2>&1 &
+  Xvfb :99 -noreset -screen 0 1024x768x16 -nolisten tcp -nolisten unix >/dev/null &
   xvfb=$!
   export DISPLAY=:99
 fi
