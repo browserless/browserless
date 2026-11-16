@@ -43,6 +43,18 @@ const restoredLifecycleEvents = [
   'interactivetime',
 ];
 
+// Raw agent calls bypass GraphQL's enum validation.
+const WAIT_UNTIL_GOTO: ReadonlySet<string> = new Set([
+  'commit',
+  'load',
+  'domContentLoaded',
+  'firstMeaningfulPaint',
+  'firstContentfulPaint',
+  'interactiveTime',
+  'networkIdle',
+  'networkAlmostIdle',
+]);
+
 export interface BQLBrowserAPIOptions {
   browser: ChromiumCDP;
   config: Config;
@@ -1201,9 +1213,19 @@ export class BQLBrowserAPI {
     return value ? { ...value, cdp } : null;
   }
   public async click(
-    args: Partial<ElementArgs> & { x?: number; y?: number } = {},
+    args: Partial<ElementArgs> & {
+      x?: number;
+      y?: number;
+      waitUntil?: string;
+    } = {},
   ) {
+    if (args.waitUntil !== undefined && !WAIT_UNTIL_GOTO.has(args.waitUntil)) {
+      throw new BadRequest(
+        `Invalid waitUntil "${args.waitUntil}" for click. Expected one of: ${[...WAIT_UNTIL_GOTO].join(', ')}`,
+      );
+    }
     const start = Date.now();
+    const page = args.cdp ?? this.mainCDP;
     let cdp = args.cdp ?? this.mainCDP;
     let { x, y } = args;
     if (args.selector) {
@@ -1220,8 +1242,24 @@ export class BQLBrowserAPI {
     }
     if (!Number.isFinite(x) || !Number.isFinite(y))
       throw new Error('click requires a selector or x and y');
-    await this.inputDriver.click(cdp, x!, y!);
-    return { cdp, selector: args.selector, x, y, time: Date.now() - start };
+    const timeout = args.timeout ?? this.timeout;
+    const remaining =
+      timeout > 0 ? Math.max(timeout - (Date.now() - start), 1) : timeout;
+    // Listen on the page before pressing, not on a possible iframe target.
+    const [navigation] = await Promise.all([
+      args.waitUntil === undefined
+        ? undefined
+        : this.waitForNavigation(args.waitUntil, remaining, page),
+      this.inputDriver.click(cdp, x!, y!),
+    ]);
+    return {
+      cdp,
+      selector: args.selector,
+      x,
+      y,
+      time: Date.now() - start,
+      ...(navigation !== undefined && { navigation }),
+    };
   }
   public async hover(args: Partial<ElementArgs> & { x?: number; y?: number }) {
     const start = Date.now();

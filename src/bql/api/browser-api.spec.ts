@@ -226,6 +226,90 @@ test('pre-rule interception stays behind destination policy', async () => {
   await api.close();
 });
 
+test('click pairs an immediate page navigation across element targets and shares its timeout', async () => {
+  const api = new API();
+  const element = new CDP('iframe');
+  const selector = Sinon.stub(api, 'waitForSelector').resolves({
+    cdp: element as any,
+    x: 10,
+    y: 20,
+    width: 30,
+    height: 40,
+  });
+  element.handler = (method, params) => {
+    if (
+      method === 'Input.dispatchMouseEvent' &&
+      params.type === 'mousePressed'
+    ) {
+      api.client.emit('Network.responseReceived', {
+        type: 'Document',
+        loaderId: 'clicked',
+        response: {
+          url: 'https://fixture.test/next',
+          status: 200,
+          statusText: 'OK',
+        },
+      });
+      api.client.emit('Page.frameNavigated', {
+        frame: {
+          id: 'main',
+          loaderId: 'clicked',
+          url: 'https://fixture.test/next',
+        },
+      });
+      api.client.emit('Page.lifecycleEvent', {
+        frameId: 'main',
+        loaderId: 'clicked',
+        name: 'load',
+      });
+    }
+  };
+  const result = await api.click({
+    selector: '#go',
+    wait: true,
+    waitUntil: 'load',
+    timeout: 1000,
+  } as any);
+  assert.equal((result as any).navigation?.status, 200);
+  assert.equal((result as any).navigation?.url, 'https://fixture.test/next');
+  assert.deepEqual(Object.keys(await api.click({ selector: '#go' })).sort(), [
+    'cdp',
+    'selector',
+    'time',
+    'x',
+    'y',
+  ]);
+  await assert.rejects(
+    api.waitForNavigation('load', 50),
+    /Navigation timed out after 50ms/,
+  );
+  const calls = element.calls.length;
+  selector.resetHistory();
+  await assert.rejects(
+    api.click({ selector: '#go', waitUntil: 'bogus' } as any),
+    BadRequest,
+  );
+  assert.equal(element.calls.length, calls);
+  assert.equal(selector.called, false);
+  element.handler = undefined;
+  selector.callsFake(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return { cdp: element as any, x: 10, y: 20, width: 30, height: 40 };
+  });
+  const start = Date.now();
+  await assert.rejects(
+    api.click({
+      selector: '#go',
+      wait: true,
+      waitUntil: 'load',
+      timeout: 500,
+    } as any),
+    /Navigation timed out/,
+  );
+  assert.ok(Date.now() - start < 650);
+  selector.restore();
+});
+
 test('navigation listeners precede dispatch and return document metadata', async () => {
   const api = new API();
   api.client.handler = (method) => {

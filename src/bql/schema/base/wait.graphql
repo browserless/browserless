@@ -1,6 +1,6 @@
 extend type Mutation {
   """
-  Wait for navigation to reach the requested lifecycle event.
+  Waits for a navigation event to fire. It only sees navigations that start after it runs: to wait for a navigation a click triggers, pass `waitUntil` to `click` instead.
   """
   waitForNavigation(
     timeout: Float

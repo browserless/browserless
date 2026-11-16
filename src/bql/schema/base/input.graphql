@@ -12,6 +12,16 @@ extend type Mutation {
   ): ClickResponse
   """
   Click a selected element or page coordinates.
+
+  **Usage Example:**
+  ```graphql
+  mutation ClickAndWaitForNavigation {
+    goto(url: "https://example.com") { status }
+    click(selector: "a", waitUntil: load) {
+      navigation { status url }
+    }
+  }
+  ```
   """
   click(
     selector: String
@@ -21,6 +31,10 @@ extend type Mutation {
     timeout: Float
     visible: Boolean = false
     wait: Boolean = true
+    """
+    When set, also waits for the navigation this click triggers. The wait starts before the click, so a fast navigation is not missed. `timeout` covers finding the element and this wait together. Fails with a timeout error if the click does not navigate. Same-document navigations (pushState, hash changes) are not detected. Omit to click without waiting
+    """
+    waitUntil: WaitUntilGoto
   ): ClickResponse
   """
   Move the pointer to a selected element or page coordinates.
@@ -89,6 +103,10 @@ type ClickResponse {
   The y value.
   """
   y: Float
+  """
+  The navigation the click triggered. Only set when `waitUntil` is passed
+  """
+  navigation: HTTPResponse
 }
 
 type HoverResponse {
