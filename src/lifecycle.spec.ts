@@ -638,6 +638,9 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
           res.emit('close');
           return res;
         };
+        const clock = Sinon.useFakeTimers({
+          toFake: ['setTimeout', 'clearTimeout'],
+        });
         const request = run(
           registered,
           makeReq(existing ? `/devtools/browser/${live.id}` : '/chromium'),
@@ -645,13 +648,16 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
         );
         try {
           await entered.promise;
+          await clock.tickAsync(30);
           await request;
+          clock.restore();
           pending.resolve();
           await drained(lc);
           expect(res.code).to.equal(408);
           expect(live.closed).to.equal(0);
           expect(lc.snapshot().sources['sdk-browsers']).to.equal(1);
         } finally {
+          clock.restore();
           pending.resolve();
           await manager.killSessions('all');
         }
@@ -662,6 +668,7 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
   it('timeout closes a request-owned browser only once when close rejects', async () => {
     const { router, lc } = stack({ timeout: 30 });
     const pending = deferred();
+    const entered = deferred();
     let browser!: FakeBrowser;
     const subject = new PendingBrowserRoute(
       (
@@ -671,6 +678,7 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
         acquired: FakeBrowser,
       ) => {
         browser = acquired;
+        entered.resolve();
         return pending.promise;
       },
       true,
@@ -688,14 +696,26 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
       res.emit('close');
       return res;
     };
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+    });
     try {
-      await run(router.registerHTTPRoute(subject), makeReq('/chromium'), res);
+      const request = run(
+        router.registerHTTPRoute(subject),
+        makeReq('/chromium'),
+        res,
+      );
+      await entered.promise;
+      await clock.tickAsync(30);
+      await request;
+      clock.restore();
       pending.resolve();
       await drained(lc);
       expect(res.code).to.equal(408);
       expect(browser.closed).to.equal(1);
       expect(lc.snapshot().sources['sdk-browsers']).to.equal(0);
     } finally {
+      clock.restore();
       pending.resolve();
     }
   });
