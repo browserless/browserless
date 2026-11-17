@@ -137,6 +137,8 @@ interface ResponseOrigin {
   cdp: Connection;
   pending: boolean;
   failed: boolean;
+  received: number;
+  oversized?: boolean;
   type: string;
   body?: Protocol.Network.GetResponseBodyResponse;
   size: number;
@@ -330,6 +332,7 @@ export class BQLBrowserAPI {
   private navigationError: string | null = null;
   private responseOrigins = new Map<string, ResponseOrigin>();
   private responseBodyBytes = 0;
+  private responseBodyPendingBytes = 0;
   private responseMetadata = new Map<string, ResponseMetadata>();
   private networkOwners = new Map<string, Connection>();
   private inflight = new Set<string>();
@@ -612,6 +615,7 @@ export class BQLBrowserAPI {
           cdp,
           pending: true,
           failed: false,
+          received: 0,
           type: e.type.toLowerCase(),
           size: 0,
         });
@@ -657,6 +661,10 @@ export class BQLBrowserAPI {
       } else if (metadata.extra.length < 1000) {
         metadata.extra.push(event);
       }
+    });
+    listen('Network.dataReceived', ({ requestId, dataLength }) => {
+      const origin = this.responseOrigins.get(requestId);
+      if (origin?.cdp === cdp) origin.received += dataLength;
     });
     for (const event of [
       'Network.loadingFinished',
@@ -2927,7 +2935,12 @@ export class BQLBrowserAPI {
               reject(new Error('Response body timed out'));
             }, timeout);
         });
-      if (this.closed || origin?.failed || (deadline && Date.now() >= deadline))
+      if (
+        this.closed ||
+        origin?.failed ||
+        origin?.oversized ||
+        (deadline && Date.now() >= deadline)
+      )
         return null;
       if (origin?.body) return origin.body;
       return await bounded(
@@ -2992,13 +3005,31 @@ export class BQLBrowserAPI {
     this.events.emit('body', id);
   }
   private async captureResponseBody(id: string, origin: ResponseOrigin) {
+    const limit = 10 * 1024 * 1024;
+    let reserved = 0;
     try {
+      // Chromium's inspector buffer excludes some resources, such as scripts.
+      // Use received bytes rather than encoded length to bound those reads too.
+      if (origin.received > 20_000_000) {
+        origin.oversized = true;
+        return;
+      }
+      if (
+        origin.received > limit ||
+        (origin.type !== 'document' &&
+          this.responseBodyBytes +
+            this.responseBodyPendingBytes +
+            origin.received >
+            limit)
+      )
+        return;
+      reserved = origin.received;
+      this.responseBodyPendingBytes += reserved;
       const body = await origin.cdp.send('Network.getResponseBody', {
         requestId: id,
       });
       if (this.responseOrigins.get(id) !== origin || origin.body) return;
       const size = Buffer.byteLength(body.body, 'utf8');
-      const limit = 10 * 1024 * 1024;
       if (size > limit) return;
       if (origin.type === 'document') {
         for (const [, candidate] of this.responseBodyEvictionOrder()) {
@@ -3015,6 +3046,7 @@ export class BQLBrowserAPI {
     } catch {
       // A later read may still succeed if Chrome has not discarded the body.
     } finally {
+      this.responseBodyPendingBytes -= reserved;
       origin.pending = false;
       this.events.emit('body', id);
     }
@@ -3040,7 +3072,9 @@ export class BQLBrowserAPI {
       })) ?? null
     );
   }
-  public async response(args: Filter & { wait: boolean; timeout?: number }) {
+  public async response(
+    args: Filter & { wait: boolean; timeout?: number; includeBody?: boolean },
+  ) {
     args = { ...args };
     if (args.wait) duration(args.timeout ?? this.timeout);
     compileRegexes(args);
@@ -3063,7 +3097,8 @@ export class BQLBrowserAPI {
               name,
               value,
             })),
-            ...((deadline && Date.now() >= deadline
+            ...((args.includeBody === false ||
+            (deadline && Date.now() >= deadline)
               ? null
               : await this.getResponseBody(
                   id,

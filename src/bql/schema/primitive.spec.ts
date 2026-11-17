@@ -28,6 +28,49 @@ class API extends BQLBrowserAPI {
 }
 
 describe('BrowserQL primitive contracts', () => {
+  it('requests response bodies only for body fields or fragments', async () => {
+    let includeBody: boolean | undefined;
+    class ResponseAPI extends API {
+      override async response(args: any) {
+        includeBody = args.includeBody;
+        return [];
+      }
+    }
+    const service = new BrowserQL({
+      apiFactory: () => new ResponseAPI(options),
+    });
+    const context = service.createContext(options);
+    for (const [selection, fragment, expected] of [
+      ['status', '', false],
+      ['alias: body', '', true],
+      ['base64Encoded', '', true],
+      ['... on ResponseResponse { status }', '', true],
+      ['...Metadata', 'fragment Metadata on ResponseResponse { status }', true],
+      ['...Body', 'fragment Body on ResponseResponse { body }', true],
+    ] as const) {
+      const result = await service.execute(
+        { query: `mutation { response { ${selection} } } ${fragment}` },
+        context,
+      );
+      assert.equal(result.errors, undefined);
+      assert.equal(includeBody, expected);
+    }
+    const resolve = service.schema.getMutationType()!.getFields()
+      .response.resolve!;
+    for (const selection of [
+      { kind: 'FragmentSpread', name: { value: 'Metadata' } },
+      { kind: 'InlineFragment' },
+    ]) {
+      await resolve(undefined, {}, context, {
+        fieldNodes: [{ selectionSet: { selections: [selection] } }],
+      } as any);
+      assert.equal(includeBody, true);
+    }
+    await resolve(undefined, {}, context, undefined as any);
+    assert.equal(includeBody, true);
+    await context.close();
+  });
+
   it('accepts a response wait timeout in the schema', async () => {
     class ResponseAPI extends API {
       override async waitForResponse(args: any) {

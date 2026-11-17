@@ -1528,6 +1528,73 @@ test('response bodies use the originating target after a window switch', async (
   await api.close();
 });
 
+test('response body reads respect received-byte limits and pending reservations', async () => {
+  const api = new API();
+  await api.setup();
+  let finish!: (body: any) => void;
+  const reads: string[] = [];
+  api.client.handler = (method, params) => {
+    if (method !== 'Network.getResponseBody') return {};
+    reads.push(params.requestId);
+    if (params.requestId === 'pending')
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    return { body: 'body', base64Encoded: false };
+  };
+  const response = (id: string, size: number, type = 'Fetch') => {
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type,
+      response: { url: `https://example.com/${id}`, status: 200, headers: {} },
+    });
+    for (const dataLength of [size / 2, size / 2])
+      api.client.emit('Network.dataReceived', { requestId: id, dataLength });
+    api.client.emit('Network.loadingFinished', { requestId: id });
+  };
+  response('pending', 6 * 1024 * 1024);
+  response('budget', 6 * 1024 * 1024);
+  response('large', 10 * 1024 * 1024 + 1);
+  response('oversized', 20_000_001, 'Script');
+  assert.deepEqual(reads, ['pending']);
+  assert.equal(await api.getResponseBody('oversized'), null);
+  assert.equal((await api.getResponseBody('large'))?.body, 'body');
+  finish({ body: 'body', base64Encoded: false });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  response('released', 6 * 1024 * 1024);
+  assert.deepEqual(reads, ['pending', 'large', 'released']);
+  response('cache-boundary', 10 * 1024 * 1024, 'Document');
+  assert.equal(reads.at(-1), 'cache-boundary');
+  response('read-boundary', 20_000_000, 'Stylesheet');
+  assert.equal(reads.at(-1), 'cache-boundary');
+  assert.equal((await api.getResponseBody('read-boundary'))?.body, 'body');
+  assert.equal(reads.at(-1), 'read-boundary');
+  await api.close();
+});
+
+test('response metadata can skip body reads while SDK calls include them by default', async () => {
+  const api = new API();
+  await api.setup();
+  api.client.emit('Network.responseReceived', {
+    requestId: 'pending',
+    type: 'Fetch',
+    response: { url: 'https://example.com/', status: 200, headers: {} },
+  });
+  const read = Sinon.stub(api, 'getResponseBody').resolves({
+    body: 'body',
+    base64Encoded: false,
+  });
+  const metadata = await api.response({
+    wait: false,
+    includeBody: false,
+  });
+  assert.equal(metadata?.[0].body, null);
+  assert.equal(read.callCount, 0);
+  assert.equal((await api.response({ wait: false }))?.[0].body, 'body');
+  assert.equal(read.callCount, 1);
+  await api.close();
+});
+
 test('response retention bounds bytes and entries while prioritizing documents', async () => {
   const api = new API();
   await api.setup();
