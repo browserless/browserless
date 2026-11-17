@@ -930,6 +930,51 @@ describe('ChromiumCDP launch args', function () {
     });
   }
 
+  it('recovers from a stale SingletonLock left by a non-gracefully-killed Chrome (#5680)', async function () {
+    const userDataDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'cdp-singleton-lock-'),
+    );
+    let recovered: ChromiumCDP | undefined;
+    try {
+      const first = new ChromiumCDP({
+        blockAds: false,
+        config: new Config(),
+        logger: new Logger('singleton-lock-test'),
+        userDataDir,
+      });
+      await first.launch({ options: {}, stealth: false });
+      const chromeProcess = first.process()!;
+      const exited = once(chromeProcess, 'exit');
+      chromeProcess.kill('SIGKILL');
+      await exited;
+
+      // Chrome's ProcessSingleton already self-heals a dead PID on the same
+      // host. The reported bug is specifically a container restart, where
+      // the new container gets a different hostname - Chrome then refuses
+      // to touch a lock recorded under "another computer" and fails instead
+      // of trying to show a GUI dialog it can't render headlessly. Simulate
+      // that by rewriting the lock to a host that can't possibly be this one.
+      fs.unlinkSync(path.join(userDataDir, 'SingletonLock'));
+      fs.symlinkSync(
+        'some-other-container-99999999',
+        path.join(userDataDir, 'SingletonLock'),
+      );
+
+      recovered = new ChromiumCDP({
+        blockAds: false,
+        config: new Config(),
+        logger: new Logger('singleton-lock-test'),
+        userDataDir,
+      });
+      // Must not throw "profile appears to be in use" from the stale lock.
+      await recovered.launch({ options: {}, stealth: false });
+      expect(recovered.process()).to.not.be.null;
+    } finally {
+      await recovered?.close();
+      fs.rmSync(userDataDir, { recursive: true, force: true });
+    }
+  });
+
   it('closes a paused client socket with unread data when the browser exits', async () => {
     await launch();
     const server = createServer();

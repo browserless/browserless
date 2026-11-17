@@ -1,5 +1,6 @@
 import {
   Browserless,
+  BrowserHook,
   BrowserlessSessionJSON,
   Config,
   Hooks,
@@ -12,6 +13,7 @@ import { chromium } from 'playwright-core';
 import { deleteAsync } from 'del';
 import { expect } from 'chai';
 import fs from 'fs/promises';
+import { once } from 'events';
 import puppeteer from 'puppeteer-core';
 
 describe('Chromium WebSocket API', function () {
@@ -446,6 +448,83 @@ describe('Chromium WebSocket API', function () {
 
     expect(await exists(userDataDir)).to.be.true;
     await deleteAsync(userDataDir, { force: true });
+  });
+
+  it('rejects a second launch against a user-data-dir already in use (#5680)', async () => {
+    const dataDirLocation = '/tmp/browserless-test-dir-conflict';
+    const launch = JSON.stringify({ userDataDir: dataDirLocation });
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+    await start({ config, metrics });
+
+    const first = await puppeteer.connect({
+      browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+    });
+
+    try {
+      const conflictError = await puppeteer
+        .connect({
+          browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+        })
+        .then(() => null)
+        .catch((e: Error) => e);
+
+      expect(conflictError?.message).to.include('429');
+
+      await first.disconnect();
+      await sleep(500);
+
+      // Releasing the first session frees the directory for reuse.
+      const second = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+      });
+      await second.disconnect();
+    } finally {
+      await deleteAsync(dataDirLocation, { force: true });
+    }
+  });
+
+  it('releases the reservation if Chrome exits during the browser hook (#5680)', async () => {
+    const dataDirLocation = '/tmp/browserless-test-dir-hook-kill';
+    const launch = JSON.stringify({ userDataDir: dataDirLocation });
+    const config = new Config();
+    config.setToken('browserless');
+    const metrics = new Metrics();
+
+    class KillDuringHook extends Hooks {
+      private killed = false;
+      async browser({ browser }: BrowserHook) {
+        if (this.killed) return;
+        this.killed = true;
+        const proc = browser.process();
+        if (!proc) return;
+        const exited = once(proc, 'exit');
+        proc.kill('SIGKILL');
+        await exited;
+      }
+    }
+
+    await start({ config, metrics, hooks: new KillDuringHook() });
+
+    try {
+      const launchError = await puppeteer
+        .connect({
+          browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+        })
+        .then(() => null)
+        .catch((e: Error) => e);
+
+      expect(launchError).to.not.be.null;
+
+      // Must not stay stuck behind a 429 from the first attempt's reservation.
+      const retry = await puppeteer.connect({
+        browserWSEndpoint: `ws://localhost:3000/chromium?token=browserless&launch=${launch}`,
+      });
+      await retry.disconnect();
+    } finally {
+      await deleteAsync(dataDirLocation, { force: true });
+    }
   });
 
   it('creates user-data-dirs with CLI flags', async () => {

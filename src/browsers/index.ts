@@ -25,6 +25,7 @@ import {
   Request,
   Route,
   ServerError,
+  TooManyRequests,
   WebKitPlaywright,
   WorkerLifecycle,
   availableBrowsers,
@@ -45,6 +46,27 @@ import { cpus } from 'os';
 import { deleteAsync } from 'del';
 import micromatch from 'micromatch';
 import path from 'path';
+import { realpathSync } from 'fs';
+
+// Synchronous (no await) so two concurrent launches naming the same path
+// can't interleave between resolving it and reserving it. Walks up to the
+// nearest existing ancestor to resolve any symlink in it, since a path that
+// doesn't exist yet would otherwise keep an alias spelling as its key.
+const canonicalizeUserDataDir = (dir: string): string => {
+  const resolved = path.resolve(dir);
+  let existingAncestor = resolved;
+  const missingSegments: string[] = [];
+  while (true) {
+    try {
+      return path.join(realpathSync(existingAncestor), ...missingSegments);
+    } catch {
+      const parent = path.dirname(existingAncestor);
+      if (parent === existingAncestor) return resolved;
+      missingSegments.unshift(path.basename(existingAncestor));
+      existingAncestor = parent;
+    }
+  }
+};
 
 // Chrome releases its profile-dir file handles within a few hundred ms
 // of `browser.close()` resolving, so 200/400/800 ms covers the realistic
@@ -69,6 +91,11 @@ const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux']);
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
+  // this.browsers is updated too late/early to double as this check.
+  protected reservedUserDataDirs: Set<string> = new Set();
+  // Keyed by the same BrowserInstance as this.browsers so release always
+  // uses the exact key reserved at launch, never a path re-resolved later.
+  protected reservedUserDataDirKeys: Map<BrowserInstance, string> = new Map();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   // /json/version and /json/protocol are invariant for the life of the
   // installed binary — cache them so we don't boot a whole Chromium per
@@ -754,6 +781,14 @@ export class BrowserManager {
         this.teardownBrowser(browser, session),
       );
       await teardown.catch(noop);
+
+      // Only now, once the browser has actually torn down, is this manual
+      // profile free for a new launch to reserve.
+      const reservedKey = this.reservedUserDataDirKeys.get(browser);
+      if (reservedKey) {
+        this.reservedUserDataDirs.delete(reservedKey);
+        this.reservedUserDataDirKeys.delete(browser);
+      }
     }
   }
 
@@ -1058,6 +1093,21 @@ export class BrowserManager {
       );
     }
 
+    // No await before this point: closes the race where two concurrent
+    // launches for the same profile could both pass the check below.
+    const canonicalManualUserDataDir = manualUserDataDir
+      ? canonicalizeUserDataDir(manualUserDataDir)
+      : null;
+
+    if (canonicalManualUserDataDir) {
+      if (this.reservedUserDataDirs.has(canonicalManualUserDataDir)) {
+        throw new TooManyRequests(
+          `user-data-dir "${manualUserDataDir}" is already in use by another session`,
+        );
+      }
+      this.reservedUserDataDirs.add(canonicalManualUserDataDir);
+    }
+
     // Always specify a user-data-dir since plugins can "inject" their own
     // unless it's playwright which takes care of its own data-dirs
     const userDataDir =
@@ -1086,6 +1136,9 @@ export class BrowserManager {
       // BrowserlessSession exists yet to route through the normal close path.
       if (!manualUserDataDir && userDataDir) {
         await this.removeUserDataDir(userDataDir);
+      }
+      if (canonicalManualUserDataDir) {
+        this.reservedUserDataDirs.delete(canonicalManualUserDataDir);
       }
       throw err;
     }
@@ -1136,6 +1189,7 @@ export class BrowserManager {
     const match = (req.headers['user-agent'] || '').match(pwVersionRegex);
     const pwVersion = match ? match[1] : 'default';
 
+    let sessionId: string;
     try {
       await browser.launch({
         options: { ...launchOptions, env: browserEnv } as BrowserServerOptions,
@@ -1144,6 +1198,15 @@ export class BrowserManager {
         stealth: launchOptions?.stealth,
       });
       await this.hooks.browser({ browser, req });
+
+      // Chrome can exit while the hook above awaits, which clears
+      // wsEndpoint; treat that the same as any other launch failure
+      // rather than letting it throw past this cleanup block.
+      const wsEndpoint = browser.wsEndpoint();
+      if (!wsEndpoint) {
+        throw new ServerError('Browser disconnected before launch completed');
+      }
+      sessionId = getFinalPathSegment(wsEndpoint)!;
     } catch (err) {
       // No BrowserlessSession exists yet at this point, so the normal
       // close path cannot reclaim the auto-generated user-data-dir.
@@ -1162,10 +1225,12 @@ export class BrowserManager {
       // Owned by browserless regardless of who supplied the data dir, so it is
       // reclaimed unconditionally.
       await this.removeScratchDir(scratchDir);
+      if (canonicalManualUserDataDir) {
+        this.reservedUserDataDirs.delete(canonicalManualUserDataDir);
+      }
       throw err;
     }
 
-    const sessionId = getFinalPathSegment(browser.wsEndpoint()!)!;
     const session: BrowserlessSession = {
       id: sessionId,
       initialConnectURL:
@@ -1189,6 +1254,9 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
+    if (canonicalManualUserDataDir) {
+      this.reservedUserDataDirKeys.set(browser, canonicalManualUserDataDir);
+    }
 
     // EventEmitter does not await listeners; retain failures in the lifecycle
     // without letting a page-level rejection escape to the process.
