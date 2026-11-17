@@ -15,6 +15,20 @@
 
 * bump ubuntu from `065aa86` to `d66b366` in /docker/base ([#5692](https://github.com/browserless/browserless/issues/5692)) ([d1ddba0](https://github.com/browserless/browserless/commit/d1ddba02232304fcc3b2b13a0e087168d2da0244))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.17.0`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `157.0.8103.78` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.60` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.63.1](https://github.com/browserless/browserless/compare/v2.63.0...v2.63.1) (2026-11-13)
 
 
