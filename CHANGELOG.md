@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.63.2](https://github.com/browserless/browserless/compare/v2.63.1...v2.63.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ci:** preserve publish triggers after Dependabot merges ([#5687](https://github.com/browserless/browserless/issues/5687)) ([5ee5a9e](https://github.com/browserless/browserless/commit/5ee5a9e589ae52a5cd52676cf37a4791a56d30af))
+* honor disabled JavaScript in PDF requests ([#5688](https://github.com/browserless/browserless/issues/5688)) ([83acacf](https://github.com/browserless/browserless/commit/83acacfc2761edba242b2dc388599f9c3a611c42))
+* prevent Xvfb resets between browser sessions ([#5694](https://github.com/browserless/browserless/issues/5694)) ([be4628c](https://github.com/browserless/browserless/commit/be4628c6488ca111d5fdd2e063af6080456597fc))
+* stop /download from hanging when the browser cancels a download ([#5690](https://github.com/browserless/browserless/issues/5690)) ([30d59c9](https://github.com/browserless/browserless/commit/30d59c9679af6bdc79ecb503ab6a69e5d5eecc4f))
+
+
+### Build System & Runtime
+
+* bump ubuntu from `065aa86` to `d66b366` in /docker/base ([#5692](https://github.com/browserless/browserless/issues/5692)) ([d1ddba0](https://github.com/browserless/browserless/commit/d1ddba02232304fcc3b2b13a0e087168d2da0244))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.17.0`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `157.0.8103.78` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.60` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.63.1](https://github.com/browserless/browserless/compare/v2.63.0...v2.63.1) (2026-11-13)
 
 
