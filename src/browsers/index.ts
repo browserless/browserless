@@ -850,6 +850,12 @@ export class BrowserManager {
     return formattedSessions;
   }
 
+  public async forceClose(browser: BrowserInstance): Promise<void> {
+    const session = this.browsers.get(browser);
+    if (!session) return;
+    return this.close(browser, session, true);
+  }
+
   public async complete(browser: BrowserInstance): Promise<void> {
     const session = this.browsers.get(browser);
     if (!session) {

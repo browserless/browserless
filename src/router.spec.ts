@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-expressions */
 import * as http from 'http';
 import * as stream from 'stream';
+import { EventEmitter } from 'events';
 import {
   APITags,
   BrowserHTTPRoute,
@@ -196,7 +197,7 @@ const makeSocket = (): stream.Duplex => {
   return fake as unknown as stream.Duplex;
 };
 
-const buildRouter = () => {
+const buildRouter = (RouterClass: typeof Router = Router) => {
   const config = new Config();
   config.setConcurrent(2);
   config.setQueued(2);
@@ -210,7 +211,13 @@ const buildRouter = () => {
   const limiter = new Limiter(config, metrics, monitoring, webhooks, hooks);
   const browserManager = Sinon.createStubInstance(BrowserManager);
 
-  const router = new Router(config, browserManager, limiter, Logger, hooks);
+  const router = new RouterClass(
+    config,
+    browserManager,
+    limiter,
+    Logger,
+    hooks,
+  );
 
   return { router, hooks, limiter, config, metrics, browserManager };
 };
@@ -232,6 +239,113 @@ describe('Router', () => {
   afterEach(() => {
     monitorings.forEach((m) => m.stop());
     monitorings.length = 0;
+  });
+
+  describe('HTTP timeout browser cleanup', () => {
+    const runJob = async ({
+      existing = false,
+      successful = false,
+      rejectClose = false,
+      RouterClass = Router,
+    } = {}) => {
+      const { router, config, browserManager } = buildRouter(RouterClass);
+      config.setTimeout(30);
+      const browser = {} as never;
+      browserManager.getBrowserForRequest.resolves(browser);
+      browserManager.isExistingBrowserRequest.returns(existing);
+      const forceClose = browserManager.forceClose.resolves();
+      if (rejectClose) forceClose.rejects(new Error('close failed'));
+      const internals = router as unknown as {
+        onHTTPTimeout(req: Request, res: http.ServerResponse): void;
+        log: Logger;
+      };
+      const timeout = Sinon.spy(internals, 'onHTTPTimeout');
+      const error = Sinon.spy(internals.log, 'error');
+      const response = makeResponse();
+      const events = new EventEmitter();
+      Sinon.stub(response, 'once').callsFake((event, listener) => {
+        events.once(event, listener);
+        return response;
+      });
+      const end = Sinon.stub(response, 'end').callsFake(() => {
+        Object.defineProperty(response, 'writableEnded', { value: true });
+        events.emit('close');
+        return response;
+      });
+      const writeHead = Sinon.spy(response, 'writeHead');
+      let finish!: () => void;
+      const pending = new Promise<void>((resolve) => (finish = resolve));
+      const route = new TestBrowserHTTPRoute(async () => {
+        if (successful) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          response.end('ok');
+        } else await pending;
+      });
+      route.concurrency = true;
+      router.registerHTTPRoute(route);
+      try {
+        await route.handler(
+          makeRequest(),
+          response,
+          new Logger('test'),
+          browser,
+        );
+        await flushMicrotasks();
+        return { browser, forceClose, timeout, error, end, writeHead };
+      } finally {
+        finish();
+      }
+    };
+
+    it('force-closes a launched browser once while returning the usual 408', async () => {
+      const { browser, forceClose, timeout, writeHead } = await runJob();
+      expect(forceClose.calledOnceWithExactly(browser)).to.be.true;
+      expect(timeout.calledOnce).to.be.true;
+      expect(writeHead.firstCall.args[0]).to.equal(408);
+    });
+
+    it('does not force-close an existing browser on timeout', async () => {
+      const { forceClose, timeout } = await runJob({ existing: true });
+      expect(timeout.calledOnce).to.be.true;
+      expect(forceClose.called).to.be.false;
+    });
+
+    it('cleans up even when an SDK timeout override does not call super', async () => {
+      class SDKRouter extends Router {
+        protected override onHTTPTimeout(
+          _req: Request,
+          res: http.ServerResponse,
+        ) {
+          res.end('custom timeout');
+        }
+      }
+      const { browser, forceClose, timeout, end } = await runJob({
+        RouterClass: SDKRouter,
+      });
+      expect(timeout.calledOnce).to.be.true;
+      expect(end.callCount).to.equal(1);
+      expect(end.firstCall.args[0]).to.equal('custom timeout');
+      expect(forceClose.calledOnceWithExactly(browser)).to.be.true;
+    });
+
+    it('leaves successfully completed jobs alone', async () => {
+      const { forceClose, timeout } = await runJob({ successful: true });
+      expect(timeout.called).to.be.false;
+      expect(forceClose.called).to.be.false;
+    });
+
+    it('logs cleanup rejections without breaking the timeout response', async () => {
+      const { forceClose, error, writeHead } = await runJob({
+        rejectClose: true,
+      });
+      expect(forceClose.calledOnce).to.be.true;
+      expect(writeHead.firstCall.args[0]).to.equal(408);
+      expect(
+        error.args.some(([message]) =>
+          String(message).includes('close failed'),
+        ),
+      ).to.be.true;
+    });
   });
 
   describe('HTTP route after() lifecycle', () => {
