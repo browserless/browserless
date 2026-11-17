@@ -246,12 +246,19 @@ describe('Router', () => {
       existing = false,
       successful = false,
       rejectClose = false,
+      lateAcquisition = false,
       RouterClass = Router,
     } = {}) => {
       const { router, config, browserManager } = buildRouter(RouterClass);
       config.setTimeout(30);
       const browser = {} as never;
       browserManager.getBrowserForRequest.resolves(browser);
+      let acquire!: () => void;
+      if (lateAcquisition) {
+        browserManager.getBrowserForRequest.returns(
+          new Promise((resolve) => (acquire = () => resolve(browser))),
+        );
+      }
       browserManager.isExistingBrowserRequest.returns(existing);
       const forceClose = browserManager.forceClose.resolves();
       if (rejectClose) forceClose.rejects(new Error('close failed'));
@@ -270,6 +277,10 @@ describe('Router', () => {
       const end = Sinon.stub(response, 'end').callsFake(() => {
         Object.defineProperty(response, 'writableEnded', { value: true });
         events.emit('close');
+        if (lateAcquisition) {
+          Object.defineProperty(response.socket, 'writable', { value: false });
+          queueMicrotask(acquire);
+        }
         return response;
       });
       const writeHead = Sinon.spy(response, 'writeHead');
@@ -284,14 +295,24 @@ describe('Router', () => {
       route.concurrency = true;
       router.registerHTTPRoute(route);
       try {
-        await route.handler(
-          makeRequest(),
-          response,
-          new Logger('test'),
-          browser,
-        );
+        await route
+          .handler(makeRequest(), response, new Logger('test'), browser)
+          .catch((err: Error) => {
+            if (!lateAcquisition) throw err;
+            expect(err.message).to.equal(
+              'Request closed prior to writing results',
+            );
+          });
         await flushMicrotasks();
-        return { browser, forceClose, timeout, error, end, writeHead };
+        return {
+          browser,
+          forceClose,
+          complete: browserManager.complete,
+          timeout,
+          error,
+          end,
+          writeHead,
+        };
       } finally {
         finish();
       }
@@ -309,6 +330,19 @@ describe('Router', () => {
       expect(timeout.calledOnce).to.be.true;
       expect(forceClose.called).to.be.false;
     });
+
+    for (const existing of [false, true]) {
+      it(`cleans up a late ${existing ? 'existing' : 'launched'} browser after timeout`, async () => {
+        const { browser, forceClose, complete, timeout } = await runJob({
+          existing,
+          lateAcquisition: true,
+        });
+        expect(timeout.calledOnce).to.be.true;
+        expect(forceClose.callCount).to.equal(existing ? 0 : 1);
+        expect(forceClose.calledOnceWithExactly(browser)).to.equal(!existing);
+        expect(complete.calledOnceWithExactly(browser)).to.be.true;
+      });
+    }
 
     it('cleans up even when an SDK timeout override does not call super', async () => {
       class SDKRouter extends Router {
