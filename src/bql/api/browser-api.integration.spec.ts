@@ -213,6 +213,44 @@ describe('raw CDP browser primitives', () => {
       (await api.querySelectorAll({ selector: 'button' })).length,
       2,
     );
+    await api.evaluate({
+      content: `document.body.insertAdjacentHTML('beforeend', '<div class="visibility-test" id="hidden-first" style="display:none">Hidden</div><div class="visibility-test" id="shown">Visible</div><div class="visibility-test" style="visibility:hidden">Hidden</div><div class="visibility-test" style="opacity:0">Transparent</div><div class="visibility-test" style="width:0;height:0">Zero size</div><div class="visibility-test" id="offscreen" style="position:absolute;top:10000px">Offscreen</div>')`,
+    });
+    assert.equal(
+      (await api.querySelector({ selector: '.visibility-test' })).id,
+      'hidden-first',
+    );
+    assert.equal(
+      (
+        await api.querySelectorAll({
+          selector: '.visibility-test',
+          visible: false,
+        })
+      ).length,
+      6,
+    );
+    assert.equal(
+      (await api.querySelector({ selector: '.visibility-test', visible: true }))
+        .id,
+      'shown',
+    );
+    assert.deepEqual(
+      (
+        await api.querySelectorAll({
+          selector: '.visibility-test',
+          visible: true,
+        })
+      ).map((el: { id: string }) => el.id),
+      ['shown', 'offscreen'],
+    );
+    assert.equal(
+      await api.querySelector({ selector: '#hidden-first', visible: true }),
+      null,
+    );
+    assert.equal(
+      await api.querySelectorAll({ selector: '#hidden-first', visible: true }),
+      null,
+    );
     assert.equal(
       (
         await api.querySelectorAll({

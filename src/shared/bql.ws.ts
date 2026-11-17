@@ -39,6 +39,7 @@ export default class ChromiumBQLWebsocketRoute extends BrowserWebsocketRoute<Chr
     const bql = this.bql();
     const server = new WebSocketServer({
       noServer: true,
+      maxPayload: this.config().getMaxPayloadSize(),
       handleProtocols: (protocols) =>
         protocols.has(BQL_WEBSOCKET_PROTOCOL) ? BQL_WEBSOCKET_PROTOCOL : false,
     });

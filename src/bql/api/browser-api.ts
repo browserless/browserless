@@ -333,6 +333,7 @@ export class BQLBrowserAPI {
   private responseOrigins = new Map<string, ResponseOrigin>();
   private responseBodyBytes = 0;
   private responseBodyPendingBytes = 0;
+  private responseBodyRead = Promise.resolve();
   private responseMetadata = new Map<string, ResponseMetadata>();
   private networkOwners = new Map<string, Connection>();
   private inflight = new Set<string>();
@@ -1108,12 +1109,17 @@ export class BQLBrowserAPI {
     selector,
     cdp = this.mainCDP,
     timeout,
+    visible = false,
   }: ElementArgs) {
     const query = this.selectorExpression(selector);
     const { value } = await this.evaluate({
       cdp,
       timeout,
-      content: `${query}.map(el => ({ id: el.id, childElementCount: el.childElementCount, className: el.className, innerHTML: el.innerHTML, innerText: el.innerText, localName: el.localName, outerHTML: el.outerHTML }))`,
+      content: `${query}.filter(el => {
+        if (!${!!visible}) return true;
+        const r = el.getBoundingClientRect(), style = getComputedStyle(el);
+        return r.width && r.height && style.visibility !== 'hidden' && style.display !== 'none' && el.checkVisibility?.({checkOpacity:true, checkVisibilityCSS:true}) !== false;
+      }).map(el => ({ id: el.id, childElementCount: el.childElementCount, className: el.className, innerHTML: el.innerHTML, innerText: el.innerText, localName: el.localName, outerHTML: el.outerHTML }))`,
     });
     return value?.length ? value : null;
   }
@@ -2905,10 +2911,10 @@ export class BQLBrowserAPI {
   ): Promise<{ body: string; base64Encoded: boolean } | null> {
     const deadline = timeout ? Date.now() + timeout : undefined;
     const origin = this.responseOrigins.get(id);
-    const cdp = origin?.cdp ?? this.mainCDP;
     await this.beforeReadback();
     try {
-      if (this.closed) return null;
+      // Evicted origins no longer have trustworthy size or target information.
+      if (this.closed || !origin) return null;
       if (origin?.pending)
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
@@ -2943,8 +2949,33 @@ export class BQLBrowserAPI {
       )
         return null;
       if (origin?.body) return origin.body;
+      // Serialize fallback reads across callers. A timed-out CDP read still owns
+      // its slot until it settles, rather than allowing abandoned reads to pile up.
+      const read = this.responseBodyRead.then(async () => {
+        if (
+          this.closed ||
+          this.responseOrigins.get(id) !== origin ||
+          origin.failed ||
+          origin.oversized ||
+          origin.received > 20_000_000 ||
+          (deadline && Date.now() >= deadline)
+        )
+          return null;
+        await this.beforeReadback();
+        const body = await origin.cdp.send('Network.getResponseBody', {
+          requestId: id,
+        });
+        return !this.closed &&
+          Buffer.byteLength(body.body, 'utf8') <= 20_000_000
+          ? body
+          : null;
+      });
+      this.responseBodyRead = read.then(
+        () => undefined,
+        () => undefined,
+      );
       return await bounded(
-        cdp.send('Network.getResponseBody', { requestId: id }),
+        read,
         deadline ? Math.max(1, deadline - Date.now()) : 0,
         'Response body',
       );
@@ -3078,35 +3109,45 @@ export class BQLBrowserAPI {
     args = { ...args };
     if (args.wait) duration(args.timeout ?? this.timeout);
     compileRegexes(args);
-    const grant = args.wait ? (args.timeout ?? this.timeout) : undefined;
+    const grant = args.wait ? (args.timeout ?? this.timeout) : this.timeout;
     const deadline = grant ? Date.now() + grant : undefined;
     const records = await this.waitNetwork(
       'response',
       args,
       args.wait ? args.timeout : 100,
     ).catch(() => null);
-    return records
-      ? Promise.all(
-          records.map(async ({ id, url, method, type, headers, status }) => ({
-            id,
-            url,
-            method,
-            type,
-            status,
-            headers: Object.entries(headers).map(([name, value]) => ({
-              name,
-              value,
-            })),
-            ...((args.includeBody === false ||
-            (deadline && Date.now() >= deadline)
-              ? null
-              : await this.getResponseBody(
-                  id,
-                  deadline ? Math.max(1, deadline - Date.now()) : grant,
-                )) ?? { body: null, base64Encoded: false }),
-          })),
-        )
-      : null;
+    if (!records) return null;
+    const results = [];
+    let remaining = 20_000_000;
+    for (const { id, url, method, type, headers, status } of records) {
+      let body =
+        args.includeBody === false ||
+        remaining === 0 ||
+        (deadline && Date.now() >= deadline)
+          ? null
+          : await this.getResponseBody(
+              id,
+              deadline ? Math.max(1, deadline - Date.now()) : grant,
+            );
+      if (body) {
+        const size = Buffer.byteLength(body.body, 'utf8');
+        if (size > remaining) body = null;
+        else remaining -= size;
+      }
+      results.push({
+        id,
+        url,
+        method,
+        type,
+        status,
+        headers: Object.entries(headers).map(([name, value]) => ({
+          name,
+          value,
+        })),
+        ...(body ?? { body: null, base64Encoded: false }),
+      });
+    }
+    return results;
   }
   public async reject({ enabled, ...filter }: Filter & { enabled: boolean }) {
     const start = Date.now();

@@ -25,6 +25,42 @@ for (const browser of browsers)
       server = undefined;
     });
 
+    it('enforces the configured WebSocket message size before dispatch', async function () {
+      this.timeout(10_000);
+      const config = new Config();
+      config.setToken(randomUUID());
+      config.setPort(await getPort());
+      config.setMaxPayloadSize(128);
+      server = new Browserless({ config, metrics: new Metrics() });
+      await server.start();
+      const socket = new WebSocket(
+        `ws://localhost:${config.getPort()}/${browser}/bql?token=${config.getToken()}`,
+      );
+      try {
+        await once(socket, 'open');
+        const small = once(socket, 'message');
+        socket.send(JSON.stringify({ query: '{ capabilities }' }));
+        expect(
+          JSON.parse(String((await small)[0])).data.capabilities,
+        ).to.include('core');
+        const closed = Promise.race([
+          once(socket, 'close'),
+          once(socket, 'message').then(() => {
+            throw new Error('Oversized message was dispatched');
+          }),
+        ]);
+        socket.send(
+          JSON.stringify({
+            query: '{ capabilities }',
+            padding: 'x'.repeat(128),
+          }),
+        );
+        expect((await closed)[0]).to.equal(1009);
+      } finally {
+        socket.terminate();
+      }
+    });
+
     it('closes an upgraded session with a WebSocket timeout frame', async function () {
       this.timeout(10_000);
       const config = new Config();

@@ -1572,6 +1572,118 @@ test('response body reads respect received-byte limits and pending reservations'
   await api.close();
 });
 
+test('response fallback reads bound aggregate UTF-8 bytes and serialize concurrent callers', async () => {
+  const api = new API();
+  await api.setup();
+  let active = 0;
+  let peak = 0;
+  const payloads = ['é'.repeat(6_000_000), 'b'.repeat(8_000_000), 'c'];
+  api.client.handler = async (method, params) => {
+    if (method !== 'Network.getResponseBody') return {};
+    peak = Math.max(peak, ++active);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    active--;
+    return { body: payloads[Number(params.requestId)], base64Encoded: false };
+  };
+  for (let i = 0; i < payloads.length; i++) {
+    api.client.emit('Network.responseReceived', {
+      requestId: String(i),
+      type: 'Fetch',
+      response: { url: `https://example.com/${i}`, status: 200, headers: {} },
+    });
+    // Skip eager caching so this exercises the fallback path, not retained bodies.
+    api.client.emit('Network.dataReceived', {
+      requestId: String(i),
+      dataLength: 12_000_000,
+    });
+    api.client.emit('Network.loadingFinished', { requestId: String(i) });
+  }
+  const results = await Promise.all([
+    api.response({ wait: false }),
+    api.response({ wait: false }),
+  ]);
+  assert.equal(peak, 1);
+  for (const records of results) {
+    assert.equal(records?.length, 3);
+    assert.equal(records?.[0].body, payloads[0]);
+    assert.equal(records?.[1].body, payloads[1]);
+    assert.equal(records?.[2].body, null);
+    assert.ok(
+      records!.reduce(
+        (bytes, record) => bytes + Buffer.byteLength(record.body ?? ''),
+        0,
+      ) <= 20_000_000,
+    );
+  }
+  payloads[0] = 'x'.repeat(20_000_001);
+  assert.equal(await api.getResponseBody('0'), null);
+  payloads[0] = 'x'.repeat(20_000_000);
+  assert.equal((await api.getResponseBody('0'))?.body.length, 20_000_000);
+  await api.close();
+});
+
+test('timed-out fallback reads retain their slot until CDP settles', async () => {
+  const api = new API();
+  await api.setup();
+  let finish!: (value: any) => void;
+  let reads = 0;
+  api.client.handler = (method) => {
+    if (method !== 'Network.getResponseBody') return {};
+    reads++;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  };
+  api.client.emit('Network.responseReceived', {
+    requestId: 'slow',
+    type: 'Fetch',
+    response: { url: 'https://example.com/slow', status: 200, headers: {} },
+  });
+  api.client.emit('Network.dataReceived', {
+    requestId: 'slow',
+    dataLength: 11_000_000,
+  });
+  api.client.emit('Network.loadingFinished', { requestId: 'slow' });
+  assert.equal(await api.getResponseBody('slow', 10), null);
+  assert.equal(await api.getResponseBody('slow', 10), null);
+  assert.equal(reads, 1);
+  finish({ body: 'late', base64Encoded: false });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(reads, 1);
+  api.client.handler = () => ({ body: 'recovered', base64Encoded: false });
+  assert.equal((await api.getResponseBody('slow', 100))?.body, 'recovered');
+  await api.close();
+});
+
+test('response applies one deadline across sequential body reads', async () => {
+  const api = new API();
+  await api.setup();
+  api.preferences({ timeout: 25 });
+  for (const id of ['first', 'second'])
+    api.client.emit('Network.responseReceived', {
+      requestId: id,
+      type: 'Fetch',
+      response: { url: `https://example.com/${id}`, status: 200, headers: {} },
+    });
+  const clock = Sinon.useFakeTimers();
+  let settled = false;
+  try {
+    const result = api.response({ wait: false }).then((records) => {
+      settled = true;
+      assert.deepEqual(
+        records?.map(({ body }) => body),
+        [null, null],
+      );
+    });
+    await clock.tickAsync(25);
+    assert.equal(settled, true);
+    await result;
+  } finally {
+    await api.close();
+    clock.restore();
+  }
+});
+
 test('response metadata can skip body reads while SDK calls include them by default', async () => {
   const api = new API();
   await api.setup();
@@ -1650,10 +1762,7 @@ test('response retention bounds bytes and entries while prioritizing documents',
       response: { url: `https://example.com/${id}`, status: 200, headers: {} },
     });
   }
-  assert.equal(
-    (await api.getResponseBody('pending-0', 20))?.body,
-    'live fallback',
-  );
+  assert.equal(await api.getResponseBody('pending-0', 20), null);
   await api.close();
 });
 

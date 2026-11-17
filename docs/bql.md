@@ -153,6 +153,22 @@ session deadline. Closing a connection cancels its streams and releases its
 context. Do not assume closing a connection can undo a browser action already
 dispatched.
 
+WebSocket messages obey `MAX_PAYLOAD_SIZE` (10 MiB by default); oversized
+messages close the connection with code `1009` before GraphQL dispatch.
+
+`response` returns at most 20,000,000 UTF-8 bytes of body strings per call,
+counting base64 bodies in their encoded form. Metadata is still returned when a
+body cannot fit, exceeds the individual limit, or its originating target record
+has been evicted; that body's value is `null`. Fallback body reads run one at a
+time per browser API instance, including across concurrent SDK calls.
+
+`querySelector` and `querySelectorAll` include hidden elements by default.
+With `visible: true`, they filter matches before selecting or serializing them:
+elements need a nonzero bounding rectangle and must pass CSS visibility and
+opacity checks. This does not require being inside the viewport or unobscured
+by other elements, and it does not wait for an element to become visible.
+If no matches remain, the result is `null`.
+
 Scripts downloaded by `evaluate(url: ...)` are limited to 10 MiB of decoded
 response bytes. This limit applies even when the response has no Content-Length.
 Downloads use the current page's browser network stack, including session proxy,
