@@ -329,7 +329,7 @@ export class Router extends EventEmitter {
           launched: boolean;
           timedOut?: boolean;
         } = {
-          launched: !this.browserManager.isExistingBrowserRequest(req, route),
+          launched: false,
         };
         this.timedOutBrowsers.set(req, entry);
         const browser = await this.browserManager.getBrowserForRequest(
@@ -338,12 +338,15 @@ export class Router extends EventEmitter {
           logger,
         );
         entry.browser = browser;
+        entry.launched = this.browserManager.isBrowserOwner(req, browser);
         if (entry.timedOut) void this.releaseTimedOutBrowser(req);
 
         if (!isConnected(res) || entry.timedOut) {
           this.timedOutBrowsers.delete(req);
           this.log.warn(`HTTP Request has closed prior to running`);
-          this.browserManager.complete(browser);
+          if (!entry.timedOut || !entry.launched) {
+            this.browserManager.complete(browser);
+          }
           throw new Error(`Request closed prior to writing results`);
         }
 
@@ -369,7 +372,9 @@ export class Router extends EventEmitter {
         } finally {
           this.timedOutBrowsers.delete(req);
           this.log.trace(`HTTP Request handler has finished.`);
-          this.browserManager.complete(browser);
+          if (!entry.timedOut || !entry.launched) {
+            this.browserManager.complete(browser);
+          }
         }
       }
 

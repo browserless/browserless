@@ -259,7 +259,7 @@ describe('Router', () => {
           new Promise((resolve) => (acquire = () => resolve(browser))),
         );
       }
-      browserManager.isExistingBrowserRequest.returns(existing);
+      browserManager.isBrowserOwner.returns(!existing);
       const forceClose = browserManager.forceClose.resolves();
       if (rejectClose) forceClose.rejects(new Error('close failed'));
       const internals = router as unknown as {
@@ -340,7 +340,8 @@ describe('Router', () => {
         expect(timeout.calledOnce).to.be.true;
         expect(forceClose.callCount).to.equal(existing ? 0 : 1);
         expect(forceClose.calledOnceWithExactly(browser)).to.equal(!existing);
-        expect(complete.calledOnceWithExactly(browser)).to.be.true;
+        expect(complete.callCount).to.equal(existing ? 1 : 0);
+        expect(complete.calledOnceWithExactly(browser)).to.equal(existing);
       });
     }
 
