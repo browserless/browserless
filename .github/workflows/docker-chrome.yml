@@ -7,7 +7,15 @@ permissions:
 
 jobs:
   Test:
-    runs-on: ubuntu-26.04
+    # One native runner per arch; each leg builds for its own platform.
+    name: Test (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux/amd64, runner: ubuntu-26.04 }
+          - { platform: linux/arm64, runner: ubuntu-26.04-arm }
     steps:
       - uses: actions/checkout@v7.0.1
         with:

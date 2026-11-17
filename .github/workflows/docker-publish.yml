@@ -165,8 +165,8 @@ jobs:
 
   # ============================================================
   # Stage 2: build each browser image on its native runner and push
-  # by digest. chrome and edge are linux/amd64 only (Chrome stable
-  # and Edge are not supported on arm64), so they have no arm64 row.
+  # by digest. edge is linux/amd64 only (no arm64 Linux build), so
+  # it has no arm64 row.
   # ============================================================
   images-build:
     name: Build ${{ matrix.image }} (${{ matrix.platform }})
@@ -201,6 +201,14 @@ jobs:
               platform: linux/amd64,
               runner: ubuntu-26.04,
               pair: linux-amd64,
+              extra: '',
+            }
+          - {
+              image: chrome,
+              file: chrome,
+              platform: linux/arm64,
+              runner: ubuntu-26.04-arm,
+              pair: linux-arm64,
               extra: '',
             }
           - {
@@ -342,8 +350,8 @@ jobs:
 
   # ============================================================
   # Stage 3: merge each image's per-arch digests into its published
-  # manifest list. Single-platform images (chrome, edge) merge their
-  # one digest into a normal single-arch tag.
+  # manifest list. Single-platform images (edge) merge their one
+  # digest into a single-arch tag.
   # ============================================================
   images-merge:
     name: Merge ${{ matrix.image }} manifest
@@ -371,11 +379,11 @@ jobs:
       fail-fast: false
       matrix:
         # `arches` is the number of per-arch digests this image is built for
-        # (chrome and edge are amd64-only); the merge step asserts that many
-        # digests are present before publishing.
+        # (edge is amd64-only); the merge step asserts that many digests are
+        # present before publishing.
         include:
           - { image: chromium, arches: 2 }
-          - { image: chrome, arches: 1 }
+          - { image: chrome, arches: 2 }
           - { image: edge, arches: 1 }
           - { image: firefox, arches: 2 }
           - { image: webkit, arches: 2 }
