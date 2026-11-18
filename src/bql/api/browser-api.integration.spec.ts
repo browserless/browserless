@@ -73,6 +73,13 @@ describe('raw CDP browser primitives', () => {
         res.end('fixture body');
         return;
       }
+      if (req.url === '/delayed404') {
+        setTimeout(() => {
+          res.writeHead(404);
+          res.end('<title>Missing destination</title>');
+        }, 150);
+        return;
+      }
       if (req.url === '/script') {
         scriptHeader = req.headers['x-script-test'];
         res.end('window.injected = 42;');
@@ -661,6 +668,28 @@ describe('raw CDP browser primitives', () => {
       /navigation/i,
     );
     assert.equal((await api.evaluate({ content: 'window.clicks' })).value, 1);
+    for (const action of ['goto', 'click'] as const) {
+      await api.goto({ url: `${origin}/` });
+      await api.evaluate({
+        content: `addEventListener('beforeunload', () => history.replaceState({}, ''));
+          document.body.insertAdjacentHTML('afterbegin', '<a id="leave" href="/delayed404">Leave</a>')`,
+      });
+      const navigation =
+        action === 'goto'
+          ? await api.goto({ url: `${origin}/delayed404`, timeout: 2000 })
+          : (await api.click({ ...clickArgs, selector: '#leave' })).navigation;
+      assert.equal(navigation?.status, 404, action);
+      assert.equal(navigation?.url, `${origin}/delayed404`, action);
+    }
+    await api.goto({ url: `${origin}/` });
+    await api.evaluate({
+      content: `document.body.insertAdjacentHTML('afterbegin', '<a id="hash" href="#section">Hash</a>')`,
+    });
+    await assert.rejects(
+      api.click({ ...clickArgs, selector: '#hash', timeout: 250 }),
+      /navigation.*timed out/i,
+    );
+    assert.equal((await api.url()).value, `${origin}/#section`);
     await api.reject({ enabled: true, url: ['*/blocked-document'] });
     const rejected = await api.goto({ url: `${origin}/blocked-document` });
     assert.equal(rejected.rejected, true);

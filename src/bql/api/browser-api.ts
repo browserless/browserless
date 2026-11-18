@@ -1778,13 +1778,6 @@ export class BQLBrowserAPI {
           finish(e.response.url, e.loaderId);
         }
       };
-      const sameDocument = (e: Protocol.Page.NavigatedWithinDocumentEvent) => {
-        if (
-          !documentOpen &&
-          e.frameId === (frame ?? this.currentFrames.get(cdp))?.id
-        )
-          finish(e.url);
-      };
       const documentRejected = (target: Connection, url: string) => {
         if (target === cdp) finish(url);
       };
@@ -1797,7 +1790,6 @@ export class BQLBrowserAPI {
         merge(
           event$('Page.frameNavigated').pipe(tap(navigated)),
           event$('Page.lifecycleEvent').pipe(tap(lifecycle)),
-          event$('Page.navigatedWithinDocument').pipe(tap(sameDocument)),
           event$('Network.responseReceived').pipe(tap(response)),
           merge(
             event$('Network.dataReceived'),
