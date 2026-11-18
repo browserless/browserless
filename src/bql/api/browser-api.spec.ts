@@ -551,6 +551,29 @@ test('raw coordinate click uses CDP input and preserves result shape', async () 
   );
 });
 
+test('click navigation timeout prevents a delayed press and validates wait conditions', async () => {
+  const api = new API();
+  let presses = 0;
+  api.client.handler = async (method, params) => {
+    if (method === 'Input.dispatchMouseEvent' && params.type === 'mouseMoved')
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    if (method === 'Input.dispatchMouseEvent' && params.type === 'mousePressed')
+      presses++;
+    return {};
+  };
+  await assert.rejects(
+    api.click({ x: 12, y: 34, waitUntil: 'load', timeout: 20 }),
+    /navigation/i,
+  );
+  assert.equal(presses, 0);
+  await assert.rejects(
+    api.click({ x: 12, y: 34, waitUntil: 'bogus' }),
+    /Invalid waitUntil/,
+  );
+  await api.click({ x: 12, y: 34, waitUntil: null });
+  assert.equal(presses, 1);
+});
+
 test('captures use raw CDP and return base64 and size', async () => {
   const api = new API();
   api.client.handler = () => ({ data: 'aGVsbG8=' });

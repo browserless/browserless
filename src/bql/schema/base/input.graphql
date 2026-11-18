@@ -21,6 +21,12 @@ extend type Mutation {
     timeout: Float
     visible: Boolean = false
     wait: Boolean = true
+    """
+    Wait for navigation triggered by this click. Monitoring starts before the press;
+    timeout covers element lookup and navigation together. Omit or pass null for
+    a plain click. Same-document navigation is not detected.
+    """
+    waitUntil: WaitUntilGoto
   ): ClickResponse
   """
   Move the pointer to a selected element or page coordinates.
@@ -89,6 +95,10 @@ type ClickResponse {
   The y value.
   """
   y: Float
+  """
+  Navigation triggered by the click, or null when waitUntil is omitted.
+  """
+  navigation: HTTPResponse
 }
 
 type HoverResponse {

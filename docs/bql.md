@@ -32,6 +32,13 @@ Inspect both the HTTP status and the GraphQL `errors` array; a successfully
 delivered GraphQL response is not necessarily a successful operation.
 Subscriptions require the WebSocket transport.
 
+For click-triggered navigation, use `click(selector: "a", waitUntil: load) {
+navigation { status url } }`. Monitoring starts before the press, and `timeout`
+covers finding the element and waiting for navigation together. A click that
+does not navigate fails when that timeout expires. Same-document changes such
+as a hash update are not detected. Omit `waitUntil` or pass `null` for a plain
+click; its `navigation` result is `null`.
+
 The `X-BQL-Capabilities` response header advertises the configured capabilities.
 You can also query them with GraphQL:
 

@@ -271,8 +271,15 @@ export class BQLBrowserAPI {
     move: async (cdp: Connection, x: number, y: number) => {
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
     },
-    click: async (cdp: Connection, x: number, y: number) => {
+    click: async (
+      cdp: Connection,
+      x: number,
+      y: number,
+      signal?: AbortSignal,
+    ) => {
+      signal?.throwIfAborted();
       await this.inputDriver.move(cdp, x, y);
+      signal?.throwIfAborted();
       await cdp.send('Input.dispatchMouseEvent', {
         type: 'mousePressed',
         x,
@@ -1215,18 +1222,59 @@ export class BQLBrowserAPI {
     return value ? { ...value, cdp } : null;
   }
   public async click(
-    args: Partial<ElementArgs> & { x?: number; y?: number } = {},
+    args: Partial<ElementArgs> & {
+      x?: number;
+      y?: number;
+      waitUntil?: string | null;
+    } = {},
   ) {
+    const waitUntil = args.waitUntil ?? undefined;
+    if (
+      waitUntil !== undefined &&
+      ![
+        'commit',
+        'load',
+        'domContentLoaded',
+        'firstMeaningfulPaint',
+        'firstContentfulPaint',
+        'interactiveTime',
+        'networkIdle',
+        'networkAlmostIdle',
+      ].includes(waitUntil)
+    )
+      throw new BadRequest(`Invalid waitUntil "${waitUntil}" for click`);
     const start = Date.now();
+    const timeout = args.timeout ?? this.timeout;
+    const timeoutError = () =>
+      new Error(
+        `Timeout of ${timeout.toLocaleString()}ms reached waiting for page navigation`,
+      );
+    const remaining = () => {
+      if (waitUntil === undefined || timeout <= 0) return timeout;
+      const left = timeout - (Date.now() - start);
+      if (left <= 0) throw timeoutError();
+      return left;
+    };
     let cdp = args.cdp ?? this.mainCDP;
     let { x, y } = args;
     if (args.selector) {
-      if (args.scroll) await this.scroll({ ...args, selector: args.selector });
+      if (args.scroll)
+        await this.scroll({
+          ...args,
+          selector: args.selector,
+          ...(waitUntil !== undefined && { timeout: remaining() }),
+        });
       const rect = await this.waitForSelector({
         ...args,
         selector: args.selector,
         cdp,
-        timeout: args.wait ? args.timeout : 100,
+        timeout: args.wait
+          ? waitUntil === undefined
+            ? args.timeout
+            : remaining()
+          : waitUntil !== undefined && timeout > 0
+            ? Math.min(100, remaining())
+            : 100,
       });
       x = rect.x + rect.width / 2;
       y = rect.y + rect.height / 2;
@@ -1234,8 +1282,35 @@ export class BQLBrowserAPI {
     }
     if (!Number.isFinite(x) || !Number.isFinite(y))
       throw new Error('click requires a selector or x and y');
-    await this.inputDriver.click(cdp, x!, y!);
-    return { cdp, selector: args.selector, x, y, time: Date.now() - start };
+    const budget = remaining();
+    const abort = waitUntil === undefined ? undefined : new AbortController();
+    const timer =
+      abort && timeout > 0
+        ? setTimeout(() => abort.abort(timeoutError()), budget)
+        : undefined;
+    const navigating =
+      waitUntil === undefined
+        ? undefined
+        : this.waitForNavigation(waitUntil, budget, cdp);
+    const pressing = this.inputDriver.click(cdp, x!, y!, abort?.signal);
+    let navigation;
+    try {
+      [navigation] = await Promise.all([navigating, pressing]);
+    } catch (error) {
+      abort?.abort(error);
+      await pressing.catch(() => {});
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    return {
+      cdp,
+      selector: args.selector,
+      x,
+      y,
+      time: Date.now() - start,
+      ...(navigation !== undefined && { navigation }),
+    };
   }
   public async hover(args: Partial<ElementArgs> & { x?: number; y?: number }) {
     const start = Date.now();

@@ -645,6 +645,22 @@ describe('raw CDP browser primitives', () => {
       200,
     );
     assert.equal((await api.text({ selector: 'h1' })).text, 'New content');
+    await api.content({
+      html: `<button id="navigate" onmousedown="location.href='${origin}/clicked'">Navigate</button>`,
+    });
+    const clickArgs = {
+      selector: '#navigate',
+      waitUntil: 'load',
+      timeout: 2000,
+    };
+    const clicked = await api.click(clickArgs);
+    assert.equal(Reflect.get(clicked, 'navigation')?.status, 200);
+    assert.equal(Reflect.get(clicked, 'navigation')?.url, `${origin}/clicked`);
+    await assert.rejects(
+      api.click({ ...clickArgs, selector: '#click', timeout: 100 }),
+      /navigation/i,
+    );
+    assert.equal((await api.evaluate({ content: 'window.clicks' })).value, 1);
     await api.reject({ enabled: true, url: ['*/blocked-document'] });
     const rejected = await api.goto({ url: `${origin}/blocked-document` });
     assert.equal(rejected.rejected, true);
