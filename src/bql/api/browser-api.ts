@@ -2988,8 +2988,7 @@ export class BQLBrowserAPI {
     const origin = this.responseOrigins.get(id);
     await this.beforeReadback();
     try {
-      // Evicted origins no longer have trustworthy size or target information.
-      if (this.closed || !origin) return null;
+      if (this.closed) return null;
       if (origin?.pending)
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
@@ -3029,21 +3028,20 @@ export class BQLBrowserAPI {
       const read = this.responseBodyRead.then(async () => {
         if (
           this.closed ||
-          this.responseOrigins.get(id) !== origin ||
-          origin.failed ||
-          origin.oversized ||
-          origin.received > 20_000_000 ||
+          origin?.failed ||
+          origin?.oversized ||
+          (origin && origin.received > 20_000_000) ||
           (deadline && Date.now() >= deadline)
         )
           return null;
         await this.beforeReadback();
-        const body = await origin.cdp.send('Network.getResponseBody', {
-          requestId: id,
-        });
-        return !this.closed &&
-          Buffer.byteLength(body.body, 'utf8') <= 20_000_000
-          ? body
-          : null;
+        const body = await (origin?.cdp ?? this.mainCDP).send(
+          'Network.getResponseBody',
+          {
+            requestId: id,
+          },
+        );
+        return this.closed ? null : body;
       });
       this.responseBodyRead = read.then(
         () => undefined,
@@ -3184,7 +3182,7 @@ export class BQLBrowserAPI {
     args = { ...args };
     if (args.wait) duration(args.timeout ?? this.timeout);
     compileRegexes(args);
-    const grant = args.wait ? (args.timeout ?? this.timeout) : this.timeout;
+    const grant = args.wait ? (args.timeout ?? this.timeout) : undefined;
     const deadline = grant ? Date.now() + grant : undefined;
     const records = await this.waitNetwork(
       'response',
@@ -3193,22 +3191,14 @@ export class BQLBrowserAPI {
     ).catch(() => null);
     if (!records) return null;
     const results = [];
-    let remaining = 20_000_000;
     for (const { id, url, method, type, headers, status } of records) {
-      let body =
-        args.includeBody === false ||
-        remaining === 0 ||
-        (deadline && Date.now() >= deadline)
+      const body =
+        args.includeBody === false || (deadline && Date.now() >= deadline)
           ? null
           : await this.getResponseBody(
               id,
               deadline ? Math.max(1, deadline - Date.now()) : grant,
             );
-      if (body) {
-        const size = Buffer.byteLength(body.body, 'utf8');
-        if (size > remaining) body = null;
-        else remaining -= size;
-      }
       results.push({
         id,
         url,

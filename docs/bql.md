@@ -163,11 +163,19 @@ dispatched.
 WebSocket messages obey `MAX_PAYLOAD_SIZE` (10 MiB by default); oversized
 messages close the connection with code `1009` before GraphQL dispatch.
 
-`response` returns at most 20,000,000 UTF-8 bytes of body strings per call,
-counting base64 bodies in their encoded form. Metadata is still returned when a
-body cannot fit, exceeds the individual limit, or its originating target record
-has been evicted; that body's value is `null`. Fallback body reads run one at a
-time per browser API instance, including across concurrent SDK calls.
+Response-body capture uses decoded network size events to exclude bodies above
+20,000,000 bytes. Their metadata remains available with `body: null`. Base64
+expansion does not count toward that per-response limit. The retained body cache
+is separately bounded to 10 MiB; bodies that do not fit can still be read on
+demand, subject to browser availability.
+
+Fallback body reads run one at a time per browser API instance, including across
+concurrent SDK calls. A timed-out read retains its slot until CDP settles. This
+bounds concurrent fallback reads, not total response bytes or browser/worker
+memory: one query can return many large bodies. With `wait: true`, matching and
+body reads share the requested timeout; with `wait: false`, each body read gets
+the API's default timeout, so sequential reads can take longer overall. The
+server's session deadline still applies.
 
 `querySelector` and `querySelectorAll` include hidden elements by default.
 With `visible: true`, they filter matches before selecting or serializing them:
