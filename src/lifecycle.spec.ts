@@ -606,6 +606,120 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     return s;
   };
 
+  for (const existing of [false, true]) {
+    for (const declared of [false, true]) {
+      it(`timeout preserves acquisition ownership: existing=${existing}, declared=${declared}`, async () => {
+        const { manager, router, lc } = stack({ timeout: 30 });
+        const live = (await manager.getBrowserForRequest(
+          makeReq('/chromium'),
+          route,
+          new Logger('test'),
+        )) as unknown as FakeBrowser;
+        const pending = deferred();
+        const entered = deferred();
+        const subject = new PendingBrowserRoute(
+          (
+            _req: Request,
+            _res: unknown,
+            _logger: Logger,
+            acquired: FakeBrowser,
+          ) => {
+            acquired.keepUntil = () => Date.now() + 60_000;
+            entered.resolve();
+            return pending.promise;
+          },
+          true,
+        );
+        subject.targetsExistingBrowser = () => declared;
+        const registered = router.registerHTTPRoute(subject);
+        const res = makeRes();
+        res.end = () => {
+          res.writableEnded = true;
+          res.emit('close');
+          return res;
+        };
+        const clock = Sinon.useFakeTimers({
+          toFake: ['setTimeout', 'clearTimeout'],
+        });
+        const request = run(
+          registered,
+          makeReq(existing ? `/devtools/browser/${live.id}` : '/chromium'),
+          res,
+        );
+        try {
+          await entered.promise;
+          await clock.tickAsync(30);
+          await request;
+          clock.restore();
+          pending.resolve();
+          await drained(lc);
+          expect(res.code).to.equal(408);
+          expect(live.closed).to.equal(0);
+          expect(lc.snapshot().sources['sdk-browsers']).to.equal(1);
+        } finally {
+          clock.restore();
+          pending.resolve();
+          await manager.killSessions('all');
+        }
+      });
+    }
+  }
+
+  it('timeout closes a request-owned browser only once when close rejects', async () => {
+    const { router, lc } = stack({ timeout: 30 });
+    const pending = deferred();
+    const entered = deferred();
+    let browser!: FakeBrowser;
+    const subject = new PendingBrowserRoute(
+      (
+        _req: Request,
+        _res: unknown,
+        _logger: Logger,
+        acquired: FakeBrowser,
+      ) => {
+        browser = acquired;
+        entered.resolve();
+        return pending.promise;
+      },
+      true,
+    );
+    class RejectingBrowser extends FakeBrowser {
+      override async close() {
+        this.closed++;
+        throw new Error('browser close rejected');
+      }
+    }
+    subject.browser = RejectingBrowser as never;
+    const res = makeRes();
+    res.end = () => {
+      res.writableEnded = true;
+      res.emit('close');
+      return res;
+    };
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+    });
+    try {
+      const request = run(
+        router.registerHTTPRoute(subject),
+        makeReq('/chromium'),
+        res,
+      );
+      await entered.promise;
+      await clock.tickAsync(30);
+      await request;
+      clock.restore();
+      pending.resolve();
+      await drained(lc);
+      expect(res.code).to.equal(408);
+      expect(browser.closed).to.equal(1);
+      expect(lc.snapshot().sources['sdk-browsers']).to.equal(0);
+    } finally {
+      clock.restore();
+      pending.resolve();
+    }
+  });
+
   it('response close: the original handler outlives the response; retire waits for handler and close', async () => {
     const { lc, router } = stack();
     const handler = deferred();

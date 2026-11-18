@@ -69,6 +69,7 @@ const PLATFORMS_WITH_ALL_CORE_NORMALIZED_CPU = new Set(['linux']);
 export class BrowserManager {
   protected reconnectionPatterns = ['/devtools/browser', '/function/connect'];
   protected browsers: Map<BrowserInstance, BrowserlessSession> = new Map();
+  protected requestBrowsers = new WeakMap<Request, BrowserInstance>();
   protected timers: Map<string, NodeJS.Timeout> = new Map();
   // /json/version and /json/protocol are invariant for the life of the
   // installed binary — cache them so we don't boot a whole Chromium per
@@ -850,6 +851,16 @@ export class BrowserManager {
     return formattedSessions;
   }
 
+  public isBrowserOwner(req: Request, browser: BrowserInstance): boolean {
+    return this.requestBrowsers.get(req) === browser;
+  }
+
+  public async forceClose(browser: BrowserInstance): Promise<void> {
+    const session = this.browsers.get(browser);
+    if (!session) return;
+    return this.close(browser, session, true);
+  }
+
   public async complete(browser: BrowserInstance): Promise<void> {
     const session = this.browsers.get(browser);
     if (!session) {
@@ -1189,6 +1200,7 @@ export class BrowserManager {
     });
 
     this.browsers.set(browser, session);
+    this.requestBrowsers.set(req, browser);
 
     // EventEmitter does not await listeners; retain failures in the lifecycle
     // without letting a page-level rejection escape to the process.

@@ -121,6 +121,41 @@ const makeManager = () =>
     new FileSystem(new Config()),
   );
 
+describe('BrowserManager forceClose', () => {
+  it('closes connected, kept-alive sessions and is idempotent after eviction', async () => {
+    const manager = makeManager();
+    let closed = 0;
+    const browser = {
+      ...makeFakeBrowser(null),
+      close: async () => {
+        closed++;
+      },
+      keepUntil: () => Date.now() + 60_000,
+    } as unknown as BrowserInstance;
+    const session = makeSession('timed-out');
+    session.numbConnected = 2;
+    manager.addFakeSession(browser, session);
+
+    await manager.forceClose(browser);
+    await manager.forceClose(browser);
+    expect(closed).to.equal(1);
+    expect(await manager.getAllSessions()).to.deep.equal([]);
+  });
+
+  it('ignores an unknown browser without closing it', async () => {
+    const manager = makeManager();
+    let closed = false;
+    const browser = {
+      ...makeFakeBrowser(null),
+      close: async () => {
+        closed = true;
+      },
+    } as unknown as BrowserInstance;
+    await manager.forceClose(browser);
+    expect(closed).to.equal(false);
+  });
+});
+
 // sumProcessTree's cpu scaling reads process.platform directly - stub it
 // for the duration of a test to exercise a specific platform's behavior.
 const withPlatform = async <T>(
