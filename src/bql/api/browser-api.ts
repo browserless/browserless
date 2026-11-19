@@ -2993,6 +2993,14 @@ export class BQLBrowserAPI {
     const deadline = timeout ? Date.now() + timeout : undefined;
     const origin = this.responseOrigins.get(id);
     let abandoned = false;
+    const unavailable = () =>
+      abandoned ||
+      this.closed ||
+      this.responseOrigins.get(id) !== origin ||
+      origin?.failed ||
+      origin?.oversized ||
+      (origin && origin.received > 20_000_000) ||
+      (deadline !== undefined && Date.now() >= deadline);
     const remaining = () => (deadline ? Math.max(1, deadline - Date.now()) : 0);
     const timedOut = new Error('Response body timed out');
     const checkPolicy = () =>
@@ -3009,7 +3017,7 @@ export class BQLBrowserAPI {
       throw error;
     }
     try {
-      if (this.closed || (deadline && Date.now() >= deadline)) return null;
+      if (unavailable()) return null;
       if (origin?.pending)
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
@@ -3036,42 +3044,21 @@ export class BQLBrowserAPI {
               reject(new Error('Response body timed out'));
             }, remaining());
         });
-      if (
-        this.closed ||
-        origin?.failed ||
-        origin?.oversized ||
-        (deadline && Date.now() >= deadline)
-      )
-        return null;
+      if (unavailable()) return null;
       if (origin?.body) return origin.body;
       // Serialize fallback reads across callers. A timed-out CDP read still owns
       // its slot until it settles, rather than allowing abandoned reads to pile up.
       const read = this.responseBodyRead.then(async () => {
-        if (
-          abandoned ||
-          this.closed ||
-          origin?.failed ||
-          origin?.oversized ||
-          (origin && origin.received > 20_000_000) ||
-          (deadline && Date.now() >= deadline)
-        )
-          return null;
+        if (unavailable()) return null;
         await checkPolicy();
-        if (
-          abandoned ||
-          this.closed ||
-          origin?.failed ||
-          origin?.oversized ||
-          (deadline && Date.now() >= deadline)
-        )
-          return null;
+        if (unavailable()) return null;
         const body = await (origin?.cdp ?? this.mainCDP).send(
           'Network.getResponseBody',
           {
             requestId: id,
           },
         );
-        return this.closed ? null : body;
+        return unavailable() ? null : body;
       });
       this.responseBodyRead = read.then(
         () => undefined,
@@ -3298,8 +3285,11 @@ export class BQLBrowserAPI {
     )
       throw new BadRequest('Fulfill base64Body must contain valid base64');
     const encodedBody =
-      base64Body ??
-      (body === undefined ? undefined : Buffer.from(body).toString('base64'));
+      base64Body != null
+        ? base64Body.padEnd(Math.ceil(base64Body.length / 4) * 4, '=')
+        : body === undefined
+          ? undefined
+          : Buffer.from(body).toString('base64');
     const responseHeaders = headers.filter(
       ({ name }) => !contentType || name.toLowerCase() !== 'content-type',
     );

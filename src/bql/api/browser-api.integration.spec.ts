@@ -573,7 +573,7 @@ describe('raw CDP browser primitives', () => {
       url: ['*/data'],
       operator: 'or',
       status: 202,
-      body: 'intercepted',
+      base64Body: 'aW50ZXJjZXB0ZWQ',
       contentType: 'text/plain',
     });
     const responseEvents = api.streamEvents<{ id: string; status: number }>(
