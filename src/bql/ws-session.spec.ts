@@ -112,7 +112,7 @@ describe('BrowserQL WebSocket transport', () => {
       { id: 'large', type: 'next', payload: { data: { value } } },
       { id: 'large', type: 'complete' },
     ]);
-    assert.ok(Math.max(...socket.sizes) <= 256 * 1024);
+    assert.ok(Math.max(...socket.sizes) <= 64 * 1024);
   });
 
   it('finishes active output but drops queued output on cancellation without interleaving or pulling more values', async () => {
@@ -153,13 +153,13 @@ describe('BrowserQL WebSocket transport', () => {
     assert.equal(pulls, 2);
   });
 
-  for (const terminal of ['next', 'complete', 'error']) {
+  for (const terminal of ['next', 'complete', 'error', 'permissive-error']) {
     it(`preserves reused IDs while canceled ${terminal} output waits behind another message`, async () => {
       service.subscribe = async ({ query }) =>
         (async function* () {
           if (typeof query === 'string' && query.includes('blocker'))
             yield { data: { value: 'x'.repeat(100_000) } };
-          else if (terminal === 'error') throw new Error('stale');
+          else if (terminal.endsWith('error')) throw new Error('stale');
         })();
       const send = socket.send.bind(socket);
       let resume: (() => void) | undefined;
@@ -168,7 +168,7 @@ describe('BrowserQL WebSocket transport', () => {
         if (options?.fin === false && !resume) resume = () => callback?.();
         else callback?.();
       });
-      start();
+      start({ strictProtocol: terminal !== 'permissive-error' });
       socket.receive({ type: 'connection_init' });
       subscribe('blocker', 'subscription { blocker }');
       await setImmediate();
@@ -179,10 +179,14 @@ describe('BrowserQL WebSocket transport', () => {
       );
       await setImmediate();
       socket.receive({ type: 'complete', id: 'reuse' });
-      subscribe('reuse');
+      if (terminal !== 'permissive-error') subscribe('reuse');
       socket.receive({ type: 'complete', id: 'blocker' });
       resume();
       await setImmediate();
+      if (terminal === 'permissive-error') {
+        subscribe('reuse');
+        await setImmediate();
+      }
       assert.deepEqual(
         socket.frames.filter((frame) => frame.id === 'reuse'),
         [

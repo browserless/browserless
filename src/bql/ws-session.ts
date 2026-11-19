@@ -7,7 +7,10 @@ import { WebSocket } from 'ws';
 
 export const BQL_WEBSOCKET_PROTOCOL = 'graphql-transport-ws';
 
-type Operation = { iterator?: AsyncIterator<ExecutionResult> };
+type Operation = {
+  subscription?: boolean;
+  iterator?: AsyncIterator<ExecutionResult>;
+};
 type Service = Pick<
   BrowserQL,
   'execute' | 'subscribe' | 'version' | 'capabilities'
@@ -265,7 +268,7 @@ export class BQLWebSocketSession {
           if (strict) this.client.close(4400, 'Invalid operation ID');
           return;
         }
-        if (!strict && !this.operations.get(id)?.iterator) return;
+        if (!strict && !this.operations.get(id)?.subscription) return;
         this.cancel(id);
         return;
       case 'subscribe': {
@@ -350,10 +353,10 @@ export class BQLWebSocketSession {
         );
         return;
       }
-      const subscription =
+      operation.subscription =
         getOperationAST(document, payload.operationName)?.operation ===
         'subscription';
-      const result = await (subscription
+      const result = await (operation.subscription
         ? this.bql.subscribe(payload, this.context)
         : this.bql.execute(payload, this.context));
       if (Symbol.asyncIterator in result) {
@@ -367,6 +370,8 @@ export class BQLWebSocketSession {
           this.client.close(1011, 'Internal server error'),
         );
       } else if (this.active(id, operation)) {
+        // Hold the execution queue through the write so a slow client cannot
+        // accumulate completed results from later operations on this socket.
         if (result.errors && !('data' in result))
           await this.send(
             {

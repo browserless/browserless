@@ -213,6 +213,37 @@ describe('bounded BQL JSON encoding', () => {
     assert.equal(encode(value), '['.repeat(5000) + '0' + ']'.repeat(5000));
   });
 
+  it('does not retain expanded padding in a deeply nested pretty-print snapshot', () => {
+    const depth = 10000;
+    let value: unknown = 0;
+    for (let i = 0; i < depth; i++) value = [value];
+    const prepared = prepareJSON(value, 2)!;
+    const literalUnits = prepared.tokens.reduce<number>(
+      (sum, token) => sum + (typeof token === 'string' ? token.length : 0),
+      0,
+    );
+    assert.ok(
+      literalUnits < depth * 10,
+      `${literalUnits} literal code units retained`,
+    );
+    let bytes = 0;
+    for (const chunk of jsonChunks(prepared)) {
+      assert.ok(chunk.length <= 65536);
+      bytes += chunk.length;
+    }
+    assert.equal(bytes, 2 * depth ** 2 + 4 * depth + 1);
+  });
+
+  it('preserves surrogate pairs between repeated indentation blocks', () => {
+    const gap = '\udc00abcdefgh\ud800';
+    let value: unknown = 0;
+    for (let i = 0; i < 850; i++) value = [value];
+    assert.deepEqual(
+      Buffer.concat([...jsonChunks(prepareJSON(value, gap)!)]),
+      Buffer.from(JSON.stringify(value, null, gap)),
+    );
+  });
+
   it('preserves native raw JSON when available', () => {
     const native = JSON as typeof JSON & {
       rawJSON?: (text: string) => unknown;

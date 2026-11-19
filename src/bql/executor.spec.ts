@@ -7,6 +7,7 @@ import {
 import {
   GraphQLError,
   GraphQLScalarType,
+  buildSchema,
   execute,
   parse,
   responsePathAsArray,
@@ -16,6 +17,212 @@ const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 describe('mutation execution boundary', () => {
+  it('closes an async mutation-list iterator when next rejects', async () => {
+    const schema = buildSchema(
+      'type Query { unused: Boolean } type Mutation { groups: [Mutation] step: String }',
+    );
+    let closed = false;
+    const root = {
+      groups: {
+        [Symbol.asyncIterator]: () => ({
+          next: async () => {
+            throw new Error('iterator failed');
+          },
+          return: async () => {
+            closed = true;
+            return { done: true };
+          },
+        }),
+      },
+    };
+    const result = await executeWithChaining(
+      schema,
+      'mutation { groups { step } }',
+      root,
+      {},
+    );
+    assert.deepEqual(
+      result.errors?.map(({ message, path }) => ({ message, path })),
+      [{ message: 'iterator failed', path: ['groups'] }],
+    );
+    assert.equal(closed, true);
+  });
+
+  it('preserves typed resolver paths and the identity of coerced input objects', async () => {
+    const schema = buildSchema(`
+      type Query { unused: Boolean }
+      input Options { value: String }
+      type Output { check: Boolean }
+      type Mutation { group: Mutation output(x: Options!): Output }
+    `);
+    const root = {
+      group: () => root,
+      output: (args: any, _context: unknown, info: any) => ({
+        check: (_args: unknown, _ctx: unknown, child: any) =>
+          args.x === info.variableValues.coerced.x &&
+          child.path.typename === 'Output' &&
+          child.path.prev.typename === 'Mutation' &&
+          (!child.path.prev.prev ||
+            child.path.prev.prev.typename === 'Mutation'),
+      }),
+    };
+    for (const selection of [
+      'output(x: $x) { check }',
+      'group { output(x: $x) { check } }',
+    ]) {
+      const result = await executeWithChaining(
+        schema,
+        `mutation($x: Options!) { ${selection} }`,
+        root,
+        {},
+        { x: { value: 'yes' } },
+      );
+      assert.equal(result.errors, undefined);
+      assert.deepEqual(
+        plain(result.data),
+        selection.startsWith('group')
+          ? { group: { output: { check: true } } }
+          : { output: { check: true } },
+      );
+    }
+  });
+
+  it('keeps covariant interface fields valid during execution', async () => {
+    const schema = buildSchema(`
+      type Query { unused: Boolean }
+      interface Branch { next: Branch value: String }
+      type Mutation implements Branch { next: Mutation value: String }
+    `);
+    const root = { next: { value: 'nested' }, value: 'root' };
+    for (const query of ['mutation { next { value } }', 'mutation { value }']) {
+      assert.deepEqual(
+        plain(await executeWithChaining(schema, query, root, {})),
+        plain(
+          await execute({ schema, document: parse(query), rootValue: root }),
+        ),
+      );
+    }
+  });
+
+  it('retains fragment argument scope inside nested mutation selections', async () => {
+    const schema = buildSchema(`type Query { unused: Boolean }
+      type Mutation { group: Mutation step(name: String!): String }`);
+    const root = {
+      group: () => root,
+      step: ({ name }: { name: string }) => name,
+    };
+    const document = parse(
+      `mutation { outer: group { ...F(name: "ready") } }
+      fragment F($name: String!) on Mutation { inner: group { step(name: $name) } }`,
+      { experimentalFragmentArguments: true },
+    );
+    assert.deepEqual(
+      plain(await executeWithChaining(schema, document, root, {})),
+      { data: { outer: { inner: { step: 'ready' } } } },
+    );
+  });
+
+  it('stops actions after a non-null list item fails, but continues past nullable items', async () => {
+    for (const required of [true, false]) {
+      const schema = buildSchema(`type Query { unused: Boolean }
+        type Mutation { groups: [Mutation${required ? '!' : ''}] step: String after: String }`);
+      const seen: string[] = [];
+      const root = {
+        groups: [
+          null,
+          {
+            step: () => {
+              seen.push('step');
+              return 'ok';
+            },
+          },
+        ],
+        after: () => {
+          seen.push('after');
+          return 'ok';
+        },
+      };
+      const result = await executeWithChaining(
+        schema,
+        'mutation { groups { step } after }',
+        root,
+        {},
+      );
+      assert.deepEqual(seen, required ? ['after'] : ['step', 'after']);
+      assert.deepEqual(plain(result.data), {
+        groups: required ? null : [null, { step: 'ok' }],
+        after: 'ok',
+      });
+      assert.deepEqual(
+        result.errors?.[0].path,
+        required ? ['groups', 0] : undefined,
+      );
+    }
+  });
+
+  it('rejects primitive strings as mutation lists without running child actions', async () => {
+    const schema = buildSchema(`type Query { unused: Boolean }
+      type Mutation { groups: [Mutation] step: String }`);
+    let calls = 0;
+    schema.getMutationType()!.getFields().step.resolve = () => {
+      calls++;
+      return 'bad';
+    };
+    const root = { groups: 'ab' };
+    const query = 'mutation { groups { step } }';
+    assert.deepEqual(
+      plain(await executeWithChaining(schema, query, root, {})),
+      plain(await execute({ schema, document: parse(query), rootValue: root })),
+    );
+    assert.equal(calls, 0);
+  });
+
+  it('honors Mutation.isTypeOf before starting nested actions', async () => {
+    for (const asyncPredicate of [false, true]) {
+      const schema = buildSchema(`type Query { unused: Boolean }
+        type Mutation { group: Mutation groups: [Mutation] step: String }`);
+      schema.getMutationType()!.isTypeOf = (value: any) =>
+        asyncPredicate
+          ? Promise.resolve(value.accepted === true)
+          : value.accepted === true;
+      let calls = 0;
+      const bad = {
+        step: () => {
+          calls++;
+          return 'bad';
+        },
+      };
+      const good = { accepted: true, step: () => 'good' };
+      const root = { group: bad, groups: [bad, good] };
+      const query = 'mutation { group { step } groups { step } }';
+      assert.deepEqual(
+        plain(await executeWithChaining(schema, query, root, {})),
+        plain(
+          await execute({ schema, document: parse(query), rootValue: root }),
+        ),
+      );
+      assert.equal(calls, 0);
+    }
+  });
+
+  it('preserves resolver-supplied absolute error paths', async () => {
+    const schema = buildSchema(`type Query { unused: Boolean }
+      type Mutation { group: Mutation fail: String }`);
+    const root = {
+      group: () => root,
+      fail: (_a: unknown, _c: unknown, info: any) => {
+        throw new GraphQLError('expected', {
+          path: responsePathAsArray(info.path),
+        });
+      },
+    };
+    const query = 'mutation { outer: group { alias: fail } }';
+    assert.deepEqual(
+      plain(await executeWithChaining(schema, query, root, {})),
+      plain(await execute({ schema, document: parse(query), rootValue: root })),
+    );
+  });
+
   it('retains the operation-wide serial lock across abstract extension results', async () => {
     let active = 0;
     let maximum = 0;

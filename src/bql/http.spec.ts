@@ -249,6 +249,109 @@ describe('BrowserQL HTTP transport', () => {
     assert.equal(res.listenerCount('error'), 0);
   });
 
+  for (const outcome of ['finish', 'close', 'error'] as const) {
+    it(`awaits final flushing and handles ${outcome} without retaining listeners`, async () => {
+      let finalize: ((error?: Error) => void) | undefined;
+      const res = new Writable({
+        write(_chunk, _encoding, callback) {
+          callback();
+        },
+        final(callback) {
+          finalize = callback;
+        },
+      });
+      let settled = false;
+      const writing = writeBQLJSON(res as unknown as ServerResponse, {
+        ok: true,
+      });
+      void writing.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      const failure = new Error('final flush failed');
+      try {
+        await setImmediate();
+        assert.equal(res.writableEnded, true);
+        assert.equal(res.writableFinished, false);
+        assert.equal(settled, false, 'must await finish, not just end()');
+        if (outcome === 'error') {
+          const rejected = assert.rejects(
+            writing,
+            (error) => error === failure,
+          );
+          finalize!(failure);
+          await rejected;
+        } else {
+          if (outcome === 'close') res.destroy();
+          else finalize!();
+          await writing;
+        }
+        for (const event of ['finish', 'close', 'error', 'drain']) {
+          assert.equal(res.listenerCount(event), 0, event);
+        }
+      } finally {
+        res.destroy();
+      }
+    });
+  }
+
+  it('keeps context cleanup inside the awaited final-flush lifecycle', async () => {
+    let finalize: ((error?: Error) => void) | undefined;
+    let closed = 0;
+    const errors: unknown[] = [];
+    const res = Object.assign(
+      new Writable({
+        write(_chunk, _encoding, callback) {
+          res.headersSent = true;
+          callback();
+        },
+        final(callback) {
+          finalize = callback;
+        },
+      }),
+      { headersSent: false, setHeader() {} },
+    );
+    const handling = handleBQLHTTP(
+      { body: { query: '{ version }' } } as Request,
+      res as unknown as ServerResponse,
+      {} as BQLBrowserAPIOptions['browser'],
+      {
+        capabilities: [],
+        createContext: () => ({
+          close: async () => {
+            closed++;
+          },
+        }),
+        execute: async () => ({ data: 'result' }),
+      } as unknown as BrowserQL,
+      {
+        logger: {
+          error: (_message: string, error: unknown) => errors.push(error),
+        },
+      } as unknown as Pick<BQLBrowserAPIOptions, 'config' | 'logger'>,
+    );
+    try {
+      await setImmediate();
+      assert.equal(res.writableEnded, true);
+      assert.equal(closed, 0, 'context must stay open while final bytes flush');
+      const failure = new Error('final flush failed');
+      finalize!(failure);
+      await handling;
+      assert.deepEqual(errors, [failure]);
+      assert.equal(closed, 1);
+      assert.equal(res.destroyed, true);
+      for (const event of ['finish', 'close', 'error', 'drain']) {
+        assert.equal(res.listenerCount(event), 0, event);
+      }
+    } finally {
+      res.destroy();
+    }
+  });
+
   it('preserves pretty-print bytes and undefined bodies for reusable HTTP writing', async () => {
     for (const value of [
       { data: { unicode: '😀', omitted: undefined, list: [null, 1] } },

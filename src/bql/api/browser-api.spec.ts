@@ -495,6 +495,7 @@ test('strict idle grace resets on a new document and remains bounded for stalled
 test('fulfill preserves bytes and emits unambiguous content headers', async () => {
   for (const [body, expected] of [
     [{ body: 'é' }, Buffer.from('é')],
+    [{ body: 'hello', base64Body: null }, Buffer.from('hello')],
     [{ base64Body: 'AP8B/g==' }, Buffer.from([0, 255, 1, 254])],
   ] as const) {
     const api = new API();

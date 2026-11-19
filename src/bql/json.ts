@@ -5,11 +5,13 @@ import {
   isStringObject,
 } from 'node:util/types';
 
-type Token = string | { readonly quoted: string };
+// A number is a newline followed by that many copies of the indentation gap.
+type Token = string | number | { readonly quoted: string };
 
 /** A snapshot of JSON semantics, retaining original strings rather than escaped copies. */
 export interface PreparedJSON {
   readonly tokens: readonly Token[];
+  readonly gap: string;
 }
 
 const nativeJSON = JSON as typeof JSON & {
@@ -100,7 +102,7 @@ export function prepareJSON(
     const frame = stack[stack.length - 1];
     if (frame.index === frame.length) {
       stack.pop();
-      if (frame.count && gap) tokens.push('\n', gap.repeat(stack.length));
+      if (frame.count && gap) tokens.push(stack.length);
       tokens.push(frame.array ? ']' : '}');
       ancestors.delete(frame.value);
       continue;
@@ -109,7 +111,7 @@ export function prepareJSON(
     frame.index++;
     const start = tokens.length;
     if (frame.count) tokens.push(',');
-    if (gap) tokens.push('\n', gap.repeat(stack.length));
+    if (gap) tokens.push(stack.length);
     if (!frame.array) tokens.push({ quoted: key }, gap ? ': ' : ':');
     if (!visit((frame.value as Record<string, unknown>)[key], key)) {
       if (frame.array) tokens.push('null');
@@ -120,7 +122,7 @@ export function prepareJSON(
     }
     frame.count++;
   }
-  return { tokens };
+  return { tokens, gap };
 }
 
 /** Emit at most 64 KiB per buffer; never create a whole escaped string/document. */
@@ -131,6 +133,22 @@ export function* jsonChunks(prepared: PreparedJSON): Generator<Buffer> {
 
   function* pieces(): Generator<string> {
     for (const token of prepared.tokens) {
+      if (typeof token === 'number') {
+        const gap = prepared.gap;
+        const batch = Math.floor(8192 / gap.length);
+        let prefix = '\n';
+        let left = token;
+        while (left > batch) {
+          const block = prefix + gap.repeat(batch);
+          // Keep the last code unit and its possible surrogate partner together.
+          const last = block.charCodeAt(block.length - 1);
+          prefix = last >= 0xd800 && last <= 0xdbff ? block.slice(-1) : '';
+          yield block.slice(0, block.length - prefix.length);
+          left -= batch;
+        }
+        yield prefix + gap.repeat(left);
+        continue;
+      }
       const quoted = typeof token !== 'string';
       const text = quoted ? token.quoted : token;
       if (quoted) yield '"';

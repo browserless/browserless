@@ -113,8 +113,9 @@ describe('BrowserQL WebSocket wire transport', () => {
           standard.once('close', () =>
             reject(new Error('Closed before stream completed')),
           );
-          standard.on('message', (data) => {
+          standard.on('message', (data, isBinary) => {
             const frame = JSON.parse(data.toString());
+            if (isBinary) return reject(new Error('Expected a text message'));
             mixed.push(frame);
             if (frame.id === 'stream' && frame.type === 'complete') resolve();
           });

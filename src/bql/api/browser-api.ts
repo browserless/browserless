@@ -3264,7 +3264,7 @@ export class BQLBrowserAPI {
     status?: number;
     contentType?: string;
     body?: string;
-    base64Body?: string;
+    base64Body?: string | null;
     headers?: Array<{ name: string; value: string }>;
   }) {
     const start = Date.now();
@@ -3272,7 +3272,7 @@ export class BQLBrowserAPI {
     if (!Number.isInteger(status) || status < 100 || status > 599)
       throw new BadRequest('Fulfill status must be an integer from 100 to 599');
     if (
-      base64Body !== undefined &&
+      base64Body != null &&
       (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Body) ||
         (base64Body.includes('=') && base64Body.length % 4 !== 0) ||
         Buffer.from(base64Body, 'base64')

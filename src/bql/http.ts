@@ -57,7 +57,31 @@ export async function writeBQLJSON(
       }
     }
   }
-  if (!res.destroyed && !res.writableEnded) res.end();
+  if (!res.destroyed && !res.writableEnded) {
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        res.off('finish', onFinish);
+        res.off('close', onFinish);
+        res.off('error', onError);
+      };
+      const onFinish = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      res.once('finish', onFinish);
+      res.once('close', onFinish);
+      res.once('error', onError);
+      try {
+        res.end();
+      } catch (error) {
+        onError(error as Error);
+      }
+    });
+  }
 }
 
 /** Runs one HTTP operation and disposes its context, including on disconnect. */
