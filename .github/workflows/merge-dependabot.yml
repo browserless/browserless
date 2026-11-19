@@ -1,29 +1,62 @@
-# See https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#approve-a-pull-request
-
 name: Dependabot auto-merge
-on: [workflow_call]
+
+# Dependabot pull_request runs cannot read Actions secrets. Run trusted code
+# after checks instead, so the existing App key can enable downstream pushes.
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers] -- guarded same-repo success; default-branch checkout only, no PR artifacts
+    workflows: ['Pull Request Checks']
+    types: [completed]
 
 permissions: {}
 
 jobs:
   dependabot:
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-slim
     timeout-minutes: 10
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'browserless/browserless'
+    if: >-
+      github.repository == 'browserless/browserless' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     steps:
-      - uses: hmarr/auto-approve-action@v4.0.0
-      - name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v3.1.0
+      # Never check out the triggering run's SHA: it belongs to the PR.
+      - uses: actions/checkout@v7.0.1
         with:
-          github-token: '${{ secrets.GITHUB_TOKEN }}'
-      - name: Enable auto-merge for Dependabot PRs
-        # Playwright updates should be manually reviewed
-        if: "!contains(steps.metadata.outputs.dependency-names, 'playwright-core')"
-        run: gh pr merge --auto --squash "$PR_URL"
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+          check-latest: true
+      - name: Resolve eligible Dependabot PR
+        id: pr
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/ci/dependabot-automerge.js
+
+      - uses: actions/create-github-app-token@v3.3.0
+        id: app-token
+        if: steps.pr.outputs.pr_number
+        with:
+          client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
+          private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Approve and enable auto-merge for the tested head
+        if: steps.pr.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          gh api --method POST "repos/$GH_REPO/pulls/$PR_NUMBER/reviews" \
+            -f event=APPROVE -f commit_id="$PR_HEAD_SHA"
+          gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$PR_HEAD_SHA"

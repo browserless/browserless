@@ -42,8 +42,9 @@ workflows:
         - 'actions/setup-node@v7.1.0'
         - 'nick-fields/retry@v4.0.0'
     '.github/workflows/merge-dependabot.yml':
-        - 'dependabot/fetch-metadata@v3.1.0'
-        - 'hmarr/auto-approve-action@v4.0.0'
+        - 'actions/checkout@v7.0.1'
+        - 'actions/create-github-app-token@v3.3.0'
+        - 'actions/setup-node@v7.1.0'
     '.github/workflows/node-runtime-update.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/create-github-app-token@v3.3.0'
@@ -104,11 +105,6 @@ dependencies:
         commit: 'sha1-2252a14e810aa9b85c2d560bd7070c802206ecf6'
         owner_id: 4038316
         repo_id: 220418983
-    'dependabot/fetch-metadata@v3.1.0':
-        ref: 'v3.1.0'
-        commit: 'sha1-25dd0e34f4fe68f24cc83900b1fe3fe149efef98'
-        owner_id: 27347476
-        repo_id: 371068214
     'docker/build-push-action@v7.4.0':
         ref: 'v7.4.0'
         commit: 'sha1-c3c9e263c25d99ce0380d002d59b67737d91b0dc'
@@ -134,11 +130,6 @@ dependencies:
         commit: 'sha1-45996ed1f6d02564a971a2fa1b5860e934307cf7'
         owner_id: 16785467
         repo_id: 262236530
-    'hmarr/auto-approve-action@v4.0.0':
-        ref: 'v4.0.0'
-        commit: 'sha1-f0939ea97e9205ef24d872e76833fa908a770363'
-        owner_id: 110275
-        repo_id: 154219663
     'nick-fields/retry@v4.0.0':
         ref: 'v4.0.0'
         commit: 'sha1-ad984534de44a9489a53aefd81eb77f87c70dc60'

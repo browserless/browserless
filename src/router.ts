@@ -1,6 +1,7 @@
 import {
   AfterResponse,
   BrowserHTTPRoute,
+  BrowserInstance,
   BrowserManager,
   BrowserWebsocketRoute,
   Config,
@@ -46,6 +47,10 @@ export class Router extends EventEmitter {
   protected webSocketRoutes: Array<WebSocketRoute | BrowserWebsocketRoute> = [];
   protected hooks: Hooks;
   protected lifecycle = new WorkerLifecycle();
+  protected timedOutBrowsers = new WeakMap<
+    Request,
+    { browser?: BrowserInstance; launched: boolean; timedOut?: boolean }
+  >();
   // Glob-to-regex compilation is expensive enough to matter when it runs
   // per-route per-request, so matchers are compiled once at registration.
   protected pathMatchers = new WeakMap<
@@ -221,6 +226,22 @@ export class Router extends EventEmitter {
     return writeResponse(res, 408, 'Request has timed out');
   }
 
+  protected async releaseTimedOutBrowser(req: Request): Promise<void> {
+    const entry = this.timedOutBrowsers.get(req);
+    if (!entry) return;
+    entry.timedOut = true;
+    if (!entry.browser) return;
+    this.timedOutBrowsers.delete(req);
+    if (!entry.launched) return;
+
+    try {
+      this.log.debug(`HTTP job timed out, force-closing its browser`);
+      await this.browserManager.forceClose(entry.browser);
+    } catch (err) {
+      this.log.error(`Error force-closing timed-out HTTP browser: ${err}`);
+    }
+  }
+
   // 1013 ("Try Again Later") is the closest standard close code to a timeout.
   protected onWebsocketTimeout(_req: Request, socket: stream.Duplex) {
     if (isSocketProxied(socket)) {
@@ -303,19 +324,34 @@ export class Router extends EventEmitter {
         'browser' in route &&
         route.browser
       ) {
+        const entry: {
+          browser?: BrowserInstance;
+          launched: boolean;
+          timedOut?: boolean;
+        } = {
+          launched: false,
+        };
+        this.timedOutBrowsers.set(req, entry);
         const browser = await this.browserManager.getBrowserForRequest(
           req,
           route,
           logger,
         );
+        entry.browser = browser;
+        entry.launched = this.browserManager.isBrowserOwner(req, browser);
+        if (entry.timedOut) void this.releaseTimedOutBrowser(req);
 
-        if (!isConnected(res)) {
+        if (!isConnected(res) || entry.timedOut) {
+          this.timedOutBrowsers.delete(req);
           this.log.warn(`HTTP Request has closed prior to running`);
-          this.browserManager.complete(browser);
+          if (!entry.timedOut || !entry.launched) {
+            this.browserManager.complete(browser);
+          }
           throw new Error(`Request closed prior to writing results`);
         }
 
         if (!browser) {
+          this.timedOutBrowsers.delete(req);
           return writeResponse(res, 500, `Error loading the browser`);
         }
 
@@ -334,8 +370,11 @@ export class Router extends EventEmitter {
             }),
           ]);
         } finally {
+          this.timedOutBrowsers.delete(req);
           this.log.trace(`HTTP Request handler has finished.`);
-          this.browserManager.complete(browser);
+          if (!entry.timedOut || !entry.launched) {
+            this.browserManager.complete(browser);
+          }
         }
       }
 
@@ -412,7 +451,13 @@ export class Router extends EventEmitter {
       ? this.limiter.limit(
           wrapped,
           this.onQueueFullHTTP.bind(this),
-          this.onHTTPTimeout.bind(this),
+          (req, res) => {
+            try {
+              this.onHTTPTimeout(req, res);
+            } finally {
+              void this.releaseTimedOutBrowser(req);
+            }
+          },
           this.getTimeout.bind(this),
           route.bypassLimits?.bind(route),
           route,
