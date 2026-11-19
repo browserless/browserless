@@ -5,6 +5,31 @@ import type {
 } from '@browserless.io/browserless';
 import { jsonChunks, prepareJSON } from './json.js';
 import type { ServerResponse } from 'node:http';
+import { TooManyRequests } from '../utils.js';
+
+type DeliveryConfig = Pick<BQLBrowserAPIOptions['config'], 'getConcurrent'>;
+const deliveries = new WeakMap<DeliveryConfig, number>();
+
+/** Reserve before execution; the response, not the browser, owns the slot. */
+export function reserveBQLDelivery(
+  res: ServerResponse,
+  config: DeliveryConfig,
+): void {
+  if (res.destroyed || res.writableFinished)
+    throw new Error('BQL response closed');
+  const count = deliveries.get(config) ?? 0;
+  const limit = config.getConcurrent();
+  if (limit >= 0 && count >= limit)
+    throw new TooManyRequests('BQL delivery capacity reached');
+  deliveries.set(config, count + 1);
+  const release = () => {
+    res.off('finish', release);
+    res.off('close', release);
+    deliveries.set(config, deliveries.get(config)! - 1);
+  };
+  res.once('finish', release);
+  res.once('close', release);
+}
 
 export interface BodySchema {
   query: string;
@@ -134,6 +159,7 @@ export async function handleBQLHTTP(
   bql: Pick<BrowserQL, 'createContext' | 'execute' | 'capabilities'>,
   options: Pick<BQLBrowserAPIOptions, 'config' | 'logger'>,
 ): Promise<void> {
+  reserveBQLDelivery(res, options.config);
   const respond = (status: number, result: unknown) => {
     if (res.destroyed || res.headersSent) return;
     res.statusCode = status;

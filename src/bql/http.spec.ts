@@ -3,7 +3,7 @@ import {
   createServer,
   get,
   type IncomingMessage,
-  type ServerResponse,
+  ServerResponse,
 } from 'node:http';
 import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
@@ -18,6 +18,52 @@ import {
 import { handleBQLHTTP, writeBQLJSON } from './http.js';
 
 describe('BrowserQL HTTP transport', () => {
+  const options = {
+    config: { getConcurrent: () => 1 },
+    logger: { error() {} },
+  } as unknown as BQLBrowserAPIOptions;
+
+  for (const outcome of ['finish', 'close'] as const) {
+    it(`reserves delivery capacity before execution until ${outcome}`, async () => {
+      let executed = 0;
+      let closed = 0;
+      const bql = {
+        capabilities: [],
+        createContext: () => ({
+          close: async () => {
+            closed++;
+          },
+        }),
+        execute: async () => {
+          executed++;
+          return { data: 'ok' };
+        },
+      } as unknown as BrowserQL;
+      const response = () =>
+        new ServerResponse({ method: 'POST' } as IncomingMessage);
+      const run = (res: ServerResponse) =>
+        handleBQLHTTP(
+          { body: { query: '{ version }' } } as Request,
+          res,
+          {} as BQLBrowserAPIOptions['browser'],
+          bql,
+          options,
+        );
+      const first = response();
+      await run(first);
+      assert.equal(closed, 1);
+      await assert.rejects(run(response()), { name: 'TooManyRequests' });
+      assert.equal(executed, 1);
+      first.emit(outcome);
+      const next = response();
+      await run(next);
+      first.emit('close');
+      await assert.rejects(run(response()), { name: 'TooManyRequests' });
+      next.emit('close');
+      assert.equal(executed, 2);
+    });
+  }
+
   it('returns GraphQL envelopes and capabilities with independent, closed contexts', async () => {
     const contexts: object[] = [];
     let closed = 0;
@@ -46,10 +92,6 @@ describe('BrowserQL HTTP transport', () => {
           : { data: { version: '1.2.3' } };
       },
     } as unknown as BrowserQL;
-    const options = { logger: { error() {} } } as unknown as Pick<
-      BQLBrowserAPIOptions,
-      'config' | 'logger'
-    >;
     const server = createServer(async (req, res) => {
       let body = '';
       for await (const chunk of req) body += chunk;
@@ -140,10 +182,7 @@ describe('BrowserQL HTTP transport', () => {
             }) as Context,
           execute: async () => result,
         } as unknown as BrowserQL,
-        { logger: { error() {} } } as unknown as Pick<
-          BQLBrowserAPIOptions,
-          'config' | 'logger'
-        >,
+        options,
       );
     });
     await new Promise<void>((resolve) =>
@@ -188,7 +227,7 @@ describe('BrowserQL HTTP transport', () => {
           }),
           execute: async () => ({ data: 'x'.repeat(size) }),
         } as unknown as BrowserQL,
-        { logger: { error() {} } } as BQLBrowserAPIOptions,
+        options,
       );
       handled = true;
     });
@@ -308,10 +347,7 @@ describe('BrowserQL HTTP transport', () => {
           }) as Context,
         execute: async () => ({ data: { text: 'x'.repeat(1024 * 1024) } }),
       } as unknown as BrowserQL,
-      { logger: { error() {} } } as unknown as Pick<
-        BQLBrowserAPIOptions,
-        'config' | 'logger'
-      >,
+      options,
     );
     await setImmediate();
     assert.equal(writes, 1);
@@ -426,6 +462,7 @@ describe('BrowserQL HTTP transport', () => {
         execute: async () => ({ data: 'result' }),
       } as unknown as BrowserQL,
       {
+        config: options.config,
         logger: {
           error: (_message: string, error: unknown) => errors.push(error),
         },
