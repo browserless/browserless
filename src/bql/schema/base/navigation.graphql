@@ -1,6 +1,7 @@
 type Mutation {
   """
   Navigate backward in the current window history.
+  Same-document history changes (hash or pushState) time out instead of returning a navigation response.
   """
   back(timeout: Float, waitUntil: WaitUntilHistory = load): HTTPResponse
   """
@@ -14,10 +15,12 @@ type Mutation {
   ): HTTPResponse
   """
   Navigate forward in the current window history.
+  Same-document history changes (hash or pushState) time out instead of returning a navigation response.
   """
   forward(timeout: Float, waitUntil: WaitUntilHistory = load): HTTPResponse
   """
   Navigate to a URL and wait for the requested lifecycle events. waitUntilAll takes precedence when nonempty.
+  Same-document URL changes (such as a hash update) time out instead of returning a navigation response.
   """
   goto(
     url: String!

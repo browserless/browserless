@@ -39,6 +39,11 @@ does not navigate fails when that timeout expires. Same-document changes such
 as a hash update are not detected. Omit `waitUntil` or pass `null` for a plain
 click; its `navigation` result is `null`.
 
+The same limitation applies to `goto`, `back`, `forward`, and
+`waitForNavigation`: hash or `pushState` changes alone do not satisfy a
+navigation wait. The field returns `null` with a `Navigation timed out` error
+when its timeout expires.
+
 The `X-BQL-Capabilities` response header advertises the configured capabilities.
 You can also query them with GraphQL:
 

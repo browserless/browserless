@@ -1,6 +1,7 @@
 extend type Mutation {
   """
   Wait for navigation to reach the requested lifecycle event.
+  Same-document changes (hash or pushState) do not satisfy this wait and time out unless a document navigation follows.
   """
   waitForNavigation(
     timeout: Float

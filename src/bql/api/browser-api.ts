@@ -402,6 +402,9 @@ export class BQLBrowserAPI {
     void _result;
   }
   protected async beforeReadback(): Promise<void> {}
+  protected async beforeResponseBodyReadback(): Promise<void> {
+    await this.beforeReadback();
+  }
   protected supportsAuthChallenge(challenge: Protocol.Fetch.AuthChallenge) {
     return challenge.source === 'Server';
   }
@@ -956,10 +959,21 @@ export class BQLBrowserAPI {
       (!this.currentFrames.has(cdp) ||
         this.currentFrames.get(cdp)?.id === event.frameId);
     if (intentionalDocumentReject) this.rejectedDocuments.add(cdp);
-    await cdp.send(decision.method, {
-      ...decision.params,
-      requestId: event.requestId,
-    });
+    try {
+      await cdp.send(decision.method, {
+        ...decision.params,
+        requestId: event.requestId,
+      });
+    } catch (error) {
+      if (decision.method !== 'Fetch.failRequest')
+        await cdp
+          .send('Fetch.failRequest', {
+            requestId: event.requestId,
+            errorReason: 'Failed',
+          })
+          .catch(() => {});
+      throw error;
+    }
     if (intentionalDocumentReject)
       this.events.emit('document-rejected', cdp, event.request.url);
   }
@@ -2978,7 +2992,8 @@ export class BQLBrowserAPI {
   ): Promise<{ body: string; base64Encoded: boolean } | null> {
     const deadline = timeout ? Date.now() + timeout : undefined;
     const origin = this.responseOrigins.get(id);
-    await this.beforeReadback();
+    let abandoned = false;
+    await this.beforeResponseBodyReadback();
     try {
       if (this.closed) return null;
       if (origin?.pending)
@@ -3019,6 +3034,7 @@ export class BQLBrowserAPI {
       // its slot until it settles, rather than allowing abandoned reads to pile up.
       const read = this.responseBodyRead.then(async () => {
         if (
+          abandoned ||
           this.closed ||
           origin?.failed ||
           origin?.oversized ||
@@ -3026,7 +3042,8 @@ export class BQLBrowserAPI {
           (deadline && Date.now() >= deadline)
         )
           return null;
-        await this.beforeReadback();
+        await this.beforeResponseBodyReadback();
+        if (abandoned || this.closed) return null;
         const body = await (origin?.cdp ?? this.mainCDP).send(
           'Network.getResponseBody',
           {
@@ -3045,6 +3062,7 @@ export class BQLBrowserAPI {
         'Response body',
       );
     } catch {
+      abandoned = true;
       return null;
     }
   }
@@ -3251,6 +3269,17 @@ export class BQLBrowserAPI {
   }) {
     const start = Date.now();
     this.validateFilter(filter);
+    if (!Number.isInteger(status) || status < 100 || status > 599)
+      throw new BadRequest('Fulfill status must be an integer from 100 to 599');
+    if (
+      base64Body !== undefined &&
+      (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Body) ||
+        (base64Body.includes('=') && base64Body.length % 4 !== 0) ||
+        Buffer.from(base64Body, 'base64')
+          .toString('base64')
+          .replace(/=+$/, '') !== base64Body.replace(/=+$/, ''))
+    )
+      throw new BadRequest('Fulfill base64Body must contain valid base64');
     const encodedBody =
       base64Body ??
       (body === undefined ? undefined : Buffer.from(body).toString('base64'));

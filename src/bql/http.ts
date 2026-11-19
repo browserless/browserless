@@ -3,6 +3,7 @@ import type {
   BrowserQL,
   Request,
 } from '@browserless.io/browserless';
+import { jsonChunks, prepareJSON } from './json.js';
 import type { ServerResponse } from 'node:http';
 
 export interface BodySchema {
@@ -15,6 +16,48 @@ export interface ResponseSchema {
   data?: Record<string, unknown> | null;
   errors?: Array<{ message: string; [key: string]: unknown }>;
   extensions?: Record<string, unknown>;
+}
+
+/** Prepares before sending headers, then streams JSON with bounded buffering. */
+export async function writeBQLJSON(
+  res: ServerResponse,
+  value: unknown,
+  indentation?: number | string,
+): Promise<void> {
+  if (res.destroyed || res.writableEnded) return;
+  const prepared = prepareJSON(value, indentation);
+  if (prepared !== undefined) {
+    for (const chunk of jsonChunks(prepared)) {
+      if (res.destroyed || res.writableEnded) return;
+      if (!res.write(chunk)) {
+        const drained = await new Promise<boolean>((resolve, reject) => {
+          const cleanup = () => {
+            res.off('drain', onDrain);
+            res.off('close', onClose);
+            res.off('error', onError);
+          };
+          const onDrain = () => {
+            cleanup();
+            resolve(true);
+          };
+          const onClose = () => {
+            cleanup();
+            resolve(false);
+          };
+          const onError = (error: Error) => {
+            cleanup();
+            reject(error);
+          };
+          res.once('drain', onDrain);
+          res.once('close', onClose);
+          res.once('error', onError);
+          if (res.destroyed || res.writableEnded) onClose();
+        });
+        if (!drained) return;
+      }
+    }
+  }
+  if (!res.destroyed && !res.writableEnded) res.end();
 }
 
 /** Runs one HTTP operation and disposes its context, including on disconnect. */
@@ -30,7 +73,7 @@ export async function handleBQLHTTP(
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('X-BQL-Capabilities', bql.capabilities.join(','));
-    res.end(JSON.stringify(result));
+    return writeBQLJSON(res, result);
   };
   const body = req.body as BodySchema | undefined;
   if (
@@ -40,7 +83,9 @@ export async function handleBQLHTTP(
     (body.variables != null &&
       (typeof body.variables !== 'object' || Array.isArray(body.variables)))
   ) {
-    respond(400, { errors: [{ message: 'Invalid GraphQL request body' }] });
+    await respond(400, {
+      errors: [{ message: 'Invalid GraphQL request body' }],
+    });
     return;
   }
   const context = bql.createContext({
@@ -58,10 +103,11 @@ export async function handleBQLHTTP(
   };
   res.once('close', onClose);
   try {
-    respond(200, await bql.execute(body, context));
+    await respond(200, await bql.execute(body, context));
   } catch (error) {
     options.logger.error('BQL execution failed', error);
-    respond(500, { errors: [{ message: 'Internal server error' }] });
+    if (res.headersSent) res.destroy();
+    else await respond(500, { errors: [{ message: 'Internal server error' }] });
   } finally {
     res.off('close', onClose);
     await close();

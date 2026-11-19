@@ -15,9 +15,22 @@ class Socket extends EventEmitter {
   readyState = 1;
   bufferedAmount = 0;
   frames: any[] = [];
+  sizes: number[] = [];
+  fragments: Buffer[] = [];
   code?: number;
-  send(data: string) {
-    this.frames.push(JSON.parse(data));
+  send(
+    data: string | Buffer,
+    options?: { fin?: boolean },
+    callback?: (error?: Error) => void,
+  ) {
+    const buffer = Buffer.from(data);
+    this.sizes.push(buffer.length);
+    this.fragments.push(buffer);
+    if (options?.fin !== false) {
+      this.frames.push(JSON.parse(Buffer.concat(this.fragments).toString()));
+      this.fragments = [];
+    }
+    callback?.();
   }
   close(code = 1000) {
     this.code = code;
@@ -88,6 +101,58 @@ describe('BrowserQL WebSocket transport', () => {
     await done;
   });
 
+  it('sends large results in bounded fragments as one complete message', async () => {
+    const value = 'α😀\\"'.repeat(100_000);
+    service.execute = async () => ({ data: { value } });
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('large');
+    await setImmediate();
+    assert.deepEqual(socket.frames.slice(1), [
+      { id: 'large', type: 'next', payload: { data: { value } } },
+      { id: 'large', type: 'complete' },
+    ]);
+    assert.ok(Math.max(...socket.sizes) <= 256 * 1024);
+  });
+
+  it('finishes active output but drops queued output on cancellation without interleaving or pulling more values', async () => {
+    const value = 'body'.repeat(100_000);
+    let pulls = 0;
+    service.subscribe = async () =>
+      (async function* () {
+        pulls++;
+        yield { data: { value } };
+        pulls++;
+        yield { data: { value: 'unwanted' } };
+      })();
+    const send = socket.send.bind(socket);
+    let resume: (() => void) | undefined;
+    Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+      send(data, options);
+      if (options?.fin === false && !resume) resume = () => callback?.();
+      else callback?.();
+    });
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('stream', 'subscription { event }');
+    await setImmediate();
+    assert.ok(resume);
+    assert.equal(pulls, 1);
+    subscribe('queued', 'subscription { event }');
+    await setImmediate();
+    assert.equal(pulls, 2);
+    socket.receive({ type: 'complete', id: 'queued' });
+    socket.receive({ type: 'ping', payload: { nonce: 9 } });
+    socket.receive({ type: 'complete', id: 'stream' });
+    resume();
+    await setImmediate();
+    assert.deepEqual(socket.frames.slice(1), [
+      { id: 'stream', type: 'next', payload: { data: { value } } },
+      { type: 'pong', payload: { nonce: 9 } },
+    ]);
+    assert.equal(pulls, 2);
+  });
+
   it('can retain permissive control frames and queued duplicate IDs', async () => {
     start({ strictProtocol: false, echoPingPayload: false });
     subscribe('same');
@@ -98,6 +163,7 @@ describe('BrowserQL WebSocket transport', () => {
     socket.receive({ type: 'connection_init' });
     socket.receive({ type: 'ping', payload: 'nonce' });
     socket.receive({ type: 'subscribe', id: 'bad', payload: {} });
+    await setImmediate();
     assert.deepEqual(socket.frames.at(-2), { type: 'pong' });
     assert.deepEqual(socket.frames.at(-1), {
       id: 'bad',

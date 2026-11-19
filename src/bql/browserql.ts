@@ -14,6 +14,7 @@ import {
   BQLModule,
   Context,
   MutationResultPolicy,
+  assertBQLName,
   buildBQLSchema,
   executeWithChaining,
 } from '@browserless.io/browserless';
@@ -55,6 +56,8 @@ export class BrowserQL<API extends BQLBrowserAPI = BQLBrowserAPI> {
     this.apiFactory = apiFactory;
     this.mutationResultPolicy = mutationResultPolicy;
     this.legacyMutationSemantics = legacyMutationSemantics;
+    for (const capability of capabilities)
+      assertBQLName(capability, 'capability');
     this.capabilities = [
       ...new Set([
         'core',
