@@ -6,6 +6,7 @@ import {
   Logger as BlessLogger,
   BrowserHTTPRoute,
   BrowserManager,
+  BrowserQL,
   BrowserWebsocketRoute,
   ChromeCDP,
   ChromiumCDP,
@@ -78,6 +79,7 @@ export type ShutdownReport = LifecycleSnapshot & {
 };
 
 export class Browserless extends EventEmitter {
+  protected bql: BrowserQL;
   protected logger: BlessLogger;
   protected browserManager: BrowserManager;
   protected config: Config;
@@ -111,6 +113,7 @@ export class Browserless extends EventEmitter {
   protected metricsProducer = {};
 
   constructor({
+    bql,
     browserManager,
     config,
     fileSystem,
@@ -125,6 +128,7 @@ export class Browserless extends EventEmitter {
     webhooks,
   }: {
     Logger?: Browserless['Logger'];
+    bql?: BrowserQL;
     browserManager?: Browserless['browserManager'];
     config?: Browserless['config'];
     fileSystem?: Browserless['fileSystem'];
@@ -138,6 +142,7 @@ export class Browserless extends EventEmitter {
     webhooks?: Browserless['webhooks'];
   } = {}) {
     super();
+    this.bql = bql ?? new BrowserQL();
     this.Logger = LoggerOverride ?? BlessLogger;
     this.logger = new this.Logger('index');
     this.config = config || new Config();
@@ -602,11 +607,13 @@ export class Browserless extends EventEmitter {
           this.monitoring,
           this.staticSDKDir,
           this.limiter,
+          this.bql,
         );
 
         if (!this.routeIsDisabled(route)) {
           route.bodySchema = safeParse(bodySchema);
           route.querySchema = safeParse(querySchema);
+          route.bql = () => this.bql;
           route.config = () => this.config;
           route.limiter = () => this.limiter;
           route.metrics = () => this.metrics;
@@ -650,10 +657,12 @@ export class Browserless extends EventEmitter {
           this.monitoring,
           this.staticSDKDir,
           this.limiter,
+          this.bql,
         );
 
         if (!this.routeIsDisabled(route)) {
           route.querySchema = safeParse(querySchema);
+          route.bql = () => this.bql;
           route.config = () => this.config;
           route.limiter = () => this.limiter;
           route.metrics = () => this.metrics;
