@@ -1,5 +1,11 @@
 import { strict as assert } from 'node:assert';
-import { createServer, type ServerResponse } from 'node:http';
+import {
+  createServer,
+  get,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http';
+import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { Writable } from 'node:stream';
 import { setImmediate } from 'node:timers/promises';
@@ -160,6 +166,92 @@ describe('BrowserQL HTTP transport', () => {
     }
   });
 
+  it('finishes the handler and closes the context while a loopback reader is paused', async () => {
+    const size = 16 * 1024 * 1024;
+    let handled = false;
+    let finished = false;
+    let closed = 0;
+    const server = createServer(async (req, res) => {
+      res.once('finish', () => {
+        finished = true;
+      });
+      await handleBQLHTTP(
+        Object.assign(req, { body: { query: '{ large }' } }) as Request,
+        res,
+        {} as BQLBrowserAPIOptions['browser'],
+        {
+          capabilities: [],
+          createContext: () => ({
+            close: async () => {
+              closed++;
+            },
+          }),
+          execute: async () => ({ data: 'x'.repeat(size) }),
+        } as unknown as BrowserQL,
+        { logger: { error() {} } } as BQLBrowserAPIOptions,
+      );
+      handled = true;
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+      const [incoming] = await once(
+        get(`http://127.0.0.1:${(server.address() as AddressInfo).port}`),
+        'response',
+      );
+      const reader = incoming as IncomingMessage;
+      reader.pause();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(handled, true);
+      assert.equal(closed, 1);
+      assert.equal(finished, false);
+      let bytes = 0;
+      for await (const chunk of reader) bytes += chunk.length;
+      assert.equal(bytes, size + '{"data":""}'.length);
+      assert.equal(finished, true);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  for (const blocked of ['drain', 'finish']) {
+    it(`destroys a response stalled waiting for ${blocked}`, async () => {
+      const res = new Writable({
+        highWaterMark: 1,
+        write(_chunk, _encoding, callback) {
+          if (blocked !== 'drain') callback();
+        },
+        final() {},
+      });
+      await assert.rejects(
+        writeBQLJSON(res as unknown as ServerResponse, 'data', undefined, 30),
+        /stalled/,
+      );
+      assert.equal(res.destroyed, true);
+      for (const event of ['drain', 'finish', 'close', 'error'])
+        assert.equal(res.listenerCount(event), 0);
+    });
+  }
+
+  it('allows progressing writes to outlast one stall interval', async () => {
+    const res = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _encoding, cb) {
+        setTimeout(cb, 10);
+      },
+    });
+    const start = Date.now();
+    await writeBQLJSON(
+      res as unknown as ServerResponse,
+      'x'.repeat(1024 * 1024),
+      undefined,
+      100,
+    );
+    assert.ok(Date.now() - start > 100);
+    assert.ok(res.writableFinished);
+  });
+
   it('waits for a slow consumer to drain before writing more', async () => {
     const chunks: Buffer[] = [];
     let release: (() => void) | undefined;
@@ -223,9 +315,14 @@ describe('BrowserQL HTTP transport', () => {
     );
     await setImmediate();
     assert.equal(writes, 1);
-    assert.equal(closed, 0);
-    res.destroy();
+    assert.equal(
+      closed,
+      1,
+      'download backpressure must not retain the context',
+    );
     await handling;
+    res.destroy();
+    await setImmediate();
     assert.equal(writes, 1);
     assert.equal(closed, 1);
     assert.equal(res.listenerCount('drain'), 0);
@@ -299,7 +396,7 @@ describe('BrowserQL HTTP transport', () => {
     });
   }
 
-  it('keeps context cleanup inside the awaited final-flush lifecycle', async () => {
+  it('releases execution before final flush and observes late errors', async () => {
     let finalize: ((error?: Error) => void) | undefined;
     let closed = 0;
     const errors: unknown[] = [];
@@ -337,10 +434,11 @@ describe('BrowserQL HTTP transport', () => {
     try {
       await setImmediate();
       assert.equal(res.writableEnded, true);
-      assert.equal(closed, 0, 'context must stay open while final bytes flush');
+      assert.equal(closed, 1, 'context must close before final flush');
+      await handling;
       const failure = new Error('final flush failed');
       finalize!(failure);
-      await handling;
+      await setImmediate();
       assert.deepEqual(errors, [failure]);
       assert.equal(closed, 1);
       assert.equal(res.destroyed, true);

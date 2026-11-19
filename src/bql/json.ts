@@ -32,6 +32,27 @@ export function prepareJSON(
       ? indentation.slice(0, 10)
       : ' '.repeat(Math.min(10, Math.max(0, Math.trunc(indentation || 0))));
   const tokens: Token[] = [];
+  const packed: Token[] = [];
+  // Keep only a bounded batch of small literals before joining them. Large
+  // strings and deep indentation stay deferred, not copied into the batch.
+  function pack() {
+    const literals: string[] = [];
+    for (const token of tokens) {
+      if (typeof token === 'string' && token.length <= 1024) {
+        literals.push(token);
+      } else if (typeof token === 'number' && token * gap.length <= 32) {
+        literals.push('\n' + gap.repeat(token));
+      } else {
+        if (literals.length) packed.push(literals.join(''));
+        literals.length = 0;
+        packed.push(token);
+      }
+    }
+    if (literals.length) packed.push(literals.join(''));
+    tokens.length = 0;
+  }
+  const quote = (text: string): Token =>
+    text.length <= 128 ? JSON.stringify(text) : { quoted: text };
   const ancestors = new Set<object>();
   const stack: Array<{
     value: object;
@@ -61,7 +82,7 @@ export function prepareJSON(
       value = BigInt.prototype.valueOf.call(value);
 
     if (typeof value === 'string') {
-      tokens.push({ quoted: value });
+      tokens.push(quote(value));
       return true;
     }
     if (
@@ -99,6 +120,7 @@ export function prepareJSON(
 
   if (!visit(value, '')) return undefined;
   while (stack.length) {
+    if (tokens.length >= 512) pack();
     const frame = stack[stack.length - 1];
     if (frame.index === frame.length) {
       stack.pop();
@@ -112,7 +134,7 @@ export function prepareJSON(
     const start = tokens.length;
     if (frame.count) tokens.push(',');
     if (gap) tokens.push(stack.length);
-    if (!frame.array) tokens.push({ quoted: key }, gap ? ': ' : ':');
+    if (!frame.array) tokens.push(quote(key), gap ? ': ' : ':');
     if (!visit((frame.value as Record<string, unknown>)[key], key)) {
       if (frame.array) tokens.push('null');
       else {
@@ -122,7 +144,8 @@ export function prepareJSON(
     }
     frame.count++;
   }
-  return { tokens, gap };
+  pack();
+  return { tokens: packed, gap };
 }
 
 /** Emit at most 64 KiB per buffer; never create a whole escaped string/document. */

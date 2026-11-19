@@ -23,15 +23,54 @@ export async function writeBQLJSON(
   res: ServerResponse,
   value: unknown,
   indentation?: number | string,
+  stallMs = 30_000,
 ): Promise<void> {
   if (res.destroyed || res.writableEnded) return;
+  await transfer(res, prepareJSON(value, indentation), stallMs);
+}
+
+/** Hand off only after preparation and the first write succeed. The transfer
+ * owns the snapshot, backpressure and late failures, not the browser or job. */
+export function startBQLJSON(
+  res: ServerResponse,
+  value: unknown,
+  logger: Pick<BQLBrowserAPIOptions['logger'], 'error'>,
+  indentation?: number | string,
+): Promise<void> {
+  if (res.destroyed || res.writableEnded) return Promise.resolve();
   const prepared = prepareJSON(value, indentation);
+  return new Promise<void>((resolve, reject) => {
+    let started = false;
+    const handoff = () => {
+      started = true;
+      resolve();
+    };
+    void transfer(res, prepared, 30_000, handoff).then(resolve, (error) => {
+      if (!started) return reject(error);
+      logger.error('BQL response transfer failed', error);
+      res.destroy();
+    });
+  });
+}
+
+async function transfer(
+  res: ServerResponse,
+  prepared: ReturnType<typeof prepareJSON>,
+  stallMs: number,
+  handoff?: () => void,
+): Promise<void> {
+  const onStall = () => res.destroy(new Error('BQL response transfer stalled'));
   if (prepared !== undefined) {
     for (const chunk of jsonChunks(prepared)) {
       if (res.destroyed || res.writableEnded) return;
-      if (!res.write(chunk)) {
+      const ready = res.write(chunk);
+      handoff?.();
+      handoff = undefined;
+      if (!ready) {
         const drained = await new Promise<boolean>((resolve, reject) => {
+          const timer = setTimeout(onStall, stallMs).unref();
           const cleanup = () => {
+            clearTimeout(timer);
             res.off('drain', onDrain);
             res.off('close', onClose);
             res.off('error', onError);
@@ -59,7 +98,9 @@ export async function writeBQLJSON(
   }
   if (!res.destroyed && !res.writableEnded) {
     await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(onStall, stallMs).unref();
       const cleanup = () => {
+        clearTimeout(timer);
         res.off('finish', onFinish);
         res.off('close', onFinish);
         res.off('error', onError);
@@ -77,6 +118,7 @@ export async function writeBQLJSON(
       res.once('error', onError);
       try {
         res.end();
+        handoff?.();
       } catch (error) {
         onError(error as Error);
       }
@@ -97,7 +139,7 @@ export async function handleBQLHTTP(
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('X-BQL-Capabilities', bql.capabilities.join(','));
-    return writeBQLJSON(res, result);
+    return startBQLJSON(res, result, options.logger);
   };
   const body = req.body as BodySchema | undefined;
   if (

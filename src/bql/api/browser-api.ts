@@ -3278,10 +3278,8 @@ export class BQLBrowserAPI {
     if (
       base64Body != null &&
       (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64Body) ||
-        (base64Body.includes('=') && base64Body.length % 4 !== 0) ||
-        Buffer.from(base64Body, 'base64')
-          .toString('base64')
-          .replace(/=+$/, '') !== base64Body.replace(/=+$/, ''))
+        base64Body.length % 4 === 1 ||
+        (base64Body.includes('=') && base64Body.length % 4 !== 0))
     )
       throw new BadRequest('Fulfill base64Body must contain valid base64');
     const encodedBody =

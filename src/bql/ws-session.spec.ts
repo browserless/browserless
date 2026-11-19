@@ -115,6 +115,40 @@ describe('BrowserQL WebSocket transport', () => {
     assert.ok(Math.max(...socket.sizes) <= 64 * 1024);
   });
 
+  it('keeps a paused reader connected while only one bounded fragment is outstanding', async () => {
+    const value = 'x'.repeat(96 * 1024);
+    service.execute = async () => ({ data: { value } });
+    const send = socket.send.bind(socket);
+    let resume: (() => void) | undefined;
+    Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+      send(data, options);
+      if (!options?.fin && !resume) resume = callback;
+      else callback?.();
+    });
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+    });
+    try {
+      start();
+      socket.receive({ type: 'connection_init' });
+      subscribe('slow');
+      await setImmediate();
+      assert.ok(resume);
+      await clock.tickAsync(7000);
+      assert.equal(socket.readyState, 1);
+      resume();
+      await setImmediate();
+      assert.deepEqual(socket.frames.at(-2), {
+        id: 'slow',
+        type: 'next',
+        payload: { data: { value } },
+      });
+      assert.deepEqual(socket.frames.at(-1), { id: 'slow', type: 'complete' });
+    } finally {
+      clock.restore();
+    }
+  });
+
   it('finishes active output but drops queued output on cancellation without interleaving or pulling more values', async () => {
     const value = 'body'.repeat(100_000);
     let pulls = 0;

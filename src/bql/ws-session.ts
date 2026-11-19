@@ -133,17 +133,12 @@ export class BQLWebSocketSession {
         const next = chunks.next();
         await new Promise<void>((resolve, reject) => {
           const finish = (error?: Error) => {
-            clearTimeout(timer);
             this.client.off('close', onClose);
             this.client.off('error', finish);
             if (error) reject(error);
             else resolve();
           };
           const onClose = () => finish(new Error('WebSocket closed'));
-          const timer = setTimeout(() => {
-            this.client.close(1013, 'Client is not consuming responses');
-            finish(new Error('WebSocket write timed out'));
-          }, 5000);
           this.client.once('close', onClose);
           this.client.once('error', finish);
           try {

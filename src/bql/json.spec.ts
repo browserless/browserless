@@ -184,6 +184,63 @@ describe('bounded BQL JSON encoding', () => {
     assert.equal(Buffer.concat(chunks).toString(), JSON.stringify(value));
   });
 
+  it('packs dense rows without retaining individual keys and punctuation', () => {
+    const rows = Array.from({ length: 2000 }, (_, id) => ({
+      id,
+      label: `row ${id} 😀`,
+      omitted: undefined,
+      active: true,
+    }));
+    for (const indentation of [undefined, 2]) {
+      const plan = prepareJSON(rows, indentation)!;
+      assert.ok(
+        plan.tokens.length < rows.length,
+        `${plan.tokens.length} tokens`,
+      );
+      assert.equal(
+        Buffer.concat([...jsonChunks(plan)]).toString(),
+        JSON.stringify(rows, null, indentation),
+      );
+    }
+  });
+
+  it('evaluates user code once even after packing earlier rows', () => {
+    const rows = Array.from({ length: 2048 }, (_, id) => ({ id }));
+    const body = '😀\\\n'.repeat(10000);
+    let calls = 0;
+    const final = {
+      get value() {
+        calls++;
+        return {
+          toJSON() {
+            calls++;
+            return body;
+          },
+        };
+      },
+    };
+    const prepared = prepareJSON([...rows, final])!;
+    assert.equal(calls, 2);
+    assert.equal(
+      Buffer.concat([...jsonChunks(prepared)]).toString(),
+      JSON.stringify([...rows, { value: body }]),
+    );
+    assert.equal(calls, 2);
+    const error = new Error('late getter');
+    assert.throws(
+      () =>
+        prepareJSON([
+          ...rows,
+          {
+            get value() {
+              throw error;
+            },
+          },
+        ]),
+      (actual) => actual === error,
+    );
+  });
+
   it('emits an aggregate larger than V8 permits in one string', () => {
     // Share the input string deliberately: this isolates encoding, not body collection.
     const body = 'x'.repeat(19 * 1024 * 1024);
