@@ -153,6 +153,46 @@ describe('BrowserQL WebSocket transport', () => {
     assert.equal(pulls, 2);
   });
 
+  for (const terminal of ['next', 'complete', 'error']) {
+    it(`preserves reused IDs while canceled ${terminal} output waits behind another message`, async () => {
+      service.subscribe = async ({ query }) =>
+        (async function* () {
+          if (typeof query === 'string' && query.includes('blocker'))
+            yield { data: { value: 'x'.repeat(100_000) } };
+          else if (terminal === 'error') throw new Error('stale');
+        })();
+      const send = socket.send.bind(socket);
+      let resume: (() => void) | undefined;
+      Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+        send(data, options);
+        if (options?.fin === false && !resume) resume = () => callback?.();
+        else callback?.();
+      });
+      start();
+      socket.receive({ type: 'connection_init' });
+      subscribe('blocker', 'subscription { blocker }');
+      await setImmediate();
+      assert.ok(resume);
+      subscribe(
+        'reuse',
+        terminal === 'next' ? 'mutation { run }' : 'subscription { event }',
+      );
+      await setImmediate();
+      socket.receive({ type: 'complete', id: 'reuse' });
+      subscribe('reuse');
+      socket.receive({ type: 'complete', id: 'blocker' });
+      resume();
+      await setImmediate();
+      assert.deepEqual(
+        socket.frames.filter((frame) => frame.id === 'reuse'),
+        [
+          { id: 'reuse', type: 'next', payload: { data: { run: true } } },
+          { id: 'reuse', type: 'complete' },
+        ],
+      );
+    });
+  }
+
   it('can retain permissive control frames and queued duplicate IDs', async () => {
     start({ strictProtocol: false, echoPingPayload: false });
     subscribe('same');

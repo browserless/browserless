@@ -382,9 +382,11 @@ export class BQLWebSocketSession {
             () => this.active(id, operation),
           );
           if (this.active(id, operation))
-            await this.send({ id, type: 'complete' });
+            await this.send({ id, type: 'complete' }, () =>
+              this.active(id, operation),
+            );
         }
-        this.operations.delete(id);
+        if (this.operations.get(id) === operation) this.operations.delete(id);
         if (this.context.hasErrored())
           this.client.close(1011, 'Browser session ended');
       }
@@ -400,22 +402,29 @@ export class BQLWebSocketSession {
     formatted?: FormattedExecutionResult,
   ): Promise<void> {
     if (!this.active(id, operation)) return;
-    this.operations.delete(id);
     this.returnIterator(operation.iterator);
-    await this.send({
-      id,
-      type: 'error',
-      payload: (
-        formatted ??
-        this.format({
-          errors: [
-            error instanceof GraphQLError
-              ? error
-              : { message: messageOf(error) },
-          ],
-        })
-      ).errors,
-    });
+    delete operation.iterator;
+    try {
+      await this.send(
+        {
+          id,
+          type: 'error',
+          payload: (
+            formatted ??
+            this.format({
+              errors: [
+                error instanceof GraphQLError
+                  ? error
+                  : { message: messageOf(error) },
+              ],
+            })
+          ).errors,
+        },
+        () => this.active(id, operation),
+      );
+    } finally {
+      if (this.operations.get(id) === operation) this.operations.delete(id);
+    }
     if (this.context.hasErrored())
       this.client.close(1011, 'Browser session ended');
   }
@@ -430,8 +439,10 @@ export class BQLWebSocketSession {
         const value = await iterator.next();
         if (!this.active(id, operation)) return;
         if (value.done) {
-          this.operations.delete(id);
-          await this.send({ id, type: 'complete' });
+          await this.send({ id, type: 'complete' }, () =>
+            this.active(id, operation),
+          );
+          if (this.operations.get(id) === operation) this.operations.delete(id);
           return;
         }
         const drainDeadline = Date.now() + 5000;
