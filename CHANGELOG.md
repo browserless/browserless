@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.64.0](https://github.com/browserless/browserless/compare/v2.63.2...v2.64.0) (2026-11-19)
+
+
+### Features
+
+* add extensible BrowserQL HTTP and WebSocket APIs ([#5622](https://github.com/browserless/browserless/issues/5622)) ([5a0c7aa](https://github.com/browserless/browserless/commit/5a0c7aa789be4eff3b32b050d2e2258fca53de2b))
+* support arm64 chrome ([#5677](https://github.com/browserless/browserless/issues/5677)) ([a4efa55](https://github.com/browserless/browserless/commit/a4efa554f5aeff40eeb84c41fe5c0333b0dbac8a))
+
+
+### Bug Fixes
+
+* close request-owned browsers after HTTP timeouts ([#5698](https://github.com/browserless/browserless/issues/5698)) ([aa7044f](https://github.com/browserless/browserless/commit/aa7044f7e9dc19b8bfba4e582096ab23352a8bfc))
+
+
+### Build System & Runtime
+
+* bump the minor-and-patch group with 2 updates ([#5699](https://github.com/browserless/browserless/issues/5699)) ([1ee7c6a](https://github.com/browserless/browserless/commit/1ee7c6aa57a98fdf98db47361529db73497483b5))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.17.0`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.36` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `157.0.4341.60` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.63.2](https://github.com/browserless/browserless/compare/v2.63.1...v2.63.2) (2026-11-17)
 
 
