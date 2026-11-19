@@ -6,6 +6,7 @@ import {
   FragmentDefinitionNode,
   GraphQLError,
   GraphQLIncludeDirective,
+  GraphQLOutputType,
   GraphQLSchema,
   GraphQLSkipDirective,
   Kind,
@@ -14,8 +15,10 @@ import {
   execute,
   getDirectiveValues,
   getNamedType,
+  getNullableType,
   getOperationAST,
   getVariableValues,
+  isListType,
   parse,
   validate,
   validateExecutionArgs,
@@ -23,6 +26,8 @@ import {
 } from 'graphql';
 import { ExecutorThrowingOnIncremental } from 'graphql/execution/ExecutorThrowingOnIncremental.js';
 import { executionError } from './errors.js';
+import { isAsyncIterable } from 'graphql/jsutils/isAsyncIterable.js';
+import { isIterableObject } from 'graphql/jsutils/isIterableObject.js';
 import { returnIteratorCatchingErrors } from 'graphql/execution/returnIteratorCatchingErrors.js';
 
 type SyncListArgs = Parameters<
@@ -35,10 +40,24 @@ type AsyncListArgs = Parameters<
 // These scheduling hooks are internal to the exact graphql version in package.json.
 // GraphQL still owns field collection, type checks, completion and error propagation.
 class MutationExecutor extends ExecutorThrowingOnIncremental {
+  private readonly directMutationPaths = new WeakSet<object>();
+  private readonly observedLists = new WeakSet<object>();
+
+  override completeObjectValue(
+    ...args: Parameters<ExecutorThrowingOnIncremental['completeObjectValue']>
+  ) {
+    const [, , info, path] = args;
+    // executeFields receives the runtime type, which may have come from a union
+    // or interface. Only opt in when the field declares Mutation as its result.
+    if (getNamedType(info.returnType) === info.schema.getMutationType())
+      this.directMutationPaths.add(path);
+    return super.completeObjectValue(...args);
+  }
+
   override executeFields(
     ...args: Parameters<ExecutorThrowingOnIncremental['executeFields']>
   ) {
-    return args[0] === this.validatedExecutionArgs.schema.getMutationType()
+    return args[2] && this.directMutationPaths.has(args[2])
       ? this.executeFieldsSerially(...args)
       : super.executeFields(...args);
   }
@@ -50,13 +69,31 @@ class MutationExecutor extends ExecutorThrowingOnIncremental {
 
     // Observe all eager rejections immediately, even if an earlier non-null
     // item fails and later items never get a turn. Keep the original rejection.
+    args[4] = this.observeItems(items, type);
+    return this.serialItems(...args);
+  }
+
+  private observeItems(
+    items: Iterable<unknown>,
+    itemType: GraphQLOutputType,
+  ): Iterable<unknown> {
+    if (this.observedLists.has(items)) return items;
+    const type = getNullableType(itemType);
     const pending = Array.from(items, (item) => {
-      const promise = Promise.resolve(item);
+      let promise = Promise.resolve(item);
+      if (isListType(type))
+        promise = promise.then((value: unknown) => {
+          // Leave invalid values and async iterables to native list completion.
+          if (!isAsyncIterable(value) && isIterableObject(value))
+            return this.observeItems(value, type.ofType);
+          return value;
+        });
       void promise.catch(() => {});
       return promise;
     });
-    args[4] = pending;
-    return this.serialItems(...args);
+    // Native completion revisits each buffered row; never consume its source twice.
+    this.observedLists.add(pending);
+    return pending;
   }
 
   override completeAsyncIterableValue(...args: AsyncListArgs) {

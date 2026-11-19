@@ -2993,9 +2993,23 @@ export class BQLBrowserAPI {
     const deadline = timeout ? Date.now() + timeout : undefined;
     const origin = this.responseOrigins.get(id);
     let abandoned = false;
-    await this.beforeResponseBodyReadback();
+    const remaining = () => (deadline ? Math.max(1, deadline - Date.now()) : 0);
+    const timedOut = new Error('Response body timed out');
+    const checkPolicy = () =>
+      bounded(
+        this.beforeResponseBodyReadback(),
+        remaining(),
+        'Response body',
+        () => timedOut,
+      );
     try {
-      if (this.closed) return null;
+      await checkPolicy();
+    } catch (error) {
+      if (error === timedOut) return null;
+      throw error;
+    }
+    try {
+      if (this.closed || (deadline && Date.now() >= deadline)) return null;
       if (origin?.pending)
         await new Promise<void>((resolve, reject) => {
           let timer: ReturnType<typeof setTimeout> | undefined;
@@ -3020,7 +3034,7 @@ export class BQLBrowserAPI {
             timer = setTimeout(() => {
               cleanup();
               reject(new Error('Response body timed out'));
-            }, timeout);
+            }, remaining());
         });
       if (
         this.closed ||
@@ -3042,8 +3056,15 @@ export class BQLBrowserAPI {
           (deadline && Date.now() >= deadline)
         )
           return null;
-        await this.beforeResponseBodyReadback();
-        if (abandoned || this.closed) return null;
+        await checkPolicy();
+        if (
+          abandoned ||
+          this.closed ||
+          origin?.failed ||
+          origin?.oversized ||
+          (deadline && Date.now() >= deadline)
+        )
+          return null;
         const body = await (origin?.cdp ?? this.mainCDP).send(
           'Network.getResponseBody',
           {
@@ -3056,11 +3077,7 @@ export class BQLBrowserAPI {
         () => undefined,
         () => undefined,
       );
-      return await bounded(
-        read,
-        deadline ? Math.max(1, deadline - Date.now()) : 0,
-        'Response body',
-      );
+      return await bounded(read, remaining(), 'Response body');
     } catch {
       abandoned = true;
       return null;

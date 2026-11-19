@@ -1715,6 +1715,57 @@ test('response fallback reads preserve decoded-body semantics and serialize conc
   await api.close();
 });
 
+for (const phase of ['initial', 'queued', 'invalidated'] as const) {
+  test(`response body readback abandons ${phase} policy waits safely`, async () => {
+    let release!: () => void;
+    let calls = 0;
+    class Paused extends API {
+      protected override async beforeResponseBodyReadback() {
+        if (++calls === (phase === 'initial' ? 1 : 2))
+          await new Promise<void>((resolve) => (release = resolve));
+      }
+    }
+    const api = new Paused();
+    await api.setup();
+    const seen: string[] = [];
+    api.client.handler = (method, params) => {
+      if (method === 'Network.getResponseBody') seen.push(params.requestId);
+      return { body: 'ok', base64Encoded: false };
+    };
+    const response = () =>
+      api.client.emit('Network.responseReceived', {
+        requestId: 'old',
+        type: 'Fetch',
+        response: { url: 'https://example.com', status: 200, headers: {} },
+      });
+    try {
+      response();
+      api.client.emit('Network.dataReceived', {
+        requestId: 'old',
+        dataLength: 11_000_000,
+      });
+      api.client.emit('Network.loadingFinished', { requestId: 'old' });
+      const waiting = api.getResponseBody(
+        'old',
+        phase === 'invalidated' ? 1000 : 25,
+      );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (phase === 'invalidated') {
+        response();
+        release();
+      }
+      assert.equal(await waiting, null);
+      assert.equal((await api.getResponseBody('fresh', 100))?.body, 'ok');
+      release();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.deepEqual(seen, ['fresh']);
+    } finally {
+      release?.();
+      await api.close();
+    }
+  });
+}
+
 test('timed-out fallback reads retain their slot until CDP settles', async () => {
   const api = new API();
   await api.setup();

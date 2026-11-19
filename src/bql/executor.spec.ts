@@ -17,6 +17,73 @@ const options = {} as ConstructorParameters<typeof BQLBrowserAPI>[0];
 const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 describe('mutation execution boundary', () => {
+  it('keeps sibling scheduling for abstract results, not directly declared Mutation', async () => {
+    const schema =
+      buildSchema(`type Query { unused: Boolean } union Branch = Mutation
+      type Mutation { abstract: Branch direct: Mutation group: Mutation step: String }`);
+    const order: string[] = [];
+    const branch = {
+      __typename: 'Mutation',
+      group: async () => ({ step: () => order.push('child') }),
+      step: () => order.push('sibling'),
+    };
+    for (const field of ['abstract', 'direct']) {
+      order.length = 0;
+      const result = await executeWithChaining(
+        schema,
+        `mutation { alias: ${field} { ... on Mutation { group { step } step } } }`,
+        { [field]: branch },
+        {},
+      );
+      assert.equal(result.errors, undefined);
+      assert.deepEqual(
+        order,
+        field === 'abstract' ? ['sibling', 'child'] : ['child', 'sibling'],
+      );
+    }
+  });
+
+  it('observes later nested list items before an earlier action finishes', async () => {
+    const schema = buildSchema(
+      'type Query { unused: Boolean } type Mutation { rows: [[Mutation!]] step: String }',
+    );
+    let observed = false;
+    const later = (function* () {
+      yield {
+        then(_resolve: unknown, reject: (error: Error) => void) {
+          observed = true;
+          reject(new Error('missing item'));
+        },
+      };
+    })();
+    const root = {
+      rows: [
+        [
+          {
+            step: async () => {
+              await new Promise<void>((resolve) => setImmediate(resolve));
+              return observed ? 'observed' : 'late';
+            },
+          },
+        ],
+        Promise.resolve(later),
+      ],
+    };
+    const result = await executeWithChaining(
+      schema,
+      'mutation { rows { step } }',
+      root,
+      {},
+    );
+    assert.deepEqual(plain(result.data), {
+      rows: [[{ step: 'observed' }], null],
+    });
+    assert.deepEqual(
+      result.errors?.map((error) => error.path),
+      [['rows', 1, 0]],
+    );
+  });
+
   it('closes an async mutation-list iterator when next rejects', async () => {
     const schema = buildSchema(
       'type Query { unused: Boolean } type Mutation { groups: [Mutation] step: String }',
