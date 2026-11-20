@@ -7,6 +7,20 @@
 
 * honor cancellation of queued BrowserQL subscriptions ([#5704](https://github.com/browserless/browserless/issues/5704)) ([d361a45](https://github.com/browserless/browserless/commit/d361a451458755af767e4475db3610961245b370))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.17.0`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.36` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `158.0.4370.33` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.64.1](https://github.com/browserless/browserless/compare/v2.64.0...v2.64.1) (2026-11-20)
 
 
