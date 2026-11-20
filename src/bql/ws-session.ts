@@ -6,6 +6,8 @@ import type { RawData } from 'ws';
 import { WebSocket } from 'ws';
 
 export const BQL_WEBSOCKET_PROTOCOL = 'graphql-transport-ws';
+// Restart the deadline for each fragment, not for the entire response.
+const WRITE_PROGRESS_TIMEOUT_MS = 15_000;
 
 type Operation = {
   subscription?: boolean;
@@ -71,6 +73,8 @@ export class BQLWebSocketSession {
   private output = Promise.resolve();
   private initialized = false;
   private closed = false;
+  private cleanup?: () => void;
+  private pendingWrite?: (error?: Error) => void;
   private running?: Promise<void>;
   private sequence = 0;
 
@@ -85,15 +89,17 @@ export class BQLWebSocketSession {
     return (this.running ??= new Promise<void>((resolve, reject) => {
       const browser = this.context.getBrowserInstance();
       let unsubscribe = () => {};
-      const cleanup = () => {
+      const cleanup = (this.cleanup = () => {
         if (this.closed) return;
         this.closed = true;
+        this.pendingWrite?.(new Error('WebSocket closed'));
+        this.cleanup = undefined;
         browser.off('close', onDisconnected);
         unsubscribe();
         this.client.off('message', onMessage);
         for (const id of this.operations.keys()) this.cancel(id);
         this.context.close().then(resolve, reject);
-      };
+      });
       const onDisconnected = () => {
         this.client.close(1011, 'Browser session ended');
         cleanup();
@@ -103,9 +109,14 @@ export class BQLWebSocketSession {
         if (this.client.protocol === BQL_WEBSOCKET_PROTOCOL) this.receive(data);
         else this.enqueue(() => this.legacy(data));
       };
-      this.client.once('close', cleanup);
-      this.client.once('error', () => {
+      const onError = () => {
+        if (this.closed) return;
         this.client.close(1011, 'WebSocket error');
+        cleanup();
+      };
+      this.client.once('error', onError);
+      this.client.once('close', () => {
+        this.client.off('error', onError);
         cleanup();
       });
       this.client.on('message', onMessage);
@@ -129,18 +140,21 @@ export class BQLWebSocketSession {
         return;
       const chunks = jsonChunks(prepared)[Symbol.iterator]();
       let current = chunks.next();
-      while (!current.done) {
+      while (!current.done && !this.closed) {
         const next = chunks.next();
         await new Promise<void>((resolve, reject) => {
           const finish = (error?: Error) => {
-            this.client.off('close', onClose);
-            this.client.off('error', finish);
+            if (this.pendingWrite !== finish) return;
+            this.pendingWrite = undefined;
+            clearTimeout(timer);
             if (error) reject(error);
             else resolve();
           };
-          const onClose = () => finish(new Error('WebSocket closed'));
-          this.client.once('close', onClose);
-          this.client.once('error', finish);
+          this.pendingWrite = finish;
+          const timer = setTimeout(() => {
+            this.client.terminate();
+            this.cleanup?.();
+          }, WRITE_PROGRESS_TIMEOUT_MS);
           try {
             this.client.send(
               current.value,
@@ -157,15 +171,18 @@ export class BQLWebSocketSession {
     // Once a fragmented message has started, a failed write must end the
     // connection: another JSON envelope cannot replace its remaining bytes.
     this.output = sending.catch(() => {
-      this.client.close(1011, 'WebSocket write failed');
+      if (!this.closed) {
+        this.client.close(1011, 'WebSocket write failed');
+        this.cleanup?.();
+      }
     });
     await sending;
   }
 
   private control(value: unknown): void {
-    void this.send(value).catch(() =>
-      this.client.close(1011, 'WebSocket write failed'),
-    );
+    void this.send(value).catch(() => {
+      if (!this.closed) this.client.close(1011, 'WebSocket write failed');
+    });
   }
 
   private format(result: FormattedExecutionResult): FormattedExecutionResult {

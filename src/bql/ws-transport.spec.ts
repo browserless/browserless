@@ -100,13 +100,18 @@ describe('BrowserQL WebSocket wire transport', () => {
           },
           { id: 'one', type: 'complete' },
         ]);
-        service.execute = async () => ({
-          data: { value: 'x'.repeat(17 * 1024 * 1024) },
-        });
+        const value = '😀'.repeat(24 * 1024);
+        service.execute = async () => ({ data: { value } });
+        const fragmentedLegacy = once(legacy, 'message');
+        legacy.send(JSON.stringify({ query: '{ version }' }));
+        const [legacyData, binary] = await fragmentedLegacy;
+        assert.equal(binary, false);
+        assert.deepEqual(JSON.parse(String(legacyData)), { data: { value } });
         service.subscribe = async () =>
           (async function* () {
             await setImmediate();
-            for (let i = 0; i < 20; i++) yield { data: { tick: i } };
+            yield { data: { tick: 0 } };
+            yield { data: { tick: 1 } };
           })();
         const mixed: any[] = [];
         const streamed = new Promise<void>((resolve, reject) => {
@@ -117,7 +122,8 @@ describe('BrowserQL WebSocket wire transport', () => {
             const frame = JSON.parse(data.toString());
             if (isBinary) return reject(new Error('Expected a text message'));
             mixed.push(frame);
-            if (frame.id === 'stream' && frame.type === 'complete') resolve();
+            if (mixed.filter((f) => f.type === 'complete').length === 2)
+              resolve();
           });
         });
         standard.send(
@@ -135,16 +141,20 @@ describe('BrowserQL WebSocket wire transport', () => {
           }),
         );
         await streamed;
-        assert.equal(
-          mixed.find((frame) => frame.id === 'big' && frame.type === 'next')
-            .payload.data.value.length,
-          17 * 1024 * 1024,
+        assert.deepEqual(
+          mixed.filter((frame) => frame.id === 'big'),
+          [
+            { id: 'big', type: 'next', payload: { data: { value } } },
+            { id: 'big', type: 'complete' },
+          ],
         );
-        assert.equal(
-          mixed.filter(
-            (frame) => frame.id === 'stream' && frame.type === 'next',
-          ).length,
-          20,
+        assert.deepEqual(
+          mixed.filter((frame) => frame.id === 'stream'),
+          [
+            { id: 'stream', type: 'next', payload: { data: { tick: 0 } } },
+            { id: 'stream', type: 'next', payload: { data: { tick: 1 } } },
+            { id: 'stream', type: 'complete' },
+          ],
         );
         const legacyClosed = once(legacy, 'close');
         const standardClosed = once(standard, 'close');

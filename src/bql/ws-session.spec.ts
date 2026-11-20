@@ -37,6 +37,9 @@ class Socket extends EventEmitter {
     this.readyState = 3;
     this.emit('close');
   }
+  terminate() {
+    this.readyState = 2; // Real ws emits close asynchronously after destruction.
+  }
   receive(value: unknown) {
     this.emit('message', Buffer.from(JSON.stringify(value)));
   }
@@ -115,14 +118,14 @@ describe('BrowserQL WebSocket transport', () => {
     assert.ok(Math.max(...socket.sizes) <= 64 * 1024);
   });
 
-  it('keeps a paused reader connected while only one bounded fragment is outstanding', async () => {
-    const value = 'x'.repeat(96 * 1024);
+  it('allows repeated seven-second write pauses with only one fragment outstanding', async () => {
+    const value = 'x'.repeat(192 * 1024);
     service.execute = async () => ({ data: { value } });
     const send = socket.send.bind(socket);
     let resume: (() => void) | undefined;
     Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
       send(data, options);
-      if (!options?.fin && !resume) resume = callback;
+      if (!options?.fin) resume = callback;
       else callback?.();
     });
     const clock = Sinon.useFakeTimers({
@@ -133,11 +136,15 @@ describe('BrowserQL WebSocket transport', () => {
       socket.receive({ type: 'connection_init' });
       subscribe('slow');
       await setImmediate();
-      assert.ok(resume);
-      await clock.tickAsync(7000);
-      assert.equal(socket.readyState, 1);
-      resume();
-      await setImmediate();
+      for (let i = 0; i < 3; i++) {
+        assert.ok(resume);
+        const before = socket.sizes.length;
+        await clock.tickAsync(7000);
+        assert.equal(socket.readyState, 1);
+        assert.equal(socket.sizes.length, before);
+        resume();
+        await setImmediate();
+      }
       assert.deepEqual(socket.frames.at(-2), {
         id: 'slow',
         type: 'next',
@@ -322,21 +329,61 @@ describe('BrowserQL WebSocket transport', () => {
     });
   });
 
-  it('delivers a large response when no outgoing data is queued', async () => {
-    const value = 'x'.repeat(17 * 1024 * 1024);
-    service.execute = async () => ({ data: { value } });
-    start();
-    socket.receive({ type: 'connection_init' });
-    subscribe('large');
-    await setImmediate();
-    assert.deepEqual(socket.frames[1], {
-      id: 'large',
-      type: 'next',
-      payload: { data: { value } },
+  for (const protocol of ['', 'graphql-transport-ws']) {
+    it(`releases a stalled ${protocol || 'legacy'} write without waiting for a close event`, async () => {
+      socket.protocol = protocol;
+      const clock = Sinon.useFakeTimers({
+        toFake: ['setTimeout', 'clearTimeout'],
+      });
+      try {
+        const value = 'x'.repeat(65 * 1024);
+        let returned = false;
+        service.execute = async () => ({ data: { value } });
+        service.subscribe = async () =>
+          (async function* () {
+            try {
+              yield { data: { value } };
+            } finally {
+              returned = true;
+            }
+          })();
+        start();
+        if (protocol) socket.receive({ type: 'connection_init' });
+        await setImmediate();
+        let late: (() => void) | undefined;
+        const writes = Sinon.stub(socket, 'send').callsFake(
+          (_, __, callback) => {
+            late = callback;
+          },
+        );
+        const request = () =>
+          protocol
+            ? subscribe('a', 'subscription { event }')
+            : socket.receive({ query: '{ version }' });
+        request();
+        await setImmediate();
+        assert.ok(late);
+        assert.equal(writes.firstCall.args[1]?.fin, false);
+        if (protocol) socket.receive({ type: 'ping' });
+        else request();
+        await clock.tickAsync(30_000);
+        assert.equal(closed, 1);
+        assert.equal(socket.readyState, 2);
+        await done;
+        late();
+        await setImmediate();
+        assert.equal(writes.callCount, 1);
+        if (protocol) assert.equal(returned, true);
+        assert.equal(browser.listenerCount('close'), 0);
+        assert.equal(socket.listenerCount('message'), 0);
+        assert.equal(clock.countTimers(), 0);
+      } finally {
+        clock.restore();
+      }
     });
-  });
+  }
 
-  it('closes a client whose outgoing buffer exceeds the limit', async () => {
+  it('closes when bufferedAmount stays above the subscription admission limit', async () => {
     service.subscribe = async () =>
       (async function* () {
         yield { data: { event: true } };
@@ -356,7 +403,7 @@ describe('BrowserQL WebSocket transport', () => {
     }
   });
 
-  it('waits for a large response to drain before sending subscription events', async () => {
+  it('delays subscription output until bufferedAmount falls below the limit', async () => {
     service.subscribe = async () =>
       (async function* () {
         yield { data: { event: true } };

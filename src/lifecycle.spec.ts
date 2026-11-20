@@ -26,6 +26,7 @@ import {
   WebsocketRoutes,
   contentTypes,
   getRouteFiles,
+  startBQLJSON,
 } from '@browserless.io/browserless';
 import ChromiumBrowserWebSocketRoute from './shared/browser.ws.js';
 import ChromiumCDPWebSocketRoute from './shared/chromium.ws.js';
@@ -605,6 +606,87 @@ describe('Router/Limiter drain (mock browsers, real modules)', () => {
     monitorings.push(s.monitoring);
     return s;
   };
+
+  it('drops a finished delivery even if concurrency shrank before handoff', async () => {
+    const { config, router, limiter } = stack({ concurrent: 2, queued: 1 });
+    const running = deferred();
+    const res = makeRes();
+    const r = router.registerHTTPRoute(
+      new PendingBrowserRoute(
+        (
+          req: Request,
+          reply: Parameters<typeof startBQLJSON>[0],
+          logger: Logger,
+        ) => {
+          if (req.parsed.pathname === '/other') return running.promise;
+          config.setConcurrent(1);
+          return startBQLJSON(reply, 'ok', logger);
+        },
+        true,
+      ),
+    );
+    const other = run(r, makeReq('/other'), makeRes());
+    try {
+      await run(r, makeReq('/chromium'), res);
+      await flush();
+      res.emit('finish');
+      await flush();
+      expect(limiter.length).to.equal(1, 'only the other running job remains');
+      expect(limiter.hasCapacity).to.be.true;
+    } finally {
+      running.resolve();
+      res.emit('close');
+      await other;
+    }
+  });
+
+  it('releases the browser and ends billing before the delivery holding its slot', async () => {
+    const { router, limiter, lc, hooks } = stack({
+      timeout: 100,
+      concurrent: 1,
+    });
+    const browsers: FakeBrowser[] = [];
+    const r = router.registerHTTPRoute(
+      new PendingBrowserRoute(
+        (
+          _req: Request,
+          res: Parameters<typeof startBQLJSON>[0],
+          logger: Logger,
+          browser: FakeBrowser,
+        ) => {
+          browsers.push(browser);
+          return startBQLJSON(res, { data: 'ok' }, logger);
+        },
+        true,
+      ),
+    );
+    const first = makeRes();
+    const second = makeRes();
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+    });
+    try {
+      await run(r, makeReq('/chromium'), first);
+      const next = run(r, makeReq('/chromium'), second);
+      await clock.tickAsync(101);
+      expect(browsers.map((b) => b.closed)).to.deep.equal([1]);
+      expect(hooks.after.callCount).to.equal(1);
+      expect(limiter.waiting).to.equal(1);
+      expect(lc.snapshot().tracked['http-delivery']).to.equal(1);
+      first.emit('finish');
+      await next;
+      second.emit('close');
+      await flush();
+      expect(browsers.map((b) => b.closed)).to.deep.equal([1, 1]);
+      expect(hooks.after.callCount).to.equal(2);
+      expect(limiter.length).to.equal(0);
+      expect(lc.snapshot().tracked['http-delivery']).to.be.undefined;
+    } finally {
+      clock.restore();
+      first.emit('close');
+      second.emit('close');
+    }
+  });
 
   for (const existing of [false, true]) {
     for (const declared of [false, true]) {

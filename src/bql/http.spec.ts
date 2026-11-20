@@ -6,6 +6,7 @@ import {
   ServerResponse,
 } from 'node:http';
 import { once } from 'node:events';
+import Sinon from 'sinon';
 import type { AddressInfo } from 'node:net';
 import { Writable } from 'node:stream';
 import { setImmediate } from 'node:timers/promises';
@@ -13,7 +14,13 @@ import {
   BrowserQL,
   Context,
   BQLBrowserAPIOptions,
+  Config,
+  Hooks,
+  Limiter,
+  Metrics,
+  Monitoring,
   Request,
+  WebHooks,
 } from '@browserless.io/browserless';
 import { handleBQLHTTP, writeBQLJSON } from './http.js';
 
@@ -24,8 +31,19 @@ describe('BrowserQL HTTP transport', () => {
   } as unknown as BQLBrowserAPIOptions;
 
   for (const outcome of ['finish', 'close'] as const) {
-    it(`reserves delivery capacity before execution until ${outcome}`, async () => {
-      let executed = 0;
+    it(`keeps queued and bypass jobs waiting before launch until ${outcome}`, async () => {
+      const config = new Config();
+      config.setConcurrent(1);
+      config.setQueued(1);
+      const hooks = Sinon.createStubInstance(Hooks);
+      const limiter = new Limiter(
+        config,
+        new Metrics(),
+        Sinon.createStubInstance(Monitoring),
+        Sinon.createStubInstance(WebHooks),
+        hooks,
+      );
+      const launches: string[] = [];
       let closed = 0;
       const bql = {
         capabilities: [],
@@ -34,33 +52,53 @@ describe('BrowserQL HTTP transport', () => {
             closed++;
           },
         }),
-        execute: async () => {
-          executed++;
-          return { data: 'ok' };
-        },
+        execute: async () => ({ data: 'ok' }),
       } as unknown as BrowserQL;
       const response = () =>
         new ServerResponse({ method: 'POST' } as IncomingMessage);
-      const run = (res: ServerResponse) =>
-        handleBQLHTTP(
-          { body: { query: '{ version }' } } as Request,
-          res,
-          {} as BQLBrowserAPIOptions['browser'],
-          bql,
-          options,
-        );
-      const first = response();
-      await run(first);
-      assert.equal(closed, 1);
-      await assert.rejects(run(response()), { name: 'TooManyRequests' });
-      assert.equal(executed, 1);
-      first.emit(outcome);
-      const next = response();
-      await run(next);
-      first.emit('close');
-      await assert.rejects(run(response()), { name: 'TooManyRequests' });
-      next.emit('close');
-      assert.equal(executed, 2);
+      const run = limiter.limit(
+        async (label: string, res: ServerResponse) => {
+          launches.push(label);
+          await handleBQLHTTP(
+            { body: { query: '{ version }' } } as Request,
+            res,
+            {} as BQLBrowserAPIOptions['browser'],
+            bql,
+            options,
+          );
+        },
+        () => {},
+        () => {},
+        () => undefined,
+        (label) => label === 'bypass',
+      );
+      const responses = [response(), response(), response()];
+      try {
+        await run('first', responses[0]);
+        await setImmediate();
+        assert.equal(closed, 1);
+        assert.equal(hooks.after.callCount, 1, 'billing ends at handoff');
+        assert.equal(limiter.executing, 1, 'delivery retains the normal slot');
+        const queued = run('queued', responses[1]);
+        await assert.rejects(run('over capacity', response()), {
+          name: 'TooManyRequests',
+        });
+        const bypass = run('bypass', responses[2]);
+        assert.deepEqual(launches, ['first']);
+        responses[0].emit(outcome);
+        await queued;
+        assert.deepEqual(launches, ['first', 'queued']);
+        responses[1].emit(outcome);
+        await bypass;
+        responses[2].emit(outcome);
+        await setImmediate();
+        assert.deepEqual(launches, ['first', 'queued', 'bypass']);
+        assert.equal(closed, 3);
+        assert.equal(hooks.after.callCount, 3);
+        assert.equal(limiter.length, 0);
+      } finally {
+        for (const res of responses) res.emit('close');
+      }
     });
   }
 
@@ -289,6 +327,32 @@ describe('BrowserQL HTTP transport', () => {
     );
     assert.ok(Date.now() - start > 100);
     assert.ok(res.writableFinished);
+  });
+
+  it('ends a progressing download at the overall delivery deadline', async () => {
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'performance'],
+    });
+    const res = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _encoding, done) {
+        setTimeout(done, 20_000);
+      },
+    });
+    try {
+      const writing = writeBQLJSON(
+        res as unknown as ServerResponse,
+        'x'.repeat(2 * 1024 * 1024),
+      ).catch((error) => error);
+      await clock.tickAsync(299_999);
+      assert.equal(res.destroyed, false);
+      await clock.tickAsync(1);
+      assert.equal(res.destroyed, true);
+      assert.match(String(await writing), /deadline/);
+    } finally {
+      res.destroy();
+      clock.restore();
+    }
   });
 
   it('waits for a slow consumer to drain before writing more', async () => {

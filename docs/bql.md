@@ -27,7 +27,11 @@ curl 'http://localhost:3000/chromium/bql?token=YOUR_TOKEN' \
   --data '{"query":"mutation { goto(url: \"https://example.com\") { status } title { title } }"}'
 ```
 
-Each request owns one browser context, which is closed after the result is sent.
+Each request owns one browser context. The browser can be released as soon as
+the result starts sending. A blocked HTTP write has 30 seconds to progress;
+the entire transfer, including the final flush, has a five-minute deadline.
+If delivery times out after headers are sent, the connection closes without a
+second response. Treat an incomplete JSON body as a failed download.
 Inspect both the HTTP status and the GraphQL `errors` array; a successfully
 delivered GraphQL response is not necessarily a successful operation.
 Subscriptions require the WebSocket transport.
@@ -236,8 +240,10 @@ retaining block and line-break separators. Explicit waits accept durations from
 0 through 2147483647 ms; larger values are rejected rather than overflowing timers.
 WebSocket subscription events pause while more than 16 MiB is queued. If the
 buffer does not drain below that threshold within five seconds, the connection
-closes with code `1013`. This grace period lets large query/mutation responses
-flush without immediately terminating concurrent subscriptions.
+closes with code `1013`. Independently, a fragment write that makes no progress
+for 15 seconds terminates the socket and releases the session. A blocked socket
+may not receive a close frame. This deadline resets after each successful write;
+it is not a time limit on the whole message.
 
 CSS selectors support shadow roots. Deep selectors beginning with `<` are not
 supported. `userAgent` applies an ordinary browser user-agent override. Window
