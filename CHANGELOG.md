@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.64.1](https://github.com/browserless/browserless/compare/v2.64.0...v2.64.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* preserve nested BrowserQL ordering and stream large responses ([#5700](https://github.com/browserless/browserless/issues/5700)) ([2cacdcf](https://github.com/browserless/browserless/commit/2cacdcfb497a22acf15878e1ca90ff1f6b781353))
+
+
+### Build System & Runtime
+
+* bump the minor-and-patch group with 4 updates ([#5701](https://github.com/browserless/browserless/issues/5701)) ([b0368fe](https://github.com/browserless/browserless/commit/b0368fedffe2b50dbbd86eed221a273edfb3d399))
+
 ## [2.64.0](https://github.com/browserless/browserless/compare/v2.63.2...v2.64.0) (2026-11-19)
 
 
