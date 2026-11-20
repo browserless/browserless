@@ -69,6 +69,8 @@ const messageOf = (error: unknown) =>
 /** Owns one socket's context, operation IDs and serial execution queue. */
 export class BQLWebSocketSession {
   private operations = new Map<string, Operation>();
+  // In permissive mode a complete separates queued uses of an ID from later reuse.
+  private queued = new Map<string, { count: number }>();
   private queue = Promise.resolve();
   private output = Promise.resolve();
   private initialized = false;
@@ -97,6 +99,7 @@ export class BQLWebSocketSession {
         browser.off('close', onDisconnected);
         unsubscribe();
         this.client.off('message', onMessage);
+        this.queued.clear();
         for (const id of this.operations.keys()) this.cancel(id);
         this.context.close().then(resolve, reject);
       });
@@ -280,7 +283,10 @@ export class BQLWebSocketSession {
           if (strict) this.client.close(4400, 'Invalid operation ID');
           return;
         }
-        if (!strict && !this.operations.get(id)?.subscription) return;
+        if (!strict) {
+          this.queued.delete(id);
+          if (!this.operations.get(id)?.subscription) return;
+        }
         this.cancel(id);
         return;
       case 'subscribe': {
@@ -312,14 +318,21 @@ export class BQLWebSocketSession {
           return;
         }
         const operation: Operation = {};
-        if (strict) this.operations.set(id, operation);
-        this.enqueue(() => {
-          if (!strict) {
+        if (strict) {
+          this.operations.set(id, operation);
+          this.enqueue(() => this.execute(id, payload, operation));
+        } else {
+          const group = this.queued.get(id) ?? { count: 0 };
+          group.count++;
+          this.queued.set(id, group);
+          this.enqueue(() => {
+            const completed = this.queued.get(id) !== group;
+            if (!completed && --group.count === 0) this.queued.delete(id);
             this.cancel(id);
             this.operations.set(id, operation);
-          }
-          return this.execute(id, payload, operation);
-        });
+            return this.execute(id, payload, operation, completed);
+          });
+        }
         return;
       }
       default:
@@ -344,19 +357,23 @@ export class BQLWebSocketSession {
     id: string,
     payload: Payload,
     operation: Operation,
+    completedWhileQueued = false,
   ): Promise<void> {
     if (!this.active(id, operation)) return;
     try {
-      this.options.onOperation?.({
-        id,
-        request: payload,
-        protocol: BQL_WEBSOCKET_PROTOCOL,
-      });
+      const notify = () =>
+        this.options.onOperation?.({
+          id,
+          request: payload,
+          protocol: BQL_WEBSOCKET_PROTOCOL,
+        });
+      if (!completedWhileQueued) notify();
       // Parsing here selects the transport path; schema validation remains in the service.
       let document;
       try {
         document = parse(payload.query);
       } catch (error) {
+        if (completedWhileQueued) notify();
         await this.fail(
           id,
           operation,
@@ -368,6 +385,13 @@ export class BQLWebSocketSession {
       operation.subscription =
         getOperationAST(document, payload.operationName)?.operation ===
         'subscription';
+      if (completedWhileQueued) {
+        if (operation.subscription) {
+          this.operations.delete(id);
+          return;
+        }
+        notify();
+      }
       const result = await (operation.subscription
         ? this.bql.subscribe(payload, this.context)
         : this.bql.execute(payload, this.context));

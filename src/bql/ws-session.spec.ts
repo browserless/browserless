@@ -261,6 +261,36 @@ describe('BrowserQL WebSocket transport', () => {
     assert.deepEqual(socket.frames.at(-1), { id: 'after', type: 'complete' });
   });
 
+  it('skips completed queued subscriptions but permits ID reuse in permissive mode', async () => {
+    const gate = deferred<void>();
+    service.execute = async () => {
+      await gate.promise;
+      return { data: { run: true } };
+    };
+    const subscriptions: unknown[] = [];
+    service.subscribe = async ({ query }) => {
+      subscriptions.push(query);
+      return (async function* () {
+        yield { data: { event: true } };
+      })();
+    };
+    start({ strictProtocol: false });
+    subscribe('gate');
+    await setImmediate();
+    subscribe('same', 'subscription { cancelled }');
+    socket.receive({ type: 'complete', id: 'same' });
+    subscribe('same', 'subscription { control }');
+    subscribe('mutation');
+    socket.receive({ type: 'complete', id: 'mutation' });
+    gate.resolve();
+    await setImmediate();
+    assert.deepEqual(subscriptions, ['subscription { control }']);
+    assert.deepEqual(
+      socket.frames.filter((f) => f.type === 'next').map((f) => f.id),
+      ['gate', 'same', 'mutation'],
+    );
+  });
+
   it('retains running mutation results after complete in permissive mode', async () => {
     const pending = deferred<any>();
     service.execute = () => pending.promise;
