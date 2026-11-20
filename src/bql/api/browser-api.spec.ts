@@ -92,6 +92,29 @@ test('page metadata remains available when content readback is blocked', async (
   );
 });
 
+test('response readback policy can differ from page capture policy', async () => {
+  class ResponseAPI extends API {
+    protected override async beforeReadback() {
+      throw new Error('CaptureBlocked');
+    }
+    protected override async beforeResponseBodyReadback() {}
+  }
+  const api = new ResponseAPI();
+  api.client.handler = () => ({
+    body: 'response payload',
+    base64Encoded: false,
+  });
+  assert.deepEqual(await api.getResponseBody('r'), {
+    body: 'response payload',
+    base64Encoded: false,
+  });
+  await assert.rejects(
+    api.evaluate({ content: 'document.body.innerText' }),
+    /CaptureBlocked/,
+  );
+  await api.close();
+});
+
 test('evaluate handles long semicolon sequences without blocking', async function () {
   this.timeout(1000);
   const api = new API();
@@ -230,6 +253,11 @@ test('navigation listeners precede dispatch and return document metadata', async
   const api = new API();
   api.client.handler = (method) => {
     if (method === 'Page.navigate') {
+      api.client.emit('Page.navigatedWithinDocument', {
+        frameId: 'main',
+        url: 'https://example.com/old#beforeunload',
+        navigationType: 'historyApi',
+      });
       api.client.emit('Network.responseReceived', {
         type: 'Document',
         loaderId: 'new',
@@ -243,6 +271,11 @@ test('navigation listeners precede dispatch and return document metadata', async
       });
       api.client.emit('Page.frameNavigated', {
         frame: { id: 'main', loaderId: 'new', url: 'https://example.com/' },
+      });
+      api.client.emit('Page.navigatedWithinDocument', {
+        frameId: 'main',
+        url: 'https://example.com/rewritten',
+        navigationType: 'historyApi',
       });
       api.client.emit('Page.lifecycleEvent', {
         frameId: 'main',
@@ -462,6 +495,8 @@ test('strict idle grace resets on a new document and remains bounded for stalled
 test('fulfill preserves bytes and emits unambiguous content headers', async () => {
   for (const [body, expected] of [
     [{ body: 'é' }, Buffer.from('é')],
+    [{ body: 'hello', base64Body: null }, Buffer.from('hello')],
+    [{ base64Body: 'YR==' }, Buffer.from('a')],
     [{ base64Body: 'AP8B/g==' }, Buffer.from([0, 255, 1, 254])],
   ] as const) {
     const api = new API();
@@ -492,6 +527,39 @@ test('fulfill preserves bytes and emits unambiguous content headers', async () =
     ]);
     await api.close();
   }
+});
+
+test('fulfill rejects invalid status and body rules before intercepting requests', async () => {
+  const api = new API();
+  for (const status of [99, 600, 1000, 200.5, NaN])
+    await assert.rejects(api.fulfill({ url: ['*'], status }), BadRequest);
+  for (const base64Body of ['%%%not-base64%%%', 'a', 'a===', 'AA=A'])
+    await assert.rejects(api.fulfill({ url: ['*'], base64Body }), BadRequest);
+  for (const base64Body of ['', 'AP8B/g==', 'AP8B/g'])
+    await api.fulfill({ url: ['*'], status: 201, base64Body });
+  await api.close();
+});
+
+test('a rejected fulfillment fails the paused request instead of stranding it', async () => {
+  const api = new API();
+  await api.setup();
+  await api.fulfill({ url: ['*'], body: 'hello' });
+  api.client.handler = (method) => {
+    if (method === 'Fetch.fulfillRequest') throw new Error('Rejected by CDP');
+    return {};
+  };
+  api.client.emit('Fetch.requestPaused', {
+    requestId: 'rejected',
+    request: { url: 'https://example.com/', method: 'GET' },
+    resourceType: 'XHR',
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    api.client.calls.find((call) => call.method === 'Fetch.failRequest')
+      ?.params,
+    { requestId: 'rejected', errorReason: 'Failed' },
+  );
+  await api.close();
 });
 
 test('ordered Fetch dispatcher sends exactly one terminal action', async () => {
@@ -1648,9 +1716,63 @@ test('response fallback reads preserve decoded-body semantics and serialize conc
   await api.close();
 });
 
+for (const phase of ['initial', 'queued', 'invalidated'] as const) {
+  test(`response body readback abandons ${phase} policy waits safely`, async () => {
+    let release!: () => void;
+    let calls = 0;
+    class Paused extends API {
+      protected override async beforeResponseBodyReadback() {
+        if (++calls === (phase === 'initial' ? 1 : 2))
+          await new Promise<void>((resolve) => (release = resolve));
+      }
+    }
+    const api = new Paused();
+    await api.setup();
+    const seen: string[] = [];
+    api.client.handler = (method, params) => {
+      if (method === 'Network.getResponseBody') seen.push(params.requestId);
+      return { body: 'ok', base64Encoded: false };
+    };
+    const response = () =>
+      api.client.emit('Network.responseReceived', {
+        requestId: 'old',
+        type: 'Fetch',
+        response: { url: 'https://example.com', status: 200, headers: {} },
+      });
+    try {
+      response();
+      api.client.emit('Network.dataReceived', {
+        requestId: 'old',
+        dataLength: 11_000_000,
+      });
+      api.client.emit('Network.loadingFinished', { requestId: 'old' });
+      const waiting = api.getResponseBody(
+        'old',
+        phase === 'invalidated' ? 1000 : 25,
+      );
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      if (phase === 'invalidated') {
+        response();
+        release();
+      }
+      assert.equal(await waiting, null);
+      assert.equal((await api.getResponseBody('fresh', 100))?.body, 'ok');
+      release();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.deepEqual(seen, ['fresh']);
+    } finally {
+      release?.();
+      await api.close();
+    }
+  });
+}
+
 test('timed-out fallback reads retain their slot until CDP settles', async () => {
   const api = new API();
   await api.setup();
+  const clock = Sinon.useFakeTimers({
+    toFake: ['Date', 'setTimeout', 'clearTimeout'],
+  });
   let finish!: (value: any) => void;
   let reads = 0;
   api.client.handler = (method) => {
@@ -1670,15 +1792,25 @@ test('timed-out fallback reads retain their slot until CDP settles', async () =>
     dataLength: 11_000_000,
   });
   api.client.emit('Network.loadingFinished', { requestId: 'slow' });
-  assert.equal(await api.getResponseBody('slow', 10), null);
-  assert.equal(await api.getResponseBody('slow', 10), null);
-  assert.equal(reads, 1);
-  finish({ body: 'late', base64Encoded: false });
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(reads, 1);
-  api.client.handler = () => ({ body: 'recovered', base64Encoded: false });
-  assert.equal((await api.getResponseBody('slow', 100))?.body, 'recovered');
-  await api.close();
+  try {
+    const first = api.getResponseBody('slow', 10);
+    await clock.tickAsync(10);
+    assert.equal(await first, null);
+    const second = api.getResponseBody('slow', 10);
+    await clock.tickAsync(10);
+    assert.equal(await second, null);
+    assert.equal(reads, 1);
+    // A caller that already timed out stays abandoned even if the wall clock moves back.
+    clock.setSystemTime(0);
+    finish({ body: 'late', base64Encoded: false });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(reads, 1);
+    api.client.handler = () => ({ body: 'recovered', base64Encoded: false });
+    assert.equal((await api.getResponseBody('slow', 100))?.body, 'recovered');
+  } finally {
+    await api.close();
+    clock.restore();
+  }
 });
 
 for (const wait of [false, true]) {

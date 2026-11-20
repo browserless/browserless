@@ -27,7 +27,11 @@ curl 'http://localhost:3000/chromium/bql?token=YOUR_TOKEN' \
   --data '{"query":"mutation { goto(url: \"https://example.com\") { status } title { title } }"}'
 ```
 
-Each request owns one browser context, which is closed after the result is sent.
+Each request owns one browser context. The browser can be released as soon as
+the result starts sending. A blocked HTTP write has 30 seconds to progress;
+the entire transfer, including the final flush, has a five-minute deadline.
+If delivery times out after headers are sent, the connection closes without a
+second response. Treat an incomplete JSON body as a failed download.
 Inspect both the HTTP status and the GraphQL `errors` array; a successfully
 delivered GraphQL response is not necessarily a successful operation.
 Subscriptions require the WebSocket transport.
@@ -38,6 +42,11 @@ covers finding the element and waiting for navigation together. A click that
 does not navigate fails when that timeout expires. Same-document changes such
 as a hash update are not detected. Omit `waitUntil` or pass `null` for a plain
 click; its `navigation` result is `null`.
+
+The same limitation applies to `goto`, `back`, `forward`, and
+`waitForNavigation`: hash or `pushState` changes alone do not satisfy a
+navigation wait. The field returns `null` with a `Navigation timed out` error
+when its timeout expires.
 
 The `X-BQL-Capabilities` response header advertises the configured capabilities.
 You can also query them with GraphQL:
@@ -163,6 +172,9 @@ dispatched.
 WebSocket messages obey `MAX_PAYLOAD_SIZE` (10 MiB by default); oversized
 messages close the connection with code `1009` before GraphQL dispatch.
 
+HTTP results can be streamed without a `Content-Length` header. Read the
+response to completion rather than using that header to determine its size.
+
 Response-body capture uses decoded network size events to exclude bodies above
 20,000,000 bytes. Their metadata remains available with `body: null`. Base64
 expansion does not count toward that per-response limit. The retained body cache
@@ -219,6 +231,8 @@ returned instead; historical input errors are discarded. Targets are never silen
 skipped. Selecting by `targetId` takes precedence over patterns.
 The GraphQL `reject` and `fulfill` fields and SDK network
 filters offer `regex` as an alternative; other GraphQL URL/title filters do not.
+`fulfill(base64Body: ...)` accepts standard base64 with or without trailing
+padding. Do not include whitespace or line breaks.
 
 Readback cleanup does not modify the live page. HTML cleanup and URL rewriting
 use an inert document. Cleaned text excludes selected and hidden elements while
@@ -226,8 +240,10 @@ retaining block and line-break separators. Explicit waits accept durations from
 0 through 2147483647 ms; larger values are rejected rather than overflowing timers.
 WebSocket subscription events pause while more than 16 MiB is queued. If the
 buffer does not drain below that threshold within five seconds, the connection
-closes with code `1013`. This grace period lets large query/mutation responses
-flush without immediately terminating concurrent subscriptions.
+closes with code `1013`. Independently, a fragment write that makes no progress
+for 15 seconds terminates the socket and releases the session. A blocked socket
+may not receive a close frame. This deadline resets after each successful write;
+it is not a time limit on the whole message.
 
 CSS selectors support shadow roots. Deep selectors beginning with `<` are not
 supported. `userAgent` applies an ordinary browser user-agent override. Window

@@ -1,12 +1,18 @@
 import type { BrowserQL, Context } from '@browserless.io/browserless';
 import type { ExecutionResult, FormattedExecutionResult } from 'graphql';
 import { GraphQLError, getOperationAST, parse } from 'graphql';
+import { jsonChunks, prepareJSON } from './json.js';
 import type { RawData } from 'ws';
 import { WebSocket } from 'ws';
 
 export const BQL_WEBSOCKET_PROTOCOL = 'graphql-transport-ws';
+// Restart the deadline for each fragment, not for the entire response.
+const WRITE_PROGRESS_TIMEOUT_MS = 15_000;
 
-type Operation = { iterator?: AsyncIterator<ExecutionResult> };
+type Operation = {
+  subscription?: boolean;
+  iterator?: AsyncIterator<ExecutionResult>;
+};
 type Service = Pick<
   BrowserQL,
   'execute' | 'subscribe' | 'version' | 'capabilities'
@@ -64,8 +70,11 @@ const messageOf = (error: unknown) =>
 export class BQLWebSocketSession {
   private operations = new Map<string, Operation>();
   private queue = Promise.resolve();
+  private output = Promise.resolve();
   private initialized = false;
   private closed = false;
+  private cleanup?: () => void;
+  private pendingWrite?: (error?: Error) => void;
   private running?: Promise<void>;
   private sequence = 0;
 
@@ -80,15 +89,17 @@ export class BQLWebSocketSession {
     return (this.running ??= new Promise<void>((resolve, reject) => {
       const browser = this.context.getBrowserInstance();
       let unsubscribe = () => {};
-      const cleanup = () => {
+      const cleanup = (this.cleanup = () => {
         if (this.closed) return;
         this.closed = true;
+        this.pendingWrite?.(new Error('WebSocket closed'));
+        this.cleanup = undefined;
         browser.off('close', onDisconnected);
         unsubscribe();
         this.client.off('message', onMessage);
         for (const id of this.operations.keys()) this.cancel(id);
         this.context.close().then(resolve, reject);
-      };
+      });
       const onDisconnected = () => {
         this.client.close(1011, 'Browser session ended');
         cleanup();
@@ -98,9 +109,14 @@ export class BQLWebSocketSession {
         if (this.client.protocol === BQL_WEBSOCKET_PROTOCOL) this.receive(data);
         else this.enqueue(() => this.legacy(data));
       };
-      this.client.once('close', cleanup);
-      this.client.once('error', () => {
+      const onError = () => {
+        if (this.closed) return;
         this.client.close(1011, 'WebSocket error');
+        cleanup();
+      };
+      this.client.once('error', onError);
+      this.client.once('close', () => {
+        this.client.off('error', onError);
         cleanup();
       });
       this.client.on('message', onMessage);
@@ -112,10 +128,61 @@ export class BQLWebSocketSession {
     }));
   }
 
-  private send(value: unknown): void {
-    if (!this.closed && this.client.readyState === WebSocket.OPEN) {
-      this.client.send(JSON.stringify(value));
-    }
+  private async send(value: unknown, isActive?: () => boolean): Promise<void> {
+    const prepared = prepareJSON(value);
+    if (prepared === undefined) return;
+    const sending = this.output.then(async () => {
+      if (
+        this.closed ||
+        this.client.readyState !== WebSocket.OPEN ||
+        isActive?.() === false
+      )
+        return;
+      const chunks = jsonChunks(prepared)[Symbol.iterator]();
+      let current = chunks.next();
+      while (!current.done && !this.closed) {
+        const next = chunks.next();
+        await new Promise<void>((resolve, reject) => {
+          const finish = (error?: Error) => {
+            if (this.pendingWrite !== finish) return;
+            this.pendingWrite = undefined;
+            clearTimeout(timer);
+            if (error) reject(error);
+            else resolve();
+          };
+          this.pendingWrite = finish;
+          const timer = setTimeout(() => {
+            this.client.terminate();
+            this.cleanup?.();
+          }, WRITE_PROGRESS_TIMEOUT_MS);
+          try {
+            this.client.send(
+              current.value,
+              { binary: false, fin: !!next.done },
+              finish,
+            );
+          } catch (error) {
+            finish(error as Error);
+          }
+        });
+        current = next;
+      }
+    });
+    // Once a fragmented message has started, a failed write must end the
+    // connection: another JSON envelope cannot replace its remaining bytes.
+    this.output = sending.catch(() => {
+      if (!this.closed) {
+        this.client.close(1011, 'WebSocket write failed');
+        this.cleanup?.();
+      }
+    });
+    await sending;
+  }
+
+  private control(value: unknown): void {
+    void this.send(value).catch(() => {
+      if (!this.closed) this.client.close(1011, 'WebSocket write failed');
+    });
   }
 
   private format(result: FormattedExecutionResult): FormattedExecutionResult {
@@ -186,7 +253,7 @@ export class BQLWebSocketSession {
           return;
         }
         this.initialized = true;
-        this.send({
+        this.control({
           type: 'connection_ack',
           payload: {
             version: this.bql.version,
@@ -201,7 +268,7 @@ export class BQLWebSocketSession {
           return;
         }
         if (type === 'ping')
-          this.send({
+          this.control({
             type: 'pong',
             ...(payload === undefined || this.options.echoPingPayload === false
               ? {}
@@ -213,7 +280,7 @@ export class BQLWebSocketSession {
           if (strict) this.client.close(4400, 'Invalid operation ID');
           return;
         }
-        if (!strict && !this.operations.get(id)?.iterator) return;
+        if (!strict && !this.operations.get(id)?.subscription) return;
         this.cancel(id);
         return;
       case 'subscribe': {
@@ -233,7 +300,7 @@ export class BQLWebSocketSession {
           });
           if (strict) this.client.close(4400, 'Invalid subscribe message');
           else
-            this.send({
+            this.control({
               id,
               type: 'error',
               payload: [{ message: 'Invalid subscribe message' }],
@@ -290,7 +357,7 @@ export class BQLWebSocketSession {
       try {
         document = parse(payload.query);
       } catch (error) {
-        this.fail(
+        await this.fail(
           id,
           operation,
           error,
@@ -298,10 +365,10 @@ export class BQLWebSocketSession {
         );
         return;
       }
-      const subscription =
+      operation.subscription =
         getOperationAST(document, payload.operationName)?.operation ===
         'subscription';
-      const result = await (subscription
+      const result = await (operation.subscription
         ? this.bql.subscribe(payload, this.context)
         : this.bql.execute(payload, this.context));
       if (Symbol.asyncIterator in result) {
@@ -315,44 +382,66 @@ export class BQLWebSocketSession {
           this.client.close(1011, 'Internal server error'),
         );
       } else if (this.active(id, operation)) {
+        // Hold the execution queue through the write so a slow client cannot
+        // accumulate completed results from later operations on this socket.
         if (result.errors && !('data' in result))
-          this.send({ id, type: 'error', payload: this.format(result).errors });
+          await this.send(
+            {
+              id,
+              type: 'error',
+              payload: this.format(result).errors,
+            },
+            () => this.active(id, operation),
+          );
         else {
-          this.send({ id, type: 'next', payload: this.format(result) });
-          this.send({ id, type: 'complete' });
+          await this.send(
+            { id, type: 'next', payload: this.format(result) },
+            () => this.active(id, operation),
+          );
+          if (this.active(id, operation))
+            await this.send({ id, type: 'complete' }, () =>
+              this.active(id, operation),
+            );
         }
-        this.operations.delete(id);
+        if (this.operations.get(id) === operation) this.operations.delete(id);
         if (this.context.hasErrored())
           this.client.close(1011, 'Browser session ended');
       }
     } catch (error) {
-      this.fail(id, operation, error);
+      await this.fail(id, operation, error);
     }
   }
 
-  private fail(
+  private async fail(
     id: string,
     operation: Operation,
     error: unknown,
     formatted?: FormattedExecutionResult,
-  ): void {
+  ): Promise<void> {
     if (!this.active(id, operation)) return;
-    this.operations.delete(id);
     this.returnIterator(operation.iterator);
-    this.send({
-      id,
-      type: 'error',
-      payload: (
-        formatted ??
-        this.format({
-          errors: [
-            error instanceof GraphQLError
-              ? error
-              : { message: messageOf(error) },
-          ],
-        })
-      ).errors,
-    });
+    delete operation.iterator;
+    try {
+      await this.send(
+        {
+          id,
+          type: 'error',
+          payload: (
+            formatted ??
+            this.format({
+              errors: [
+                error instanceof GraphQLError
+                  ? error
+                  : { message: messageOf(error) },
+              ],
+            })
+          ).errors,
+        },
+        () => this.active(id, operation),
+      );
+    } finally {
+      if (this.operations.get(id) === operation) this.operations.delete(id);
+    }
     if (this.context.hasErrored())
       this.client.close(1011, 'Browser session ended');
   }
@@ -367,8 +456,10 @@ export class BQLWebSocketSession {
         const value = await iterator.next();
         if (!this.active(id, operation)) return;
         if (value.done) {
-          this.operations.delete(id);
-          this.send({ id, type: 'complete' });
+          await this.send({ id, type: 'complete' }, () =>
+            this.active(id, operation),
+          );
+          if (this.operations.get(id) === operation) this.operations.delete(id);
           return;
         }
         const drainDeadline = Date.now() + 5000;
@@ -383,10 +474,17 @@ export class BQLWebSocketSession {
           await new Promise((resolve) => setTimeout(resolve, 25));
         }
         if (!this.active(id, operation)) return;
-        this.send({ id, type: 'next', payload: this.format(value.value) });
+        await this.send(
+          {
+            id,
+            type: 'next',
+            payload: this.format(value.value),
+          },
+          () => this.active(id, operation),
+        );
       }
     } catch (error) {
-      this.fail(id, operation, error);
+      await this.fail(id, operation, error);
     }
   }
 
@@ -396,7 +494,9 @@ export class BQLWebSocketSession {
       body = JSON.parse(data.toString());
     } catch {
       this.invalid({ reason: 'invalid_json', message: 'Invalid JSON message' });
-      this.send(this.format({ errors: [{ message: 'Invalid JSON message' }] }));
+      await this.send(
+        this.format({ errors: [{ message: 'Invalid JSON message' }] }),
+      );
       return;
     }
     if (!validPayload(body) || !body.query) {
@@ -412,7 +512,7 @@ export class BQLWebSocketSession {
             ? body.operationName
             : undefined,
       });
-      this.send(
+      await this.send(
         this.format({
           errors: [
             {
@@ -429,11 +529,11 @@ export class BQLWebSocketSession {
         request: body,
         protocol: 'legacy',
       });
-      this.send(this.format(await this.bql.execute(body, this.context)));
+      await this.send(this.format(await this.bql.execute(body, this.context)));
       if (this.context.hasErrored())
         this.client.close(1011, 'Browser session ended');
     } catch (error) {
-      this.send(
+      await this.send(
         this.format({
           errors: [
             {

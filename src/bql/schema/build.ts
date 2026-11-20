@@ -47,14 +47,26 @@ const base = [
   ),
 );
 
+/** Discovery names are comma-separated HTTP tokens, not arbitrary header text. */
+export function assertBQLName(
+  name: string,
+  kind: 'module' | 'capability',
+): void {
+  if (!name || /[^!#$%&'*+.^_`|~0-9A-Za-z-]/.test(name))
+    throw new Error(
+      `Invalid ${kind} name ${JSON.stringify(name)}: expected a non-empty HTTP token`,
+    );
+}
+
 export function buildBQLSchema<API extends BQLBrowserAPI = BQLBrowserAPI>(
   modules: BQLModule<API>[] = [],
   query: Record<string, Resolver<API>> = {},
 ) {
   const names = new Set(['core']);
   for (const module of modules) {
-    if (!module.name.trim() || names.has(module.name))
-      throw new Error(`Duplicate or empty module name: ${module.name}`);
+    assertBQLName(module.name, 'module');
+    if (names.has(module.name))
+      throw new Error(`Duplicate module name: ${module.name}`);
     names.add(module.name);
   }
   const documents = modules.map(({ typeDefs }): DocumentNode =>

@@ -15,14 +15,30 @@ class Socket extends EventEmitter {
   readyState = 1;
   bufferedAmount = 0;
   frames: any[] = [];
+  sizes: number[] = [];
+  fragments: Buffer[] = [];
   code?: number;
-  send(data: string) {
-    this.frames.push(JSON.parse(data));
+  send(
+    data: string | Buffer,
+    options?: { fin?: boolean },
+    callback?: (error?: Error) => void,
+  ) {
+    const buffer = Buffer.from(data);
+    this.sizes.push(buffer.length);
+    this.fragments.push(buffer);
+    if (options?.fin !== false) {
+      this.frames.push(JSON.parse(Buffer.concat(this.fragments).toString()));
+      this.fragments = [];
+    }
+    callback?.();
   }
   close(code = 1000) {
     this.code = code;
     this.readyState = 3;
     this.emit('close');
+  }
+  terminate() {
+    this.readyState = 2; // Real ws emits close asynchronously after destruction.
   }
   receive(value: unknown) {
     this.emit('message', Buffer.from(JSON.stringify(value)));
@@ -88,6 +104,140 @@ describe('BrowserQL WebSocket transport', () => {
     await done;
   });
 
+  it('sends large results in bounded fragments as one complete message', async () => {
+    const value = 'α😀\\"'.repeat(100_000);
+    service.execute = async () => ({ data: { value } });
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('large');
+    await setImmediate();
+    assert.deepEqual(socket.frames.slice(1), [
+      { id: 'large', type: 'next', payload: { data: { value } } },
+      { id: 'large', type: 'complete' },
+    ]);
+    assert.ok(Math.max(...socket.sizes) <= 64 * 1024);
+  });
+
+  it('allows repeated seven-second write pauses with only one fragment outstanding', async () => {
+    const value = 'x'.repeat(192 * 1024);
+    service.execute = async () => ({ data: { value } });
+    const send = socket.send.bind(socket);
+    let resume: (() => void) | undefined;
+    Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+      send(data, options);
+      if (!options?.fin) resume = callback;
+      else callback?.();
+    });
+    const clock = Sinon.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+    });
+    try {
+      start();
+      socket.receive({ type: 'connection_init' });
+      subscribe('slow');
+      await setImmediate();
+      for (let i = 0; i < 3; i++) {
+        assert.ok(resume);
+        const before = socket.sizes.length;
+        await clock.tickAsync(7000);
+        assert.equal(socket.readyState, 1);
+        assert.equal(socket.sizes.length, before);
+        resume();
+        await setImmediate();
+      }
+      assert.deepEqual(socket.frames.at(-2), {
+        id: 'slow',
+        type: 'next',
+        payload: { data: { value } },
+      });
+      assert.deepEqual(socket.frames.at(-1), { id: 'slow', type: 'complete' });
+    } finally {
+      clock.restore();
+    }
+  });
+
+  it('finishes active output but drops queued output on cancellation without interleaving or pulling more values', async () => {
+    const value = 'body'.repeat(100_000);
+    let pulls = 0;
+    service.subscribe = async () =>
+      (async function* () {
+        pulls++;
+        yield { data: { value } };
+        pulls++;
+        yield { data: { value: 'unwanted' } };
+      })();
+    const send = socket.send.bind(socket);
+    let resume: (() => void) | undefined;
+    Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+      send(data, options);
+      if (options?.fin === false && !resume) resume = () => callback?.();
+      else callback?.();
+    });
+    start();
+    socket.receive({ type: 'connection_init' });
+    subscribe('stream', 'subscription { event }');
+    await setImmediate();
+    assert.ok(resume);
+    assert.equal(pulls, 1);
+    subscribe('queued', 'subscription { event }');
+    await setImmediate();
+    assert.equal(pulls, 2);
+    socket.receive({ type: 'complete', id: 'queued' });
+    socket.receive({ type: 'ping', payload: { nonce: 9 } });
+    socket.receive({ type: 'complete', id: 'stream' });
+    resume();
+    await setImmediate();
+    assert.deepEqual(socket.frames.slice(1), [
+      { id: 'stream', type: 'next', payload: { data: { value } } },
+      { type: 'pong', payload: { nonce: 9 } },
+    ]);
+    assert.equal(pulls, 2);
+  });
+
+  for (const terminal of ['next', 'complete', 'error', 'permissive-error']) {
+    it(`preserves reused IDs while canceled ${terminal} output waits behind another message`, async () => {
+      service.subscribe = async ({ query }) =>
+        (async function* () {
+          if (typeof query === 'string' && query.includes('blocker'))
+            yield { data: { value: 'x'.repeat(100_000) } };
+          else if (terminal.endsWith('error')) throw new Error('stale');
+        })();
+      const send = socket.send.bind(socket);
+      let resume: (() => void) | undefined;
+      Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+        send(data, options);
+        if (options?.fin === false && !resume) resume = () => callback?.();
+        else callback?.();
+      });
+      start({ strictProtocol: terminal !== 'permissive-error' });
+      socket.receive({ type: 'connection_init' });
+      subscribe('blocker', 'subscription { blocker }');
+      await setImmediate();
+      assert.ok(resume);
+      subscribe(
+        'reuse',
+        terminal === 'next' ? 'mutation { run }' : 'subscription { event }',
+      );
+      await setImmediate();
+      socket.receive({ type: 'complete', id: 'reuse' });
+      if (terminal !== 'permissive-error') subscribe('reuse');
+      socket.receive({ type: 'complete', id: 'blocker' });
+      resume();
+      await setImmediate();
+      if (terminal === 'permissive-error') {
+        subscribe('reuse');
+        await setImmediate();
+      }
+      assert.deepEqual(
+        socket.frames.filter((frame) => frame.id === 'reuse'),
+        [
+          { id: 'reuse', type: 'next', payload: { data: { run: true } } },
+          { id: 'reuse', type: 'complete' },
+        ],
+      );
+    });
+  }
+
   it('can retain permissive control frames and queued duplicate IDs', async () => {
     start({ strictProtocol: false, echoPingPayload: false });
     subscribe('same');
@@ -98,6 +248,7 @@ describe('BrowserQL WebSocket transport', () => {
     socket.receive({ type: 'connection_init' });
     socket.receive({ type: 'ping', payload: 'nonce' });
     socket.receive({ type: 'subscribe', id: 'bad', payload: {} });
+    await setImmediate();
     assert.deepEqual(socket.frames.at(-2), { type: 'pong' });
     assert.deepEqual(socket.frames.at(-1), {
       id: 'bad',
@@ -178,21 +329,61 @@ describe('BrowserQL WebSocket transport', () => {
     });
   });
 
-  it('delivers a large response when no outgoing data is queued', async () => {
-    const value = 'x'.repeat(17 * 1024 * 1024);
-    service.execute = async () => ({ data: { value } });
-    start();
-    socket.receive({ type: 'connection_init' });
-    subscribe('large');
-    await setImmediate();
-    assert.deepEqual(socket.frames[1], {
-      id: 'large',
-      type: 'next',
-      payload: { data: { value } },
+  for (const protocol of ['', 'graphql-transport-ws']) {
+    it(`releases a stalled ${protocol || 'legacy'} write without waiting for a close event`, async () => {
+      socket.protocol = protocol;
+      const clock = Sinon.useFakeTimers({
+        toFake: ['setTimeout', 'clearTimeout'],
+      });
+      try {
+        const value = 'x'.repeat(65 * 1024);
+        let returned = false;
+        service.execute = async () => ({ data: { value } });
+        service.subscribe = async () =>
+          (async function* () {
+            try {
+              yield { data: { value } };
+            } finally {
+              returned = true;
+            }
+          })();
+        start();
+        if (protocol) socket.receive({ type: 'connection_init' });
+        await setImmediate();
+        let late: (() => void) | undefined;
+        const writes = Sinon.stub(socket, 'send').callsFake(
+          (_, __, callback) => {
+            late = callback;
+          },
+        );
+        const request = () =>
+          protocol
+            ? subscribe('a', 'subscription { event }')
+            : socket.receive({ query: '{ version }' });
+        request();
+        await setImmediate();
+        assert.ok(late);
+        assert.equal(writes.firstCall.args[1]?.fin, false);
+        if (protocol) socket.receive({ type: 'ping' });
+        else request();
+        await clock.tickAsync(30_000);
+        assert.equal(closed, 1);
+        assert.equal(socket.readyState, 2);
+        await done;
+        late();
+        await setImmediate();
+        assert.equal(writes.callCount, 1);
+        if (protocol) assert.equal(returned, true);
+        assert.equal(browser.listenerCount('close'), 0);
+        assert.equal(socket.listenerCount('message'), 0);
+        assert.equal(clock.countTimers(), 0);
+      } finally {
+        clock.restore();
+      }
     });
-  });
+  }
 
-  it('closes a client whose outgoing buffer exceeds the limit', async () => {
+  it('closes when bufferedAmount stays above the subscription admission limit', async () => {
     service.subscribe = async () =>
       (async function* () {
         yield { data: { event: true } };
@@ -212,7 +403,7 @@ describe('BrowserQL WebSocket transport', () => {
     }
   });
 
-  it('waits for a large response to drain before sending subscription events', async () => {
+  it('delays subscription output until bufferedAmount falls below the limit', async () => {
     service.subscribe = async () =>
       (async function* () {
         yield { data: { event: true } };

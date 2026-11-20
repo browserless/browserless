@@ -11,6 +11,7 @@ import {
   WorkerLifecycle,
   WorkerWithdrawn,
 } from '@browserless.io/browserless';
+import { pendingBQLDeliveries } from './bql/http.js';
 import q from 'queue';
 
 export type LimitFn<TArgs extends unknown[], TResult> = (
@@ -36,6 +37,7 @@ export class Limiter extends q {
   protected logger = new Logger('limiter');
   protected lifecycle = new WorkerLifecycle();
   #activeJobs = new Set<Job>();
+  #deliveryWorkers = new WeakSet<object>();
 
   constructor(
     protected config: Config,
@@ -69,6 +71,38 @@ export class Limiter extends q {
       this.logger.debug(`Timeout updated to ${timeout}ms`);
       this.timeout = timeout <= 0 ? 0 : timeout;
     });
+
+    // queue dispatches completion before it starts the next waiting job. Give
+    // the released slot to the outstanding transfer, ahead of fresh launches.
+    // The original job still ends (billing, browser timeout and hooks) now.
+    for (const event of ['start', 'success', 'error', 'timeout'] as const) {
+      this.addEventListener(event, (evt) => {
+        const job = (evt.detail as { job?: Job }).job;
+        if (job && this.#deliveryWorkers.has(job)) {
+          evt.stopImmediatePropagation(); // Not a second session.
+          return;
+        }
+        if (event === 'start' || !job?.args) return;
+        const delivery = pendingBQLDeliveries.get(job.args[1] as object);
+        if (!delivery) return;
+        this.lifecycle.track('http-delivery', delivery, {
+          owner: job.args[0] as object,
+        });
+        // The transfer owns its stall and total deadlines, not a job timeout.
+        const worker = Object.assign(() => delivery, { timeout: 0 });
+        this.#deliveryWorkers.add(worker);
+        this.unshift(worker);
+        if (this.indexOf(worker) !== -1) {
+          // A lowered concurrency can leave the capacity holder waiting
+          // behind running jobs even though its transfer is already in flight.
+          const removeIfWaiting = () => {
+            const index = this.indexOf(worker);
+            if (index !== -1) this.splice(index, 1);
+          };
+          void delivery.then(removeIfWaiting, removeIfWaiting);
+        }
+      });
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.addEventListener('timeout', this.handleJobTimeout.bind(this) as any);
@@ -146,8 +180,9 @@ export class Limiter extends q {
   public rejectWaiting(
     shouldReject: (req: unknown, route?: Route) => boolean,
   ): number {
-    const rejected = this.waitingJobs.filter((job) =>
-      shouldReject(job.args[0], job.route),
+    const rejected = this.waitingJobs.filter(
+      (job) =>
+        !this.#deliveryWorkers.has(job) && shouldReject(job.args[0], job.route),
     );
     for (const job of rejected) {
       this.splice(this.waitingJobs.indexOf(job), 1);
