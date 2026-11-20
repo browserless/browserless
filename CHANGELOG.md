@@ -22,7 +22,7 @@
 - Chrome: `158.0.8127.36` (amd64 only)
 - Firefox: `159.0`
 - Webkit: `27.2`
-- Edge: `157.0.4341.60` (amd64 only)
+- Edge: `158.0.4370.33` (amd64 only)
 
 <!-- browser-versions:end -->
 
