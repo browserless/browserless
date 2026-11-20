@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.64.2](https://github.com/browserless/browserless/compare/v2.64.1...v2.64.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* honor cancellation of queued BrowserQL subscriptions ([#5704](https://github.com/browserless/browserless/issues/5704)) ([d361a45](https://github.com/browserless/browserless/commit/d361a451458755af767e4475db3610961245b370))
+
 ## [2.64.1](https://github.com/browserless/browserless/compare/v2.64.0...v2.64.1) (2026-11-20)
 
 
