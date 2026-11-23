@@ -26,9 +26,9 @@ jobs:
         uses: nick-fields/retry@v4.0.0
         with:
           timeout_minutes: 10
-          max_attempts: 5
+          max_attempts: 3
           retry_wait_seconds: 30
-          command: docker build --build-arg NODE_VERSION="$NODE_VERSION" -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:"$NODE_VERSION" .
+          command: docker build --build-arg NODE_VERSION="$NODE_VERSION" --build-arg APT_MIRROR=azure.archive.ubuntu.com -f ./docker/base/Dockerfile -t ghcr.io/browserless/base:"$NODE_VERSION" .
 
       - name: Build the Edge image
         uses: nick-fields/retry@v4.0.0
