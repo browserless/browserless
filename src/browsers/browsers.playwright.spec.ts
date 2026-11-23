@@ -1591,10 +1591,8 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
           });
           expect(argv).to.include('--window-size=800,600');
           expect(argv.includes('--no-sandbox')).to.equal(!sandboxed);
-          expect(argv).not.to.include.members([
-            '--disable-setuid-sandbox',
-            '--no-zygote=1',
-          ]);
+          expect(argv).not.to.include('--disable-setuid-sandbox');
+          expect(argv).not.to.include('--no-zygote=1');
         },
       );
     }

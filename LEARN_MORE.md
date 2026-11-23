@@ -23,6 +23,9 @@ only the exact value `false` keeps it off; values like `0` or an empty string
 enable it. When off, Playwright callers can still opt in with
 `chromiumSandbox: true`.
 
+This setting configures browser launch defaults. It does not make untrusted
+browser launch options safe; only accept launch options from trusted callers.
+
 ### Hosting Providers
 
 We offer a first-class hosted product located [here](https://browserless.io). Alternatively you can host this image on just about any major platform that offers hosting for docker. Our hosted service takes care of all the machine provisioning, notifications, dashboards and monitoring plus more:
