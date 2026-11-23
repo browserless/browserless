@@ -49,10 +49,25 @@ export function matchesGlob(value: string, pattern: string): boolean {
       // Non-ASCII identity escapes are literals in JavaScript but invalid in
       // RE2. Leave ASCII escapes (including regex metacharacters) untouched.
       source = source.replace(/\\([\u0080-\uFFFF])/g, '$1');
-      // micromatch's literal-prefix fastpath excludes dotted path segments
-      // throughout its stars. Enforce that with a linear string check only
-      // for picomatch's literal-prefix fastpath (which has no literal slash).
       const dotSegments = '(?:(?:(?!(?:^|\\/)\\.).)*?)';
+      // A leading **/ consumes zero or more non-hidden (possibly empty)
+      // segments. Picomatch emits a different prefix for its extension fastpath.
+      const directories = '(?:(?:[^./][^/]*)?/)*';
+      if (positive.startsWith('**/')) {
+        source = source
+          .replace(`^(?:(?:^|\\/|${dotSegments}\\/)`, `^(?:${directories}`)
+          .replace(`^(?:(?:(?!\\.)${dotSegments}\\/)?`, `^(?:${directories}`);
+      }
+      // After the explicit slash in a trailing /**, the first character may
+      // be a dot: the assertion checks slash-dot pairs *inside* the globstar.
+      if (positive.endsWith('/**')) {
+        source = source.replace(
+          `(?:\\/${dotSegments}|$))$`,
+          '(?:/[^/]*(?:/(?:[^./][^/]*)?)*)?)$',
+        );
+      }
+      // The literal-prefix fastpath has no literal slash, so its remaining
+      // dot-segment assertions can use a linear whole-value check.
       const excludeDotSegments = source.includes(dotSegments);
       if (excludeDotSegments) {
         if (/(^[*!?]|[/()[\]{}"\\]|\*\*)/.test(positive)) throw new Error();

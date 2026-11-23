@@ -210,11 +210,16 @@ backreferences are unsupported; invalid or unsupported patterns fail when the
 filter is registered. This also applies to SDK `request` and `response` filters.
 Cleanup replacements are case-insensitive. URL and title globs are compiled to
 RE2 with a 200-character limit. Common `*`/`?` wildcards, brace alternatives,
-character classes and leading negation are supported; wildcard segments exclude
-leading dots. Supported examples include `*/*`, `*/*.png`, `*/*.js`, `cdn.*`,
+character classes (such as `[0-9]`) and leading negation are supported.
+Leading and trailing globstars work in URL patterns such as `**/posts/**`,
+`**/*.png` and `https://example.com/**`. A leading `**/` can match zero
+directories, and a trailing `/**` can match the prefix without a slash.
+Dot handling follows bash-style micromatch, not a blanket hidden-path filter:
+`**/*.png` matches `assets/.icons/a.png` but not `.icons/a.png`.
+Other supported examples include `*/*`, `*/*.png`, `*/*.js`, `cdn.*`,
 `example.com*`, `www.example.com*`, `*.*`, `Slow *opup`, `Order * confirmed`
 and `a*b*c`.
-Patterns requiring unsupported assertions (including globstar, negative extglobs
+Patterns requiring unsupported assertions (including bare `**`, `a/**/b`, negative extglobs
 and some grouped stars such as `http://example.test/{a,lib/*}.js`), invalid
 character ranges, quoted/escaped patterns and `./` normalization return an
 explicit input error rather than silently matching literally. Globs preserve
