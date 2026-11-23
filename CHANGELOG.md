@@ -14,6 +14,20 @@
 * bump base image npm to 11.21.3 ([#5709](https://github.com/browserless/browserless/issues/5709)) ([2cf852a](https://github.com/browserless/browserless/commit/2cf852a5a0a7bd8b4f07267dbc14c82d23005261))
 * bump puppeteer-core from 25.17.0 to 25.18.1 in the minor-and-patch group ([#5706](https://github.com/browserless/browserless/issues/5706)) ([10ed26b](https://github.com/browserless/browserless/commit/10ed26b797211ba9f3b68e6fe3f735cffca961bb))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.18.1`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.36` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `158.0.4370.33` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.64.2](https://github.com/browserless/browserless/compare/v2.64.1...v2.64.2) (2026-11-20)
 
 
