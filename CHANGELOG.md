@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.64.3](https://github.com/browserless/browserless/compare/v2.64.2...v2.64.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* support leading and trailing URL globstars ([#5710](https://github.com/browserless/browserless/issues/5710)) ([a7a1844](https://github.com/browserless/browserless/commit/a7a18448e7c62c7c0165b44f8eb9105c4cbf5c39))
+
+
+### Build System & Runtime
+
+* bump actions/create-github-app-token from 3.3.0 to 3.4.0 in the github-actions group ([#5707](https://github.com/browserless/browserless/issues/5707)) ([fd9ba21](https://github.com/browserless/browserless/commit/fd9ba21716bf71d9782e01244f1a66e20115e622))
+* bump base image npm to 11.21.3 ([#5709](https://github.com/browserless/browserless/issues/5709)) ([2cf852a](https://github.com/browserless/browserless/commit/2cf852a5a0a7bd8b4f07267dbc14c82d23005261))
+* bump puppeteer-core from 25.17.0 to 25.18.1 in the minor-and-patch group ([#5706](https://github.com/browserless/browserless/issues/5706)) ([10ed26b](https://github.com/browserless/browserless/commit/10ed26b797211ba9f3b68e6fe3f735cffca961bb))
+
 ## [2.64.2](https://github.com/browserless/browserless/compare/v2.64.1...v2.64.2) (2026-11-20)
 
 
