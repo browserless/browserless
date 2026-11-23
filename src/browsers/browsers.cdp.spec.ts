@@ -29,6 +29,61 @@ import WebSocket, { WebSocketServer } from 'ws';
 
 import { ChromiumCDP } from './browsers.cdp.js';
 
+describe('ChromiumCDP sandbox launch args', function () {
+  for (const sandbox of [true, false]) {
+    it(`keeps the Chrome sandbox ${sandbox ? 'on' : 'off'}`, async () => {
+      const original = process.env.CHROME_SANDBOX;
+      const originalPuppeteer = process.env.PUPPETEER_DANGEROUS_NO_SANDBOX;
+      const launchStopped = new Error('stop before starting Chrome');
+      const launch = sinon.stub(puppeteer, 'launch').rejects(launchStopped);
+      try {
+        process.env.CHROME_SANDBOX = String(sandbox);
+        process.env.PUPPETEER_DANGEROUS_NO_SANDBOX = 'true';
+        const browser = new ChromiumCDP({
+          config: new Config(),
+          logger: new Logger('test'),
+          blockAds: false,
+          userDataDir: null,
+        });
+        const clientArgs = [
+          '--window-size=800,600',
+          '--disable-setuid-sandbox',
+          '--no-zygote=1',
+          ' -no-zygote ',
+        ];
+        await browser
+          .launch({ options: { args: clientArgs } })
+          .catch((error) => {
+            expect(error).to.equal(launchStopped);
+          });
+        const options = launch.firstCall.args[0]!;
+        expect(options.args).to.deep.equal([
+          options.args![0],
+          ...(sandbox ? [] : ['--no-sandbox']),
+          '--no-first-run',
+          '--disable-features=LocalNetworkAccessChecks',
+          '--disable-component-update',
+          '--screen-info={1920x1080}',
+          ...(sandbox ? clientArgs.slice(0, 1) : clientArgs),
+        ]);
+        const effectiveArgs = (await puppeteer.defaultArgs(options)).filter(
+          (arg) =>
+            !Array.isArray(options.ignoreDefaultArgs) ||
+            !options.ignoreDefaultArgs.includes(arg),
+        );
+        expect(effectiveArgs.includes('--no-sandbox')).to.equal(!sandbox);
+      } finally {
+        launch.restore();
+        if (original === undefined) delete process.env.CHROME_SANDBOX;
+        else process.env.CHROME_SANDBOX = original;
+        if (originalPuppeteer === undefined)
+          delete process.env.PUPPETEER_DANGEROUS_NO_SANDBOX;
+        else process.env.PUPPETEER_DANGEROUS_NO_SANDBOX = originalPuppeteer;
+      }
+    });
+  }
+});
+
 describe('CDP context admission transport', () => {
   it('forwards an admitted message larger than Chromium’s receive buffer', async function () {
     this.timeout(60000);

@@ -277,6 +277,7 @@ export class Config extends EventEmitter {
   protected debuggerDir = path.join(this.static, 'debugger');
   protected retries = +(process.env.RETRIES ?? '5');
   protected allowFileProtocol = !!parseEnvVars(false, 'ALLOW_FILE_PROTOCOL');
+  protected chromeSandbox = !!parseEnvVars(false, 'CHROME_SANDBOX');
   protected allowGet = !!parseEnvVars(false, 'ALLOW_GET', 'ENABLE_API_GET');
   protected allowCors = !!parseEnvVars(false, 'CORS', 'ENABLE_CORS');
   protected corsMethods =
@@ -431,6 +432,9 @@ export class Config extends EventEmitter {
   }
   public getAllowFileProtocol(): boolean {
     return this.allowFileProtocol;
+  }
+  public getChromeSandbox(): boolean {
+    return this.chromeSandbox;
   }
   /**
    * Returns URL prefixes that the browser is not allowed to navigate to.

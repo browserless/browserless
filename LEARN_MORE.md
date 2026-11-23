@@ -15,6 +15,12 @@ You still execute the script itself which gives you total control over what libr
 2. Visit `http://localhost:3000/docs` to see the documentation site.
 3. See more at our [docker package](https://github.com/browserless/browserless/pkgs/container/base).
 
+Set `CHROME_SANDBOX=true` to run Chromium-based browsers with Chrome's sandbox.
+In a container, this requires a seccomp profile that allows `unshare`, `setns`,
+and `clone` for user namespaces. Chrome will fail to start if the host does not
+support its sandbox. The SDK defaults to `false`; when off, Playwright callers
+can still opt in with `chromiumSandbox: true`.
+
 ### Hosting Providers
 
 We offer a first-class hosted product located [here](https://browserless.io). Alternatively you can host this image on just about any major platform that offers hosting for docker. Our hosted service takes care of all the machine provisioning, notifications, dashboards and monitoring plus more:

@@ -2,6 +2,21 @@ import { expect } from 'chai';
 import { Config } from '@browserless.io/browserless';
 
 describe('Config', () => {
+  it('defaults Chrome sandboxing off and reads CHROME_SANDBOX', () => {
+    const original = process.env.CHROME_SANDBOX;
+    try {
+      delete process.env.CHROME_SANDBOX;
+      expect(new Config().getChromeSandbox()).to.equal(false);
+      process.env.CHROME_SANDBOX = 'true';
+      expect(new Config().getChromeSandbox()).to.equal(true);
+      process.env.CHROME_SANDBOX = 'false';
+      expect(new Config().getChromeSandbox()).to.equal(false);
+    } finally {
+      if (original === undefined) delete process.env.CHROME_SANDBOX;
+      else process.env.CHROME_SANDBOX = original;
+    }
+  });
+
   it('preserves an unset limit and snapshots valid operator byte limits', () => {
     const original = process.env.CDP_MAX_INBOUND_PAYLOAD;
     const legacy = process.env.WS_MAX_PAYLOAD;

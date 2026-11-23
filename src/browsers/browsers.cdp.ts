@@ -26,6 +26,7 @@ import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 import playwright from 'playwright-core';
 
+import { SANDBOX_DISABLING_ARGS, applySandboxPolicy } from './sandbox.js';
 import { bridgeCDPContexts } from './cdp-context-bridge.js';
 
 // @zorilla/puppeteer-extra's types still expect puppeteer's long-removed
@@ -447,6 +448,7 @@ export class ChromiumCDP extends EventEmitter {
       }
     }
 
+    const sandbox = this.config.getChromeSandbox();
     const finalOptions = {
       ...options,
       // Application shutdown owns these signals and awaits browser.close().
@@ -456,7 +458,7 @@ export class ChromiumCDP extends EventEmitter {
       handleSIGHUP: false,
       args: [
         `--remote-debugging-port=${this.port}`,
-        `--no-sandbox`,
+        ...(sandbox ? [] : ['--no-sandbox']),
         // Chrome 152's first-run UI prevents remote debugging from starting.
         // Keep launches non-interactive even with ignoreDefaultArgs: true.
         `--no-first-run`,
@@ -467,7 +469,7 @@ export class ChromiumCDP extends EventEmitter {
         makeDefaultScreenInfoArg(options),
         ...(options.args || []),
         this.userDataDir ? `--user-data-dir=${this.userDataDir}` : '',
-      ].filter((_) => !!_),
+      ].filter((arg): arg is string => !!arg),
       executablePath: this.executablePath,
     };
 
@@ -476,6 +478,15 @@ export class ChromiumCDP extends EventEmitter {
         '--load-extension=' + extensions.join(','),
         '--disable-extensions-except=' + extensions.join(','),
       );
+    }
+
+    finalOptions.args = applySandboxPolicy(finalOptions.args, sandbox);
+    // Puppeteer can also add --no-sandbox via its environment configuration.
+    if (sandbox && options.ignoreDefaultArgs !== true) {
+      finalOptions.ignoreDefaultArgs = [
+        ...(options.ignoreDefaultArgs || []),
+        ...SANDBOX_DISABLING_ARGS,
+      ];
     }
 
     const launch = stealth
