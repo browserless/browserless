@@ -18,8 +18,10 @@ You still execute the script itself which gives you total control over what libr
 Set `CHROME_SANDBOX=true` to run Chromium-based browsers with Chrome's sandbox.
 In a container, this requires a seccomp profile that allows `unshare`, `setns`,
 and `clone` for user namespaces. Chrome will fail to start if the host does not
-support its sandbox. The SDK defaults to `false`; when off, Playwright callers
-can still opt in with `chromiumSandbox: true`.
+support its sandbox. The SDK defaults to off when the variable is unset. If set,
+only the exact value `false` keeps it off; values like `0` or an empty string
+enable it. When off, Playwright callers can still opt in with
+`chromiumSandbox: true`.
 
 ### Hosting Providers
 
