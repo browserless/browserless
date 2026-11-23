@@ -61,10 +61,10 @@ export function matchesGlob(value: string, pattern: string): boolean {
       // After the explicit slash in a trailing /**, the first character may
       // be a dot: the assertion checks slash-dot pairs *inside* the globstar.
       if (positive.endsWith('/**')) {
-        source = source.replace(
-          `(?:\\/${dotSegments}|$))$`,
-          '(?:/[^/]*(?:/(?:[^./][^/]*)?)*)?)$',
-        );
+        const tail = '/[^/]*(?:/(?:[^./][^/]*)?)*';
+        source = source
+          .replace(`(?:\\/${dotSegments}|$))$`, `(?:${tail})?)$`)
+          .replace(`\\/${dotSegments})$`, `${tail})$`);
       }
       // The literal-prefix fastpath has no literal slash, so its remaining
       // dot-segment assertions can use a linear whole-value check.
