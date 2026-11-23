@@ -40,7 +40,7 @@ jobs:
           RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node scripts/ci/dependabot-automerge.js
 
-      - uses: actions/create-github-app-token@v3.3.0
+      - uses: actions/create-github-app-token@v3.4.0
         id: app-token
         if: steps.pr.outputs.pr_number
         with:
