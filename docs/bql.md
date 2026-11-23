@@ -214,6 +214,7 @@ character classes (such as `[0-9]`) and leading negation are supported.
 Leading and trailing globstars work in URL patterns such as `**/posts/**`,
 `**/*.png` and `https://example.com/**`. A leading `**/` can match zero
 directories, and a trailing `/**` can match the prefix without a slash.
+Micromatch collapses adjacent globstars: `**/**/posts` behaves like `**/posts`.
 Dot handling follows bash-style micromatch, not a blanket hidden-path filter:
 `**/*.png` matches `assets/.icons/a.png` but not `.icons/a.png`.
 Other supported examples include `*/*`, `*/*.png`, `*/*.js`, `cdn.*`,

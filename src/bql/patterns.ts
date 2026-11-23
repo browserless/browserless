@@ -56,7 +56,9 @@ export function matchesGlob(value: string, pattern: string): boolean {
       if (positive.startsWith('**/')) {
         source = source
           .replace(`^(?:(?:^|\\/|${dotSegments}\\/)`, `^(?:${directories}`)
-          .replace(`^(?:(?:(?!\\.)${dotSegments}\\/)?`, `^(?:${directories}`);
+          .replace(`^(?:(?:(?!\\.)${dotSegments}\\/)?`, `^(?:${directories}`)
+          // The mandatory extension dot satisfies the nonempty assertion.
+          .replace(`${directories}\\.(?=.).*?\\.`, `${directories}\\..*?\\.`);
       }
       // After the explicit slash in a trailing /**, the first character may
       // be a dot: the assertion checks slash-dot pairs *inside* the globstar.
