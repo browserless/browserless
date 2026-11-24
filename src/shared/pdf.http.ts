@@ -33,6 +33,7 @@ import {
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
+import { validateJavaScriptOptions } from './javascript-options.js';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -104,6 +105,7 @@ export default class ChromiumPDFPostRoute extends BrowserHTTPRoute {
       throw new BadRequest(`Couldn't parse JSON body`);
     }
 
+    validateJavaScriptOptions(req.body as BodySchema);
     res.setHeader('Content-Type', contentType);
 
     const {

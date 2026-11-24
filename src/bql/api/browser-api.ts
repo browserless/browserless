@@ -372,6 +372,10 @@ export class BQLBrowserAPI {
     Map<string, { attempted: boolean; networkId?: string }>
   >();
 
+  protected get isJavaScriptEnabled(): boolean {
+    return this.jsEnabled;
+  }
+
   constructor(options: BQLBrowserAPIOptions) {
     this.browser = options.browser;
     this.config = options.config;

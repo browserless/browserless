@@ -56,6 +56,23 @@ class API extends BQLBrowserAPI {
   }
 }
 
+test('subclass JavaScript policy follows the core execution setting', async () => {
+  class PolicyAPI extends API {
+    scriptsAllowed() {
+      return this.isJavaScriptEnabled;
+    }
+  }
+  const api = new PolicyAPI();
+  assert.equal(api.scriptsAllowed(), true);
+  await api.javaScriptEnabled({ enabled: false });
+  assert.equal(api.scriptsAllowed(), false);
+  await api.javaScriptEnabled({ enabled: true });
+  assert.equal(api.scriptsAllowed(), true);
+  await api.javaScriptEnabled({ enabled: false });
+  await api.javaScriptEnabled({});
+  assert.equal(api.scriptsAllowed(), true);
+});
+
 test('evaluate returns primitive values and surfaces script exceptions', async () => {
   const api = new API();
   api.client.value = 42;
