@@ -41,6 +41,14 @@ describe('rendering JavaScript options', function () {
                 : `data:text/html,${encodeURIComponent(html)}`,
             setJavaScriptEnabled: setting,
             waitForSelector: { selector, timeout: 1000 },
+            ...(setting !== false
+              ? {
+                  waitForFunction: {
+                    fn: `document.querySelector('#executed') !== null`,
+                    timeout: 1000,
+                  },
+                }
+              : {}),
           });
           const bytes = Buffer.from(await res.arrayBuffer());
           expect(res.status, bytes.toString()).to.equal(200);
@@ -61,15 +69,19 @@ describe('rendering JavaScript options', function () {
 
     for (const bestAttempt of [false, true]) {
       for (const option of path.endsWith('screenshot')
-        ? ['scrollPage', 'waitForEvent']
-        : ['waitForEvent']) {
+        ? ['scrollPage', 'waitForEvent', 'waitForFunction']
+        : ['waitForEvent', 'waitForFunction']) {
         it(`${path} rejects disabled-script ${option}, bestAttempt=${bestAttempt}`, async () => {
           const res = await post(path, {
             html,
             setJavaScriptEnabled: false,
             bestAttempt,
             [option]:
-              option === 'scrollPage' ? true : { event: 'ready', timeout: 50 },
+              option === 'scrollPage'
+                ? true
+                : option === 'waitForFunction'
+                  ? { fn: 'false', timeout: 50 }
+                  : { event: 'ready', timeout: 50 },
           });
           const text = await res.text();
           expect(res.status, text).to.equal(400);

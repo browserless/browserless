@@ -4,6 +4,7 @@ export const validateJavaScriptOptions = (body: {
   setJavaScriptEnabled?: boolean;
   scrollPage?: boolean;
   waitForEvent?: unknown;
+  waitForFunction?: unknown;
 }): void => {
   if (body.setJavaScriptEnabled !== false) return;
   if (body.scrollPage === true) {
@@ -11,5 +12,8 @@ export const validateJavaScriptOptions = (body: {
   }
   if (body.waitForEvent !== undefined) {
     throw new BadRequest('waitForEvent requires JavaScript to be enabled.');
+  }
+  if (body.waitForFunction !== undefined) {
+    throw new BadRequest('waitForFunction requires JavaScript to be enabled.');
   }
 };
