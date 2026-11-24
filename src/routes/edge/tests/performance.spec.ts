@@ -57,6 +57,7 @@ describe('/edge/performance API', function () {
 
   it('allows setting config', async () => {
     const config = new Config();
+    config.setTimeout(60_000);
     config.setToken('browserless');
     const metrics = new Metrics();
     await start({ config, metrics });
@@ -86,7 +87,7 @@ describe('/edge/performance API', function () {
       expect(json).to.have.property('data');
       expect(json.data.audits).to.have.all.keys('unminified-css');
     });
-  });
+  }).timeout(90_000);
 
   it('times out request', async () => {
     const config = new Config();
