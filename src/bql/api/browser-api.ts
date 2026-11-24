@@ -142,6 +142,7 @@ type NetworkRecord = {
   status?: number;
   loaderId?: string;
   response?: Protocol.Network.Response;
+  bodyDenied?: boolean;
 };
 interface ResponseOrigin {
   cdp: Connection;
@@ -389,6 +390,8 @@ export class BQLBrowserAPI {
   private responseBodyPendingBytes = 0;
   private responseBodyRead = Promise.resolve();
   private responseMetadata = new Map<string, ResponseMetadata>();
+  // Outlives navigation resets so queued and in-flight reads stay denied.
+  private deniedResponseBodies = new Set<string>();
   private networkOwners = new Map<string, Connection>();
   private intentionalInterceptions = new WeakSet<NetworkRecord>();
   private earlyInterceptions = new WeakMap<Connection, Map<string, string>>();
@@ -453,6 +456,19 @@ export class BQLBrowserAPI {
   protected async beforeReadback(): Promise<void> {}
   protected async beforeResponseBodyReadback(): Promise<void> {
     await this.beforeReadback();
+  }
+  /**
+   * Decide whether a response body may be exposed, before any eager body read.
+   * Returning false keeps the response metadata but withholds its body from
+   * eager caching and from every later read, including queued consumers.
+   */
+  protected allowResponseBody(
+    _event: Protocol.Network.ResponseReceivedEvent,
+    _cdp: Connection,
+  ): boolean {
+    void _event;
+    void _cdp;
+    return true;
   }
   protected supportsAuthChallenge(challenge: Protocol.Fetch.AuthChallenge) {
     return challenge.source === 'Server';
@@ -662,6 +678,12 @@ export class BQLBrowserAPI {
         if (cdp !== this.mainCDP) return;
         this.networkOwners.set(e.requestId, cdp);
         const request = this.requests.get(e.requestId);
+        let bodyAllowed = false;
+        try {
+          bodyAllowed = this.allowResponseBody(e, cdp);
+        } catch {
+          this.logger.error?.('Response body policy failed');
+        }
         this.responses.set(e.requestId, {
           id: e.requestId,
           url: e.response.url,
@@ -671,20 +693,30 @@ export class BQLBrowserAPI {
           status: e.response.status,
           loaderId: e.loaderId,
           response: e.response,
+          ...(bodyAllowed ? {} : { bodyDenied: true }),
         });
         this.dropResponseOrigin(e.requestId, true);
-        if (this.responseOrigins.size >= 1000) {
-          const victim = this.responseBodyEvictionOrder().next().value;
-          if (victim) this.dropResponseOrigin(victim[0], false);
+        this.deniedResponseBodies.delete(e.requestId);
+        if (bodyAllowed) {
+          if (this.responseOrigins.size >= 1000) {
+            const victim = this.responseBodyEvictionOrder().next().value;
+            if (victim) this.dropResponseOrigin(victim[0], false);
+          }
+          this.responseOrigins.set(e.requestId, {
+            cdp,
+            pending: true,
+            failed: false,
+            received: 0,
+            type: e.type.toLowerCase(),
+            size: 0,
+          });
+        } else {
+          this.deniedResponseBodies.add(e.requestId);
+          if (this.deniedResponseBodies.size > 1000)
+            this.deniedResponseBodies.delete(
+              this.deniedResponseBodies.values().next().value!,
+            );
         }
-        this.responseOrigins.set(e.requestId, {
-          cdp,
-          pending: true,
-          failed: false,
-          received: 0,
-          type: e.type.toLowerCase(),
-          size: 0,
-        });
         const contentType = Object.entries(e.response.headers ?? {})
           .find(([name]) => name.toLowerCase() === 'content-type')?.[1]
           ?.toLowerCase();
@@ -3293,7 +3325,9 @@ export class BQLBrowserAPI {
     const deadline = timeout ? Date.now() + timeout : undefined;
     const origin = this.responseOrigins.get(id);
     let abandoned = false;
+    // Denials outlive resets; a reused ID gets a new origin, which ends this read.
     const unavailable = () =>
+      this.deniedResponseBodies.has(id) ||
       abandoned ||
       this.closed ||
       this.responseOrigins.get(id) !== origin ||
@@ -3310,6 +3344,7 @@ export class BQLBrowserAPI {
         'Response body',
         () => timedOut,
       );
+    if (this.deniedResponseBodies.has(id)) return null;
     try {
       await checkPolicy();
     } catch (error) {
@@ -3509,9 +3544,19 @@ export class BQLBrowserAPI {
     ).catch(() => null);
     if (!records?.length) return null;
     const results = [];
-    for (const { id, url, method, type, headers, status } of records) {
+    for (const {
+      id,
+      url,
+      method,
+      type,
+      headers,
+      status,
+      bodyDenied,
+    } of records) {
       const body =
-        args.includeBody === false || (deadline && Date.now() >= deadline)
+        bodyDenied ||
+        args.includeBody === false ||
+        (deadline && Date.now() >= deadline)
           ? null
           : await this.getResponseBody(
               id,
@@ -3831,6 +3876,7 @@ export class BQLBrowserAPI {
       this.browserCDP?.dispose();
       this.clients.clear();
       this.responseOrigins.clear();
+      this.deniedResponseBodies.clear();
       this.responseBodyBytes = 0;
       this.clearResponseMetadata();
       this.httpAuth = undefined;

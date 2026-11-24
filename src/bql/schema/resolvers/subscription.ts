@@ -9,6 +9,7 @@ interface NetworkEvent {
   type: string;
   status?: number;
   headers: Record<string, string>;
+  bodyDenied?: boolean;
 }
 interface Filter {
   url?: string[];
@@ -85,10 +86,10 @@ function stream(field: 'console' | 'request' | 'response'): Resolver {
             }
             if (field === 'console')
               return { done: false, value: { console: result.value } };
-            const event = result.value;
+            const { bodyDenied, ...event } = result.value;
             if (!matches(event, args)) continue;
             const body =
-              field === 'response' && wantsBody(info)
+              field === 'response' && !bodyDenied && wantsBody(info)
                 ? await api.getResponseBody(event.id)
                 : null;
             if (closed) break;
