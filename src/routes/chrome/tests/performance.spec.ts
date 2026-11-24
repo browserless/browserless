@@ -1,8 +1,31 @@
 import { Browserless, Config, Metrics } from '@browserless.io/browserless';
+import { AddressInfo } from 'net';
+import { createServer } from 'http';
 import { expect } from 'chai';
 
 describe('/chrome/performance API', function () {
   let browserless: Browserless;
+  const pageServer = createServer((req, res) => {
+    if (req.url === '/style.css') {
+      res.writeHead(200, { 'content-type': 'text/css' });
+      res.end('body { color: navy; padding: 20px; }');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(
+      '<!doctype html><title>Performance fixture</title><link rel="stylesheet" href="/style.css"><h1>Local audit</h1>',
+    );
+  });
+
+  before(async () => {
+    await new Promise<void>((resolve) =>
+      pageServer.listen(0, '127.0.0.1', resolve),
+    );
+  });
+
+  after(() => {
+    pageServer.close();
+  });
 
   const start = ({
     config = new Config(),
@@ -68,7 +91,7 @@ describe('/chrome/performance API', function () {
           onlyAudits: ['unminified-css'],
         },
       },
-      url: 'https://browserless.io',
+      url: `http://127.0.0.1:${(pageServer.address() as AddressInfo).port}`,
     };
 
     await fetch('http://localhost:3000/chrome/performance?token=browserless', {
