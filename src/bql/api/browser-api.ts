@@ -711,58 +711,6 @@ export class BQLBrowserAPI {
           this.events.emit('network-change');
         },
       );
-    listen('Fetch.requestPaused', (e: Protocol.Fetch.RequestPausedEvent) => {
-      if (this.httpAuth) {
-        let challenges = this.authChallenges.get(cdp);
-        if (!challenges) this.authChallenges.set(cdp, (challenges = new Map()));
-        challenges.set(e.requestId, {
-          attempted: false,
-          networkId: e.networkId,
-        });
-      }
-      void this.dispatchFetch(e, cdp).catch((error: unknown) => {
-        // A paused request may disappear during navigation or target teardown.
-        // Its terminal-command failure does not describe the active navigation.
-        this.logFetchReplyError(error);
-      });
-    });
-    listen('Fetch.authRequired', (event: Protocol.Fetch.AuthRequiredEvent) => {
-      let authChallengeResponse: Protocol.Fetch.AuthChallengeResponse = {
-        response: 'Default',
-      };
-      try {
-        if (this.httpAuth && this.supportsAuthChallenge(event.authChallenge)) {
-          let challenges = this.authChallenges.get(cdp);
-          if (!challenges)
-            this.authChallenges.set(cdp, (challenges = new Map()));
-          const challenge = challenges.get(event.requestId) ?? {
-            attempted: false,
-          };
-          const allowed =
-            !this.httpAuth.origin ||
-            event.authChallenge.origin === this.httpAuth.origin;
-          authChallengeResponse =
-            allowed && !challenge.attempted
-              ? {
-                  response: 'ProvideCredentials',
-                  username: this.httpAuth.username,
-                  password: this.httpAuth.password,
-                }
-              : { response: 'CancelAuth' };
-          challenge.attempted = true;
-          challenges.set(event.requestId, challenge);
-        }
-      } catch (error) {
-        authChallengeResponse = { response: 'CancelAuth' };
-        this.logFetchReplyError(error);
-      }
-      void cdp
-        .send('Fetch.continueWithAuth', {
-          requestId: event.requestId,
-          authChallengeResponse,
-        })
-        .catch((error: unknown) => this.logFetchReplyError(error));
-    });
     listen(
       'Runtime.consoleAPICalled',
       (event: Protocol.Runtime.ConsoleAPICalledEvent) => {
@@ -817,10 +765,7 @@ export class BQLBrowserAPI {
     await this.setupRuntime(cdp);
     await cdp.send('Network.enable');
     await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true });
-    await cdp.send('Fetch.enable', {
-      patterns: [{ urlPattern: '*', requestStage: 'Request' }],
-      handleAuthRequests: !!this.httpAuth,
-    });
+    await this.configureFetch(cdp);
     await cdp.send('Network.setExtraHTTPHeaders', { headers: this.headers });
     await cdp.send('Emulation.setScriptExecutionDisabled', {
       value: !this.jsEnabled,
@@ -900,17 +845,132 @@ export class BQLBrowserAPI {
       throw new Error('Navigation is blocked');
   }
 
+  private fetchConnections = new WeakSet<Connection>();
+
+  /**
+   * Bind shared dispatch to a transport without transferring its lifetime.
+   * A callback returns false when the API has closed without answering; an
+   * external transport owner must then settle that request under its own policy.
+   */
+  protected async configureFetch(
+    cdp: Connection,
+    bind?: (
+      handlers: {
+        requestPaused(
+          event: Protocol.Fetch.RequestPausedEvent,
+          owner: Connection,
+        ): Promise<boolean>;
+        authRequired(
+          event: Protocol.Fetch.AuthRequiredEvent,
+          owner: Connection,
+        ): Promise<boolean>;
+      },
+      handleAuthRequests: boolean,
+    ) => Promise<void>,
+  ): Promise<void> {
+    if (this.closed) throw new Error('Browser is no longer running');
+    const handlers = {
+      requestPaused: async (
+        event: Protocol.Fetch.RequestPausedEvent,
+        owner: Connection,
+      ) => {
+        if (this.closed) return false;
+        if (this.httpAuth) {
+          let challenges = this.authChallenges.get(owner);
+          if (!challenges)
+            this.authChallenges.set(owner, (challenges = new Map()));
+          challenges.set(event.requestId, {
+            attempted: false,
+            networkId: event.networkId,
+          });
+        }
+        return this.dispatchFetch(event, owner);
+      },
+      authRequired: async (
+        event: Protocol.Fetch.AuthRequiredEvent,
+        owner: Connection,
+      ) => {
+        if (this.closed) return false;
+        let authChallengeResponse: Protocol.Fetch.AuthChallengeResponse = {
+          response: 'Default',
+        };
+        try {
+          if (
+            this.httpAuth &&
+            this.supportsAuthChallenge(event.authChallenge)
+          ) {
+            let challenges = this.authChallenges.get(owner);
+            if (!challenges)
+              this.authChallenges.set(owner, (challenges = new Map()));
+            const challenge = challenges.get(event.requestId) ?? {
+              attempted: false,
+            };
+            const allowed =
+              !this.httpAuth.origin ||
+              event.authChallenge.origin === this.httpAuth.origin;
+            authChallengeResponse =
+              allowed && !challenge.attempted
+                ? {
+                    response: 'ProvideCredentials',
+                    username: this.httpAuth.username,
+                    password: this.httpAuth.password,
+                  }
+                : { response: 'CancelAuth' };
+            challenge.attempted = true;
+            challenges.set(event.requestId, challenge);
+          }
+        } catch (error) {
+          authChallengeResponse = { response: 'CancelAuth' };
+          this.logFetchReplyError(error);
+        }
+        await owner.send('Fetch.continueWithAuth', {
+          requestId: event.requestId,
+          authChallengeResponse,
+        });
+        return true;
+      },
+    };
+    if (bind) {
+      await bind(handlers, !!this.httpAuth);
+      return;
+    }
+    if (!this.fetchConnections.has(cdp)) {
+      const paused = (event: Protocol.Fetch.RequestPausedEvent) => {
+        void handlers
+          .requestPaused(event, cdp)
+          .catch((error) => this.logFetchReplyError(error));
+      };
+      const auth = (event: Protocol.Fetch.AuthRequiredEvent) => {
+        void handlers
+          .authRequired(event, cdp)
+          .catch((error) => this.logFetchReplyError(error));
+      };
+      cdp.on('Fetch.requestPaused', paused);
+      cdp.on('Fetch.authRequired', auth);
+      this.fetchConnections.add(cdp);
+      this.targetCleanup.get(cdp)?.push(() => {
+        cdp.off('Fetch.requestPaused', paused);
+        cdp.off('Fetch.authRequired', auth);
+        this.fetchConnections.delete(cdp);
+      });
+    }
+    await cdp.send('Fetch.enable', {
+      patterns: [{ urlPattern: '*', requestStage: 'Request' }],
+      handleAuthRequests: !!this.httpAuth,
+    });
+  }
+
   private async dispatchFetch(
     event: Protocol.Fetch.RequestPausedEvent,
     cdp: Connection,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Request rules cannot decide an already received response a second time.
     if (
       event.responseStatusCode !== undefined ||
       event.responseErrorReason !== undefined
     ) {
       await cdp.send('Fetch.continueRequest', { requestId: event.requestId });
-      return;
+      return true;
     }
     let decision: FetchDecision | undefined;
     try {
@@ -951,6 +1011,9 @@ export class BQLBrowserAPI {
         }
         if (decision) break;
       }
+    // External transports may survive API close while a hook is still awaiting.
+    // Let their owner resume the request without applying stale API state.
+    if (this.closed) return false;
     decision ??= { method: 'Fetch.continueRequest' };
     const intentionalDocumentReject =
       event.resourceType === 'Document' &&
@@ -976,6 +1039,7 @@ export class BQLBrowserAPI {
     }
     if (intentionalDocumentReject)
       this.events.emit('document-rejected', cdp, event.request.url);
+    return true;
   }
 
   protected logFetchReplyError(_error: unknown): void {
@@ -2166,10 +2230,7 @@ export class BQLBrowserAPI {
     }
     this.httpAuth = { username, password, origin };
     this.authChallenges = new WeakMap();
-    await this.mainCDP.send('Fetch.enable', {
-      patterns: [{ urlPattern: '*', requestStage: 'Request' }],
-      handleAuthRequests: true,
-    });
+    await this.configureFetch(this.mainCDP);
     return { status: null, text: null, url: null, time: Date.now() - start };
   }
   public async javaScriptEnabled({
