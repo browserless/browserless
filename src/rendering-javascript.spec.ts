@@ -42,10 +42,23 @@ describe('rendering JavaScript options', function () {
                 : `data:text/html,${encodeURIComponent(html)}`,
             setJavaScriptEnabled: setting,
             waitForSelector: { selector, timeout: 1000 },
+            addScriptTag:
+              setting === false
+                ? [
+                    {
+                      type: 'application/ld+json',
+                      content: '{"name":"STATIC_METADATA"}',
+                    },
+                  ]
+                : [
+                    {
+                      url: 'data:text/javascript,document.documentElement.dataset.injected="yes"',
+                    },
+                  ],
             ...(setting !== false
               ? {
                   waitForFunction: {
-                    fn: `document.querySelector('#executed') !== null`,
+                    fn: `document.querySelector('#executed') !== null && document.documentElement.dataset.injected === 'yes'`,
                     timeout: 1000,
                   },
                 }
@@ -57,6 +70,8 @@ describe('rendering JavaScript options', function () {
             expect(bytes.toString()).to.include(
               `<p id="${selector.slice(1)}">`,
             );
+            if (setting === false)
+              expect(bytes.toString()).to.include('STATIC_METADATA');
           } else if (path.endsWith('pdf')) {
             expect(bytes.subarray(0, 5).toString()).to.equal('%PDF-');
           } else {
@@ -70,8 +85,8 @@ describe('rendering JavaScript options', function () {
 
     for (const bestAttempt of [false, true]) {
       for (const option of path.endsWith('screenshot')
-        ? ['scrollPage', 'waitForEvent', 'waitForFunction']
-        : ['waitForEvent', 'waitForFunction']) {
+        ? ['scrollPage', 'waitForEvent', 'waitForFunction', 'addScriptTag']
+        : ['waitForEvent', 'waitForFunction', 'addScriptTag']) {
         it(`${path} rejects disabled-script ${option}, bestAttempt=${bestAttempt}`, async () => {
           const res = await post(path, {
             html,
@@ -80,9 +95,11 @@ describe('rendering JavaScript options', function () {
             [option]:
               option === 'scrollPage'
                 ? true
-                : option === 'waitForFunction'
-                  ? { fn: 'false', timeout: 50 }
-                  : { event: 'ready', timeout: 50 },
+                : option === 'addScriptTag'
+                  ? [{ url: 'data:text/javascript,void%200' }]
+                  : option === 'waitForFunction'
+                    ? { fn: 'false', timeout: 50 }
+                    : { event: 'ready', timeout: 50 },
           });
           const text = await res.text();
           expect(res.status, text).to.equal(400);
