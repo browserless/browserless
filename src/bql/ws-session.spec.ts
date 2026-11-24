@@ -121,6 +121,16 @@ describe('BrowserQL WebSocket transport', () => {
           }
         })();
       socket = new Socket();
+      if (extra) {
+        // Keep the handshake pending: cleanup cannot rely on a close event.
+        Sinon.stub(socket, 'close')
+          .callThrough()
+          .onFirstCall()
+          .callsFake((code = 1000) => {
+            socket.code = code;
+            socket.readyState = 2;
+          });
+      }
       start({
         maxSubscriptionBufferedBytes: bytes + 200,
         formatResponse: (result) => ({
@@ -134,6 +144,7 @@ describe('BrowserQL WebSocket transport', () => {
       await setImmediate();
       if (extra) {
         assert.equal(socket.code, 1013);
+        assert.equal(socket.readyState, 2);
         assert.equal(socket.frames.length, 1);
         assert.equal(socket.fragments.length, 0);
       } else {
