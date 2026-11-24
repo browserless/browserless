@@ -55,6 +55,7 @@ class BorrowingAPI extends BQLBrowserAPI {
       async (handlers: Handlers, auth: boolean) => {
         this.binding = { handlers, auth };
       },
+      this.owner as unknown as Connection,
     );
   }
   holdRequest(entered: () => void, gate: Promise<void>) {
@@ -72,6 +73,7 @@ class BorrowingAPI extends BQLBrowserAPI {
     return this.binding.handlers.requestPaused(
       {
         requestId,
+        networkId: `network-${requestId}`,
         request: { url, method: 'GET', headers: {} },
         resourceType: 'XHR',
         frameId: 'fixture',
@@ -107,12 +109,17 @@ it('delegated Fetch keeps SDK policy, rules and auth on the event owner through 
     await api.pause('https://blocked.example/resource', 'denied');
     await api.pause('https://allowed.example/resource', 'allowed');
     assert.deepEqual(
-      api.owner.replies.map((reply) => reply.method),
+      api.owner.replies
+        .filter((reply) => reply.method.startsWith('Fetch.'))
+        .map((reply) => reply.method),
       ['Fetch.failRequest', 'Fetch.fulfillRequest'],
     );
-    assert.equal(api.owner.replies[1].params.responseCode, 207);
+    const fulfilled = api.owner.replies.find(
+      (reply) => reply.method === 'Fetch.fulfillRequest',
+    )!;
+    assert.equal(fulfilled.params.responseCode, 207);
     assert.equal(
-      api.owner.replies[1].params.body,
+      fulfilled.params.body,
       Buffer.from('sdk response').toString('base64'),
     );
     await api.authenticate({
@@ -158,6 +165,76 @@ it('delegated Fetch keeps SDK policy, rules and auth on the event owner through 
   }
 });
 
+it('delegated auth retains retry limits until completion on its surviving owner', async () => {
+  for (const event of ['Network.loadingFinished', 'Network.loadingFailed']) {
+    const api = new BorrowingAPI();
+    try {
+      await api.setup();
+      await api.authenticate({ username: 'fixture', password: 'secret' });
+      await api.pause('https://allowed.example/auth', 'auth');
+      await api.challenge('https://allowed.example', 'auth');
+      await api.challenge('https://allowed.example', 'auth');
+      // Completion is owned by the external transport, not its control client.
+      api.owner.emit(event, { requestId: 'network-auth' });
+      await api.challenge('https://allowed.example', 'auth');
+      await api.challenge('https://allowed.example', 'auth');
+      assert.deepEqual(
+        api.owner.replies
+          .filter((reply) => reply.method === 'Fetch.continueWithAuth')
+          .map((reply) => reply.params.authChallengeResponse.response),
+        [
+          'ProvideCredentials',
+          'CancelAuth',
+          'ProvideCredentials',
+          'CancelAuth',
+        ],
+      );
+    } finally {
+      await api.close();
+    }
+  }
+});
+
+it('delegated redirect rejection returns a rejected navigation on the control target', async () => {
+  const api = new BorrowingAPI();
+  try {
+    await api.setup();
+    await api.reject({
+      url: ['https://allowed.example/redirected'],
+      enabled: true,
+    });
+    const send = api.control.send.bind(api.control);
+    api.control.send = async (method, params) => {
+      if (method !== 'Page.navigate') return send(method, params);
+      assert.ok(api.binding);
+      await api.binding.handlers.requestPaused(
+        {
+          requestId: 'redirected',
+          request: {
+            url: 'https://allowed.example/redirected',
+            method: 'GET',
+            headers: {},
+          },
+          resourceType: 'Document',
+          frameId: 'fixture',
+        } as Protocol.Fetch.RequestPausedEvent,
+        api.owner as unknown as Connection,
+      );
+      return { errorText: 'net::ERR_FAILED' };
+    };
+    const result = await api.goto({
+      url: 'https://allowed.example/start',
+      timeout: 500,
+    });
+    assert.equal(result.rejected, true);
+    assert.equal(result.status, null);
+    assert.equal(result.url, 'https://allowed.example/redirected');
+    assert.equal(api.owner.replies.at(-1)?.method, 'Fetch.failRequest');
+  } finally {
+    await api.close();
+  }
+});
+
 it('delegated dispatch cannot publish an API response after close during an awaited handler', async () => {
   const api = new BorrowingAPI();
   let release!: () => void;
@@ -176,7 +253,10 @@ it('delegated dispatch cannot publish an API response after close during an awai
     await api.close();
     release();
     assert.equal(await pending, false);
-    assert.deepEqual(api.owner.replies, []);
+    assert.deepEqual(
+      api.owner.replies.filter((reply) => reply.method.startsWith('Fetch.')),
+      [],
+    );
   } finally {
     release();
     await api.close();

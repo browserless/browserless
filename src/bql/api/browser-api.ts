@@ -846,9 +846,41 @@ export class BQLBrowserAPI {
   }
 
   private fetchConnections = new WeakSet<Connection>();
+  private authOwners = new WeakSet<Connection>();
+
+  private async observeAuthOwner(owner: Connection): Promise<void> {
+    if (this.authOwners.has(owner)) return;
+    this.authOwners.add(owner);
+    const completed = ({ requestId }: { requestId: string }) => {
+      const challenges = this.authChallenges.get(owner);
+      for (const [id, challenge] of challenges ?? []) {
+        if (challenge.networkId === requestId) challenges!.delete(id);
+      }
+    };
+    const cleanup = () => {
+      owner.off('Network.loadingFinished', completed);
+      owner.off('Network.loadingFailed', completed);
+      owner.off(CDPSessionEvent.Disconnected, cleanup);
+      this.authOwners.delete(owner);
+      this.authChallenges.delete(owner);
+    };
+    owner.on('Network.loadingFinished', completed);
+    owner.on('Network.loadingFailed', completed);
+    owner.on(CDPSessionEvent.Disconnected, cleanup);
+    // External transports can survive control-target retirement. Observe their
+    // completion until they disconnect or this API closes, without disposing them.
+    this.cleanup.push(cleanup);
+    try {
+      await owner.send('Network.enable');
+    } catch (error) {
+      cleanup();
+      throw error;
+    }
+  }
 
   /**
    * Bind shared dispatch to a transport without transferring its lifetime.
+   * Supply its event owner so Network completion is observed before Fetch is armed.
    * A callback returns false when the API has closed without answering; an
    * external transport owner must then settle that request under its own policy.
    */
@@ -867,6 +899,7 @@ export class BQLBrowserAPI {
       },
       handleAuthRequests: boolean,
     ) => Promise<void>,
+    eventOwner: Connection = cdp,
   ): Promise<void> {
     if (this.closed) throw new Error('Browser is no longer running');
     const handlers = {
@@ -884,7 +917,7 @@ export class BQLBrowserAPI {
             networkId: event.networkId,
           });
         }
-        return this.dispatchFetch(event, owner);
+        return this.dispatchFetch(event, owner, cdp);
       },
       authRequired: async (
         event: Protocol.Fetch.AuthRequiredEvent,
@@ -931,6 +964,8 @@ export class BQLBrowserAPI {
       },
     };
     if (bind) {
+      await this.observeAuthOwner(eventOwner);
+      if (this.closed) throw new Error('Browser is no longer running');
       await bind(handlers, !!this.httpAuth);
       return;
     }
@@ -963,6 +998,7 @@ export class BQLBrowserAPI {
   private async dispatchFetch(
     event: Protocol.Fetch.RequestPausedEvent,
     cdp: Connection,
+    target: Connection,
   ): Promise<boolean> {
     // Request rules cannot decide an already received response a second time.
     if (
@@ -1019,9 +1055,9 @@ export class BQLBrowserAPI {
       event.resourceType === 'Document' &&
       decision.method === 'Fetch.failRequest' &&
       matchingRules.some((rule) => rule.decision === decision) &&
-      (!this.currentFrames.has(cdp) ||
-        this.currentFrames.get(cdp)?.id === event.frameId);
-    if (intentionalDocumentReject) this.rejectedDocuments.add(cdp);
+      (!this.currentFrames.has(target) ||
+        this.currentFrames.get(target)?.id === event.frameId);
+    if (intentionalDocumentReject) this.rejectedDocuments.add(target);
     try {
       await cdp.send(decision.method, {
         ...decision.params,
@@ -1038,7 +1074,7 @@ export class BQLBrowserAPI {
       throw error;
     }
     if (intentionalDocumentReject)
-      this.events.emit('document-rejected', cdp, event.request.url);
+      this.events.emit('document-rejected', target, event.request.url);
     return true;
   }
 
