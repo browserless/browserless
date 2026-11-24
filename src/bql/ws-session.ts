@@ -28,6 +28,12 @@ export interface BQLWebSocketSessionOptions {
   strictProtocol?: boolean;
   /** Echo the optional ping payload in pong frames. Defaults to true. */
   echoPingPayload?: boolean;
+  /**
+   * Opt-in cap on each complete subscription frame plus buffered socket bytes.
+   * Overflow closes with 1013 before writing any fragment, without a drain wait.
+   * Omit to retain the existing subscription drain policy. Other traffic is unchanged.
+   */
+  maxSubscriptionBufferedBytes?: number;
   /** Format parse failures separately from executed operation results. */
   formatParseError?: (error: GraphQLError) => FormattedExecutionResult;
   /** Format GraphQL envelopes without changing protocol control frames. */
@@ -85,7 +91,13 @@ export class BQLWebSocketSession {
     private bql: Service,
     private context: Context,
     private options: BQLWebSocketSessionOptions = {},
-  ) {}
+  ) {
+    const limit = options.maxSubscriptionBufferedBytes;
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit <= 0))
+      throw new RangeError(
+        'maxSubscriptionBufferedBytes must be a positive safe integer',
+      );
+  }
 
   run(): Promise<void> {
     return (this.running ??= new Promise<void>((resolve, reject) => {
@@ -131,7 +143,11 @@ export class BQLWebSocketSession {
     }));
   }
 
-  private async send(value: unknown, isActive?: () => boolean): Promise<void> {
+  private async send(
+    value: unknown,
+    isActive?: () => boolean,
+    subscription = false,
+  ): Promise<void> {
     const prepared = prepareJSON(value);
     if (prepared === undefined) return;
     const sending = this.output.then(async () => {
@@ -141,6 +157,22 @@ export class BQLWebSocketSession {
         isActive?.() === false
       )
         return;
+      const limit = subscription
+        ? this.options.maxSubscriptionBufferedBytes
+        : undefined;
+      if (limit !== undefined) {
+        let bytes = this.client.bufferedAmount;
+        // Count the same immutable JSON snapshot we write, never calling toJSON
+        // twice or materializing a whole escaped frame. No await before first send.
+        for (const chunk of jsonChunks(prepared)) {
+          bytes += chunk.length;
+          if (bytes > limit) {
+            this.client.close(1013, 'Subscription send buffer exceeds limit');
+            this.cleanup?.();
+            return;
+          }
+        }
+      }
       const chunks = jsonChunks(prepared)[Symbol.iterator]();
       let current = chunks.next();
       while (!current.done && !this.closed) {
@@ -416,15 +448,19 @@ export class BQLWebSocketSession {
               payload: this.format(result).errors,
             },
             () => this.active(id, operation),
+            operation.subscription,
           );
         else {
           await this.send(
             { id, type: 'next', payload: this.format(result) },
             () => this.active(id, operation),
+            operation.subscription,
           );
           if (this.active(id, operation))
-            await this.send({ id, type: 'complete' }, () =>
-              this.active(id, operation),
+            await this.send(
+              { id, type: 'complete' },
+              () => this.active(id, operation),
+              operation.subscription,
             );
         }
         if (this.operations.get(id) === operation) this.operations.delete(id);
@@ -462,6 +498,7 @@ export class BQLWebSocketSession {
           ).errors,
         },
         () => this.active(id, operation),
+        operation.subscription,
       );
     } finally {
       if (this.operations.get(id) === operation) this.operations.delete(id);
@@ -480,14 +517,17 @@ export class BQLWebSocketSession {
         const value = await iterator.next();
         if (!this.active(id, operation)) return;
         if (value.done) {
-          await this.send({ id, type: 'complete' }, () =>
-            this.active(id, operation),
+          await this.send(
+            { id, type: 'complete' },
+            () => this.active(id, operation),
+            operation.subscription,
           );
           if (this.operations.get(id) === operation) this.operations.delete(id);
           return;
         }
         const drainDeadline = Date.now() + 5000;
         while (
+          this.options.maxSubscriptionBufferedBytes === undefined &&
           this.active(id, operation) &&
           this.client.bufferedAmount > 16 * 1024 * 1024
         ) {
@@ -505,6 +545,7 @@ export class BQLWebSocketSession {
             payload: this.format(value.value),
           },
           () => this.active(id, operation),
+          operation.subscription,
         );
       }
     } catch (error) {
