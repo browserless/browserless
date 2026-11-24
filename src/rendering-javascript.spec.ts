@@ -1,5 +1,10 @@
 import { Browserless, Config } from '@browserless.io/browserless';
 import { expect } from 'chai';
+import { readdir } from 'node:fs/promises';
+
+const browsers = (await readdir(new Config().getRoutes())).filter((name) =>
+  ['chromium', 'chrome', 'edge'].includes(name),
+);
 
 describe('rendering JavaScript options', function () {
   let browserless: Browserless;
@@ -22,14 +27,10 @@ describe('rendering JavaScript options', function () {
       body: JSON.stringify(body),
     });
 
-  for (const path of [
-    '/content',
-    '/chromium/content',
-    '/chrome/content',
-    '/chrome/screenshot',
-    '/chromium/screenshot',
-    '/pdf',
-  ]) {
+  for (const path of browsers.flatMap((browser) => [
+    ...['content', 'screenshot', 'pdf'].map((route) => `/${browser}/${route}`),
+    ...(browser === 'chromium' ? ['/content', '/pdf'] : []),
+  ])) {
     for (const input of ['html', 'url']) {
       for (const setting of [false, true, undefined]) {
         it(`${path} honors setJavaScriptEnabled=${setting} with ${input}`, async () => {
