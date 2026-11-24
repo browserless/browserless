@@ -863,6 +863,8 @@ export class BQLBrowserAPI {
       owner.off(CDPSessionEvent.Disconnected, cleanup);
       this.authOwners.delete(owner);
       this.authChallenges.delete(owner);
+      const index = this.cleanup.indexOf(cleanup);
+      if (index !== -1) this.cleanup.splice(index, 1);
     };
     owner.on('Network.loadingFinished', completed);
     owner.on('Network.loadingFailed', completed);
