@@ -239,6 +239,18 @@ Custom Enterprise infrastructure across major cloud providers.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 🚀 One-Click Deploy
+
+Deploy the open source image to your own server with a hosting provider template.
+
+[![Deploy on Hostinger](https://assets.hostinger.com/vps/deploy.svg)](https://www.hostg.xyz/aff_c?offer_id=815&aff_id=249489&url_id=7167)
+[![Deploy on Dokploy](./assets/deploy-dokploy.svg)](https://dokploy.com/templates/browserless)
+
+</td>
+</tr>
 </table>
 
 > **Want to dive deeper?** Check out this [detailed guide](./LEARN_MORE.md) for advanced stuff including Docker configuration, hosting providers, SDK extensions, and more.
