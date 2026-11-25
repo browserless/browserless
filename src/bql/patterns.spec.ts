@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { Worker } from 'node:worker_threads';
+import Sinon from 'sinon';
 import micromatch from 'micromatch';
 
 import { compileRE2, compileRegex, matchesGlob } from './patterns.js';
@@ -193,13 +196,30 @@ describe('BrowserQL safe patterns', () => {
 
   it('times out a slow JS-only match without blocking unrelated matches', async function () {
     this.timeout(5000);
-    const slow = compileRegex('(?=a)(a+)+$');
-    assert.equal(await slow.test('a'), true); // Warm a worker before timing it.
-    const pending = slow.test('a'.repeat(40_000) + '!');
-    const fast = compileRegex('ad(?=s)');
-    assert.equal(await Promise.race([fast.test('ads'), pending]), true);
-    assert.equal(await pending, false);
-    assert.equal(await slow.test('aa'), false); // Timed out for this rule only.
-    assert.equal(await compileRegex('(?=a)(a+)+$').test('aa'), true);
+    const pattern = '(?=a)a+$';
+    const slow = compileRegex(pattern);
+    const post = Worker.prototype.postMessage;
+    let exited: Promise<unknown> | undefined;
+    const stall = Sinon.stub(Worker.prototype, 'postMessage').callsFake(
+      function (this: Worker, message, transferList) {
+        if (message.pattern === pattern && message.value === 'aaa') {
+          // Model a worker that enters the match but never returns a result.
+          Atomics.store(message.started, 0, 1);
+          exited = once(this, 'exit');
+        } else post.call(this, message, transferList);
+      },
+    );
+    try {
+      const pending = slow.test('aaa');
+      assert.ok(exited);
+      const fast = compileRegex('ad(?=s)');
+      assert.equal(await Promise.race([fast.test('ads'), pending]), true);
+      assert.equal(await pending, false);
+      await exited;
+      assert.equal(await slow.test('aa'), false); // Timed out for this rule only.
+      assert.equal(await compileRegex(pattern).test('aa'), true);
+    } finally {
+      stall.restore();
+    }
   });
 });
