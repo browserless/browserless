@@ -898,8 +898,13 @@ test('intentional fulfillment survives regex cache eviction', async () => {
   }
 });
 
-for (const wait of [true, false]) {
-  test(`async response matching rechecks status changed by extra info (wait: ${wait})`, async () => {
+for (const [wait, operator, status, expected] of [
+  [true, 'and', 200, null],
+  [false, 'and', 200, null],
+  [false, 'or', 500, 404],
+  [false, 'and', 404, 404],
+] as const) {
+  test(`async response matching rechecks extra info (wait: ${wait}, ${operator} ${status})`, async () => {
     const api = new API();
     await api.setup();
     try {
@@ -912,8 +917,8 @@ for (const wait of [true, false]) {
       });
       const response = api.response({
         regex: ['(?<=/)asset$'],
-        status: [200],
-        operator: 'and',
+        status: [status],
+        operator,
         wait,
         timeout: 500,
         includeBody: false,
@@ -923,7 +928,7 @@ for (const wait of [true, false]) {
         statusCode: 404,
         headers: {},
       });
-      assert.equal(await response, null);
+      assert.equal((await response)?.[0]?.status ?? null, expected);
     } finally {
       await api.close();
     }

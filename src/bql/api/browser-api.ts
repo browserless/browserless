@@ -3075,11 +3075,13 @@ export class BQLBrowserAPI {
     const find = async () => {
       // Coalesce events during a worker scan without losing a newly arrived
       // match or building a queue of scans for a busy page.
+      const snapshotRecords = oneScan ? records() : undefined;
       for (;;) {
         const scanned = revision;
-        const found = [];
-        for (const record of records()) {
+        const candidates = snapshotRecords ?? records();
+        for (const record of candidates) {
           if (cancellation.signal.aborted) return [];
+          if (history.get(record.id) !== record) continue;
           const { status } = record;
           let decision = decisions.get(record);
           if (!decision || decision.status !== status) {
@@ -3091,16 +3093,19 @@ export class BQLBrowserAPI {
             };
             decisions.set(record, decision);
           }
-          if (decision.match) found.push(record);
         }
         // Navigation can clear history without emitting a request or response.
-        if (oneScan || scanned === revision)
-          return found.filter(
-            (record) =>
-              history.get(record.id) === record &&
-              (!filter.status?.length ||
-                decisions.get(record)?.status === record.status),
-          );
+        const live = candidates.filter(
+          (record) => history.get(record.id) === record,
+        );
+        if (!oneScan && scanned !== revision) continue;
+        // Recheck both matches and misses if extra info changed their status.
+        if (
+          filter.status?.length &&
+          live.some((r) => decisions.get(r)?.status !== r.status)
+        )
+          continue;
+        return live.filter((record) => decisions.get(record)?.match);
       }
     };
     const changes$ = fromEvent(this.events, kind).pipe(startWith(null));
