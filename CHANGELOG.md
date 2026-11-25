@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.64.4](https://github.com/browserless/browserless/compare/v2.64.3...v2.64.4) (2026-11-25)
+
+
+### Bug Fixes
+
+* restore JavaScript regex compatibility for BrowserQL network filters ([#5718](https://github.com/browserless/browserless/issues/5718)) ([5a12f6d](https://github.com/browserless/browserless/commit/5a12f6d973730ea8f420392aa93b73e26604d33d))
+
 ## [2.64.3](https://github.com/browserless/browserless/compare/v2.64.2...v2.64.3) (2026-11-23)
 
 
