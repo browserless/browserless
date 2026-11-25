@@ -31,6 +31,7 @@ import {
   fromEventPattern,
   map,
   merge,
+  of,
   startWith,
   tap,
   throwError,
@@ -3071,11 +3072,20 @@ export class BQLBrowserAPI {
       NetworkRecord,
       { status?: number; match: boolean }
     >();
+    const confirmed = (candidates: NetworkRecord[]) =>
+      candidates.filter((record) => {
+        const decision = decisions.get(record);
+        return (
+          history.get(record.id) === record &&
+          decision?.match &&
+          (!filter.status?.length || decision.status === record.status)
+        );
+      });
+    const snapshotRecords = oneScan ? records() : undefined;
     let revision = 0;
     const find = async () => {
       // Coalesce events during a worker scan without losing a newly arrived
       // match or building a queue of scans for a busy page.
-      const snapshotRecords = oneScan ? records() : undefined;
       for (;;) {
         const scanned = revision;
         const candidates = snapshotRecords ?? records();
@@ -3125,13 +3135,20 @@ export class BQLBrowserAPI {
         ? scans$
         : scans$.pipe(filterRecords((found) => found.length > 0)),
     ).pipe(finalize(() => cancellation.abort()));
+    const deadline = oneScan ? this.timeout : timeout;
     return firstValueFrom(
-      timeout && !oneScan
+      deadline
         ? network$.pipe(
             throwTimeout({
-              first: timeout,
-              with: () =>
-                throwError(() => new Error(`Network ${kind} timed out`)),
+              first: deadline,
+              with: () => {
+                const found = hasFallback
+                  ? confirmed(snapshotRecords ?? records())
+                  : [];
+                return found.length
+                  ? of(found)
+                  : throwError(() => new Error(`Network ${kind} timed out`));
+              },
             }),
           )
         : network$,

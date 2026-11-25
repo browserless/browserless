@@ -935,6 +935,52 @@ for (const [wait, operator, status, expected] of [
   });
 }
 
+for (const kind of ['request', 'response'] as const) {
+  test(`${kind} history keeps confirmed matches at the deadline`, async () => {
+    const api = new API();
+    await api.setup();
+    const post = Worker.prototype.postMessage;
+    const stub = Sinon.stub(Worker.prototype, 'postMessage').callsFake(
+      function (this: Worker, message, transferList) {
+        setTimeout(() => post.call(this, message, transferList), 150);
+      },
+    );
+    try {
+      const url = 'https://example.com/submit';
+      for (const [id, method, address] of [
+        ['first', 'POST', url],
+        ['second', 'GET', 'https://example.com/asset'],
+      ]) {
+        api.client.emit('Network.requestWillBeSent', {
+          requestId: id,
+          type: 'Image',
+          request: { url: address, method, headers: {} },
+        });
+        api.client.emit('Network.responseReceived', {
+          requestId: id,
+          type: 'Image',
+          response: { url: address, status: 200, headers: {} },
+        });
+      }
+      const result = await api[kind]({
+        method: ['POST'],
+        regex: ['(?<=/)asset$'],
+        operator: 'or',
+        wait: true,
+        timeout: 50,
+        includeBody: false,
+      });
+      assert.deepEqual(
+        result?.map((record) => record.url),
+        [url],
+      );
+    } finally {
+      stub.restore();
+      await api.close();
+    }
+  });
+}
+
 test('async response matching ignores history cleared by content', async () => {
   const api = new API();
   await api.setup();

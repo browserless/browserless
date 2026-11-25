@@ -214,6 +214,12 @@ during execution retries new matches after a one-second cooldown. Invalid
 expressions fail when registered. Patterns are limited to 200 characters, and
 fallback inputs to 65,536 UTF-16 code units. Readback `clean.regexes` remains
 RE2-only and case-insensitive.
+
+SDK history queries with `wait: true` return any confirmed, still-current
+matches at the deadline. With `wait: false`, a JavaScript fallback filter scans
+only records already present when the call starts, up to the session timeout.
+RE2-only filters retain the existing 100 ms window for arriving records.
+
 URL and title globs are compiled to
 RE2 with a 200-character limit. Common `*`/`?` wildcards, brace alternatives,
 character classes (such as `[0-9]`) and leading negation are supported.

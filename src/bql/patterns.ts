@@ -158,6 +158,8 @@ export type NetworkRegex = {
 };
 
 export function compileRegex(pattern: string): NetworkRegex {
+  if (typeof pattern !== 'string')
+    throw new BadRequest('Regex must be a string');
   if (pattern.length > 200) throw new BadRequest('Regex is too long');
   try {
     return RE2JS.compile(pattern);

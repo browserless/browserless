@@ -285,6 +285,8 @@ describe('BrowserQL primitive contracts', () => {
       for (const field of [
         'reject(regex: ["(?=x"]) { time }',
         'fulfill(regex: ["(?=x"]) { time }',
+        'reject(regex: [null]) { time }',
+        'fulfill(regex: [null]) { time }',
         'reject(url: ["!(foo)"]) { time }',
         'fulfill(url: ["*/foo"], status: 99) { time }',
       ]) {
