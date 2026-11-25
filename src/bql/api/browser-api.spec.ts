@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
+import { Worker } from 'node:worker_threads';
 import { it as test } from 'mocha';
 import { runInNewContext } from 'node:vm';
 import Sinon from 'sinon';
@@ -853,6 +854,203 @@ test('failed subresources exclude documents, cancellations and intentional rules
   await api.close();
 });
 
+test('intentional fulfillment survives regex cache eviction', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    await api.fulfill({ regex: ['(?<=/)asset-'], status: 404 });
+    api.client.handler = (method) => {
+      if (method === 'Fetch.fulfillRequest') api.client.emit('fulfilled');
+    };
+    for (let i = 0; i < 129; i++) {
+      const id = String(i);
+      const url = `https://example.com/asset-${id}`;
+      const request = { url, method: 'GET', headers: {} };
+      const publishRequest = () =>
+        api.client.emit('Network.requestWillBeSent', {
+          requestId: id,
+          type: 'Image',
+          request,
+        });
+      if (i !== 0) publishRequest();
+      const fulfilled = once(api.client, 'fulfilled');
+      api.client.emit('Fetch.requestPaused', {
+        requestId: `fetch-${id}`,
+        networkId: id,
+        request,
+        resourceType: 'Image',
+      });
+      await fulfilled;
+      if (i === 0) {
+        // The Fetch command can finish before Network publishes the request.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        publishRequest();
+      }
+      api.client.emit('Network.responseReceived', {
+        requestId: id,
+        type: 'Image',
+        response: { url, status: 404, headers: {} },
+      });
+    }
+    assert.deepEqual(api.failedSubResources(), { total: 0, stylesheets: 0 });
+  } finally {
+    await api.close();
+  }
+});
+
+for (const [wait, operator, status, expected] of [
+  [true, 'and', 200, null],
+  [false, 'and', 200, null],
+  [false, 'or', 500, 404],
+  [false, 'and', 404, 404],
+] as const) {
+  test(`async response matching rechecks extra info (wait: ${wait}, ${operator} ${status})`, async () => {
+    const api = new API();
+    await api.setup();
+    try {
+      const url = 'https://example.com/asset';
+      api.client.emit('Network.responseReceived', {
+        requestId: 'asset',
+        type: 'Image',
+        hasExtraInfo: true,
+        response: { url, status: 200, headers: {} },
+      });
+      const response = api.response({
+        regex: ['(?<=/)asset$'],
+        status: [status],
+        operator,
+        wait,
+        timeout: 500,
+        includeBody: false,
+      });
+      api.client.emit('Network.responseReceivedExtraInfo', {
+        requestId: 'asset',
+        statusCode: 404,
+        headers: {},
+      });
+      assert.equal((await response)?.[0]?.status ?? null, expected);
+    } finally {
+      await api.close();
+    }
+  });
+}
+
+for (const kind of ['request', 'response'] as const) {
+  test(`${kind} history keeps confirmed matches at the deadline`, async () => {
+    const api = new API();
+    await api.setup();
+    const post = Worker.prototype.postMessage;
+    const stub = Sinon.stub(Worker.prototype, 'postMessage').callsFake(
+      function (this: Worker, message, transferList) {
+        setTimeout(() => post.call(this, message, transferList), 150);
+      },
+    );
+    try {
+      const url = 'https://example.com/submit';
+      for (const [id, method, address] of [
+        ['first', 'POST', url],
+        ['second', 'GET', 'https://example.com/asset'],
+      ]) {
+        api.client.emit('Network.requestWillBeSent', {
+          requestId: id,
+          type: 'Image',
+          request: { url: address, method, headers: {} },
+        });
+        api.client.emit('Network.responseReceived', {
+          requestId: id,
+          type: 'Image',
+          response: { url: address, status: 200, headers: {} },
+        });
+      }
+      const result = await api[kind]({
+        method: ['POST'],
+        regex: ['(?<=/)asset$'],
+        operator: 'or',
+        wait: true,
+        timeout: 50,
+        includeBody: false,
+      });
+      assert.deepEqual(
+        result?.map((record) => record.url),
+        [url],
+      );
+    } finally {
+      stub.restore();
+      await api.close();
+    }
+  });
+}
+
+test('async response matching ignores history cleared by content', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    api.client.handler = (method) => {
+      if (method === 'Page.getFrameTree')
+        return { frameTree: { frame: { id: 'test', url: 'about:blank' } } };
+      if (method === 'Page.setDocumentContent')
+        api.client.emit('Page.lifecycleEvent', {
+          frameId: 'test',
+          loaderId: 'new',
+          name: 'init',
+        });
+      return undefined;
+    };
+    api.client.emit('Network.responseReceived', {
+      requestId: 'old',
+      type: 'Image',
+      response: {
+        url: 'https://example.com/old/asset',
+        status: 200,
+        headers: {},
+      },
+    });
+    const response = api.response({
+      regex: ['(?<=/)asset$'],
+      wait: true,
+      timeout: 500,
+      includeBody: false,
+    });
+    await api.content({ html: '<p>New document</p>', waitUntil: [] });
+    assert.equal(await response, null);
+  } finally {
+    await api.close();
+  }
+});
+
+test('a response snapshot waits for its initial regex scan', async () => {
+  const api = new API();
+  await api.setup();
+  const post = Worker.prototype.postMessage;
+  const stub = Sinon.stub(Worker.prototype, 'postMessage').callsFake(function (
+    this: Worker,
+    message,
+    transferList,
+  ) {
+    setTimeout(() => post.call(this, message, transferList), 150);
+  });
+  try {
+    const url = 'https://example.com/asset';
+    api.client.emit('Network.responseReceived', {
+      requestId: 'asset',
+      type: 'Image',
+      response: { url, status: 200, headers: {} },
+    });
+    const found = await api.response({
+      regex: ['(?<=/)asset$'],
+      wait: false,
+      includeBody: false,
+    });
+    assert.deepEqual(
+      found?.map((record) => record.url),
+      [url],
+    );
+  } finally {
+    stub.restore();
+    await api.close();
+  }
+});
+
 test('duration arguments reject timer overflow rather than firing immediately', async () => {
   const api = new API();
   for (const run of [
@@ -1361,7 +1559,7 @@ test('capture and readback hooks run before CDP read operations', async () => {
 
 test('invalid and excessive network regexes are rejected when registered', async () => {
   const api = new API();
-  for (const regex of ['(', 'x'.repeat(201), '(?=x)', '(x)\\1']) {
+  for (const regex of ['(?=x', 'x'.repeat(201)]) {
     for (const run of [
       () => api.reject({ enabled: true, regex: [regex] }),
       () => api.fulfill({ regex: [regex], body: 'test' }),
@@ -1378,8 +1576,134 @@ test('invalid and excessive network regexes are rejected when registered', async
           },
         }),
     ]) {
-      await assert.rejects(run(), /regex/i);
+      await assert.rejects(run(), {
+        name: 'BadRequest',
+        extensions: { code: 'BAD_REQUEST' },
+      });
     }
+  }
+});
+
+test('network regexes reject and fulfill JS-only matches before continuing other requests', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    await api.reject({ enabled: true, regex: ['ads(?=/)'] });
+    await api.fulfill({ regex: ['(?<=/)(ad)\\1$'], body: 'stub' });
+    for (const [path, expected] of [
+      ['/ads/banner', 'Fetch.failRequest'],
+      ['/adad', 'Fetch.fulfillRequest'],
+      ['/ads.txt', 'Fetch.continueRequest'],
+    ]) {
+      api.client.handler = (method) => {
+        if (/^Fetch\.(fail|fulfill|continue)Request$/.test(method))
+          api.client.emit('decision', method);
+      };
+      const decision = once(api.client, 'decision');
+      api.client.emit('Fetch.requestPaused', {
+        requestId: path,
+        request: { url: `https://example.com${path}`, method: 'GET' },
+        resourceType: 'Image',
+      });
+      assert.deepEqual(await decision, [expected]);
+    }
+  } finally {
+    await api.close();
+  }
+});
+
+test('a burst of paused requests does not bypass regex rules', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    await api.reject({ enabled: true, regex: ['ads(?=/)'] });
+    const methods = new Map<string, string>();
+    api.client.handler = (method, { requestId }) => {
+      if (/^Fetch\.(fail|continue)Request$/.test(method)) {
+        methods.set(requestId, method);
+        if (methods.size === 300) api.client.emit('decisions');
+      }
+    };
+    const done = once(api.client, 'decisions');
+    for (let i = 0; i < 300; i++)
+      api.client.emit('Fetch.requestPaused', {
+        requestId: String(i),
+        request: {
+          url: `https://example.com/${i % 2 ? 'ads' : 'images'}/${i}`,
+          method: 'GET',
+        },
+        resourceType: 'Image',
+      });
+    await done;
+    for (let i = 0; i < 300; i++)
+      assert.equal(
+        methods.get(String(i)),
+        i % 2 ? 'Fetch.failRequest' : 'Fetch.continueRequest',
+      );
+  } finally {
+    await api.close();
+  }
+});
+
+test('an indeterminate Fetch rule fails closed within one evaluation budget', async () => {
+  const api = new API();
+  await api.setup();
+  const clock = Sinon.stub(performance, 'now').callThrough();
+  const post = Sinon.stub(Worker.prototype, 'postMessage').callsFake(function (
+    this: Worker,
+  ) {
+    clock.returns(performance.now() + 1500);
+    this.emit('message', false);
+  });
+  try {
+    await api.fulfill({ regex: ['ads(?=/)', 'assets(?=/)'], body: 'stub' });
+    api.client.handler = (method) => {
+      if (/^Fetch\.(fail|fulfill|continue)Request$/.test(method))
+        api.client.emit('decision', method);
+    };
+    const decision = once(api.client, 'decision');
+    api.client.emit('Fetch.requestPaused', {
+      requestId: 'asset',
+      request: { url: 'https://example.com/assets/logo', method: 'GET' },
+      resourceType: 'Image',
+    });
+    assert.deepEqual(await decision, ['Fetch.failRequest']);
+    assert.equal(post.callCount, 1);
+  } finally {
+    post.restore();
+    clock.restore();
+    await api.close();
+  }
+});
+
+test('disabling reject applies to decisions still awaiting a regex result', async () => {
+  const api = new API();
+  await api.setup();
+  const post = Worker.prototype.postMessage;
+  const stub = Sinon.stub(Worker.prototype, 'postMessage').callsFake(function (
+    this: Worker,
+    message,
+    transferList,
+  ) {
+    void api.reject({ enabled: false });
+    post.call(this, message, transferList);
+  });
+  try {
+    await api.reject({ enabled: true, regex: ['ads(?=/)'] });
+    api.client.handler = (method) => {
+      if (/^Fetch\.(fail|continue)Request$/.test(method))
+        api.client.emit('decision', method);
+    };
+    const decision = once(api.client, 'decision');
+    api.client.emit('Fetch.requestPaused', {
+      requestId: 'asset',
+      request: { url: 'https://example.com/ads/asset', method: 'GET' },
+      resourceType: 'Image',
+    });
+    assert.deepEqual(await decision, ['Fetch.continueRequest']);
+  } finally {
+    stub.restore();
+    await api.close();
   }
 });
 

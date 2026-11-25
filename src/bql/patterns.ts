@@ -1,14 +1,196 @@
 import { BadRequest } from '@browserless.io/browserless';
 import { RE2JS } from 're2js';
+import { Worker } from 'node:worker_threads';
 import micromatch from 'micromatch';
 
-export function compileRegex(pattern: string, flags = 0): RE2JS {
+export function compileRE2(pattern: string, flags = 0): RE2JS {
   if (pattern.length > 200) throw new BadRequest('Regex is too long');
   try {
     return RE2JS.compile(pattern, flags);
   } catch {
     throw new BadRequest('Regex is invalid or unsupported');
   }
+}
+
+// Fixed worker code; patterns and URLs are data, never interpolated as code.
+const workerSource = `
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', ({pattern, value, started}) => {
+    const regex = new RegExp(pattern);
+    Atomics.store(started, 0, 1);
+    parentPort.postMessage(regex.test(value));
+  });
+`;
+const regexSlots: Array<{ worker?: Worker; busy: boolean }> = [
+  { busy: false },
+  { busy: false },
+];
+const regexDeadlineMs = 1000;
+export const interceptionBudget = (session: symbol) => ({
+  session,
+  deadline: performance.now() + regexDeadlineMs,
+});
+type RegexBudget = ReturnType<typeof interceptionBudget>;
+type WorkerResult = boolean | 'timed-out' | undefined;
+type RegexJob = {
+  pattern: string;
+  value: string;
+  deadline: number;
+  resolve: (result: WorkerResult) => void;
+  timer: NodeJS.Timeout;
+};
+const pendingRegexJobs = new Map<symbol | undefined, RegexJob[]>();
+let pendingCount = 0;
+
+function dispatchRegexJobs() {
+  for (const slot of regexSlots) {
+    if (slot.busy) continue;
+    const next = pendingRegexJobs.entries().next();
+    if (next.done) return;
+    const [session, queue] = next.value;
+    const job = queue.shift()!;
+    pendingCount--;
+    // A busy session gets one turn before yielding to other queued sessions.
+    pendingRegexJobs.delete(session);
+    if (queue.length) pendingRegexJobs.set(session, queue);
+    clearTimeout(job.timer);
+    slot.busy = true;
+    void runRegexJob(slot, job).finally(() => {
+      slot.busy = false;
+      dispatchRegexJobs();
+    });
+  }
+}
+
+async function runRegexJob(slot: (typeof regexSlots)[number], job: RegexJob) {
+  const remaining = job.deadline - performance.now();
+  if (remaining <= 0) return job.resolve(undefined);
+  const started = new Int32Array(new SharedArrayBuffer(4));
+  let timer: NodeJS.Timeout | undefined;
+  let result: WorkerResult;
+  try {
+    const worker = (slot.worker ??= new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      resourceLimits: {
+        maxOldGenerationSizeMb: 60,
+        maxYoungGenerationSizeMb: 4,
+        stackSizeMb: 4,
+      },
+    }));
+    if (!worker.listenerCount('exit')) {
+      worker.on('error', () => {});
+      worker.once('exit', () => {
+        if (slot.worker === worker) slot.worker = undefined;
+      });
+    }
+    worker.ref();
+    let stopped: () => void = () => {};
+    try {
+      result = await new Promise<WorkerResult>((resolve) => {
+        stopped = () => resolve(undefined);
+        worker.once('message', resolve);
+        worker.once('exit', stopped);
+        timer = setTimeout(
+          () => resolve(Atomics.load(started, 0) ? 'timed-out' : undefined),
+          Math.max(0, Math.ceil(job.deadline - performance.now())),
+        );
+        worker.postMessage({ pattern: job.pattern, value: job.value, started });
+      });
+    } finally {
+      worker.off('exit', stopped);
+    }
+  } catch {
+    // A startup or worker failure is not a syntax error or a match.
+  } finally {
+    clearTimeout(timer);
+    job.resolve(result);
+    const worker = slot.worker;
+    if (typeof result === 'boolean') {
+      worker?.unref();
+    } else {
+      slot.worker = undefined;
+      // Do not reuse the slot until the old worker actually stops.
+      await worker?.terminate().catch(() => {});
+    }
+  }
+}
+
+function testInWorker(pattern: string, value: string, budget?: RegexBudget) {
+  const session = budget?.session;
+  const deadline = budget?.deadline ?? performance.now() + regexDeadlineMs;
+  const remaining = deadline - performance.now();
+  const queue = pendingRegexJobs.get(session) ?? [];
+  if (
+    remaining <= 0 ||
+    pendingCount >= 1024 ||
+    queue.length >= (budget ? 384 : 128)
+  )
+    return Promise.resolve(undefined);
+  return new Promise<WorkerResult>((resolve) => {
+    const job: RegexJob = {
+      pattern,
+      value,
+      deadline,
+      resolve,
+      timer: setTimeout(() => {
+        const index = queue.indexOf(job);
+        if (index < 0) return;
+        queue.splice(index, 1);
+        pendingCount--;
+        if (!queue.length) pendingRegexJobs.delete(session);
+        resolve(undefined);
+      }, Math.ceil(remaining)),
+    };
+    queue.push(job);
+    pendingCount++;
+    pendingRegexJobs.set(session, queue);
+    dispatchRegexJobs();
+  });
+}
+
+export type NetworkRegex = {
+  test(
+    value: string,
+    budget?: RegexBudget,
+  ): boolean | undefined | Promise<boolean | undefined>;
+  cachedTest?(value: string): boolean;
+};
+
+export function compileRegex(pattern: string): NetworkRegex {
+  if (typeof pattern !== 'string')
+    throw new BadRequest('Regex must be a string');
+  if (pattern.length > 200) throw new BadRequest('Regex is too long');
+  try {
+    return RE2JS.compile(pattern);
+  } catch {
+    // Syntax validation only. Never execute native regexes on the main thread.
+    try {
+      new RegExp(pattern);
+    } catch {
+      throw new BadRequest('Regex is invalid or unsupported');
+    }
+  }
+  const results = new Map<string, boolean>();
+  let retryAt = 0;
+  return {
+    cachedTest: (value) => results.get(value) ?? false,
+    test(value, budget) {
+      const unavailable = budget ? undefined : false;
+      if (value.length > 65_536) return unavailable;
+      const cached = results.get(value);
+      if (cached !== undefined) return cached;
+      if (performance.now() < retryAt) return unavailable;
+      return testInWorker(pattern, value, budget).then((result) => {
+        if (result === 'timed-out')
+          retryAt = performance.now() + regexDeadlineMs;
+        if (typeof result !== 'boolean') return unavailable;
+        if (results.size >= 128) results.delete(results.keys().next().value!);
+        results.set(value, result);
+        return result;
+      });
+    },
+  };
 }
 
 const globs = new Map<

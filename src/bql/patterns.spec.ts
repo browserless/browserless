@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { Worker } from 'node:worker_threads';
+import Sinon from 'sinon';
 import micromatch from 'micromatch';
 
-import { compileRegex, matchesGlob } from './patterns.js';
+import { compileRE2, compileRegex, matchesGlob } from './patterns.js';
 
 describe('BrowserQL safe patterns', () => {
   for (const [pattern, value, expected] of [
@@ -183,11 +186,67 @@ describe('BrowserQL safe patterns', () => {
     }
   });
 
-  it('bounds patterns and retains RE2 regex restrictions', () => {
+  it('bounds pattern lengths and keeps readback regexes RE2-only', () => {
     assert.throws(() => matchesGlob('x', 'x'.repeat(201)), /too long/i);
     assert.throws(() => compileRegex('x'.repeat(201)), /too long/i);
-    assert.throws(() => compileRegex('(?=x)x'), /unsupported/i);
-    assert.throws(() => compileRegex('(x)\\1'), /unsupported/i);
+    assert.throws(() => compileRE2('(?=x)x'), /unsupported/i);
+    assert.throws(() => compileRE2('(x)\\1'), /unsupported/i);
     assert.equal(compileRegex('(a+)+$').test('a'.repeat(10_000) + '!'), false);
+  });
+
+  it('keeps a completed worker result when the main thread observes it late', async () => {
+    const clock = Sinon.stub(performance, 'now').callThrough();
+    const post = Sinon.stub(Worker.prototype, 'postMessage').callsFake(
+      function (this: Worker, message) {
+        Atomics.store(message.started, 0, 1);
+        const late = performance.now() + 1500;
+        clock.returns(late);
+        this.emit('message', true);
+      },
+    );
+    try {
+      assert.equal(await compileRegex('ad(?=s)').test('ads'), true);
+    } finally {
+      post.restore();
+      clock.restore();
+    }
+  });
+
+  it('does not send oversized URLs to a native regex worker', async () => {
+    const matcher = compileRegex('ad(?=s)');
+    const prefix = 'x'.repeat(65_533);
+    assert.equal(await matcher.test(`${prefix}ads`), true);
+    assert.equal(await matcher.test(`${prefix}xads`), false);
+  });
+
+  it('times out a slow JS-only match without blocking unrelated matches', async function () {
+    this.timeout(5000);
+    const pattern = '(?=a)a+$';
+    const slow = compileRegex(pattern);
+    const post = Worker.prototype.postMessage;
+    let exited: Promise<unknown> | undefined;
+    const stall = Sinon.stub(Worker.prototype, 'postMessage').callsFake(
+      function (this: Worker, message, transferList) {
+        if (message.pattern === pattern && message.value === 'aaa') {
+          // Model a worker that enters the match but never returns a result.
+          Atomics.store(message.started, 0, 1);
+          exited = once(this, 'exit');
+        } else post.call(this, message, transferList);
+      },
+    );
+    try {
+      const pending = slow.test('aaa');
+      assert.ok(exited);
+      const fast = compileRegex('ad(?=s)');
+      assert.equal(await Promise.race([fast.test('ads'), pending]), true);
+      assert.equal(await pending, false);
+      await exited;
+      assert.equal(await slow.test('aa'), false); // Cooling down for this rule only.
+      assert.equal(await compileRegex(pattern).test('aa'), true);
+      await new Promise((resolve) => setTimeout(resolve, 1050));
+      assert.equal(await slow.test('aa'), true);
+    } finally {
+      stall.restore();
+    }
   });
 });
