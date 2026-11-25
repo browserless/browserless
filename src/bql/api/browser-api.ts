@@ -3095,7 +3095,12 @@ export class BQLBrowserAPI {
         }
         // Navigation can clear history without emitting a request or response.
         if (oneScan || scanned === revision)
-          return found.filter((record) => history.get(record.id) === record);
+          return found.filter(
+            (record) =>
+              history.get(record.id) === record &&
+              (!filter.status?.length ||
+                decisions.get(record)?.status === record.status),
+          );
       }
     };
     const changes$ = fromEvent(this.events, kind).pipe(startWith(null));

@@ -898,35 +898,37 @@ test('intentional fulfillment survives regex cache eviction', async () => {
   }
 });
 
-test('async response matching rechecks status changed by extra info', async () => {
-  const api = new API();
-  await api.setup();
-  try {
-    const url = 'https://example.com/asset';
-    api.client.emit('Network.responseReceived', {
-      requestId: 'asset',
-      type: 'Image',
-      hasExtraInfo: true,
-      response: { url, status: 200, headers: {} },
-    });
-    const response = api.response({
-      regex: ['(?<=/)asset$'],
-      status: [200],
-      operator: 'and',
-      wait: true,
-      timeout: 500,
-      includeBody: false,
-    });
-    api.client.emit('Network.responseReceivedExtraInfo', {
-      requestId: 'asset',
-      statusCode: 404,
-      headers: {},
-    });
-    assert.equal(await response, null);
-  } finally {
-    await api.close();
-  }
-});
+for (const wait of [true, false]) {
+  test(`async response matching rechecks status changed by extra info (wait: ${wait})`, async () => {
+    const api = new API();
+    await api.setup();
+    try {
+      const url = 'https://example.com/asset';
+      api.client.emit('Network.responseReceived', {
+        requestId: 'asset',
+        type: 'Image',
+        hasExtraInfo: true,
+        response: { url, status: 200, headers: {} },
+      });
+      const response = api.response({
+        regex: ['(?<=/)asset$'],
+        status: [200],
+        operator: 'and',
+        wait,
+        timeout: 500,
+        includeBody: false,
+      });
+      api.client.emit('Network.responseReceivedExtraInfo', {
+        requestId: 'asset',
+        statusCode: 404,
+        headers: {},
+      });
+      assert.equal(await response, null);
+    } finally {
+      await api.close();
+    }
+  });
+}
 
 test('async response matching ignores history cleared by content', async () => {
   const api = new API();
