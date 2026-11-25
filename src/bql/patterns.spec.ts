@@ -216,8 +216,10 @@ describe('BrowserQL safe patterns', () => {
       assert.equal(await Promise.race([fast.test('ads'), pending]), true);
       assert.equal(await pending, false);
       await exited;
-      assert.equal(await slow.test('aa'), false); // Timed out for this rule only.
+      assert.equal(await slow.test('aa'), false); // Cooling down for this rule only.
       assert.equal(await compileRegex(pattern).test('aa'), true);
+      await new Promise((resolve) => setTimeout(resolve, 1050));
+      assert.equal(await slow.test('aa'), true);
     } finally {
       stall.restore();
     }

@@ -207,7 +207,8 @@ response's `value` string; strings are returned unchanged.
 Network `regex` filters use RE2 when possible. Valid JavaScript-only expressions
 (including lookaround and backreferences) run in a worker with a one-second
 budget including queue time. If the budget or queue capacity is exhausted, the
-fallback is treated as no match. Invalid expressions fail when registered. This
+fallback is treated as no match. A rule that times out during execution retries
+new matches after a one-second cooldown. Invalid expressions fail when registered. This
 also applies to SDK `request` and `response` filters. Patterns are limited to 200
 characters. Readback `clean.regexes` remains RE2-only and case-insensitive.
 URL and title globs are compiled to

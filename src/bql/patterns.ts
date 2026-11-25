@@ -141,15 +141,16 @@ export function compileRegex(pattern: string): NetworkRegex {
     }
   }
   const results = new Map<string, boolean>();
-  let timedOut = false;
+  let retryAt = 0;
   return {
     cachedTest: (value) => results.get(value) ?? false,
     test(value) {
       const cached = results.get(value);
       if (cached !== undefined) return cached;
-      if (timedOut) return false;
+      if (performance.now() < retryAt) return false;
       return testInWorker(pattern, value).then((result) => {
-        if (result === 'timed-out') timedOut = true;
+        if (result === 'timed-out')
+          retryAt = performance.now() + regexDeadlineMs;
         if (typeof result !== 'boolean') return false;
         if (results.size >= 128) results.delete(results.keys().next().value!);
         results.set(value, result);

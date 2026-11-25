@@ -2998,6 +2998,10 @@ export class BQLBrowserAPI {
     ];
     const hasFallback = regexes.some((pattern) => pattern.cachedTest);
     const cancellation = new AbortController();
+    const decisions = new WeakMap<
+      NetworkRecord,
+      { status?: number; match: boolean }
+    >();
     let revision = 0;
     const find = async () => {
       // Coalesce events during a worker scan without losing a newly arrived
@@ -3007,8 +3011,16 @@ export class BQLBrowserAPI {
         const found = [];
         for (const record of records()) {
           if (cancellation.signal.aborted) return [];
-          if (await matchNetwork(record, filter, cancellation.signal))
-            found.push(record);
+          const { status } = record;
+          let decision = decisions.get(record);
+          if (!decision || decision.status !== status) {
+            decision = {
+              status,
+              match: await matchNetwork(record, filter, cancellation.signal),
+            };
+            decisions.set(record, decision);
+          }
+          if (decision.match) found.push(record);
         }
         if (found.length || scanned === revision) return found;
       }
