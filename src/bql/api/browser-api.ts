@@ -13,20 +13,28 @@ import type {
   Protocol,
 } from 'puppeteer-core';
 import {
+  type NetworkRegex,
+  compileRE2,
+  compileRegex,
+  matchesGlob as glob,
+} from '../patterns.js';
+import {
   Observable,
   Subscription,
+  exhaustMap,
   filter as filterRecords,
+  finalize,
   firstValueFrom,
   from,
   fromEvent,
   fromEventPattern,
   map,
   merge,
+  startWith,
   tap,
   throwError,
   timeout as throwTimeout,
 } from 'rxjs';
-import { compileRegex, matchesGlob as glob } from '../patterns.js';
 import { CDPSessionEvent } from 'puppeteer-core/internal/api/CDPSession.js';
 import { EventEmitter } from 'node:events';
 import { RE2JS } from 're2js';
@@ -187,8 +195,8 @@ export type PDFOptionsInput = Omit<
   outline?: boolean;
 };
 
-const compiledRegexes = new WeakMap<Filter, RE2JS[]>();
-const compileRegexes = (filter: Filter): RE2JS[] => {
+const compiledRegexes = new WeakMap<Filter, NetworkRegex[]>();
+const compileRegexes = (filter: Filter): NetworkRegex[] => {
   const cached = compiledRegexes.get(filter);
   if (cached) return cached;
   for (const pattern of filter.url ?? []) glob('', pattern);
@@ -196,17 +204,19 @@ const compileRegexes = (filter: Filter): RE2JS[] => {
   compiledRegexes.set(filter, regexes);
   return regexes;
 };
-const matches = (
-  r: { url: string; method: string; type: string; status?: number },
-  f: Filter,
-) => {
-  const and = (f.operator ?? 'or').toLowerCase() === 'and';
+type MatchRecord = {
+  url: string;
+  method: string;
+  type: string;
+  status?: number;
+};
+const isAnd = (f: Filter) => (f.operator ?? 'or').toLowerCase() === 'and';
+// Undefined means the remaining regex group determines the result.
+const nonRegexMatch = (r: MatchRecord, f: Filter, and: boolean) => {
   const check = <T>(items: T[], predicate: (item: T) => boolean) =>
     and ? items.every(predicate) : items.some(predicate);
   const checks: boolean[] = [];
   if (f.url?.length) checks.push(check(f.url, (p) => glob(r.url, p)));
-  if (f.regex?.length)
-    checks.push(check(compileRegexes(f), (pattern) => pattern.test(r.url)));
   if (f.method?.length)
     checks.push(
       check(f.method, (m) => m.toLowerCase() === r.method.toLowerCase()),
@@ -215,7 +225,39 @@ const matches = (
     checks.push(check(f.type, (t) => t.toLowerCase() === r.type.toLowerCase()));
   if (f.status?.length)
     checks.push(check(f.status, (status) => status === r.status));
+  if (f.regex?.length && check(checks, Boolean) === and) return undefined;
   return !checks.length || check(checks, Boolean);
+};
+
+const matches = (r: MatchRecord, f: Filter) => {
+  const and = isAnd(f);
+  const matched = nonRegexMatch(r, f, and);
+  if (matched !== undefined) return matched;
+  // Synchronous navigation/resource bookkeeping can reuse a worker result
+  // from interception, but must never start a JavaScript match itself.
+  const test = (pattern: NetworkRegex) =>
+    pattern.cachedTest
+      ? pattern.cachedTest(r.url)
+      : pattern.test(r.url) === true;
+  const regexes = compileRegexes(f);
+  return and ? regexes.every(test) : regexes.some(test);
+};
+
+const matchNetwork = async (
+  r: MatchRecord,
+  f: Filter,
+  signal?: AbortSignal,
+) => {
+  const and = isAnd(f);
+  const matched = nonRegexMatch(r, f, and);
+  if (matched !== undefined) return matched;
+  for (const pattern of compileRegexes(f)) {
+    if (signal?.aborted) return false;
+    const result = pattern.test(r.url);
+    if ((typeof result === 'boolean' ? result : await result) !== and)
+      return !and;
+  }
+  return and;
 };
 const duration = (ms: number): number => {
   if (!Number.isFinite(ms) || ms < 0 || ms > 2147483647)
@@ -932,12 +974,25 @@ export class BQLBrowserAPI {
         this.logger.error?.('Request policy failed');
       }
     }
-    const matchingRules = this.rules.filter((r) =>
-      matches({ ...event.request, type: event.resourceType }, r.filter),
-    );
-    decision ??=
-      matchingRules.find((r) => r.decision.method === 'Fetch.failRequest')
-        ?.decision ?? matchingRules[0]?.decision;
+    let ruleDecision: FetchDecision | undefined;
+    if (!decision) {
+      const resource = { ...event.request, type: event.resourceType };
+      for (const method of ['Fetch.failRequest', 'Fetch.fulfillRequest']) {
+        for (const rule of this.rules) {
+          if (this.closed) return;
+          if (
+            rule.decision.method === method &&
+            (await matchNetwork(resource, rule.filter))
+          ) {
+            ruleDecision = rule.decision;
+            break;
+          }
+        }
+        if (ruleDecision) break;
+      }
+      decision = ruleDecision;
+    }
+    if (this.closed) return;
     if (!decision)
       for (const handler of this.handlers) {
         try {
@@ -955,7 +1010,7 @@ export class BQLBrowserAPI {
     const intentionalDocumentReject =
       event.resourceType === 'Document' &&
       decision.method === 'Fetch.failRequest' &&
-      matchingRules.some((rule) => rule.decision === decision) &&
+      ruleDecision === decision &&
       (!this.currentFrames.has(cdp) ||
         this.currentFrames.get(cdp)?.id === event.frameId);
     if (intentionalDocumentReject) this.rejectedDocuments.add(cdp);
@@ -1471,7 +1526,7 @@ export class BQLBrowserAPI {
   private async read(args: ReadArgs, mode: 'html' | 'text'): Promise<string> {
     const regexes = args.clean?.removeRegex
       ? args.clean.regexes.map((pattern) =>
-          compileRegex(pattern, RE2JS.CASE_INSENSITIVE),
+          compileRE2(pattern, RE2JS.CASE_INSENSITIVE),
         )
       : [];
     const selector = args.selector ?? 'html';
@@ -2937,24 +2992,42 @@ export class BQLBrowserAPI {
     timeout = this.timeout,
   ): Promise<NetworkRecord[]> {
     duration(timeout);
-    compileRegexes(filter);
-    const records = () =>
-      [
-        ...(kind === 'request' ? this.requests : this.responses).values(),
-      ].filter((r) => matches(r, filter));
-    const found = records();
-    if (found.length) return found;
+    const regexes = compileRegexes(filter);
+    const records = () => [
+      ...(kind === 'request' ? this.requests : this.responses).values(),
+    ];
+    const hasFallback = regexes.some((pattern) => pattern.cachedTest);
+    const cancellation = new AbortController();
+    let revision = 0;
+    const find = async () => {
+      // Coalesce events during a worker scan without losing a newly arrived
+      // match or building a queue of scans for a busy page.
+      for (;;) {
+        const scanned = revision;
+        const found = [];
+        for (const record of records()) {
+          if (cancellation.signal.aborted) return [];
+          if (await matchNetwork(record, filter, cancellation.signal))
+            found.push(record);
+        }
+        if (found.length || scanned === revision) return found;
+      }
+    };
+    const changes$ = fromEvent(this.events, kind).pipe(startWith(null));
     const network$ = merge(
-      fromEvent(this.events, kind).pipe(
-        map(records),
-        filterRecords((found) => found.length > 0),
-      ),
       fromEvent(this.events, 'close').pipe(
         map((): never => {
           throw new Error('Browser closed while waiting');
         }),
       ),
-    );
+      (hasFallback
+        ? changes$.pipe(
+            tap(() => revision++),
+            exhaustMap(find),
+          )
+        : changes$.pipe(map(() => records().filter((r) => matches(r, filter))))
+      ).pipe(filterRecords((found) => found.length > 0)),
+    ).pipe(finalize(() => cancellation.abort()));
     return firstValueFrom(
       timeout
         ? network$.pipe(

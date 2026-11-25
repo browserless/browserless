@@ -272,6 +272,34 @@ describe('BrowserQL primitive contracts', () => {
     await context.close();
   });
 
+  it('serializes malformed network regexes as BAD_REQUEST for REST adapters', async () => {
+    class NetworkAPI extends BQLBrowserAPI {
+      override async start() {}
+      override async close() {}
+    }
+    const service = new BrowserQL({
+      apiFactory: () => new NetworkAPI(options),
+    });
+    const context = service.createContext(options);
+    try {
+      for (const field of [
+        'reject(regex: ["(?=x"]) { time }',
+        'fulfill(regex: ["(?=x"]) { time }',
+      ]) {
+        const result = await service.execute(
+          { query: `mutation { ${field} }` },
+          context,
+        );
+        assert.equal(
+          JSON.parse(JSON.stringify(result)).errors[0].extensions.code,
+          'BAD_REQUEST',
+        );
+      }
+    } finally {
+      await context.close();
+    }
+  });
+
   it('accepts explicitly supplied empty fulfill filters', async () => {
     const service = new BrowserQL({ apiFactory: () => new API(options) });
     const context = service.createContext(options);

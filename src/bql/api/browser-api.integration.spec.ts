@@ -80,7 +80,7 @@ describe('raw CDP browser primitives', () => {
         }, 150);
         return;
       }
-      if (req.url === '/script') {
+      if (req.url === '/script' || req.url === '/script?ok') {
         scriptHeader = req.headers['x-script-test'];
         res.end('window.injected = 42;');
         return;
@@ -476,8 +476,12 @@ describe('raw CDP browser primitives', () => {
     await api.setExtraHTTPHeaders({ headers: { 'X-Script-Test': 'session' } });
     assert.equal((await api.evaluate({ url: `${origin}/script` })).value, 42);
     assert.equal(scriptHeader, 'session');
-    await api.reject({ enabled: true, url: [`${origin}/script`] });
+    await api.reject({ enabled: true, regex: ['(?<=/)script$'] });
     await assert.rejects(api.evaluate({ url: `${origin}/script` }), /fetch/i);
+    assert.equal(
+      (await api.evaluate({ url: `${origin}/script?ok` })).value,
+      42,
+    );
     await api.reject({ enabled: false });
     await api.setExtraHTTPHeaders({ headers: {} });
     assert.equal((await api.evaluate({ content: '1 + 1 // two' })).value, 2);

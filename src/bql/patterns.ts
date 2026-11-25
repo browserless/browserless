@@ -1,14 +1,161 @@
 import { BadRequest } from '@browserless.io/browserless';
 import { RE2JS } from 're2js';
+import { Worker } from 'node:worker_threads';
 import micromatch from 'micromatch';
 
-export function compileRegex(pattern: string, flags = 0): RE2JS {
-  if (pattern.length > 200) throw new BadRequest('Regex is too long');
+class RegexInputError extends BadRequest {
+  readonly extensions = { code: 'BAD_REQUEST' };
+}
+
+export function compileRE2(pattern: string, flags = 0): RE2JS {
+  if (pattern.length > 200) throw new RegexInputError('Regex is too long');
   try {
     return RE2JS.compile(pattern, flags);
   } catch {
-    throw new BadRequest('Regex is invalid or unsupported');
+    throw new RegexInputError('Regex is invalid or unsupported');
   }
+}
+
+// Fixed worker code; patterns and URLs are data, never interpolated as code.
+const workerSource = `
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', ({pattern, value, started}) => {
+    const regex = new RegExp(pattern);
+    Atomics.store(started, 0, 1);
+    parentPort.postMessage(regex.test(value));
+  });
+`;
+const regexSlots: Array<{ worker?: Worker; busy: boolean }> = [
+  { busy: false },
+  { busy: false },
+];
+const regexDeadlineMs = 1000;
+type WorkerResult = boolean | 'timed-out' | undefined;
+type RegexJob = {
+  pattern: string;
+  value: string;
+  deadline: number;
+  resolve: (result: WorkerResult) => void;
+  timer: NodeJS.Timeout;
+};
+const pendingRegexJobs: RegexJob[] = [];
+
+function dispatchRegexJobs() {
+  for (const slot of regexSlots) {
+    if (slot.busy) continue;
+    const job = pendingRegexJobs.shift();
+    if (!job) return;
+    clearTimeout(job.timer);
+    slot.busy = true;
+    void runRegexJob(slot, job).finally(() => {
+      slot.busy = false;
+      dispatchRegexJobs();
+    });
+  }
+}
+
+async function runRegexJob(slot: (typeof regexSlots)[number], job: RegexJob) {
+  const remaining = job.deadline - performance.now();
+  if (remaining <= 0) return job.resolve(undefined);
+  const started = new Int32Array(new SharedArrayBuffer(4));
+  let timer: NodeJS.Timeout | undefined;
+  let result: WorkerResult;
+  try {
+    const worker = (slot.worker ??= new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      resourceLimits: {
+        maxOldGenerationSizeMb: 60,
+        maxYoungGenerationSizeMb: 4,
+        stackSizeMb: 4,
+      },
+    }));
+    worker.ref();
+    result = await new Promise<WorkerResult>((resolve) => {
+      worker.once('message', resolve);
+      // Leave the error listener in place until retirement finishes.
+      worker.once('error', () => resolve(undefined));
+      worker.once('exit', () => resolve(undefined));
+      timer = setTimeout(
+        () => resolve(Atomics.load(started, 0) ? 'timed-out' : undefined),
+        Math.max(0, Math.ceil(job.deadline - performance.now())),
+      );
+      worker.postMessage({ pattern: job.pattern, value: job.value, started });
+    });
+    if (performance.now() >= job.deadline)
+      result = Atomics.load(started, 0) ? 'timed-out' : undefined;
+  } catch {
+    // A startup or worker failure is not a syntax error or a match.
+  } finally {
+    clearTimeout(timer);
+    job.resolve(result);
+    const worker = slot.worker;
+    if (typeof result === 'boolean') {
+      worker?.removeAllListeners('error');
+      worker?.removeAllListeners('exit');
+      worker?.unref();
+    } else {
+      slot.worker = undefined;
+      // Do not reuse the slot until the old worker actually stops.
+      await worker?.terminate().catch(() => {});
+    }
+  }
+}
+
+function testInWorker(pattern: string, value: string) {
+  if (pendingRegexJobs.length >= 128) return Promise.resolve(undefined);
+  return new Promise<WorkerResult>((resolve) => {
+    const job: RegexJob = {
+      pattern,
+      value,
+      deadline: performance.now() + regexDeadlineMs,
+      resolve,
+      timer: setTimeout(() => {
+        const index = pendingRegexJobs.indexOf(job);
+        if (index < 0) return;
+        pendingRegexJobs.splice(index, 1);
+        resolve(undefined);
+      }, regexDeadlineMs),
+    };
+    pendingRegexJobs.push(job);
+    dispatchRegexJobs();
+  });
+}
+
+export type NetworkRegex = {
+  test(value: string): boolean | Promise<boolean>;
+  cachedTest?(value: string): boolean;
+};
+
+export function compileRegex(pattern: string): NetworkRegex {
+  if (pattern.length > 200) throw new RegexInputError('Regex is too long');
+  try {
+    return RE2JS.compile(pattern);
+  } catch {
+    // Syntax validation only. Never execute native regexes on the main thread.
+    try {
+      new RegExp(pattern);
+    } catch {
+      throw new RegexInputError('Regex is invalid or unsupported');
+    }
+  }
+  const results = new Map<string, boolean>();
+  let timedOut = false;
+  return {
+    cachedTest: (value) => results.get(value) ?? false,
+    test(value) {
+      const cached = results.get(value);
+      if (cached !== undefined) return cached;
+      if (timedOut) return false;
+      return testInWorker(pattern, value).then((result) => {
+        if (result === 'timed-out') timedOut = true;
+        if (typeof result !== 'boolean') return false;
+        if (results.size >= 128) results.delete(results.keys().next().value!);
+        results.set(value, result);
+        return result;
+      });
+    },
+  };
 }
 
 const globs = new Map<

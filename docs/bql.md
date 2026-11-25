@@ -204,11 +204,13 @@ there is no server-side fallback. Use `content` for scripts that cannot be fetch
 under those restrictions. Structured evaluation results are JSON-encoded in the
 response's `value` string; strings are returned unchanged.
 
-Network `regex` filters and readback `clean.regexes` use RE2 syntax with Unicode support and linear-time
-matching. Each pattern is limited to 200 characters. Lookaround and
-backreferences are unsupported; invalid or unsupported patterns fail when the
-filter is registered. This also applies to SDK `request` and `response` filters.
-Cleanup replacements are case-insensitive. URL and title globs are compiled to
+Network `regex` filters use RE2 when possible. Valid JavaScript-only expressions
+(including lookaround and backreferences) run in a worker with a one-second
+budget including queue time. If the budget or queue capacity is exhausted, the
+fallback is treated as no match. Invalid expressions fail when registered. This
+also applies to SDK `request` and `response` filters. Patterns are limited to 200
+characters. Readback `clean.regexes` remains RE2-only and case-insensitive.
+URL and title globs are compiled to
 RE2 with a 200-character limit. Common `*`/`?` wildcards, brace alternatives,
 character classes (such as `[0-9]`) and leading negation are supported.
 Leading and trailing globstars work in URL patterns such as `**/posts/**`,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import micromatch from 'micromatch';
 
-import { compileRegex, matchesGlob } from './patterns.js';
+import { compileRE2, compileRegex, matchesGlob } from './patterns.js';
 
 describe('BrowserQL safe patterns', () => {
   for (const [pattern, value, expected] of [
@@ -183,11 +183,23 @@ describe('BrowserQL safe patterns', () => {
     }
   });
 
-  it('bounds patterns and retains RE2 regex restrictions', () => {
+  it('bounds pattern lengths and keeps readback regexes RE2-only', () => {
     assert.throws(() => matchesGlob('x', 'x'.repeat(201)), /too long/i);
     assert.throws(() => compileRegex('x'.repeat(201)), /too long/i);
-    assert.throws(() => compileRegex('(?=x)x'), /unsupported/i);
-    assert.throws(() => compileRegex('(x)\\1'), /unsupported/i);
+    assert.throws(() => compileRE2('(?=x)x'), /unsupported/i);
+    assert.throws(() => compileRE2('(x)\\1'), /unsupported/i);
     assert.equal(compileRegex('(a+)+$').test('a'.repeat(10_000) + '!'), false);
+  });
+
+  it('times out a slow JS-only match without blocking unrelated matches', async function () {
+    this.timeout(5000);
+    const slow = compileRegex('(?=a)(a+)+$');
+    assert.equal(await slow.test('a'), true); // Warm a worker before timing it.
+    const pending = slow.test('a'.repeat(40_000) + '!');
+    const fast = compileRegex('ad(?=s)');
+    assert.equal(await Promise.race([fast.test('ads'), pending]), true);
+    assert.equal(await pending, false);
+    assert.equal(await slow.test('aa'), false); // Timed out for this rule only.
+    assert.equal(await compileRegex('(?=a)(a+)+$').test('aa'), true);
   });
 });

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { it as test } from 'mocha';
@@ -1361,7 +1361,7 @@ test('capture and readback hooks run before CDP read operations', async () => {
 
 test('invalid and excessive network regexes are rejected when registered', async () => {
   const api = new API();
-  for (const regex of ['(', 'x'.repeat(201), '(?=x)', '(x)\\1']) {
+  for (const regex of ['(?=x', 'x'.repeat(201)]) {
     for (const run of [
       () => api.reject({ enabled: true, regex: [regex] }),
       () => api.fulfill({ regex: [regex], body: 'test' }),
@@ -1378,8 +1378,39 @@ test('invalid and excessive network regexes are rejected when registered', async
           },
         }),
     ]) {
-      await assert.rejects(run(), /regex/i);
+      await assert.rejects(run(), {
+        name: 'BadRequest',
+        extensions: { code: 'BAD_REQUEST' },
+      });
     }
+  }
+});
+
+test('network regexes reject and fulfill JS-only matches before continuing other requests', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    await api.reject({ enabled: true, regex: ['ads(?=/)'] });
+    await api.fulfill({ regex: ['(?<=/)(ad)\\1$'], body: 'stub' });
+    for (const [path, expected] of [
+      ['/ads/banner', 'Fetch.failRequest'],
+      ['/adad', 'Fetch.fulfillRequest'],
+      ['/ads.txt', 'Fetch.continueRequest'],
+    ]) {
+      api.client.handler = (method) => {
+        if (/^Fetch\.(fail|fulfill|continue)Request$/.test(method))
+          api.client.emit('decision', method);
+      };
+      const decision = once(api.client, 'decision');
+      api.client.emit('Fetch.requestPaused', {
+        requestId: path,
+        request: { url: `https://example.com${path}`, method: 'GET' },
+        resourceType: 'Image',
+      });
+      assert.deepEqual(await decision, [expected]);
+    }
+  } finally {
+    await api.close();
   }
 });
 
