@@ -385,6 +385,7 @@ export class BQLBrowserAPI {
   private responseBodyRead = Promise.resolve();
   private responseMetadata = new Map<string, ResponseMetadata>();
   private networkOwners = new Map<string, Connection>();
+  private intentionalInterceptions = new WeakSet<NetworkRecord>();
   private inflight = new Set<string>();
   protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
@@ -686,6 +687,11 @@ export class BQLBrowserAPI {
           this.events.emit('network-change');
         }
         const record = this.responses.get(e.requestId)!;
+        if (
+          request?.url === record.url &&
+          this.intentionalInterceptions.has(request)
+        )
+          this.intentionalInterceptions.add(record);
         const metadata = this.metadataFor(e.requestId);
         const extra = e.hasExtraInfo ? metadata.extra.shift() : undefined;
         if (e.hasExtraInfo && !extra) {
@@ -1014,6 +1020,11 @@ export class BQLBrowserAPI {
       (!this.currentFrames.has(cdp) ||
         this.currentFrames.get(cdp)?.id === event.frameId);
     if (intentionalDocumentReject) this.rejectedDocuments.add(cdp);
+    const networkId = event.networkId;
+    const intercepted =
+      ruleDecision && networkId && this.networkOwners.get(networkId) === cdp
+        ? this.requests.get(networkId)
+        : undefined;
     try {
       await cdp.send(decision.method, {
         ...decision.params,
@@ -1028,6 +1039,15 @@ export class BQLBrowserAPI {
           })
           .catch(() => {});
       throw error;
+    }
+    if (intercepted && intercepted.url === event.request.url) {
+      this.intentionalInterceptions.add(intercepted);
+      // The response can arrive before the Fetch command's acknowledgement.
+      if (this.requests.get(intercepted.id) === intercepted) {
+        const response = this.responses.get(intercepted.id);
+        if (response?.url === intercepted.url)
+          this.intentionalInterceptions.add(response);
+      }
     }
     if (intentionalDocumentReject)
       this.events.emit('document-rejected', cdp, event.request.url);
@@ -1937,7 +1957,11 @@ export class BQLBrowserAPI {
     let total = 0;
     let stylesheets = 0;
     for (const resource of failed.values()) {
-      if (resource.type === 'document' || this.isIntentionalResource(resource))
+      if (
+        resource.type === 'document' ||
+        this.intentionalInterceptions.has(resource) ||
+        this.isIntentionalResource(resource)
+      )
         continue;
       total++;
       if (resource.type === 'stylesheet') stylesheets++;
@@ -3022,7 +3046,7 @@ export class BQLBrowserAPI {
           }
           if (decision.match) found.push(record);
         }
-        if (found.length || scanned === revision) return found;
+        if (scanned === revision) return found;
       }
     };
     const changes$ = fromEvent(this.events, kind).pipe(startWith(null));

@@ -853,6 +853,73 @@ test('failed subresources exclude documents, cancellations and intentional rules
   await api.close();
 });
 
+test('intentional fulfillment survives regex cache eviction', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    await api.fulfill({ regex: ['(?<=/)asset-'], status: 404 });
+    api.client.handler = (method) => {
+      if (method === 'Fetch.fulfillRequest') api.client.emit('fulfilled');
+    };
+    for (let i = 0; i < 129; i++) {
+      const id = String(i);
+      const url = `https://example.com/asset-${id}`;
+      const request = { url, method: 'GET', headers: {} };
+      api.client.emit('Network.requestWillBeSent', {
+        requestId: id,
+        type: 'Image',
+        request,
+      });
+      const fulfilled = once(api.client, 'fulfilled');
+      api.client.emit('Fetch.requestPaused', {
+        requestId: `fetch-${id}`,
+        networkId: id,
+        request,
+        resourceType: 'Image',
+      });
+      await fulfilled;
+      api.client.emit('Network.responseReceived', {
+        requestId: id,
+        type: 'Image',
+        response: { url, status: 404, headers: {} },
+      });
+    }
+    assert.deepEqual(api.failedSubResources(), { total: 0, stylesheets: 0 });
+  } finally {
+    await api.close();
+  }
+});
+
+test('async response matching rechecks status changed by extra info', async () => {
+  const api = new API();
+  await api.setup();
+  try {
+    const url = 'https://example.com/asset';
+    api.client.emit('Network.responseReceived', {
+      requestId: 'asset',
+      type: 'Image',
+      hasExtraInfo: true,
+      response: { url, status: 200, headers: {} },
+    });
+    const response = api.response({
+      regex: ['(?<=/)asset$'],
+      status: [200],
+      operator: 'and',
+      wait: true,
+      timeout: 500,
+      includeBody: false,
+    });
+    api.client.emit('Network.responseReceivedExtraInfo', {
+      requestId: 'asset',
+      statusCode: 404,
+      headers: {},
+    });
+    assert.equal(await response, null);
+  } finally {
+    await api.close();
+  }
+});
+
 test('duration arguments reject timer overflow rather than firing immediately', async () => {
   const api = new API();
   for (const run of [
