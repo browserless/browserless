@@ -272,7 +272,7 @@ describe('BrowserQL primitive contracts', () => {
     await context.close();
   });
 
-  it('serializes malformed network regexes as BAD_REQUEST for REST adapters', async () => {
+  it('serializes invalid network rules as BAD_REQUEST for REST adapters', async () => {
     class NetworkAPI extends BQLBrowserAPI {
       override async start() {}
       override async close() {}
@@ -285,6 +285,8 @@ describe('BrowserQL primitive contracts', () => {
       for (const field of [
         'reject(regex: ["(?=x"]) { time }',
         'fulfill(regex: ["(?=x"]) { time }',
+        'reject(url: ["!(foo)"]) { time }',
+        'fulfill(url: ["*/foo"], status: 99) { time }',
       ]) {
         const result = await service.execute(
           { query: `mutation { ${field} }` },

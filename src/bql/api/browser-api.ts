@@ -17,6 +17,7 @@ import {
   compileRE2,
   compileRegex,
   matchesGlob as glob,
+  interceptionBudget,
 } from '../patterns.js';
 import {
   Observable,
@@ -247,17 +248,19 @@ const matchNetwork = async (
   r: MatchRecord,
   f: Filter,
   signal?: AbortSignal,
+  budget?: ReturnType<typeof interceptionBudget>,
 ) => {
   const and = isAnd(f);
   const matched = nonRegexMatch(r, f, and);
   if (matched !== undefined) return matched;
+  let unavailable = false;
   for (const pattern of compileRegexes(f)) {
     if (signal?.aborted) return false;
-    const result = pattern.test(r.url);
-    if ((typeof result === 'boolean' ? result : await result) !== and)
-      return !and;
+    const result = await pattern.test(r.url, budget);
+    if (result === undefined) unavailable = true;
+    else if (result !== and) return !and;
   }
-  return and;
+  return unavailable ? undefined : and;
 };
 const duration = (ms: number): number => {
   if (!Number.isFinite(ms) || ms < 0 || ms > 2147483647)
@@ -375,6 +378,7 @@ export class BQLBrowserAPI {
   private closed = false;
   private handlers: RequestHandler[] = [];
   private rules: Array<{ filter: Filter; decision: FetchDecision }> = [];
+  private readonly regexSession = Symbol();
   private requests = new Map<string, NetworkRecord>();
   private responses = new Map<string, NetworkRecord>();
   private failedRequests = new Set<string>();
@@ -386,6 +390,7 @@ export class BQLBrowserAPI {
   private responseMetadata = new Map<string, ResponseMetadata>();
   private networkOwners = new Map<string, Connection>();
   private intentionalInterceptions = new WeakSet<NetworkRecord>();
+  private earlyInterceptions = new WeakMap<Connection, Map<string, string>>();
   private inflight = new Set<string>();
   protected pendingRequests = new WeakMap<Connection, Map<string, number>>();
   private clients = new Set<Connection>();
@@ -632,12 +637,17 @@ export class BQLBrowserAPI {
           if (metadata.extra.length) metadata.extra.shift();
           else metadata.redirects++;
         }
-        this.requests.set(e.requestId, {
+        const record = {
           id: e.requestId,
           ...e.request,
           type: (e.type ?? '').toLowerCase(),
           loaderId: e.loaderId,
-        });
+        };
+        this.requests.set(e.requestId, record);
+        const early = this.earlyInterceptions.get(cdp);
+        if (early?.get(record.id) === record.url)
+          this.intentionalInterceptions.add(record);
+        early?.delete(record.id);
         this.inflight.add(e.requestId);
         pending.set(e.requestId, Date.now());
         this.events.emit('network-change');
@@ -983,20 +993,33 @@ export class BQLBrowserAPI {
     let ruleDecision: FetchDecision | undefined;
     if (!decision) {
       const resource = { ...event.request, type: event.resourceType };
+      const budget = interceptionBudget(this.regexSession);
       for (const method of ['Fetch.failRequest', 'Fetch.fulfillRequest']) {
         for (const rule of this.rules) {
           if (this.closed) return;
-          if (
-            rule.decision.method === method &&
-            (await matchNetwork(resource, rule.filter))
-          ) {
-            ruleDecision = rule.decision;
+          if (rule.decision.method !== method) continue;
+          const matched = await matchNetwork(
+            resource,
+            rule.filter,
+            undefined,
+            budget,
+          );
+          if (!this.rules.includes(rule)) continue;
+          if (matched === undefined) {
+            this.logger.error?.('Network regex evaluation unavailable');
+            decision = {
+              method: 'Fetch.failRequest',
+              params: { errorReason: 'Failed' },
+            };
+            break;
+          }
+          if (matched) {
+            decision = ruleDecision = rule.decision;
             break;
           }
         }
-        if (ruleDecision) break;
+        if (decision) break;
       }
-      decision = ruleDecision;
     }
     if (this.closed) return;
     if (!decision)
@@ -1025,6 +1048,10 @@ export class BQLBrowserAPI {
       ruleDecision && networkId && this.networkOwners.get(networkId) === cdp
         ? this.requests.get(networkId)
         : undefined;
+    let early = this.earlyInterceptions.get(cdp);
+    if (ruleDecision && networkId && !intercepted && cdp === this.mainCDP) {
+      if (!early) this.earlyInterceptions.set(cdp, (early = new Map()));
+    }
     try {
       await cdp.send(decision.method, {
         ...decision.params,
@@ -1040,12 +1067,28 @@ export class BQLBrowserAPI {
           .catch(() => {});
       throw error;
     }
-    if (intercepted && intercepted.url === event.request.url) {
-      this.intentionalInterceptions.add(intercepted);
+    let record = intercepted;
+    if (
+      ruleDecision &&
+      networkId &&
+      !record &&
+      early &&
+      this.earlyInterceptions.get(cdp) === early &&
+      cdp === this.mainCDP
+    ) {
+      const owner = this.networkOwners.get(networkId);
+      if (owner === cdp) record = this.requests.get(networkId);
+      if (!record && (!owner || owner === cdp)) {
+        if (early.size >= 1000) early.delete(early.keys().next().value!);
+        early.set(networkId, event.request.url);
+      }
+    }
+    if (record && record.url === event.request.url) {
+      this.intentionalInterceptions.add(record);
       // The response can arrive before the Fetch command's acknowledgement.
-      if (this.requests.get(intercepted.id) === intercepted) {
-        const response = this.responses.get(intercepted.id);
-        if (response?.url === intercepted.url)
+      if (this.requests.get(record.id) === record) {
+        const response = this.responses.get(record.id);
+        if (response?.url === record.url)
           this.intentionalInterceptions.add(response);
       }
     }
@@ -1921,6 +1964,7 @@ export class BQLBrowserAPI {
       this.failedRequests.clear();
       this.networkOwners.clear();
     }
+    this.earlyInterceptions.delete(this.mainCDP);
     this.clearResponseMetadata();
     for (const id of this.responseOrigins.keys())
       this.dropResponseOrigin(id, true);
@@ -3014,13 +3058,14 @@ export class BQLBrowserAPI {
     kind: 'request' | 'response',
     filter: Filter,
     timeout = this.timeout,
+    snapshot = false,
   ): Promise<NetworkRecord[]> {
     duration(timeout);
     const regexes = compileRegexes(filter);
-    const records = () => [
-      ...(kind === 'request' ? this.requests : this.responses).values(),
-    ];
+    const history = kind === 'request' ? this.requests : this.responses;
+    const records = () => [...history.values()];
     const hasFallback = regexes.some((pattern) => pattern.cachedTest);
+    const oneScan = snapshot && hasFallback;
     const cancellation = new AbortController();
     const decisions = new WeakMap<
       NetworkRecord,
@@ -3040,32 +3085,38 @@ export class BQLBrowserAPI {
           if (!decision || decision.status !== status) {
             decision = {
               status,
-              match: await matchNetwork(record, filter, cancellation.signal),
+              match:
+                (await matchNetwork(record, filter, cancellation.signal)) ===
+                true,
             };
             decisions.set(record, decision);
           }
           if (decision.match) found.push(record);
         }
-        if (scanned === revision) return found;
+        // Navigation can clear history without emitting a request or response.
+        if (oneScan || scanned === revision)
+          return found.filter((record) => history.get(record.id) === record);
       }
     };
     const changes$ = fromEvent(this.events, kind).pipe(startWith(null));
+    const scans$ = hasFallback
+      ? changes$.pipe(
+          tap(() => revision++),
+          exhaustMap(find),
+        )
+      : changes$.pipe(map(() => records().filter((r) => matches(r, filter))));
     const network$ = merge(
       fromEvent(this.events, 'close').pipe(
         map((): never => {
           throw new Error('Browser closed while waiting');
         }),
       ),
-      (hasFallback
-        ? changes$.pipe(
-            tap(() => revision++),
-            exhaustMap(find),
-          )
-        : changes$.pipe(map(() => records().filter((r) => matches(r, filter))))
-      ).pipe(filterRecords((found) => found.length > 0)),
+      oneScan
+        ? scans$
+        : scans$.pipe(filterRecords((found) => found.length > 0)),
     ).pipe(finalize(() => cancellation.abort()));
     return firstValueFrom(
-      timeout
+      timeout && !oneScan
         ? network$.pipe(
             throwTimeout({
               first: timeout,
@@ -3286,17 +3337,20 @@ export class BQLBrowserAPI {
       'request',
       args,
       args.wait ? args.timeout : 100,
+      !args.wait,
     ).catch(() => null);
     return (
-      records?.map(({ url, method, type, headers }) => ({
-        url,
-        method,
-        type,
-        headers: Object.entries(headers).map(([name, value]) => ({
-          name,
-          value,
-        })),
-      })) ?? null
+      (records?.length ? records : null)?.map(
+        ({ url, method, type, headers }) => ({
+          url,
+          method,
+          type,
+          headers: Object.entries(headers).map(([name, value]) => ({
+            name,
+            value,
+          })),
+        }),
+      ) ?? null
     );
   }
   public async response(
@@ -3311,8 +3365,9 @@ export class BQLBrowserAPI {
       'response',
       args,
       args.wait ? args.timeout : 100,
+      !args.wait,
     ).catch(() => null);
-    if (!records) return null;
+    if (!records?.length) return null;
     const results = [];
     for (const { id, url, method, type, headers, status } of records) {
       const body =
@@ -3555,6 +3610,7 @@ export class BQLBrowserAPI {
     this.targetCleanup.get(cdp)?.forEach((cleanup) => cleanup());
     this.targetCleanup.delete(cdp);
     this.clients.delete(cdp);
+    this.earlyInterceptions.delete(cdp);
     for (const [id, owner] of this.networkOwners) {
       if (owner !== cdp) continue;
       this.requests.delete(id);

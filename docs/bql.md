@@ -205,12 +205,15 @@ under those restrictions. Structured evaluation results are JSON-encoded in the
 response's `value` string; strings are returned unchanged.
 
 Network `regex` filters use RE2 when possible. Valid JavaScript-only expressions
-(including lookaround and backreferences) run in a worker with a one-second
-budget including queue time. If the budget or queue capacity is exhausted, the
-fallback is treated as no match. A rule that times out during execution retries
-new matches after a one-second cooldown. Invalid expressions fail when registered. This
-also applies to SDK `request` and `response` filters. Patterns are limited to 200
-characters. Readback `clean.regexes` remains RE2-only and case-insensitive.
+(including lookaround and backreferences) run in a worker. Intercepted requests
+share one second across all fallback evaluations, including queue time. If a rule
+cannot be decided within that budget or the queue is full, Browserless fails the
+request rather than sending it upstream. SDK `request` and `response` history
+filters treat unavailable evaluations as no match. A matcher that times out
+during execution retries new matches after a one-second cooldown. Invalid
+expressions fail when registered. Patterns are limited to 200 characters, and
+fallback inputs to 65,536 UTF-16 code units. Readback `clean.regexes` remains
+RE2-only and case-insensitive.
 URL and title globs are compiled to
 RE2 with a 200-character limit. Common `*`/`?` wildcards, brace alternatives,
 character classes (such as `[0-9]`) and leading negation are supported.
