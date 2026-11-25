@@ -3,16 +3,17 @@ import { RE2JS } from 're2js';
 import { Worker } from 'node:worker_threads';
 import micromatch from 'micromatch';
 
-class RegexInputError extends BadRequest {
-  readonly extensions = { code: 'BAD_REQUEST' };
-}
+const regexInputError = (message: string) =>
+  Object.assign(new BadRequest(message), {
+    extensions: { code: 'BAD_REQUEST' },
+  });
 
 export function compileRE2(pattern: string, flags = 0): RE2JS {
-  if (pattern.length > 200) throw new RegexInputError('Regex is too long');
+  if (pattern.length > 200) throw regexInputError('Regex is too long');
   try {
     return RE2JS.compile(pattern, flags);
   } catch {
-    throw new RegexInputError('Regex is invalid or unsupported');
+    throw regexInputError('Regex is invalid or unsupported');
   }
 }
 
@@ -128,7 +129,7 @@ export type NetworkRegex = {
 };
 
 export function compileRegex(pattern: string): NetworkRegex {
-  if (pattern.length > 200) throw new RegexInputError('Regex is too long');
+  if (pattern.length > 200) throw regexInputError('Regex is too long');
   try {
     return RE2JS.compile(pattern);
   } catch {
@@ -136,7 +137,7 @@ export function compileRegex(pattern: string): NetworkRegex {
     try {
       new RegExp(pattern);
     } catch {
-      throw new RegexInputError('Regex is invalid or unsupported');
+      throw regexInputError('Regex is invalid or unsupported');
     }
   }
   const results = new Map<string, boolean>();
