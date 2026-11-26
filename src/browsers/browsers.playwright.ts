@@ -21,6 +21,8 @@ import { browserlessChromiumDisabledFeatures } from '../config.js';
 import { makeDefaultScreenInfoArg } from '../utils.js';
 import path from 'path';
 
+import { applySandboxPolicy } from './sandbox.js';
+
 enum PlaywrightBrowserTypes {
   chromium = 'chromium',
   firefox = 'firefox',
@@ -225,10 +227,17 @@ class BasePlaywright extends EventEmitter {
     const versionedPw = await this.config.loadPwVersion(pwVersion!);
     const opts = this.makeLaunchOptions(options, pwVersion);
     const executablePath = await this.resolveExecutablePath(pwVersion!);
+    const sandbox =
+      this.playwrightBrowserType === PlaywrightBrowserTypes.chromium &&
+      this.config.getChromeSandbox();
     const browser = await versionedPw[this.playwrightBrowserType].launchServer({
       ...opts,
+      ...(sandbox ? { chromiumSandbox: true } : {}),
       executablePath,
-      args: opts.args.filter((_) => !!_),
+      args: applySandboxPolicy(
+        opts.args.filter((_) => !!_),
+        sandbox,
+      ),
     });
     const browserWSEndpoint = browser.wsEndpoint();
 

@@ -1548,6 +1548,55 @@ describe('BasePlaywright --disable-features merging (issue #5450)', () => {
       ).timeout(60000);
     }
 
+    for (const { setting, requested, sandboxed } of [
+      { setting: 'true', requested: false, sandboxed: true },
+      { setting: 'false', requested: true, sandboxed: true },
+      { setting: 'false', requested: undefined, sandboxed: false },
+    ]) {
+      itPosix(
+        `honors Chrome sandbox policy (${setting}, caller ${requested})`,
+        async () => {
+          const original = process.env.CHROME_SANDBOX;
+          process.env.CHROME_SANDBOX = setting;
+          const cfg = new Config();
+          if (original === undefined) delete process.env.CHROME_SANDBOX;
+          else process.env.CHROME_SANDBOX = original;
+          cfg.setPwVersions(playwrightVersions);
+
+          const argv = await captureLaunchArgv((executablePath) => {
+            class CapturedChromium extends ChromiumPlaywright {
+              protected async resolveExecutablePath(): Promise<string> {
+                return executablePath;
+              }
+            }
+            return new CapturedChromium({
+              config: cfg,
+              logger: new Logger('test'),
+              userDataDir: null,
+            }).launch({
+              options: {
+                chromiumSandbox: requested,
+                args:
+                  setting === 'true'
+                    ? [
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--no-zygote=1',
+                        '--window-size=800,600',
+                      ]
+                    : ['--window-size=800,600'],
+              },
+              pwVersion: currentVersion,
+            });
+          });
+          expect(argv).to.include('--window-size=800,600');
+          expect(argv.includes('--no-sandbox')).to.equal(!sandboxed);
+          expect(argv).not.to.include('--disable-setuid-sandbox');
+          expect(argv).not.to.include('--no-zygote=1');
+        },
+      );
+    }
+
     // End-to-end: browserless's merged flag is the one Chromium keeps, and it
     // carries both Playwright's list and browserless's additions.
     for (const [version] of Object.entries(playwrightVersions)) {
