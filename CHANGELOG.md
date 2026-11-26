@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.64.4](https://github.com/browserless/browserless/compare/v2.64.3...v2.64.4) (2026-11-25)
+
+
+### Bug Fixes
+
+* restore JavaScript regex compatibility for BrowserQL network filters ([#5718](https://github.com/browserless/browserless/issues/5718)) ([5a12f6d](https://github.com/browserless/browserless/commit/5a12f6d973730ea8f420392aa93b73e26604d33d))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.18.1`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.88` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `158.0.4370.33` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.64.3](https://github.com/browserless/browserless/compare/v2.64.2...v2.64.3) (2026-11-23)
 
 

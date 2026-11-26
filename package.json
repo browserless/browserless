@@ -1,6 +1,6 @@
 {
   "name": "@browserless.io/browserless",
-  "version": "2.64.3",
+  "version": "2.64.4",
   "license": "SSPL",
   "description": "The browserless platform",
   "author": "browserless.io",
@@ -105,7 +105,7 @@
     "eslint": "^10.15.0",
     "gunzip-maybe": "^1.4.2",
     "husky": "^9.1.7",
-    "lint-staged": "^17.6.1",
+    "lint-staged": "^17.6.2",
     "marked": "^18.2.1",
     "mocha": "^12.0.3",
     "prettier": "3.10.1",

@@ -849,6 +849,10 @@ export const makeExternalURL = (
 };
 
 export class BadRequest extends Error {
+  get extensions() {
+    return { code: 'BAD_REQUEST' };
+  }
+
   constructor(message: string) {
     super(message);
     this.name = 'BadRequest';
