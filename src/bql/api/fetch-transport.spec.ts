@@ -262,3 +262,95 @@ it('delegated dispatch cannot publish an API response after close during an awai
     await api.close();
   }
 });
+
+const deferred = <T = void>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+class DeferredOwnerAPI extends BorrowingAPI {
+  enable = deferred();
+  binds = 0;
+  constructor() {
+    super();
+    const send = this.owner.send.bind(this.owner);
+    this.owner.send = async (method: string, params: any = {}) => {
+      if (method === 'Network.enable') await this.enable.promise;
+      return send(method, params);
+    };
+  }
+  configure(cdp: Connection = this.mainCDP) {
+    return (BQLBrowserAPI.prototype as any).configureFetch.call(
+      this,
+      cdp,
+      async (handlers: Handlers, auth: boolean) => {
+        this.binds++;
+        this.binding = { handlers, auth };
+      },
+      this.owner as unknown as Connection,
+    );
+  }
+}
+
+it('a second configuration waits for the pending owner observation and shares its failure', async () => {
+  const api = new DeferredOwnerAPI();
+  try {
+    const first = api.configure();
+    const second = api.configure();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(api.binds, 0, 'no bind before Network.enable settles');
+    api.enable.reject(new Error('enable failed'));
+    await assert.rejects(first, /enable failed/);
+    await assert.rejects(second, /enable failed/);
+    assert.equal(api.binds, 0);
+  } finally {
+    await api.close();
+  }
+});
+
+it('a target retired during owner observation is not bound', async () => {
+  const api = new DeferredOwnerAPI();
+  try {
+    const configured = api.configure();
+    await new Promise((resolve) => setImmediate(resolve));
+    (api as any).retireTarget(api.mainCDP);
+    api.enable.resolve();
+    await assert.rejects(configured, /Target is no longer attached/);
+    assert.equal(api.binds, 0);
+  } finally {
+    await api.close();
+  }
+});
+
+it('the handler loop stops at the next handler once the API closes', async () => {
+  const api = new BorrowingAPI();
+  const gate = deferred();
+  const entered = deferred();
+  let secondCalled = false;
+  try {
+    await api.setup();
+    (api as any).handlers.push(
+      async () => {
+        entered.resolve();
+        await gate.promise;
+      },
+      async () => {
+        secondCalled = true;
+      },
+    );
+    const pending = api.pause('https://allowed.example/slow', 'slow');
+    await entered.promise;
+    await api.close();
+    gate.resolve();
+    assert.equal(await pending, false);
+    assert.equal(secondCalled, false);
+  } finally {
+    gate.resolve();
+    await api.close();
+  }
+});

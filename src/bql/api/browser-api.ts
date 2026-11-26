@@ -584,6 +584,7 @@ export class BQLBrowserAPI {
   protected async setupTarget(cdp: Connection, kind: string): Promise<void> {
     if (this.clients.has(cdp)) return;
     this.clients.add(cdp);
+    this.retiredTargets.delete(cdp);
     const cleanup: Array<() => void> = [];
     this.targetCleanup.set(cdp, cleanup);
     this.observeDisconnect(cdp, cleanup);
@@ -905,11 +906,21 @@ export class BQLBrowserAPI {
   }
 
   private fetchConnections = new WeakSet<Connection>();
-  private authOwners = new WeakSet<Connection>();
+  private authOwners = new WeakMap<Connection, Promise<void>>();
+  private retiredTargets = new WeakSet<Connection>();
 
-  private async observeAuthOwner(owner: Connection): Promise<void> {
-    if (this.authOwners.has(owner)) return;
-    this.authOwners.add(owner);
+  private observeAuthOwner(owner: Connection): Promise<void> {
+    // Later callers share the first observation, so none arms Fetch before
+    // Network.enable has settled for this owner.
+    let observed = this.authOwners.get(owner);
+    if (!observed) {
+      observed = this.startAuthObservation(owner);
+      this.authOwners.set(owner, observed);
+    }
+    return observed;
+  }
+
+  private async startAuthObservation(owner: Connection): Promise<void> {
     const completed = ({ requestId }: { requestId: string }) => {
       const challenges = this.authChallenges.get(owner);
       for (const [id, challenge] of challenges ?? []) {
@@ -1027,6 +1038,9 @@ export class BQLBrowserAPI {
     if (bind) {
       await this.observeAuthOwner(eventOwner);
       if (this.closed) throw new Error('Browser is no longer running');
+      // A target retired while the owner was observed must not be bound.
+      if (this.retiredTargets.has(cdp))
+        throw new Error('Target is no longer attached');
       await bind(handlers, !!this.httpAuth);
       return;
     }
@@ -1132,7 +1146,7 @@ export class BQLBrowserAPI {
           };
           this.logger.error?.('Request handler failed');
         }
-        if (decision) break;
+        if (decision || this.closed) break;
       }
     // External transports may survive API close while a hook is still awaiting.
     // Let their owner resume the request without applying stale API state.
@@ -3733,6 +3747,7 @@ export class BQLBrowserAPI {
   }
 
   private retireTarget(cdp: Connection) {
+    this.retiredTargets.add(cdp);
     this.targetCleanup.get(cdp)?.forEach((cleanup) => cleanup());
     this.targetCleanup.delete(cdp);
     this.clients.delete(cdp);
