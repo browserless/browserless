@@ -3345,6 +3345,13 @@ export class BQLBrowserAPI {
         () => timedOut,
       );
     if (this.deniedResponseBodies.has(id)) return null;
+    // The denial list is bounded, so with a body policy in place an untracked
+    // ID may be a denial that aged out. Only tracked, allowed IDs may be read.
+    if (
+      !origin &&
+      this.allowResponseBody !== BQLBrowserAPI.prototype.allowResponseBody
+    )
+      return null;
     try {
       await checkPolicy();
     } catch (error) {

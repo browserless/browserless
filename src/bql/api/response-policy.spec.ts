@@ -92,6 +92,22 @@ it('a denied response keeps metadata, ExtraInfo status and skips every body read
   await api.close();
 });
 
+it('a denial pushed out of the bounded list stays withheld, before and after reset', async () => {
+  const api = new PolicyAPI();
+  api.client.handler = () => ({ body: 'secret', base64Encoded: false });
+  await api.setup();
+  for (let i = 0; i <= 1000; i++) {
+    const url = `${DENIED}/${i}`;
+    api.denied.add(url);
+    api.respond(`d${i}`, url);
+  }
+  assert.equal(await api.getResponseBody('d0', 100), null);
+  api.reset();
+  assert.equal(await api.getResponseBody('d0', 100), null);
+  assert.equal(api.bodyReads(), 0, 'no CDP body read for an aged-out denial');
+  await api.close();
+});
+
 it('a failing policy withholds the body', async () => {
   const api = new PolicyAPI();
   api.throws = true;
@@ -122,23 +138,16 @@ it('a denial survives a navigation reset until an allowed response reuses the ID
   await api.close();
 });
 
-it('an in-flight read cannot return bytes after a denial and reset', async () => {
+it('with a policy, an untracked ID is never read from CDP, before or after a denial and reset', async () => {
   const api = new PolicyAPI();
   api.denied.add(DENIED);
-  let release!: (value: unknown) => void;
-  api.client.handler = (method) =>
-    method === 'Network.getResponseBody'
-      ? new Promise((resolve) => (release = resolve))
-      : {};
+  api.client.handler = () => ({ body: 'secret', base64Encoded: false });
   await api.setup();
-  // No origin yet, so the read falls back to a live CDP read.
-  const read = api.getResponseBody('r', 1000);
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(api.bodyReads(), 1);
+  assert.equal(await api.getResponseBody('r', 1000), null);
   api.respond('r', DENIED);
   api.reset();
-  release({ body: 'secret', base64Encoded: false });
-  assert.equal(await read, null);
+  assert.equal(await api.getResponseBody('r', 1000), null);
+  assert.equal(api.bodyReads(), 0);
   await api.close();
 });
 
