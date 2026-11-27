@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { strict as assert } from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
-import { buildSchema, execute, parse } from 'graphql';
+import { buildSchema, execute, GraphQLError, parse } from 'graphql';
 import type { WebSocket } from 'ws';
 import Sinon from 'sinon';
 import {
@@ -102,6 +102,205 @@ describe('BrowserQL WebSocket transport', () => {
   afterEach(async () => {
     socket.close();
     await done;
+  });
+
+  it('admits the exact formatted subscription frame plus buffer and rejects one byte more', async () => {
+    const id = '€😀';
+    const value = { data: { event: 'résumé' } };
+    const formatted = { ...value, extensions: { trace: 'request-€' } };
+    const frame = { id, type: 'next', payload: formatted };
+    const bytes = Buffer.byteLength(JSON.stringify(frame));
+    for (const extra of [0, 1]) {
+      let returned = false;
+      service.subscribe = async () =>
+        (async function* () {
+          try {
+            yield value;
+          } finally {
+            returned = true;
+          }
+        })();
+      socket = new Socket();
+      if (extra) {
+        // Keep the handshake pending: cleanup cannot rely on a close event.
+        Sinon.stub(socket, 'close')
+          .callThrough()
+          .onFirstCall()
+          .callsFake((code = 1000) => {
+            socket.code = code;
+            socket.readyState = 2;
+          });
+      }
+      start({
+        maxSubscriptionBufferedBytes: bytes + 200,
+        formatResponse: (result) => ({
+          ...result,
+          extensions: formatted.extensions,
+        }),
+      });
+      socket.receive({ type: 'connection_init' });
+      socket.bufferedAmount = 200 + extra;
+      subscribe(id, 'subscription { event }');
+      await setImmediate();
+      if (extra) {
+        assert.equal(socket.code, 1013);
+        assert.equal(socket.readyState, 2);
+        assert.equal(socket.frames.length, 1);
+        assert.equal(socket.fragments.length, 0);
+      } else {
+        assert.deepEqual(socket.frames.slice(1), [
+          frame,
+          { id, type: 'complete' },
+        ]);
+        assert.equal(socket.code, undefined);
+      }
+      assert.equal(returned, true);
+      socket.close();
+      await done;
+    }
+  });
+
+  it('checks subscription error and complete frames but leaves query/control/legacy output unchanged', async () => {
+    for (const query of ['subscription { event }', '{ run }']) {
+      socket = new Socket();
+      service.subscribe = async () => ({
+        errors: [new GraphQLError('large error')],
+      });
+      start({ maxSubscriptionBufferedBytes: 1 });
+      socket.receive({ type: 'connection_init' });
+      socket.receive({ type: 'ping', payload: { large: 'control' } });
+      subscribe('id', query);
+      await setImmediate();
+      assert.equal(
+        socket.code,
+        query.startsWith('subscription') ? 1013 : undefined,
+      );
+      assert.equal(socket.frames[1].type, 'pong');
+      if (!query.startsWith('subscription'))
+        assert.equal(socket.frames[2].type, 'next');
+      socket.close();
+      await done;
+    }
+    socket = new Socket();
+    service.subscribe = async () => (async function* () {})();
+    start({ maxSubscriptionBufferedBytes: 1 });
+    socket.receive({ type: 'connection_init' });
+    subscribe('complete', 'subscription { event }');
+    await setImmediate();
+    assert.equal(socket.code, 1013);
+    assert.equal(socket.frames.length, 1);
+    socket.close();
+    await done;
+    socket = new Socket();
+    socket.protocol = '';
+    start({ maxSubscriptionBufferedBytes: 1 });
+    socket.receive({ query: '{ run }' });
+    await setImmediate();
+    assert.deepEqual(socket.frames, [{ data: { run: true } }]);
+    assert.equal(socket.code, undefined);
+  });
+
+  it('rejects immediately instead of draining when subscription admission is configured', async () => {
+    service.subscribe = async () =>
+      (async function* () {
+        yield { data: { event: true } };
+      })();
+    start({ maxSubscriptionBufferedBytes: 25 * 1024 * 1024 });
+    socket.receive({ type: 'connection_init' });
+    socket.bufferedAmount = 26 * 1024 * 1024;
+    subscribe('slow', 'subscription { event }');
+    await setImmediate();
+    assert.equal(socket.code, 1013);
+    assert.equal(socket.frames.length, 1);
+  });
+
+  it('counts the serialized snapshot once and rejects before any oversized fragment', async () => {
+    let calls = 0;
+    const value = {
+      toJSON() {
+        calls++;
+        return 'x'.repeat(128 * 1024);
+      },
+    };
+    service.subscribe = async () =>
+      (async function* () {
+        yield { data: { event: value } };
+      })();
+    start({ maxSubscriptionBufferedBytes: 100_000 });
+    socket.receive({ type: 'connection_init' });
+    subscribe('large', 'subscription { event }');
+    await setImmediate();
+    assert.equal(calls, 1);
+    assert.equal(socket.code, 1013);
+    assert.equal(socket.sizes.length, 1);
+    assert.equal(socket.fragments.length, 0);
+  });
+
+  it('checks buffer at queued subscription send time and ignores canceled queued output', async () => {
+    for (const canceled of [false, true]) {
+      socket = new Socket();
+      let returned = false;
+      service.subscribe = async () =>
+        (async function* () {
+          try {
+            yield { data: { event: true } };
+          } finally {
+            returned = true;
+          }
+        })();
+      const send = socket.send.bind(socket);
+      let resume: (() => void) | undefined;
+      Sinon.stub(socket, 'send').callsFake((data, options, callback) => {
+        send(data, options);
+        if (options?.fin === false && !resume) resume = () => callback?.();
+        else callback?.();
+      });
+      start({ maxSubscriptionBufferedBytes: 256 });
+      socket.receive({ type: 'connection_init' });
+      socket.receive({ type: 'ping', payload: { value: 'x'.repeat(100_000) } });
+      await setImmediate();
+      assert.ok(resume);
+      subscribe('stream', 'subscription { event }');
+      await setImmediate();
+      // It fitted when produced, but must be checked after the blocked write.
+      socket.bufferedAmount = 256;
+      if (canceled) socket.receive({ type: 'complete', id: 'stream' });
+      resume();
+      await setImmediate();
+      assert.equal(socket.code, canceled ? undefined : 1013);
+      assert.equal(
+        socket.frames.some((frame) => frame.id === 'stream'),
+        false,
+      );
+      assert.equal(returned, true);
+      socket.close();
+      await done;
+    }
+  });
+
+  it('writes an admitted snapshot without revisiting toJSON', async () => {
+    let calls = 0;
+    service.subscribe = async () =>
+      (async function* () {
+        yield {
+          data: {
+            event: {
+              toJSON() {
+                return ++calls;
+              },
+            },
+          },
+        };
+      })();
+    start({ maxSubscriptionBufferedBytes: 256 });
+    socket.receive({ type: 'connection_init' });
+    subscribe('once', 'subscription { event }');
+    await setImmediate();
+    assert.equal(calls, 1);
+    assert.deepEqual(socket.frames.slice(1), [
+      { id: 'once', type: 'next', payload: { data: { event: 1 } } },
+      { id: 'once', type: 'complete' },
+    ]);
   });
 
   it('sends large results in bounded fragments as one complete message', async () => {
