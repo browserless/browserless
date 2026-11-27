@@ -13,6 +13,20 @@
 
 * bump lint-staged from 17.6.1 to 17.6.2 in the minor-and-patch group ([#5720](https://github.com/browserless/browserless/issues/5720)) ([92b6e31](https://github.com/browserless/browserless/commit/92b6e315174162d84b344f070b029818dc07019c))
 
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.18.1`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.88` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `158.0.4370.45` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.64.4](https://github.com/browserless/browserless/compare/v2.64.3...v2.64.4) (2026-11-25)
 
 
