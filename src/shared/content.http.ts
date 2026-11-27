@@ -35,6 +35,7 @@ import {
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
+import { validateJavaScriptOptions } from './javascript-options.js';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -99,6 +100,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
       throw new BadRequest(`Couldn't parse JSON body`);
     }
 
+    validateJavaScriptOptions(req.body as BodySchema);
     res.setHeader('Content-Type', contentType);
 
     const {
@@ -169,7 +171,7 @@ export default class ChromiumContentPostRoute extends BrowserHTTPRoute {
         await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
       }
 
-      if (setJavaScriptEnabled) {
+      if (typeof setJavaScriptEnabled === 'boolean') {
         await page.setJavaScriptEnabled(setJavaScriptEnabled);
       }
 

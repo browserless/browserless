@@ -35,6 +35,7 @@ import {
 import { ElementHandle, Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
 import Stream from 'stream';
+import { validateJavaScriptOptions } from './javascript-options.js';
 
 export interface QuerySchema extends SystemQueryParameters {
   launch?: CDPLaunchOptions | string;
@@ -106,6 +107,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
       throw new BadRequest(`Couldn't parse JSON body`);
     }
 
+    validateJavaScriptOptions(req.body as BodySchema);
     res.setHeader('Content-Type', contentType);
 
     const {
@@ -183,7 +185,7 @@ export default class ScreenshotPost extends BrowserHTTPRoute {
         await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
       }
 
-      if (setJavaScriptEnabled) {
+      if (typeof setJavaScriptEnabled === 'boolean') {
         await page.setJavaScriptEnabled(setJavaScriptEnabled);
       }
 
