@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.65.0](https://github.com/browserless/browserless/compare/v2.64.4...v2.65.0) (2026-11-27)
+
+
+### Features
+
+* **bql:** add a response body policy hook ([#5717](https://github.com/browserless/browserless/issues/5717)) ([6f7ee1b](https://github.com/browserless/browserless/commit/6f7ee1bb17096d2c181ff5d166c2c5892c9eb495))
+* expose BrowserQL Fetch transport binding hook ([#5714](https://github.com/browserless/browserless/issues/5714)) ([1fa83ff](https://github.com/browserless/browserless/commit/1fa83ffccc3a76d7c945a30792688c949b219555))
+
+
+### Build System & Runtime
+
+* bump lint-staged from 17.6.1 to 17.6.2 in the minor-and-patch group ([#5720](https://github.com/browserless/browserless/issues/5720)) ([92b6e31](https://github.com/browserless/browserless/commit/92b6e315174162d84b344f070b029818dc07019c))
+
+<!-- browser-versions:start -->
+
+### Supported Libraries & Browsers
+
+- puppeteer-core: `25.18.1`
+- playwright-core: `1.65.1`, `1.64.1`, `1.63.0`, `1.62.1`, and `1.61.1`.
+- Chromium: `159.0.8154.6`
+- Chrome: `158.0.8127.88` (amd64 only)
+- Firefox: `159.0`
+- Webkit: `27.2`
+- Edge: `158.0.4370.45` (amd64 only)
+
+<!-- browser-versions:end -->
+
 ## [2.64.4](https://github.com/browserless/browserless/compare/v2.64.3...v2.64.4) (2026-11-25)
 
 
