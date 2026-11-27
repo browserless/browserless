@@ -24,12 +24,17 @@ describe('rendering JavaScript options', function () {
     fetch(`http://localhost:31337${path}?token=browserless`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...(path.endsWith('scrape') ? { elements: [{ selector: 'p' }] } : {}),
+        ...body,
+      }),
     });
 
   for (const path of browsers.flatMap((browser) => [
-    ...['content', 'screenshot', 'pdf'].map((route) => `/${browser}/${route}`),
-    ...(browser === 'chromium' ? ['/content', '/pdf'] : []),
+    ...['content', 'screenshot', 'pdf', 'scrape'].map(
+      (route) => `/${browser}/${route}`,
+    ),
+    ...(browser === 'chromium' ? ['/content', '/pdf', '/scrape'] : []),
   ])) {
     for (const input of ['html', 'url']) {
       for (const setting of [false, true, undefined]) {
@@ -41,7 +46,10 @@ describe('rendering JavaScript options', function () {
                 ? html
                 : `data:text/html,${encodeURIComponent(html)}`,
             setJavaScriptEnabled: setting,
-            waitForSelector: { selector, timeout: 1000 },
+            waitForSelector: {
+              selector: path.endsWith('scrape') ? 'p' : selector,
+              timeout: 1000,
+            },
             addScriptTag:
               setting === false
                 ? [
@@ -72,6 +80,12 @@ describe('rendering JavaScript options', function () {
             );
             if (setting === false)
               expect(bytes.toString()).to.include('STATIC_METADATA');
+          } else if (path.endsWith('scrape')) {
+            const json = JSON.parse(bytes.toString());
+            expect(json.data[0].results[0].attributes).to.deep.include({
+              name: 'id',
+              value: selector.slice(1),
+            });
           } else if (path.endsWith('pdf')) {
             expect(bytes.subarray(0, 5).toString()).to.equal('%PDF-');
           } else {
@@ -84,6 +98,24 @@ describe('rendering JavaScript options', function () {
     }
 
     for (const bestAttempt of [false, true]) {
+      if (path.endsWith('scrape')) {
+        it(`${path} handles missing disabled-script selectors, bestAttempt=${bestAttempt}`, async () => {
+          const res = await post(path, {
+            html,
+            setJavaScriptEnabled: false,
+            bestAttempt,
+            elements: [{ selector: '#missing', timeout: 0 }],
+          });
+          const text = await res.text();
+          expect(res.status, text).to.equal(bestAttempt ? 200 : 408);
+          if (bestAttempt) {
+            expect(JSON.parse(text).data[0].results).to.deep.equal([]);
+          } else {
+            expect(text).to.include('#missing');
+          }
+        });
+      }
+
       for (const option of path.endsWith('screenshot')
         ? ['scrollPage', 'waitForEvent', 'waitForFunction', 'addScriptTag']
         : ['waitForEvent', 'waitForFunction', 'addScriptTag']) {

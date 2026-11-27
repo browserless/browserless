@@ -40,6 +40,7 @@ import {
 } from '@browserless.io/browserless';
 import { Cookie, Page } from 'puppeteer-core';
 import { ServerResponse } from 'http';
+import { validateJavaScriptOptions } from './javascript-options.js';
 
 export interface BodySchema {
   addScriptTag?: Array<Parameters<Page['addScriptTag']>[0]>;
@@ -160,45 +161,7 @@ export interface ResponseSchema {
   } | null;
 }
 
-const scrape = async (
-  elements: ScrapeElementSelector[],
-  bestAttempt = false,
-) => {
-  const wait = (selector: string, timeout = 30000) => {
-    return new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        clearTimeout(timeoutId);
-        clearInterval(intervalId);
-        reject(new Error(`Timed out waiting for selector "${selector}"`));
-      }, timeout);
-      const intervalId = setInterval(() => {
-        if (document.querySelector(selector)) {
-          clearTimeout(timeoutId);
-          clearInterval(intervalId);
-          return resolve();
-        }
-      }, 100);
-    });
-  };
-
-  if (bestAttempt) {
-    const results = await Promise.allSettled(
-      elements.map(({ selector, timeout }) => wait(selector, timeout)),
-    );
-
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.warn(
-          `Selector "${elements[index].selector}" failed: ${result.reason.message}`,
-        );
-      }
-    });
-  } else {
-    await Promise.all(
-      elements.map(({ selector, timeout }) => wait(selector, timeout)),
-    );
-  }
-
+const scrape = (elements: ScrapeElementSelector[]) => {
   return elements.map(({ selector }) => {
     const $els = [...document.querySelectorAll(selector)] as HTMLElement[];
     return {
@@ -256,6 +219,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
       throw new BadRequest(`Couldn't parse JSON body`);
     }
 
+    validateJavaScriptOptions(req.body as BodySchema);
     res.setHeader('Content-Type', contentType);
 
     const {
@@ -361,7 +325,7 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
         await page.setExtraHTTPHeaders(setExtraHTTPHeaders);
       }
 
-      if (setJavaScriptEnabled) {
+      if (typeof setJavaScriptEnabled === 'boolean') {
         await page.setJavaScriptEnabled(setJavaScriptEnabled);
       }
 
@@ -454,14 +418,31 @@ export default class ChromiumScrapePostRoute extends BrowserHTTPRoute {
         }
       }
 
-      const data = await page
-        .evaluate(scrape, elements, bestAttempt)
-        .catch((e) => {
-          if (e.message.includes('Timed out')) {
-            throw new Timeout(e);
+      // Scrape treats zero as an immediate deadline, not Puppeteer's unlimited wait.
+      const selectors = elements.map(({ selector, timeout = 30000 }) =>
+        page
+          .waitForSelector(selector, { timeout: Math.max(1, timeout) })
+          .catch((error) => {
+            if (error.name === 'TimeoutError') {
+              throw new Timeout(`Timed out waiting for selector "${selector}"`);
+            }
+            throw error;
+          }),
+      );
+      if (bestAttempt) {
+        const results = await Promise.allSettled(selectors);
+        for (const [index, result] of results.entries()) {
+          if (result.status === 'rejected') {
+            await page.evaluate(
+              (message) => console.warn(message),
+              `Selector "${elements[index].selector}" failed: ${result.reason.message}`,
+            );
           }
-          throw e;
-        });
+        }
+      } else {
+        await Promise.all(selectors);
+      }
+      const data = await page.evaluate(scrape, elements);
 
       const [debugHTML, screenshot, pageCookies] = await Promise.all([
         debugOpts?.html ? (page.content() as Promise<string>) : null,
