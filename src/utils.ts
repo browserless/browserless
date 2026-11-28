@@ -45,15 +45,19 @@ const isHTTP = (
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const getAuthHeaderToken = (header: string) => {
-  if (header.startsWith('Basic')) {
-    const username = header.split(/\s+/).pop() || '';
-    const token = Buffer.from(username, 'base64').toString().replace(':', '');
+  // The auth scheme is case-insensitive (RFC 9110, section 11.1), and the
+  // credentials follow it after one or more spaces or tabs.
+  const [scheme = '', credentials = ''] = header.trim().split(/\s+/);
+
+  if (scheme.toLowerCase() === 'basic') {
+    const token = Buffer.from(credentials, 'base64')
+      .toString()
+      .replace(':', '');
     return token;
   }
 
-  if (header.startsWith('Bearer')) {
-    const [, token] = header.split(' ');
-    return token;
+  if (scheme.toLowerCase() === 'bearer') {
+    return credentials;
   }
 
   return null;
