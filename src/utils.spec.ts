@@ -12,6 +12,7 @@ import {
   generateScratchDir,
   getFinalPathSegment,
   getPageContent,
+  getTokenFromRequest,
   isSocketProxied,
   makeDefaultScreenInfoArg,
   markSocketAsProxied,
@@ -19,6 +20,7 @@ import {
   writeResponse,
 } from '@browserless.io/browserless';
 import { Page } from 'puppeteer-core';
+import type { Request } from '@browserless.io/browserless';
 
 describe('Utils', () => {
   describe('#makeDefaultScreenInfoArg', () => {
@@ -326,6 +328,46 @@ describe('Utils', () => {
         }),
       ).to.deep.equal({});
     });
+  });
+});
+
+describe('#getTokenFromRequest', () => {
+  const withAuth = (authorization: string) =>
+    ({
+      headers: { authorization },
+      parsed: new URL('http://localhost/'),
+    }) as unknown as Request;
+  const basic = (credentials: string) =>
+    Buffer.from(credentials).toString('base64');
+
+  it('reads a Bearer token whatever the case of the scheme', () => {
+    for (const scheme of ['Bearer', 'bearer', 'BEARER']) {
+      expect(getTokenFromRequest(withAuth(`${scheme} abc-123`))).to.equal(
+        'abc-123',
+      );
+    }
+  });
+
+  it('reads a Basic token whatever the case of the scheme', () => {
+    for (const scheme of ['Basic', 'basic', 'BASIC']) {
+      expect(
+        getTokenFromRequest(withAuth(`${scheme} ${basic('abc-123:')}`)),
+      ).to.equal('abc-123');
+    }
+  });
+
+  it('accepts more than one space or a tab after the scheme', () => {
+    expect(getTokenFromRequest(withAuth('Bearer  abc-123'))).to.equal(
+      'abc-123',
+    );
+    expect(getTokenFromRequest(withAuth('Bearer\tabc-123'))).to.equal(
+      'abc-123',
+    );
+  });
+
+  it('ignores other schemes and schemes that only start with Bearer', () => {
+    expect(getTokenFromRequest(withAuth('Digest abc-123'))).to.equal(null);
+    expect(getTokenFromRequest(withAuth('BearerToken abc-123'))).to.equal(null);
   });
 });
 
